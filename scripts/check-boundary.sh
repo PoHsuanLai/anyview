@@ -12,14 +12,19 @@ cd "$(dirname "$0")/.."
 
 # anyview-core is the pure vocabulary: no UI, no runtime, no bus, no GPU, no decoder, no media
 # player, no highlighter. `serde_json` is a dev-dependency (round-trip tests) and never a normal
-# one. The crates above it (anyview-peek and the back ends) are added to this table when they
-# exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does blocking file
-# I/O and nothing else (the launcher links it): no runtime, no UI, no decoder. anyview-ui is the viewer's
-# pure machines: no bus, no runtime, no GPU, no decoder, no player.
+# one. The crates above it (anyview-peek and the back ends not yet written) are added to this table
+# when they exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does
+# blocking file I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
+# anyview-ui is the viewer's pure machines: no bus, no runtime, no GPU, no decoder, no player.
+# anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
+# GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
+# highlighter or Markdown parser, the text crate no image decoder).
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
+  "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
+  "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
 )
 fail=0
 
@@ -55,6 +60,8 @@ EDGES=(
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core ds-core"
+  "anyview-image: anyview-core ds-core"
+  "anyview-text: anyview-core ds-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
