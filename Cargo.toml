@@ -157,23 +157,3 @@ missing_debug_implementations = "warn"
 unwrap_used = "deny"
 wildcard_enum_match_arm = "deny"
 match_wildcard_for_single_variants = "deny"
-
-# Local development: one blitz-kit checkout (a sibling of this repo) for every workspace that
-# builds it. A dependency's [patch] is ignored by its consumers, so outside consumers of quire get
-# the git rev above.
-[patch."https://github.com/PoHsuanLai/blitz-kit"]
-blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
-
-# vello and anyrender come from our forks (github.com/PoHsuanLai/vello and /anyrender, branch
-# quire-filters), the same revs as quire, shell-host and sill.
-[patch.crates-io]
-vello_common = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
-vello_cpu = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
-vello_hybrid = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
-vello_sparse_shaders = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
-glifo = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
-anyrender = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
-anyrender_vello_cpu = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
-anyrender_vello_hybrid = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
-wgpu_context = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
-pixels_window_renderer = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }

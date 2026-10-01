@@ -23,6 +23,12 @@ pub enum MediaContainer {
     MpegTs,
     /// Ogg video.
     Ogv,
+    /// MPEG-1 and MPEG-2 program stream video.
+    Mpeg,
+    /// Windows Media video.
+    Wmv,
+    /// Flash video.
+    Flv,
     /// MP3 audio.
     Mp3,
     /// AAC audio.
@@ -52,6 +58,9 @@ impl Family for MediaContainer {
             MediaContainer::Avi => &["avi"],
             MediaContainer::MpegTs => &["ts", "mts", "m2ts"],
             MediaContainer::Ogv => &["ogv"],
+            MediaContainer::Mpeg => &["mpg", "mpeg"],
+            MediaContainer::Wmv => &["wmv"],
+            MediaContainer::Flv => &["flv"],
             MediaContainer::Mp3 => &["mp3"],
             MediaContainer::Aac => &["aac"],
             MediaContainer::M4a => &["m4a"],
@@ -73,6 +82,9 @@ impl Family for MediaContainer {
             MediaContainer::Avi => "video/x-msvideo",
             MediaContainer::MpegTs => "video/mp2t",
             MediaContainer::Ogv => "video/ogg",
+            MediaContainer::Mpeg => "video/mpeg",
+            MediaContainer::Wmv => "video/x-ms-wmv",
+            MediaContainer::Flv => "video/x-flv",
             MediaContainer::Mp3 => "audio/mpeg",
             MediaContainer::Aac => "audio/aac",
             MediaContainer::M4a => "audio/mp4",
@@ -96,7 +108,10 @@ impl MediaContainer {
             | MediaContainer::WebM
             | MediaContainer::Avi
             | MediaContainer::MpegTs
-            | MediaContainer::Ogv => FormatKind::Video,
+            | MediaContainer::Ogv
+            | MediaContainer::Mpeg
+            | MediaContainer::Wmv
+            | MediaContainer::Flv => FormatKind::Video,
             MediaContainer::Mp3
             | MediaContainer::Aac
             | MediaContainer::M4a
@@ -132,11 +147,12 @@ mod tests {
             assert_eq!(container.kind(), *kind, "{container:?}");
         }
         for container in MediaContainer::ALL {
-            let prefix = match container.kind() {
-                FormatKind::Video => "video/",
-                _ => "audio/",
+            let want = if container.kind() == FormatKind::Video {
+                "video/"
+            } else {
+                "audio/"
             };
-            assert!(container.mime().starts_with(prefix), "{container:?}");
+            assert!(container.mime().starts_with(want), "{container:?}");
         }
     }
 }

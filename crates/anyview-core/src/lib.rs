@@ -8,3 +8,4 @@ pub mod source;
 pub mod units;
 
 pub use error::CoreError;
+pub mod sniff;

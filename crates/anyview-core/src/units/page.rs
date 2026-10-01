@@ -198,8 +198,9 @@ mod tests {
 
     #[test]
     fn a_range_is_cut_to_the_document() {
-        const CASES: &[(&str, u32, u32, u32, Option<(u32, u32)>)] = &[
-            // name, first, last, document pages, result
+        // name, first, last, document pages, result
+        type Row = (&'static str, u32, u32, u32, Option<(u32, u32)>);
+        const CASES: &[Row] = &[
             ("fits", 1, 3, 10, Some((1, 3))),
             ("tail cut", 8, 20, 10, Some((8, 9))),
             ("starts past the end", 10, 12, 10, None),
