@@ -26,6 +26,14 @@ pub enum FactLabel {
     Codec,
     /// The camera that took a photo.
     Camera,
+    /// The lens a photo was taken with.
+    Lens,
+    /// The shutter, aperture and sensitivity of a photo.
+    Exposure,
+    /// When a photo was taken.
+    Taken,
+    /// How an image stores its colour: channels and bits per channel.
+    Colour,
     /// How many lines a text file has.
     Lines,
     /// How a text file's bytes are encoded.
@@ -34,6 +42,8 @@ pub enum FactLabel {
     Rows,
     /// How many columns a table has.
     Columns,
+    /// The names of a structured value's top-level entries.
+    Keys,
     /// How many entries an archive holds.
     Entries,
     /// The family a font belongs to.
