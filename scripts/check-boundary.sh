@@ -14,10 +14,12 @@ cd "$(dirname "$0")/.."
 # player, no highlighter. `serde_json` is a dev-dependency (round-trip tests) and never a normal
 # one. The crates above it (anyview-peek and the back ends) are added to this table when they
 # exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does blocking file
-# I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
+# I/O and nothing else (the launcher links it): no runtime, no UI, no decoder. anyview-ui is the viewer's
+# pure machines: no bus, no runtime, no GPU, no decoder, no player.
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
+  "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
 )
 fail=0
 
@@ -52,6 +54,7 @@ done
 EDGES=(
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
+  "anyview-ui: anyview-core ds-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
