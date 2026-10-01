@@ -8,11 +8,13 @@
 
 mod chrome;
 mod command;
+mod load;
 mod navigate;
 mod palette;
 mod panel;
 mod presentation;
 mod sheet;
+mod stage;
 mod time;
 mod typed;
 
@@ -21,6 +23,7 @@ mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
+pub use load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
@@ -28,4 +31,5 @@ pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
+pub use stage::StageFamily;
 pub use typed::TypedText;
