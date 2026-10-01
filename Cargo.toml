@@ -172,7 +172,7 @@ ravif = { version = "0.13", default-features = false }
 # `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
 syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
 # Markdown parser: MIT.
-pulldown-cmark = { version = "0.13", default-features = false }
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Delimited tables: MIT OR Unlicense.
 csv = "1"
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
