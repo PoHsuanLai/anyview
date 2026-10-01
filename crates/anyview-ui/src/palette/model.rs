@@ -60,14 +60,16 @@ impl From<ds_core::machine::Elapsed> for PaletteIn {
 }
 
 impl PaletteIn {
-    /// What a key means to an open palette: arrows move, Enter runs, Esc closes. Anything else
-    /// is typed into the field, which reports it as `Typed`.
+    /// What a key means to an open palette: arrows move, Enter runs, Esc and ⌘K close. Anything
+    /// else is typed into the field, which reports it as `Typed`.
     pub fn from_key(keys: &[ShortcutKey]) -> Option<PaletteIn> {
         match keys {
             [ShortcutKey::Up] => Some(PaletteIn::Move(PaletteMove::Up)),
             [ShortcutKey::Down] => Some(PaletteIn::Move(PaletteMove::Down)),
             [ShortcutKey::Enter] => Some(PaletteIn::Enter),
-            [ShortcutKey::Escape] => Some(PaletteIn::Close),
+            [ShortcutKey::Escape] | [ShortcutKey::Super, ShortcutKey::Char('k')] => {
+                Some(PaletteIn::Close)
+            }
             _ => None,
         }
     }
