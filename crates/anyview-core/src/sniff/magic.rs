@@ -1,6 +1,6 @@
 //! The first step: the file's own magic bytes.
 
-use super::{Head, Sniffed, extension};
+use super::{FileHead, Sniffed, extension};
 use crate::kind::{FormatDetail, FormatKind, Mime};
 use infer::MatcherType;
 
@@ -20,7 +20,7 @@ pub(super) enum Magic {
 /// up in the same families the name fallback uses, so a type has one table. A type `infer` knows
 /// and no family holds (an executable, RAR) is `Other` with `infer`'s media type. Its text
 /// matchers (HTML, XML, shell) are ignored: text is the next step's business.
-pub(super) fn identify(head: &Head) -> Option<Magic> {
+pub(super) fn identify(head: &FileHead) -> Option<Magic> {
     let found = infer::get(head.bytes())?;
     if found.matcher_type() == MatcherType::Text {
         return None;

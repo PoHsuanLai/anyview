@@ -1,20 +1,20 @@
-//! `Head`: the first bytes of a file, which is all sniffing reads.
+//! `FileHead`: the first bytes of a file, which is all sniffing reads.
 
 use crate::source::ByteLen;
 
 /// The first 4 KiB of a file, read by the caller. A longer slice is cut to its first 4 KiB, so
 /// sniffing never depends on more than a caller could afford to read before opening a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Head<'a>(&'a [u8]);
+pub struct FileHead<'a>(&'a [u8]);
 
-impl<'a> Head<'a> {
+impl<'a> FileHead<'a> {
     /// The most bytes a head holds.
     pub const MAX: ByteLen = ByteLen(4096);
 
     /// The first 4 KiB of `bytes`, or all of them when there are fewer.
     pub fn new(bytes: &'a [u8]) -> Self {
         let max = usize::try_from(Self::MAX.0).unwrap_or(usize::MAX);
-        Head(&bytes[..bytes.len().min(max)])
+        FileHead(&bytes[..bytes.len().min(max)])
     }
 
     /// The bytes.
@@ -45,7 +45,7 @@ mod tests {
         ];
         for (name, input, kept, full) in CASES {
             let bytes = vec![b'a'; *input];
-            let head = Head::new(&bytes);
+            let head = FileHead::new(&bytes);
             assert_eq!(head.bytes().len(), *kept, "{name}");
             assert_eq!(head.is_full(), *full, "{name}");
         }
