@@ -23,9 +23,16 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Only `PlainText` records its encoding.** `FormatDetail::Text` carries the `TextEncoding` the
   head had; Markdown, code and tables do not, so a UTF-16 source file is detected as text but its
   loader must re-detect the encoding. Ends when `anyview-text` decodes and needs the sniffed one.
-- **`FilePath` cannot be written to JSON when it is not valid UTF-8.** It is stored in view
-  history through `PathBuf`'s serde, which refuses such a path. Ends when `anyview-store` fixes
-  its path encoding.
+- **The history cap and the pruning rule are not settings yet.** `HistoryCap::DEFAULT` is 200
+  files, and `record_view` prunes view memory of vanished, replaced and no-longer-listed files
+  with no switch. Ends when quire's `22-SETTINGS` has `viewer.history.*` keys; the caller then
+  passes the cap to `StoreWriter::new`.
+- **History rows carry a `FormatKind`, not a MIME type.** The launcher's file rows are keyed by
+  MIME. Ends when `sill-launcher` maps a kind to its MIME (or `anyview-core` exposes the mapping)
+  and merges history into file ranking.
+- **A touched file forgets its view memory.** The fingerprint is exact length plus modification
+  time, so a `touch` or a restore from backup drops the stored position. Ends if that proves
+  annoying: compare length only, or add a content hash of the head.
 - **`Zoom::Scale` is not clamped by its variant.** Only `Zoom::scaled` clamps to 1% to 6400%; a
   stored or hand-built `Scale(Permille(0))` loads as written. Ends when the raster stage clamps
   what it draws, or `Scale` takes a validated scale type.
@@ -37,6 +44,15 @@ on. It is a reference, not a log: how each was found lives in git history.
   facts and Open With…. Ends per type when a family holds it.
 
 ## Standing facts
+
+- **`redb` cannot be shared between the viewer and the launcher.** It takes `flock(LOCK_EX)` on
+  open and has no shared-reader mode, so the launcher could not read while the viewer ran. The
+  store is JSON files replaced by rename instead.
+- **A path that is not valid UTF-8 is not remembered.** `StoreWriter::record_view` returns
+  `StoreError::PathNotUtf8` before writing anything, because `FilePath` stores through `PathBuf`'s
+  serde, which refuses such a path.
+- **One writer per store root.** The history is read, changed and rewritten; two writers would
+  lose an update and share the `.tmp` name. The viewer is a single instance.
 
 - **`infer` has no signature for** TTC fonts, MPEG transport streams, ICNS, TGA, QOI and HDR; the
   extension names them, and only when the head is binary. A text head is never reclassified by a

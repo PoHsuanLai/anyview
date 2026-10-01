@@ -21,7 +21,7 @@ planned has no directory yet; its row is the rule it will carry.
 | Layer | Crate | Status | Purpose |
 | --- | --- | --- | --- |
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
-| L1 | `anyview-store` | planned | view memory and history file: one format, a read API (sill reads it) and a write API |
+| L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
 | L1 | `anyview-image` | planned | decode, encode, EXIF, orientation |
 | L1 | `anyview-pdf` | planned | pdfrum: open, tile scheduling, search, outline, page edits, exports |
 | L1 | `anyview-media` | planned | the media player session: tracks, chapters, typed state |
@@ -38,15 +38,18 @@ planned has no directory yet; its row is the rule it will carry.
 | Crate | May depend on |
 | --- | --- |
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
+| `anyview-store` | `anyview-core` |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
-its `testing` feature for `word_matches_serde`.
+its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
+directories (`anyview-store`).
 
 ### External boundaries (`scripts/check-boundary.sh`)
 
 | Crate | Never reaches |
 | --- | --- |
 | `anyview-core` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `syntect`, `blitz-dom`, `anyrender`; `serde_json` outside tests |
+| `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
 | `anyview-ui` (planned) | `zbus`: platform code arrives through `anyview-platform` traits |
 | every crate but `anyview-platform` (planned) | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings |
@@ -75,6 +78,28 @@ no other public path. A module names only modules above it in this list.
 | `facts` | `FactLabel`, `FactValue`, `Facts` |
 | `peek` | `Peek`, `PeekBudget`, `StageSupport` |
 | `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `stage_support` |
+
+## 2a. Modules inside `anyview-store`
+
+Same rules as section 2: private modules, each public item re-exported once at the crate root.
+`io` is the only module that touches the disk; the others are pure.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `StoreError`, `StoreOp` |
+| `viewed` | `Viewed`, seconds since the epoch, handed in by the caller |
+| `label` | `ResumeLabel` and `resume_label`, the row subtitle derived from a `Resume` |
+| `history` | `HistoryCap`, `HistoryEntry`, `History` and the pure `history_after_view` |
+| `record` | the per-file record, its hashed file name, `applicable` and `prune_decision` (private) |
+| `io` | whole-file reads, atomic writes, listing, removal, `stat` (private) |
+| `reader` | `read_history`, `HistoryRead`: the API the launcher links |
+| `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
+
+On disk, under a root the caller names: `history.json` (the `History`, newest first, capped) and
+`resume/<hash of path>.json` (one record per file: path, `FileStamp`, `Resume`). A file is written
+whole to `<name>.tmp` beside it, synced, and renamed over the old one, so a reader never locks and
+never sees a partial file. There is no database: `redb` takes an exclusive file lock that blocks the
+launcher while the viewer runs. The viewer is the one writer.
 
 ## 3. Layer rules
 
@@ -109,6 +134,8 @@ The single place a concept lives. Extend it; never write a second one.
 | Page, time, volume, zoom, turn, dpi, pixel units | `anyview_core` units (`units`) |
 | The list the arrow keys walk | `anyview_core::Sequence`, `moved`, `neighbours` |
 | Where a person left a file | `anyview_core::Resume` |
+| Where it is kept between runs, and the recently-viewed list | `anyview_store::StoreWriter`, `read_history` |
+| The "Page 143" a history row shows | `anyview_store::resume_label` |
 | What each format exports, and the sheet's contract | `anyview_core::ExportChoice` and the per-format enums (`export`) |
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
 | Rows of facts a pane lists | `anyview_core::Facts` |
