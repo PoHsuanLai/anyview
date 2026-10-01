@@ -11,6 +11,7 @@ mod exif;
 mod orientation;
 mod peek;
 mod pixels;
+mod rotate;
 mod scale;
 
 pub use decode::{
@@ -22,4 +23,5 @@ pub use exif::{ExifFacts, Exposure, Ratio};
 pub use orientation::{ExifOrientation, Mirror};
 pub use peek::{ImagePeek, PeekedFormat, RasterPeek, VectorPeek};
 pub use pixels::{PremultipliedRgba8, Rgba8};
+pub use rotate::rotate_jpeg;
 pub use scale::resized;
