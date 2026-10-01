@@ -5,6 +5,7 @@ mod find;
 mod media;
 mod pdf;
 mod raster;
+mod text;
 mod zoom;
 
 pub use family::StageFamily;
@@ -17,4 +18,5 @@ pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub use raster::{
     Animation, FrameCount, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage, Spin,
 };
+pub use text::{TextIn, TextOut, TextParams, TextPlace, TextStage, TextView, TextViews, Wrap};
 pub use zoom::{Viewport, ZoomDir};
