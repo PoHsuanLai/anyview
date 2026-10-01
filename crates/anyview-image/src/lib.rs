@@ -3,3 +3,11 @@
 //! the caller's worker, and none spawns or reads a clock.
 //!
 //! Every public item is reached from this root, once.
+
+mod error;
+mod orientation;
+mod pixels;
+
+pub use error::ImageError;
+pub use orientation::{ExifOrientation, Mirror};
+pub use pixels::{PremultipliedRgba8, Rgba8};
