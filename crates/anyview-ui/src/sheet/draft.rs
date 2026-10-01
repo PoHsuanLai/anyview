@@ -52,6 +52,17 @@ pub enum ExportKindPick {
 }
 
 impl ExportDraft {
+    /// The draft the sheet opens on for `family`: its first kind with that kind's default
+    /// options. `None` for a family with no kinds.
+    pub fn first_of(family: ExportFamily) -> Option<ExportDraft> {
+        match family {
+            ExportFamily::Raster => first::<RasterExport>().map(ExportDraft::Raster),
+            ExportFamily::Pdf => first::<PdfExport>().map(ExportDraft::Pdf),
+            ExportFamily::Text => first::<TextExport>().map(ExportDraft::Text),
+            ExportFamily::Media => first::<MediaExport>().map(ExportDraft::Media),
+        }
+    }
+
     /// The format this draft exports.
     pub fn family(self) -> ExportFamily {
         match self {
@@ -96,6 +107,10 @@ impl ExportDraft {
             ) => None,
         }
     }
+}
+
+fn first<E: ExportChoice>() -> Option<E> {
+    E::kinds().first().map(|kind| E::default_for(*kind))
 }
 
 fn default_of<E: ExportChoice>(kind: E::Kind) -> E {
