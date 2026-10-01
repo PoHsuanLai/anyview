@@ -5,6 +5,7 @@
 //! Every public item is reached from this root, once.
 
 mod decode;
+mod encode;
 mod error;
 mod exif;
 mod orientation;
@@ -15,6 +16,7 @@ mod scale;
 pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, decode, decode_bytes,
 };
+pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
 pub use exif::{ExifFacts, Exposure, Ratio};
 pub use orientation::{ExifOrientation, Mirror};
