@@ -7,9 +7,17 @@
 //! Every public item is reached from this root, once.
 
 mod chrome;
+mod command;
+mod palette;
+mod panel;
 mod time;
+mod typed;
 
 #[cfg(test)]
 mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
+pub use command::{Command, StageCommand};
+pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
+pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
+pub use typed::TypedText;
