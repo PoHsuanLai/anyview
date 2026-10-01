@@ -8,6 +8,7 @@ mod escape;
 mod lines;
 mod markdown;
 mod table;
+mod tree;
 
 pub use bytes::{ByteSource, FileBytes, HeldBytes};
 pub use code::{
@@ -21,3 +22,4 @@ pub use markdown::{
     Anchor, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,
 };
 pub use table::{ColumnCount, HeaderMode, RowCount, RowIndex, Table};
+pub use tree::{ChildCount, NodeKind, RowLabel, Tree, TreePath, TreeRow};
