@@ -1,6 +1,6 @@
 [package]
 name = "anyview-text"
-description = "x"
+description = "Text for the viewer: encodings and windowed lines, syntax highlighting into token classes, Markdown to HTML, CSV tables and JSON trees."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,17 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+ds-core = { workspace = true }
+csv = { workspace = true }
+encoding_rs = { workspace = true }
+pulldown-cmark = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+syntect = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
