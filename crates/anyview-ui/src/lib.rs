@@ -8,6 +8,7 @@
 
 mod chrome;
 mod command;
+mod keys;
 mod load;
 mod navigate;
 mod palette;
@@ -23,6 +24,7 @@ mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
+pub use keys::{Regions, Route, route};
 pub use load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
