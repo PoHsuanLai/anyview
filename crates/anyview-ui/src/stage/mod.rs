@@ -2,12 +2,17 @@
 
 mod family;
 mod find;
+mod media;
 mod pdf;
 mod raster;
 mod zoom;
 
 pub use family::StageFamily;
 pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep};
+pub use media::{
+    AfterScrub, EndReason, FrameDirection, MediaError, MediaIn, MediaOut, MediaParams, MediaStage,
+    Pace, PlayerCommand, PlayerEvent, TrackKind,
+};
 pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub use raster::{
     Animation, FrameCount, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage, Spin,
