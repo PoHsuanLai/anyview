@@ -31,5 +31,8 @@ pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
-pub use stage::StageFamily;
+pub use stage::{
+    Animation, FindHits, FindOut, FrameCount, FrameIndex, HitCount, HitCursor, HitIndex, HitStep,
+    RasterIn, RasterOut, RasterParams, RasterStage, Spin, StageFamily, Viewport, ZoomDir,
+};
 pub use typed::TypedText;
