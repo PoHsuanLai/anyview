@@ -1,11 +1,27 @@
-//! The viewer's pure vocabulary: what a file is, how it is told apart, the units the viewer counts
-//! in, the sequence arrow keys walk, the actions, edits and exports a file offers, and the view
-//! memory a file keeps. No I/O, no clock, no renderer: effects belong to the crates above.
+//! The viewer's pure vocabulary.
 
 mod error;
-pub mod kind;
-pub mod source;
-pub mod units;
+mod kind;
+mod sequence;
+mod sniff;
+mod source;
+mod units;
 
 pub use error::CoreError;
-pub mod sniff;
+pub use kind::{
+    ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
+    Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat,
+};
+pub use sequence::{
+    Neighbours, NonEmpty, ResultsId, Sequence, SequenceMove, SequenceOrigin, SequencePosition,
+    moved, neighbours,
+};
+pub use sniff::{
+    FileHead, SniffStep, Sniffed, ZipEntries, ZipProbe, sniff, sniff_folder, sniff_zip,
+};
+pub use source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
+pub use units::{
+    Axis, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime, PageCount, PageIndex,
+    PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen, PixelSize, QuarterTurn,
+    Quality, Volume, Zoom,
+};

@@ -16,6 +16,6 @@ mod zip;
 mod tests;
 
 pub use detect::{sniff, sniff_folder};
-pub use head::Head;
+pub use head::FileHead;
 pub use sniffed::{SniffStep, Sniffed, ZipProbe};
 pub use zip::{ZipEntries, sniff_zip};

@@ -160,7 +160,7 @@ fn name(file: &str) -> FileName {
 #[test]
 fn sniff_names_the_kind_mime_and_detail() {
     for case in CASES {
-        let step = sniff(&Head::new(case.head), &name(case.file));
+        let step = sniff(&FileHead::new(case.head), &name(case.file));
         let SniffStep::Done(sniffed) = step else {
             panic!("{}: expected an answer, got {step:?}", case.name);
         };
@@ -181,7 +181,7 @@ fn a_zip_signature_asks_for_the_entries_whatever_the_name() {
         "noextension",
     ];
     for file in FILES {
-        let step = sniff(&Head::new(ZIP), &name(file));
+        let step = sniff(&FileHead::new(ZIP), &name(file));
         assert!(matches!(step, SniffStep::LookInside(_)), "{file}: {step:?}");
     }
 }
@@ -190,13 +190,13 @@ fn a_zip_signature_asks_for_the_entries_whatever_the_name() {
 fn a_head_is_cut_to_four_kibibytes_before_sniffing() {
     let mut bytes = vec![b'a'; 5000];
     bytes[4500] = 0; // a NUL past the head must not matter
-    let step = sniff(&Head::new(&bytes), &name("a.txt"));
+    let step = sniff(&FileHead::new(&bytes), &name("a.txt"));
     let SniffStep::Done(sniffed) = step else {
         panic!("{step:?}")
     };
     assert_eq!(sniffed.kind(), FormatKind::PlainText);
     bytes[10] = 0; // a NUL inside it makes the file binary
-    let step = sniff(&Head::new(&bytes), &name("a.txt"));
+    let step = sniff(&FileHead::new(&bytes), &name("a.txt"));
     let SniffStep::Done(sniffed) = step else {
         panic!("{step:?}")
     };
@@ -272,7 +272,7 @@ const ZIP_CASES: &[ZipCase] = &[
 ];
 
 fn probe(file: &str) -> ZipProbe {
-    match sniff(&Head::new(ZIP), &name(file)) {
+    match sniff(&FileHead::new(ZIP), &name(file)) {
         SniffStep::LookInside(probe) => probe,
         SniffStep::Done(sniffed) => panic!("{file}: a zip head was answered as {sniffed:?}"),
     }

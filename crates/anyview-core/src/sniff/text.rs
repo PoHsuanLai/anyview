@@ -1,6 +1,6 @@
 //! Telling text from binary by its first bytes.
 
-use super::Head;
+use super::FileHead;
 use crate::kind::TextEncoding;
 
 /// The encoding of a text head, or `None` for binary.
@@ -8,7 +8,7 @@ use crate::kind::TextEncoding;
 /// A UTF-16 byte-order mark makes a head text whatever follows it. Otherwise a head is text when
 /// it holds no NUL and is valid UTF-8; a full head may end in the first bytes of a character the
 /// 4 KiB cut in half, which does not count against it.
-pub(super) fn encoding(head: &Head) -> Option<TextEncoding> {
+pub(super) fn encoding(head: &FileHead) -> Option<TextEncoding> {
     let bytes = head.bytes();
     match bytes {
         [0xFF, 0xFE, ..] => Some(TextEncoding::Utf16Le),
@@ -18,7 +18,7 @@ pub(super) fn encoding(head: &Head) -> Option<TextEncoding> {
     }
 }
 
-fn valid_utf8(bytes: &[u8], head: &Head) -> bool {
+fn valid_utf8(bytes: &[u8], head: &FileHead) -> bool {
     match std::str::from_utf8(bytes) {
         Ok(_) => true,
         Err(error) => error.error_len().is_none() && head.is_full(),
@@ -60,7 +60,7 @@ mod tests {
             ("png", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", None),
         ];
         for (name, bytes, want) in CASES {
-            assert_eq!(encoding(&Head::new(bytes)), *want, "{name}");
+            assert_eq!(encoding(&FileHead::new(bytes)), *want, "{name}");
         }
     }
 
@@ -68,8 +68,8 @@ mod tests {
     fn a_full_head_may_end_inside_a_character() {
         let mut bytes = vec![b'a'; 4094];
         bytes.extend_from_slice(&[0xE2, 0x9C]); // the first two bytes of a three-byte character
-        assert_eq!(encoding(&Head::new(&bytes)), Some(TextEncoding::Utf8));
+        assert_eq!(encoding(&FileHead::new(&bytes)), Some(TextEncoding::Utf8));
         bytes[100] = 0xFF; // a bad byte earlier is still invalid
-        assert_eq!(encoding(&Head::new(&bytes)), None);
+        assert_eq!(encoding(&FileHead::new(&bytes)), None);
     }
 }

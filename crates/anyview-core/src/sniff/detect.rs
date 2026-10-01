@@ -1,7 +1,7 @@
 //! The two sniffing entry points.
 
 use super::magic::{self, Magic};
-use super::{Head, SniffStep, Sniffed, ZipProbe, extension, text};
+use super::{FileHead, SniffStep, Sniffed, ZipProbe, extension, text};
 use crate::kind::{FormatDetail, FormatKind, Mime};
 use crate::source::FileName;
 
@@ -11,7 +11,7 @@ use crate::source::FileName;
 /// UTF-8, or starts with a UTF-16 byte-order mark; the name then picks Markdown, a table, a tree,
 /// SVG, a syntax or plain text. Any other head is binary, and the name picks among the binary
 /// families or leaves it `Other`. A zip is not decided here: the answer asks for its entries.
-pub fn sniff(head: &Head, name: &FileName) -> SniffStep {
+pub fn sniff(head: &FileHead, name: &FileName) -> SniffStep {
     match magic::identify(head) {
         Some(Magic::Zip) => SniffStep::LookInside(ZipProbe::new(name.clone())),
         Some(Magic::Found(sniffed)) => SniffStep::Done(sniffed),
@@ -29,7 +29,7 @@ pub fn sniff_folder() -> Sniffed {
 }
 
 /// The type of a head with no signature: text by its name, binary by its extension.
-fn by_name(head: &Head, name: &FileName) -> Sniffed {
+fn by_name(head: &FileHead, name: &FileName) -> Sniffed {
     match text::encoding(head) {
         Some(encoding) => extension::text(name, encoding),
         None => name
