@@ -32,7 +32,8 @@ pub use presentation::{
 };
 pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
 pub use stage::{
-    Animation, FindHits, FindOut, FrameCount, FrameIndex, HitCount, HitCursor, HitIndex, HitStep,
-    RasterIn, RasterOut, RasterParams, RasterStage, Spin, StageFamily, Viewport, ZoomDir,
+    Animation, Destination, FindHits, FindOut, FrameCount, FrameIndex, HitCount, HitCursor,
+    HitIndex, HitStep, PageView, PdfIn, PdfOut, PdfParams, PdfStage, RasterIn, RasterOut,
+    RasterParams, RasterStage, Spin, StageFamily, Viewport, ZoomDir,
 };
 pub use typed::TypedText;
