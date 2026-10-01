@@ -25,6 +25,8 @@ pub enum HitStep {
 /// Where a search stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FindHits {
+    /// The find bar is open with nothing typed, so there is nothing to search for.
+    Idle,
     /// The search has been asked for and has not answered.
     Pending,
     /// It answered with nothing.
@@ -52,12 +54,21 @@ impl FindHits {
         }
     }
 
-    /// The hits after stepping; `Pending` and `NoMatch` have nowhere to go and stay as they
-    /// are.
+    /// Where a search stands the moment `query` is asked for: nothing typed has nothing to
+    /// wait for.
+    pub fn asked(query: &TypedText) -> FindHits {
+        if query.is_empty() {
+            FindHits::Idle
+        } else {
+            FindHits::Pending
+        }
+    }
+
+    /// The hits after stepping; the other states have nowhere to go and stay as they are.
     pub fn stepped(self, step: HitStep) -> FindHits {
         match self {
             FindHits::Found(cursor) => FindHits::Found(cursor.stepped(step)),
-            FindHits::Pending | FindHits::NoMatch => self,
+            FindHits::Idle | FindHits::Pending | FindHits::NoMatch => self,
         }
     }
 
@@ -65,7 +76,7 @@ impl FindHits {
     pub fn current(self) -> Option<HitIndex> {
         match self {
             FindHits::Found(cursor) => Some(HitIndex(cursor.current)),
-            FindHits::Pending | FindHits::NoMatch => None,
+            FindHits::Idle | FindHits::Pending | FindHits::NoMatch => None,
         }
     }
 }
@@ -78,6 +89,17 @@ impl HitCursor {
             HitStep::Previous => (self.current + count - 1) % count,
         };
         HitCursor { current, ..self }
+    }
+}
+
+impl FindOut {
+    /// What asking for `query` calls for: a search, or clearing the marks when nothing is typed.
+    pub fn asked(query: &TypedText) -> FindOut {
+        if query.is_empty() {
+            FindOut::Clear
+        } else {
+            FindOut::Search(query.clone())
+        }
     }
 }
 

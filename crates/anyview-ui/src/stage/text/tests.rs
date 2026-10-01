@@ -110,12 +110,16 @@ const CASES: &[Case] = &[
         &[TextOut::Find(FindOut::Search(CAT))],
     ),
     (
-        "an empty find is ignored",
+        "an empty find opens the find bar with nothing to search",
         BOTH,
         reading(5, On, Rendered),
         TextIn::Find(TypedText::EMPTY),
-        reading(5, On, Rendered),
-        &[],
+        TextStage::Finding {
+            query: TypedText::EMPTY,
+            hits: FindHits::Idle,
+            place: place(5, On, Rendered),
+        },
+        &[TextOut::Find(FindOut::Clear)],
     ),
     (
         "restoring a stored line scrolls to it",
@@ -204,11 +208,15 @@ const CASES: &[Case] = &[
         &[TextOut::Find(FindOut::Clear)],
     ),
     (
-        "an empty query closes the find",
+        "clearing the query keeps the bar open and clears the marks",
         BOTH,
         finding(found(3, 1), 7),
         TextIn::Find(TypedText::EMPTY),
-        reading(7, On, Rendered),
+        TextStage::Finding {
+            query: TypedText::EMPTY,
+            hits: FindHits::Idle,
+            place: place(7, On, Rendered),
+        },
         &[TextOut::Find(FindOut::Clear)],
     ),
     (

@@ -117,7 +117,7 @@ pub(super) fn page_beside(
 }
 
 pub(super) fn search(query: &TypedText) -> PdfOut {
-    PdfOut::Find(FindOut::Search(query.clone()))
+    PdfOut::Find(FindOut::asked(query))
 }
 
 fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
@@ -134,14 +134,10 @@ fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
             }
             None => stay(view),
         },
-        PdfIn::Find(query) if !query.is_empty() => {
+        PdfIn::Find(query) => {
             let outs = vec![search(&query)];
-            let state = PdfStage::Finding {
-                query,
-                hits: FindHits::Pending,
-                view,
-            };
-            (state, outs)
+            let hits = FindHits::asked(&query);
+            (PdfStage::Finding { query, hits, view }, outs)
         }
         PdfIn::GoTo(target) => jump(view, target, params),
         PdfIn::NextPage | PdfIn::PreviousPage => match page_beside(view.page, &input, params) {
@@ -164,8 +160,7 @@ fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
             };
             (PdfStage::Reading { view }, vec![PdfOut::ScrollTo(to)])
         }
-        PdfIn::Find(_)
-        | PdfIn::Restore(
+        PdfIn::Restore(
             Resume::Raster { .. } | Resume::Media { .. } | Resume::Text { .. } | Resume::Nothing,
         )
         | PdfIn::Results {
@@ -231,18 +226,17 @@ fn jumping(target: Destination, view: PageView, input: PdfIn, params: &PdfParams
             Some(to) => jump(view, to, params),
             None => (this, vec![]),
         },
-        PdfIn::Find(query) if !query.is_empty() => {
+        PdfIn::Find(query) => {
             let view = PageView {
                 page: target.page,
                 offset: target.offset,
                 ..view
             };
             let outs = vec![search(&query)];
-            let hits = FindHits::Pending;
+            let hits = FindHits::asked(&query);
             (PdfStage::Finding { query, hits, view }, outs)
         }
-        PdfIn::Find(_)
-        | PdfIn::Results {
+        PdfIn::Results {
             query: _,
             count: _,
             nearest: _,

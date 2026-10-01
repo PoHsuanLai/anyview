@@ -38,7 +38,7 @@ fn remember(line: LineIndex) -> TextOut {
 }
 
 fn search(query: &TypedText) -> TextOut {
-    TextOut::Find(FindOut::Search(query.clone()))
+    TextOut::Find(FindOut::asked(query))
 }
 
 fn other_wrap(wrap: Wrap) -> Wrap {
@@ -66,9 +66,9 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             },
             vec![remember(line)],
         ),
-        TextIn::Find(query) if !query.is_empty() => {
+        TextIn::Find(query) => {
             let outs = vec![search(&query)];
-            let hits = FindHits::Pending;
+            let hits = FindHits::asked(&query);
             (TextStage::Finding { query, hits, place }, outs)
         }
         TextIn::ToggleSource => match other_view(place.view, params.views) {
@@ -90,8 +90,7 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             },
             vec![TextOut::ScrollTo(line)],
         ),
-        TextIn::Find(_)
-        | TextIn::Restore(
+        TextIn::Restore(
             Resume::Raster { .. } | Resume::Pdf { .. } | Resume::Media { .. } | Resume::Nothing,
         )
         | TextIn::Results {
@@ -142,12 +141,12 @@ fn finding(
             },
             vec![remember(line)],
         ),
-        TextIn::Find(text) if text.is_empty() => closed(place),
         TextIn::Find(text) => {
             let outs = vec![search(&text)];
+            let hits = FindHits::asked(&text);
             let state = TextStage::Finding {
                 query: text,
-                hits: FindHits::Pending,
+                hits,
                 place,
             };
             (state, outs)

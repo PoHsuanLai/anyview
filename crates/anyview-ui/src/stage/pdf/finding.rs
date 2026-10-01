@@ -45,12 +45,12 @@ pub(super) fn finding(
             }
             None => stay(query, hits, view),
         },
-        PdfIn::Find(text) if text.is_empty() => closed(view),
         PdfIn::Find(text) => {
             let outs = vec![search(&text)];
+            let hits = FindHits::asked(&text);
             let state = PdfStage::Finding {
                 query: text,
-                hits: FindHits::Pending,
+                hits,
                 view,
             };
             (state, outs)

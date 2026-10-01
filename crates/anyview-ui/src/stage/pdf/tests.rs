@@ -115,11 +115,15 @@ const CASES: &[Case] = &[
         &[PdfOut::Find(FindOut::Search(CAT))],
     ),
     (
-        "an empty find is ignored",
+        "an empty find opens the find bar with nothing to search",
         reading(2, 0),
         PdfIn::Find(TypedText::EMPTY),
-        reading(2, 0),
-        &[],
+        PdfStage::Finding {
+            query: TypedText::EMPTY,
+            hits: FindHits::Idle,
+            view: at(2, 0, Zoom::Fit),
+        },
+        &[PdfOut::Find(FindOut::Clear)],
     ),
     (
         "go to jumps and asks for the scroll",
@@ -273,10 +277,14 @@ const CASES: &[Case] = &[
         &[PdfOut::Find(FindOut::Clear)],
     ),
     (
-        "an empty query closes the find",
+        "clearing the query keeps the bar open and clears the marks",
         finding(found(5, 1), 3),
         PdfIn::Find(TypedText::EMPTY),
-        reading(3, 0),
+        PdfStage::Finding {
+            query: TypedText::EMPTY,
+            hits: FindHits::Idle,
+            view: at(3, 0, Zoom::Fit),
+        },
         &[PdfOut::Find(FindOut::Clear)],
     ),
     (
