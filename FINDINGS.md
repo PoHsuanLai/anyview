@@ -21,9 +21,59 @@ on. It is a reference, not a log: how each was found lives in git history.
   quality (65) and the default paper (A4, portrait) are constants in `export/`; `PeekBudget` has no
   default at all, so the caller reads it from settings. Ends when quire's `22-SETTINGS` has
   `viewer.export.*` and `viewer.peek.*` keys that supply them.
-- **Only `PlainText` records its encoding.** `FormatDetail::Text` carries the `TextEncoding` the
-  head had; Markdown, code and tables do not, so a UTF-16 source file is detected as text but its
-  loader must re-detect the encoding. Ends when `anyview-text` decodes and needs the sniffed one.
+- **The pinned block has no image codecs beyond png and jpeg, and none of the back-end crates.**
+  `anyview-image` adds `gif webp bmp tiff ico tga qoi` to the pinned `image` line from its own
+  manifest, and `jxl-oxide`, `resvg`, `kamadak-exif`, `img-parts`, `ravif`, `syntect`,
+  `pulldown-cmark`, `csv` and `encoding_rs` sit below the pinned block next to `infer`. Ends at the next
+  change to quire's `docs/workspace-deps.toml`: add those features to its `image` line and those crates
+  to it (CONVENTIONS section 10), then copy the block verbatim here.
+- **AVIF decoding is not built or tested here.** The `avif` feature of `anyview-image` needs the dav1d
+  C library with its headers and a `dav1d.pc` for pkg-config; this build image has the runtime library
+  (`libdav1d7`) but not `libdav1d-dev`, so `cargo clippy --all-features` and `cargo test --all-features`
+  stop in `dav1d-sys`. The gate runs without `--all-features`, and an AVIF file is
+  `ImageError::NotCompiledIn`. AVIF encoding (`ravif`) is always built and tested. Ends when the image
+  or CI has `libdav1d-dev` and `pkg-config`: run the gate with `--all-features`.
+- **SVG text is not drawn.** `resvg` is built without its `text` feature and with no font database, and
+  external files an SVG names are not read, so only what the SVG itself holds appears. Ends when
+  `anyview-platform` can hand the decoder a font database (the `text` feature and `fontdb`).
+- **A legacy-encoded text file is not text to the sniffer.** `anyview_core::sniff` calls a head that is
+  not valid UTF-8 and has no byte-order mark `Other`, so a Windows-1252 or Shift_JIS `.txt` never reaches
+  `anyview-text`; the Windows-1252 fallback of `detect` serves files whose first 4 KiB is ASCII and whose
+  accents come later. Ends when `sniff` classifies a head with no NUL and mostly printable bytes as plain
+  text under a text extension; no change is needed in `anyview-text`.
+- **The only fallback encoding is Windows-1252.** A file in another legacy encoding (Shift_JIS, GBK,
+  KOI8-R) is shown as Windows-1252 with mojibake. Ends if that matters: guess with `chardetng`.
+- **The back ends' limits are constants.** `PEEK_LINES` (40), `DETECT_BYTES` (1 MiB), the largest image
+  to decode (16384 by 16384), the largest animation in memory (512 MiB), the SVG long edge (1024 to 4096),
+  the AVIF encoder speed (6), the longest line highlighted (4096 bytes), the largest inlined Markdown
+  image (8 MiB) and the top-level keys a fact names (8) are not settings. Ends when quire's `22-SETTINGS`
+  has `viewer.peek.*` and `viewer.image.*` keys; the callers then pass them in.
+- **The peeks' time budget is not enforced.** `PeekBudget::time` is for the caller: no crate here reads a
+  clock, so a slow decode or AVIF encode is abandoned by dropping its worker. Ends if a deadline is
+  injected (a `Stamp` source) and the decoders are polled.
+- **`CodePeek` builds the highlighter's syntax set on every call.** `Peek::peek` takes no state to keep it
+  in, and a global is not allowed. `syntect` loads syntaxes lazily, so a call costs the one syntax it
+  uses. Ends if `Peek` gains an environment argument.
+- **syntect's default syntaxes lack TypeScript, Kotlin, Swift, TOML, INI, SCSS and Dockerfile.**
+  TypeScript is highlighted as JavaScript, Kotlin as Java, SCSS as CSS, and the rest are plain. Ends when
+  a bundled syntax pack (Sublime syntax files) is added to `Highlighter::new`.
+- **Fenced code in rendered Markdown is highlighted only when the caller passes a `Highlighter`.** The
+  `tok-<class>` classes need a stylesheet in the sealed frame that maps them to colour tokens. Ends when
+  the Markdown stage's stylesheet lands in `anyview-ui`.
+- **JSON is parsed whole and shown as parsed.** A JSON file larger than the peek's byte budget is refused
+  with `TextError::JsonOverBudget` (a document cannot be read in part), a JSON Lines file is held in
+  memory whole when opened, and a number prints as its value (`1.0` reads `1`). Ends if big JSON matters:
+  scan the top level without parsing, and keep numbers as written (`arbitrary_precision`).
+- **`TextLines::lines` reads a line whole.** A file that is one enormous line is read into memory when its
+  window is asked for. Ends if lines get a byte cap with a marker for the cut.
+- **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
+  times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
+- **Animations loop forever and a peek decodes every frame to count them.** The container's loop count is
+  not read, a JPEG XL animation shows its first frame, and the peek's frame count costs a full decode of
+  the animation. Ends if any of those hurts: read the GIF and WebP loop counts, and count frames from the
+  container headers.
+- **`RasterTarget` has no BMP.** `anyview_image::encode_bmp` exists outside it, for callers that need
+  the format. Ends if the export sheet offers BMP (the core target and `RasterExportKind` gain it).
 - **The history cap and the pruning rule are not settings yet.** `HistoryCap::DEFAULT` is 200
   files, and `record_view` prunes view memory of vanished, replaced and no-longer-listed files
   with no switch. Ends when quire's `22-SETTINGS` has `viewer.history.*` keys; the caller then
@@ -106,3 +156,23 @@ on. It is a reference, not a log: how each was found lives in git history.
   timer list it among their ignored inputs and return `None` from `wake`.
 - **`PageCount::new` is not `const`**, so the PDF stage's tests build their params in a function
   rather than a `const`; every other machine's `CASES` is a `const`.
+
+- **`kamadak-exif` reads EXIF but cannot patch it** (its writer builds a block from scratch and would
+  drop the maker notes), so `anyview-image` writes the orientation entry itself: in place when the block
+  has one, otherwise by copying IFD0 to the end of the block with the entry added, which moves no other
+  offset.
+- **`img-parts`' JPEG type stops at the end of image and moves the EXIF segment**, so it would drop the
+  bytes some cameras append after the image. `rotate_jpeg` therefore scans the file's own markers and
+  replaces one APP1 segment; `img-parts` is used only to splice metadata into a freshly encoded file.
+- **Decoded pixels are upright, straight alpha.** Orientation is applied by the decoder (the JPEG XL
+  decoder applies its own), so nothing downstream reads the tag, and an encode that carries EXIF resets
+  its orientation to upright.
+- **JPEG has no alpha.** An export to JPEG composites the picture onto white.
+- **The image stack matches quire and sill's locks.** `image` 0.25.10, `png`, `gif`, `zune-jpeg`,
+  `weezl`, `image-webp`, `resvg` and `usvg` 0.48.1 and `tiny-skia` 0.12.0 resolve to the same versions;
+  `thiserror` 2.0.21, `encoding_rs` 0.8.42 and a few others are patch releases newer in this lock. The
+  crates added here introduce four duplicates inside this tree: `miniz_oxide` 0.8.9 (`img-parts`) beside
+  0.9.1 (`flate2`), `hashbrown` 0.13.2 (`mp4parse`, reached only through the `avif` feature),
+  `getrandom` 0.3 and 0.4 and `r-efi` 5 and 6 (`rand` under `rav1e` beside `tempfile`).
+- **JPEG XL fixtures are made with ffmpeg's `libjxl`** (`-distance 0`, lossless); `cjxl` is not
+  installed. The AVIF fixture exists but is decoded only under the `avif` feature.

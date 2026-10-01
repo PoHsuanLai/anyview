@@ -22,10 +22,10 @@ planned has no directory yet; its row is the rule it will carry.
 | --- | --- | --- | --- |
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
 | L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
-| L1 | `anyview-image` | planned | decode, encode, EXIF, orientation |
+| L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | planned | pdfrum: open, tile scheduling, search, outline, page edits, exports |
 | L1 | `anyview-media` | planned | the media player session: tracks, chapters, typed state |
-| L1 | `anyview-text` | planned | text, code highlighting, Markdown to HTML, CSV, JSON tree |
+| L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | planned | zip, tar and 7z listings and single-entry extraction |
 | L1 | `anyview-font` | planned | font facts and the specimen's font face |
 | L2 | `anyview-platform` | planned | the edge: traits, their Linux implementations and fakes |
@@ -40,10 +40,12 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
 | `anyview-store` | `anyview-core` |
 | `anyview-ui` | `anyview-core`, `ds-core` (the `Machine` trait and `Stamp`) |
+| `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
+| `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
-directories (`anyview-store`).
+directories (`anyview-store`, `anyview-image`, `anyview-text`).
 
 ### External boundaries (`scripts/check-boundary.sh`)
 
@@ -51,9 +53,16 @@ directories (`anyview-store`).
 | --- | --- |
 | `anyview-core` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `syntect`, `blitz-dom`, `anyrender`; `serde_json` outside tests |
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
+| `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
+| `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
 | `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
 | every crate but `anyview-platform` (planned) | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings |
+
+`anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
+and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
+`ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
+oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
 `anyview-core` depends on `serde`, `thiserror`, `infer` and `ds-core` and nothing else. It does no
 I/O and reads no clock: a function that needs bytes takes them (`FileHead`, `ZipEntries`), and one
@@ -123,6 +132,59 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
 
+## 2c. Modules inside `anyview-image`
+
+Same rules as section 2: private modules, each public item re-exported once at the crate root.
+Everything is blocking and runs on the caller's worker: no runtime, no spawning, no clock. `decode`
+and `decode_bytes` are the one way pixels come out, and `encode` the one way they go in.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `ImageError` |
+| `pixels` | `Rgba8` (straight alpha), `PremultipliedRgba8`, and the one conversion between them |
+| `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
+| `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
+| `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
+| `decode` | `decode`, `decode_bytes`, `Decoded`, `Animation`, `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`, `stills`, `jxl`, `svg` and `look` are private |
+| `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
+| `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
+| `rotate` | `rotate_jpeg`: lossless rotation by rewriting the EXIF orientation segment |
+
+**Alpha** is straight (not premultiplied) everywhere in this crate; `Rgba8::premultiplied` is the
+conversion a GPU compositor needs, and `PremultipliedRgba8` is a distinct type so the two cannot be
+mixed. **Orientation** is applied in the decoder: pixels come back upright and nothing downstream
+reads the EXIF tag. Encoding takes upright pixels, so a carried EXIF block has its orientation
+reset to upright. A JPEG rotated "in place" is not decoded at all: `rotate_jpeg` rewrites one APP1
+segment and copies every other byte.
+
+The `avif` feature adds AVIF decoding through the `image` crate and the dav1d C library (BSD-2,
+linked dynamically, found with pkg-config). It is off by default, so the default build needs no C
+toolchain pieces; without it an AVIF file is `ImageError::NotCompiledIn`. AVIF encoding is `ravif`
+(pure Rust) and is always built.
+
+## 2d. Modules inside `anyview-text`
+
+Same rules as section 2. Blocking and effect-free except `bytes::FileBytes`, which reads ranges of
+one file.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `TextError` |
+| `bytes` | `ByteSource` (read a range), `FileBytes`, `HeldBytes` |
+| `encoding` | `TextCodec`, `detect` (byte-order mark, UTF-8 validity, Windows-1252 fallback), `Coverage`, `Detected` |
+| `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest |
+| `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
+| `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
+| `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`; `header` (the guess) is private |
+| `tree` | `Tree`, `TreePath`, `TreeRow`, `RowLabel`, `NodeKind`, `ChildCount`; `node` and `rows` are private |
+| `peek` | `PlainPeek`, `CodePeek`, `MarkdownPeek`, `TablePeek`, `TreePeek` and their `*Peeked` types, `Tally`, `PEEK_LINES` |
+| `escape` | HTML escaping, the one place it is written (private) |
+
+Token classes are words (`keyword`, `string`, `comment`, …), never colours: the stylesheet maps each
+`tok-<class>` to a design-system colour token. Markdown never passes raw HTML through (it is shown
+as text), keeps only web, mail and relative link targets, and writes local images as `data:` URLs
+read through `LocalFiles`, because quire's sealed frames load nothing else.
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -162,7 +224,28 @@ The single place a concept lives. Extend it; never write a second one.
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
 | Rows of facts a pane lists | `anyview_core::Facts` |
 | The light tier of a format | `anyview_core::Peek` |
-| The crate error | `anyview_core::CoreError` |
+| The crate error | `anyview_core::CoreError` (`ImageError` in `anyview-image`, `TextError` in `anyview-text`) |
+| Raster and vector pixels out of a file (RGBA8, straight alpha, upright) | `anyview_image::decode`, `decode_bytes` |
+| Straight to premultiplied alpha | `anyview_image::Rgba8::premultiplied` |
+| Which decoder a raster format uses | `decode/codec.rs` in `anyview-image` |
+| EXIF orientation as a mirror and a turn, and applying it | `anyview_image::ExifOrientation` |
+| Camera, lens, exposure and date of a photo | `anyview_image::ExifFacts` |
+| Fitting a picture to a peek budget, and the export resize | `scale.rs` in `anyview-image` (`resized`) |
+| The image peek and its facts | `anyview_image::RasterPeek`, `VectorPeek` |
+| Raster export encodes (PNG, JPEG, WebP, AVIF, TIFF, BMP) | `anyview_image::encode`, `encode_bmp` |
+| Keeping EXIF and ICC across a re-encode | `anyview_image::encode_with_metadata` |
+| Rotating a JPEG without re-encoding | `anyview_image::rotate_jpeg` |
+| The encoding of a text file, and decoding it | `anyview_text::detect`, `TextCodec` |
+| Reading a window of lines from a file of any size | `anyview_text::TextLines` |
+| Highlighting a window of lines into token classes | `anyview_text::CodeLines`, `Highlighter` |
+| Which class a syntax scope is | `code/class.rs` in `anyview-text` |
+| Highlighted code as HTML | `anyview_text::tokens_html` |
+| Markdown to HTML, and its outline | `anyview_text::render` |
+| Which link targets and images a rendered document keeps | `markdown/links.rs`, `markdown/images.rs` in `anyview-text` |
+| Escaping text for HTML | `escape.rs` in `anyview-text` |
+| CSV and TSV rows, and the header guess | `anyview_text::Table`, `HeaderMode` |
+| JSON and JSON Lines, one level at a time | `anyview_text::Tree`, `TreePath` |
+| The text, code, Markdown, table and tree peeks | `anyview_text::PlainPeek`, `CodePeek`, `MarkdownPeek`, `TablePeek`, `TreePeek` |
 | A pure timed state machine and its time | `ds_core::machine::Machine`, `ds_core::time::stamp::Stamp` |
 | When the hover chrome shows and hides, and what holds it up | `anyview_ui::Chrome`, `PinReasons` |
 | Which region a key goes to | `anyview_ui::route` (`keys/route.rs`) |
@@ -202,6 +285,12 @@ pub trait ExportChoice: Clone + PartialEq + 'static {
 `anyview-core` holds no registry and no visitor over `Peek`: it declares the trait and cannot name
 its implementations. The light tier's registry (one exhaustive match over `FormatKind`) lives in
 `anyview-peek` and the stage registry in `anyview-ui`.
+
+Two traits belong to the back ends, each because a fake swaps for the real thing in tests:
+`anyview_text::ByteSource` (read a range of bytes: `FileBytes` on disk, `HeldBytes` in memory) and
+`anyview_text::LocalFiles` (read the files a Markdown document refers to: the edge's disk reader, and
+a map in a test). `TextLines` and `CodeLines` are generic over the first so a window of lines is
+tested without a file.
 
 `Machine` is quire's pure state machine trait (`ds_core::machine`); every viewer region implements it
 (section 5a). `Stage` as a trait (the viewer's full tier, extending `Peek`) is planned with the
@@ -261,7 +350,10 @@ A binding that means what a standard action means uses `Binding::Standard`.
 `ExportChoice`, and add it to the contract test in `export/tests.rs`. Name its output in
 `ExportJob` payloads only if no existing job covers it.
 
-**Add a peek.** Implement `Peek` in `anyview-peek` and add its arm to that crate's registry.
+**Add a peek.** Implement `Peek` in the back-end crate that owns the format (`anyview-image` for
+images, `anyview-text` for text, code, Markdown, tables and trees) and add its arm to the registry
+in `anyview-peek`. A peek reads from the file by its `Source`, stays inside the `PeekBudget`, and
+reports a count as a `Tally` when it saw only the start.
 
 **Add a machine.** A directory in `anyview-ui` with `model.rs`, `step.rs` and `tests.rs`: an enum of
 states, each variant holding only its data; `impl Machine` with an outer match on the state and an
@@ -275,7 +367,9 @@ Pure functions get one `const CASES` table and one loop, each row named, so a fa
 row. Stored types (`Resume`, `FileAction`, `Zoom`, `Edit`, `FilePath`, …) have a round-trip test
 against the exact JSON, and a stored `Word` enum is checked against its serde form with
 `ds_core::testing::word_matches_serde`. Fixtures are small byte literals of real file signatures,
-in the test that uses them. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
+in the test that uses them; where a decoder needs a real file, a fixture under
+`crates/<crate>/tests/fixtures/` (each under 50 KB) is loaded through `tests/support/mod.rs`, which
+builds the `Source` and sniffs it the way the viewer does. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
 trait.
 
 ## 8. Repo rules
@@ -291,6 +385,9 @@ trait.
   ./scripts/check-boundary.sh
   cargo deny check licenses
   ```
+
+  Where the image does not have `libdav1d-dev` and `pkg-config`, `anyview-image`'s `avif` feature cannot
+  build, so clippy and the tests run without `--all-features` (FINDINGS, AVIF decoding).
 
 - **No `unsafe`** anywhere in the workspace; `unsafe_code = "deny"`.
 - **No `unwrap`** outside tests: clippy's `unwrap_used` is `deny`, and `clippy.toml` allows it in
