@@ -2,7 +2,9 @@
 resolver = "3"
 members = [
   "crates/anyview-core",
+  "crates/anyview-image",
   "crates/anyview-store",
+  "crates/anyview-text",
   "crates/anyview-ui",
 ]
 
@@ -18,7 +20,9 @@ publish = false
 
 [workspace.dependencies]
 anyview-core = { path = "crates/anyview-core" }
+anyview-image = { path = "crates/anyview-image" }
 anyview-store = { path = "crates/anyview-store" }
+anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
@@ -152,6 +156,27 @@ latchkey = { git = "https://github.com/PoHsuanLai/mailo", rev = "43ebf45f244a23c
 infer = "0.19"
 # Scratch directories for `anyview-store`'s file tests (dev-dependency only): MIT OR Apache-2.0.
 tempfile = "3"
+# Decoders and codecs of `anyview-image`. `image` itself is pinned above with png and jpeg only; the
+# crate adds the other formats through its own feature list (FINDINGS: pinned features).
+# JPEG XL decoder, pure Rust: MIT OR Apache-2.0.
+jxl-oxide = "0.12"
+# SVG renderer, the version sill already resolves (0.48), without text so no font is read
+# implicitly: MPL-2.0-free, Apache-2.0 OR MIT.
+resvg = { version = "0.48", default-features = false }
+# EXIF reader (library name `exif`): BSD-2-Clause.
+kamadak-exif = "0.6"
+# Splices EXIF and ICC segments in and out of JPEG, PNG and WebP containers: MIT OR Apache-2.0.
+img-parts = "0.4"
+# AVIF encoder, pure Rust: BSD-3-Clause.
+ravif = { version = "0.13", default-features = false }
+# `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
+syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
+# Markdown parser: MIT.
+pulldown-cmark = { version = "0.13", default-features = false }
+# Delimited tables: MIT OR Unlicense.
+csv = "1"
+# Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
+encoding_rs = "0.8"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

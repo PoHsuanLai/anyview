@@ -1,0 +1,32 @@
+[package]
+name = "anyview-image"
+description = "Raster and vector images for the viewer: decode, downscaled peek, EXIF facts and orientation, encode for export, lossless JPEG rotation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# AVIF decoding needs the dav1d C library (BSD-2-Clause, linked dynamically) and pkg-config.
+# Off by default so the default build needs no C toolchain pieces.
+avif = ["image/avif-native"]
+
+[dependencies]
+anyview-core = { workspace = true }
+ds-core = { workspace = true }
+# The pinned block enables png and jpeg; the other formats the viewer opens are added here.
+image = { workspace = true, features = ["gif", "webp", "bmp", "tiff", "ico", "tga", "qoi"] }
+img-parts = { workspace = true }
+jxl-oxide = { workspace = true }
+kamadak-exif = { workspace = true }
+ravif = { workspace = true }
+resvg = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
