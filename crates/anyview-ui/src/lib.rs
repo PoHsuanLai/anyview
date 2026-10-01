@@ -35,7 +35,7 @@ pub use stage::{
     AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameDirection,
     FrameIndex, HitCount, HitCursor, HitIndex, HitStep, MediaError, MediaIn, MediaOut, MediaParams,
     MediaStage, Pace, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent,
-    RasterIn, RasterOut, RasterParams, RasterStage, Spin, StageFamily, TrackKind, Viewport,
-    ZoomDir,
+    RasterIn, RasterOut, RasterParams, RasterStage, Spin, StageFamily, TextIn, TextOut, TextParams,
+    TextPlace, TextStage, TextView, TextViews, TrackKind, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
