@@ -1,0 +1,183 @@
+use super::*;
+use crate::typed::TypedText;
+use anyview_core::{
+    PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind, RasterTarget, Resize,
+    TextExport,
+};
+use ds_core::machine::Machine;
+use ds_core::time::stamp::Stamp;
+use ds_core::vocab::ShortcutKey;
+
+const PNG: ExportDraft =
+    ExportDraft::Raster(RasterExport::Image(RasterTarget::Png, Resize::Original));
+const RASTER_PDF: ExportDraft = ExportDraft::Raster(RasterExport::Pdf);
+const PDF_PAGES: ExportDraft = ExportDraft::Pdf(PdfExport::Pdf(PageSelection::All));
+const PDF_TEXT: ExportDraft = ExportDraft::Pdf(PdfExport::PlainText);
+const TEXT: ExportDraft = ExportDraft::Text(TextExport::PlainText);
+
+const fn export(draft: ExportDraft) -> Sheet {
+    Sheet::Export { draft }
+}
+const fn rename(name: &'static str) -> Sheet {
+    Sheet::Rename {
+        name: TypedText::from_static(name),
+    }
+}
+
+/// Name, state before, input, state after, outputs.
+type Case = (&'static str, Sheet, SheetIn, Sheet, &'static [SheetOut]);
+
+const CASES: &[Case] = &[
+    (
+        "opening the export sheet holds the format's default",
+        Sheet::Closed,
+        SheetIn::OpenExport(PNG),
+        export(PNG),
+        &[SheetOut::Opened],
+    ),
+    (
+        "asking about the trash opens the confirmation",
+        Sheet::Closed,
+        SheetIn::AskTrash,
+        Sheet::ConfirmTrash,
+        &[SheetOut::Opened],
+    ),
+    (
+        "asking to rename starts from the current name",
+        Sheet::Closed,
+        SheetIn::AskRename(TypedText::from_static("a.png")),
+        rename("a.png"),
+        &[SheetOut::Opened],
+    ),
+    (
+        "a closed sheet ignores confirm",
+        Sheet::Closed,
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[],
+    ),
+    (
+        "picking a kind of the same format resets its options",
+        export(PNG),
+        SheetIn::PickKind(ExportKindPick::Raster(RasterExportKind::Pdf)),
+        export(RASTER_PDF),
+        &[],
+    ),
+    (
+        "picking a kind of another format is refused",
+        export(PNG),
+        SheetIn::PickKind(ExportKindPick::Pdf(PdfExportKind::Markdown)),
+        export(PNG),
+        &[],
+    ),
+    (
+        "changing an option within the format replaces the draft",
+        export(PDF_PAGES),
+        SheetIn::Change(PDF_TEXT),
+        export(PDF_TEXT),
+        &[],
+    ),
+    (
+        "changing to a draft of another format is refused",
+        export(PDF_PAGES),
+        SheetIn::Change(TEXT),
+        export(PDF_PAGES),
+        &[],
+    ),
+    (
+        "confirming exports the draft and closes",
+        export(PDF_TEXT),
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Export(PDF_TEXT), SheetOut::Closed],
+    ),
+    (
+        "cancelling closes without exporting",
+        export(PDF_TEXT),
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "a sheet that is up will not open another",
+        export(PNG),
+        SheetIn::AskTrash,
+        export(PNG),
+        &[],
+    ),
+    (
+        "confirming the trash trashes and closes",
+        Sheet::ConfirmTrash,
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Trash, SheetOut::Closed],
+    ),
+    (
+        "cancelling the trash closes without trashing",
+        Sheet::ConfirmTrash,
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "typing replaces the new name",
+        rename("a"),
+        SheetIn::Typed(TypedText::from_static("ab")),
+        rename("ab"),
+        &[],
+    ),
+    (
+        "confirming a name renames and closes",
+        rename("b.png"),
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[
+            SheetOut::Rename(TypedText::from_static("b.png")),
+            SheetOut::Closed,
+        ],
+    ),
+    (
+        "an empty name cannot be confirmed",
+        rename(""),
+        SheetIn::Confirm,
+        rename(""),
+        &[],
+    ),
+    (
+        "cancelling a rename closes",
+        rename("b.png"),
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+];
+
+#[test]
+fn every_row_of_the_table_steps_as_written() {
+    for (name, from, input, state, outs) in CASES {
+        let (next, out) = from.clone().step(input.clone(), Stamp(0), &());
+        assert_eq!(next, *state, "{name}: state");
+        assert_eq!(out.as_slice(), *outs, "{name}: outputs");
+        assert_eq!(next.wake(), None, "{name}: a sheet keeps no timer");
+    }
+}
+
+#[test]
+fn a_draft_knows_its_format() {
+    assert_eq!(PNG.family(), ExportFamily::Raster);
+    assert_eq!(PDF_TEXT.family(), ExportFamily::Pdf);
+    assert_eq!(TEXT.family(), ExportFamily::Text);
+}
+
+#[test]
+fn enter_confirms_and_escape_cancels_and_letters_mean_nothing() {
+    assert_eq!(
+        SheetIn::from_key(&[ShortcutKey::Enter]),
+        Some(SheetIn::Confirm)
+    );
+    assert_eq!(
+        SheetIn::from_key(&[ShortcutKey::Escape]),
+        Some(SheetIn::Cancel)
+    );
+    assert_eq!(SheetIn::from_key(&[ShortcutKey::Char('x')]), None);
+}
