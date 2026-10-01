@@ -7,6 +7,7 @@ mod error;
 mod escape;
 mod lines;
 mod markdown;
+mod table;
 
 pub use bytes::{ByteSource, FileBytes, HeldBytes};
 pub use code::{
@@ -19,3 +20,4 @@ pub use lines::{LineCount, TextLines};
 pub use markdown::{
     Anchor, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,
 };
+pub use table::{ColumnCount, HeaderMode, RowCount, RowIndex, Table};
