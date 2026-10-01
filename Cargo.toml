@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/anyview-core",
   "crates/anyview-store",
+  "crates/anyview-ui",
 ]
 
 [workspace.package]
@@ -18,6 +19,7 @@ publish = false
 [workspace.dependencies]
 anyview-core = { path = "crates/anyview-core" }
 anyview-store = { path = "crates/anyview-store" }
+anyview-ui = { path = "crates/anyview-ui" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
 
