@@ -18,6 +18,7 @@ mod sheet;
 mod stage;
 mod time;
 mod typed;
+mod viewer;
 
 #[cfg(test)]
 mod testing;
@@ -42,3 +43,4 @@ pub use stage::{
     Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
+pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
