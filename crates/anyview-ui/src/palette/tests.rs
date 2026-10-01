@@ -189,6 +189,11 @@ fn keys_mean_moves_enter_and_escape() {
         ("enter", &[ShortcutKey::Enter], Some(PaletteIn::Enter)),
         ("escape", &[ShortcutKey::Escape], Some(PaletteIn::Close)),
         (
+            "command k closes",
+            &[ShortcutKey::Super, ShortcutKey::Char('k')],
+            Some(PaletteIn::Close),
+        ),
+        (
             "a letter is typed, not a key",
             &[ShortcutKey::Char('a')],
             None,
