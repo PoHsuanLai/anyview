@@ -32,8 +32,10 @@ pub use presentation::{
 };
 pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
 pub use stage::{
-    Animation, Destination, FindHits, FindOut, FrameCount, FrameIndex, HitCount, HitCursor,
-    HitIndex, HitStep, PageView, PdfIn, PdfOut, PdfParams, PdfStage, RasterIn, RasterOut,
-    RasterParams, RasterStage, Spin, StageFamily, Viewport, ZoomDir,
+    AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameDirection,
+    FrameIndex, HitCount, HitCursor, HitIndex, HitStep, MediaError, MediaIn, MediaOut, MediaParams,
+    MediaStage, Pace, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent,
+    RasterIn, RasterOut, RasterParams, RasterStage, Spin, StageFamily, TrackKind, Viewport,
+    ZoomDir,
 };
 pub use typed::TypedText;
