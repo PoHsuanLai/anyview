@@ -1,0 +1,21 @@
+[package]
+name = "anyview-store"
+description = "The viewer's memory on disk: the recently-viewed history and per-file view memory, one format with a read API and a write API."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
