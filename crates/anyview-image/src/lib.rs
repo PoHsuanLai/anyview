@@ -5,9 +5,11 @@
 //! Every public item is reached from this root, once.
 
 mod error;
+mod exif;
 mod orientation;
 mod pixels;
 
 pub use error::ImageError;
+pub use exif::{ExifFacts, Exposure, Ratio};
 pub use orientation::{ExifOrientation, Mirror};
 pub use pixels::{PremultipliedRgba8, Rgba8};
