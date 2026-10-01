@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "crates/anyview-core",
+  "crates/anyview-store",
 ]
 
 [workspace.package]
@@ -16,6 +17,7 @@ publish = false
 
 [workspace.dependencies]
 anyview-core = { path = "crates/anyview-core" }
+anyview-store = { path = "crates/anyview-store" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
 
@@ -146,6 +148,8 @@ latchkey = { git = "https://github.com/PoHsuanLai/mailo", rev = "43ebf45f244a23c
 # anyview-only, outside the pinned block (they are not shared with quire, shell-host or sill).
 # Magic-byte file type detection: MIT. `anyview-core` sniffs a file's first 4 KiB with it.
 infer = "0.19"
+# Scratch directories for `anyview-store`'s file tests (dev-dependency only): MIT OR Apache-2.0.
+tempfile = "3"
 
 [workspace.lints.rust]
 unsafe_code = "deny"
