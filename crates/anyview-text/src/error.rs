@@ -45,12 +45,4 @@ pub enum TextError {
     /// A tree path that leads nowhere.
     #[error("no node at that path")]
     NoSuchNode,
-    /// A syntax highlighter that failed on a line.
-    #[error("cannot highlight line {}: {reason}", .line.0 + 1)]
-    Highlight {
-        /// The line, zero-based.
-        line: LineIndex,
-        /// The highlighter's own words.
-        reason: String,
-    },
 }
