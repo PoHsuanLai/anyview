@@ -4,8 +4,8 @@
 use ds_core::machine::{Elapsed, Machine};
 use ds_core::time::stamp::Stamp;
 
-/// Steps `machine` with `Elapsed` at each `wake()` until it is at rest (or `limit` wakes have
-/// passed), returning where it came to rest and every output with the stamp it came out at.
+/// Steps `machine` with `Elapsed` at each `wake()` while it has one (at most `limit` times),
+/// returning where it came to rest and every output with the stamp it came out at.
 pub(crate) fn settle<M: Machine>(
     mut machine: M,
     params: &M::Params,

@@ -30,7 +30,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-font` | planned | font facts and the specimen's font face |
 | L2 | `anyview-platform` | planned | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | planned | the light tier: `Peek` implementations and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | planned | the viewer's pure machines and its views: stages, chrome, palette, panel, sheets |
+| L4 | `anyview-ui` | exists | the viewer's pure machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them. Its views (Dioxus) join it with the viewer window |
 | L5 | `anyview` | planned | the binary: launch, single instance, CLI, wiring the platform |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
@@ -39,6 +39,7 @@ planned has no directory yet; its row is the rule it will carry.
 | --- | --- |
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
 | `anyview-store` | `anyview-core` |
+| `anyview-ui` | `anyview-core`, `ds-core` (the `Machine` trait and `Stamp`) |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
@@ -51,7 +52,7 @@ directories (`anyview-store`).
 | `anyview-core` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `syntect`, `blitz-dom`, `anyrender`; `serde_json` outside tests |
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
-| `anyview-ui` (planned) | `zbus`: platform code arrives through `anyview-platform` traits |
+| `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
 | every crate but `anyview-platform` (planned) | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings |
 
 `anyview-core` depends on `serde`, `thiserror`, `infer` and `ds-core` and nothing else. It does no
@@ -101,6 +102,27 @@ whole to `<name>.tmp` beside it, synced, and renamed over the old one, so a read
 never sees a partial file. There is no database: `redb` takes an exclusive file lock that blocks the
 launcher while the viewer runs. The viewer is the one writer.
 
+## 2b. Modules inside `anyview-ui`
+
+Same rules as section 2: private modules, each public item re-exported once at the crate root. Each
+region is a directory with `model.rs` (the states, inputs, outputs and params), `step.rs` (the
+`Machine` impl) and `tests.rs`; a table in a test file is exempt from the size aim.
+
+| Module | Holds |
+| --- | --- |
+| `chrome` | `Chrome`, `PinReasons` (a never-empty set), `ChromeParams` |
+| `panel` | `Panel`, `PanelTab`, `PanelTabs` |
+| `palette` | `Palette`, `PaletteParams` (the ranked rows) |
+| `sheet` | `Sheet`, `ExportDraft` (one format's export choice) |
+| `navigate` | `Navigate` over the core `Sequence` |
+| `presentation` | `Presentation` |
+| `load` | `Load`, `Ticket` |
+| `stage` | `Stage` and its four machines (`raster`, `pdf`, `media`, `text`), the shared `find` and `zoom` parts, and `dispatch`: a command or a key becomes an input for the stage that is showing |
+| `keys` | `route`, `Route`, `Regions` |
+| `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
+| `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
+| `typed` | `TypedText`: a query or a name, a static literal or typed |
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -141,6 +163,15 @@ The single place a concept lives. Extend it; never write a second one.
 | Rows of facts a pane lists | `anyview_core::Facts` |
 | The light tier of a format | `anyview_core::Peek` |
 | The crate error | `anyview_core::CoreError` |
+| A pure timed state machine and its time | `ds_core::machine::Machine`, `ds_core::time::stamp::Stamp` |
+| When the hover chrome shows and hides, and what holds it up | `anyview_ui::Chrome`, `PinReasons` |
+| Which region a key goes to | `anyview_ui::route` (`keys/route.rs`) |
+| What a command or a key means to the showing stage | `Stage::input_for` (`stage/dispatch.rs`) |
+| Which keys stand for a stage command | `StageCommand::from_key` (`command.rs`) |
+| Ignoring a result that arrived after the person left a file | `anyview_ui::Ticket`, `Load` |
+| Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
+| The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
+| What lets the root's regions affect each other | `Viewer`'s `step` (`viewer/step.rs`), `viewer/pins.rs`, `viewer/command.rs` |
 
 ## 5. The canonical traits
 
@@ -172,8 +203,44 @@ pub trait ExportChoice: Clone + PartialEq + 'static {
 its implementations. The light tier's registry (one exhaustive match over `FormatKind`) lives in
 `anyview-peek` and the stage registry in `anyview-ui`.
 
-Planned with the crates that need them: `Stage` (anyview-ui; the viewer's full tier, extending
-`Peek`) and `Machine` (quire's pure state machine trait; every viewer region implements it).
+`Machine` is quire's pure state machine trait (`ds_core::machine`); every viewer region implements it
+(section 5a). `Stage` as a trait (the viewer's full tier, extending `Peek`) is planned with the
+views; the stage is the enum `anyview_ui::Stage`.
+
+## 5a. Machines
+
+Each is a `ds_core::machine::Machine`: `step(self, In, Stamp, &Params) -> (Self, Vec<Out>)` and
+`wake(&self) -> Option<Stamp>`. A state is an enum whose variants hold only that state's data; an
+input a state ignores is listed by name; time arrives as a `Stamp`. A machine that waits on the
+clock holds the instant it waits for in the state (`wake` takes no params), so a setting that
+changes applies from the next step. Only the chrome keeps a timer; every other `wake` is `None`.
+
+| Machine | States | Notable inputs | Outputs |
+| --- | --- | --- | --- |
+| `Chrome` | `Hidden`, `Revealing`, `Shown`, `Pinned { by: PinReasons }`, `Hiding` | `PointerMoved(Zone)`, `PointerLeft`, `Pin`, `Unpin`, `Elapsed` | `Fade { to, over }` |
+| `Panel` | `Hidden`, `Shown { tab }` | `Toggle`, `Choose`, `Close`, `TabsChanged` | `Show(tab)`, `Hide` |
+| `Palette` | `Closed`, `Open { query, selection }` | `Open`, `Typed`, `Move`, `Pick`, `Enter`, `Close` | `Opened`, `Closed`, `Run(Command)` |
+| `Sheet` | `Closed`, `Export { draft }`, `ConfirmTrash`, `Rename { name }` | `OpenExport`, `AskTrash`, `AskRename`, `PickKind`, `Change`, `Typed`, `Confirm`, `Cancel` | `Opened`, `Closed`, `Export`, `Trash`, `Rename` |
+| `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last` | `Open(path)`, `Preload(neighbours)` |
+| `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
+| `Load` | `Idle`, `Probing`, `Peeking { frame }`, `Opening`, `Ready`, `Failed { reason }`, each with its `Ticket` | `Begin`, `Probed`, `Peeked`, `PeekFailed`, `Opened`, `Failed` | `Probe`, `Peek`, `Open`, `Cancel`, `UseStage`, `ShowFirstFrame`, `ShowFull` |
+| `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing`, `Paused`) rides in each | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `FrameTick` | `Remember`, `Turned`, `ShowFrame` |
+| `PdfStage` | `Reading`, `Finding { query, hits }`, `Jumping { target }` | `Scroll`, `SetZoom`, `Find`, `Results`, `NextHit`, `GoTo`, `NextPage`, `Arrived`, `Restore` | `Remember`, `ScrollTo`, `Find(..)` |
+| `MediaStage` | `Opening`, `Playing`, `Paused`, `Scrubbing { resume }`, `Ended`, `Failed` | `Player(PlayerEvent)`, `Position`, `Toggle`, `Seek*`, `Scrub*`, `SetVolume`, `Select` | `Command(PlayerCommand)`, `Buffering`, `VolumeChanged`, `TracksChanged` |
+| `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
+| `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text` | one family's input each | each family's output, lifted |
+| `Viewer` | one state per region above | `Open`, a region's input, `Key` | each region's output, lifted; `Probe`, `Run`, `PickFile`, `CloseWindow` |
+
+Key routing is `route(key, Regions) -> Route`, not a machine: a sheet, then the palette, then the
+global chords (⌘K, ⌘I, ⌘W, ⌘O, Esc), then the stage, then navigation, then the chrome. A sheet
+and the palette take every key, so a key that means nothing to one is `Swallowed`. Esc undoes the
+innermost thing: what the stage has open, then the panel, then a quick look.
+
+Hits of a find live with whoever searched (a document can have thousands): the stages hold the
+hit count and a cursor, and ask for a hit to be shown by index. The root couples regions in three
+places only: a file starting to load (the stage goes, a new ticket is issued), a palette command
+(which region it belongs to), and the chrome's derived pins (a sheet or palette open, media
+paused).
 
 ## 6. Recipes
 
@@ -195,6 +262,12 @@ A binding that means what a standard action means uses `Binding::Standard`.
 `ExportJob` payloads only if no existing job covers it.
 
 **Add a peek.** Implement `Peek` in `anyview-peek` and add its arm to that crate's registry.
+
+**Add a machine.** A directory in `anyview-ui` with `model.rs`, `step.rs` and `tests.rs`: an enum of
+states, each variant holding only its data; `impl Machine` with an outer match on the state and an
+inner one on the input, no `_` arm; a `const CASES` table of name, state, input, time, state after,
+outputs; and, if it keeps a timer, a test that steps `Elapsed` at each `wake()` (`testing::settle`).
+Add its region to `Viewer` and its keys to `route` if it takes any.
 
 ## 7. Tests
 
