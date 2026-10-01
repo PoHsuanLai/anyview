@@ -7,10 +7,15 @@
 //!
 //! Every public item is reached from this root, once.
 
+mod error;
 mod history;
+mod io;
 mod label;
+mod reader;
 mod viewed;
 
+pub use error::{StoreError, StoreOp};
 pub use history::{History, HistoryCap, HistoryEntry, history_after_view};
 pub use label::{ResumeLabel, resume_label};
+pub use reader::{HistoryRead, read_history};
 pub use viewed::Viewed;
