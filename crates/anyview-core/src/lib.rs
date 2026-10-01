@@ -7,10 +7,12 @@
 mod action;
 mod edit;
 mod error;
+mod export;
 mod facts;
 mod kind;
 mod peek;
 mod profile;
+mod resume;
 mod sequence;
 mod sniff;
 mod source;
@@ -19,6 +21,12 @@ mod units;
 pub use action::{FileAction, Reach, reach, shortcut};
 pub use edit::{Edit, EditKind};
 pub use error::CoreError;
+pub use export::{
+    ExportChoice, ExportExtension, ExportJob, HtmlDoc, MediaExport, MediaExportKind, MetadataCarry,
+    NoExport, NoExportKind, Orientation, PaperSize, PdfExport, PdfExportKind, PdfPages,
+    PixelSource, PrintLayout, RasterExport, RasterExportKind, RasterTarget, Resize, Subtitles,
+    TextExport, TextExportKind, TextFlavour, TextSource,
+};
 pub use facts::{Fact, FactLabel, FactValue, Facts};
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
@@ -26,6 +34,7 @@ pub use kind::{
 };
 pub use peek::{Peek, PeekBudget, StageSupport};
 pub use profile::{actions_for, edits_for, stage_support};
+pub use resume::{Resume, TrackChoice, TrackId};
 pub use sequence::{
     Neighbours, NonEmpty, ResultsId, Sequence, SequenceMove, SequenceOrigin, SequencePosition,
     moved, neighbours,
