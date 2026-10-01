@@ -84,19 +84,21 @@ impl Highlighter {
     }
 
     /// The text of `source` highlighted as `syntax`, for a snippet that is not a file (a fenced
-    /// code block).
-    pub fn snippet(&self, syntax: SyntaxId, source: &str) -> Vec<TokenLine> {
-        let Some(reference) = self.set.syntaxes().get(syntax.0) else {
-            return Vec::new();
-        };
-        let mut state = LineState::start(reference);
+    /// code block, a peek). With `None` every line is one plain span.
+    pub fn snippet(&self, syntax: Option<SyntaxId>, source: &str) -> Vec<TokenLine> {
+        let lines = crate::lines::split(source);
+        let reference = syntax.and_then(|id| self.set.syntaxes().get(id.0));
+        let mut state = reference.map(LineState::start);
         let mut classes = ClassCache::default();
-        crate::lines::split(source)
+        lines
             .into_iter()
-            .enumerate()
-            .map(|(number, text)| TokenLine {
-                number: LineIndex(u32::try_from(number).unwrap_or(u32::MAX)),
-                spans: state.line(&text, &self.set, &mut classes),
+            .zip(0u32..)
+            .map(|(text, number)| TokenLine {
+                number: LineIndex(number),
+                spans: match state.as_mut() {
+                    Some(state) => state.line(&text, &self.set, &mut classes),
+                    None => plain(&text),
+                },
             })
             .collect()
     }

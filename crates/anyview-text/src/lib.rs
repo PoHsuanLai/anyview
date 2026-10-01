@@ -7,6 +7,7 @@ mod error;
 mod escape;
 mod lines;
 mod markdown;
+mod peek;
 mod table;
 mod tree;
 
@@ -20,6 +21,10 @@ pub use error::TextError;
 pub use lines::{LineCount, TextLines};
 pub use markdown::{
     Anchor, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,
+};
+pub use peek::{
+    CodePeek, CodePeeked, MarkdownPeek, MarkdownPeeked, PEEK_LINES, PlainPeek, PlainPeeked,
+    TablePeek, TablePeeked, Tally, TreePeek, TreePeeked,
 };
 pub use table::{ColumnCount, HeaderMode, RowCount, RowIndex, Table};
 pub use tree::{ChildCount, NodeKind, RowLabel, Tree, TreePath, TreeRow};

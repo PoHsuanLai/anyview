@@ -103,7 +103,7 @@ fn language(info: &str) -> &str {
 fn highlighted(info: &str, text: &str, highlighter: &Highlighter) -> Option<String> {
     let label = language(info);
     let syntax = highlighter.syntax_by_token(label)?;
-    let lines = highlighter.snippet(syntax, text);
+    let lines = highlighter.snippet(Some(syntax), text);
     let mut html = String::from("<pre><code class=\"language-");
     escape_into(&mut html, label);
     html.push_str("\">");

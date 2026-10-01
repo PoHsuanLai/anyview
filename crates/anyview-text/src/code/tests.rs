@@ -180,10 +180,24 @@ fn syntax_names_find_the_default_syntaxes_with_aliases_where_the_names_differ() 
 fn a_snippet_highlights_without_a_file() {
     let h = Highlighter::new();
     let id = h.syntax(&SyntaxName::new("rust").unwrap()).unwrap();
-    let lines = h.snippet(id, "let a = 1;\nlet b = 2;");
+    let lines = h.snippet(Some(id), "let a = 1;\nlet b = 2;");
     assert_eq!(lines.len(), 2);
     assert_eq!(class_of_text(&lines[1], "let"), Some(TokenClass::Keyword));
     assert_eq!(lines[1].number, LineIndex(1));
+}
+
+#[test]
+fn a_snippet_without_a_syntax_is_plain_lines() {
+    let h = Highlighter::new();
+    let lines = h.snippet(None, "a\nb");
+    assert_eq!(lines.len(), 2);
+    assert_eq!(
+        lines[1].spans,
+        [TokenSpan {
+            class: TokenClass::Plain,
+            text: "b".to_owned()
+        }]
+    );
 }
 
 #[test]
