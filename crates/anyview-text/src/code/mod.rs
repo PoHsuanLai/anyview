@@ -5,12 +5,14 @@
 //! lines before it, the first time, and nothing after.
 
 mod class;
+mod html;
 mod state;
 
 #[cfg(test)]
 mod tests;
 
 pub use class::TokenClass;
+pub use html::{TOKEN_CLASS_PREFIX, tokens_html};
 
 use crate::bytes::ByteSource;
 use crate::error::TextError;
@@ -67,6 +69,17 @@ impl Highlighter {
             .syntaxes()
             .iter()
             .position(|syntax| syntax.name.eq_ignore_ascii_case(wanted))
+            .map(SyntaxId)
+    }
+
+    /// The syntax a fenced code block's language label names: a language name or a file
+    /// extension, as `rust`, `Rust` or `rs`.
+    pub fn syntax_by_token(&self, token: &str) -> Option<SyntaxId> {
+        let found = self.set.find_syntax_by_token(token)?;
+        self.set
+            .syntaxes()
+            .iter()
+            .position(|syntax| syntax.name == found.name)
             .map(SyntaxId)
     }
 
