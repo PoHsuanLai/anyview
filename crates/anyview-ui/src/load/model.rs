@@ -3,17 +3,7 @@
 use crate::stage::StageFamily;
 use ds_core::word::Word;
 
-/// Names one load. Every result a worker sends back carries the ticket of the load that asked
-/// for it, and a result whose ticket is not the current one is for a file the person has left.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct Ticket(pub u64);
-
-impl Ticket {
-    /// The ticket of the load after this one.
-    pub fn next(self) -> Ticket {
-        Ticket(self.0.saturating_add(1))
-    }
-}
+pub use anyview_core::work::Ticket;
 
 /// Whether the cheap first frame has arrived.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
