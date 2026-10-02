@@ -2,7 +2,7 @@
 
 use crate::host::{Clock, Desktop, Store, Trash, TrashError};
 use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, SniffStep, Source, sniff,
+    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, sniff,
 };
 use anyview_platform::testing::{FakeApps, FakePrinter, FakeReveal, FakeShare};
 use anyview_platform::{AppEntry, Association, DesktopId, PrintOutcome};
@@ -37,6 +37,7 @@ pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Probed {
         source: Source::new(FilePath::new(at.join(name)).unwrap(), stamp),
         sniffed,
         family,
+        resume: Resume::Nothing,
     }
 }
 

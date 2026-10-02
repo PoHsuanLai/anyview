@@ -121,7 +121,7 @@ Same rules as section 2: private modules, each public item re-exported once at t
 | `label` | `ResumeLabel` and `resume_label`, the row subtitle derived from a `Resume` |
 | `history` | `HistoryCap`, `HistoryEntry`, `History` and the pure `history_after_view` |
 | `record` | the per-file record, its hashed file name, `applicable` and `prune_decision` (private) |
-| `io` | whole-file reads, atomic writes, listing, removal, `stat` (private) |
+| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `ResumeSource` and `FirstFrameSource` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
 | `reader` | `read_history`, `HistoryRead`: the API the launcher links |
 | `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
 
@@ -143,17 +143,17 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `panel` | `Panel`, `PanelTab`, `PanelTabs` |
 | `palette` | `Palette`, `PaletteParams` (the ranked rows) |
 | `sheet` | `Sheet`, `ExportDraft` (one format's export choice) |
-| `navigate` | `Navigate` over the core `Sequence` |
+| `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
 | `presentation` | `Presentation` |
-| `load` | `Load`, `Ticket` |
-| `stage` | `Stage` and its four machines (`raster`, `pdf`, `media`, `text`), the shared `find` and `zoom` parts, and `dispatch`: a command or a key becomes an input for the stage that is showing |
+| `load` | `Load`, `Ticket`, `freshness` (whether a file on disk is still the one opened: the decision behind a reload) |
+| `stage` | `Stage` and its four machines (`raster`, `pdf`, `media`, `text`), the shared `find` and `zoom` parts, `dispatch` (a command or a key becomes an input for the stage that is showing) and `resume` (the place a stage keeps, and the input that puts one back) |
 | `keys` | `route`, `Route`, `Regions` |
 | `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
 | `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop` |
 | `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), and the views `raster`, `text` and `peek_only` |
-| `views` | the window: `ViewerApp`, `Launch`, the chrome, the palette, the panel, the sheets, key events as shortcuts, `stylesheet` |
+| `views` | the window: `ViewerApp`, `Launch`; `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
 
@@ -168,7 +168,7 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
 | `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
 | `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
-| `decode` | `decode`, `decode_bytes`, `Decoded`, `Animation`, `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`, `stills`, `jxl`, `svg` and `look` are private |
+| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded`, `Animation`, `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`, `stills`, `jxl`, `svg` and `look` are private |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
 | `rotate` | `rotate_jpeg`: lossless rotation by rewriting the EXIF orientation segment |
@@ -196,6 +196,7 @@ one file.
 | `bytes` | `ByteSource` (read a range), `FileBytes`, `HeldBytes` |
 | `encoding` | `TextCodec`, `detect` (byte-order mark, UTF-8 validity, Windows-1252 fallback), `Coverage`, `Detected` |
 | `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest |
+| `find` | `Needle` (a phrase, lower-cased, never empty), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
 | `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
 | `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
 | `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`; `header` (the guess) is private |
@@ -445,6 +446,19 @@ The single place a concept lives. Extend it; never write a second one.
 | The one writer of the history and view memory, and the time it stamps | `anyview::host::Store`, `Clock` |
 | A window of the viewer, the first and the later ones | `anyview::window::first_root`, `Seed` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
+| A phrase found in a text, as hits that cut a line at character boundaries | `anyview_text::Needle`, `FindHit`, `TextLines::find` |
+| Which hits are on a line, how a line is cut at them, where the view scrolls to show one | `FoundHits`, `pieces`, `top_for` (`families/text/find.rs`) |
+| How many lines fit a page when long lines wrap | `families/text/wrap.rs` |
+| Where a key step through a text lands | `stage/text/steps.rs` |
+| What a stage remembers of where the person is, and puts back | `Stage::resume`, `Stage::restoring` (`stage/resume.rs`) |
+| Where a file was left, read by the window | `anyview_ui::ResumeSource` (the binary implements it over `anyview_store`) |
+| Where a file is left, kept | `HostRequest::Remember` (the binary writes it through `anyview_store`) |
+| The cheap first frame of a file | `StageView::first_frame` (`families/view.rs`); a picture's from `anyview_ui::FirstFrameSource` (the host's thumbnail cache), an animation's or a vector's from `anyview_image`'s peeks, a text's the first bytes of the file (`families/text/doc.rs`) |
+| The size a picture will have, without decoding it | `anyview_image::declared_size` |
+| The files opened ahead, and the one just left | `views/preloads.rs` |
+| The folder of a file as the list the arrow keys walk, in name order | `anyview_ui::folder_sequence` (`io/folder.rs`) |
+| Whether a changed file is reloaded | `anyview_ui::freshness` (`load/fresh.rs`); the host says a file changed through `Edge::changed` |
+| The frames of an animation, and the clock that plays them | `RasterDoc` strip (`families/raster/doc.rs`), `use_frame_clock` (`families/raster/view.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
 | One viewer process, and forwarding a launch to it | `anyview_platform::Instance`, `Request` |
@@ -580,15 +594,15 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `Panel` | `Hidden`, `Shown { tab }` | `Toggle`, `Choose`, `Close`, `TabsChanged` | `Show(tab)`, `Hide` |
 | `Palette` | `Closed`, `Open { query, selection }` | `Open`, `Typed`, `Move`, `Pick`, `Enter`, `Close` | `Opened`, `Closed`, `Run(Command)` |
 | `Sheet` | `Closed`, `Export { draft }`, `ConfirmTrash`, `Rename { name }` | `OpenExport`, `AskTrash`, `AskRename`, `PickKind`, `Change`, `Typed`, `Confirm`, `Cancel` | `Opened`, `Closed`, `Export`, `Trash`, `Rename` |
-| `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last` | `Open(path)`, `Preload(neighbours)` |
+| `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Leave` | `Open(path)`, `Preload(neighbours)` |
 | `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
 | `Load` | `Idle`, `Probing`, `Peeking { frame }`, `Opening`, `Ready`, `Failed { reason }`, each with its `Ticket` | `Begin`, `Probed`, `Peeked`, `PeekFailed`, `Opened`, `Failed` | `Probe`, `Peek`, `Open`, `Cancel`, `UseStage`, `ShowFirstFrame`, `ShowFull` |
 | `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing`, `Paused`) rides in each | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `FrameTick` | `Remember`, `Turned`, `ShowFrame` |
 | `PdfStage` | `Reading`, `Finding { query, hits }`, `Jumping { target }` | `Scroll`, `SetZoom`, `Find`, `Results`, `NextHit`, `GoTo`, `NextPage`, `Arrived`, `Restore` | `Remember`, `ScrollTo`, `Find(..)` |
 | `MediaStage` | `Opening`, `Playing`, `Paused`, `Scrubbing { resume }`, `Ended`, `Failed` | `Player(PlayerEvent)`, `Position`, `Toggle`, `Seek*`, `Scrub*`, `SetVolume`, `Select` | `Command(PlayerCommand)`, `Buffering`, `VolumeChanged`, `TracksChanged` |
-| `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
+| `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
 | `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text` | one family's input each | each family's output, lifted |
-| `Viewer` | one state per region above | `Open`, a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Run`, `PickFile`, `CloseWindow` |
+| `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens; one's folder or the several are the list), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
 **Why the machines and the views share a crate.** The machines are the part that must stay pure, and
 they are: each `model.rs` and `step.rs` names only `anyview-core` and `ds-core`, which the script
@@ -605,6 +619,32 @@ one bounded pool) as a `Work`; a worker calls `Work::run`, and the `Done` it mak
 pixels never pass through the UI thread; a window of lines is read and highlighted on a worker and the
 UI holds only the lines it returned. `Backend` and `Stop` are `anyview_core::work`, re-exported from `io`, the contract of the shared work
 module.
+
+**Behaviours over time.** The window keeps what workers made on its `Shelf` (signals), and each of these is a
+machine input or a worker job, never a decision of a view.
+
+- *First frame.* A family whose `StageView::FLOW` is `PeekThenOpen` gets `Job::Peek` beside `Job::Open`; a
+  result that comes back is shown only while the full open has not (`Shelf::shown`), and the load machine's
+  `Peeking` state counts it. A picture's first frame is the host's thumbnail when `FirstFrameSource` has one
+  (shown in the box `declared_size` says the picture will fill), otherwise the first frame of a GIF or WebP or a
+  drawn-small SVG; a large text's is its first 256 KiB.
+- *Neighbours.* Each `Navigate` move says `Preload(neighbours)`; the window opens those two files on the
+  `WorkLane::Preload` lane into textures of their own (`Job::Preload`) and keeps the file it just left as it was
+  left. Arriving at a held file shows it with no probe and no open, and reads its stamp (`Job::Stat`) to see that
+  it is still current.
+- *Resume.* `Job::Probe` asks the host's `ResumeSource` for where the file was left (`Probed::resume`); after the
+  load machine installs the stage, `Stage::restoring` turns it into the stage's own `Restore` input. Every
+  settled gesture says `HostRequest::Remember`, which is how the host keeps it.
+- *Reload.* The host says a file changed (`Edge::changed`); the window reads its stamp and, if `freshness` says it
+  differs from the one opened, sends `ViewerIn::Reload`. The root probes again with the stage left in place, a
+  probe of the same family keeps it, and what is on screen stays until the new copy lands. The window asks the
+  host to watch the shown file (`HostRequest::Watch`, replaced by the next); the watcher itself is the binary's,
+  so no crate here names `notify`.
+- *Drop.* The window is a drop target (`ds::file_drop`); `ViewerIn::Dropped` opens the first file, ends the walk,
+  and asks for the folder as the new list (`ViewerOut::ListFolder`, answered through `folder_sequence`).
+- *Animation.* An open that finds frames uploads each into a texture of its own; the stage machine's `Animation`
+  says which is on screen and a clock in the view (`use_frame_clock`) sends `FrameTick` when the current
+  frame's delay is up.
 
 Key routing is `route(key, Regions) -> Route`, not a machine: a sheet, then the palette, then the
 global chords (⌘K, ⌘I, ⌘W, ⌘O, Esc), then the stage, then navigation, then the chrome. A sheet
@@ -680,7 +720,11 @@ the pointer brings the chrome and rest takes it away, ⌘K lists the shared acti
 folder. Workers there run each job where it is submitted, so a result is in the mailbox by the time the
 harness looks (`tests/support/mod.rs`). A view component's markup is an SSR golden
 (`crates/anyview-ui/tests/snapshots/`, rewritten with `DS_BLESS=1`) and the viewer's stylesheet and the
-markup the harness renders go through `ds_lint`. The registry has a test that every `FormatKind` is mapped
+markup the harness renders go through `ds_lint`. Behaviour over time (`tests/behaviour.rs`, `text_stage.rs`,
+`animation.rs`) wires a window to a `Gate` that holds the jobs of chosen kinds until the test lets them go and logs
+every job with its lane, a `Memory` that stands for the host's store (it hears the window's requests and answers its
+reads), and the host's small pictures (`tests/support/mod.rs`), so a first frame is seen while the open is still
+out and a result for a file left behind is released late. The registry has a test that every `FormatKind` is mapped
 and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
 
 ## 8. Repo rules

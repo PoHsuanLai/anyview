@@ -97,6 +97,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
                 resume,
             })
         }),
+        HostRequest::Watch(_) | HostRequest::Unwatch => declined(shown, Declined::Watch),
         HostRequest::Run(action) => run(shown, action),
     }
 }

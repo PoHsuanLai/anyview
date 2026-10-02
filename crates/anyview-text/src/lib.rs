@@ -5,6 +5,7 @@ mod code;
 mod encoding;
 mod error;
 mod escape;
+mod find;
 mod lines;
 mod markdown;
 mod peek;
@@ -18,6 +19,7 @@ pub use code::{
 };
 pub use encoding::{Coverage, DETECT_BYTES, Detected, TextCodec, detect};
 pub use error::TextError;
+pub use find::{ByteOffset, FindHit, MAX_HITS, Needle};
 pub use lines::{LineCount, TextLines};
 pub use markdown::{
     Anchor, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,

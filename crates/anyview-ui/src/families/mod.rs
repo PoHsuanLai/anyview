@@ -9,10 +9,11 @@ mod view;
 
 pub use peek_only::{PeekOnlyDoc, PeekOnlyStageView};
 pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView, RasterTarget};
-pub(crate) use registry::open_for;
-pub use registry::{KindVisitor, family_of, visit};
+pub use registry::{KindVisitor, family_of, flow_of, visit};
+pub(crate) use registry::{open_for, peek_for};
+pub(crate) use text::top_for;
 pub(crate) use text::views_of;
-pub use text::{LineWindow, TextDoc, TextStageView};
+pub use text::{FoundHits, LineWindow, TextDoc, TextStageView};
 pub use view::{Area, FrameLook, Held, LoadedDoc, StageCx, StageView};
 
 /// The colour of each token class of highlighted code, in tokens only.

@@ -26,6 +26,8 @@ pub enum Declined {
     PrintNeedsPdf,
     /// Background playback needs the media player.
     Playback,
+    /// Watching the shown file for changes is not wired to a watcher yet.
+    Watch,
     /// The typed name is not a file name.
     NotAFileName,
 }

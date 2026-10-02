@@ -211,16 +211,19 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
         .expect("Open With…");
     harness.send(Input::click(open_with));
     harness.advance(Duration::from_millis(100));
-    let requests = requests.lock().unwrap();
+    let asked = requests.lock().unwrap();
+    let asked: Vec<&HostRequest> = asked
+        .iter()
+        .filter(|request| !matches!(request, HostRequest::Watch(_)))
+        .collect();
     assert!(
         matches!(
-            requests.as_slice(),
+            asked.as_slice(),
             [HostRequest::Opened(probed), HostRequest::Run(FileAction::OpenWith)]
                 if probed.source.path().as_path() == path
         ),
-        "the window told its host which file it shows, then asked to open it with: {requests:?}"
+        "the window told its host which file it shows, then asked to open it with: {asked:?}"
     );
-    drop(requests);
     save(&mut harness, "peek-only.png");
 }
 

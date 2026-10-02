@@ -180,3 +180,21 @@ fn arrows_and_home_end_walk() {
         assert_eq!(NavigateIn::from_key(&[*key]), *want, "{name}");
     }
 }
+
+#[test]
+fn leaving_ends_the_walk_and_a_new_list_starts_another() {
+    let (state, outs) = walking_at(FILES, 1).step(NavigateIn::Leave, Stamp(0), &());
+    assert_eq!((&state, &outs), (&Navigate::Idle, &vec![]), "a walk ends");
+    let (state, outs) = state.step(NavigateIn::Next, Stamp(0), &());
+    assert_eq!(
+        (state, outs),
+        (Navigate::Idle, vec![]),
+        "and arrows go nowhere"
+    );
+    let (state, outs) = Navigate::Idle.step(NavigateIn::Leave, Stamp(0), &());
+    assert_eq!(
+        (state, outs),
+        (Navigate::Idle, vec![]),
+        "no list to leave is no change"
+    );
+}
