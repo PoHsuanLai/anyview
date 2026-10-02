@@ -1,5 +1,5 @@
-//! Tiles drawn through the job runner agree with a whole-page render, and a batch costs one read
-//! of the page.
+//! Tiles drawn through the job runner agree with a whole-page render, and a worker reads a page
+//! once per zoom, not once per batch.
 
 mod support;
 
@@ -131,6 +131,44 @@ fn a_worker_draws_the_next_document_correctly_after_the_first() {
     };
     let first = page(&one);
     assert_eq!(first, page(&two));
+}
+
+#[test]
+fn a_worker_reads_a_page_again_only_for_another_page_zoom_or_document() {
+    let doc = fixture();
+    let mut worker = PdfWorker::new();
+    assert_eq!(worker.pages_prepared(), 0);
+    let whole = drawn(&doc, 0, Dpi::new(72).expect("a resolution"));
+    // Consecutive batches of one page at one zoom share one reading, and what they draw is the
+    // whole page cut up, from the held page as from a fresh one.
+    for cells in [&[(0, 0)][..], &[(1, 0), (0, 1)], &[(1, 1)]] {
+        for tile in draw(&doc, &mut worker, batch(0, 1000, cells)) {
+            let (x, y) = tile.key.origin();
+            let size = tile.raster.size();
+            let want = crop(&whole, x.0, y.0, size.width.0, size.height.0);
+            assert_eq!(
+                tile.raster.premultiplied_rgba(),
+                &want[..],
+                "{:?}",
+                tile.key
+            );
+        }
+    }
+    assert_eq!(worker.pages_prepared(), 1);
+    // A new zoom reads the page again, once, however many batches follow.
+    draw(&doc, &mut worker, batch(0, 2000, &[(0, 0)]));
+    draw(&doc, &mut worker, batch(0, 2000, &[(1, 0)]));
+    assert_eq!(worker.pages_prepared(), 2);
+    // So does another page, and the page the worker came from, once it has left it.
+    draw(&doc, &mut worker, batch(1, 2000, &[(0, 0)]));
+    draw(&doc, &mut worker, batch(0, 2000, &[(0, 0)]));
+    assert_eq!(worker.pages_prepared(), 4);
+    // Another document is another page, though it has the same number.
+    let other = fixture();
+    draw(&doc, &mut worker, batch(0, 2000, &[(0, 0)]));
+    assert_eq!(worker.pages_prepared(), 4);
+    draw(&other, &mut worker, batch(0, 2000, &[(0, 0)]));
+    assert_eq!(worker.pages_prepared(), 5);
 }
 
 #[test]

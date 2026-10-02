@@ -5,6 +5,7 @@ use crate::geometry::{MilliPoints, PageSize};
 use anyview_core::{PageCount, PageIndex};
 use pdfrum::Document;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Which open document this is. A worker keeps caches that belong to one document (fonts and
@@ -19,7 +20,7 @@ static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 #[derive(Debug)]
 pub struct PdfDocument {
     id: DocId,
-    doc: Document,
+    doc: Arc<Document>,
     count: PageCount,
     sizes: Vec<PageSize>,
 }
@@ -55,7 +56,7 @@ impl PdfDocument {
             .collect();
         Ok(PdfDocument {
             id: DocId(NEXT_ID.fetch_add(1, Ordering::Relaxed)),
-            doc,
+            doc: Arc::new(doc),
             count,
             sizes,
         })
@@ -101,5 +102,12 @@ impl PdfDocument {
     pub(crate) fn page(&self, page: PageIndex) -> Result<pdfrum::Page<'_>, PdfError> {
         self.page_size(page)?;
         Ok(self.doc.page(page.0)?)
+    }
+
+    /// The page as a handle that keeps the document alive, for a prepared page a worker holds
+    /// between jobs; or why there is none.
+    pub(crate) fn owned_page(&self, page: PageIndex) -> Result<pdfrum::OwnedPage, PdfError> {
+        self.page_size(page)?;
+        Ok(self.doc.page_owned(page.0)?)
     }
 }

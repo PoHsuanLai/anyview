@@ -289,12 +289,12 @@ CPU memory.
 | Module | Holds |
 | --- | --- |
 | `error` | `PdfError` |
-| `halt` | where a `Stop` meets pdfrum: the flag between steps, the deadline as pdfrum's per-render stop (private) |
+| `halt` | where a `Stop` meets pdfrum: its flag is the one pdfrum polls, its deadline is pdfrum's budget on it (private) |
 | `document` | `PdfDocument` (open, `Send + Sync`, shared in an `Arc`), `DocId` |
 | `geometry` | `MilliPoints`, `PageSize`, `PageRect` (a rectangle as thousandths of the displayed page) and `displayed`, the one place page space becomes displayed space (crop box and `/Rotate`) |
 | `layout` | `PageLayout`, `PagePlace`: pages stacked at one scale, a height to a page and back |
 | `tile` | the pure scheduler: `ZoomBucket` (four steps to the doubling), `TileKey` (page, bucket, column, row), `schedule`, `Schedule`, `TileBatch`, `ViewWindow`; `key` and `zoom` hold the tile arithmetic |
-| `render` | `PdfWorker` (pdfrum's caches, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
+| `render` | `PdfWorker` (pdfrum's caches and the last prepared page, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
 | `search` | `SearchQuery`, `Hit`, `Hits`, `search_page`, `search_document` |
 | `outline` | `OutlineEntry`, `Disclosure`, `outline`; `PdfLink`, `LinkTarget`, `page_links` |
 | `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file) |
@@ -302,13 +302,13 @@ CPU memory.
 | `job` | `PdfBackend` (implements `Backend`), `PdfJob`, `PdfDone` |
 
 A view asks `schedule` for the tiles it needs (the visible ones nearest the middle first, then a margin
-all round), takes `Schedule::batches` as jobs (one per page, so the page is read once for all its tiles),
+all round), takes `Schedule::batches` as jobs (one per page; the worker keeps the page it read, so the next batch of that page at that zoom does not read it again),
 and runs each with `PdfBackend::run`. Tiles are drawn at a zoom *bucket*, the lowest step of the ladder
 that is at least the shown scale, so a pinch redraws at a few scales, not every frame; a tile is the
 same pixels as that region of a whole-page render at the bucket's scale. Every `PdfDone` carries the
-`Ticket` of its job, and the receiver drops one that is not the latest. A `Stop` ends a job: the flag is
-read between tiles and pages, and the deadline is handed to pdfrum, which also checks it between the
-drawn objects of a tile. A stopped job keeps what it finished.
+`Ticket` of its job, and the receiver drops one that is not the latest. A `Stop` ends a job: its flag is
+the one pdfrum polls, so a raise ends a draw between the drawn objects of a tile (`End::Stopped`), and
+a deadline is pdfrum's budget on the same flag. A stopped job keeps what it finished.
 
 Pixels are premultiplied RGBA8, the form `TextureLayer` uploads; `Raster::straight_rgba` is the form an
 encoder takes. A page is drawn on white. Hits, links and outline entries carry pages, never object
@@ -494,7 +494,7 @@ goes through the runner's `into_input` to the `Outbox`; the first post after a d
 drops a stale `Ticket`. The runtime delivers every ticket and filters none. A panic in a job is a
 `JobOutcome::Panicked` with the message, never a dead worker. `Stop` carries a flag and an optional
 deadline; this crate reads no clock, so a back end asks `stopped_at(now)` with its own `Instant::now()`,
-or reads `deadline()` for a limit of its own. Dropping the `Pool` discards what is queued, lets running
+or reads `deadline()` for a limit of its own, or hands `flag()` to a back end whose own stop polls a flag. Dropping the `Pool` discards what is queued, lets running
 jobs finish and joins the workers.
 
 An actor owns an object that cannot be shared. `Actor::spawn` runs `make(ActorWake)` on the new
