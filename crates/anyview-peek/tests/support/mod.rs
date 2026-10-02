@@ -16,6 +16,7 @@ pub enum Home {
     Own,
     Image,
     Text,
+    Media,
 }
 
 /// The path of a fixture.
@@ -25,6 +26,7 @@ pub fn path(home: Home, name: &str) -> PathBuf {
         Home::Own => Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf(),
         Home::Image => crates.join("anyview-image"),
         Home::Text => crates.join("anyview-text"),
+        Home::Media => crates.join("anyview-media"),
     };
     dir.join("tests/fixtures").join(name)
 }

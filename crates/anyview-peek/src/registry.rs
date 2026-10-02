@@ -5,10 +5,9 @@
 //! implementation.
 
 use crate::body::Light;
-use crate::described::{
-    ArchivePeek, AudioPeek, BookPeek, FontPeek, OfficePeek, OtherPeek, VideoPeek,
-};
+use crate::described::{ArchivePeek, BookPeek, FontPeek, OfficePeek, OtherPeek};
 use crate::folder::FolderPeek;
+use crate::media::{AudioPeek, VideoPeek};
 use crate::pdf::PdfPeek;
 use anyview_core::FormatKind;
 use anyview_image::{RasterPeek, VectorPeek};

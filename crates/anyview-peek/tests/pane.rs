@@ -131,8 +131,8 @@ fn pdf_over_budget() -> Arc<AnyPeeked> {
 /// The kinds with no body of their own: facts under a plate.
 fn facts_only() -> Arc<AnyPeeked> {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("clip.mp4");
-    std::fs::write(&path, b"\0\0\0\x18ftypmp42\0\0\0\0mp42isom").unwrap();
+    let path = dir.path().join("face.ttf");
+    std::fs::write(&path, b"\0\x01\0\0\0\x0f\0\x80\0\x03\0\x30").unwrap();
     let (src, sniffed) = support::on_disk(&path, 0);
     Arc::new(peek(&src, &sniffed, &pane_budget()))
 }
@@ -140,7 +140,7 @@ fn facts_only() -> Arc<AnyPeeked> {
 #[test]
 fn a_kind_without_a_back_end_is_a_plate_and_facts() {
     let peeked = facts_only();
-    assert_eq!(peeked.kind, FormatKind::Video);
+    assert_eq!(peeked.kind, FormatKind::Font);
     if let Err(diff) = golden::check("pane/facts.html", &pane(&peeked)) {
         panic!("{diff}");
     }
