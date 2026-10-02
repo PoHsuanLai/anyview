@@ -6,11 +6,56 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **No `[patch]` sections yet.** sill patches `blitz-kit` to a sibling checkout and the vello and
-  anyrender crates to forks; `anyview-core`, `anyview-store` and the machines of `anyview-ui` name
-  none of them and cargo warns about every unused patch, so the root `Cargo.toml` carries none.
-  Ends when the first crate that names Blitz, vello or anyrender lands (the views of
-  `anyview-ui`): copy the sections from sill's `Cargo.toml` in that change.
+- **quire's `PreviewPane` cannot hold anyview's pane.** It takes data, `PaneContent` (`Image`, `Text`, `Pdf`,
+  `App`, `Facts`, `Emoji`, `Web`), not an element, and draws its own media, caption and actions column.
+  `anyview_peek::Pane` draws the media, the name and the facts itself, so sill (phase C) cannot put it
+  inside `PreviewPane` to keep its action row, its cue, its pending look and its slide-in. Ends when quire
+  gives `PreviewPane` a slot (`PaneContent::Slot(Element)`) or splits its frame (the actions, the cue and
+  the entrance) from its content; then `Pane` goes in the slot. Until then the launcher can lay `Pane` out
+  beside its own actions.
+- **quire's `PdfPage::Ready` carries a PNG `data:` URL.** The PDF peek goes through `ds_blitz::pdf_thumb_blocking`
+  (the cache the launcher already uses), whose page is `ImageSource`, so a PDF's first page is the one
+  picture here that is not a `TextureLayer`. Ends when quire's `PdfPage::Ready` can hold pixels for a
+  `TextureLayer` (a `TextureHandle` or a `Pixels`); then `PdfPeek` hands them over and the pane draws them
+  the way it draws any picture.
+- **quire's markup lint flags quire's own `TextureLayer`.** The `object.ds-texture-layer` it renders has a
+  class no stylesheet rule defines (it styles itself inline), so `ds_lint::markup` reports
+  `UnstyledClass` for any page that shows one. `tests/pane.rs` skips exactly that selector. Ends when quire
+  gives the class a rule or the lint an allowance for it.
+- **A PDF's page count and title are not known to a peek.** pdfrum is reached only through `ds-blitz`, whose
+  thumbnail answers the first page's raster and size; the facts list the page size in points, and the
+  Pages and Title rows wait for `anyview-pdf`. A PDF is read whole by `ds-blitz`, so `PdfPeek` refuses one
+  longer than the budget's bytes (`PeekError::OverBudget`): the launcher's budget must cover the PDFs it
+  wants to show. Ends when `anyview-pdf` supplies a peek that reads only the first page (the registry arm
+  names it instead).
+- **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
+  zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
+  zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
+- **The kinds with no back end show only what sniffing says.** Video, audio, fonts, archives, books, office
+  documents and unknown files are `FactsPeek`: the type, the size and the date, with no duration, no
+  listing, no cover and no specimen. Each ends when its crate lands (`anyview-media`, `anyview-font`,
+  `anyview-archive`) and the registry's arm names the real peek. A book or office file that is a zip is
+  an archive here, because opening the zip is the archive crate's job.
+- **A folder summary is one level deep.** `FolderPeek` counts the first 10,000 non-hidden entries, adds up the
+  size of the files directly inside it (not the contents of folders), and sniffs the first files the byte
+  budget pays for (4 KiB each), so on a large folder the named kinds are those of the first files by name.
+  Ends if a recursive size matters: it needs a deadline the peeks do not have yet (`PeekBudget::time` is
+  not enforced).
+- **The pane has one width.** Its media box is quire's `PANE_MEDIA` (328 by 220 px), a table shows at most six
+  columns and forty rows, and code and plain lines are clipped, not wrapped or scrolled. It is a glance for
+  a 360 px pane; the viewer's stages are the full views. Ends when the launcher's pane gets other widths:
+  the media box then reads its parent's size.
+- **The Markdown start is shown on a white sheet.** The peek's HTML goes into an `<iframe srcdoc>` whose own
+  stylesheet has literal colours, because a frame cannot read the pane's tokens; it is dark on white in both
+  schemes, as a mail's original message is (`--foreign-ground`). Ends when the Markdown stage's stylesheet
+  lands in `anyview-ui` and the frame takes the same one (see the highlighted fences item above).
+- **Each `Pane` writes its stylesheet.** `Pane` draws `AppStyle { css: STYLE }` itself, so the markup holds
+  one `<style>` per pane. Ends if the launcher wants it once for the window: it can draw `AppStyle` with
+  `anyview_peek::STYLE` at its root and the pane's copy is then redundant but harmless.
+- **The picture needs the window's GPU.** `TextureLayer` draws nothing on the CPU painter and until the
+  device arrives with the first frame; the pane shows a placeholder block meanwhile and for good on a CPU
+  renderer. Ends if a CPU-only launcher matters: it then needs a fallback (a PNG `data:` URL from
+  `anyview_image::encode`), which this crate does not carry.
 - **`NoExportKind` is a hand-written `Word`.** `#[derive(Word)]` refuses an enum with no variant,
   and `ExportChoice::Kind` must be a `Word` even for a format with no export. The impl lists no
   variants. Ends when quire's derive accepts an empty enum.
@@ -167,6 +212,40 @@ on. It is a reference, not a log: how each was found lives in git history.
   serde, which refuses such a path.
 - **One writer per store root.** The history is read, changed and rewritten; two writers would
   lose an update and share the `.tmp` name. The viewer is a single instance.
+
+- **The pane and `wgpu`.** The plan says `anyview-peek` reaches none of `wgpu`, but the two things it needs from
+  quire, `TextureLayer` (`use_gpu`) and the PDF thumbnail cache (`pdf` feature), both live in `ds-blitz`,
+  which depends on `wgpu`, the renderer and pdfrum unconditionally or by feature. So they are in
+  `cargo tree -p anyview-peek` and cannot be forbidden there. The boundary is kept where it protects the
+  launcher: its tree has no `mpv-wgpu-player`, `rsmpv`, `zbus` or `ashpd` (the script's RULES), its own
+  manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
+  script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
+  `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 560 distinct packages;
+  `anyview-peek` is 532 today, of which `ds` and `ds-blitz` are nearly all.
+- **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
+  sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those
+  manifests name; they apply only at a workspace root, so they live in this root. They were added with
+  `anyview-peek`, the first crate here that names the renderer, since cargo warns about every unused patch.
+- **`Light` is `Peek` plus two conversions.** The plan writes `visit<F: Peek>`; the visitor here takes `P: Light`,
+  a supertrait of `Peek` that bounds `Peeked: Into<Body>` and `Error: Into<PeekError>` (associated type
+  bounds), so a generic body can turn any peek's result into the one value the pane draws without a
+  second match over kinds. Every peek in this crate and in `anyview-image` and `anyview-text` qualifies by
+  a blanket impl; a peek that does not has no arm in the registry.
+- **`peek` never fails.** A peek that errors is `Body::Unavailable(reason)` with the file's kind, size and
+  date, so the launcher always has something to draw; `JsonOverBudget`, an undecodable image and an
+  unreadable folder are shown that way. A PDF that pdfrum cannot read is not an error: ds-blitz answers
+  with a page that says so (`PdfPage::Failed`), and `PdfThumb` draws the glyph plate.
+- **`FormatKind`'s labels are variant names** (`Pdf`, `PlainText` reads `Plain text`), so a folder's kinds read
+  `2 plain text, 1 raster` and a facts-only kind with no format shows its media type, not a word. Ends if
+  `FormatKind` gets `#[word(label = ..)]` attributes.
+- **What sill consumes in phase C.** `anyview_peek::peek` on a worker for the sniffed file (the `Sniffed`
+  replaces `Preview`'s `Image`, `TextFile`, `Pdf` and file-facts variants: a picture is `Body::Picture`, a text
+  file `Body::Plain` or `Body::Code`, a PDF `Body::Page`, any other file or a folder `Body::FactsOnly` or
+  `Body::Folder`), `anyview_peek::Pane` to draw the `Arc<AnyPeeked>` it gets back, and `PeekBudget` from
+  its settings. `App`, `Clipboard`, `Emoji` and `Web` stay sill's own. The pane replaces
+  `use_pdf_page(path, PANE_MEDIA)` and the image `data:` URLs in
+  `sill-launcher-ui/src/launcher/preview/`; see the open item on `PreviewPane` for the frame around it.
 
 - **`infer` has no signature for** TTC fonts, MPEG transport streams, ICNS, TGA, QOI and HDR; the
   extension names them, and only when the head is binary. A text head is never reclassified by a

@@ -29,7 +29,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-archive` | planned | zip, tar and 7z listings and single-entry extraction |
 | L1 | `anyview-font` | planned | font facts and the specimen's font face |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
-| L3 | `anyview-peek` | planned | the light tier: `Peek` implementations and the pane view (what the launcher links) |
+| L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer's pure machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them. Its views (Dioxus) join it with the viewer window |
 | L5 | `anyview` | planned | the binary: launch, single instance, CLI, wiring the platform |
 
@@ -43,10 +43,13 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
+| `anyview-peek` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
-directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`).
+directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`, `anyview-peek`). `anyview-peek` also takes
+`ds-harness` (a real Blitz document, and the hybrid GPU painter), `ds-lint` and `dioxus-ssr` as
+dev-dependencies.
 
 ### External boundaries (`scripts/check-boundary.sh`)
 
@@ -56,7 +59,7 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
-| `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
+| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `zbus`, `ashpd` anywhere in its tree: libmpv and D-Bus stay out of the launcher's process. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget |
 | `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
@@ -65,6 +68,12 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform
 and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
+
+`anyview-peek` depends on the three crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
+`thiserror`. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
+thumbnail cache both live there, the launcher is a Blitz window and already links the renderer, and the
+pane reaches the device only through `ds_blitz::use_gpu`, never by naming a `wgpu` type (FINDINGS, "The pane
+and `wgpu`").
 
 `anyview-core` depends on `serde`, `thiserror`, `infer` and `ds-core` and nothing else. It does no
 I/O and reads no clock: a function that needs bytes takes them (`FileHead`, `ZipEntries`), and one
@@ -241,6 +250,26 @@ message when the program is not installed.
 `anyview-platform` depends on `zbus` (its `tokio` feature, so the binary's runtime drives it),
 `freedesktop-desktop-entry`, `tokio` (channels only), `md-5`, `png`, `percent-encoding`, `memfd`,
 `futures-util`, `dirs`, `thiserror`, `anyview-core` and `ds-core`.
+## 2f. Modules inside `anyview-peek`
+
+Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
+are blocking and run on the caller's worker; only `pane` draws.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `PeekError` |
+| `registry` | `KindVisitor`, `visit`: the one exhaustive match over `FormatKind` in the light tier |
+| `body` | `Body` (the type-erased result), `Light` (a `Peek` whose result and error convert into `Body` and `PeekError`) |
+| `any` | `AnyPeeked` and `peek`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable` |
+| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`VideoPeek`, `AudioPeek`, `FontPeek`, `ArchivePeek`, `BookPeek`, `OfficePeek`, `OtherPeek`): what sniffing established, nothing pretended |
+| `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
+| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
+| `when` | `modified_text`: a modification time as UTC |
+| `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table and a tree's top level, both as quire's `Table`) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
+
+`peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
+reason and the facts the file can still give. The pane draws a `Body` over the file's name and a `FactList`
+of its facts; the actions under it are the host's.
 
 ## 3. Layer rules
 
@@ -281,6 +310,15 @@ The single place a concept lives. Extend it; never write a second one.
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
 | Rows of facts a pane lists | `anyview_core::Facts` |
 | The light tier of a format | `anyview_core::Peek` |
+| Which peek a kind has (the light tier's one match on `FormatKind`) | `anyview_peek::visit`, `KindVisitor` (`registry.rs`) |
+| A peek's result with its type erased, and the rows beside it | `anyview_peek::AnyPeeked`, `peek`, `Body` |
+| What a kind with no back end yet shows | `anyview_peek::FactsPeek` (`described.rs`) |
+| A folder's count, size and kinds | `anyview_peek::FolderPeek` |
+| The first page of a PDF for a pane | `anyview_peek::PdfPeek`, over `ds_blitz::pdf_thumb_blocking` |
+| A modification time as words | `anyview_peek::modified_text` |
+| Drawing what was peeked at | `anyview_peek::Pane` |
+| A picture on the screen without a PNG `data:` URL | `ds_blitz::TextureLayer`, from `anyview_peek`'s `pane/picture.rs` |
+| Token classes to colours | `anyview_peek::STYLE` (`pane/pane.css`), the `tok-<class>` rules |
 | The crate error | `anyview_core::CoreError` (`ImageError` in `anyview-image`, `TextError` in `anyview-text`) |
 | Raster and vector pixels out of a file (RGBA8, straight alpha, upright) | `anyview_image::decode`, `decode_bytes` |
 | Straight to premultiplied alpha | `anyview_image::Rgba8::premultiplied` |
@@ -347,7 +385,13 @@ pub trait ExportChoice: Clone + PartialEq + 'static {
 
 `anyview-core` holds no registry and no visitor over `Peek`: it declares the trait and cannot name
 its implementations. The light tier's registry (one exhaustive match over `FormatKind`) lives in
-`anyview-peek` and the stage registry in `anyview-ui`.
+`anyview-peek` and the stage registry in `anyview-ui`:
+
+```rust
+pub trait Light: Peek<Peeked: Into<Body>, Error: Into<PeekError>> {}   // blanket: every peek here is one
+pub trait KindVisitor { type Out; fn visit<P: Light>(self) -> Self::Out; }
+pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out;  // the one exhaustive match
+```
 
 Two traits belong to the back ends, each because a fake swaps for the real thing in tests:
 `anyview_text::ByteSource` (read a range of bytes: `FileBytes` on disk, `HeldBytes` in memory) and
@@ -415,7 +459,9 @@ A binding that means what a standard action means uses `Binding::Standard`.
 
 **Add a peek.** Implement `Peek` in the back-end crate that owns the format (`anyview-image` for
 images, `anyview-text` for text, code, Markdown, tables and trees) and add its arm to the registry
-in `anyview-peek`. A peek reads from the file by its `Source`, stays inside the `PeekBudget`, and
+in `anyview-peek`, with a `From<Peeked> for Body` (a new variant of `Body` if it draws something new,
+and its view in `pane`). A kind whose back end lands replaces its `FactsPeek` marker's arm with the
+real type. A peek reads from the file by its `Source`, stays inside the `PeekBudget`, and
 reports a count as a `Tally` when it saw only the start.
 
 **Add a machine.** A directory in `anyview-ui` with `model.rs`, `step.rs` and `tests.rs`: an enum of
@@ -432,7 +478,11 @@ against the exact JSON, and a stored `Word` enum is checked against its serde fo
 `ds_core::testing::word_matches_serde`. Fixtures are small byte literals of real file signatures,
 in the test that uses them; where a decoder needs a real file, a fixture under
 `crates/<crate>/tests/fixtures/` (each under 50 KB) is loaded through `tests/support/mod.rs`, which
-builds the `Source` and sniffs it the way the viewer does. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
+builds the `Source` and sniffs it the way the viewer does (`anyview-peek` reuses the image and text
+fixtures and adds one PDF). The pane is checked three ways: server-side renders kept as goldens under
+`tests/snapshots/` (`DS_BLESS=1` rewrites them; read the diff), quire's stylesheet and markup lint, and a
+real Blitz document through `ds-harness`, with a hybrid-painter test that reads the picture's pixels back
+and skips where no GPU adapter opens. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
 trait.
 
 ## 8. Repo rules
