@@ -183,6 +183,12 @@ kamadak-exif = "0.6"
 img-parts = "0.4"
 # AVIF encoder, pure Rust: BSD-3-Clause.
 ravif = { version = "0.13", default-features = false }
+# Unbounded channel whose receiver is a future, so a worker's result wakes the window's UI task:
+# MIT OR Apache-2.0 (already in the tree through dioxus).
+futures-channel = "0.3"
+# `StreamExt::next` on that receiver, and the stream of a portal request's `Response` signals
+# (`anyview-platform`): MIT OR Apache-2.0.
+futures-util = { version = "0.3", default-features = false }
 # `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
 syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
 # Markdown parser: MIT.
@@ -199,8 +205,6 @@ md-5 = "0.10"
 percent-encoding = "2"
 # Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
 png = "0.18"
-# The stream of a portal request's `Response` signals: MIT OR Apache-2.0.
-futures-util = { version = "0.3", default-features = false }
 # `anyview`'s media-thread spike (dev-dependency only): libmpv playback into a caller-owned wgpu
 # texture, MIT OR Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version.
 mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808983c57dc0e7c475e5baea23a124420b7a2f" }

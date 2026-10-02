@@ -1,0 +1,12 @@
+/* Token classes of highlighted code: what `anyview-text` names a span (`tok-keyword`), mapped to a
+   design-system colour token. Used in the window's source view and in a rendered page's frame. */
+
+.tok-keyword,.tok-tag,.tok-attribute{ color:var(--c-violet); }
+.tok-string,.tok-inserted{ color:var(--c-green); }
+.tok-comment{ color:var(--ink-faint); }
+.tok-number,.tok-constant,.tok-escape{ color:var(--c-amber); }
+.tok-type,.tok-heading,.tok-strong{ color:var(--c-blue); }
+.tok-function,.tok-link{ color:var(--accent-text); }
+.tok-deleted{ color:var(--c-red); }
+.tok-operator,.tok-punctuation{ color:var(--ink-soft); }
+.tok-plain{ color:var(--ink); }
