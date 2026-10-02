@@ -31,7 +31,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | planned | the light tier: `Peek` implementations and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer's pure machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them. Its views (Dioxus) join it with the viewer window |
-| L5 | `anyview` | planned | the binary: launch, single instance, CLI, wiring the platform |
+| L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread); launch, single instance, CLI and wiring the platform join it |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
 
@@ -43,8 +43,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
+| `anyview` | `anyview-core` (the `work` contract); the wiring change adds the crates it links |
 
-Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
+Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
 directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`).
 
@@ -59,6 +60,7 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
 | `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
+| `anyview` | `dioxus`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: the runtime is generic over the back ends and names none of them; the wiring change amends this row with what the binary links |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
@@ -89,6 +91,7 @@ no other public path. A module names only modules above it in this list.
 | `resume` | `Resume`, `TrackChoice` |
 | `facts` | `FactLabel`, `FactValue`, `Facts` |
 | `peek` | `Peek`, `PeekBudget`, `StageSupport` |
+| `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
 | `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `stage_support` |
 
 ## 2a. Modules inside `anyview-store`
@@ -242,6 +245,20 @@ message when the program is not installed.
 `freedesktop-desktop-entry`, `tokio` (channels only), `md-5`, `png`, `percent-encoding`, `memfd`,
 `futures-util`, `dirs`, `thiserror`, `anyview-core` and `ds-core`.
 
+## 2f. Modules inside `anyview` (the runtime)
+
+`lib.rs` declares `pub mod runtime`; `main.rs` is the program. The runtime is the one place that
+starts threads (section 5b), and it names no back end: it is generic over `anyview_core::work::Backend`
+and over an actor body.
+
+| Module | Holds |
+| --- | --- |
+| `runtime::error` | `RuntimeError` (`Spawn`, `ActorEnded`) |
+| `runtime::mailbox` | `UiWaker`, `Mailbox` (the UI thread's end, `drain`), `Outbox` (cloned to every posting thread; one wake per drain) |
+| `runtime::pool` | `Pool`, `PoolSize`, `Lane` (`Visible`, `Preload`); the per-worker scratch map and the queues are private |
+| `runtime::runner` | `Runner<B, T>`, `JobHandle`, `JobOutcome` (`Done`, `Skipped`, `Panicked`), `JobPanic` |
+| `runtime::actor` | `Actor`, `ActorBody`, `ActorWake`, `Flow` |
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -308,7 +325,11 @@ The single place a concept lives. Extend it; never write a second one.
 | Which region a key goes to | `anyview_ui::route` (`keys/route.rs`) |
 | What a command or a key means to the showing stage | `Stage::input_for` (`stage/dispatch.rs`) |
 | Which keys stand for a stage command | `StageCommand::from_key` (`command.rs`) |
-| Ignoring a result that arrived after the person left a file | `anyview_ui::Ticket`, `Load` |
+| Ignoring a result that arrived after the person left a file | `anyview_core::work::Ticket` (re-exported by `anyview_ui`), `Load`; `Ticketed` pairs a result with it |
+| What a back end offers a worker, and how work is told to stop | `anyview_core::work::Backend`, `Stop` |
+| The threads: the worker pool, its lanes, panics in jobs | `anyview::runtime::Pool`, `Runner` |
+| Handing a result to the UI thread and waking it | `anyview::runtime::Mailbox`, `Outbox`, `UiWaker` |
+| An object one thread owns, with commands in and events out (the player) | `anyview::runtime::Actor`, `ActorBody` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
@@ -358,6 +379,37 @@ tested without a file.
 `Machine` is quire's pure state machine trait (`ds_core::machine`); every viewer region implements it
 (section 5a). `Stage` as a trait (the viewer's full tier, extending `Peek`) is planned with the
 views; the stage is the enum `anyview_ui::Stage`.
+
+## 5b. Threads
+
+The binary owns every thread; libraries never spawn. Back-end crates expose `Backend::run` and
+their work items and nothing else.
+
+| Thread | Owner | Runs |
+| --- | --- | --- |
+| UI | the window (`ds-blitz`) | the machines, the views, `TextureLayer`, Markdown and HTML layout; never blocks |
+| workers, `PoolSize::from_cores(cores)` (cores minus one, at least one) | `runtime::Pool` | back-end jobs, visible-lane first |
+| `anyview-media` | `runtime::Actor` | the media player: built, polled and commanded only there |
+| async runtime | the binary's tokio runtime | `anyview-platform` (D-Bus, MPRIS) |
+
+The contract, in order of a job's life: a machine output becomes `Runner::submit(lane, ticket, doc,
+job, deadline)`, which returns a `JobHandle` (the ticket and the job's `Stop`). A worker skips a
+job whose `Stop` was raised or whose deadline passed before it started (`JobOutcome::Skipped`),
+otherwise runs `B::run(&doc, &mut worker, job, &stop)` with the worker's own scratch (made once per
+thread by the runner's `make_worker`, rebuilt after a panic). The result, `Ticketed<JobOutcome<Done>>`,
+goes through the runner's `into_input` to the `Outbox`; the first post after a drain calls the
+`UiWaker`, and the UI thread `drain`s the `Mailbox` and feeds each message to its machine, which
+drops a stale `Ticket`. The runtime delivers every ticket and filters none. A panic in a job is a
+`JobOutcome::Panicked` with the message, never a dead worker. `Stop` carries a flag and an optional
+deadline; this crate reads no clock, so a back end asks `stopped_at(now)` with its own `Instant::now()`,
+or reads `deadline()` for a limit of its own. Dropping the `Pool` discards what is queued, lets running
+jobs finish and joins the workers.
+
+An actor owns an object that cannot be shared. `Actor::spawn` runs `make(ActorWake)` on the new
+thread, so the object is built there and may be `!Send`; commands arrive through `Actor::send`, the
+object's own callback calls `ActorWake::wake` (coalesced) and the body's `woken` polls it; events
+go out through an `Outbox`. The player runs this way: `poll` on the media thread is checked in
+`crates/anyview/tests/media_thread.rs` (FINDINGS).
 
 ## 5a. Machines
 

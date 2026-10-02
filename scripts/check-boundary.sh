@@ -22,7 +22,12 @@ cd "$(dirname "$0")/.."
 # anyview-platform is the edge: it alone names the bus and the freedesktop formats (checked for every
 # other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
+# anyview (the binary) owns every thread: its runtime is generic over the back ends and names none
+# of them, so no player, GPU, decoder, UI toolkit or bus reaches it. The media-thread spike links
+# the player and wgpu as dev-dependencies, which `-e normal,build` does not see. The change that
+# wires the viewer together amends this row and the edge below with what it links.
 RULES=(
+  "anyview: dioxus zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
@@ -61,6 +66,7 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
+  "anyview: anyview-core"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core ds-core"
