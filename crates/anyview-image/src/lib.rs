@@ -15,7 +15,8 @@ mod rotate;
 mod scale;
 
 pub use decode::{
-    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, decode, decode_bytes,
+    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, declared_size, decode,
+    decode_bytes,
 };
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
