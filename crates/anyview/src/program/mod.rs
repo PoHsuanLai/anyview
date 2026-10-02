@@ -9,6 +9,6 @@ mod start;
 #[cfg(test)]
 mod tests;
 
-pub use relay::{files_of, open_each, open_windows, relay};
+pub use relay::{Wanted, open_each, open_windows, relay, wanted_by};
 pub use role::{Role, claim_role};
 pub use start::{WARM_FOR, run};
