@@ -22,6 +22,11 @@ pub(crate) fn from_extension<F: Family>(extension: &str) -> Option<F> {
     })
 }
 
+/// The format of family `F` whose MIME type is `mime` (already lower-case).
+pub(crate) fn from_mime<F: Family>(mime: &str) -> Option<F> {
+    F::ALL.iter().copied().find(|format| format.mime() == mime)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
