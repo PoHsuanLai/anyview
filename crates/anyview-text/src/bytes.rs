@@ -39,6 +39,19 @@ impl FileBytes {
     }
 }
 
+impl FileBytes {
+    /// The first `limit` bytes of the file `src` names: a file that seems no longer than that,
+    /// so a window of lines of it is the file's start and nothing is indexed past it. A file
+    /// shorter than `limit` is whole.
+    pub fn first(src: &Source, limit: ByteLen) -> Result<Self, TextError> {
+        let whole = FileBytes::open(src)?;
+        Ok(FileBytes {
+            len: ByteLen(whole.len.0.min(limit.0)),
+            ..whole
+        })
+    }
+}
+
 fn read_error(path: &std::path::Path, error: &std::io::Error) -> TextError {
     TextError::Read {
         path: path.to_path_buf(),
@@ -93,6 +106,31 @@ impl ByteSource for HeldBytes {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_start_of_a_file_reads_as_a_shorter_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("a.txt");
+        std::fs::write(&path, b"0123456789").unwrap();
+        let src = Source::new(
+            anyview_core::FilePath::new(&path).unwrap(),
+            anyview_core::FileStamp {
+                len: ByteLen(10),
+                modified: anyview_core::ModTime(0),
+            },
+        );
+        // name, limit, length it reports, what a read of everything gives
+        const CASES: &[(&str, u64, u64, &[u8])] = &[
+            ("shorter than the file", 4, 4, b"0123"),
+            ("exactly the file", 10, 10, b"0123456789"),
+            ("longer than the file", 99, 10, b"0123456789"),
+        ];
+        for (name, limit, len, bytes) in CASES {
+            let start = FileBytes::first(&src, ByteLen(*limit)).unwrap();
+            assert_eq!(start.byte_len(), ByteLen(*len), "{name}: length");
+            assert_eq!(start.read(0..99).unwrap(), *bytes, "{name}: bytes");
+        }
+    }
 
     #[test]
     fn held_bytes_clip_a_range_to_what_exists() {
