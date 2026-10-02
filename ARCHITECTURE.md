@@ -23,7 +23,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
 | L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
-| L1 | `anyview-pdf` | planned | pdfrum: open, tile scheduling, search, outline, page edits, exports |
+| L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
 | L1 | `anyview-media` | planned | the media player session: tracks, chapters, typed state |
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | planned | zip, tar and 7z listings and single-entry extraction |
@@ -42,10 +42,12 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-ui` | `anyview-core`, `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
+| `anyview-pdf` | `anyview-core` |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
-directories (`anyview-store`, `anyview-image`, `anyview-text`).
+directories (`anyview-store`, `anyview-image`, `anyview-text`). `anyview-pdf` has none: its tests build
+their fixture in memory.
 
 ### External boundaries (`scripts/check-boundary.sh`)
 
@@ -55,6 +57,7 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`).
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
+| `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
 | `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
 | every crate but `anyview-platform` (planned) | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings |
@@ -63,6 +66,10 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`).
 and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
+
+`anyview-pdf` depends on `pdfrum` (the pinned block's facade, with its `markdown` feature added by the
+crate's own manifest), `pdfrum-edit` (for `reorder_pages` and page-range writes, which the facade's
+`DocEdit` lacks) and `thiserror`.
 
 `anyview-core` depends on `serde`, `thiserror`, `infer` and `ds-core` and nothing else. It does no
 I/O and reads no clock: a function that needs bytes takes them (`FileHead`, `ZipEntries`), and one
@@ -185,6 +192,41 @@ Token classes are words (`keyword`, `string`, `comment`, …), never colours: th
 as text), keeps only web, mail and relative link targets, and writes local images as `data:` URLs
 read through `LocalFiles`, because quire's sealed frames load nothing else.
 
+## 2e. Modules inside `anyview-pdf`
+
+Same rules as section 2. Blocking and effect-free except the jobs of `job`, which the binary's pool
+runs; the crate spawns nothing, reads no file but the one it is asked to open, and draws only to
+CPU memory.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `PdfError` |
+| `work_shim` | `Backend`, `Stop`, `StopState`, `Ticket`: a local copy of the threading contract that moves to `anyview_core::work` (FINDINGS) |
+| `halt` | where a `Stop` meets pdfrum: the flag between steps, the deadline as pdfrum's per-render stop (private) |
+| `document` | `PdfDocument` (open, `Send + Sync`, shared in an `Arc`), `DocId` |
+| `geometry` | `MilliPoints`, `PageSize`, `PageRect` (a rectangle as thousandths of the displayed page) and `displayed`, the one place page space becomes displayed space (crop box and `/Rotate`) |
+| `layout` | `PageLayout`, `PagePlace`: pages stacked at one scale, a height to a page and back |
+| `tile` | the pure scheduler: `ZoomBucket` (four steps to the doubling), `TileKey` (page, bucket, column, row), `schedule`, `Schedule`, `TileBatch`, `ViewWindow`; `key` and `zoom` hold the tile arithmetic |
+| `render` | `PdfWorker` (pdfrum's caches, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
+| `search` | `SearchQuery`, `Hit`, `Hits`, `search_page`, `search_document` |
+| `outline` | `OutlineEntry`, `Disclosure`, `outline`; `PdfLink`, `LinkTarget`, `page_links` |
+| `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file) |
+| `export` | `ExportPiece`, `plan_export`, `selected`, `write_pages`, `write_text` |
+| `job` | `PdfBackend` (implements `Backend`), `PdfJob`, `PdfDone` |
+
+A view asks `schedule` for the tiles it needs (the visible ones nearest the middle first, then a margin
+all round), takes `Schedule::batches` as jobs (one per page, so the page is read once for all its tiles),
+and runs each with `PdfBackend::run`. Tiles are drawn at a zoom *bucket*, the lowest step of the ladder
+that is at least the shown scale, so a pinch redraws at a few scales, not every frame; a tile is the
+same pixels as that region of a whole-page render at the bucket's scale. Every `PdfDone` carries the
+`Ticket` of its job, and the receiver drops one that is not the latest. A `Stop` ends a job: the flag is
+read between tiles and pages, and the deadline is handed to pdfrum, which also checks it between the
+drawn objects of a tile. A stopped job keeps what it finished.
+
+Pixels are premultiplied RGBA8, the form `TextureLayer` uploads; `Raster::straight_rgba` is the form an
+encoder takes. A page is drawn on white. Hits, links and outline entries carry pages, never object
+numbers, and rectangles are fractions of the displayed page, so they need no zoom.
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -246,6 +288,14 @@ The single place a concept lives. Extend it; never write a second one.
 | CSV and TSV rows, and the header guess | `anyview_text::Table`, `HeaderMode` |
 | JSON and JSON Lines, one level at a time | `anyview_text::Tree`, `TreePath` |
 | The text, code, Markdown, table and tree peeks | `anyview_text::PlainPeek`, `CodePeek`, `MarkdownPeek`, `TablePeek`, `TreePeek` |
+| Which tiles a view needs, in what order, at what zoom | `anyview_pdf::schedule`, `ZoomBucket` (`tile/schedule.rs`) |
+| A tile's pixels, and the page as laid out | `anyview_pdf::PdfBackend::run` (`PdfJob::Tiles`), `PageLayout` |
+| Page space to displayed space (crop box, `/Rotate`) | `anyview_pdf::displayed` (`geometry.rs`) |
+| Searching a PDF, and the hit a find shows | `anyview_pdf::search_document`, `Hits` |
+| A PDF's outline and the links on a page | `anyview_pdf::outline`, `page_links` |
+| Rotating, deleting and moving PDF pages | `anyview_pdf::apply`, `PageOp` |
+| What a PDF export is made of | `anyview_pdf::plan_export`, `ExportPiece` |
+| The contract a back end is run through, and cancelling it | `anyview_pdf::Backend`, `Stop`, `Ticket` (`work_shim.rs`, moving to `anyview_core::work`) |
 | A pure timed state machine and its time | `ds_core::machine::Machine`, `ds_core::time::stamp::Stamp` |
 | When the hover chrome shows and hides, and what holds it up | `anyview_ui::Chrome`, `PinReasons` |
 | Which region a key goes to | `anyview_ui::route` (`keys/route.rs`) |
