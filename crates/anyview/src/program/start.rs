@@ -1,20 +1,19 @@
 //! Assembling the program and running its event loop.
 
-use super::relay::{open_each, relay};
+use super::relay::{open_each, open_windows, relay};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::host::{Clock, LinuxDesktop, Store};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
-use crate::window::{Factory, Inbox, Opening, Seed, first_root};
+use crate::window::{Factory, Opening};
 use anyview_core::FilePath;
 use anyview_platform::linux::DbusInstance;
 use anyview_platform::{Env, Request};
 use anyview_store::Viewed;
 use ds::prelude::Appearance;
-use ds_blitz::{AppConfig, AppId, Decorations, launch};
+use ds_blitz::{AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, launch_idle};
 use futures_channel::mpsc::unbounded;
-use futures_util::StreamExt;
 use std::ffi::OsString;
 use std::num::NonZeroUsize;
 use std::process::ExitCode;
@@ -22,9 +21,9 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::runtime::{Builder, Runtime};
 
-/// How long the viewer would stay running with no window, so the next open is warm. Not
-/// honoured yet: ds-blitz ends the event loop with its first window (FINDINGS), so the process
-/// exits with the last window and the bus activation covers the next start.
+/// How long the viewer stays running with no window after the last one closes (`viewer.warm_for`'s
+/// default), so the next open finds the device, the fonts and the instance warm. A constant until
+/// quire's settings have the key (FINDINGS).
 pub const WARM_FOR: Duration = Duration::from_secs(10 * 60);
 
 /// The folder under the person's data directory that holds the history and the view memory. The
@@ -61,6 +60,10 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     };
     let role = runtime.block_on(claim_role(&DbusInstance::new(env.clone()), &request));
     let (openings, inbox) = unbounded();
+    // A process the bus started has no file of its own: the call that started it arrives once
+    // the name is owned. Without the bus nothing else will ever ask, so a launch with no file is
+    // a usage error.
+    let may_wait = matches!(role, Role::Primary(_));
     match role {
         Role::Forwarded => return ExitCode::SUCCESS,
         Role::Primary(primary) => {
@@ -71,17 +74,15 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
         }
     }
     let first_files = crate::program::files_of(request);
-    let own = openings.clone();
-    runtime.spawn(async move { open_each(first_files, &own).await });
-    // The viewer's own sender is dropped here; the relay (if any) keeps the channel open, and a
-    // process with no relay and no files ends the wait below with nothing.
-    drop(openings);
-    let mut inbox = inbox;
-    let Some(first) = runtime.block_on(inbox.next()) else {
+    if first_files.is_empty() && !may_wait {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
-    };
-    show(runtime, env, first, inbox)
+    }
+    let own = openings.clone();
+    runtime.spawn(async move { open_each(first_files, &own).await });
+    // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
+    drop(openings);
+    show(runtime, env, inbox)
 }
 
 /// The tokio runtime the platform's async calls run on: one worker, owned here.
@@ -96,7 +97,6 @@ fn platform_runtime() -> std::io::Result<Runtime> {
 fn show(
     runtime: Runtime,
     env: Env,
-    first: Opening,
     inbox: futures_channel::mpsc::UnboundedReceiver<Opening>,
 ) -> ExitCode {
     let waker = NoticeWaker::default();
@@ -124,19 +124,17 @@ fn show(
         hosting,
         appearance: Appearance::default(),
     };
-    let title = first
-        .file
-        .file_name()
-        .map_or_else(|| "anyview".to_owned(), |name| name.as_str().to_owned());
-    let config = AppConfig::new(title, 1000, 700)
+    let app = AppHandle::new();
+    runtime.spawn(open_windows(inbox, app.clone(), factory));
+    // No window of its own: every one is opened through the handle, the first as any other, so
+    // closing any of them leaves the rest and the last one leaves the process warm for
+    // `WARM_FOR`.
+    let config = AppConfig::new("anyview", 1000, 700)
         .with_app_id(AppId(APP_ID.to_owned()))
         .with_decorations(Decorations::Client)
-        .with_context(Seed {
-            factory,
-            opening: first,
-        })
-        .with_context(Inbox::new(inbox));
-    launch(first_root, config);
+        .with_last_window(LastWindowClosed::StayFor(WARM_FOR))
+        .with_handle(app);
+    launch_idle(config);
     drop(workforce);
     // The relay and the report task wait on channels that never close; end them with the process.
     runtime.shutdown_background();

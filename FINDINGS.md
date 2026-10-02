@@ -273,18 +273,12 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A pool shared by several back ends has one worker scratch per back end per thread.** A back end whose
   scratch is large (pdfrum's `RenderSession` caches) is held by every worker that ran one of its jobs, up
   to the pool size. Ends if memory shows it: give that back end its own smaller `Pool`.
-- **Closing the first window ends the program, so it cannot stay warm.** ds-blitz's event loop ends with the
-  window `launch` opened and drops every window opened later with it (`window_shell.rs`, `CloseStep::
-  DropExtrasThenEnd`). So `viewer.warm_for` (10 minutes by default, `program::WARM_FOR`, a constant here) is not
-  honoured, a second window dies with the first, and "the second open goes to the warm process" holds only while
-  the first window is open; after that the bus activation starts a cold process. Ends when quire's event loop
-  can outlive its first window: hide the main window instead of closing it while others are open, and when none
-  is left keep the loop for a `linger` the app gives `AppConfig`, then end it. The binary then arms a timer of
-  `WARM_FOR` after the last close.
 - **A bus activation starts the viewer with no window.** `dist/org.quire.Anyview1.service` runs `anyview` with no
   arguments (its `Exec=/usr/bin/anyview` assumes that install path), and the call that caused it arrives once the
-  name is owned. `launch_viewer` therefore waits for the first request before it opens the first window; until
-  then the process has none. A launch with no files and no bus is a usage error. The windows carry the desktop
+  name is owned. A bus-claiming process with no file now starts its event loop at once with no window
+  (`launch_idle`, `LastWindowClosed::StayFor(WARM_FOR)` counting from the start) and each request opens a window
+  through the `AppHandle`; a launch with no files and no bus is still a usage error, answered before the loop
+  starts. The windows carry the desktop
   application id `org.quire.Anyview`, for which no `.desktop` file is shipped yet: add a `org.quire.Anyview.desktop` entry
   (with `MimeType=` for the families and `Exec=anyview %F`) with the package.
 - **Requests the host does not carry out.** `HostRequest` variants and file actions with no effect, each logged as
@@ -328,22 +322,28 @@ on. It is a reference, not a log: how each was found lives in git history.
   then moves to `anyview-platform` beside the others.
 - **`trash` is below the pinned block.** It is `anyview`'s alone, MIT (CONVENTIONS section 10): it joins quire's
   `docs/workspace-deps.toml` when sill needs to trash a file.
-- **The cold launch is over its budget, and the window's own start-up is the reason.** PLAN section 7 sets
-  150 ms from the process starting to the first content of a JPEG cold, and 50 ms warm. `crates/anyview/tests/
-  launch.rs` (ignored; `cargo test --release -p anyview --test launch -- --ignored --nocapture --test-threads=1`)
-  measures, on a release build under `ds_harness` (a real Blitz document on a real wgpu device, no window and no
-  compositor), three runs on an NVIDIA RTX 5070 Ti over Vulkan: the program's own wiring (runtime, pool, desktop,
-  folder listing) 0.1 ms; the window up (device, fonts, first frame) 230 to 242 ms; the picture ready 8 ms
-  after that (probe, decode and upload on the pool); the first frame with it drawn at 243 to 254 ms in all.
-  A window with nothing in it is up at 255 ms, so the figure is quire's and wgpu's floor, not the viewer's.
-  Warm (the arrow key in an open window to the next picture's first frame) is 4.5 to 4.8 ms, inside the budget by
-  ten times. The bare process (`anyview --help`, exec to exit) is a median 1.1 to 1.4 ms. Not measured: the
-  executable's own start with a window (needs a compositor), the compositor's present, and a one-page PDF (its
-  stage is not in the window yet). The budgets in `launch.rs` are a ratchet: 300 ms cold, 15 ms warm and 5 ms for
-  the bare process today, to be lowered whenever a run beats them and never raised; CI runs the three on a runner
-  with a GPU adapter and fails above them. Ends when the cold figure is under 150 ms: quire opens the device
-  and loads fonts off the first frame's path (or in parallel with the probe, which the binary can start before the
-  window exists), and the thumbnail cache paints first (the item above).
+- **The cold launch is over its budget, and the GPU stack is the reason.** PLAN section 7 sets 150 ms from the
+  process starting to the first content of a JPEG cold, and 50 ms warm. Measured 2026-10-03 on the release binary
+  with a real window (KWin on Wayland, a 1058 x 618 JPEG, no bus, 8 runs, a machine other builds were also using,
+  so +-10 ms; method and the step table in quire's FINDINGS, "Cold start of the first window"): the first frame is
+  painted 190 to 200 ms after the process starts, of which `wgpu::Instance::new` (77 ms) and the adapter probe
+  across every backend (60 to 68 ms, the GL one can never succeed under the renderer's `display: None`) are 140. The
+  picture is ready about 8 ms after the first frame (`tests/launch.rs` below), so first content is near 210 ms.
+  With `WGPU_BACKEND=vulkan` in the environment the first frame is at 127 to 150 ms, first content at about
+  140 to 160 ms: near the budget, not yet under it every run. quire could not cut it (no `set_var`, the renderer
+  reads the backends from the environment only; a thread loading fonts, a GPU warm-up thread and building the
+  renderer last were each tried and gained nothing beyond noise). Ends when the renderer takes its backends as an
+  option and ds-blitz passes Vulkan on Linux; until then the launcher can set `WGPU_BACKEND=vulkan` (the `.desktop`
+  and service `Exec=` lines, `env WGPU_BACKEND=vulkan ...`), which this change does not do: a GL-only machine would
+  have no adapter at all.
+  Warm: a request forwarded to a viewer with no window open has its window created 30 ms after the
+  second launch started (`anyview file` to the compositor's map, 5 ms of it the forwarding), 33 ms with the first frame,
+  inside 50 ms; a viewer with a window open and the arrow key to the next picture's first frame is 4.5 to 4.8 ms.
+  The bare process (`anyview --help`, exec to exit) is a median 1.1 to 1.4 ms. `crates/anyview/tests/launch.rs`
+  (ignored; `cargo test --release -p anyview --test launch -- --ignored --nocapture --test-threads=1`) runs under
+  `ds_harness` (no window, no compositor) and holds the ratchet: 300 ms cold, 15 ms warm and 5 ms for the bare
+  process, to be lowered whenever a run beats them and never raised. Not measured: a one-page PDF (its stage is not
+  in the window yet), the thumbnail cache painting first (the item above).
 
 ## Standing facts
 
