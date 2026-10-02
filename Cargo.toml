@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/anyview-core",
   "crates/anyview-image",
+  "crates/anyview-platform",
   "crates/anyview-store",
   "crates/anyview-text",
   "crates/anyview-ui",
@@ -21,6 +22,7 @@ publish = false
 [workspace.dependencies]
 anyview-core = { path = "crates/anyview-core" }
 anyview-image = { path = "crates/anyview-image" }
+anyview-platform = { path = "crates/anyview-platform" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
@@ -177,6 +179,16 @@ pulldown-cmark = { version = "0.13", default-features = false, features = ["html
 csv = "1"
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
+
+# `anyview-platform`: the one crate that names D-Bus and the freedesktop file formats.
+# MD5 of a file URI, which names its thumbnail (the freedesktop thumbnail spec): MIT OR Apache-2.0.
+md-5 = "0.10"
+# Percent-encoding of a file URI: MIT OR Apache-2.0.
+percent-encoding = "2"
+# Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
+png = "0.18"
+# The stream of a portal request's `Response` signals: MIT OR Apache-2.0.
+futures-util = { version = "0.3", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
