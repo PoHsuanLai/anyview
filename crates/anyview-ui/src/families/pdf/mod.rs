@@ -1,0 +1,100 @@
+//! PDF: the PDF stage's view. A document is opened once on a worker (`doc`); the pages are a stack
+//! laid out at the scale on screen and placed by pure arithmetic (`scene`); the tiles of the pages in
+//! view are drawn and uploaded by workers (`work`), held under a budget (`cache`, `live`) and drawn
+//! as `TextureLayer`s (`view`, `page`, `draw`); and the find bar, the capsule and the side panel's
+//! thumbnails and outline are drawn from the stage machine's state.
+
+mod cache;
+mod capsule;
+mod doc;
+mod draw;
+mod find;
+mod live;
+#[cfg(test)]
+mod markup;
+mod page;
+mod panel;
+mod scene;
+mod shelf;
+mod steer;
+#[cfg(test)]
+mod tests;
+mod view;
+mod work;
+
+pub use doc::{PdfDoc, PdfFailure};
+pub use shelf::{PdfShelf, use_pdf_shelf};
+pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
+
+use crate::families::view::{Area, Held, StageCx, StageView};
+use crate::io::{OpenError, OpenLink};
+use crate::{PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageParams, Ticket, Viewport};
+use anyview_core::{Facts, Sniffed, Source};
+use dioxus::prelude::*;
+use ds::components::chrome::capsule::model::CapsuleSlot;
+use std::sync::Arc;
+
+/// PDF documents.
+#[derive(Debug, Clone, Copy)]
+pub struct PdfStageView;
+
+impl StageView for PdfStageView {
+    const FAMILY: StageFamily = StageFamily::Pdf;
+    type Doc = PdfDoc;
+
+    fn open(
+        _ticket: Ticket,
+        src: &Source,
+        _sniffed: &Sniffed,
+        _link: &OpenLink,
+    ) -> Result<PdfDoc, OpenError> {
+        doc::open(src)
+    }
+
+    fn facts(doc: &PdfDoc) -> Facts {
+        doc.facts.clone()
+    }
+
+    fn tabs(doc: &PdfDoc) -> PanelTabs {
+        if doc.outline.is_empty() {
+            PanelTabs::of(&[PanelTab::Thumbnails, PanelTab::Info])
+        } else {
+            PanelTabs::of(&[PanelTab::Thumbnails, PanelTab::Contents, PanelTab::Info])
+        }
+    }
+
+    fn params(doc: &PdfDoc, stage: &Stage, area: Option<Area>) -> StageParams {
+        let mut pdf = PdfParams {
+            pages: doc.pages(),
+            ..PdfParams::default()
+        };
+        if let (Some(view), Some(area)) = (live::page_view(stage), doc::room_of(area)) {
+            let fit = scene::fits(doc.sizes(), scene::Frame::of(area));
+            pdf.viewport = Viewport {
+                shown: scene::scale_of(view.zoom, fit),
+                fit: fit.page,
+            };
+        }
+        StageParams {
+            pdf,
+            ..StageParams::default()
+        }
+    }
+
+    fn stage(doc: &Arc<PdfDoc>, cx: &StageCx) -> Element {
+        rsx! { view::PdfContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
+    }
+
+    fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<CapsuleSlot<crate::Command>> {
+        capsule::slots(doc, cx)
+    }
+
+    fn panel(doc: &Arc<PdfDoc>, tab: PanelTab, cx: &StageCx) -> Option<Element> {
+        let doc = Held(Arc::clone(doc));
+        match tab {
+            PanelTab::Thumbnails => Some(rsx! { panel::Thumbnails { doc, cx: cx.clone() } }),
+            PanelTab::Contents => Some(rsx! { panel::Outline { doc, cx: cx.clone() } }),
+            PanelTab::Info | PanelTab::Tracks => None,
+        }
+    }
+}

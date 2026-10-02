@@ -11,13 +11,13 @@ use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::session::{Probe, family, params};
 use super::sheet::{ExportSheet, RenameSheet, TrashSheet};
-use crate::families::{Area, FrameLook, Held, LineWindow, LoadedDoc};
+use crate::families::{Area, FrameLook, Held, LineWindow, LoadedDoc, PdfShelf, use_pdf_shelf};
 use crate::io::{Done, Edge, HostRequest, Job, OpenLink};
 use crate::{
     ChromeIn, ChromeOut, Command, Load, LoadFlow, LoadIn, LoadOut, NavigateIn,
-    Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelOut, PanelTab, PresentationOut,
-    RasterOut, Sheet, SheetIn, SheetOut, StageCx, StageFamily, StageIn, StageOut, TextOut, Ticket,
-    TypedText, Viewer, ViewerIn, ViewerOut, Zone,
+    Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelOut, PanelTab, PdfOut,
+    PresentationOut, RasterOut, Sheet, SheetIn, SheetOut, StageCx, StageFamily, StageIn, StageOut,
+    TextOut, Ticket, TypedText, Viewer, ViewerIn, ViewerOut, Zone,
 };
 use anyview_core::{FilePath, Sequence};
 use dioxus::prelude::*;
@@ -45,7 +45,12 @@ pub struct Launch {
 
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
 pub fn stylesheet() -> String {
-    [include_str!("style.css"), crate::families::TOKEN_CSS].join("\n")
+    [
+        include_str!("style.css"),
+        crate::families::TOKEN_CSS,
+        crate::families::PDF_CSS,
+    ]
+    .join("\n")
 }
 
 /// The root of a viewer window: a quire `Ds` root, the stylesheet, and the window.
@@ -100,6 +105,7 @@ fn ViewerWindow(launch: Launch) -> Element {
     let mut opening = use_signal(|| None::<Ticket>);
     let mut loaded = use_signal(|| None::<(Ticket, LoadedDoc)>);
     let mut lines = use_signal(|| None::<Held<LineWindow>>);
+    let pdf = use_pdf_shelf();
     let mut chrome_shown = use_signal(|| Shown::Hidden);
     let mut zone = use_signal(|| Zone::Content);
     let mut query = use_signal(TypedText::default);
@@ -127,6 +133,7 @@ fn ViewerWindow(launch: Launch) -> Element {
                 probe.set(Probe::Pending(ticket));
                 loaded.set(None);
                 lines.set(None);
+                pdf.reset();
                 operation.set(Operation::Running(PendingToken::start()));
                 effects.submit(Job::Probe { ticket, path });
             }
@@ -148,9 +155,14 @@ fn ViewerWindow(launch: Launch) -> Element {
             | ViewerOut::Stage(
                 StageOut::Raster(RasterOut::Turned(_) | RasterOut::ShowFrame(_))
                 | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
-                | StageOut::Pdf(_)
                 | StageOut::Media(_),
             ) => {}
+            ViewerOut::Stage(StageOut::Pdf(PdfOut::Remember(resume))) => {
+                effects.request(HostRequest::Remember(resume));
+            }
+            ViewerOut::Stage(StageOut::Pdf(out @ (PdfOut::ScrollTo(_) | PdfOut::Find(_)))) => {
+                pdf.carry(out);
+            }
             ViewerOut::Stage(StageOut::Raster(RasterOut::Remember(resume))) => {
                 effects.request(HostRequest::Remember(resume));
             }
@@ -194,7 +206,7 @@ fn ViewerWindow(launch: Launch) -> Element {
         async move {
             let Some(mut inbox) = taken else { return };
             while let Some(done) = inbox.next().await {
-                arrived(done, dispatch, &mut probe, &mut loaded, &mut lines);
+                arrived(done, dispatch, &mut probe, &mut loaded, &mut lines, pdf);
             }
         }
     });
@@ -239,6 +251,8 @@ fn ViewerWindow(launch: Launch) -> Element {
     let current = loaded();
     let ticket = probe().ticket().unwrap_or_default();
     let reader = edge.clone();
+    let worker = edge.clone();
+    let requester = edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
         ticket,
@@ -246,6 +260,9 @@ fn ViewerWindow(launch: Launch) -> Element {
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
         run: EventHandler::new(move |command: Command| dispatch.send(ViewerIn::Run(command))),
         lines: lines(),
+        pdf,
+        work: EventHandler::new(move |job: Job| worker.submit(job)),
+        request: EventHandler::new(move |request: HostRequest| requester.request(request)),
         ask_lines: EventHandler::new(move |(first, rows): (anyview_core::LineIndex, u32)| {
             if let Some((ticket, doc)) = loaded.peek().as_ref()
                 && let Some(job) = doc.view().lines(*ticket, first, rows)
@@ -420,6 +437,7 @@ fn arrived(
     probe: &mut Signal<Probe>,
     loaded: &mut Signal<Option<(Ticket, LoadedDoc)>>,
     lines: &mut Signal<Option<Held<LineWindow>>>,
+    pdf: PdfShelf,
 ) {
     match done {
         Done::Probed { ticket, result } => match result {
@@ -443,6 +461,14 @@ fn arrived(
                 reason: error.failure(),
             })),
         },
+        Done::Pdf { ticket, answer } => {
+            if probe.peek().ticket() == Some(ticket) {
+                let stage = dispatch.machine.state().peek().stage.clone();
+                if let Some(input) = pdf.arrived(answer, &stage) {
+                    dispatch.send(ViewerIn::Stage(input));
+                }
+            }
+        }
         Done::Lines { ticket, result } => {
             let current = loaded.peek().as_ref().map(|(held, _)| *held);
             if let (Some(held), Ok(window)) = (current, result)
