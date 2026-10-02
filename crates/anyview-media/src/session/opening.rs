@@ -40,10 +40,7 @@ impl Session<Opening> {
             | MediaEvent::Failed(_)
             | MediaEvent::Refused(_) => None,
         });
-        let errored = report
-            .events
-            .iter()
-            .any(|event| *event == MediaEvent::Ended(EndReason::Error));
+        let errored = report.events.contains(&MediaEvent::Ended(EndReason::Error));
         match (length, errored) {
             (_, true) => self.give_up(report),
             (Some(length), false) => Opened::Loaded(self.with_state(Loaded { length }), report),

@@ -8,8 +8,8 @@ use anyview_core::FilePath;
 /// try another.
 #[derive(Debug)]
 pub struct Refused {
-    /// The session, still idle.
-    pub session: Session<Idle>,
+    /// The session, still idle (boxed: a player is large, and this travels in an error).
+    pub session: Box<Session<Idle>>,
     /// What went wrong.
     pub error: MediaError,
 }
@@ -35,7 +35,7 @@ impl Session<Idle> {
     pub fn open(self, file: &FilePath) -> Result<Session<Opening>, Refused> {
         let Some(path) = file.as_path().to_str() else {
             return Err(Refused {
-                session: self,
+                session: Box::new(self),
                 error: MediaError::Player("the path is not valid UTF-8".to_owned()),
             });
         };
@@ -43,7 +43,7 @@ impl Session<Idle> {
             Ok(()) => Ok(self.with_state(Opening)),
             Err(error) => Err(Refused {
                 error: fault(error),
-                session: self,
+                session: Box::new(self),
             }),
         }
     }

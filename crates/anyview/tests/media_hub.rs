@@ -8,7 +8,9 @@
 
 mod support;
 
-use anyview::host::{Clock, Desktop, Hosting, Media, Outcome, Store, Task, Trash, TrashError};
+use anyview::host::{
+    Clock, Desktop, Hosting, Media, Outcome, Services, Store, Task, Trash, TrashError,
+};
 use anyview::media::{MediaHub, PlayerHost};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
@@ -147,9 +149,12 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
     let length = window
         .heard
         .iter()
-        .find_map(|notice| match notice {
-            MediaNotice::Player(PlayerEvent::Loaded { length }) => Some(length.0.as_millis()),
-            _ => None,
+        .find_map(|notice| {
+            if let MediaNotice::Player(PlayerEvent::Loaded { length }) = notice {
+                Some(length.0.as_millis())
+            } else {
+                None
+            }
         })
         .unwrap();
     assert!(
@@ -317,11 +322,13 @@ fn desktop(rig: &Rig, scratch: &std::path::Path) -> Arc<dyn Hosting> {
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
-        Store::new(&scratch.join("store"), now),
-        Media {
-            hub: rig.hub.clone(),
-            exports: rig.workforce.exports(),
-            scratch: scratch.join("cache"),
+        Services {
+            store: Store::new(&scratch.join("store"), now),
+            media: Media {
+                hub: rig.hub.clone(),
+                exports: rig.workforce.exports(),
+                scratch: scratch.join("cache"),
+            },
         },
     ))
 }

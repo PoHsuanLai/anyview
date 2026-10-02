@@ -56,28 +56,19 @@ fn a_loaded_recording_says_what_it_has_in_the_order_the_viewer_needs_it() {
     let length = length.unwrap().0.as_millis();
     assert!((2900..=3200).contains(&length), "3.03 s, not {length} ms");
 
-    let kinds = |kind: StreamKind| match rig.events.iter().find_map(|event| match event {
-        MediaEvent::Tracks(tracks) => Some(tracks),
-        _ => None,
-    }) {
-        Some(tracks) => tracks.iter().filter(|track| track.kind == kind).count(),
-        None => 0,
-    };
+    let tracks = support::last_tracks(&rig.events).unwrap();
+    let kinds = |kind: StreamKind| tracks.iter().filter(|track| track.kind == kind).count();
     assert_eq!(kinds(StreamKind::Video), 1);
     assert_eq!(kinds(StreamKind::Audio), 2, "two audio tracks");
     assert_eq!(kinds(StreamKind::Subtitles), 1, "one subtitle track");
-    let chapters = rig
-        .events
-        .iter()
-        .find_map(|event| match event {
-            MediaEvent::Chapters(chapters) => Some(chapters.len()),
-            _ => None,
-        })
-        .unwrap();
+    let chapters = support::last_chapters(&rig.events).unwrap();
     assert!(chapters >= 1, "the clip has chapters");
-    assert!(rig.has(|event| *event == MediaEvent::Picture(VideoPresence::Present)));
-    assert!(rig.has(|event| *event == MediaEvent::Volume(Volume::FULL)));
-    assert!(rig.has(|event| *event == MediaEvent::Speed(Speed::NORMAL)));
+    assert!(
+        rig.events
+            .contains(&MediaEvent::Picture(VideoPresence::Present))
+    );
+    assert!(rig.events.contains(&MediaEvent::Volume(Volume::FULL)));
+    assert!(rig.events.contains(&MediaEvent::Speed(Speed::NORMAL)));
 }
 
 #[test]
@@ -91,14 +82,10 @@ fn instructions_sent_before_the_file_opens_wait_and_run_in_order_when_it_does() 
     rig.send(MediaCommand::SetSpeed(Speed::from_thousandths(1500)));
     assert!(!loaded(&rig.events), "nothing ran yet");
     rig.until("the speed to be reported", |events| {
-        events
-            .iter()
-            .any(|event| *event == MediaEvent::Speed(Speed::from_thousandths(1500)))
+        events.contains(&MediaEvent::Speed(Speed::from_thousandths(1500)))
     });
     rig.until("the volume to change", |events| {
-        events
-            .iter()
-            .any(|event| *event == MediaEvent::Volume(Volume::SILENT))
+        events.contains(&MediaEvent::Volume(Volume::SILENT))
     });
 }
 
@@ -112,23 +99,17 @@ fn a_seek_lands_and_the_position_follows_it() {
     rig.send(MediaCommand::SetPlayback(Pace::Paused));
     rig.send(MediaCommand::Seek(MediaTime::from_secs(2)));
     rig.until("the seek to land", |events| {
-        events.iter().any(|event| *event == MediaEvent::SeekDone)
+        events.contains(&MediaEvent::SeekDone)
     });
     rig.until("a position near the target", |events| {
-        events.iter().any(|event| match event {
-            MediaEvent::Position(at) => (1_800_000..=2_300_000).contains(&at.0),
-            _ => false,
-        })
+        support::position_within(events, 1_800_000..=2_300_000)
     });
     let landed = rig
         .events
         .iter()
         .position(|event| *event == MediaEvent::SeekDone)
         .unwrap();
-    let near = rig.events[landed..].iter().any(|event| match event {
-        MediaEvent::Position(at) => (1_800_000..=2_300_000).contains(&at.0),
-        _ => false,
-    });
+    let near = support::position_within(&rig.events[landed..], 1_800_000..=2_300_000);
     assert!(
         near,
         "a position near the target is reported after the seek lands"
@@ -142,9 +123,7 @@ fn a_file_mpv_holds_open_at_its_end_is_reported_as_ended() {
     };
     let mut rig = Rig::open(&device, &queue, &fixture("tone.flac"));
     rig.until("the end of a two second tone", |events| {
-        events
-            .iter()
-            .any(|event| *event == MediaEvent::Ended(EndReason::Eof))
+        events.contains(&MediaEvent::Ended(EndReason::Eof))
     });
     let paused = rig
         .events
@@ -173,9 +152,7 @@ fn an_audio_file_with_no_picture_shows_none_and_its_cover_shows_as_a_still() {
     let mut covered = Rig::open(&device, &queue, &fixture("cover.mp3"));
     covered.send(slot(64, 64));
     covered.until("the cover to be shown", |events| {
-        events
-            .iter()
-            .any(|event| *event == MediaEvent::Picture(VideoPresence::CoverArt))
+        events.contains(&MediaEvent::Picture(VideoPresence::CoverArt))
     });
     let seen = covered.shown.clone();
     covered.until("a frame", |_| seen.drawn() > 0);
@@ -222,17 +199,19 @@ fn track_chapter_and_speed_instructions_are_carried_out() {
     rig.until(
         "the tracks to be reported with the second audio playing",
         |events| {
-            events.iter().any(|event| match event {
-                MediaEvent::Tracks(tracks) => tracks.iter().any(|track| {
+            support::last_tracks(events).is_some_and(|tracks| {
+                tracks.iter().any(|track| {
                     track.kind == StreamKind::Audio
                         && track.id == TrackId(2)
                         && track.play == TrackPlay::Playing
-                }),
-                _ => false,
+                })
             })
         },
     );
-    assert!(rig.has(|event| *event == MediaEvent::Speed(Speed::from_thousandths(1250))));
+    assert!(
+        rig.events
+            .contains(&MediaEvent::Speed(Speed::from_thousandths(1250)))
+    );
     assert!(
         !rig.has(|event| matches!(event, MediaEvent::Refused(_))),
         "{:?}",

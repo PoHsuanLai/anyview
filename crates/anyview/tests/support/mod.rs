@@ -3,7 +3,7 @@
 #![allow(dead_code, clippy::unwrap_used)]
 
 use anyview::host::{
-    CachedPictures, Clock, Desktop, Media, SETTLE, Store, Trash, TrashError, Watcher,
+    CachedPictures, Clock, Desktop, Media, SETTLE, Services, Store, Trash, TrashError, Watcher,
 };
 use anyview::media::{MediaHub, PlayerHost};
 use anyview::runtime::PoolSize;
@@ -110,8 +110,10 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
-        Store::new(&store, now),
-        media,
+        Services {
+            store: Store::new(&store, now),
+            media,
+        },
     );
     let factory = Factory::new(
         workforce.workers(),

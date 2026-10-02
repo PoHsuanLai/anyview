@@ -232,9 +232,12 @@ fn dragging_the_scrubber_holds_the_player_seeks_live_and_lets_go_where_it_ends()
     );
     let seeks: Vec<MediaTime> = sent
         .iter()
-        .filter_map(|command| match command {
-            PlayerCommand::Seek(to) => Some(*to),
-            _ => None,
+        .filter_map(|command| {
+            if let PlayerCommand::Seek(to) = command {
+                Some(*to)
+            } else {
+                None
+            }
         })
         .collect();
     assert!(seeks.len() >= 3, "the player follows the drag: {sent:?}");
@@ -638,9 +641,12 @@ fn marking_a_start_and_an_end_cuts_the_export_there() {
         .lock()
         .unwrap()
         .iter()
-        .filter_map(|request| match request {
-            HostRequest::Export(draft) => Some(*draft),
-            _ => None,
+        .filter_map(|request| {
+            if let HostRequest::Export(draft) = request {
+                Some(*draft)
+            } else {
+                None
+            }
         })
         .collect();
     assert_eq!(

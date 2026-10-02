@@ -3,7 +3,9 @@
 use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
-use crate::host::{CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Store, Watcher};
+use crate::host::{
+    CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store, Watcher,
+};
 use crate::media::{MediaHub, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
@@ -137,8 +139,7 @@ fn show(
     let hosting = Arc::new(LinuxDesktop::linux(
         runtime.handle().clone(),
         &env,
-        store,
-        media,
+        Services { store, media },
     ));
     let watcher = Watcher::start(SETTLE)
         .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))

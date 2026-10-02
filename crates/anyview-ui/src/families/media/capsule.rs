@@ -93,7 +93,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
     };
     let buffered = BufferedRange {
         from: Fraction(0),
-        to: Fraction(u16::from(live.buffered.0.min(100)) * 10),
+        to: Fraction(live.buffered.0.min(100) * 10),
     };
     let mut slots = vec![
         CapsuleSlot::button(

@@ -1,6 +1,6 @@
 //! Files, fakes and a desktop made of them.
 
-use crate::host::{Clock, Desktop, Media, Store, Trash, TrashError};
+use crate::host::{Clock, Desktop, Media, Services, Store, Trash, TrashError};
 use crate::media::{Exports, MediaHub};
 use crate::runtime::{Mailbox, Pool, PoolSize};
 use crate::seam::NoticeWaker;
@@ -118,8 +118,10 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
         fakes.share.clone(),
         fakes.printer.clone(),
         fakes.trash.clone(),
-        Store::new(&scratch.join("store"), now),
-        media,
+        Services {
+            store: Store::new(&scratch.join("store"), now),
+            media,
+        },
     );
     (desktop, fakes)
 }
