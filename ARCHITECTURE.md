@@ -196,6 +196,7 @@ one file.
 | `bytes` | `ByteSource` (read a range), `FileBytes`, `HeldBytes` |
 | `encoding` | `TextCodec`, `detect` (byte-order mark, UTF-8 validity, Windows-1252 fallback), `Coverage`, `Detected` |
 | `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest |
+| `find` | `Needle` (a phrase, lower-cased, never empty), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
 | `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
 | `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
 | `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`; `header` (the guess) is private |
