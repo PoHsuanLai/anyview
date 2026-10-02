@@ -4,15 +4,17 @@
 
 use super::doc::PdfDoc;
 use super::live::page_view;
+use super::page::Emphasis;
 use super::work::{PdfAsk, PdfTask};
 use crate::families::view::{Held, StageCx};
 use crate::io::Job;
 use crate::{Destination, PdfIn, StageIn};
 use anyview_core::{PageIndex, Permille};
 use dioxus::prelude::*;
-use ds::prelude::{Row, Selection};
+use ds::prelude::Row;
 use ds_blitz::{TextureFit, TextureLayer, use_gpu};
 use ds_core::vocab::{Availability, RowState};
+use ds_core::word::Word;
 use std::sync::Arc;
 
 /// The width of a thumbnail, in logical pixels.
@@ -63,18 +65,18 @@ pub(super) fn Thumbnails(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                     let page = PageIndex(at);
                     let size = doc.0.size_of(page);
                     let height = WIDTH * size.height.0 as f32 / size.width.0 as f32;
-                    let selection = if page == reader { Selection::Selected } else { Selection::Unselected };
+                    let marked = if page == reader { Emphasis::Current } else { Emphasis::Other };
                     let texture = live.thumb(page).cloned();
                     rsx! {
                         Row {
                             key: "{at}",
                             title: format!("Page {}", at + 1),
-                            state: RowState { selection, ..RowState::default() },
                             onclick: move |_| send.call(go_to(page)),
                             content: rsx! {
                                 span { class: "viewer-thumb",
                                     span {
                                         class: "viewer-thumb-page",
+                                        "data-mark": marked.slug(),
                                         style: "width:{WIDTH}px;height:{height}px",
                                         TextureLayer { texture, fit: TextureFit::Fill }
                                         // A texture layer swallows a click, so the row around
