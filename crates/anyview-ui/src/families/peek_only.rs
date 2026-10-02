@@ -88,7 +88,7 @@ impl StageView for PeekOnlyStageView {
                         }
                     },
                 }
-                FactList { facts }
+                div { class: "viewer-peek-facts", FactList { facts } }
                 }
             }
         }
