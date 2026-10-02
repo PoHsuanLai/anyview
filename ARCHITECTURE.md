@@ -45,7 +45,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-peek` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch`, `open_window_with`, the clipboard) |
+| `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
 
 Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
@@ -338,16 +338,18 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | Module | Holds |
 | --- | --- |
 | `cli` | `parse`, `Invocation` (`Help`, or a `Launch` of the platform's `Request`), `CliError`, `USAGE`: the arguments as the request a launch makes |
-| `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each` and `files_of` (what the viewer's name receives after the first window); `WARM_FOR` |
+| `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows` and `files_of` (what the viewer's name receives, and the window each file gets through ds-blitz's `AppHandle`); `WARM_FOR` |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
 | `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume` and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome` and `report` |
-| `window` | `Opening` (a file and its folder's sequence), `Factory` and `Seed` (what every window shares, and what makes one window its own), `first_root` and `Inbox` (the root of the first window, which also opens the windows that are asked for later) |
+| `window` | `Opening` (a file and its folder's sequence), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
 and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to
 `Hosting::carry_out`, which runs it on the platform runtime and resolves with an `Outcome`. A second launch is
 claimed by the first viewer over D-Bus; its files become `Opening`s (the folder is listed on the blocking pool),
-which the first window's root receives and turns into `ds_blitz::open_window_with` calls on the same event loop.
+which a task of the platform runtime turns into `AppHandle::open_window_with` calls on the one event loop. Every
+window is opened that way, the first included: the loop starts with none (`launch_idle`), windows are independent,
+and the last one closing leaves the process warm for `WARM_FOR` (`LastWindowClosed::StayFor`).
 
 ## 3. Layer rules
 
@@ -446,7 +448,7 @@ The single place a concept lives. Extend it; never write a second one.
 | Carrying out Open With, reveal, share, print, trash, rename, duplicate, the history | `anyview::host::Desktop` (`Hosting::carry_out`) |
 | Moving a file to the trash | `anyview::host::Trash`, `SystemTrash` |
 | The one writer of the history and view memory, and the time it stamps | `anyview::host::Store`, `Clock` |
-| A window of the viewer, the first and the later ones | `anyview::window::first_root`, `Seed` |
+| A window of the viewer | `anyview::window::open_in_window`, `Seed` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
 | A phrase found in a text, as hits that cut a line at character boundaries | `anyview_text::Needle`, `FindHit`, `TextLines::find` |
 | The find bar: field, standing, steps (a stage wraps it with its own machine's inputs) | `families/find_bar.rs` (`FindBar`, `FindStep`) |
@@ -729,7 +731,7 @@ trait.
 The command line, the routing of requests and the platform tasks are table tests and `#[tokio::test]`s over the
 platform's fakes (`FakeInstance`, `FakeApps`, `FakeReveal`, `FakeShare`, `FakePrinter`) and a recording `Trash`:
 no bus, no desktop, no real trash. `Env::isolated` stands in where the real `DbusInstance` must report that
-there is no bus. `crates/anyview/tests/open_image.rs` runs the first window's real root under `ds_harness`
+there is no bus. `crates/anyview/tests/open_image.rs` runs a window's real root under `ds_harness`
 with the runtime's pool and a desktop of fakes, opens a picture, reads back the pixels it drew and the history
 file it wrote. `tests/launch.rs` holds the launch budget (ignored; FINDINGS, "The launch budget").
 
