@@ -16,7 +16,6 @@ anyview-ui = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true }
-ds-core = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
