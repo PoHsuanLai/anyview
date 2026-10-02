@@ -198,7 +198,7 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
     let path = dir.path().join("mystery.bin");
     std::fs::write(&path, [0u8, 159, 146, 150, 0, 1, 2, 3]).unwrap();
     let path = std::fs::canonicalize(path).unwrap();
-    let (mut harness, requests) = window(&[path.clone()], 0, Appearance::default());
+    let (mut harness, requests) = window(std::slice::from_ref(&path), 0, Appearance::default());
     harness.advance(Duration::from_millis(300));
     assert_eq!(harness.count(".viewer-peek"), 1);
     assert_eq!(
