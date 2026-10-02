@@ -1,0 +1,29 @@
+[package]
+name = "anyview-peek"
+description = "The viewer's light tier: one peek per kind of file, the registry that maps every kind to its peek, and the pane that draws what was peeked at."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+anyview-image = { workspace = true }
+anyview-text = { workspace = true }
+dioxus = { workspace = true }
+ds = { workspace = true }
+# `pdf`: `pdf_thumb_blocking`, the first page of a PDF rasterised by pdfrum and cached. pdfrum is
+# reached only through it.
+ds-blitz = { workspace = true, features = ["pdf"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+ds-harness = { workspace = true, features = ["pdf"] }
+ds-lint = { workspace = true }
+dioxus-ssr = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

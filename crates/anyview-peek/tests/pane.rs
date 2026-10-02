@@ -1,0 +1,254 @@
+//! The pane drawn: server-side renders of each body kept as goldens, the markup and stylesheet held
+//! to quire's coherence rules, and behaviour through `ds_harness`'s real Blitz document.
+//!
+//! `DS_BLESS=1 cargo test -p anyview-peek --test pane` writes the goldens; read the diff before
+//! committing one.
+
+// Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
+#![allow(clippy::unwrap_used)]
+
+mod golden;
+mod support;
+
+use anyview_core::FormatKind;
+use anyview_peek::{AnyPeeked, Body, Pane, PdfPeeked, STYLE, peek};
+use anyview_text::{TokenClass, TokenLine, TokenSpan};
+use dioxus::core::VirtualDom;
+use dioxus::prelude::*;
+use ds::assembly::ds::Inject;
+use ds::components::content::image_source::{ImageSize, ImageSource};
+use ds::components::content::pdf_thumb::PdfPage;
+use ds::prelude::{Appearance, Ds, Material, Word};
+use ds_harness::{Harness, HarnessConfig, Query, Viewport};
+use ds_lint::{LintConfig, Profile, Rule, assert_clean, markup};
+use std::sync::Arc;
+use support::{Home, fixture, pane_budget};
+
+fn peeked(home: Home, name: &str) -> Arc<AnyPeeked> {
+    let (src, sniffed) = fixture(home, name);
+    Arc::new(peek(&src, &sniffed, &pane_budget()))
+}
+
+/// A PDF page with a made-up raster, so the golden does not hold pdfrum's pixels.
+fn page() -> Arc<AnyPeeked> {
+    let mut page = (*peeked(Home::Own, "hello.pdf")).clone();
+    page.body = Body::Page(PdfPeeked {
+        page: PdfPage::Ready {
+            image: ImageSource("data:image/png;base64,AAAA".to_owned()),
+            sheet: ImageSize {
+                width: 300,
+                height: 200,
+            },
+        },
+    });
+    Arc::new(page)
+}
+
+/// A code body with one span of every token class, so the stylesheet is held to cover them all.
+fn every_token_class() -> Arc<AnyPeeked> {
+    let mut code = (*peeked(Home::Text, "sample.rs")).clone();
+    let spans = TokenClass::ALL
+        .iter()
+        .map(|class| TokenSpan {
+            class: *class,
+            text: class.slug().to_owned(),
+        })
+        .collect();
+    let Body::Code(body) = &mut code.body else {
+        panic!("a Rust file peeks to a Code body");
+    };
+    body.lines = vec![TokenLine {
+        number: anyview_core::LineIndex(0),
+        spans,
+    }];
+    Arc::new(code)
+}
+
+#[derive(Props, Clone, PartialEq)]
+struct Setup {
+    peeked: Arc<AnyPeeked>,
+}
+
+#[allow(non_snake_case)]
+fn Root(setup: Setup) -> Element {
+    rsx! {
+        Ds {
+            appearance: Appearance::default(),
+            material: Material::Window,
+            stylesheet: Inject::Host,
+            Pane { peeked: setup.peeked }
+        }
+    }
+}
+
+/// The whole page's markup.
+fn render(peeked: &Arc<AnyPeeked>) -> String {
+    let mut dom = VirtualDom::new_with_props(
+        Root,
+        Setup {
+            peeked: peeked.clone(),
+        },
+    );
+    dom.rebuild_in_place();
+    dioxus_ssr::render(&dom)
+}
+
+/// The pane alone: from its opening tag to the close of its facts list, its last child.
+fn pane(peeked: &Arc<AnyPeeked>) -> String {
+    let html = render(peeked);
+    let start = html.find("<div class=\"anyview-pane").unwrap();
+    let end = html.rfind("</dl>").unwrap() + "</dl>".len();
+    html[start..end].to_owned()
+}
+
+#[test]
+fn each_body_is_drawn_as_its_golden() {
+    // name, what was peeked
+    let cases: Vec<(&str, Arc<AnyPeeked>)> = vec![
+        ("picture", peeked(Home::Image, "quadrants.png")),
+        ("page", page()),
+        ("plain", peeked(Home::Text, "notes.txt")),
+        ("code", peeked(Home::Text, "sample.rs")),
+        ("table", peeked(Home::Text, "people.csv")),
+        ("tree", peeked(Home::Text, "config.json")),
+        ("unavailable", pdf_over_budget()),
+    ];
+    let failures: Vec<String> = cases
+        .iter()
+        .filter_map(|(name, peeked)| {
+            golden::check(&format!("pane/{name}.html"), &pane(peeked)).err()
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// A file the peek refuses, so the pane shows the reason.
+fn pdf_over_budget() -> Arc<AnyPeeked> {
+    let (src, sniffed) = fixture(Home::Own, "hello.pdf");
+    Arc::new(peek(&src, &sniffed, &support::budget(100, 1_000_000)))
+}
+
+/// The kinds with no body of their own: facts under a plate.
+fn facts_only() -> Arc<AnyPeeked> {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("clip.mp4");
+    std::fs::write(&path, b"\0\0\0\x18ftypmp42\0\0\0\0mp42isom").unwrap();
+    let (src, sniffed) = support::on_disk(&path, 0);
+    Arc::new(peek(&src, &sniffed, &pane_budget()))
+}
+
+#[test]
+fn a_kind_without_a_back_end_is_a_plate_and_facts() {
+    let peeked = facts_only();
+    assert_eq!(peeked.kind, FormatKind::Video);
+    if let Err(diff) = golden::check("pane/facts.html", &pane(&peeked)) {
+        panic!("{diff}");
+    }
+}
+
+#[test]
+fn the_stylesheet_uses_design_system_tokens_only() {
+    assert_clean(
+        STYLE,
+        &LintConfig {
+            profile: Profile::Strict,
+            ..LintConfig::new(&ds::kits())
+        },
+    );
+}
+
+/// quire's `TextureLayer` carries `ds-texture-layer` and styles itself inline, so its own class has
+/// no rule: quire's markup lint flags quire's own component (FINDINGS: open item for quire).
+fn is_texture_layer(offence: &ds_lint::Offence) -> bool {
+    offence.selector == "object.ds-texture-layer"
+}
+
+#[test]
+fn every_class_the_pane_draws_is_styled_and_nothing_is_raw_markup() {
+    let css = format!("{}\n{STYLE}", ds::stylesheet());
+    let all = [
+        peeked(Home::Image, "quadrants.png"),
+        page(),
+        peeked(Home::Text, "notes.txt"),
+        every_token_class(),
+        peeked(Home::Text, "people.csv"),
+        peeked(Home::Text, "config.json"),
+        peeked(Home::Text, "readme.md"),
+        facts_only(),
+        pdf_over_budget(),
+    ];
+    for peeked in &all {
+        let html = render(peeked);
+        let offences = markup(&html, &css, &LintConfig::new(&ds::kits()));
+        let wrong: Vec<_> = offences
+            .iter()
+            .filter(|offence| {
+                matches!(
+                    offence.rule,
+                    Rule::UnstyledClass | Rule::RawMarkup | Rule::HexColour | Rule::RawDuration
+                ) && !is_texture_layer(offence)
+            })
+            .collect();
+        assert!(wrong.is_empty(), "{}: {wrong:#?}", peeked.body.slug());
+    }
+}
+
+const VIEW: Viewport = Viewport {
+    width: 360,
+    height: 900,
+    scale_percent: 100,
+};
+
+fn app() -> Element {
+    let peeked = use_context::<Arc<AnyPeeked>>();
+    rsx! {
+        Ds {
+            appearance: Appearance::default(),
+            material: Material::Window,
+            Pane { peeked }
+        }
+    }
+}
+
+fn harness(peeked: Arc<AnyPeeked>) -> Harness {
+    Harness::new(app, HarnessConfig::new(VIEW).with_context(peeked))
+}
+
+#[test]
+fn the_pane_in_a_real_document_lists_the_file_and_its_facts() {
+    // name, what was peeked, lines or rows drawn, facts listed
+    let cases: Vec<(&str, Arc<AnyPeeked>, &str, usize, usize)> = vec![
+        (
+            "code",
+            peeked(Home::Text, "sample.rs"),
+            ".anyview-line",
+            16,
+            5,
+        ),
+        (
+            "plain",
+            peeked(Home::Text, "notes.txt"),
+            ".anyview-line",
+            40,
+            5,
+        ),
+        (
+            "table",
+            peeked(Home::Text, "people.csv"),
+            ".ds-table-cell",
+            40 * 3,
+            6,
+        ),
+    ];
+    for (name, peeked, selector, drawn, facts) in cases {
+        let file = peeked.name.clone();
+        let harness = harness(peeked);
+        assert_eq!(
+            harness.text_of(".anyview-pane-title").as_deref(),
+            Some(file.as_str()),
+            "{name}"
+        );
+        assert_eq!(harness.count(selector), drawn, "{name}");
+        assert_eq!(harness.count(".ds-fact-list-item"), facts, "{name}");
+    }
+}

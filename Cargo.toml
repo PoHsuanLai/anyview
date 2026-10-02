@@ -4,6 +4,7 @@ members = [
   "crates/anyview-core",
   "crates/anyview-image",
   "crates/anyview-platform",
+  "crates/anyview-peek",
   "crates/anyview-store",
   "crates/anyview-text",
   "crates/anyview-ui",
@@ -23,11 +24,18 @@ publish = false
 anyview-core = { path = "crates/anyview-core" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-platform = { path = "crates/anyview-platform" }
+anyview-peek = { path = "crates/anyview-peek" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
+# The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
+# `TextureLayer`), and the test driver and lint (dev-dependencies only).
+ds = { path = "../quire/crates/ds" }
+ds-blitz = { path = "../quire/crates/ds-blitz" }
+ds-harness = { path = "../quire/crates/ds-harness" }
+ds-lint = { path = "../quire/crates/ds-lint" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -189,6 +197,25 @@ percent-encoding = "2"
 png = "0.18"
 # The stream of a portal request's `Response` signals: MIT OR Apache-2.0.
 futures-util = { version = "0.3", default-features = false }
+# The local checkouts the sibling repos build against (quire/CONSUMING.md section 1): blitz-kit from
+# its sibling directory, so every path-linked repo builds one copy, and the vello and anyrender
+# forks (branch quire-filters) that make every CSS `filter` function paint on both backends.
+# Copied from quire's and sill's root manifests; they apply only at a workspace root, and
+# `anyview-peek` is the first crate here that names the renderer.
+[patch."https://github.com/PoHsuanLai/blitz-kit"]
+blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
+
+[patch.crates-io]
+vello_common = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_cpu = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_hybrid = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_sparse_shaders = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+glifo = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+anyrender = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_cpu = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_hybrid = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+wgpu_context = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+pixels_window_renderer = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

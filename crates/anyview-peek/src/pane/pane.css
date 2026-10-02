@@ -1,0 +1,27 @@
+/* The pane (anyview-peek): a column of the media box, the file's name and its facts. Tokens only;
+   the code colours are the label hues' text-safe members, so they read on the card in both
+   schemes. The `tok-<class>` names are anyview-text's `TokenClass` slugs. */
+.anyview-pane{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; width:100%; min-height:0; padding:var(--s-16); overflow:hidden; color:var(--ink); }
+.anyview-pane-media{ position:relative; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); min-height:220px; overflow:hidden; }
+.anyview-pane-title{ font-size:var(--fs-title); font-weight:600; color:var(--ink); text-align:center; word-break:break-all; }
+
+.anyview-picture{ position:relative; flex:none; display:block; }
+.anyview-picture-pending{ position:absolute; inset:0; display:flex; }
+.anyview-frame{ flex:none; display:block; border:var(--hair) solid var(--line-soft); border-radius:var(--r-small); }
+.anyview-grid{ align-self:stretch; max-height:220px; overflow:hidden; font-size:var(--fs-small); }
+
+.anyview-lines{ align-self:stretch; box-sizing:border-box; max-height:220px; margin:0; padding:var(--s-10); overflow:hidden;
+  font-family:var(--font-code); font-size:var(--fs-help); line-height:1.45; color:var(--ink-soft);
+  background:var(--surface); border:var(--hair) solid var(--line-soft); border-radius:var(--r-small); }
+.anyview-line{ white-space:pre; }
+.tok-plain,.tok-variable{ color:inherit; }
+.tok-keyword{ color:var(--c-violet-deep); }
+.tok-operator,.tok-punctuation{ color:var(--ink-faint); }
+.tok-string,.tok-escape,.tok-inserted{ color:var(--c-green-deep); }
+.tok-comment{ color:var(--ink-faint); font-style:italic; }
+.tok-number,.tok-constant{ color:var(--c-amber-deep); }
+.tok-type,.tok-tag,.tok-heading{ color:var(--c-blue-deep); }
+.tok-function,.tok-link{ color:var(--c-blue-deep); }
+.tok-attribute,.tok-deleted{ color:var(--c-red-deep); }
+.tok-strong,.tok-heading{ font-weight:600; }
+.tok-emphasis{ font-style:italic; }
