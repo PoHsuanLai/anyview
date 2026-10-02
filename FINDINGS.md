@@ -201,11 +201,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The bus tests need `dbus-daemon`.** The bus tests start one with a private configuration and skip
   with a message on stderr when the program is missing, so a machine without it passes without running them.
   Ends when CI is known to have `dbus-daemon`: make a missing one a failure.
-- **`anyview-pdf` carries a local copy of the threading contract.** `work_shim.rs` holds `Backend`,
-  `Stop`, `StopState` and `Ticket` in the shape the plan's section 4b describes, because
-  `anyview_core::work` is being added on another branch. The constructors of `Stop` (`new`,
-  `with_deadline`, `raise`) are the copy's own. Ends at the merge: delete the file and import the four
-  names from `anyview_core`.
 - **A raised `Stop` reaches pdfrum only between tiles and pages.** pdfrum's per-render stop is a
   `Deadline` with its own flag, and `Deadline` has no constructor from an existing flag, so the core
   `Stop`'s flag cannot be the one pdfrum polls inside a draw. `Halt` checks the flag before each tile and
@@ -239,6 +234,27 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Deleting a page drops what points at it.** pdfrum's `delete_pages` removes the page objects with the
   next full save's garbage collection; an outline entry or link that led to a deleted page then leads
   nowhere (`OutlineEntry::page` is `None`, a link is `Other`).
+
+- **The media thread is proven headless, not in a window.** `crates/anyview/tests/media_thread.rs`
+  plays through a device made without a surface and samples the picture in its own pass; a real
+  window's `TextureLayer` (`Gpu::register_view` of the player's view, `TextureHandle::redraw` from the
+  media thread) is not exercised. Ends when the viewer's media view lands: run the same scenario
+  against `ds-blitz`'s `Gpu` and keep the test.
+- **`Player` hands out a `TextureView`, and its texture is replaced when the slot changes size.**
+  `Picture::Shown` is the only way to the picture, so a layer registers it with
+  `Gpu::register_view` (wgpu's `TextureView::texture` is not needed), and every `set_slot` to a
+  new size makes a new texture that must be registered again. The media actor re-announces the view
+  after each size change. Ends if `mpv-wgpu-player` offers a stable texture or a texture-changed event.
+- **`mpv-wgpu-player` and `pollster` sit below the pinned block.** They are dev-dependencies of `anyview`
+  (the spike), the player at mpv-wgpu `8880898` (master), which resolves the one `wgpu` 29.0.4 the
+  tree already has. Ends when the viewer links the player as a normal dependency: add both to quire's
+  `docs/workspace-deps.toml` first (CONVENTIONS section 10), then copy the block here.
+- **The spike's fixtures are the sibling `mpv-wgpu` checkout's.** `media_thread.rs` reads
+  `../mpv/crates/mpv-wgpu-player/tests/fixtures/clip.mkv` and is `#[ignore]` (it needs libmpv, a GPU
+  adapter and that checkout). Ends when the media crate carries its own small clip under `tests/fixtures/`.
+- **A pool shared by several back ends has one worker scratch per back end per thread.** A back end whose
+  scratch is large (pdfrum's `RenderSession` caches) is held by every worker that ran one of its jobs, up
+  to the pool size. Ends if memory shows it: give that back end its own smaller `Pool`.
 
 ## Standing facts
 
@@ -346,3 +362,20 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The test fixture is built in memory.** `tests/support/mod.rs` writes a three-page PDF (text on each
   page, an outline of four entries, a link to a page and a link to a web address, a filled rectangle) with
   a correct cross-reference table, about 2.5 KB; no binary fixture is committed.
+- **`Player::poll` works from a thread that does not present** (PLAN section 4b, "prove early").
+  mpv-wgpu's docs say to call it "on the thread that presents"; the contract that matters is that it
+  submits to the `Queue` and writes its own texture, and wgpu's `Device` and `Queue` are `Send + Sync`.
+  Checked at mpv-wgpu `8880898` and libmpv 2.5.0 (`pkg-config --modversion mpv`), wgpu 29.0.4, on an
+  NVIDIA RTX 5070 Ti (Vulkan): `cargo test -p anyview --test media_thread -- --ignored --nocapture`
+  builds the `Device` and `Queue` on the test thread (the window's), builds and polls the `Player`
+  only on an `anyview-media` actor thread whose wake is mpv's notify callback, posts each rewritten
+  frame's view and a redraw request to the test thread, and samples it in a render pass of the test
+  thread, reading it back. Result, five runs and one with `WGPU_ADAPTER_NAME=llvmpipe` (which still
+  chose the NVIDIA adapter): 11 frames sampled, 9 distinct, none black, alpha 1 everywhere, every
+  poll on one thread that was not the UI thread, a `Seek` sent from the UI thread reached the
+  player and frames kept coming (`SeekDone`). So the media architecture of section 4b stands: one
+  media thread owns the `Player`, polls it when mpv wakes it, and asks for a redraw; no frame goes
+  through the UI thread. The player is built on the actor thread, so it never has to be moved.
+- **The runtime adds no dependency.** The pool is `std::thread`, a `Mutex` with a `Condvar` and two
+  queues; the mailbox and the actor are a `Mutex` and `std::sync::mpsc`. `crossbeam` and `flume` are in
+  the lock only through other crates, and a pool with two lanes and one shared queue needs neither.

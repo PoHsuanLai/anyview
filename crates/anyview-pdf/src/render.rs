@@ -5,7 +5,7 @@ use crate::document::{DocId, PdfDocument};
 use crate::error::PdfError;
 use crate::halt::Halt;
 use crate::tile::{TileBatch, TileKey, tile_rect};
-use crate::work_shim::Stop;
+use anyview_core::work::Stop;
 use anyview_core::{Dpi, PageIndex, PixelLen, PixelSize};
 use pdfrum::{Color, DeviceRect, Pixmap, Region, RenderOptions, RenderSession, VelloCpuBackend};
 

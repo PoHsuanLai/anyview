@@ -1,0 +1,21 @@
+[package]
+name = "anyview"
+description = "The viewer binary: the threads that serve the machines (a bounded worker pool and the media actor), and the program that wires everything else."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+mpv-wgpu-player = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }

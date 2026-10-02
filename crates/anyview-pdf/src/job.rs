@@ -9,7 +9,7 @@ use crate::halt::Halt;
 use crate::render::{End, PdfWorker, Raster, Tile, render_page, render_tiles};
 use crate::search::{Hits, SearchQuery, search_document};
 use crate::tile::TileBatch;
-use crate::work_shim::{Backend, Stop, Ticket};
+use anyview_core::work::{Backend, Stop, Ticket};
 use anyview_core::{Dpi, PageIndex, PageSelection, TextFlavour};
 
 /// One piece of blocking work. Every job carries the ticket its result comes back under.

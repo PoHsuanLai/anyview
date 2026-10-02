@@ -1,7 +1,7 @@
 //! Where a `Stop` meets pdfrum: the flag is checked between steps, and the deadline becomes
 //! pdfrum's own per-render stop, which also ends a draw between the objects of a page.
 
-use crate::work_shim::{Stop, StopState};
+use anyview_core::work::{Stop, StopState};
 use pdfrum::Deadline;
 
 /// A job's stop, ready to hand to pdfrum.
