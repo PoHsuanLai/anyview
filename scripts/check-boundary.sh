@@ -15,14 +15,17 @@ cd "$(dirname "$0")/.."
 # one. The crates above it (anyview-peek and the back ends not yet written) are added to this table
 # when they exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does
 # blocking file I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
-# anyview-ui is the viewer's pure machines: no bus, no runtime, no GPU, no decoder, no player.
+# anyview-ui holds the pure machines and the views that draw them. The crate itself may name the
+# window (ds-blitz, which brings tokio and wgpu) and the two back ends (which bring image); it never
+# names a bus, a PDF library or a player. The machines inside it stay pure, which is checked per
+# source file below.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
-  "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
+  "anyview-ui: zbus pdfrum mpv-wgpu-player rsmpv"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
 )
@@ -59,7 +62,7 @@ done
 EDGES=(
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-core ds-core"
+  "anyview-ui: anyview-core anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
 )
@@ -76,5 +79,20 @@ for edge in "${EDGES[@]}"; do
     echo "edges hold: $crate depends on [${found% }]"
   fi
 done
+
+# The machines of anyview-ui are pure: their source names no view, no quire component, no decoder,
+# no disk, no thread and no clock. The effects are carried out by `io`, `families` and `views`.
+MACHINES=(chrome command keys load navigate palette panel presentation sheet stage time typed viewer)
+for machine in "${MACHINES[@]}"; do
+  path="crates/anyview-ui/src/$machine"
+  [ -d "$path" ] || path="$path.rs"
+  hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\banyview_image\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_' "$path" || true)
+  if [ -n "$hits" ]; then
+    echo "IMPURE: the machine $machine names an effect or a view"
+    echo "$hits" | head -10
+    fail=1
+  fi
+done
+echo "machines hold: ${MACHINES[*]} name no view, decoder, disk, thread or clock"
 
 exit "$fail"

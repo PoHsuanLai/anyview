@@ -6,11 +6,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **No `[patch]` sections yet.** sill patches `blitz-kit` to a sibling checkout and the vello and
-  anyrender crates to forks; `anyview-core`, `anyview-store` and the machines of `anyview-ui` name
-  none of them and cargo warns about every unused patch, so the root `Cargo.toml` carries none.
-  Ends when the first crate that names Blitz, vello or anyrender lands (the views of
-  `anyview-ui`): copy the sections from sill's `Cargo.toml` in that change.
 - **`NoExportKind` is a hand-written `Word`.** `#[derive(Word)]` refuses an enum with no variant,
   and `ExportChoice::Kind` must be a `Word` even for a format with no export. The impl lists no
   variants. Ends when quire's derive accepts an empty enum.
@@ -103,6 +98,32 @@ on. It is a reference, not a log: how each was found lives in git history.
   `StageFamily` of a probe are handed to the machines; the one match on `FormatKind` that
   produces them belongs in `anyview-core`'s `profile` (`panel_tabs`, `stage_family`), next to
   `stage_support`. Ends when `profile/table.rs` carries both columns.
+- **The window has no peek-first-frame.** Every kind opens `LoadFlow::OpenOnly`: the window shows a spinner
+  until the full open lands. The image peek (`RasterPeek`) and the first lines of a text file are what the
+  `Peeking` state is for. Ends when the views submit a peek job beside the open and show its result.
+- **An animated image shows its first frame.** `RasterDoc` holds one texture; the machine's `Animated` and
+  `FrameTick` inputs are never sent. Ends when a worker decodes frames into textures and a tick source
+  (`ds::base::time`) drives `FrameTick`.
+- **Text wraps by the line, not by the window.** A window of lines has fixed-height rows so the line index
+  is the scroll position, so the wrap toggle is accepted and the lines are not wrapped; a long line is cut.
+  Page Up, Page Down and the arrows do not scroll a text file (the wheel and a two-finger scroll do): the
+  text stage has no input for a keyed step. Ends with a `TextIn` for page and line steps.
+- **Find is not drawn.** `Find` inputs reach the machines; no view shows a find bar or the hits.
+- **A rendered Markdown page is a sealed frame that carries the whole design-system stylesheet** (about
+  280 KB) in its own document, since a frame inherits nothing; scrolling inside the frame by the wheel is
+  Blitz's and untested here. Ends if quire offers the frame's token block alone.
+- **The viewer's chords treat Control and Command as one.** `views/keys.rs` folds both to `Super` (⌘), so
+  Ctrl+K opens the palette on Linux. A person's own keymap is the settings item above.
+- **A zip is not probed.** `sniff` asks for the zip's entries and `anyview-archive` does not exist, so a
+  zip-based file fails with `Unsupported` instead of opening as an archive or a document.
+- **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
+  `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
+- **Neighbours are not preloaded and view memory is not restored.** `ViewerOut::Preload` is ignored, and
+  `HostRequest::Remember` is a request with no store behind it here (`anyview-store` is the binary's).
+- **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
+  Ends when they are added there (quire FINDINGS).
+- **The dev example's pool is a throwaway** (`crates/anyview-ui/examples/viewer.rs`). The binary owns the
+  real one.
 - **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 v w Space ⇧← ⇧→
   PageUp PageDown ⌘F ⌘G ⇧⌘G`. Ends when the viewer has a keymap setting; the palette shows the
   same keys.
@@ -117,14 +138,22 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Find hits are addressed by index.** The stages hold the hit count and the current index; the
   edge keeps the hits and maps an index to a place. A document whose hits change while a find is
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
-- **`stage_support` is the viewer's current truth.** Books (EPUB, CBZ), office documents,
-  folders and unknown files are `PeekOnly`; every other kind has a stage. Each row changes with
-  the stage that lands (`profile/table.rs`).
+- **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables and
+  JSON have a stage (images, and text shown as source); PDF, video, audio, fonts, archives, books, office
+  documents, folders and unknown files are `PeekOnly`. The registry (`families/registry.rs`) maps each
+  `PeekOnly` kind to the facts-and-Open-With… view, and a test holds the two tables equal. Each row
+  changes with the stage that lands: the PDF row becomes `Stage` with `anyview-pdf`, video and audio with
+  `anyview-media`, and the registry names the new view in the same change.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
   facts and Open With…. Ends per type when a family holds it.
 
 ## Standing facts
+
+- **The `[patch]` sections are quire's, copied.** The root `Cargo.toml` carries quire's `[patch.crates-io]` (the
+  vello and anyrender forks) and its `[patch."https://github.com/PoHsuanLai/blitz-kit"]` path entry, because a
+  patch applies only at a workspace root and `anyview-ui` now names the render stack through `ds-blitz`. A
+  change to either block in quire's root is made here in the same change.
 
 - **`redb` cannot be shared between the viewer and the launcher.** It takes `flock(LOCK_EX)` on
   open and has no shared-reader mode, so the launcher could not read while the viewer ran. The
