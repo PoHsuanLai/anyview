@@ -3,7 +3,11 @@
 
 mod model;
 mod step;
+mod steps;
 #[cfg(test)]
 mod tests;
 
-pub use model::{TextIn, TextOut, TextParams, TextPlace, TextStage, TextView, TextViews, Wrap};
+pub use model::{
+    LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
+    TextView, TextViews, Wrap,
+};

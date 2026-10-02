@@ -7,6 +7,7 @@ mod media;
 mod model;
 mod pdf;
 mod raster;
+mod resume;
 mod step;
 #[cfg(test)]
 mod tests;
@@ -24,5 +25,8 @@ pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub use raster::{
     Animation, FrameCount, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage, Spin,
 };
-pub use text::{TextIn, TextOut, TextParams, TextPlace, TextStage, TextView, TextViews, Wrap};
+pub use text::{
+    LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
+    TextView, TextViews, Wrap,
+};
 pub use zoom::{Viewport, ZoomDir};

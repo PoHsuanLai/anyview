@@ -40,7 +40,9 @@ pub use io::{
     Backend, Done, Edge, HostRequest, Job, OpenError, OpenLink, Probed, Reply, Stop, Work, Workers,
 };
 pub use keys::{Regions, Route, route};
-pub use load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket};
+pub use load::{
+    Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
+};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
@@ -50,11 +52,11 @@ pub use presentation::{
 pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
 pub use stage::{
     AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameDirection,
-    FrameIndex, HitCount, HitCursor, HitIndex, HitStep, MediaError, MediaIn, MediaOut, MediaParams,
-    MediaStage, Pace, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent,
-    RasterIn, RasterOut, RasterParams, RasterStage, Spin, Stage, StageFamily, StageIn, StageOut,
-    StageParams, TextIn, TextOut, TextParams, TextPlace, TextStage, TextView, TextViews, TrackKind,
-    Viewport, Wrap, ZoomDir,
+    FrameIndex, HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaError, MediaIn, MediaOut,
+    MediaParams, MediaStage, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage,
+    PlayerCommand, PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, Spin, Stage,
+    StageFamily, StageIn, StageOut, StageParams, TextExtent, TextIn, TextOut, TextParams,
+    TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};

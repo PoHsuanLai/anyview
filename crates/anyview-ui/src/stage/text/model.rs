@@ -81,11 +81,30 @@ impl Default for TextStage {
     }
 }
 
+/// A step of the keyboard through the lines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TextStep {
+    /// One line towards the start.
+    LineUp,
+    /// One line towards the end.
+    LineDown,
+    /// One page towards the start.
+    PageUp,
+    /// One page towards the end.
+    PageDown,
+    /// The first line.
+    Top,
+    /// The last page: the end of the file at the bottom of the view.
+    Bottom,
+}
+
 /// What moves the stage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextIn {
     /// The reader scrolled: this is the line at the top.
     Scroll(LineIndex),
+    /// The reader asked for a step by key.
+    Step(TextStep),
     /// Search for this text; empty text closes the find.
     Find(TypedText),
     /// The search for `query` found `count` hits, `nearest` being the one closest to the reader.
@@ -129,9 +148,29 @@ pub enum TextOut {
     Find(FindOut),
 }
 
+/// How many lines the open file has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct LineTotal(pub u32);
+
+/// How many lines fit the view at once: what a page step moves by. With wrapping on, a long line
+/// takes several rows, so this is fewer than the rows the view has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PageLines(pub u32);
+
+/// The size of the file and of a page of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TextExtent {
+    /// The lines the file has.
+    pub lines: LineTotal,
+    /// The lines in one page.
+    pub page: PageLines,
+}
+
 /// What the stage needs to know of the open file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TextParams {
     /// The views the file has.
     pub views: TextViews,
+    /// How long the file is and how much of it shows.
+    pub extent: TextExtent,
 }

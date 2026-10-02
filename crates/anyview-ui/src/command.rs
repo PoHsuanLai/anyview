@@ -36,13 +36,23 @@ pub enum StageCommand {
     NextPage,
     /// The previous page.
     PreviousPage,
+    /// One line towards the start of a text.
+    LineUp,
+    /// One line towards the end of a text.
+    LineDown,
+    /// The start of a text.
+    ScrollToStart,
+    /// The end of a text.
+    ScrollToEnd,
 }
 
 impl StageCommand {
     /// The command a key stands for, before the stage has said whether it has it. Modifiers come
     /// first, in the order `Shortcut::keys` normalises to.
     pub fn from_key(keys: &[ShortcutKey]) -> Option<StageCommand> {
-        use ShortcutKey::{Char, Left, PageDown, PageUp, Right, Shift, Space, Super};
+        use ShortcutKey::{
+            Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super, Up,
+        };
         match keys {
             [Char('+' | '=')] | [Shift, Char('+')] | [Super, Char('+' | '=')] => {
                 Some(StageCommand::ZoomIn)
@@ -60,6 +70,10 @@ impl StageCommand {
             [Shift, Right] => Some(StageCommand::SeekForward),
             [PageDown] => Some(StageCommand::NextPage),
             [PageUp] => Some(StageCommand::PreviousPage),
+            [Up] => Some(StageCommand::LineUp),
+            [Down] => Some(StageCommand::LineDown),
+            [Home] => Some(StageCommand::ScrollToStart),
+            [End] => Some(StageCommand::ScrollToEnd),
             _ => None,
         }
     }
@@ -69,7 +83,9 @@ impl StageCommand {
     /// The keys the palette shows beside the command: the first key `from_key` turns back into
     /// it.
     pub fn shortcut(self) -> Shortcut {
-        use ShortcutKey::{Char, Left, PageDown, PageUp, Right, Shift, Space, Super};
+        use ShortcutKey::{
+            Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super, Up,
+        };
         Shortcut(match self {
             StageCommand::ZoomIn => vec![Char('+')],
             StageCommand::ZoomOut => vec![Char('-')],
@@ -85,6 +101,10 @@ impl StageCommand {
             StageCommand::SeekForward => vec![Shift, Right],
             StageCommand::NextPage => vec![PageDown],
             StageCommand::PreviousPage => vec![PageUp],
+            StageCommand::LineUp => vec![Up],
+            StageCommand::LineDown => vec![Down],
+            StageCommand::ScrollToStart => vec![Home],
+            StageCommand::ScrollToEnd => vec![End],
         })
     }
 }

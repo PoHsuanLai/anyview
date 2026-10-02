@@ -106,6 +106,7 @@ pub(super) fn params(
         None => StageParams {
             text: TextParams {
                 views: kind.map_or(TextViews::default(), views_of),
+                ..TextParams::default()
             },
             ..StageParams::default()
         },
