@@ -15,7 +15,7 @@ pub(crate) use look::{Looked, look};
 
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
-use anyview_core::{MediaTime, NonEmpty, PixelArea, Sniffed, Source};
+use anyview_core::{MediaTime, NonEmpty, PixelArea, PixelSize, QuarterTurn, Sniffed, Source};
 use codec::{Codec, codec_for};
 
 /// The most pixels a file may declare before it is refused instead of decoded: 16384 by 16384, a
@@ -88,6 +88,29 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
             document.render(size).map(Decoded::Still)
         }
     }
+}
+
+/// The size the picture of `src` will have once decoded and turned upright, read from the file's
+/// header and its EXIF orientation without decoding a pixel. `None` when the format's size is not
+/// read that way (JPEG XL and SVG, whose size comes from decoding or drawing them) or the file
+/// declares more pixels than a decode accepts.
+pub fn declared_size(src: &Source, sniffed: &Sniffed) -> Result<Option<PixelSize>, ImageError> {
+    let Codec::Image(format) = codec_for(sniffed)? else {
+        return Ok(None);
+    };
+    let bytes = read(src)?;
+    let size = stills::declared_size(&bytes, format)?;
+    if size.area() > MAX_DECODE_AREA {
+        return Ok(None);
+    }
+    let turn = crate::exif::ExifFacts::read(&bytes).orientation.turn;
+    Ok(Some(match turn {
+        QuarterTurn::None | QuarterTurn::Half => size,
+        QuarterTurn::Quarter | QuarterTurn::ThreeQuarter => PixelSize {
+            width: size.height,
+            height: size.width,
+        },
+    }))
 }
 
 /// The frames as a [`Decoded`]: a single frame is a still.

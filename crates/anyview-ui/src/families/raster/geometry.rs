@@ -8,7 +8,7 @@
 //! and maps it back to the texture's own with the inverse of the turn, and the view draws the
 //! texture's box rotated about its middle.
 
-use crate::{Area, RasterStage};
+use crate::{Animation, Area, FrameIndex, RasterStage};
 use anyview_core::{DocPoint, DocUnit, Permille, PixelSize, QuarterTurn, Zoom};
 
 /// The picture's width and height in texels as shown: a quarter turn swaps them.
@@ -26,6 +26,23 @@ pub(crate) fn turn_of(stage: &RasterStage) -> QuarterTurn {
         RasterStage::Fitted { turn, .. }
         | RasterStage::Zoomed { turn, .. }
         | RasterStage::Panning { turn, .. } => *turn,
+    }
+}
+
+/// Whether the picture moves, and which frame it is on.
+pub(crate) fn animation_of(stage: &RasterStage) -> Animation {
+    match stage {
+        RasterStage::Fitted { anim, .. }
+        | RasterStage::Zoomed { anim, .. }
+        | RasterStage::Panning { anim, .. } => *anim,
+    }
+}
+
+/// The frame on screen: the one the animation is on, or the first.
+pub(crate) fn frame_of(stage: &RasterStage) -> FrameIndex {
+    match animation_of(stage) {
+        Animation::Still => FrameIndex(0),
+        Animation::Playing { frame, .. } | Animation::Paused { frame, .. } => frame,
     }
 }
 
@@ -145,6 +162,28 @@ fn upright(
         clip(uw, width),
         clip(uh, height),
     )
+}
+
+/// `source`, texels of the picture at its own size, as the texels of a texture that holds the same
+/// picture at the size `held` (a first frame, smaller than the picture): the same part of it, to
+/// whole texels, never empty and never outside the texture.
+pub(crate) fn held_source(
+    (x, y, w, h): (u32, u32, u32, u32),
+    size: PixelSize,
+    held: PixelSize,
+) -> (u32, u32, u32, u32) {
+    let along = |from: u32, len: u32, of: u32, to: u32| {
+        let of = u64::from(of.max(1));
+        let first = (u64::from(from) * u64::from(to) / of).min(u64::from(to.saturating_sub(1)));
+        let end = ((u64::from(from) + u64::from(len)) * u64::from(to))
+            .div_ceil(of)
+            .clamp(first + 1, u64::from(to.max(1)));
+        // Both are at most `to`, which is a u32.
+        (first as u32, (end - first) as u32)
+    };
+    let (hx, hw) = along(x, w, size.width.0, held.width.0);
+    let (hy, hh) = along(y, h, size.height.0, held.height.0);
+    (hx, hy, hw, hh)
 }
 
 /// The picture point (in 1/64 texel, as shown) under a pointer at (`x`, `y`) in the room.
@@ -334,5 +373,55 @@ mod tests {
         assert_eq!(under, point(150.0, 50.0));
         let moved = pointer_delta(Permille(2000), room, (10.0, -4.0));
         assert_eq!(moved, point(5.0, -2.0));
+    }
+
+    #[test]
+    fn a_part_of_the_picture_is_the_same_part_of_a_smaller_copy_of_it() {
+        let held = |w: u32, h: u32| PixelSize {
+            width: PixelLen(w),
+            height: PixelLen(h),
+        };
+        // name, part of the 400 x 200 picture, the copy's size, the same part of the copy
+        type Case = (
+            &'static str,
+            (u32, u32, u32, u32),
+            PixelSize,
+            (u32, u32, u32, u32),
+        );
+        let cases: Vec<Case> = vec![
+            (
+                "a copy of the same size is the same part",
+                (10, 20, 100, 50),
+                SIZE,
+                (10, 20, 100, 50),
+            ),
+            (
+                "half size halves the part",
+                (100, 40, 200, 100),
+                held(200, 100),
+                (50, 20, 100, 50),
+            ),
+            (
+                "the whole is the whole",
+                (0, 0, 400, 200),
+                held(40, 20),
+                (0, 0, 40, 20),
+            ),
+            (
+                "an odd edge rounds outwards",
+                (3, 3, 5, 5),
+                held(200, 100),
+                (1, 1, 3, 3),
+            ),
+            (
+                "a sliver is never empty",
+                (399, 199, 1, 1),
+                held(4, 2),
+                (3, 1, 1, 1),
+            ),
+        ];
+        for (name, part, copy, want) in cases {
+            assert_eq!(held_source(part, SIZE, copy), want, "{name}");
+        }
     }
 }

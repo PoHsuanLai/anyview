@@ -148,17 +148,31 @@ on. It is a reference, not a log: how each was found lives in git history.
   `StageFamily` of a probe are handed to the machines; the one match on `FormatKind` that
   produces them belongs in `anyview-core`'s `profile` (`panel_tabs`, `stage_family`), next to
   `stage_support`. Ends when `profile/table.rs` carries both columns.
-- **The window has no peek-first-frame.** Every kind opens `LoadFlow::OpenOnly`: the window shows a spinner
-  until the full open lands. The image peek (`RasterPeek`) and the first lines of a text file are what the
-  `Peeking` state is for. Ends when the views submit a peek job beside the open and show its result.
-- **An animated image shows its first frame.** `RasterDoc` holds one texture; the machine's `Animated` and
-  `FrameTick` inputs are never sent. Ends when a worker decodes frames into textures and a tick source
-  (`ds::base::time`) drives `FrameTick`.
-- **Text wraps by the line, not by the window.** A window of lines has fixed-height rows so the line index
-  is the scroll position, so the wrap toggle is accepted and the lines are not wrapped; a long line is cut.
-  Page Up, Page Down and the arrows do not scroll a text file (the wheel and a two-finger scroll do): the
-  text stage has no input for a keyed step. Ends with a `TextIn` for page and line steps.
-- **Find is not drawn.** `Find` inputs reach the machines; no view shows a find bar or the hits.
+- **A still picture has a first frame only when the host lends one.** `anyview-image` decodes a JPEG or a PNG
+  whole to make even a peek, so a first frame from it would cost what the open costs. The first frame of a
+  still comes from `FirstFrameSource` (the host's thumbnail cache), and of a GIF, a WebP or an SVG from the peeks
+  of `anyview-image`; without the seam a still opens in one step. Ends when the binary implements
+  `FirstFrameSource` over `ThumbnailCache`, or `anyview-image` decodes a JPEG at a reduced size.
+- **The host must carry out `HostRequest::Watch` and `Unwatch`, read `Work::lane`, and lend its seams.** The
+  watcher (`notify`) is the binary's, so a window reloads a changed file only once the binary calls
+  `Edge::changed` for it; `Work::lane` says which jobs are `WorkLane::Preload`, and a pool that puts every job on
+  the visible lane lets a neighbour's open hold up the file the person is waiting for; where files were left is
+  read through `ResumeSource` (`Edge::with_resume_source`), which without one remembers nothing. Ends when the
+  binary does all four.
+- **A page of wrapped text is an estimate.** A line wraps where the stylesheet breaks it; how many lines fit a
+  page (the size of a page step, and the lines a window reads) is counted from the width of one glyph of the
+  code face (`families/text/wrap.rs`), so a line that breaks a row earlier or later than that makes a page step
+  a line short or long. Ends when the renderer can report a laid-out line's height.
+- **Home, End and the up and down arrows belong to a text while it shows.** They scroll it (the stage is asked
+  before navigation is), so a text file is left by the left and right arrows only; every other kind of file
+  keeps Home and End for the first and last file. Ends with the keymap setting (the stage keys item below).
+- **A first frame of a text is only its start.** The first 256 KiB are indexed, so a Markdown file shows as its
+  source until the page is rendered, the facts list no line count, a line remembered beyond the start is blank
+  until the open lands, and a find waits for the whole file. Ends if a start must be searchable.
+- **A search keeps at most 10,000 hits and ignores case only.** `anyview_text::MAX_HITS`; there is no
+  whole-word or regular-expression search. Ends when the find bar has options.
+- **An animation holds every frame in a texture.** The decode cap (512 MiB of frames) bounds the GPU memory too,
+  and an animation near it uploads for as long as it takes to decode. Ends if frames must stream.
 - **A rendered Markdown page is a sealed frame that carries the whole design-system stylesheet** (about
   280 KB) in its own document, since a frame inherits nothing; scrolling inside the frame by the wheel is
   Blitz's and untested here. Ends if quire offers the frame's token block alone.

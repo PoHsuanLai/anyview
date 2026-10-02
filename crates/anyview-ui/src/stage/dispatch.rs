@@ -5,7 +5,7 @@ use super::media::{MediaIn, MediaStage};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{PdfIn, PdfStage};
 use super::raster::{RasterIn, RasterParams, RasterStage};
-use super::text::{TextIn, TextStage};
+use super::text::{TextIn, TextStage, TextStep};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
 use crate::typed::TypedText;
@@ -21,6 +21,18 @@ impl Stage {
             Stage::Pdf(_) => pdf(command).map(StageIn::Pdf),
             Stage::Media(_) => media(command).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
+        }
+    }
+
+    /// Whether a find is up: the keys go to its field, not to the window's chords.
+    pub fn is_finding(&self) -> bool {
+        match self {
+            Stage::Pdf(PdfStage::Finding { .. }) | Stage::Text(TextStage::Finding { .. }) => true,
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Media(_)
+            | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
+            | Stage::Text(TextStage::Reading { .. }) => false,
         }
     }
 
@@ -80,7 +92,11 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::SeekBack
         | StageCommand::SeekForward
         | StageCommand::NextPage
-        | StageCommand::PreviousPage => None,
+        | StageCommand::PreviousPage
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::ScrollToStart
+        | StageCommand::ScrollToEnd => None,
     }
 }
 
@@ -99,7 +115,11 @@ fn pdf(command: StageCommand) -> Option<PdfIn> {
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
-        | StageCommand::SeekForward => None,
+        | StageCommand::SeekForward
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::ScrollToStart
+        | StageCommand::ScrollToEnd => None,
     }
 }
 
@@ -118,7 +138,11 @@ fn media(command: StageCommand) -> Option<MediaIn> {
         | StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::NextPage
-        | StageCommand::PreviousPage => None,
+        | StageCommand::PreviousPage
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::ScrollToStart
+        | StageCommand::ScrollToEnd => None,
     }
 }
 
@@ -129,14 +153,18 @@ fn text(command: StageCommand) -> Option<TextIn> {
         StageCommand::FindPrevious => Some(TextIn::PreviousHit),
         StageCommand::ToggleSource => Some(TextIn::ToggleSource),
         StageCommand::ToggleWrap => Some(TextIn::ToggleWrap),
+        StageCommand::NextPage => Some(TextIn::Step(TextStep::PageDown)),
+        StageCommand::PreviousPage => Some(TextIn::Step(TextStep::PageUp)),
+        StageCommand::LineUp => Some(TextIn::Step(TextStep::LineUp)),
+        StageCommand::LineDown => Some(TextIn::Step(TextStep::LineDown)),
+        StageCommand::ScrollToStart => Some(TextIn::Step(TextStep::Top)),
+        StageCommand::ScrollToEnd => Some(TextIn::Step(TextStep::Bottom)),
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
         | StageCommand::ZoomToActual
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
-        | StageCommand::SeekForward
-        | StageCommand::NextPage
-        | StageCommand::PreviousPage => None,
+        | StageCommand::SeekForward => None,
     }
 }

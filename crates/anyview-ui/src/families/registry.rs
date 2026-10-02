@@ -8,7 +8,7 @@ use super::raster::RasterStageView;
 use super::text::TextStageView;
 use super::view::{LoadedDoc, StageView};
 use crate::io::{OpenError, OpenLink};
-use crate::{StageFamily, Ticket};
+use crate::{LoadFlow, StageFamily, Ticket};
 use anyview_core::{FormatKind, Sniffed, Source};
 
 /// Something done with the view that shows a kind, without naming it.
@@ -80,6 +80,56 @@ pub(crate) fn open_for(
     visit(
         sniffed.kind(),
         Opener {
+            ticket,
+            src,
+            sniffed,
+            link,
+        },
+    )
+}
+
+struct FlowOf;
+
+impl KindVisitor for FlowOf {
+    type Out = LoadFlow;
+
+    fn visit<S: StageView>(self) -> LoadFlow {
+        S::FLOW
+    }
+}
+
+/// How a file of `kind` is opened: with a cheap first frame beside the open, or only the open.
+pub fn flow_of(kind: FormatKind) -> LoadFlow {
+    visit(kind, FlowOf)
+}
+
+struct FirstFrame<'a> {
+    ticket: Ticket,
+    src: &'a Source,
+    sniffed: &'a Sniffed,
+    link: &'a OpenLink,
+}
+
+impl KindVisitor for FirstFrame<'_> {
+    type Out = Result<Option<LoadedDoc>, OpenError>;
+
+    fn visit<S: StageView>(self) -> Self::Out {
+        let doc = S::first_frame(self.ticket, self.src, self.sniffed, self.link)?;
+        Ok(doc.map(LoadedDoc::of::<S>))
+    }
+}
+
+/// The cheap first frame of the file whose type `sniffed` established, or `None` when it has no
+/// frame cheaper than opening it. Blocking.
+pub(crate) fn peek_for(
+    ticket: Ticket,
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenLink,
+) -> Result<Option<LoadedDoc>, OpenError> {
+    visit(
+        sniffed.kind(),
+        FirstFrame {
             ticket,
             src,
             sniffed,

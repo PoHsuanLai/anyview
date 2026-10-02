@@ -3,12 +3,18 @@
 //! inputs; every effect goes through `crate::io`.
 
 mod app;
+mod arrive;
+mod carry;
 mod chrome;
+mod effects;
 mod keys;
 mod palette;
 mod panel;
+mod preloads;
 mod session;
 mod sheet;
+mod shelf;
+mod window;
 
 pub use app::{Launch, ViewerApp, stylesheet};
 
