@@ -19,12 +19,17 @@ cd "$(dirname "$0")/.."
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
+# anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
+# to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
+# other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
+# because the binary owns every thread.
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
+  "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
 )
 fail=0
 
@@ -62,6 +67,7 @@ EDGES=(
   "anyview-ui: anyview-core ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
+  "anyview-pdf: anyview-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
