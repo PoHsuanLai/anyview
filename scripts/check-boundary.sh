@@ -32,12 +32,15 @@ cd "$(dirname "$0")/.."
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
 # because the binary owns every thread.
-# anyview (the binary) owns every thread: its runtime is generic over the back ends and names none
-# of them, so no player, GPU, decoder, UI toolkit or bus reaches it. The media-thread spike links
-# the player and wgpu as dev-dependencies, which `-e normal,build` does not see. The change that
-# wires the viewer together amends this row and the edge below with what it links.
+# anyview (the binary) owns every thread and joins the crates: the window (anyview-ui, ds, ds-blitz),
+# the platform edge, the store and the core. Everything they bring comes along (the renderer, `wgpu`,
+# the decoders, D-Bus), so what it may not reach is only the media player, which is not linked into
+# it yet; what it may not NAME in its own manifest is the DIRECT table below: the binary asks for the
+# renderer, a decoder, the bus or a PDF library only through the crate that owns it. It does name
+# `dioxus`, for the root component every window shares. The media-thread spike links the player and
+# wgpu as dev-dependencies, which `-e normal,build` does not see.
 RULES=(
-  "anyview: dioxus zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
+  "anyview: mpv-wgpu-player rsmpv"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-ui: zbus mpv-wgpu-player rsmpv"
@@ -53,6 +56,7 @@ RULES=(
 # texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
 # nothing here spawns.
 DIRECT=(
+  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
 )
@@ -126,7 +130,7 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core"
+  "anyview: anyview-core anyview-platform anyview-store anyview-ui ds ds-blitz"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
@@ -151,11 +155,13 @@ for edge in "${EDGES[@]}"; do
 done
 
 # Only anyview-platform names the bus or the freedesktop formats (ARCHITECTURE.md section 1): every
-# other crate in crates/ must reach none of them, however indirectly.
+# other crate in crates/ must reach none of them, however indirectly. The binary links the platform
+# crate, so it reaches them through it; its DIRECT row above holds it to never naming them.
 EDGE_ONLY=(zbus ashpd freedesktop-desktop-entry freedesktop-icons freedesktop-file-parser)
 for dir in crates/*/; do
   crate="$(basename "$dir")"
   [ "$crate" = "anyview-platform" ] && continue
+  [ "$crate" = "anyview" ] && continue
   if ! cargo tree -p "$crate" --depth 0 >/dev/null 2>&1; then
     echo "ERROR: cargo tree cannot resolve $crate; the platform-only names were not checked"
     fail=1

@@ -1,0 +1,155 @@
+//! Assembling the program and running its event loop.
+
+use super::relay::{open_each, relay};
+use super::role::{Role, claim_role};
+use crate::cli::{CliError, Invocation, USAGE, parse};
+use crate::host::{Clock, LinuxDesktop, Store};
+use crate::runtime::PoolSize;
+use crate::seam::{NoticeWaker, Workforce};
+use crate::window::{Factory, Inbox, Opening, Seed, first_root};
+use anyview_core::FilePath;
+use anyview_platform::linux::DbusInstance;
+use anyview_platform::{Env, Request};
+use anyview_store::Viewed;
+use ds::prelude::Appearance;
+use ds_blitz::{AppConfig, AppId, Decorations, launch};
+use futures_channel::mpsc::unbounded;
+use futures_util::StreamExt;
+use std::ffi::OsString;
+use std::num::NonZeroUsize;
+use std::process::ExitCode;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::runtime::{Builder, Runtime};
+
+/// How long the viewer would stay running with no window, so the next open is warm. Not
+/// honoured yet: ds-blitz ends the event loop with its first window (FINDINGS), so the process
+/// exits with the last window and the bus activation covers the next start.
+pub const WARM_FOR: Duration = Duration::from_secs(10 * 60);
+
+/// The folder under the person's data directory that holds the history and the view memory. The
+/// launcher reads the same one.
+const STORE_FOLDER: &str = "anyview";
+
+/// The desktop application id the windows carry.
+const APP_ID: &str = "org.quire.Anyview";
+
+/// Run the viewer as `args` (the command line without the program name) in `cwd`, in `env`.
+pub fn run(args: &[OsString], cwd: &FilePath, env: Env) -> ExitCode {
+    match parse(args, cwd) {
+        Ok(Invocation::Help) => {
+            println!("{USAGE}");
+            ExitCode::SUCCESS
+        }
+        Ok(Invocation::Launch(request)) => launch_viewer(request, env),
+        Err(error) => usage_error(&error),
+    }
+}
+
+fn usage_error(error: &CliError) -> ExitCode {
+    eprintln!("anyview: {error}\n{USAGE}");
+    ExitCode::from(2)
+}
+
+fn launch_viewer(request: Request, env: Env) -> ExitCode {
+    let runtime = match platform_runtime() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("anyview: cannot start the platform's runtime: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let role = runtime.block_on(claim_role(&DbusInstance::new(env.clone()), &request));
+    let (openings, inbox) = unbounded();
+    match role {
+        Role::Forwarded => return ExitCode::SUCCESS,
+        Role::Primary(primary) => {
+            runtime.spawn(relay(primary, openings.clone()));
+        }
+        Role::Alone(error) => {
+            eprintln!("anyview: running without single instance: {error}");
+        }
+    }
+    let first_files = crate::program::files_of(request);
+    let own = openings.clone();
+    runtime.spawn(async move { open_each(first_files, &own).await });
+    // The viewer's own sender is dropped here; the relay (if any) keeps the channel open, and a
+    // process with no relay and no files ends the wait below with nothing.
+    drop(openings);
+    let mut inbox = inbox;
+    let Some(first) = runtime.block_on(inbox.next()) else {
+        eprintln!("{USAGE}");
+        return ExitCode::from(2);
+    };
+    show(runtime, env, first, inbox)
+}
+
+/// The tokio runtime the platform's async calls run on: one worker, owned here.
+fn platform_runtime() -> std::io::Result<Runtime> {
+    Builder::new_multi_thread()
+        .worker_threads(1)
+        .thread_name("anyview-platform")
+        .enable_all()
+        .build()
+}
+
+fn show(
+    runtime: Runtime,
+    env: Env,
+    first: Opening,
+    inbox: futures_channel::mpsc::UnboundedReceiver<Opening>,
+) -> ExitCode {
+    let waker = NoticeWaker::default();
+    let cores = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
+    let workforce = match Workforce::start(PoolSize::from_cores(cores), waker.clone()) {
+        Ok(workforce) => Arc::new(workforce),
+        Err(error) => {
+            eprintln!("anyview: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let reporting = Arc::clone(&workforce);
+    runtime.spawn(async move {
+        loop {
+            waker.woken().await;
+            for notice in reporting.notices() {
+                eprintln!("anyview: a job ended without a result: {notice:?}");
+            }
+        }
+    });
+    let store = Store::new(&env.dirs.data.join(STORE_FOLDER), clock());
+    let hosting = Arc::new(LinuxDesktop::linux(runtime.handle().clone(), &env, store));
+    let factory = Factory {
+        workers: workforce.workers(),
+        hosting,
+        appearance: Appearance::default(),
+    };
+    let title = first
+        .file
+        .file_name()
+        .map_or_else(|| "anyview".to_owned(), |name| name.as_str().to_owned());
+    let config = AppConfig::new(title, 1000, 700)
+        .with_app_id(AppId(APP_ID.to_owned()))
+        .with_decorations(Decorations::Client)
+        .with_context(Seed {
+            factory,
+            opening: first,
+        })
+        .with_context(Inbox::new(inbox));
+    launch(first_root, config);
+    drop(workforce);
+    // The relay and the report task wait on channels that never close; end them with the process.
+    runtime.shutdown_background();
+    ExitCode::SUCCESS
+}
+
+/// The wall clock, in whole seconds since the epoch. The one place the program reads the time.
+fn clock() -> Clock {
+    Arc::new(|| {
+        Viewed(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |since| since.as_secs()),
+        )
+    })
+}

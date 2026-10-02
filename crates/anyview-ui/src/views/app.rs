@@ -212,9 +212,11 @@ fn ViewerWindow(launch: Launch) -> Element {
     });
 
     // A probe is announced to the load machine only after a draw that already knew its kind.
+    let announcer = edge.clone();
     use_effect(move || {
         if let Probe::Arrived(ticket, probed) = probe() {
             let stage = family(&probed);
+            announcer.request(HostRequest::Opened(probed.clone()));
             probe.set(Probe::Announced(ticket, probed));
             dispatch.send(ViewerIn::Load(LoadIn::Probed {
                 ticket,
