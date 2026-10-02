@@ -48,7 +48,12 @@ pub struct Rig {
     pub harness: Harness,
     pub workforce: Arc<Workforce>,
     pub store: PathBuf,
+    /// When `open` began: the stand-in for the process's start.
     pub started: Instant,
+    /// How long the program's own wiring took (pool, runtime, desktop, the folder listing).
+    pub wired: Duration,
+    /// How long it took until the window's first frame was up.
+    pub windowed: Duration,
     _runtime: Runtime,
 }
 
@@ -91,17 +96,21 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
     };
     let opening = Opening::around(FilePath::new(file).unwrap());
     let (_openings, inbox) = unbounded();
+    let wired = started.elapsed();
     let config = HarnessConfig::new(VIEW)
         .with_clock(HarnessClock::Virtual)
         .with_backend(Backend::Hybrid)
         .with_context(Seed { factory, opening })
         .with_context(Inbox::new(inbox));
     let harness = Harness::new(first_root, config);
+    let windowed = started.elapsed();
     Rig {
         harness,
         workforce,
         store,
         started,
+        wired,
+        windowed,
         _runtime: runtime,
     }
 }
