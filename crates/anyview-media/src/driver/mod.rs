@@ -85,6 +85,9 @@ impl std::fmt::Debug for Driver {
 impl Driver {
     /// A player on `device` and `queue` playing `file` with its sound on `audio`. `wake` is
     /// called, from an mpv thread, whenever the player wants `woken` called; it must only wake.
+    /// It is also called once here, after the file is handed over: mpv's first events may be
+    /// queued already, and it calls back only when its queue goes from empty to not, so a player
+    /// with no picture to draw (an audio file) would otherwise never be heard from.
     pub fn open(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -94,8 +97,11 @@ impl Driver {
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Result<Driver, MediaError> {
         let mut idle: Session<Idle> = Session::new(device, queue, audio)?;
-        idle.set_notify(wake);
+        let wake = std::sync::Arc::new(wake);
+        let for_player = std::sync::Arc::clone(&wake);
+        idle.set_notify(move || for_player());
         let opening = idle.open(file).map_err(|refused| refused.error)?;
+        wake();
         Ok(Driver {
             held: Some(Held::Opening(opening)),
             sink,
@@ -166,7 +172,12 @@ impl Driver {
             }
         };
         match command {
-            MediaCommand::SetPlayback(pace) => refused(session.set_playback(pace), events),
+            // mpv says nothing of a pause the host asked for (its getter changes at once, so the
+            // property's echo is no change), and the window and the desktop's entry must hear it.
+            MediaCommand::SetPlayback(pace) => match session.set_playback(pace) {
+                Ok(()) => events.push(MediaEvent::Playback(session.pace())),
+                Err(error) => events.push(MediaEvent::Refused(error.to_string())),
+            },
             MediaCommand::Seek(to) => match session.seek(to) {
                 Ok(()) => {
                     self.reported = None;
