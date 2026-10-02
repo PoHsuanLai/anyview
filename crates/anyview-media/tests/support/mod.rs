@@ -1,103 +1,136 @@
-//! Shared by the media tests: the fixtures, a tagged recording made in memory, and a way to run an
-//! export the way the pool does.
+//! A headless device, the fixtures, and a loop that drives a driver the way the media thread does.
+#![cfg(feature = "player")]
+#![allow(dead_code, clippy::unwrap_used)]
 
-#![allow(clippy::unwrap_used, dead_code)]
-
-use anyview_core::work::{Backend, Stop};
-use anyview_core::{ExportJob, FilePath, MediaLength, StreamPick, TimeRange};
+use anyview_core::FilePath;
 use anyview_media::{
-    ExportBackend, ExportProgress, ExportReport, ExportRequest, MediaError, MediaProbe, probe,
+    AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaEvent, Queue, TextureView,
+    headless_device,
 };
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::mpsc::{Receiver, channel};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
-pub fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
+pub const TIMEOUT: Duration = Duration::from_secs(20);
+
+pub fn fixture(name: &str) -> FilePath {
+    FilePath::new(
+        std::fs::canonicalize(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures")
+                .join(name),
+        )
+        .unwrap(),
+    )
+    .unwrap()
 }
 
-pub fn file(path: &Path) -> FilePath {
-    FilePath::new(path).unwrap()
-}
-
-pub fn probed(path: &Path) -> MediaProbe {
-    probe(path).unwrap()
-}
-
-/// The seconds a probe says a recording runs.
-pub fn seconds(probe: &MediaProbe) -> f64 {
-    let MediaLength(time) = probe.length.expect("the recording has a length");
-    time.0 as f64 / 1_000_000.0
-}
-
-/// Half a second of 8 kHz mono 16-bit sound as a WAV file that carries a title, an artist and an
-/// album in its INFO list.
-pub fn tagged_wav() -> Vec<u8> {
-    fn chunk(id: &[u8; 4], body: &[u8]) -> Vec<u8> {
-        let mut bytes = id.to_vec();
-        bytes.extend((body.len() as u32).to_le_bytes());
-        bytes.extend(body);
-        if body.len() % 2 == 1 {
-            bytes.push(0);
+/// A device and queue, or `None` with a note when the machine has no adapter: the tests of a
+/// player that draws need one and say so rather than fail where there is none.
+pub fn device() -> Option<(Device, Queue)> {
+    match headless_device() {
+        Ok(pair) => Some(pair),
+        Err(error) => {
+            eprintln!("SKIPPED: no graphics device ({error})");
+            None
         }
-        bytes
     }
-    let text = |value: &str| {
-        let mut bytes = value.as_bytes().to_vec();
-        bytes.push(0);
-        bytes
-    };
-    let mut format = Vec::new();
-    format.extend(1_u16.to_le_bytes());
-    format.extend(1_u16.to_le_bytes());
-    format.extend(8000_u32.to_le_bytes());
-    format.extend(16_000_u32.to_le_bytes());
-    format.extend(2_u16.to_le_bytes());
-    format.extend(16_u16.to_le_bytes());
-    let samples: Vec<u8> = (0..4000)
-        .map(|n| (f64::from(n) * 0.2).sin() * 8000.0)
-        .flat_map(|value| (value as i16).to_le_bytes())
-        .collect();
-    let mut info = b"INFO".to_vec();
-    info.extend(chunk(b"INAM", &text("Song")));
-    info.extend(chunk(b"IART", &text("Band")));
-    info.extend(chunk(b"IPRD", &text("Record")));
-    let mut body = b"WAVE".to_vec();
-    body.extend(chunk(b"fmt ", &format));
-    body.extend(chunk(b"LIST", &info));
-    body.extend(chunk(b"data", &samples));
-    chunk(b"RIFF", &body)
 }
 
-/// Run `job` into `to` as a pool worker would, recording every progress report.
-pub fn run(
-    job: ExportJob,
-    to: &Path,
-    stop: &Stop,
-) -> (Result<ExportReport, MediaError>, Vec<ExportProgress>) {
-    let seen = Arc::new(Mutex::new(Vec::new()));
-    let sink = Arc::clone(&seen);
-    let request = ExportRequest {
-        job,
-        to: file(to),
-        progress: Arc::new(move |progress| sink.lock().unwrap().push(progress)),
-    };
-    let done = ExportBackend::run(&(), &mut (), request, stop);
-    let reports = seen.lock().unwrap().clone();
-    (done, reports)
+/// What the sink was told.
+#[derive(Debug, Default)]
+pub struct Shown {
+    pub textures: usize,
+    pub frames: usize,
+    pub cleared: usize,
+    pub last: Option<TextureView>,
 }
 
-pub fn transcode(
-    source: &Path,
-    range: TimeRange,
-    streams: StreamPick,
-    audio: anyview_core::AudioTarget,
-) -> ExportJob {
-    ExportJob::Transcode {
-        source: file(source),
-        range,
-        streams,
-        audio,
+#[derive(Clone, Default)]
+pub struct Recording(pub Arc<Mutex<Shown>>);
+
+impl Recording {
+    /// How many times the sink was told of a texture or a frame.
+    pub fn drawn(&self) -> usize {
+        let seen = self.seen();
+        seen.textures + seen.frames
+    }
+
+    pub fn seen(&self) -> std::sync::MutexGuard<'_, Shown> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl FrameSink for Recording {
+    fn texture(&mut self, view: &TextureView) {
+        let mut seen = self.seen();
+        seen.textures += 1;
+        seen.last = Some(view.clone());
+    }
+
+    fn frame(&mut self) {
+        self.seen().frames += 1;
+    }
+
+    fn cleared(&mut self) {
+        self.seen().cleared += 1;
+    }
+}
+
+/// A driver on `file` with the sound off, and the channel mpv wakes it through.
+pub struct Rig {
+    pub driver: Driver,
+    pub wakes: Receiver<()>,
+    pub shown: Recording,
+    pub events: Vec<MediaEvent>,
+}
+
+impl Rig {
+    pub fn open(device: &Device, queue: &Queue, file: &FilePath) -> Rig {
+        let (tx, wakes) = channel();
+        let shown = Recording::default();
+        let driver = Driver::open(
+            device,
+            queue,
+            AudioDriver::Null,
+            file,
+            Box::new(shown.clone()),
+            move || {
+                let _ = tx.send(());
+            },
+        )
+        .unwrap();
+        Rig {
+            driver,
+            wakes,
+            shown,
+            events: Vec::new(),
+        }
+    }
+
+    /// Send `command`, keeping what it caused.
+    pub fn send(&mut self, command: MediaCommand) {
+        let handled = self.driver.command(command);
+        self.events.extend(handled.events);
+    }
+
+    /// Let the player work until `done` holds of the events heard so far.
+    pub fn until(&mut self, what: &str, done: impl Fn(&[MediaEvent]) -> bool) {
+        let started = Instant::now();
+        while !done(&self.events) {
+            assert!(
+                started.elapsed() < TIMEOUT,
+                "timed out waiting for {what}; heard {:#?}",
+                self.events
+            );
+            let _ = self.wakes.recv_timeout(Duration::from_millis(100));
+            let heard = self.driver.woken();
+            self.events.extend(heard);
+        }
+    }
+
+    pub fn has(&self, wanted: impl Fn(&MediaEvent) -> bool) -> bool {
+        self.events.iter().any(wanted)
     }
 }
