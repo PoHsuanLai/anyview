@@ -1,7 +1,7 @@
 //! Facts: the label and value rows a pane lists about a file (dimensions, pages, duration…).
 
 use crate::source::ByteLen;
-use crate::units::{MediaLength, PageCount, PixelSize};
+use crate::units::{Bitrate, MediaLength, PageCount, PixelSize};
 use ds_core::word::Word;
 
 /// What a row of facts is about. Closed, so every pane words and orders the same facts the same
@@ -22,8 +22,12 @@ pub enum FactLabel {
     Duration,
     /// How many frames an animation has.
     Frames,
-    /// How the audio or video is compressed.
+    /// How the video, or the sound of an audio file, is compressed.
     Codec,
+    /// How the sound of a video is compressed.
+    AudioCodec,
+    /// How many bits a second the streams of a recording take.
+    Bitrate,
     /// The camera that took a photo.
     Camera,
     /// The lens a photo was taken with.
@@ -50,8 +54,10 @@ pub enum FactLabel {
     Family,
     /// A document's title.
     Title,
-    /// A document's author.
+    /// A document's author, or the artist of a recording.
     Author,
+    /// The album a recording belongs to.
+    Album,
 }
 
 /// The text shown for a fact, already formatted for a person. A producer builds one from its typed
@@ -85,6 +91,11 @@ impl FactValue {
         } else {
             format!("{minutes}:{seconds:02}")
         })
+    }
+
+    /// `192 kbit/s`.
+    pub fn bitrate(rate: Bitrate) -> Self {
+        FactValue(format!("{} kbit/s", rate.kbps()))
     }
 
     /// A size in decimal units with one digit after the point, rounded down: `412 B`, `1.5 KB`,

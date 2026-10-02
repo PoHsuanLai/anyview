@@ -22,9 +22,9 @@ pub use layout::{Orientation, PaperSize, PrintLayout};
 pub use media::{MediaExport, MediaExportKind};
 pub use none::{NoExport, NoExportKind};
 pub use payload::{
-    HtmlDoc, MetadataCarry, PdfPages, PixelSource, Subtitles, TextFlavour, TextSource,
+    HtmlDoc, MetadataCarry, PdfPages, PixelSource, StreamPick, Subtitles, TextFlavour, TextSource,
 };
 pub use pdf::{PdfExport, PdfExportKind};
 pub use raster::{RasterExport, RasterExportKind};
-pub use target::{RasterTarget, Resize};
+pub use target::{AudioTarget, RasterTarget, Resize};
 pub use text::{TextExport, TextExportKind};

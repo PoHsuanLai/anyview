@@ -1,8 +1,12 @@
 //! `ExportJob`: the shared encoders every format's export turns into.
 
 use super::layout::PrintLayout;
-use super::payload::{HtmlDoc, MetadataCarry, PdfPages, PixelSource, Subtitles, TextSource};
-use super::target::RasterTarget;
+use super::payload::{
+    HtmlDoc, MetadataCarry, PdfPages, PixelSource, StreamPick, Subtitles, TextSource,
+};
+use super::target::{AudioTarget, RasterTarget};
+use crate::source::FilePath;
+use crate::units::TimeRange;
 
 /// One unit of export work, as data. A format turns the person's choice into jobs and the back
 /// ends only ever see this enum, so adding a format adds no case here.
@@ -40,5 +44,16 @@ pub enum ExportJob {
         target: RasterTarget,
         /// Whether subtitles are drawn in.
         subtitles: Subtitles,
+    },
+    /// Cut, copy or re-encode a recording's streams into a new file.
+    Transcode {
+        /// The recording.
+        source: FilePath,
+        /// The part to keep; the stream copy cuts at the keyframe at or before its start.
+        range: TimeRange,
+        /// Which streams to write.
+        streams: StreamPick,
+        /// What the audio is written as.
+        audio: AudioTarget,
     },
 }
