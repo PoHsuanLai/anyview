@@ -1,30 +1,59 @@
 //! What the viewer's name receives: each file of a request, the first launch's or a forwarded one,
-//! becomes an [`Opening`], and each opening a window of its own on the event loop.
+//! becomes an [`Arrival`]: an [`Opening`] for a window of its own on the event loop, or a file to
+//! play with no window.
 
+use crate::media::MediaHub;
 use crate::window::{Factory, Opening, Seed, open_in_window};
-use anyview_core::FilePath;
+use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Resume};
 use anyview_platform::{Primary, Request};
+use anyview_ui::Presentation;
 use ds_blitz::AppHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_util::StreamExt;
 
-/// The files a request asks to see, each for a window of its own. A peek and a play open the file
-/// like any other until the quick-look window and the player exist.
-pub fn files_of(request: Request) -> Vec<FilePath> {
+/// What one file of a request becomes.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Arrival {
+    /// A window of its own, with the files around it for the arrow keys.
+    Window(Opening),
+    /// A recording to play with no window.
+    Background(FilePath),
+}
+
+/// What a request asks of one file, before the folder around it is listed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Want {
+    /// Show it in a window.
+    Show(FilePath),
+    /// Play it with no window.
+    Play(FilePath),
+}
+
+/// The files a request asks for and what is wanted of each. A peek shows like an open until the
+/// quick-look window exists.
+pub fn wants_of(request: Request) -> Vec<Want> {
     match request {
-        Request::Open(files) => files,
-        Request::Peek(file) | Request::Play(file) => vec![file],
+        Request::Open(files) => files.into_iter().map(Want::Show).collect(),
+        Request::Peek(file) => vec![Want::Show(file)],
+        Request::Play(file) => vec![Want::Play(file)],
     }
 }
 
-/// Make an opening of each file (listing its folder on the blocking pool) and hand it to
-/// `openings`, until the windows are gone.
-pub async fn open_each(files: Vec<FilePath>, openings: &UnboundedSender<Opening>) {
-    for file in files {
-        let Ok(opening) = tokio::task::spawn_blocking(move || Opening::around(file)).await else {
-            continue;
+/// Make an arrival of each want (listing a window's folder on the blocking pool) and hand it to
+/// `arrivals`, until the windows are gone.
+pub async fn open_each(wants: Vec<Want>, arrivals: &UnboundedSender<Arrival>) {
+    for want in wants {
+        let arrival = match want {
+            Want::Show(file) => {
+                let Ok(opening) = tokio::task::spawn_blocking(move || Opening::around(file)).await
+                else {
+                    continue;
+                };
+                Arrival::Window(opening)
+            }
+            Want::Play(file) => Arrival::Background(file),
         };
-        if openings.unbounded_send(opening).is_err() {
+        if arrivals.unbounded_send(arrival).is_err() {
             return;
         }
     }
@@ -32,29 +61,61 @@ pub async fn open_each(files: Vec<FilePath>, openings: &UnboundedSender<Opening>
 
 /// Serve `primary` for the life of the process: every request another launch forwards opens its
 /// files in new windows.
-pub async fn relay(mut primary: Primary, openings: UnboundedSender<Opening>) {
+pub async fn relay(mut primary: Primary, arrivals: UnboundedSender<Arrival>) {
     while let Some(request) = primary.next().await {
-        open_each(files_of(request), &openings).await;
-        if openings.is_closed() {
+        open_each(wants_of(request), &arrivals).await;
+        if arrivals.is_closed() {
             return;
         }
     }
 }
 
-/// Open a window for each opening, until the channel closes or the app has ended. Windows are
-/// independent: nothing here depends on an earlier one still being open.
+/// Carry out each arrival, until the channel closes or the app has ended: a window for each
+/// opening (windows are independent, nothing here depends on an earlier one still being open),
+/// and a player with no window for each recording to play in the background.
 pub async fn open_windows(
-    mut openings: UnboundedReceiver<Opening>,
+    mut arrivals: UnboundedReceiver<Arrival>,
     app: AppHandle,
     factory: Factory,
+    hub: MediaHub,
 ) {
-    while let Some(opening) = openings.next().await {
-        let seed = Seed {
-            factory: factory.clone(),
-            opening,
-        };
-        if open_in_window(&app, seed).is_err() {
-            return;
+    while let Some(arrival) = arrivals.next().await {
+        match arrival {
+            Arrival::Window(opening) => {
+                let seed = Seed {
+                    factory: factory.clone(),
+                    opening,
+                    presentation: Presentation::Window,
+                };
+                if open_in_window(&app, seed).is_err() {
+                    return;
+                }
+            }
+            Arrival::Background(file) => {
+                let (hub, resume) = (hub.clone(), factory.resume.clone());
+                let started = tokio::task::spawn_blocking(move || {
+                    let left = stamp_of(&file)
+                        .map_or(Resume::Nothing, |stamp| resume.recall(&file, stamp));
+                    hub.play_in_background(&file, &left)
+                })
+                .await;
+                match started {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => eprintln!("anyview: cannot play in the background: {error}"),
+                    Err(error) => eprintln!("anyview: a task panicked: {error}"),
+                }
+            }
         }
     }
+}
+
+/// The stamp the file has now, which is what a remembered place is checked against.
+fn stamp_of(file: &FilePath) -> Option<FileStamp> {
+    let meta = std::fs::metadata(file.as_path()).ok()?;
+    Some(FileStamp {
+        len: ByteLen(meta.len()),
+        modified: meta
+            .modified()
+            .map_or(ModTime(0), ModTime::from_system_time),
+    })
 }

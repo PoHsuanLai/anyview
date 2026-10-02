@@ -1,5 +1,4 @@
 use super::*;
-use crate::window::Opening;
 use anyview_core::FilePath;
 use anyview_platform::linux::DbusInstance;
 use anyview_platform::testing::{FakeInstance, FakeRole};
@@ -13,12 +12,12 @@ fn path(text: &str) -> FilePath {
 }
 
 #[test]
-fn a_request_is_the_files_to_open_each_in_its_own_window() {
+fn a_request_is_what_is_wanted_of_each_file() {
     let cases = [
         (
-            "files keep their order",
+            "files keep their order, each for a window",
             Request::Open(vec![path("/a/1.png"), path("/a/2.png")]),
-            vec![path("/a/1.png"), path("/a/2.png")],
+            vec![Want::Show(path("/a/1.png")), Want::Show(path("/a/2.png"))],
         ),
         (
             "showing the window names no file",
@@ -28,16 +27,16 @@ fn a_request_is_the_files_to_open_each_in_its_own_window() {
         (
             "a peek opens like an open",
             Request::Peek(path("/a/1.pdf")),
-            vec![path("/a/1.pdf")],
+            vec![Want::Show(path("/a/1.pdf"))],
         ),
         (
-            "so does a play",
+            "a play has no window",
             Request::Play(path("/a/1.mp3")),
-            vec![path("/a/1.mp3")],
+            vec![Want::Play(path("/a/1.mp3"))],
         ),
     ];
     for (name, request, want) in cases {
-        assert_eq!(files_of(request), want, "{name}");
+        assert_eq!(wants_of(request), want, "{name}");
     }
 }
 
@@ -85,16 +84,20 @@ async fn a_request_forwarded_to_the_viewer_arrives_as_an_opening_per_file() {
     let Role::Primary(primary) = claim_role(&instance, &Request::Open(vec![])).await else {
         panic!("the first launch is the viewer");
     };
-    let (openings, mut arrived) = unbounded::<Opening>();
+    let (openings, mut arrived) = unbounded::<Arrival>();
     let serving = tokio::spawn(relay(primary, openings));
 
     instance.forward(Request::Open(files.clone()));
     let mut got = Vec::new();
     for _ in 0..files.len() {
-        let opening = tokio::time::timeout(Duration::from_secs(10), arrived.next())
-            .await
-            .unwrap()
-            .unwrap();
+        let Arrival::Window(opening) =
+            tokio::time::timeout(Duration::from_secs(10), arrived.next())
+                .await
+                .unwrap()
+                .unwrap()
+        else {
+            panic!("an open is a window");
+        };
         got.push(opening);
     }
     serving.abort();

@@ -2,7 +2,8 @@
 
 use super::opening::Opening;
 use crate::host::{HostedResume, Hosting, Watcher};
-use anyview_ui::{FirstFrameSource, ResumeSource, Workers};
+use anyview_platform::WindowStacking;
+use anyview_ui::{FirstFrameSource, MediaHost, Presentation, ResumeSource, Workers};
 use ds::prelude::Appearance;
 use std::sync::Arc;
 
@@ -22,6 +23,23 @@ pub struct Factory {
     pub watcher: Option<Arc<Watcher>>,
     /// How the windows look.
     pub appearance: Appearance,
+    /// Starts a player for a window that shows a recording.
+    pub media: Arc<dyn MediaHost>,
+    /// Keeping the small window above the others, where the desktop lets a program ask.
+    pub stacking: Arc<dyn StackingAsk>,
+}
+
+/// Asks the desktop to keep a window above the others. Object safe, so the factory holds one
+/// without knowing the platform.
+pub trait StackingAsk: Send + Sync + 'static {
+    /// Ask for `stacking` for the window just opened, and say what came of it.
+    fn ask(&self, stacking: anyview_platform::Stacking) -> anyview_platform::StackingOutcome;
+}
+
+impl<T: WindowStacking + Send + Sync + 'static> StackingAsk for T {
+    fn ask(&self, stacking: anyview_platform::Stacking) -> anyview_platform::StackingOutcome {
+        self.request(stacking)
+    }
 }
 
 impl Factory {
@@ -33,6 +51,8 @@ impl Factory {
         first_frames: Arc<dyn FirstFrameSource>,
         watcher: Option<Arc<Watcher>>,
         appearance: Appearance,
+        media: Arc<dyn MediaHost>,
+        stacking: Arc<dyn StackingAsk>,
     ) -> Factory {
         Factory {
             workers,
@@ -41,6 +61,8 @@ impl Factory {
             first_frames,
             watcher,
             appearance,
+            media,
+            stacking,
         }
     }
 }
@@ -58,6 +80,8 @@ pub struct Seed {
     pub factory: Factory,
     /// The file and its neighbours.
     pub opening: Opening,
+    /// How the window is on screen.
+    pub presentation: Presentation,
 }
 
 impl PartialEq for Seed {
@@ -65,5 +89,6 @@ impl PartialEq for Seed {
         Arc::ptr_eq(&self.factory.hosting, &other.factory.hosting)
             && Arc::ptr_eq(&self.factory.workers, &other.factory.workers)
             && self.opening == other.opening
+            && self.presentation == other.presentation
     }
 }
