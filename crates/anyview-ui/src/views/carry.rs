@@ -2,11 +2,11 @@
 //! what is wanted, and this hands it to a worker, a signal the views read, or the host.
 
 use super::shelf::{Dispatch, Shelf};
-use crate::families::top_for;
+use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
-    ChromeOut, FindOut, HitIndex, LoadOut, PaletteOut, PanelOut, PresentationOut, SheetOut, Stage,
-    StageIn, StageOut, TextIn, TextStage, Ticket, TypedText, ViewerIn, ViewerOut,
+    ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PresentationOut,
+    SheetOut, Stage, StageIn, StageOut, TextIn, TextStage, Ticket, TypedText, ViewerIn, ViewerOut,
 };
 use anyview_core::{FilePath, Neighbours, Resume};
 use dioxus::prelude::*;
@@ -56,7 +56,10 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         | ViewerOut::Sheet(SheetOut::Opened | SheetOut::Closed) => {}
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),
         ViewerOut::Stage(out) => staged(c, &out),
-        ViewerOut::Sheet(SheetOut::Export(draft)) => c.edge.request(HostRequest::Export(draft)),
+        ViewerOut::Sheet(SheetOut::Export(draft)) => {
+            let marks = c.shelf.media.peek().marks;
+            c.edge.request(HostRequest::Export(marks.applied_to(draft)));
+        }
         ViewerOut::Sheet(SheetOut::Trash) => c.edge.request(HostRequest::Trash),
         ViewerOut::Sheet(SheetOut::Rename(name)) => c.edge.request(HostRequest::Rename(name)),
         ViewerOut::Presentation(PresentationOut::Become(presentation)) => {
@@ -84,6 +87,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     shelf.lines.set(None);
     shelf.hits.set(None);
     shelf.pdf.reset();
+    shelf.media.reset();
     shelf.left_at.set(Resume::Nothing);
     shelf
         .operation
@@ -128,6 +132,11 @@ fn keep_the_one_left(c: &Carry) {
     ) else {
         return;
     };
+    match doc.view().leaving() {
+        Leaving::Keep => {}
+        // Held, a recording would play on unseen.
+        Leaving::Release => return,
+    }
     let left = shelf.left_at.peek().clone();
     let resume = match left {
         Resume::Nothing => probed.resume.clone(),
@@ -168,7 +177,7 @@ fn preload(c: &Carry, neighbours: &Neighbours) {
     };
     let fetch = shelf.preloads.write().want(&wanted);
     for path in fetch {
-        let link = c.edge.link(c.gpu.handle());
+        let link = c.edge.link_for_preload(c.gpu.handle());
         c.edge.submit(Job::Preload { path, link });
     }
 }
@@ -180,6 +189,10 @@ fn staged(c: &Carry, out: &StageOut) {
         shelf.left_at.set(resume.clone());
         remember(c, resume);
     }
+    if let StageOut::Media(media) = out {
+        media_out(c, media);
+        return;
+    }
     if let StageOut::Pdf(pdf) = out {
         // The pages and their search are drawn from the PDF shelf, not the text's.
         shelf.pdf.carry(pdf.clone());
@@ -190,6 +203,21 @@ fn staged(c: &Carry, out: &StageOut) {
         Some(FindOut::Clear) => shelf.hits.set(None),
         Some(FindOut::ShowHit(index)) => reveal(c, *index),
         None => {}
+    }
+}
+
+/// What the media stage asks: a command for the player, or a trim mark to keep for the export.
+fn media_out(c: &Carry, out: &MediaOut) {
+    match out {
+        MediaOut::Command(command) => {
+            if let Some((_, doc)) = c.shelf.shown_now()
+                && let Some(line) = doc.view().line()
+            {
+                line.send(*command);
+            }
+        }
+        MediaOut::Marked { edge, at } => c.shelf.media.mark(*edge, *at),
+        MediaOut::Buffering(_) | MediaOut::VolumeChanged(_) | MediaOut::TracksChanged => {}
     }
 }
 

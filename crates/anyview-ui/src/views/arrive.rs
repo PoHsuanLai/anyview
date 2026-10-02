@@ -33,6 +33,7 @@ pub(super) fn arrived(done: Done, c: &Carry) {
             result,
         } => found(c, ticket, query, result.unwrap_or_default()),
         Done::Pdf { ticket, answer } => pdf_arrived(c, ticket, answer),
+        Done::Media { ticket } => media_arrived(c, ticket),
         Done::Preloaded { path, loaded } => {
             let mut preloads = c.shelf.preloads;
             preloads.write().arrived(&path, loaded);
@@ -44,6 +45,74 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 c.edge.submit(Job::Stat { path });
             }
         }
+    }
+}
+
+/// The player of `ticket` has news. A wake that comes before the document has landed is not lost:
+/// the line keeps what it has, and `landed` drains it.
+fn media_arrived(c: &Carry, ticket: Ticket) {
+    if c.shelf.shown_now().map(|(held, _)| held) == Some(ticket) {
+        drain_media(c);
+    }
+}
+
+/// Read what the player reported: the shelf keeps it for the views, the stage machine hears the
+/// part that moves it, and the place the person is at is kept for next time when it has moved.
+pub(super) fn drain_media(c: &Carry) {
+    let Some((_, doc)) = c.shelf.shown_now() else {
+        return;
+    };
+    let Some(line) = doc.view().line() else {
+        return;
+    };
+    let notices = line.drain();
+    if notices.is_empty() {
+        return;
+    }
+    c.shelf.media.apply(&notices);
+    for notice in &notices {
+        if let Some(input) = stage_input_of(notice) {
+            send(c, ViewerIn::Stage(StageIn::Media(input)));
+        }
+    }
+    remember_place(c);
+}
+
+/// The input the stage machine takes from a piece of the player's news, if it takes one.
+fn stage_input_of(notice: &crate::MediaNotice) -> Option<crate::MediaIn> {
+    match notice {
+        crate::MediaNotice::Player(event) => Some(crate::MediaIn::Player(*event)),
+        crate::MediaNotice::Position(at) => Some(crate::MediaIn::Position(*at)),
+        crate::MediaNotice::Failed(error) => Some(crate::MediaIn::Failed(*error)),
+        crate::MediaNotice::Tracks(_)
+        | crate::MediaNotice::Chapters(_)
+        | crate::MediaNotice::Speed(_)
+        | crate::MediaNotice::Picture(_) => None,
+    }
+}
+
+/// Keep where the person is in the recording when it is not where it was last kept (to the
+/// second, or in its settings), while the recording is open and not still opening, and once the
+/// player has said where playback is: until then it has not applied the place the person left.
+fn remember_place(c: &Carry) {
+    let mut shelf = c.shelf;
+    let Some(dispatch) = c.dispatch() else {
+        return;
+    };
+    let opening = matches!(
+        dispatch.machine.state().peek().stage,
+        Stage::Media(crate::MediaStage::Opening)
+    );
+    if opening {
+        return;
+    }
+    let Some(place) = shelf.media.place() else {
+        return;
+    };
+    let kept = crate::MediaPlace::of(&shelf.left_at.peek());
+    if kept.is_none_or(|kept| !kept.same_as(place)) {
+        shelf.left_at.set(place.resume());
+        c.edge.request(crate::HostRequest::Remember(place.resume()));
     }
 }
 
@@ -151,6 +220,8 @@ pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     for input in told_of(c, doc) {
         send(c, ViewerIn::Stage(input));
     }
+    // A player that started before the document landed may have woken the window already.
+    drain_media(c);
 }
 
 /// The inputs the stage is given now that `doc` is on screen.

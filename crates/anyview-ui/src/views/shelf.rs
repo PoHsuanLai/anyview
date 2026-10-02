@@ -4,7 +4,10 @@
 
 use super::preloads::Preloads;
 use super::session::{Probe, params};
-use crate::families::{Area, FoundHits, Held, LineWindow, LoadedDoc, PdfShelf, use_pdf_shelf};
+use crate::families::{
+    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
+    use_pdf_shelf,
+};
 use crate::{Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
@@ -32,6 +35,8 @@ pub(super) struct Shelf {
     pub hits: Signal<Option<Held<FoundHits>>>,
     /// What is held of an open PDF: the tiles, the hits, the thumbnails.
     pub pdf: PdfShelf,
+    /// What is held of the recording that plays: the position, the lists, the trim marks.
+    pub media: MediaShelf,
     /// The files opened ahead.
     pub preloads: Signal<Preloads>,
     /// The file whose folder was asked for after a drop.
@@ -58,6 +63,7 @@ impl Shelf {
             lines: use_signal(|| None),
             hits: use_signal(|| None),
             pdf: use_pdf_shelf(),
+            media: use_media_shelf(),
             preloads: use_signal(Preloads::default),
             folder: use_signal(|| None),
             operation: use_signal(|| Operation::Idle),

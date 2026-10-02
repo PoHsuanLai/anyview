@@ -58,6 +58,7 @@ fn cx(stage: Stage) -> StageCx {
         work: EventHandler::new(|_| {}),
         request: EventHandler::new(|_| {}),
         pdf: use_pdf_shelf(),
+        media: crate::families::use_media_shelf(),
         frame: FrameLook::default(),
     }
 }

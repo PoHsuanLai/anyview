@@ -76,7 +76,7 @@ const CASES: &[Case] = &[
         make: || {
             root(rsx! {
                 div { style: "position:relative; width:480px; height:200px",
-                    Controls { slots: slots(), shown: Shown::Visible, onpick: |_| {}, onpointerenter: |()| {}, onpointerleave: |()| {} }
+                    Controls { slots: slots(), shown: Shown::Visible, onpick: |_| {}, onscrub: |_| {}, onlevel: |_| {}, onpointerenter: |()| {}, onpointerleave: |()| {} }
                 }
             })
         },

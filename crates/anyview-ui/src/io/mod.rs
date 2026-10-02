@@ -7,6 +7,7 @@ mod disk;
 mod error;
 mod folder;
 mod job;
+mod media;
 mod probe;
 mod seams;
 mod workers;
@@ -16,6 +17,10 @@ pub(crate) use disk::DiskFiles;
 pub use error::OpenError;
 pub use folder::folder_sequence;
 pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};
+pub(crate) use media::MediaPort;
+pub use media::{
+    MediaHost, MediaLine, MediaNotice, MediaStart, MediaStarted, MediaWake, SlotPixels,
+};
 pub(crate) use probe::probe;
 pub use seams::{FirstFrameSource, ResumeSource};
 pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, Workers};
