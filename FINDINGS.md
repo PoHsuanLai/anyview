@@ -6,13 +6,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **quire's `PreviewPane` cannot hold anyview's pane.** It takes data, `PaneContent` (`Image`, `Text`, `Pdf`,
-  `App`, `Facts`, `Emoji`, `Web`), not an element, and draws its own media, caption and actions column.
-  `anyview_peek::Pane` draws the media, the name and the facts itself, so sill (phase C) cannot put it
-  inside `PreviewPane` to keep its action row, its cue, its pending look and its slide-in. Ends when quire
-  gives `PreviewPane` a slot (`PaneContent::Slot(Element)`) or splits its frame (the actions, the cue and
-  the entrance) from its content; then `Pane` goes in the slot. Until then the launcher can lay `Pane` out
-  beside its own actions.
 - **quire's `PdfPage::Ready` carries a PNG `data:` URL.** The PDF peek goes through `ds_blitz::pdf_thumb_blocking`
   (the cache the launcher already uses), whose page is `ImageSource`, so a PDF's first page is the one
   picture here that is not a `TextureLayer`. Ends when quire's `PdfPage::Ready` can hold pixels for a
@@ -208,8 +201,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   Blitz's and untested here. Ends if quire offers the frame's token block alone.
 - **The viewer's chords treat Control and Command as one.** `views/keys.rs` folds both to `Super` (⌘), so
   Ctrl+K opens the palette on Linux. A person's own keymap is the settings item above.
-- **A zip is not probed.** `sniff` asks for the zip's entries and `anyview-archive` does not exist, so a
-  zip-based file fails with `Unsupported` instead of opening as an archive or a document.
+- **The viewer's own probe does not look inside a zip.** `anyview_peek::probe` does (through
+  `anyview_archive::zip_entries`), but `anyview-ui`'s `io/probe.rs` answers `Unrecognised` for a zip, so a
+  zip-based file a launcher hands over opens a window that says so, while its pane showed the listing. Ends
+  when the probe moves below `anyview-ui` (into a crate both it and `anyview-peek` may name) and the viewer
+  calls the same one.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
