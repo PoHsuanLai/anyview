@@ -61,6 +61,13 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Sheet(input) => sheet(viewer, input, at, params),
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
+        ViewerIn::StartAs(presentation) => (
+            Viewer {
+                presentation,
+                ..viewer
+            },
+            vec![],
+        ),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
