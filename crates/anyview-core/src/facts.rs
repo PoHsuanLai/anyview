@@ -48,6 +48,10 @@ pub enum FactLabel {
     Entries,
     /// The family a font belongs to.
     Family,
+    /// A font's weight and slant by name: `Bold Italic`.
+    Style,
+    /// How many glyphs a font draws.
+    Glyphs,
     /// A document's title.
     Title,
     /// A document's author.
