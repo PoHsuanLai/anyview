@@ -62,6 +62,7 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "picture",
         ),
         ("pdf", Home::Own, "hello.pdf", FormatKind::Pdf, "page"),
+        ("font", Home::Font, "blocks.ttf", FormatKind::Font, "font"),
         (
             "text",
             Home::Text,
@@ -270,20 +271,6 @@ fn kinds_without_a_back_end_show_their_type_size_and_date() {
             "Audio (FLAC)",
         ),
         (
-            "font",
-            "face.ttf",
-            b"\0\x01\0\0\0\x0f\0\x80\0\x03\0\x30",
-            FormatKind::Font,
-            "Font (TTF)",
-        ),
-        (
-            "archive",
-            "bundle.zip",
-            b"PK\x05\x06\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
-            FormatKind::Archive,
-            "Archive (ZIP)",
-        ),
-        (
             "other",
             "blob.bin",
             b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0",
@@ -352,4 +339,73 @@ fn a_folder_that_cannot_be_listed_is_unavailable() {
     let src = anyview_core::Source::new(anyview_core::FilePath::new(&missing).unwrap(), stamp);
     let peeked = peek(&src, &anyview_core::sniff_folder(), &pane_budget());
     assert_eq!(peeked.body.slug(), "unavailable");
+}
+
+#[test]
+fn a_font_lists_its_names_and_glyph_count_then_the_size_and_the_date() {
+    let peeked = peeked(Home::Font, "blocks.ttf");
+    let rows = rows(&peeked.facts);
+    let labels: Vec<&str> = rows.iter().map(|(label, _)| *label).collect();
+    assert_eq!(
+        labels,
+        ["kind", "family", "style", "glyphs", "size", "modified"]
+    );
+    assert_eq!(rows[0].1, "TrueType font");
+    assert_eq!(rows[1].1, "Anyview Blocks");
+    assert_eq!(rows[2].1, "Regular");
+    let Body::Font(font) = &peeked.body else {
+        panic!("a font peeks to a Font body, not {}", peeked.body.slug());
+    };
+    assert_eq!(
+        font.face.as_ref().map(|face| face.specimen.lines.len()),
+        Some(3)
+    );
+}
+
+#[test]
+fn an_archive_lists_its_entries_then_the_size_and_the_date() {
+    let dir = tempfile::tempdir().unwrap();
+    let (src, sniffed) = support::zip_on_disk(
+        dir.path(),
+        &[
+            ("docs/", ""),
+            ("docs/readme.txt", "hello archive"),
+            ("data.bin", "0123456789"),
+        ],
+    );
+    let peeked = peek(&src, &sniffed, &pane_budget());
+    assert_eq!(peeked.kind, FormatKind::Archive);
+    let Body::Archive(archive) = &peeked.body else {
+        panic!("a zip peeks to an Archive body, not {}", peeked.body.slug());
+    };
+    let names: Vec<&str> = archive
+        .listing
+        .entries
+        .iter()
+        .map(|entry| entry.path.as_str())
+        .collect();
+    assert_eq!(names, ["docs/", "docs/readme.txt", "data.bin"]);
+    let facts = rows(&peeked.facts);
+    assert_eq!(facts[0], ("kind", "ZIP archive".to_owned()));
+    assert_eq!(facts[1], ("entries", "3, 23 B unpacked".to_owned()));
+    assert_eq!(facts[2].0, "size");
+    assert_eq!(facts[3], ("modified", "2026-10-02 14:30 UTC".to_owned()));
+}
+
+#[test]
+fn a_damaged_archive_is_unavailable_with_its_kind_and_the_reason() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("broken.zip");
+    std::fs::write(
+        &path,
+        b"PK\x03\x04 and then the file simply stops being a zip",
+    )
+    .unwrap();
+    let (src, sniffed) = on_disk(&path, 0);
+    let peeked = peek(&src, &sniffed, &pane_budget());
+    let Body::Unavailable(reason) = &peeked.body else {
+        panic!("a broken zip is unavailable, not {}", peeked.body.slug());
+    };
+    assert!(reason.starts_with("not a valid ZIP archive"), "{reason}");
+    assert_eq!(rows(&peeked.facts)[0], ("kind", "Archive (ZIP)".to_owned()));
 }

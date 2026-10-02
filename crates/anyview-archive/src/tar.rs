@@ -38,13 +38,15 @@ pub(crate) fn path_of<R: Read>(entry: &tar::Entry<'_, R>) -> String {
     String::from_utf8_lossy(&entry.path_bytes()).into_owned()
 }
 
+// `EntryType` is `non_exhaustive`: a wildcard is the only way to match a type the tar crate may
+// extend, and what falls to it (devices, pipes, the extension headers the reader folds into the
+// entry they describe) is not a file to show.
+#[allow(clippy::wildcard_enum_match_arm)]
 pub(crate) fn kind_of(kind: EntryType) -> EntryKind {
     match kind {
         EntryType::Directory => EntryKind::Directory,
         EntryType::Symlink | EntryType::Link => EntryKind::Link,
         EntryType::Regular | EntryType::Continuous | EntryType::GNUSparse => EntryKind::File,
-        // Devices, pipes and the extension headers the reader folds into the entry they describe
-        // (the enum is open, so the rest is named by this arm).
         _ => EntryKind::Other,
     }
 }

@@ -11,6 +11,7 @@ mod frame;
 mod grid;
 mod lines;
 mod picture;
+mod specimen;
 
 use crate::any::AnyPeeked;
 use crate::body::Body;
@@ -18,7 +19,9 @@ use dioxus::prelude::*;
 use ds::components::content::pdf_thumb::PdfThumb;
 use ds::components::fields::fact_list::{Fact, FactList};
 use ds::components::lists::preview::content::PANE_MEDIA;
-use ds::prelude::{AppStyle, Icon, IconSize, IconSource, IconView, InlineBanner, Severity, Word};
+use ds::prelude::{
+    AppStyle, Icon, IconSize, IconSource, IconView, InlineBanner, Severity, Size, Word,
+};
 use ds::root::common::Common;
 use ds::style::icon::family::PlateFamily;
 use ds::style::icon::render::IconPx;
@@ -33,7 +36,11 @@ pub const STYLE: &str = include_str!("pane.css");
 /// `peeked` is shared so a host can keep one result and hand it to the pane on every render
 /// without copying pixels or comparing them (`Arc` equality starts at the pointer).
 #[component]
-pub fn Pane(peeked: Arc<AnyPeeked>, #[props(default)] common: Common) -> Element {
+pub fn Pane(
+    peeked: Arc<AnyPeeked>,
+    #[props(default = PANE_MEDIA)] page_room: Size,
+    #[props(default)] common: Common,
+) -> Element {
     let name = peeked.name.clone();
     let facts: Vec<Fact> = peeked
         .facts
@@ -52,21 +59,21 @@ pub fn Pane(peeked: Arc<AnyPeeked>, #[props(default)] common: Common) -> Element
             "data-kind": peeked.kind.slug(),
             "data-body": peeked.body.slug(),
             ..data,
-            div { class: "anyview-pane-media", {media(&peeked)} }
+            div { class: "anyview-pane-media", {media(&peeked, page_room)} }
             b { class: "anyview-pane-title", "{name}" }
-            FactList { facts }
+            div { class: "anyview-pane-facts", FactList { facts } }
         }
     }
 }
 
 /// The media box's contents for `peeked`'s body.
-fn media(peeked: &Arc<AnyPeeked>) -> Element {
+fn media(peeked: &Arc<AnyPeeked>, page_room: Size) -> Element {
     match &peeked.body {
         Body::Picture(image) => rsx! {
             picture::Picture { image: image.clone(), label: peeked.name.clone() }
         },
         Body::Page(page) => rsx! {
-            PdfThumb { page: page.page.clone(), size: PANE_MEDIA, label: peeked.name.clone() }
+            PdfThumb { page: page.page.clone(), size: page_room, label: peeked.name.clone() }
         },
         Body::Plain(plain) => lines::plain(&plain.lines),
         Body::Code(code) => lines::code(&code.lines),
@@ -74,6 +81,11 @@ fn media(peeked: &Arc<AnyPeeked>) -> Element {
             frame::Frame { html: markdown.html.clone() }
         },
         Body::Table(table) => grid::table(table),
+        Body::Archive(archive) => grid::archive(archive),
+        Body::Font(font) => match specimen::lines(font) {
+            Some(lines) => lines,
+            None => plate(Icon::File, PlateFamily::Blue),
+        },
         Body::Tree(tree) => grid::tree(tree),
         Body::Folder(_) => plate(Icon::Folder, PlateFamily::Blue),
         Body::FactsOnly(_) => plate(Icon::File, PlateFamily::Blue),
