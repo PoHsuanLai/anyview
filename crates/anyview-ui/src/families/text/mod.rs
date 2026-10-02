@@ -2,17 +2,22 @@
 //! worker (`doc`); the lines on screen are a window a worker read and highlighted, and a
 //! Markdown file's page is a sealed frame (`frame`).
 
+mod bar;
 mod doc;
+mod find;
 mod frame;
 mod view;
+mod wrap;
 
 pub use doc::{LineWindow, TextDoc};
+pub use find::FoundHits;
+pub(crate) use find::top_for;
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenLink};
 use crate::{
-    Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, TextParams,
-    TextViews, Ticket,
+    Command, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
+    StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews, Ticket, TypedText,
 };
 use anyview_core::{Facts, FormatKind, LineIndex, Sniffed, Source};
 use dioxus::prelude::*;
@@ -36,7 +41,17 @@ pub struct TextStageView;
 
 impl StageView for TextStageView {
     const FAMILY: StageFamily = StageFamily::Text;
+    const FLOW: LoadFlow = LoadFlow::PeekThenOpen;
     type Doc = TextDoc;
+
+    fn first_frame(
+        _ticket: Ticket,
+        src: &Source,
+        sniffed: &Sniffed,
+        link: &OpenLink,
+    ) -> Result<Option<TextDoc>, OpenError> {
+        doc::first_frame(src, sniffed, link)
+    }
 
     fn open(
         _ticket: Ticket,
@@ -63,9 +78,51 @@ impl StageView for TextStageView {
         StageParams {
             text: TextParams {
                 views,
-                ..TextParams::default()
+                extent: TextExtent {
+                    lines: LineTotal(doc.line_count().0),
+                    page: PageLines(0),
+                },
             },
             ..StageParams::default()
+        }
+    }
+
+    fn params_seen(
+        doc: &TextDoc,
+        stage: &Stage,
+        area: Option<Area>,
+        lines: Option<&LineWindow>,
+    ) -> StageParams {
+        let params = Self::params(doc, stage, area);
+        let (Stage::Text(text), Some(area)) = (stage, area) else {
+            return params;
+        };
+        let place = view::place_of_text(text);
+        let rows = view::rows_of(area.size.height.0);
+        let from = lines.map_or(&[][..], |window| window.from(place.line));
+        let page = wrap::lines_per_page(from, rows, area.size.width.0, place.wrap);
+        StageParams {
+            text: TextParams {
+                extent: TextExtent {
+                    page: PageLines(page),
+                    ..params.text.extent
+                },
+                ..params.text
+            },
+            ..params
+        }
+    }
+
+    fn arrived(_doc: &TextDoc, stage: &Stage) -> Vec<StageIn> {
+        match stage {
+            Stage::Text(TextStage::Finding { query, .. }) => {
+                vec![StageIn::Text(TextIn::Find(query.clone()))]
+            }
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(TextStage::Reading { .. }) => Vec::new(),
         }
     }
 
@@ -91,6 +148,14 @@ impl StageView for TextStageView {
 
     fn panel(_doc: &Arc<TextDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
         None
+    }
+
+    fn search(doc: &Arc<TextDoc>, ticket: Ticket, query: &TypedText) -> Option<Job> {
+        Some(Job::Search {
+            ticket,
+            doc: Arc::clone(doc),
+            query: query.clone(),
+        })
     }
 
     fn lines(doc: &Arc<TextDoc>, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job> {

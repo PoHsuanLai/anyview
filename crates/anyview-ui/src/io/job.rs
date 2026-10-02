@@ -1,27 +1,37 @@
 //! The work a window hands its workers, and what comes back. Each job blocks (disk, decoding,
 //! highlighting); none touches the UI thread's state. A job that shows pixels uploads them into
-//! the window's texture itself, so a decoded picture never passes through the UI thread: its
+//! the texture it was given itself, so a decoded picture never passes through the UI thread: its
 //! result is a small document that names the texture.
 
 use super::error::OpenError;
-use crate::families::{LineWindow, LoadedDoc, TextDoc, open_for};
-use crate::{StageFamily, Ticket};
-use anyview_core::{FilePath, LineIndex, Sniffed, Source};
+use super::folder::folder_sequence;
+use super::seams::{FirstFrameSource, ResumeSource};
+use crate::families::{FoundHits, LineWindow, LoadedDoc, TextDoc, open_for, peek_for};
+use crate::{StageFamily, Ticket, TypedText};
+use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
 
-/// What an open needs from the window: the texture a picture is uploaded into (made on the UI
-/// thread from the window's `Gpu`) and the one highlighter every file shares.
+/// The largest file a preload opens: the next file is worth opening ahead only while that is
+/// cheap, and a file this large is better opened when it is asked for.
+const PRELOAD_LIMIT: u64 = 64 * 1024 * 1024;
+
+/// What an open needs from the window: the texture a picture is uploaded into (one per open, made
+/// on the UI thread from the window's `Gpu`), the one highlighter every file shares, and the
+/// pictures the host has ready.
 #[derive(Debug, Clone)]
 pub struct OpenLink {
     /// Where a decoded picture goes.
     pub texture: TextureHandle,
     /// Highlights code for every stage.
     pub highlighter: Arc<Highlighter>,
+    /// The host's small pictures, for a first frame.
+    pub first_frames: Arc<dyn FirstFrameSource>,
 }
 
-/// A file whose type was read: what to open, how it was sniffed and which stage shows it.
+/// A file whose type was read: what to open, how it was sniffed, which stage shows it and where
+/// the person left it last time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Probed {
     /// The file and its stamp.
@@ -30,6 +40,17 @@ pub struct Probed {
     pub sniffed: Sniffed,
     /// The stage that shows it.
     pub family: StageFamily,
+    /// Where it was left, as the host's store remembered it for this version of the file.
+    pub resume: Resume,
+}
+
+/// A file opened ahead of the person asking for it.
+#[derive(Debug, Clone)]
+pub struct Preloaded {
+    /// What was probed.
+    pub probed: Probed,
+    /// The open document.
+    pub doc: LoadedDoc,
 }
 
 /// One unit of blocking work.
@@ -37,6 +58,12 @@ pub struct Probed {
 pub enum Job {
     /// Find out what the file of this load is.
     Probe { ticket: Ticket, path: FilePath },
+    /// Make the cheap first frame of the probed file.
+    Peek {
+        ticket: Ticket,
+        probed: Probed,
+        link: OpenLink,
+    },
     /// Open the probed file in full.
     Open {
         ticket: Ticket,
@@ -50,6 +77,18 @@ pub enum Job {
         first: LineIndex,
         rows: u32,
     },
+    /// Find every place `query` occurs in an open text file.
+    Search {
+        ticket: Ticket,
+        doc: Arc<TextDoc>,
+        query: TypedText,
+    },
+    /// Probe and open the file `path`, for the person to arrive at it without waiting.
+    Preload { path: FilePath, link: OpenLink },
+    /// Read the stamp `path` has now.
+    Stat { path: FilePath },
+    /// List the folder `path` is in, as the sequence the arrow keys walk.
+    Folder { path: FilePath },
 }
 
 /// What a worker made of a job.
@@ -59,6 +98,11 @@ pub enum Done {
     Probed {
         ticket: Ticket,
         result: Result<Probed, OpenError>,
+    },
+    /// The first frame of `ticket`, or `None` when the file has no cheap one.
+    Peeked {
+        ticket: Ticket,
+        result: Result<Option<LoadedDoc>, OpenError>,
     },
     /// The open of `ticket`.
     Opened {
@@ -70,15 +114,58 @@ pub enum Done {
         ticket: Ticket,
         result: Result<LineWindow, OpenError>,
     },
+    /// The hits of `query` in the file of `ticket`.
+    Found {
+        ticket: Ticket,
+        query: TypedText,
+        result: Result<FoundHits, OpenError>,
+    },
+    /// The file `path`, opened ahead; `None` when it could not be or was too large to be worth it.
+    Preloaded {
+        path: FilePath,
+        loaded: Option<Preloaded>,
+    },
+    /// The stamp `path` has now; `None` when it cannot be read.
+    Stamped {
+        path: FilePath,
+        stamp: Option<FileStamp>,
+    },
+    /// The folder of `path` as a sequence.
+    Folder {
+        path: FilePath,
+        result: Result<Sequence, OpenError>,
+    },
+    /// The host saw `path` change on disk (`Edge::changed`).
+    Changed { path: FilePath },
 }
 
 impl Job {
-    /// Do the work, blocking until it is done.
-    pub fn run(self) -> Done {
+    /// The load this job belongs to; `Ticket::default()` for a job that belongs to none.
+    pub fn ticket(&self) -> Ticket {
+        match self {
+            Job::Probe { ticket, .. }
+            | Job::Peek { ticket, .. }
+            | Job::Open { ticket, .. }
+            | Job::Lines { ticket, .. }
+            | Job::Search { ticket, .. } => *ticket,
+            Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } => Ticket::default(),
+        }
+    }
+
+    /// Do the work, blocking until it is done. `resume` is where the host keeps view memory.
+    pub(super) fn run(self, resume: &dyn ResumeSource) -> Done {
         match self {
             Job::Probe { ticket, path } => Done::Probed {
                 ticket,
-                result: super::probe(&path),
+                result: probed(&path, resume),
+            },
+            Job::Peek {
+                ticket,
+                probed,
+                link,
+            } => Done::Peeked {
+                ticket,
+                result: peek_for(ticket, &probed.source, &probed.sniffed, &link),
             },
             Job::Open {
                 ticket,
@@ -97,6 +184,44 @@ impl Job {
                 ticket,
                 result: doc.window(first, rows).map_err(OpenError::from),
             },
+            Job::Search { ticket, doc, query } => Done::Found {
+                ticket,
+                result: doc.find(&query).map_err(OpenError::from),
+                query,
+            },
+            Job::Preload { path, link } => Done::Preloaded {
+                loaded: preloaded(&path, &link, resume),
+                path,
+            },
+            Job::Stat { path } => Done::Stamped {
+                stamp: super::probe::stamp_of(&path),
+                path,
+            },
+            Job::Folder { path } => Done::Folder {
+                result: folder_sequence(&path),
+                path,
+            },
         }
     }
+}
+
+/// The probe of `path`, with what the host remembers of it.
+fn probed(path: &FilePath, resume: &dyn ResumeSource) -> Result<Probed, OpenError> {
+    let probed = super::probe(path)?;
+    let remembered = resume.recall(path, probed.source.stamp());
+    Ok(Probed {
+        resume: remembered,
+        ..probed
+    })
+}
+
+/// `path` opened, or `None` when it is too large, cannot be opened or opens to nothing the
+/// person will not meet again by asking: a failed preload is silent, the open when asked reports.
+fn preloaded(path: &FilePath, link: &OpenLink, resume: &dyn ResumeSource) -> Option<Preloaded> {
+    let probed = probed(path, resume).ok()?;
+    if probed.source.stamp().len.0 > PRELOAD_LIMIT {
+        return None;
+    }
+    let doc = open_for(Ticket::default(), &probed.source, &probed.sniffed, link).ok()?;
+    Some(Preloaded { probed, doc })
 }

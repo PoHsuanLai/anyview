@@ -5,7 +5,10 @@
 //! holds, so the window needs no match on the family to draw it.
 
 use crate::io::{Job, OpenError, OpenLink};
-use crate::{Command, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams, Ticket};
+use crate::{
+    Command, LoadFlow, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams, Ticket,
+    TypedText,
+};
 use anyview_core::{Facts, LineIndex, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -81,6 +84,10 @@ pub struct StageCx {
     pub lines: Option<Held<super::LineWindow>>,
     /// Ask for a window of lines: from this line, this many.
     pub ask_lines: EventHandler<(LineIndex, u32)>,
+    /// A key pressed in a field the stage drew (the find bar): the window knows the chords.
+    pub typing: EventHandler<KeyboardEvent>,
+    /// The places the current find found, when one is up.
+    pub hits: Option<Held<super::FoundHits>>,
     /// The scheme the content is drawn in, for a sealed frame that cannot inherit it.
     pub frame: FrameLook,
 }
@@ -97,6 +104,8 @@ pub struct FrameLook {
 pub trait StageView: 'static {
     /// The family of stage machine this draws.
     const FAMILY: crate::StageFamily;
+    /// Whether a file of this family has a first frame cheaper than the full open.
+    const FLOW: LoadFlow = LoadFlow::OpenOnly;
     /// What opening a file makes: the decoded picture, the text index.
     type Doc: Debug + Send + Sync + 'static;
 
@@ -108,6 +117,17 @@ pub trait StageView: 'static {
         sniffed: &Sniffed,
         link: &OpenLink,
     ) -> Result<Self::Doc, OpenError>;
+    /// The cheap first frame of the file, shown while `open` runs, or `None` when there is not one
+    /// for this file. Blocking, on a worker; only called for a family whose `FLOW` is
+    /// `PeekThenOpen`.
+    fn first_frame(
+        _ticket: Ticket,
+        _src: &Source,
+        _sniffed: &Sniffed,
+        _link: &OpenLink,
+    ) -> Result<Option<Self::Doc>, OpenError> {
+        Ok(None)
+    }
     /// The rows the Info tab lists.
     fn facts(doc: &Self::Doc) -> Facts;
     /// The tabs the panel has for this document.
@@ -115,6 +135,21 @@ pub trait StageView: 'static {
     /// What the stage machines are told of the document and the room: the scale the content is
     /// shown at, which views a text file has.
     fn params(doc: &Self::Doc, stage: &Stage, area: Option<Area>) -> StageParams;
+    /// `params` for a family whose parameters depend on the lines last read (how many of them fit
+    /// a page once long lines wrap); the others need not say.
+    fn params_seen(
+        doc: &Self::Doc,
+        stage: &Stage,
+        area: Option<Area>,
+        _lines: Option<&super::LineWindow>,
+    ) -> StageParams {
+        Self::params(doc, stage, area)
+    }
+    /// The inputs the stage is told when `doc` lands, given the stage that is showing: an
+    /// animation says it moves, a find already up is asked again of the new copy.
+    fn arrived(_doc: &Self::Doc, _stage: &Stage) -> Vec<StageIn> {
+        Vec::new()
+    }
     /// The content.
     fn stage(doc: &Arc<Self::Doc>, cx: &StageCx) -> Element;
     /// The capsule's controls, left to right.
@@ -128,17 +163,28 @@ pub trait StageView: 'static {
     fn lines(_doc: &Arc<Self::Doc>, _ticket: Ticket, _first: LineIndex, _rows: u32) -> Option<Job> {
         None
     }
+    /// The job that finds `query` in the document, for a family that can search.
+    fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
+        None
+    }
 }
 
 /// A loaded document of any family, as the window reads it.
 pub(crate) trait DocView: Debug + Send + Sync {
     fn facts(&self) -> Facts;
     fn panel_params(&self) -> PanelParams;
-    fn params(&self, stage: &Stage, area: Option<Area>) -> StageParams;
+    fn params(
+        &self,
+        stage: &Stage,
+        area: Option<Area>,
+        lines: Option<&super::LineWindow>,
+    ) -> StageParams;
+    fn arrived(&self, stage: &Stage) -> Vec<StageIn>;
     fn stage(&self, cx: &StageCx) -> Element;
     fn slots(&self, cx: &StageCx) -> Vec<CapsuleSlot<Command>>;
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
+    fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
 }
 
 /// A document of family `S`, which is how it knows how to draw itself.
@@ -163,8 +209,17 @@ impl<S: StageView> DocView for Loaded<S> {
         }
     }
 
-    fn params(&self, stage: &Stage, area: Option<Area>) -> StageParams {
-        S::params(&self.doc, stage, area)
+    fn params(
+        &self,
+        stage: &Stage,
+        area: Option<Area>,
+        lines: Option<&super::LineWindow>,
+    ) -> StageParams {
+        S::params_seen(&self.doc, stage, area, lines)
+    }
+
+    fn arrived(&self, stage: &Stage) -> Vec<StageIn> {
+        S::arrived(&self.doc, stage)
     }
 
     fn stage(&self, cx: &StageCx) -> Element {
@@ -181,5 +236,9 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job> {
         S::lines(&self.doc, ticket, first, rows)
+    }
+
+    fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {
+        S::search(&self.doc, ticket, query)
     }
 }

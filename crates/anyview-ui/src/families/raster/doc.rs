@@ -2,24 +2,79 @@
 //! on a worker: the picture goes from the decoder into the window's `TextureHandle` without
 //! touching the UI thread, and the document the UI receives is only the picture's size.
 
-use crate::Ticket;
-use crate::io::{Backend, OpenError, Stop};
-use anyview_core::{FactLabel, FactValue, Facts, PixelSize, Sniffed, Source};
-use anyview_image::{Decoded, Rgba8, decode};
+use crate::io::{Backend, OpenError, OpenLink, Stop};
+use crate::{FrameIndex, Ticket};
+use anyview_core::{
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, PixelArea,
+    PixelSize, RasterFormat, Sniffed, Source,
+};
+use anyview_image::{
+    Animation, Decoded, ImagePeek, RasterPeek, Rgba8, VectorPeek, declared_size, decode,
+};
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
+use std::sync::Arc;
+use std::time::Duration;
 
-/// An opened picture. The pixels are in `texture`; `frames` says whether it was animated (only
-/// its first frame is shown).
+/// What a first frame may spend: a picture about the size of a window, from a file read whole.
+/// The time is the pool's to enforce; the decoder reads no clock.
+const FIRST_FRAME: PeekBudget = PeekBudget {
+    bytes: ByteLen(64 * 1024 * 1024),
+    pixels: PixelArea(4 * 1024 * 1024),
+    time: Duration::from_secs(1),
+};
+
+/// One picture of an animation: where its pixels are and how long it stays.
+#[derive(Debug, Clone)]
+pub(crate) struct StripFrame {
+    pub texture: TextureHandle,
+    pub delay: Duration,
+}
+
+/// The frames of an animation, each in its own texture so that showing the next one is choosing
+/// a texture, with no pixels moved on the UI thread.
+#[derive(Debug)]
+pub(crate) struct FrameStrip {
+    frames: Vec<StripFrame>,
+}
+
+/// An opened picture. The pixels are in `texture`; an animation also has its frames in `strip`.
 #[derive(Debug, Clone)]
 pub struct RasterDoc {
-    /// Where the pixels are, upright.
+    /// Where the pixels are, upright: the picture, or the first frame of an animation.
     pub texture: TextureHandle,
     /// The picture's size in pixels.
     pub size: PixelSize,
+    /// The size of what `texture` holds: smaller than `size` for a first frame shown while the
+    /// picture decodes, and drawn to fill the same box.
+    pub held: PixelSize,
     /// How many pictures the file holds.
     pub frames: u32,
     /// The rows of the Info tab.
     pub facts: Facts,
+    pub(crate) strip: Option<Arc<FrameStrip>>,
+}
+
+impl RasterDoc {
+    /// The texture that shows `frame`: the picture itself when the file is not an animation.
+    pub(crate) fn texture_at(&self, frame: FrameIndex) -> &TextureHandle {
+        self.strip
+            .as_ref()
+            .and_then(|strip| strip.frames.get(frame.0 as usize))
+            .map_or(&self.texture, |shown| &shown.texture)
+    }
+
+    /// How long `frame` stays on screen, for an animation.
+    pub(crate) fn delay_at(&self, frame: FrameIndex) -> Option<Duration> {
+        self.strip
+            .as_ref()
+            .and_then(|strip| strip.frames.get(frame.0 as usize))
+            .map(|shown| shown.delay)
+    }
+
+    /// Whether the file is an animation with all its frames ready.
+    pub(crate) fn plays(&self) -> bool {
+        self.strip.is_some()
+    }
 }
 
 /// What to open and where to put it.
@@ -71,21 +126,105 @@ impl Backend for RasterBackend {
 }
 
 fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
-    let (first, frames) = match decode(&target.source, &target.sniffed)? {
-        Decoded::Still(picture) => (picture, 1),
-        Decoded::Animated(animation) => {
-            let count = u32::try_from(animation.frames.count().get()).unwrap_or(u32::MAX);
-            (animation.frames.first().pixels.clone(), count)
+    match decode(&target.source, &target.sniffed)? {
+        Decoded::Still(picture) => {
+            upload(&target.texture, &picture)?;
+            Ok(doc_of(target, picture.size(), 1, None))
         }
-    };
-    upload(&target.texture, &first)?;
-    let size = first.size();
-    Ok(RasterDoc {
+        Decoded::Animated(animation) => {
+            let strip = upload_frames(&target.texture, &animation)?;
+            let first = animation.frames.first().pixels.size();
+            let count = u32::try_from(animation.frames.count().get()).unwrap_or(u32::MAX);
+            Ok(doc_of(target, first, count, Some(Arc::new(strip))))
+        }
+    }
+}
+
+fn doc_of(
+    target: &RasterTarget,
+    size: PixelSize,
+    frames: u32,
+    strip: Option<Arc<FrameStrip>>,
+) -> RasterDoc {
+    RasterDoc {
         texture: target.texture.clone(),
         size,
+        held: size,
         frames,
         facts: facts(&target.source, &target.sniffed, size, frames),
-    })
+        strip,
+    }
+}
+
+/// Every frame of `animation` in a texture of its own: the first goes into `first`, the others
+/// into new handles on the same GPU.
+fn upload_frames(first: &TextureHandle, animation: &Animation) -> Result<FrameStrip, OpenError> {
+    let mut frames = Vec::new();
+    for (index, frame) in animation.frames.iter().enumerate() {
+        let texture = if index == 0 {
+            first.clone()
+        } else {
+            first.gpu().handle()
+        };
+        upload(&texture, &frame.pixels)?;
+        frames.push(StripFrame {
+            texture,
+            delay: Duration::from_micros(frame.delay.0),
+        });
+    }
+    Ok(FrameStrip { frames })
+}
+
+/// The first frame of a picture, cheaper than decoding it whole: the host's small picture of the
+/// file when it has one (given the size the file declares, so the box it fills is the final one),
+/// otherwise the first frame of an animation or a drawn-small vector image. `None` for a picture
+/// that would take as long to peek as to open.
+pub(crate) fn first_frame(
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenLink,
+) -> Result<Option<RasterDoc>, OpenError> {
+    let Some((picture, size, frames, facts)) = cheap_picture(src, sniffed, link)? else {
+        return Ok(None);
+    };
+    upload(&link.texture, &picture)?;
+    Ok(Some(RasterDoc {
+        texture: link.texture.clone(),
+        size,
+        held: picture.size(),
+        frames,
+        facts,
+        strip: None,
+    }))
+}
+
+type Cheap = (Rgba8, PixelSize, u32, Facts);
+
+fn cheap_picture(
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenLink,
+) -> Result<Option<Cheap>, OpenError> {
+    if let Some(picture) = link.first_frames.picture(src) {
+        let size = declared_size(src, sniffed)?.unwrap_or_else(|| picture.size());
+        let facts = facts(src, sniffed, size, 1);
+        return Ok(Some((picture, size, 1, facts)));
+    }
+    let (peeked, facts): (ImagePeek, Facts) = match (sniffed.kind(), sniffed.detail()) {
+        (FormatKind::Vector, _) => {
+            let peeked = VectorPeek::peek(src, sniffed, &FIRST_FRAME)?;
+            let facts = VectorPeek::facts(&peeked);
+            (peeked, facts)
+        }
+        (FormatKind::Raster, FormatDetail::Raster(RasterFormat::Gif | RasterFormat::Webp)) => {
+            let peeked = RasterPeek::peek(src, sniffed, &FIRST_FRAME)?;
+            let facts = RasterPeek::facts(&peeked);
+            (peeked, facts)
+        }
+        _ => return Ok(None),
+    };
+    let frames = peeked.frames.0;
+    Ok(Some((peeked.picture, peeked.source_size, frames, facts)))
 }
 
 fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<(), OpenError> {

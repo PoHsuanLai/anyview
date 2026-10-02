@@ -2,7 +2,7 @@
 //! document the load opened, the window of lines last read. These are the results of effects,
 //! kept so the views can draw them and so a late result for a file the person left is dropped.
 
-use crate::families::{LoadedDoc, family_of, views_of};
+use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
     ChromeParams, Command, PaletteParams, PanelParams, PresentationParams, Stage, StageCommand,
@@ -20,6 +20,9 @@ pub(super) enum Probe {
     Idle,
     /// The probe of this ticket is running.
     Pending(Ticket),
+    /// The probe of this ticket is running again for a file that changed; the second is what the
+    /// file on screen was probed as.
+    Reprobing(Ticket, Probed),
     /// The probe answered; the load machine has not been told yet.
     Arrived(Ticket, Probed),
     /// The load machine knows.
@@ -30,7 +33,9 @@ impl Probe {
     /// What the probe found, once it has.
     pub(super) fn found(&self) -> Option<&Probed> {
         match self {
-            Probe::Arrived(_, probed) | Probe::Announced(_, probed) => Some(probed),
+            Probe::Arrived(_, probed)
+            | Probe::Announced(_, probed)
+            | Probe::Reprobing(_, probed) => Some(probed),
             Probe::Idle | Probe::Pending(_) => None,
         }
     }
@@ -38,9 +43,10 @@ impl Probe {
     /// The load this probe belongs to.
     pub(super) fn ticket(&self) -> Option<Ticket> {
         match self {
-            Probe::Pending(ticket) | Probe::Arrived(ticket, _) | Probe::Announced(ticket, _) => {
-                Some(*ticket)
-            }
+            Probe::Pending(ticket)
+            | Probe::Reprobing(ticket, _)
+            | Probe::Arrived(ticket, _)
+            | Probe::Announced(ticket, _) => Some(*ticket),
             Probe::Idle => None,
         }
     }
@@ -99,10 +105,11 @@ pub(super) fn params(
     probe: &Probe,
     area: Option<crate::Area>,
     query: &TypedText,
+    lines: Option<&LineWindow>,
 ) -> ViewerParams {
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let measured = match doc {
-        Some(doc) => doc.view().params(stage, area),
+        Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
             text: TextParams {
                 views: kind.map_or(TextViews::default(), views_of),

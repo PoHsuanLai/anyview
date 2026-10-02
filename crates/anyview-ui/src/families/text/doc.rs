@@ -2,12 +2,14 @@
 //! for Markdown the rendered page. Reading a window of lines blocks, so it runs on a worker
 //! (`Job::Lines`); the UI thread only ever holds the lines a worker returned.
 
+use super::find::FoundHits;
+use crate::TypedText;
 use crate::io::{DiskFiles, OpenError, OpenLink};
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
 };
 use anyview_text::{
-    CodeLines, FileBytes, Highlighter, LineCount, RenderEnv, Rendered, SyntaxId, TextLines,
+    CodeLines, FileBytes, Highlighter, LineCount, Needle, RenderEnv, Rendered, SyntaxId, TextLines,
     TokenLine, render,
 };
 use std::ops::Range;
@@ -17,10 +19,16 @@ use std::sync::{Arc, Mutex, PoisonError};
 /// one is shown as its source.
 const RENDER_LIMIT: u64 = 2 * 1024 * 1024;
 
+/// How much of a large file the first frame reads. A file no longer than this has no first frame:
+/// opening it takes no longer.
+const FIRST_FRAME_BYTES: u64 = 256 * 1024;
+
 /// An opened text, code, Markdown, table or JSON file.
 #[derive(Debug)]
 pub struct TextDoc {
     code: Mutex<CodeLines<FileBytes>>,
+    /// The same lines, for a search that must not hold up a window of lines being read.
+    text: TextLines<FileBytes>,
     highlighter: Arc<Highlighter>,
     count: LineCount,
     /// The page, for a Markdown file small enough to lay out.
@@ -39,6 +47,16 @@ pub struct LineWindow {
 }
 
 impl LineWindow {
+    /// The lines of the window from `line` on: none when `line` is not in it.
+    pub(super) fn from(&self, line: LineIndex) -> &[TokenLine] {
+        let skip = line.0.saturating_sub(self.first.0) as usize;
+        if line.0 < self.first.0 {
+            &[]
+        } else {
+            self.lines.get(skip..).unwrap_or_default()
+        }
+    }
+
     /// Whether the window holds every line in `range`.
     pub fn covers(&self, range: Range<u32>) -> bool {
         let end = self
@@ -69,6 +87,14 @@ impl TextDoc {
             .highlight(&self.highlighter, first..end)?;
         Ok(LineWindow { first, lines })
     }
+
+    /// Every place `query` occurs, ignoring case; none for an empty query. Blocking.
+    pub fn find(&self, query: &TypedText) -> Result<FoundHits, anyview_text::TextError> {
+        match Needle::new(query.as_str()) {
+            Some(needle) => self.text.find(&needle).map(FoundHits::new),
+            None => Ok(FoundHits::default()),
+        }
+    }
 }
 
 /// Open the text file `src`. Blocking: indexes every line once, renders Markdown.
@@ -84,6 +110,7 @@ pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenLink) -> Result<T
         .with(FactLabel::Lines, FactValue::text(count.0.to_string()))
         .with(FactLabel::Encoding, FactValue::text(encoding));
     Ok(TextDoc {
+        text: text.clone(),
         code: Mutex::new(CodeLines::new(&link.highlighter, text, syntax)),
         highlighter: Arc::clone(&link.highlighter),
         count,
@@ -119,4 +146,31 @@ fn markdown(
         highlighter: Some(highlighter),
     };
     Ok(Some(render(&lines.join("\n"), &env)))
+}
+
+/// The start of the text file `src`, as a document of the lines in its first bytes, or `None` when
+/// the file is short enough that opening it is as quick. The facts are the file's, the line count
+/// is the start's, and a Markdown file is shown as its source until it is open.
+pub(crate) fn first_frame(
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenLink,
+) -> Result<Option<TextDoc>, OpenError> {
+    if src.stamp().len.0 <= FIRST_FRAME_BYTES {
+        return Ok(None);
+    }
+    let text = TextLines::open(FileBytes::first(src, ByteLen(FIRST_FRAME_BYTES))?)?;
+    let count = text.line_count();
+    let syntax = syntax_of(sniffed, &link.highlighter);
+    let facts = Facts::empty()
+        .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+        .with(FactLabel::Size, FactValue::size(src.stamp().len));
+    Ok(Some(TextDoc {
+        text: text.clone(),
+        code: Mutex::new(CodeLines::new(&link.highlighter, text, syntax)),
+        highlighter: Arc::clone(&link.highlighter),
+        count,
+        rendered: None,
+        facts,
+    }))
 }

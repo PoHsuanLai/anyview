@@ -5,13 +5,17 @@
 
 mod disk;
 mod error;
+mod folder;
 mod job;
 mod probe;
+mod seams;
 mod workers;
 
 pub use anyview_core::work::{Backend, Stop};
 pub(crate) use disk::DiskFiles;
 pub use error::OpenError;
-pub use job::{Done, Job, OpenLink, Probed};
+pub use folder::folder_sequence;
+pub use job::{Done, Job, OpenLink, Preloaded, Probed};
 pub(crate) use probe::probe;
-pub use workers::{Edge, HostRequest, Reply, Work, Workers};
+pub use seams::{FirstFrameSource, ResumeSource};
+pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, WorkLane, Workers};

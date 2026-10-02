@@ -10,7 +10,10 @@ pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterTarget};
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{OpenError, OpenLink};
-use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
+use crate::{
+    Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
+    StageIn, StageParams, Ticket,
+};
 use anyview_core::{Facts, Permille, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -23,7 +26,17 @@ pub struct RasterStageView;
 
 impl StageView for RasterStageView {
     const FAMILY: StageFamily = StageFamily::Raster;
+    const FLOW: LoadFlow = LoadFlow::PeekThenOpen;
     type Doc = RasterDoc;
+
+    fn first_frame(
+        _ticket: Ticket,
+        src: &Source,
+        sniffed: &Sniffed,
+        link: &OpenLink,
+    ) -> Result<Option<RasterDoc>, OpenError> {
+        doc::first_frame(src, sniffed, link)
+    }
 
     fn open(
         ticket: Ticket,
@@ -70,6 +83,25 @@ impl StageView for RasterStageView {
         }
     }
 
+    fn arrived(doc: &RasterDoc, stage: &Stage) -> Vec<StageIn> {
+        let animation = match stage {
+            Stage::Raster(raster) => geometry::animation_of(raster),
+            Stage::NoStage | Stage::Pdf(_) | Stage::Media(_) | Stage::Text(_) => return Vec::new(),
+        };
+        match (
+            doc.plays(),
+            animation,
+            std::num::NonZeroU32::new(doc.frames),
+        ) {
+            (true, Animation::Still, Some(count)) => {
+                vec![StageIn::Raster(RasterIn::Animated(FrameCount(count)))]
+            }
+            (true, Animation::Playing { .. } | Animation::Paused { .. }, _)
+            | (true, Animation::Still, None)
+            | (false, _, _) => Vec::new(),
+        }
+    }
+
     fn stage(doc: &Arc<RasterDoc>, cx: &StageCx) -> Element {
         rsx! { view::RasterContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
@@ -85,14 +117,27 @@ impl StageView for RasterStageView {
             }
             _ => Permille::WHOLE,
         };
-        vec![
+        let mut slots = vec![
             CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus),
             CapsuleSlot::Readout(format!("{}%", percent.0 / 10)),
             CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus),
             CapsuleSlot::Divider,
             CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo),
             CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh),
-        ]
+        ];
+        if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
+            let (label, icon) = match geometry::animation_of(raster) {
+                Animation::Playing { .. } => ("Pause", Icon::Pause),
+                Animation::Still | Animation::Paused { .. } => ("Play", Icon::Play),
+            };
+            slots.push(CapsuleSlot::Divider);
+            slots.push(CapsuleSlot::button(
+                Command::Stage(crate::StageCommand::TogglePlayback),
+                label,
+                icon,
+            ));
+        }
+        slots
     }
 
     fn panel(_doc: &Arc<RasterDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
