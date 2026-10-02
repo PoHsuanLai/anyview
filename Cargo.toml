@@ -2,7 +2,9 @@
 resolver = "3"
 members = [
   "crates/anyview",
+  "crates/anyview-archive",
   "crates/anyview-core",
+  "crates/anyview-font",
   "crates/anyview-image",
   "crates/anyview-platform",
   "crates/anyview-peek",
@@ -24,7 +26,9 @@ publish = false
 
 [workspace.dependencies]
 anyview = { path = "crates/anyview" }
+anyview-archive = { path = "crates/anyview-archive" }
 anyview-core = { path = "crates/anyview-core" }
+anyview-font = { path = "crates/anyview-font" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-platform = { path = "crates/anyview-platform" }
 anyview-peek = { path = "crates/anyview-peek" }
@@ -195,6 +199,21 @@ syntect = { version = "5", default-features = false, features = ["parsing", "def
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Delimited tables: MIT OR Unlicense.
 csv = "1"
+# `anyview-archive`: listings of zip (central directory only; deflate to extract an entry): MIT.
+zip = { version = "8", default-features = false, features = ["deflate"] }
+# Tar archives, read as a stream: MIT OR Apache-2.0.
+tar = { version = "0.4", default-features = false }
+# gzip streams, pure-Rust backend (already in the tree): MIT OR Apache-2.0.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+# Zstandard streams, pure Rust: MIT.
+ruzstd = "0.9"
+# xz streams, pure Rust: MIT.
+lzma-rs = "0.3"
+# bzip2 streams, the pure-Rust libbz2-rs-sys back end: MIT OR Apache-2.0.
+bzip2 = "0.6"
+# 7z archives: Apache-2.0.
+sevenz-rust = { version = "0.6", default-features = false }
+
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
 
