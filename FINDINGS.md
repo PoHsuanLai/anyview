@@ -285,7 +285,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   arguments (its `Exec=/usr/bin/anyview` assumes that install path), and the call that caused it arrives once the
   name is owned. `launch_viewer` therefore waits for the first request before it opens the first window; until
   then the process has none. A launch with no files and no bus is a usage error. The windows carry the desktop
-  application id `org.quire.Anyview`, for which no `.desktop` file is shipped yet: add `dist/org.quire.Anyview.desktop`
+  application id `org.quire.Anyview`, for which no `.desktop` file is shipped yet: add a `org.quire.Anyview.desktop` entry
   (with `MimeType=` for the families and `Exec=anyview %F`) with the package.
 - **Requests the host does not carry out.** `HostRequest` variants and file actions with no effect, each logged as
   "not carried out" (`host::Declined`): `PickFile` (the platform edge has no file chooser), `Export` and the actions
