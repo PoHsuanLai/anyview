@@ -26,8 +26,8 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
 | L1 | `anyview-media` | planned | the media player session: tracks, chapters, typed state |
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
-| L1 | `anyview-archive` | planned | zip, tar and 7z listings and single-entry extraction |
-| L1 | `anyview-font` | planned | font facts and the specimen's font face |
+| L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, and the archive peek |
+| L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
@@ -44,7 +44,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
-| `anyview-peek` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
+| `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
+| `anyview-font` | `anyview-core` |
+| `anyview-peek` | `anyview-archive`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
 | `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
 
 Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
@@ -64,6 +66,8 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `zbus`, `ashpd` anywhere in its tree: libmpv and D-Bus stay out of the launcher's process. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`: the player and the platform reach the views as `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
+| `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
+| `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust`, `flate2`, `bzip2`, `ruzstd`, `lzma-rs`): the one crate that names `skrifa` for reading a face |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | `mpv-wgpu-player`, `rsmpv` anywhere in its tree (the media actor's player is linked when `anyview-media` lands). It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
@@ -73,7 +77,9 @@ and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamada
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
-`anyview-peek` depends on the three crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
+`anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rs`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-font` depends on `skrifa`, `thiserror` and `anyview-core`.
+
+`anyview-peek` depends on the five crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
 `thiserror`. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
 thumbnail cache both live there, the launcher is a Blitz window and already links the renderer, and the
 pane reaches the device only through `ds_blitz::use_gpu`, never by naming a `wgpu` type (FINDINGS, "The pane
@@ -97,7 +103,7 @@ no other public path. A module names only modules above it in this list.
 | `error` | `CoreError`, the crate's one error |
 | `units` | page, media, ratio, zoom, turn, content-space and pixel newtypes; all integer |
 | `source` | `FilePath`, `FileName`, `FileStamp`, `Source` |
-| `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName` and the format families |
+| `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
 | `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind` |
@@ -107,7 +113,7 @@ no other public path. A module names only modules above it in this list.
 | `facts` | `FactLabel`, `FactValue`, `Facts` |
 | `peek` | `Peek`, `PeekBudget`, `StageSupport` |
 | `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
-| `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `stage_support` |
+| `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `mime_for`, `stage_support` |
 
 ## 2a. Modules inside `anyview-store`
 
@@ -225,7 +231,7 @@ run on the caller's worker.
 | `env` | `Env` (`dirs`, `session`, `spawn`), `Dirs`, `BusRoute` (`Usual`, `Address`, `Absent`) |
 | `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
 | `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
-| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`), `Claim`, `Primary` |
+| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` |
 | `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
 | `apps` | `AppsForType`, `AppEntry`, `DesktopId`, `Association` |
 | `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
@@ -233,7 +239,7 @@ run on the caller's worker.
 | `share` | `Share`, `ShareTarget` |
 | `reveal` | `Reveal` |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
-| `linux` | one implementation per trait: `DbusInstance`, `MprisSession`, `DesktopApps`, `FreedesktopThumbnails`, `PortalPrinter`, `MailShare`, `FileManagerReveal`, `NoStacking` |
+| `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection), `MprisSession`, `DesktopApps`, `FreedesktopThumbnails`, `PortalPrinter`, `MailShare`, `FileManagerReveal`, `NoStacking` |
 | `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession`, `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record |
 
 The trait shapes (a trait whose method awaits returns `impl Future + Send`, so a consumer is
@@ -250,9 +256,17 @@ generic over it rather than holding a `dyn`):
 | `Reveal` | `reveal(&FilePath) -> Result<()>` |
 | `WindowStacking` | `request(Stacking) -> StackingOutcome` |
 
-On the bus: `org.quire.Anyview1` at `/org/quire/Anyview1` has `Open(as)`, `Peek(s)` and `Play(s)`
-over absolute paths (a relative one is an `InvalidArgs` error), and `dist/org.quire.Anyview1.service`
-is the activation file that starts `anyview` when a call arrives while none runs. The player is
+On the bus: `org.quire.Anyview1` at `/org/quire/Anyview1` has `Open(as)`, `Peek(s)`, `Play(s)` and
+`Handoff(s file, s resume, t results, as entries)` over absolute paths (a relative one is an
+`InvalidArgs` error). A handoff is a file the launcher's pane was showing: `resume` is the JSON a
+`Resume` is stored as (`Resume::Nothing` when the pane held no place of its own, which leaves the
+viewer to continue where the person last left the file), `entries` the paths of the search's
+results in the order shown with `file` among them, and `results` the id of that search
+(`SequenceOrigin::Results`), so ← and → walk the results; no entries means no list. A file that is
+not among its entries, or a place that is not a `Resume`, is an `InvalidArgs` error. The launcher
+calls it with `forward_over(&connection, &Request::Handoff(..))` on its own connection, so the
+wire is written once, here. `dist/org.quire.Anyview1.service` is the activation file that starts
+`anyview` when a call arrives while none runs. The player is
 `org.mpris.MediaPlayer2.anyview` at `/org/mpris/MediaPlayer2`; its track id is
 `/org/quire/Anyview1/Track/<TrackSerial>`. Thumbnails live at
 `<cache>/thumbnails/{normal,large,x-large}/<md5 of the file URI>.png` with `Thumb::URI`,
@@ -273,12 +287,13 @@ are blocking and run on the caller's worker; only `pane` draws.
 | `error` | `PeekError` |
 | `registry` | `KindVisitor`, `visit`: the one exhaustive match over `FormatKind` in the light tier |
 | `body` | `Body` (the type-erased result), `Light` (a `Peek` whose result and error convert into `Body` and `PeekError`) |
+| `probe` | `Probed`, `probe`: what a path is, from `stat`, its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive |
 | `any` | `AnyPeeked` and `peek`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable` |
-| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`VideoPeek`, `AudioPeek`, `FontPeek`, `ArchivePeek`, `BookPeek`, `OfficePeek`, `OtherPeek`): what sniffing established, nothing pretended |
+| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`VideoPeek`, `AudioPeek`, `BookPeek`, `OfficePeek`, `OtherPeek`): what sniffing established, nothing pretended |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
 | `when` | `modified_text`: a modification time as UTC |
-| `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table and a tree's top level, both as quire's `Table`) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
+| `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
 `peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
 reason and the facts the file can still give. The pane draws a `Body` over the file's name and a `FactList`
@@ -338,10 +353,10 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | Module | Holds |
 | --- | --- |
 | `cli` | `parse`, `Invocation` (`Help`, or a `Launch` of the platform's `Request`), `CliError`, `USAGE`: the arguments as the request a launch makes |
-| `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows` and `files_of` (what the viewer's name receives, and the window each file gets through ds-blitz's `AppHandle`); `WARM_FOR` |
+| `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows`, `Wanted` and `wanted_by` (what the viewer's name receives: a file to list around, or a handoff that brings its own results and place; and the window each gets through ds-blitz's `AppHandle`); `WARM_FOR` |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
-| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume` and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome` and `report` |
-| `window` | `Opening` (a file and its folder's sequence), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome` and `report` |
+| `window` | `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
 and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to
@@ -350,6 +365,45 @@ claimed by the first viewer over D-Bus; its files become `Opening`s (the folder 
 which a task of the platform runtime turns into `AppHandle::open_window_with` calls on the one event loop. Every
 window is opened that way, the first included: the loop starts with none (`launch_idle`), windows are independent,
 and the last one closing leaves the process warm for `WARM_FOR` (`LastWindowClosed::StayFor`).
+
+## 2i. Modules inside `anyview-archive`
+
+Same rules as section 2. Blocking and effect-free except the reads of the one file it is asked about.
+A listing reads inside a byte budget: a zip or a 7z whose index is larger than it is refused
+(`ArchiveError::OverBudget`), a tar or a compressed stream is listed as far as the budget reaches and
+its count is a lower bound (`EntryCount::AtLeast`).
+
+| Module | Holds |
+| --- | --- |
+| `error` | `ArchiveError` |
+| `container` | `container`, the one match on `ArchiveFormat`: `Container` (`Zip`, `Tar`, `Compressed(Codec)`, `SevenZip`) and `Codec`; `format_name` and `kind_name`, the words for a format (private) |
+| `entry` | `Entry`, `EntryKind`, `EntryCount`, `EntryLimit`, `Holds`, `Listing`; `Tally`, which keeps the first entries and counts the rest (private) |
+| `limit` | `Limited` (a reader that stops at the budget and says so) and `Capped` (the writer an xz decoder fills) (private) |
+| `list` | `list`: the one entry point, and the compressed-stream case (a tar inside, or one file) |
+| `extract` | `extract`, `ExtractLimits`: one entry's bytes, bounded by the entry and by how much of a stream is unpacked |
+| `zip_archive`, `tar`, `sevenz`, `stream` | one container each: the central directory (and `zip_entries`, the names and `mimetype` sniffing wants), tar headers (also over a decompressed prefix), the 7z header, and gzip, bzip2, xz and Zstandard unpacked up to a cap (private except `zip_entries`) |
+| `peek` | `ArchivePeek`, `ArchivePeeked`, `PEEK_ENTRIES` |
+
+A compressed stream is a tar when what it unpacks to parses as one (the header checksum decides), else
+one file named like the stream without its last extension. Everything is held in memory up to the cap:
+a listing's cap is the peek budget, an extraction's is `ExtractLimits::scanned`.
+
+## 2j. Modules inside `anyview-font`
+
+Same rules as section 2. Blocking: the peek reads the one file whole, which must fit the byte budget,
+because a font's tables lie all over it.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `FontError` |
+| `face` | `Face`, `Variation`: the family and style names, glyph count and variation axes of a face, read with skrifa |
+| `specimen` | `Specimen`, `SpecimenLine`, `EM`: sample lines set with each glyph's advance (no shaping, no kerning) as SVG path data in 1000 units to the em |
+| `peek` | `FontPeek`, `FontPeeked` |
+
+The specimen is outlines, not a font handed to the renderer: the pane needs no font loading, the peek
+stays a small value whatever the font's size, and what is drawn is the face the file holds. A font that
+maps none of the sample letters shows the first characters it does map. WOFF and WOFF2 are named
+(`face: None`) and not opened.
 
 ## 3. Layer rules
 
@@ -385,6 +439,9 @@ The single place a concept lives. Extend it; never write a second one.
 | The list the arrow keys walk | `anyview_core::Sequence`, `moved`, `neighbours` |
 | Where a person left a file | `anyview_core::Resume` |
 | Where it is kept between runs, and the recently-viewed list | `anyview_store::StoreWriter`, `read_history` |
+| The folder the store lives in under the data directory (the launcher reads it too) | `anyview_store::STORE_FOLDER` |
+| A kind's commonest media type, and the kind a media type names | `anyview_core::mime_for` (`profile`), `kind_of_mime` (`kind/of_mime.rs`) |
+| A file handed to the viewer with its results and place, and its D-Bus form | `anyview_platform::Handoff`, `Request::Handoff`, `linux/handoff.rs`; the viewer's half is `anyview::Opening::handed` and `HandedResume` |
 | The "Page 143" a history row shows | `anyview_store::resume_label` |
 | What each format exports, and the sheet's contract | `anyview_core::ExportChoice` and the per-format enums (`export`) |
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
@@ -395,6 +452,11 @@ The single place a concept lives. Extend it; never write a second one.
 | What a kind with no back end yet shows | `anyview_peek::FactsPeek` (`described.rs`) |
 | A folder's count, size and kinds | `anyview_peek::FolderPeek` |
 | The first page of a PDF for a pane | `anyview_peek::PdfPeek`, over `ds_blitz::pdf_thumb_blocking` |
+| An archive's entries, and one entry out | `anyview_archive::list`, `extract` |
+| A zip's entry names for `sniff_zip` | `anyview_archive::zip_entries` |
+| What a path is: stat, head, zip entries, sniffed | `anyview_peek::probe` |
+| Which container an archive format is stored in | `container.rs` in `anyview-archive` |
+| A font's names, glyph count and specimen outlines | `anyview_font::FontPeek`, `Face`, `Specimen` |
 | A modification time as words | `anyview_peek::modified_text` |
 | Drawing what was peeked at | `anyview_peek::Pane` |
 | A picture on the screen without a PNG `data:` URL | `ds_blitz::TextureLayer`, from `anyview_peek`'s `pane/picture.rs` |
