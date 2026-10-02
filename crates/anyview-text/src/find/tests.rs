@@ -12,7 +12,13 @@ fn hit(line: u32, from: u32, to: u32) -> FindHit {
 #[test]
 fn a_phrase_is_found_in_a_line_ignoring_case_and_never_overlapping() {
     // name, phrase, line text, hits as (from, to)
-    const CASES: &[(&str, &str, &str, &[(u32, u32)])] = &[
+    type Case = (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static [(u32, u32)],
+    );
+    const CASES: &[Case] = &[
         ("once", "fn", "pub fn main", &[(4, 6)]),
         ("case is ignored", "FN", "pub fn main", &[(4, 6)]),
         ("twice", "ab", "ab cab", &[(0, 2), (4, 6)]),
