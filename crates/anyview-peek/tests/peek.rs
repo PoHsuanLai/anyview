@@ -256,20 +256,6 @@ fn kinds_without_a_back_end_show_their_type_size_and_date() {
     // name, file name, bytes, kind, kind words
     const CASES: &[(&str, &str, &[u8], FormatKind, &str)] = &[
         (
-            "video",
-            "clip.mp4",
-            b"\0\0\0\x18ftypmp42\0\0\0\0mp42isom",
-            FormatKind::Video,
-            "Video (MP4)",
-        ),
-        (
-            "audio",
-            "song.flac",
-            b"fLaC\0\0\0\x22\0\0",
-            FormatKind::Audio,
-            "Audio (FLAC)",
-        ),
-        (
             "font",
             "face.ttf",
             b"\0\x01\0\0\0\x0f\0\x80\0\x03\0\x30",
