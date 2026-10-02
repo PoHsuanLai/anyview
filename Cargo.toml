@@ -128,16 +128,16 @@ peniko = "0.6"
 # (scenes as vector PDF pages); it writes through pdfrum-edit (glyph-run fonts subset and
 # instanced, gradients, JPEG and PNG passthrough; `variable-fonts` lets the subsetter instance
 # variable and CFF2 faces). Every pdfrum crate is taken from one git rev so the tree holds one
-# copy of each; the rev is PR #102 head (open; re-pin to its merge commit on merge).
-pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "ec4296d5af59bca3b3e801526843e6b631cb3a86" }
-pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "ec4296d5af59bca3b3e801526843e6b631cb3a86", features = ["variable-fonts"] }
-pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "ec4296d5af59bca3b3e801526843e6b631cb3a86" }
-pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "ec4296d5af59bca3b3e801526843e6b631cb3a86" }
+# copy of each; the rev is master after #102 (stop flag, owned page) and #103 (link border).
+pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
+pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb", features = ["variable-fonts"] }
+pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
+pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
 # Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
 # the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
 skrifa = "0.44"
 # Reading PDFs back in tests (text, fonts, images, a rasterised page): dev-dependency only.
-pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "ec4296d5af59bca3b3e801526843e6b631cb3a86", default-features = false, features = ["vello-cpu"] }
+pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb", default-features = false, features = ["vello-cpu"] }
 # The print portal's fd, from a sealed anonymous file (ds-blitz's `print` feature, Linux only).
 memfd = "0.6"
 # Spellchecking (ds-blitz's `spell` feature): a pure-Rust Hunspell-compatible checker,
