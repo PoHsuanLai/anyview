@@ -25,6 +25,10 @@ cd "$(dirname "$0")/.."
 # anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
 # Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never the media
 # player or D-Bus. What it may not name itself is the DIRECT table below.
+# anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
+# to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
+# other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
+# because the binary owns every thread.
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
@@ -33,6 +37,7 @@ RULES=(
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
   "anyview-peek: mpv-wgpu-player rsmpv zbus ashpd"
+  "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
 )
 
 # Dependencies a crate may reach only THROUGH another, never name in its own manifest. anyview-peek
@@ -119,6 +124,7 @@ EDGES=(
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core ds-core"
   "anyview-peek: anyview-core anyview-image anyview-text ds ds-blitz"
+  "anyview-pdf: anyview-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
