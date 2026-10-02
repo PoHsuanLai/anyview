@@ -32,12 +32,13 @@ mod testing;
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
 pub use families::{
-    Area, FrameLook, Held, KindVisitor, LineWindow, LoadedDoc, PeekOnlyDoc, PeekOnlyStageView,
-    RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView, RasterTarget, StageCx,
-    StageView, TOKEN_CSS, TextDoc, TextStageView, family_of, visit,
+    Area, FoundHits, FrameLook, Held, KindVisitor, LineWindow, LoadedDoc, PeekOnlyDoc,
+    PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
+    RasterTarget, StageCx, StageView, TOKEN_CSS, TextDoc, TextStageView, family_of, flow_of, visit,
 };
 pub use io::{
-    Backend, Done, Edge, HostRequest, Job, OpenError, OpenLink, Probed, Reply, Stop, Work, Workers,
+    Backend, Done, Edge, FirstFrameSource, HostRequest, Job, OpenError, OpenLink, Preloaded,
+    Probed, Reply, ResumeSource, Stop, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{

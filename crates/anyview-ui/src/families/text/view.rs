@@ -2,12 +2,14 @@
 //! a sealed frame. The room owns the wheel (a window of lines scrolls by the line index, not by a
 //! native scroll), so the machine's `Scroll(line)` is the one place the reader's position lives.
 
+use super::bar::FindBar;
 use super::doc::TextDoc;
+use super::find::{FoundHits, Mark, pieces};
 use super::frame;
 use crate::families::view::{Held, StageCx};
-use crate::{Stage, StageIn, TextIn, TextPlace, TextStage, TextView as Shown, Wrap};
+use crate::{FindHits, Stage, StageIn, TextIn, TextPlace, TextStage, TextView as Shown, Wrap};
 use anyview_core::LineIndex;
-use anyview_text::{TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
+use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
 use dioxus::prelude::*;
 use ds::host::gesture::{Gesture, use_gestures};
 use ds::prelude::Word;
@@ -20,15 +22,32 @@ const OVERSCAN: u32 = 8;
 
 fn place_of(stage: &Stage) -> Option<TextPlace> {
     match stage {
-        Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) => {
-            Some(*place)
-        }
+        Stage::Text(text) => Some(place_of_text(text)),
         Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Media(_) => None,
     }
 }
 
+/// Where the text stage is.
+pub(super) fn place_of_text(stage: &TextStage) -> TextPlace {
+    match stage {
+        TextStage::Reading { place } | TextStage::Finding { place, .. } => *place,
+    }
+}
+
+/// The find the stage has up: its text and where its search stands.
+fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
+    match stage {
+        Stage::Text(TextStage::Finding { query, hits, .. }) => Some((query.clone(), *hits)),
+        Stage::Text(TextStage::Reading { .. })
+        | Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Pdf(_)
+        | Stage::Media(_) => None,
+    }
+}
+
 /// How many lines the room holds.
-fn rows_of(height: f32) -> u32 {
+pub(super) fn rows_of(height: f32) -> u32 {
     // A positive, finite height over a constant: truncating to whole rows is the point.
     (height / ROW).floor().max(1.0) as u32
 }
@@ -37,18 +56,47 @@ fn class_of(class: TokenClass) -> String {
     format!("{TOKEN_CLASS_PREFIX}{}", class.slug())
 }
 
-fn line(line: &TokenLine, wrap: Wrap) -> Element {
+/// The class a piece of a line wears: its token class, and a mark when it is part of a hit.
+fn piece_class(class: TokenClass, mark: Mark) -> String {
+    match mark {
+        Mark::Plain => class_of(class),
+        Mark::Hit => format!("{} viewer-hit", class_of(class)),
+        Mark::Current => format!("{} viewer-hit viewer-hit-current", class_of(class)),
+    }
+}
+
+/// One line: its number and its text, cut where the hits on it begin and end. `hits` are the
+/// ones on this line and `current` the position among them of the hit the reader is on.
+fn line(line: &TokenLine, wrap: Wrap, hits: &[FindHit], current: Option<usize>) -> Element {
     let number = line.number.0 + 1;
+    let cut = pieces(line, hits, current);
     rsx! {
         div { class: "viewer-line", "data-wrap": wrap.slug(),
             span { class: "viewer-lineno", "{number}" }
             span { class: "viewer-code",
-                for span in line.spans.iter() {
-                    span { class: class_of(span.class), "{span.text}" }
+                for piece in cut.iter() {
+                    span { class: piece_class(piece.class, piece.mark), "{piece.text}" }
                 }
             }
         }
     }
+}
+
+/// The hits on `line` and the position among them of the current hit (`current`, among all).
+fn hits_on(
+    found: Option<&Held<FoundHits>>,
+    line: LineIndex,
+    current: Option<crate::HitIndex>,
+) -> (&[FindHit], Option<usize>) {
+    let Some(found) = found else {
+        return (&[], None);
+    };
+    let (first, hits) = found.0.on_line(line);
+    let within = current
+        .and_then(|current| current.0.checked_sub(first.0))
+        .map(|at| at as usize)
+        .filter(|at| *at < hits.len());
+    (hits, within)
 }
 
 #[component]
@@ -106,14 +154,22 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
             }
         };
     }
+    let find = find_of(&cx.stage);
+    let current = find.as_ref().and_then(|(_, hits)| hits.current());
     rsx! {
         div { class: "viewer-text", "data-view": "source",
             if let Some(window) = cx.lines.as_ref() {
                 for visible in window.0.lines.iter().filter(|line| {
                     line.number.0 >= first.0 && line.number.0 < first.0.saturating_add(rows)
                 }) {
-                    {line(visible, place.wrap)}
+                    {
+                        let (hits, within) = hits_on(cx.hits.as_ref(), visible.number, current);
+                        line(visible, place.wrap, hits, within)
+                    }
                 }
+            }
+            if let Some((query, hits)) = find {
+                FindBar { query, hits, cx: cx.clone() }
             }
         }
     }

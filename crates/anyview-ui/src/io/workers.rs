@@ -4,11 +4,13 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::job::{Done, Job};
+use super::job::{Done, Job, OpenLink, Probed};
+use super::seams::{FirstFrameSource, Forgetful, NoPictures, ResumeSource};
 use crate::sheet::ExportDraft;
-use crate::{Presentation, TypedText};
-use anyview_core::{FileAction, Resume};
+use crate::{Presentation, Ticket, TypedText};
+use anyview_core::{FileAction, FilePath, Resume};
 use anyview_text::Highlighter;
+use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -18,10 +20,42 @@ pub trait Workers: Send + Sync + 'static {
     fn submit(&self, work: Work);
 }
 
+/// Which queue of the pool a piece of work belongs on: what the person is waiting for goes ahead
+/// of what is only being got ready.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkLane {
+    /// The person is waiting for this (a probe, an open, a window of lines, a search).
+    Visible,
+    /// Nobody is waiting: a neighbour of the open file opened ahead.
+    Preload,
+}
+
+/// What a piece of work does, for a pool that logs, counts or tests it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkKind {
+    /// Sniff a file.
+    Probe,
+    /// Make a file's first frame.
+    Peek,
+    /// Open a file.
+    Open,
+    /// Read a window of lines.
+    Lines,
+    /// Search a text for a phrase.
+    Search,
+    /// Open a neighbour ahead of time.
+    Preload,
+    /// Read a file's stamp.
+    Stat,
+    /// List a folder.
+    Folder,
+}
+
 /// One job and the way back from it.
 pub struct Work {
     job: Job,
     reply: Reply,
+    resume: Arc<dyn ResumeSource>,
 }
 
 impl std::fmt::Debug for Work {
@@ -31,10 +65,44 @@ impl std::fmt::Debug for Work {
 }
 
 impl Work {
+    /// The load this work belongs to: the pool tags its own delivery with it. Work that belongs
+    /// to no load (a neighbour opened ahead, a stamp, a folder) says `Ticket::default()`.
+    pub fn ticket(&self) -> Ticket {
+        self.job.ticket()
+    }
+
     /// Do the job, blocking, and post what it made to the window that asked.
     pub fn run(self) {
-        let Work { job, reply } = self;
-        reply.post(job.run());
+        let Work { job, reply, resume } = self;
+        reply.post(job.run(resume.as_ref()));
+    }
+
+    /// The queue this belongs on.
+    pub fn lane(&self) -> WorkLane {
+        match &self.job {
+            Job::Preload { .. } => WorkLane::Preload,
+            Job::Probe { .. }
+            | Job::Peek { .. }
+            | Job::Open { .. }
+            | Job::Lines { .. }
+            | Job::Search { .. }
+            | Job::Stat { .. }
+            | Job::Folder { .. } => WorkLane::Visible,
+        }
+    }
+
+    /// What the work does.
+    pub fn kind(&self) -> WorkKind {
+        match &self.job {
+            Job::Probe { .. } => WorkKind::Probe,
+            Job::Peek { .. } => WorkKind::Peek,
+            Job::Open { .. } => WorkKind::Open,
+            Job::Lines { .. } => WorkKind::Lines,
+            Job::Search { .. } => WorkKind::Search,
+            Job::Preload { .. } => WorkKind::Preload,
+            Job::Stat { .. } => WorkKind::Stat,
+            Job::Folder { .. } => WorkKind::Folder,
+        }
     }
 }
 
@@ -54,6 +122,9 @@ impl Reply {
 /// cannot do itself (they touch the platform, the file system or the window).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostRequest {
+    /// The window now shows this file: the host records it as viewed, and it is the file the
+    /// requests below that name none refer to.
+    Opened(Probed),
     /// Carry out a file action on the open file (reveal it, copy it, open it with, print it…).
     Run(FileAction),
     /// Choose another file to open.
@@ -66,8 +137,14 @@ pub enum HostRequest {
     Trash,
     /// Rename the open file.
     Rename(TypedText),
-    /// Keep where the person is in the open file, for next time.
+    /// Keep where the person is in the open file, for next time. Sent whenever a gesture settles,
+    /// so the host may coalesce them.
     Remember(Resume),
+    /// Watch this file for changes on disk and tell the window (`Edge::changed`); this replaces
+    /// the window's earlier watch, and watching the file already watched is no change.
+    Watch(FilePath),
+    /// Stop watching: the window has no file open.
+    Unwatch,
     /// Show the window this way.
     Present(Presentation),
 }
@@ -82,6 +159,8 @@ pub struct Edge {
     mailbox: Arc<Mutex<Option<UnboundedReceiver<Done>>>>,
     requests: Arc<dyn Fn(HostRequest) + Send + Sync>,
     highlighter: Arc<Highlighter>,
+    resume: Arc<dyn ResumeSource>,
+    first_frames: Arc<dyn FirstFrameSource>,
 }
 
 impl std::fmt::Debug for Edge {
@@ -103,7 +182,34 @@ impl Edge {
             mailbox: Arc::new(Mutex::new(Some(receiver))),
             requests: Arc::new(requests),
             highlighter: Arc::new(Highlighter::new()),
+            resume: Arc::new(Forgetful),
+            first_frames: Arc::new(NoPictures),
         }
+    }
+
+    /// The same edge reading where files were left from `source`: without one nothing is
+    /// remembered, and every file opens at its start.
+    pub fn with_resume_source(self, source: Arc<dyn ResumeSource>) -> Edge {
+        Edge {
+            resume: source,
+            ..self
+        }
+    }
+
+    /// The same edge showing the host's small pictures while a file opens: without them a file
+    /// shows once it is open.
+    pub fn with_first_frames(self, source: Arc<dyn FirstFrameSource>) -> Edge {
+        Edge {
+            first_frames: source,
+            ..self
+        }
+    }
+
+    /// Tell the window that `path` changed on disk. The window looks at the file's stamp and
+    /// reloads it only if it differs from the one it opened, so a spurious event costs one stat.
+    /// Callable from any thread, and a no-op once the window is gone.
+    pub fn changed(&self, path: FilePath) {
+        self.reply.post(Done::Changed { path });
     }
 
     /// Ask a worker to do `job`; its result arrives in the mailbox.
@@ -111,7 +217,17 @@ impl Edge {
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
+            resume: Arc::clone(&self.resume),
         });
+    }
+
+    /// What an open of a file into `texture` needs.
+    pub(crate) fn link(&self, texture: TextureHandle) -> OpenLink {
+        OpenLink {
+            texture,
+            highlighter: Arc::clone(&self.highlighter),
+            first_frames: Arc::clone(&self.first_frames),
+        }
     }
 
     /// The mailbox, once: the window's UI task takes it and awaits the results.
@@ -120,11 +236,6 @@ impl Edge {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .take()
-    }
-
-    /// The one highlighter every file of the window shares.
-    pub(crate) fn highlighter(&self) -> Arc<Highlighter> {
-        Arc::clone(&self.highlighter)
     }
 
     /// Hand a request to the binary.

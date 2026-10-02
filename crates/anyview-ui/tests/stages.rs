@@ -198,7 +198,7 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
     let path = dir.path().join("mystery.bin");
     std::fs::write(&path, [0u8, 159, 146, 150, 0, 1, 2, 3]).unwrap();
     let path = std::fs::canonicalize(path).unwrap();
-    let (mut harness, requests) = window(&[path], 0, Appearance::default());
+    let (mut harness, requests) = window(std::slice::from_ref(&path), 0, Appearance::default());
     harness.advance(Duration::from_millis(300));
     assert_eq!(harness.count(".viewer-peek"), 1);
     assert_eq!(
@@ -211,9 +211,18 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
         .expect("Open With…");
     harness.send(Input::click(open_with));
     harness.advance(Duration::from_millis(100));
-    assert_eq!(
-        requests.lock().unwrap().as_slice(),
-        [HostRequest::Run(FileAction::OpenWith)]
+    let asked = requests.lock().unwrap();
+    let asked: Vec<&HostRequest> = asked
+        .iter()
+        .filter(|request| !matches!(request, HostRequest::Watch(_)))
+        .collect();
+    assert!(
+        matches!(
+            asked.as_slice(),
+            [HostRequest::Opened(probed), HostRequest::Run(FileAction::OpenWith)]
+                if probed.source.path().as_path() == path
+        ),
+        "the window told its host which file it shows, then asked to open it with: {asked:?}"
     );
     save(&mut harness, "peek-only.png");
 }
