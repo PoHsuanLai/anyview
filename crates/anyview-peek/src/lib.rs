@@ -9,6 +9,7 @@ mod body;
 mod described;
 mod error;
 mod folder;
+mod pane;
 mod pdf;
 mod registry;
 mod when;
@@ -22,6 +23,7 @@ pub use described::{
 };
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
+pub use pane::{Pane, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;
