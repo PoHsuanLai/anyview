@@ -37,7 +37,7 @@ fn reach_says_where_each_action_appears() {
         (RotateRight, Viewer),
         (FlipHorizontal, Viewer),
         (FlipVertical, Viewer),
-        (PlayInBackground, Launcher),
+        (PlayInBackground, Both),
         (PlayInMiniWindow, Both),
         (ConvertTo, Both),
     ];

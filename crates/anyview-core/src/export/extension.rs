@@ -22,4 +22,18 @@ pub enum ExportExtension {
     Txt,
     /// `.md`
     Md,
+    /// `.m4a`
+    M4a,
+    /// `.mp3`
+    Mp3,
+    /// `.flac`
+    Flac,
+    /// `.wav`
+    Wav,
+    /// `.opus`
+    Opus,
+    /// The extension that goes with what the file holds, which only the back end knows: a trim
+    /// keeps its source's, and a copied audio track takes its codec's. It is never written as a
+    /// name.
+    Matching,
 }

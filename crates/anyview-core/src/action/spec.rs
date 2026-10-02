@@ -48,7 +48,7 @@ pub(super) fn spec_of(action: FileAction) -> ActionSpec {
         FileAction::RotateRight => spec(Reach::Viewer, Binding::Own(&[Super, Char(']')])),
         FileAction::FlipHorizontal => spec(Reach::Viewer, Binding::Unbound),
         FileAction::FlipVertical => spec(Reach::Viewer, Binding::Unbound),
-        FileAction::PlayInBackground => spec(Reach::Launcher, Binding::Unbound),
+        FileAction::PlayInBackground => spec(Reach::Both, Binding::Unbound),
         FileAction::PlayInMiniWindow => spec(Reach::Both, Binding::Unbound),
         FileAction::ConvertTo => spec(Reach::Both, Binding::Unbound),
     }

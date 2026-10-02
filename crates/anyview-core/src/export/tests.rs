@@ -3,7 +3,7 @@
 use super::*;
 use crate::source::FilePath;
 use crate::units::{
-    Dpi, PageIndex, PageRange, PageSelection, Percent, Permille, PixelLen, Quality,
+    Dpi, PageIndex, PageRange, PageSelection, Percent, Permille, PixelLen, Quality, TimeRange,
 };
 use ds_core::word::Word;
 use std::fmt::Debug;
@@ -44,7 +44,7 @@ fn a_format_with_no_export_lists_no_kind() {
     assert!(NoExport::kinds().is_empty());
     assert_eq!(RasterExport::kinds().len(), 6);
     assert_eq!(PdfExport::kinds().len(), 4);
-    assert_eq!(MediaExport::kinds().len(), 5);
+    assert_eq!(MediaExport::kinds().len(), 12);
     assert_eq!(TextExport::kinds().len(), 2);
 }
 
@@ -129,7 +129,15 @@ fn media_and_text_defaults() {
         (MediaExportKind::FrameWebp, ExportExtension::Webp),
         (MediaExportKind::FrameAvif, ExportExtension::Avif),
         (MediaExportKind::FrameTiff, ExportExtension::Tiff),
+        (MediaExportKind::Trim, ExportExtension::Matching),
+        (MediaExportKind::ExtractAudio, ExportExtension::Matching),
+        (MediaExportKind::ToM4a, ExportExtension::M4a),
+        (MediaExportKind::ToMp3, ExportExtension::Mp3),
+        (MediaExportKind::ToFlac, ExportExtension::Flac),
+        (MediaExportKind::ToWav, ExportExtension::Wav),
+        (MediaExportKind::ToOpus, ExportExtension::Opus),
     ];
+    assert_eq!(MEDIA.len(), MediaExportKind::ALL.len());
     for (kind, extension) in MEDIA {
         assert_eq!(
             MediaExport::default_for(*kind).extension(),
@@ -140,6 +148,18 @@ fn media_and_text_defaults() {
     assert_eq!(
         MediaExport::default_for(MediaExportKind::FrameJpeg),
         MediaExport::CurrentFrame(jpeg())
+    );
+    assert_eq!(
+        MediaExport::default_for(MediaExportKind::Trim),
+        MediaExport::Trim(TimeRange::WHOLE)
+    );
+    assert_eq!(
+        MediaExport::default_for(MediaExportKind::ToMp3),
+        MediaExport::AudioOnly(AudioTarget::Mp3(AudioTarget::default_bitrate()))
+    );
+    assert_eq!(
+        MediaExport::default_for(MediaExportKind::ExtractAudio),
+        MediaExport::AudioOnly(AudioTarget::Copy)
     );
     const TEXT: &[(TextExportKind, ExportExtension)] = &[
         (TextExportKind::Pdf, ExportExtension::Pdf),
@@ -172,6 +192,12 @@ fn extensions_are_written_without_a_dot() {
         (ExportExtension::Pdf, "pdf"),
         (ExportExtension::Txt, "txt"),
         (ExportExtension::Md, "md"),
+        (ExportExtension::M4a, "m4a"),
+        (ExportExtension::Mp3, "mp3"),
+        (ExportExtension::Flac, "flac"),
+        (ExportExtension::Wav, "wav"),
+        (ExportExtension::Opus, "opus"),
+        (ExportExtension::Matching, "matching"),
     ];
     assert_eq!(CASES.len(), ExportExtension::ALL.len());
     for (extension, slug) in CASES {
