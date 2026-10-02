@@ -15,6 +15,7 @@ use super::session::{Probe, params};
 use super::sheet::{ExportSheet, RenameSheet, TrashSheet};
 use super::shelf::{Dispatch, Shelf, use_area};
 use crate::families::FrameLook;
+use crate::io::{HostRequest, Job};
 use crate::{
     ChromeIn, Command, Launch, Load, NavigateIn, Palette as PaletteState, PaletteIn, Panel,
     PanelIn, PanelTab, Sheet, SheetIn, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn,
@@ -117,6 +118,8 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let current = shelf.shown();
     let ticket = shelf.probe.read().ticket().unwrap_or_default();
     let typing_in = dispatch;
+    let worker = carry.edge.clone();
+    let requester = carry.edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
         ticket,
@@ -133,6 +136,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         }),
         typing: EventHandler::new(move |event: KeyboardEvent| typed(typing_in, &event)),
         hits: (shelf.hits)(),
+        work: EventHandler::new(move |job: Job| worker.submit(job)),
+        request: EventHandler::new(move |request: HostRequest| requester.request(request)),
+        pdf: shelf.pdf,
         frame: FrameLook {
             attributes: format!(
                 "data-theme=\"{}\" data-accent=\"{}\" data-motion=\"{}\" data-material=\"window\"",
@@ -317,7 +323,7 @@ fn typed(dispatch: Dispatch, event: &KeyboardEvent) {
             event.stop_propagation();
             dispatch.send(ViewerIn::Key(ds_core::vocab::Shortcut(keys)));
         }
-        [ShortcutKey::Super, ..] => {}
+        chord if chord.contains(&ShortcutKey::Super) => {}
         _ => event.stop_propagation(),
     }
 }

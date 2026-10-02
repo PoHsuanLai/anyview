@@ -194,6 +194,7 @@ impl Memory {
             | HostRequest::Rename(_)
             | HostRequest::Watch(_)
             | HostRequest::Unwatch
+            | HostRequest::OpenUri(_)
             | HostRequest::Present(_) => {}
         }
     }

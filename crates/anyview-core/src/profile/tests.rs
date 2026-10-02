@@ -54,7 +54,7 @@ const CASES: &[Row] = &[
             FileAction::RotateRight,
         ],
         &[EditKind::Rotate, EditKind::DeletePages, EditKind::MovePage],
-        StageSupport::PeekOnly,
+        StageSupport::Stage,
     ),
     row(
         FormatKind::Raster,

@@ -79,6 +79,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::PickFile => declined(shown, Declined::PickFile),
         HostRequest::Export(_) => declined(shown, Declined::Export),
         HostRequest::Present(_) => declined(shown, Declined::Present),
+        HostRequest::OpenUri(_) => declined(shown, Declined::OpenUri),
         HostRequest::Trash => about_file(shown, |probed| {
             Carry::Desktop(Task::Trash(probed.source.path().clone()))
         }),

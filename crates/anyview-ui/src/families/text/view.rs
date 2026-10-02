@@ -2,7 +2,7 @@
 //! a sealed frame. The room owns the wheel (a window of lines scrolls by the line index, not by a
 //! native scroll), so the machine's `Scroll(line)` is the one place the reader's position lives.
 
-use super::bar::FindBar;
+use super::bar::TextFinding;
 use super::doc::TextDoc;
 use super::find::{FoundHits, Mark, pieces};
 use super::frame;
@@ -169,7 +169,7 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
                 }
             }
             if let Some((query, hits)) = find {
-                FindBar { query, hits, cx: cx.clone() }
+                TextFinding { query, hits, cx: cx.clone() }
             }
         }
     }

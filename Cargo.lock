@@ -402,6 +402,7 @@ version = "0.1.0"
 dependencies = [
  "anyview-core",
  "anyview-image",
+ "anyview-pdf",
  "anyview-text",
  "dioxus",
  "dioxus-ssr",

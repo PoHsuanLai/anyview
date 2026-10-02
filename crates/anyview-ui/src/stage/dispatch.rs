@@ -84,7 +84,8 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
             at,
         }),
         StageCommand::TogglePlayback => Some(RasterIn::TogglePlayback),
-        StageCommand::Find
+        StageCommand::ZoomToWidth
+        | StageCommand::Find
         | StageCommand::FindNext
         | StageCommand::FindPrevious
         | StageCommand::ToggleSource
@@ -105,6 +106,7 @@ fn pdf(command: StageCommand) -> Option<PdfIn> {
         StageCommand::ZoomIn => Some(PdfIn::ZoomStep(ZoomDir::In)),
         StageCommand::ZoomOut => Some(PdfIn::ZoomStep(ZoomDir::Out)),
         StageCommand::ZoomToFit => Some(PdfIn::SetZoom(Zoom::Fit)),
+        StageCommand::ZoomToWidth => Some(PdfIn::SetZoom(Zoom::Fill)),
         StageCommand::ZoomToActual => Some(PdfIn::SetZoom(Zoom::Actual)),
         StageCommand::Find => Some(PdfIn::Find(TypedText::EMPTY)),
         StageCommand::FindNext => Some(PdfIn::NextHit),
@@ -131,6 +133,7 @@ fn media(command: StageCommand) -> Option<MediaIn> {
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
         | StageCommand::ZoomToActual
         | StageCommand::Find
         | StageCommand::FindNext
@@ -162,6 +165,7 @@ fn text(command: StageCommand) -> Option<TextIn> {
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
         | StageCommand::ZoomToActual
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
