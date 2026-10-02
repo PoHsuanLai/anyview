@@ -22,3 +22,7 @@ pub use label::{ResumeLabel, resume_label};
 pub use reader::{HistoryRead, read_history};
 pub use viewed::Viewed;
 pub use writer::{StoreWriter, ViewRecorded};
+
+/// The folder under a person's data directory that holds the store, which the viewer writes and
+/// the launcher reads (`<data>/anyview`).
+pub const STORE_FOLDER: &str = "anyview";

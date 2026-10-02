@@ -1,6 +1,7 @@
 //! A file to open in a window, with the files around it for the arrow keys.
 
-use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
+use anyview_core::{FilePath, NonEmpty, Resume, Sequence, SequenceOrigin};
+use anyview_platform::Handoff;
 
 /// What a new window is told: its file, and the list ← and → walk when the folder could be read.
 #[derive(Debug, Clone, PartialEq)]
@@ -9,13 +10,30 @@ pub struct Opening {
     pub file: FilePath,
     /// The files beside it, with it among them.
     pub sequence: Option<Sequence>,
+    /// Where to start in the file, when the launcher's pane held a place; `Resume::Nothing`
+    /// continues where the person last left it.
+    pub resume: Resume,
 }
 
 impl Opening {
     /// `file` with the files of its folder. Blocking: it lists the folder.
     pub fn around(file: FilePath) -> Opening {
         let sequence = sequence_around(&file);
-        Opening { file, sequence }
+        Opening {
+            file,
+            sequence,
+            resume: Resume::Nothing,
+        }
+    }
+
+    /// The file the launcher handed over, with the results and the place it brought: nothing is
+    /// listed, since the results are the sequence.
+    pub fn handed(handoff: Handoff) -> Opening {
+        Opening {
+            file: handoff.file,
+            sequence: handoff.sequence,
+            resume: handoff.resume,
+        }
     }
 }
 
