@@ -232,9 +232,10 @@ fn every_kind_has_a_media_type_that_names_it_back() {
     for kind in FormatKind::ALL {
         let mime = mime_for(*kind);
         // Code and plain text share `text/plain`, which names plain text.
-        let want = match kind {
-            FormatKind::Code => FormatKind::PlainText,
-            other => *other,
+        let want = if *kind == FormatKind::Code {
+            FormatKind::PlainText
+        } else {
+            *kind
         };
         assert_eq!(crate::kind_of_mime(&mime), want, "{kind:?} gave {mime:?}");
     }
