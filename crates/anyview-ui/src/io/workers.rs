@@ -4,7 +4,7 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::job::{Done, Job};
+use super::job::{Done, Job, WorkLane};
 use crate::sheet::ExportDraft;
 use crate::{Presentation, TypedText};
 use anyview_core::{FileAction, Resume};
@@ -31,6 +31,11 @@ impl std::fmt::Debug for Work {
 }
 
 impl Work {
+    /// How soon the job is wanted: a pool that has a queue for each runs the nearest first.
+    pub fn lane(&self) -> WorkLane {
+        self.job.lane()
+    }
+
     /// Do the job, blocking, and post what it made to the window that asked.
     pub fn run(self) {
         let Work { job, reply } = self;
@@ -70,6 +75,8 @@ pub enum HostRequest {
     Remember(Resume),
     /// Show the window this way.
     Present(Presentation),
+    /// Open a web or mail address a link of the open file names, with the program that handles it.
+    OpenUri(String),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

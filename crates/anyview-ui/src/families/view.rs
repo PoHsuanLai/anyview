@@ -4,7 +4,8 @@
 //! region); [`DocView`] is the loaded document seen without its family, which is what the window
 //! holds, so the window needs no match on the family to draw it.
 
-use crate::io::{Job, OpenError, OpenLink};
+use crate::families::pdf::PdfShelf;
+use crate::io::{HostRequest, Job, OpenError, OpenLink};
 use crate::{Command, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams, Ticket};
 use anyview_core::{Facts, LineIndex, Sniffed, Source};
 use dioxus::prelude::*;
@@ -81,6 +82,12 @@ pub struct StageCx {
     pub lines: Option<Held<super::LineWindow>>,
     /// Ask for a window of lines: from this line, this many.
     pub ask_lines: EventHandler<(LineIndex, u32)>,
+    /// Hand a job to the workers; its answer comes back through the window's mailbox.
+    pub work: EventHandler<Job>,
+    /// Ask the host to do something the viewer cannot (open a web address).
+    pub request: EventHandler<HostRequest>,
+    /// What the window holds of an open PDF: the tiles, the hits, the thumbnails.
+    pub pdf: PdfShelf,
     /// The scheme the content is drawn in, for a sealed frame that cannot inherit it.
     pub frame: FrameLook,
 }

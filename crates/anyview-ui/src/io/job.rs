@@ -4,7 +4,7 @@
 //! result is a small document that names the texture.
 
 use super::error::OpenError;
-use crate::families::{LineWindow, LoadedDoc, TextDoc, open_for};
+use crate::families::{LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for};
 use crate::{StageFamily, Ticket};
 use anyview_core::{FilePath, LineIndex, Sniffed, Source};
 use anyview_text::Highlighter;
@@ -32,6 +32,16 @@ pub struct Probed {
     pub family: StageFamily,
 }
 
+/// How soon a job is wanted, for a pool that runs the nearest first: what the person is looking
+/// at now is `Visible`, what is read ahead of them is `Preload`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkLane {
+    /// Wanted now.
+    Visible,
+    /// Wanted soon, if at all.
+    Preload,
+}
+
 /// One unit of blocking work.
 #[derive(Debug)]
 pub enum Job {
@@ -50,6 +60,8 @@ pub enum Job {
         first: LineIndex,
         rows: u32,
     },
+    /// Draw tiles, a thumbnail or a search of an open PDF.
+    Pdf(PdfTask),
 }
 
 /// What a worker made of a job.
@@ -70,9 +82,19 @@ pub enum Done {
         ticket: Ticket,
         result: Result<LineWindow, OpenError>,
     },
+    /// What a PDF task made, for the load that asked.
+    Pdf { ticket: Ticket, answer: PdfAnswer },
 }
 
 impl Job {
+    /// How soon the job is wanted.
+    pub fn lane(&self) -> WorkLane {
+        match self {
+            Job::Probe { .. } | Job::Open { .. } | Job::Lines { .. } => WorkLane::Visible,
+            Job::Pdf(task) => task.lane(),
+        }
+    }
+
     /// Do the work, blocking until it is done.
     pub fn run(self) -> Done {
         match self {
@@ -96,6 +118,10 @@ impl Job {
             } => Done::Lines {
                 ticket,
                 result: doc.window(first, rows).map_err(OpenError::from),
+            },
+            Job::Pdf(task) => Done::Pdf {
+                ticket: task.ticket(),
+                answer: task.run(),
             },
         }
     }

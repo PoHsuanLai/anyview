@@ -12,6 +12,6 @@ mod workers;
 pub use anyview_core::work::{Backend, Stop};
 pub(crate) use disk::DiskFiles;
 pub use error::OpenError;
-pub use job::{Done, Job, OpenLink, Probed};
+pub use job::{Done, Job, OpenLink, Probed, WorkLane};
 pub(crate) use probe::probe;
 pub use workers::{Edge, HostRequest, Reply, Work, Workers};

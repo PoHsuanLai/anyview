@@ -151,7 +151,7 @@ const fn profile(
 fn profile_of(kind: FormatKind) -> KindProfile {
     use StageSupport::{PeekOnly, Stage};
     match kind {
-        FormatKind::Pdf => profile(PDF, PDF_EDITS, PeekOnly),
+        FormatKind::Pdf => profile(PDF, PDF_EDITS, Stage),
         FormatKind::Raster => profile(IMAGE, IMAGE_EDITS, Stage),
         FormatKind::Vector => profile(VECTOR, NO_EDITS, Stage),
         FormatKind::Video => profile(VIDEO, NO_EDITS, PeekOnly),

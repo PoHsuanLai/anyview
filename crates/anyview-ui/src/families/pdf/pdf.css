@@ -1,0 +1,22 @@
+/* The PDF stage: the pages in the room, the marks of the search over them, the links on them, the
+   find bar, and the side panel's thumbnails and outline. Tokens only. */
+
+.viewer-pdf{ position:absolute; inset:0; overflow:hidden; background:var(--surface-2); cursor:grab; }
+.viewer-pdf-page{ position:absolute; overflow:hidden; background:var(--raise); box-shadow:var(--shadow-1); }
+.viewer-pdf-tile{ position:absolute; }
+.viewer-pdf-hit{ position:absolute; background:var(--accent); opacity:.28; border-radius:var(--s-2); pointer-events:none; }
+.viewer-pdf-hit[*|data-hit=current]{ opacity:.55; }
+.viewer-pdf-link{ position:absolute; cursor:pointer; }
+
+.viewer-find{ position:absolute; top:var(--s-36); right:var(--s-12); z-index:var(--z-raise); }
+.viewer-find-row{ display:flex; align-items:center; gap:var(--s-4); padding:var(--s-6); }
+.viewer-find-status{ min-width:var(--s-36); color:var(--ink-soft); font-size:var(--fs-small); font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+.viewer-thumbs{ display:flex; flex-direction:column; padding:var(--s-8); }
+.viewer-thumb{ display:flex; flex-direction:column; align-items:center; gap:var(--s-4); width:100%; padding:var(--s-4) 0; }
+.viewer-thumb-page{ position:relative; display:block; background:var(--raise); box-shadow:var(--shadow-1); }
+.viewer-thumb-cover{ position:absolute; inset:0; }
+.viewer-thumb-number{ color:var(--ink-soft); font-size:var(--fs-small); font-variant-numeric:tabular-nums; }
+
+.viewer-outline{ display:flex; flex-direction:column; padding:var(--s-8); }
+.viewer-outline-entry{ display:block; }
