@@ -45,7 +45,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-peek` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch`, `open_window_with`, the clipboard) |
+| `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch`, `open_window_with`, the clipboard) |
 
 Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
