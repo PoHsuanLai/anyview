@@ -105,6 +105,12 @@ fn requests_of_a_window(
             }),
         ),
         (
+            "a link's web address waits for the edge to have a way to open it",
+            open(pdf),
+            HostRequest::OpenUri("https://example.com/".to_owned()),
+            Carry::Declined(Declined::OpenUri),
+        ),
+        (
             "a request about the file before there is one",
             Shown::default(),
             HostRequest::Run(FileAction::RevealInFolder),

@@ -1,6 +1,7 @@
 //! Why opening a file failed, in the terms a caller acts on.
 
 use crate::LoadFailure;
+use crate::families::PdfFailure;
 use ds_blitz::GpuError;
 use std::io::ErrorKind;
 
@@ -16,6 +17,9 @@ pub enum OpenError {
     /// The text reader refused.
     #[error(transparent)]
     Text(#[from] anyview_text::TextError),
+    /// The PDF reader refused.
+    #[error(transparent)]
+    Pdf(#[from] PdfFailure),
     /// The picture cannot be put on the GPU.
     #[error("the picture cannot be shown: {0}")]
     Gpu(GpuError),
@@ -35,8 +39,17 @@ impl OpenError {
                 OpenError::Read(*kind).failure()
             }
             OpenError::Text(_) => LoadFailure::Damaged,
+            OpenError::Pdf(failure) => pdf_failure(*failure),
             OpenError::Gpu(_) | OpenError::Unrecognised => LoadFailure::Unsupported,
         }
+    }
+}
+
+fn pdf_failure(failure: PdfFailure) -> LoadFailure {
+    match failure {
+        PdfFailure::Unreadable(kind) => OpenError::Read(kind).failure(),
+        PdfFailure::Locked => LoadFailure::Unsupported,
+        PdfFailure::Empty | PdfFailure::Damaged => LoadFailure::Damaged,
     }
 }
 

@@ -30,6 +30,8 @@ pub enum Declined {
     Watch,
     /// The typed name is not a file name.
     NotAFileName,
+    /// Opening a web address a link names needs a platform edge trait for it, which does not exist.
+    OpenUri,
 }
 
 /// What became of a task.

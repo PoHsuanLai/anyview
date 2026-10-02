@@ -32,6 +32,7 @@ pub(super) fn arrived(done: Done, c: &Carry) {
             query,
             result,
         } => found(c, ticket, query, result.unwrap_or_default()),
+        Done::Pdf { ticket, answer } => pdf_arrived(c, ticket, answer),
         Done::Preloaded { path, loaded } => {
             let mut preloads = c.shelf.preloads;
             preloads.write().arrived(&path, loaded);
@@ -43,6 +44,21 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 c.edge.submit(Job::Stat { path });
             }
         }
+    }
+}
+
+/// What a PDF worker made: the shelf takes it in, and the stage machine hears of it when it must.
+/// An answer for a file the person left is dropped by its ticket.
+fn pdf_arrived(c: &Carry, ticket: Ticket, answer: crate::PdfAnswer) {
+    if c.shelf.probe.peek().ticket() != Some(ticket) {
+        return;
+    }
+    let Some(dispatch) = c.dispatch() else {
+        return;
+    };
+    let stage = dispatch.machine.state().peek().stage.clone();
+    if let Some(input) = c.shelf.pdf.arrived(answer, &stage) {
+        dispatch.send(ViewerIn::Stage(input));
     }
 }
 

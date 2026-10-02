@@ -6,7 +6,9 @@
 use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::seams::{FirstFrameSource, ResumeSource};
-use crate::families::{FoundHits, LineWindow, LoadedDoc, TextDoc, open_for, peek_for};
+use crate::families::{
+    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
+};
 use crate::{StageFamily, Ticket, TypedText};
 use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_text::Highlighter;
@@ -53,6 +55,16 @@ pub struct Preloaded {
     pub doc: LoadedDoc,
 }
 
+/// How soon a job is wanted, for a pool that runs the nearest first: what the person is looking
+/// at now is `Visible`, what is read ahead of them is `Preload`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkLane {
+    /// Wanted now.
+    Visible,
+    /// Wanted soon, if at all.
+    Preload,
+}
+
 /// One unit of blocking work.
 #[derive(Debug)]
 pub enum Job {
@@ -89,6 +101,8 @@ pub enum Job {
     Stat { path: FilePath },
     /// List the folder `path` is in, as the sequence the arrow keys walk.
     Folder { path: FilePath },
+    /// Draw tiles, a thumbnail or a search of an open PDF.
+    Pdf(PdfTask),
 }
 
 /// What a worker made of a job.
@@ -137,9 +151,26 @@ pub enum Done {
     },
     /// The host saw `path` change on disk (`Edge::changed`).
     Changed { path: FilePath },
+    /// What a PDF task made, for the load that asked.
+    Pdf { ticket: Ticket, answer: PdfAnswer },
 }
 
 impl Job {
+    /// How soon the job is wanted: a pool that has a queue for each runs the nearest first.
+    pub fn lane(&self) -> WorkLane {
+        match self {
+            Job::Probe { .. }
+            | Job::Peek { .. }
+            | Job::Open { .. }
+            | Job::Lines { .. }
+            | Job::Search { .. }
+            | Job::Stat { .. }
+            | Job::Folder { .. } => WorkLane::Visible,
+            Job::Preload { .. } => WorkLane::Preload,
+            Job::Pdf(task) => task.lane(),
+        }
+    }
+
     /// The load this job belongs to; `Ticket::default()` for a job that belongs to none.
     pub fn ticket(&self) -> Ticket {
         match self {
@@ -148,6 +179,7 @@ impl Job {
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
             | Job::Search { ticket, .. } => *ticket,
+            Job::Pdf(task) => task.ticket(),
             Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } => Ticket::default(),
         }
     }
@@ -200,6 +232,10 @@ impl Job {
             Job::Folder { path } => Done::Folder {
                 result: folder_sequence(&path),
                 path,
+            },
+            Job::Pdf(task) => Done::Pdf {
+                ticket: task.ticket(),
+                answer: task.run(),
             },
         }
     }

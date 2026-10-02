@@ -32,9 +32,11 @@ mod testing;
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
 pub use families::{
-    Area, FoundHits, FrameLook, Held, KindVisitor, LineWindow, LoadedDoc, PeekOnlyDoc,
+    Area, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor, LineWindow, LoadedDoc,
+    PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
     PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
-    RasterTarget, StageCx, StageView, TOKEN_CSS, TextDoc, TextStageView, family_of, flow_of, visit,
+    RasterTarget, ReadyTile, StageCx, StageView, TOKEN_CSS, TextDoc, TextStageView, family_of,
+    flow_of, use_pdf_shelf, visit,
 };
 pub use io::{
     Backend, Done, Edge, FirstFrameSource, HostRequest, Job, OpenError, OpenLink, Preloaded,

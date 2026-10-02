@@ -3,6 +3,7 @@
 //! view is mapped to [`PeekOnlyStageView`], never left out. `anyview_core::stage_support` says the same
 //! thing in `anyview-core`'s own table; a test holds the two equal.
 
+use super::pdf::PdfStageView;
 use super::peek_only::PeekOnlyStageView;
 use super::raster::RasterStageView;
 use super::text::TextStageView;
@@ -28,8 +29,8 @@ pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
         | FormatKind::PlainText
         | FormatKind::Table
         | FormatKind::Tree => visitor.visit::<TextStageView>(),
-        FormatKind::Pdf
-        | FormatKind::Video
+        FormatKind::Pdf => visitor.visit::<PdfStageView>(),
+        FormatKind::Video
         | FormatKind::Audio
         | FormatKind::Font
         | FormatKind::Archive

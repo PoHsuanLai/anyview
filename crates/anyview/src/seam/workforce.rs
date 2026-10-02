@@ -2,7 +2,7 @@
 
 use crate::runtime::{Lane, Mailbox, Pool, PoolSize, Runner, RuntimeError, UiWaker};
 use anyview_core::work::{Backend, Stop, Ticketed};
-use anyview_ui::{Work, Workers};
+use anyview_ui::{Work, WorkLane, Workers};
 use std::sync::Arc;
 
 use crate::runtime::JobOutcome;
@@ -25,6 +25,15 @@ impl Backend for WorkBackend {
     }
 }
 
+/// The pool's lane for work wanted this soon: what the person is looking at before what is read
+/// ahead of them.
+pub(super) fn lane_of(lane: WorkLane) -> Lane {
+    match lane {
+        WorkLane::Visible => Lane::Visible,
+        WorkLane::Preload => Lane::Preload,
+    }
+}
+
 /// The views' [`Workers`] on the runtime's pool.
 struct PoolWorkers {
     runner: Runner<WorkBackend, Settled>,
@@ -32,9 +41,8 @@ struct PoolWorkers {
 
 impl Workers for PoolWorkers {
     fn submit(&self, work: Work) {
-        let ticket = work.ticket();
-        self.runner
-            .submit(Lane::Visible, ticket, Arc::new(()), work, None);
+        let (ticket, lane) = (work.ticket(), lane_of(work.lane()));
+        self.runner.submit(lane, ticket, Arc::new(()), work, None);
     }
 }
 

@@ -121,3 +121,27 @@ pub enum FindOut {
     /// Take the hit marks away.
     Clear,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_search_that_found_hits_knows_how_many() {
+        // name, where the search stands, hits counted
+        const CASES: &[(&str, FindHits, u32)] = &[
+            ("nothing typed", FindHits::Idle, 0),
+            ("waiting", FindHits::Pending, 0),
+            ("nothing found", FindHits::NoMatch, 0),
+            (
+                "three found",
+                FindHits::answered(HitCount(3), HitIndex(1)),
+                3,
+            ),
+            ("one found", FindHits::answered(HitCount(1), HitIndex(0)), 1),
+        ];
+        for (name, hits, want) in CASES {
+            assert_eq!(hits.count().map_or(0, |count| count.0), *want, "{name}");
+        }
+    }
+}

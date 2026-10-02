@@ -144,10 +144,12 @@ on. It is a reference, not a log: how each was found lives in git history.
   raw `ShortcutKey`s instead. The viewer edits no rich text, so the clash is harmless in the
   window; it matters if a text field in the viewer ever takes ⌘I. Ends when design/27 names ⌘I
   for the viewer or the panel moves to another chord.
-- **Which tabs and which stage a kind has is not decided yet.** `PanelParams::tabs` and the
-  `StageFamily` of a probe are handed to the machines; the one match on `FormatKind` that
-  produces them belongs in `anyview-core`'s `profile` (`panel_tabs`, `stage_family`), next to
-  `stage_support`. Ends when `profile/table.rs` carries both columns.
+- **Which tabs a kind has is the family's, not the profile table's.** `PanelTabs` and `PanelTab` live in
+  `anyview-ui`, so `anyview-core`'s `profile` cannot carry a `panel_tabs` column without moving them down.
+  `StageView::tabs(doc)` supplies them per document (a PDF's Contents tab exists only when it has an
+  outline), and the registry's one match on `FormatKind` supplies the `StageFamily`. Ends if the panel's
+  tabs are wanted before a file is open (the launcher's pane): then `PanelTab` moves to `anyview-core` and
+  `profile/table.rs` gets the column.
 - **A still picture has a first frame only when the host lends one.** `anyview-image` decodes a JPEG or a PNG
   whole to make even a peek, so a first frame from it would cost what the open costs. The first frame of a
   still comes from `FirstFrameSource` (the host's thumbnail cache), and of a GIF, a WebP or an SVG from the peeks
@@ -188,7 +190,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   the gap when `Launch` gains the resume and the open applies it.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
   Ends when they are added there (quire FINDINGS).
-- **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 v w Space ⇧← ⇧→
+- **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 9 v w Space ⇧← ⇧→
   PageUp PageDown ⌘F ⌘G ⇧⌘G`. Ends when the viewer has a keymap setting; the palette shows the
   same keys.
 - **Mini stays when the file stops being media.** Walking the sequence from a video in the mini
@@ -202,12 +204,35 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Find hits are addressed by index.** The stages hold the hit count and the current index; the
   edge keeps the hits and maps an index to a place. A document whose hits change while a find is
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
-- **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables and
-  JSON have a stage (images, and text shown as source); PDF, video, audio, fonts, archives, books, office
-  documents, folders and unknown files are `PeekOnly`. The registry (`families/registry.rs`) maps each
-  `PeekOnly` kind to the facts-and-Open-With… view, and a test holds the two tables equal. Each row
-  changes with the stage that lands: the PDF row becomes `Stage` with `anyview-pdf`, video and audio with
-  `anyview-media`, and the registry names the new view in the same change.
+- **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON
+  and PDF have a stage (images, text shown as source, PDF pages as tiles); video, audio, fonts, archives,
+  books, office documents, folders and unknown files are `PeekOnly`. The registry (`families/registry.rs`)
+  maps each `PeekOnly` kind to the facts-and-Open-With… view, and a test holds the two tables equal. Each
+  row changes with the stage that lands: video and audio with `anyview-media`, and the registry names the
+  new view in the same change.
+- **Every PDF scroll is a `HostRequest::Remember`, and the host writes each one.** The stage machine emits
+  `PdfOut::Remember` for each `Scroll` input and the window forwards it, so a wheel makes dozens a second, and
+  the binary's `Task::Remember` is a blocking store write apiece. The text stage does the same per line.
+  Ends when the host keeps the latest and writes it once the reader has rested, or the machine keeps a timer
+  for it.
+- **A PDF link's web address is declined.** `HostRequest::OpenUri` reaches the host, which answers
+  `Declined::OpenUri`: `anyview-platform` has no trait for opening an address (the portal's `OpenURI`, or
+  `xdg-open`) to carry it out. Ends when it has one.
+- **A PDF scrolls by a thousandth of a page.** `PageView::offset` is `Permille` of the page's height, so at a
+  high zoom one step is several pixels. The view keeps the exact position itself (`steer.rs`'s `Cursor`) and
+  tells the machine only when the page or its offset changes. Ends if the machine takes a finer offset.
+- **The PDF panel's thumbnails are drawn near the reader only, and the outline is flat.** Rows exist for
+  every page, but a thumbnail is drawn for the 12 pages either side of the reader's (`panel.rs`), because
+  the panel has no list that tells the view which rows are on screen; the outline lists every bookmark
+  with its depth and ignores `Disclosure`. Ends when quire has a windowed list and the outline a fold.
+- **The arrow keys, Home and End do not scroll a PDF.** The stage commands are the page keys and zoom; a line
+  step needs a `StageCommand` and a `PdfIn` for it. Ends with that input (the text stage's item above is the
+  same gap).
+- **A password-protected PDF is `LoadFailure::Unsupported`.** The viewer has no way to ask for a password;
+  `PdfDocument::open_with_password` is there for the sheet that will. Ends with that sheet.
+- **pdfrum draws a 1 px blue box round every link annotation,** even when its `/Border` is `[0 0 0]`: the
+  tiles of the PDF fixture show it round both links. The links are clickable areas of the view and need no box.
+  Ends when pdfrum honours a zero border width or offers a render option without annotations.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
   facts and Open With…. Ends per type when a family holds it.
@@ -498,3 +523,29 @@ on. It is a reference, not a log: how each was found lives in git history.
   batch, keyed by (document, page, zoom bucket), and reads again only when that key changes. It holds the
   document's `Arc` through the page; the cache is dropped when the worker is given another document.
   `PdfWorker::pages_prepared` counts the readings, which is how a test sees the reuse.
+- **A `TextureLayer` swallows a click.** Blitz hands the pointer to the `<object>` a layer is and goes no
+  further up, so a button or row around a picture never hears its click (a press, a move and a drag do reach
+  an ancestor). The PDF panel's thumbnails lay a transparent cover over their layer for the click to land on;
+  the page tiles need none, because nothing clicks them (a link is an element above them).
+- **A scroll gesture carries the modifiers held** (`Gesture::Scroll::held`, quire), which is how the wheel
+  under Control zooms the PDF and the wheel alone scrolls it; a pinch zooms about the pointer.
+- **A PDF's scale is device pixels per point,** as an image's is device pixels per texel: `Actual` draws a
+  point on one device pixel (72 dpi) whatever the screen's density. `Fit` is the whole of the largest page
+  inside the room (kept 16 logical pixels from the edges), `Fill` is the widest page across the room's width
+  (the capsule's Fit page and Fit width). A zoom between the ladder's steps draws at the next step up and the
+  texture is sampled down to size.
+- **A PDF's tiles are a bounded cache.** The window holds the textures the workers uploaded under 192 MiB
+  (`families/pdf/cache.rs`), letting go first of the zooms farthest from the one on screen and then of the
+  pages farthest from the reader, never of a tile the room or its preload margin wants. While a new zoom
+  draws, tiles of the old one are drawn under the new ones wherever a new tile is missing (`scene::drawn`).
+- **A PDF's jobs borrow renderer scratch from the document.** The job seam gives a worker no state of its
+  own (`Work::run` has no worker argument), so `PdfDoc` keeps up to 16 `PdfWorker`s that a job takes and
+  returns; the batch of a page that follows a batch of the same page and zoom tends to find the page the
+  last one prepared. The binary's `Pool` has its own per-thread scratch for back ends that run through
+  `Runner`; moving the PDF to it only changes where `with_scratch` gets its worker.
+- **A link opens only what a PDF may ask for.** `HostRequest::OpenUri` is made for `http`, `https` and
+  `mailto` addresses; a `file:` link, a script or a named action is ignored, and a link to a page is a jump.
+- **PDF work runs in the lane the stage wants it in.** `Work::lane()` (`WorkLane::{Visible, Preload}`, from
+  `anyview_pdf::Priority`) is mapped to the pool's `Lane` by `seam/workforce.rs`, so the tiles of the room run
+  before the tiles read ahead, thumbnails and links; the stage also ends (`Stop`) the batches a scroll left
+  behind.

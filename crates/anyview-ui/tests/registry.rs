@@ -24,6 +24,7 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
     const CASES: &[(&str, FormatKind, StageFamily)] = &[
         ("a photo", FormatKind::Raster, StageFamily::Raster),
         ("an svg", FormatKind::Vector, StageFamily::Raster),
+        ("a pdf", FormatKind::Pdf, StageFamily::Pdf),
         ("markdown", FormatKind::Markdown, StageFamily::Text),
         ("code", FormatKind::Code, StageFamily::Text),
         ("plain text", FormatKind::PlainText, StageFamily::Text),

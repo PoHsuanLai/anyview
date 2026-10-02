@@ -22,7 +22,12 @@ pub struct Launch {
 
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
 pub fn stylesheet() -> String {
-    [include_str!("style.css"), crate::families::TOKEN_CSS].join("\n")
+    [
+        include_str!("style.css"),
+        crate::families::TOKEN_CSS,
+        crate::families::PDF_CSS,
+    ]
+    .join("\n")
 }
 
 /// The root of a viewer window: a quire `Ds` root, the stylesheet, and the window.

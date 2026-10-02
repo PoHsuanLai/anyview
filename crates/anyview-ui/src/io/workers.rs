@@ -4,7 +4,7 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::job::{Done, Job, OpenLink, Probed};
+use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::seams::{FirstFrameSource, Forgetful, NoPictures, ResumeSource};
 use crate::sheet::ExportDraft;
 use crate::{Presentation, Ticket, TypedText};
@@ -18,16 +18,6 @@ use std::sync::{Arc, Mutex, PoisonError};
 pub trait Workers: Send + Sync + 'static {
     /// Run `work` on a worker thread, soon. It blocks that thread and nothing else.
     fn submit(&self, work: Work);
-}
-
-/// Which queue of the pool a piece of work belongs on: what the person is waiting for goes ahead
-/// of what is only being got ready.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum WorkLane {
-    /// The person is waiting for this (a probe, an open, a window of lines, a search).
-    Visible,
-    /// Nobody is waiting: a neighbour of the open file opened ahead.
-    Preload,
 }
 
 /// What a piece of work does, for a pool that logs, counts or tests it.
@@ -49,6 +39,8 @@ pub enum WorkKind {
     Stat,
     /// List a folder.
     Folder,
+    /// Draw tiles, a thumbnail or a search of an open PDF.
+    Pdf,
 }
 
 /// One job and the way back from it.
@@ -65,6 +57,11 @@ impl std::fmt::Debug for Work {
 }
 
 impl Work {
+    /// The queue this belongs on: the job decides.
+    pub fn lane(&self) -> WorkLane {
+        self.job.lane()
+    }
+
     /// The load this work belongs to: the pool tags its own delivery with it. Work that belongs
     /// to no load (a neighbour opened ahead, a stamp, a folder) says `Ticket::default()`.
     pub fn ticket(&self) -> Ticket {
@@ -75,20 +72,6 @@ impl Work {
     pub fn run(self) {
         let Work { job, reply, resume } = self;
         reply.post(job.run(resume.as_ref()));
-    }
-
-    /// The queue this belongs on.
-    pub fn lane(&self) -> WorkLane {
-        match &self.job {
-            Job::Preload { .. } => WorkLane::Preload,
-            Job::Probe { .. }
-            | Job::Peek { .. }
-            | Job::Open { .. }
-            | Job::Lines { .. }
-            | Job::Search { .. }
-            | Job::Stat { .. }
-            | Job::Folder { .. } => WorkLane::Visible,
-        }
     }
 
     /// What the work does.
@@ -102,6 +85,7 @@ impl Work {
             Job::Preload { .. } => WorkKind::Preload,
             Job::Stat { .. } => WorkKind::Stat,
             Job::Folder { .. } => WorkKind::Folder,
+            Job::Pdf(_) => WorkKind::Pdf,
         }
     }
 }
@@ -147,6 +131,8 @@ pub enum HostRequest {
     Unwatch,
     /// Show the window this way.
     Present(Presentation),
+    /// Open a web or mail address a link of the open file names, with the program that handles it.
+    OpenUri(String),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

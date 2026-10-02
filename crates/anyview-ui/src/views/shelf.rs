@@ -4,7 +4,7 @@
 
 use super::preloads::Preloads;
 use super::session::{Probe, params};
-use crate::families::{Area, FoundHits, Held, LineWindow, LoadedDoc};
+use crate::families::{Area, FoundHits, Held, LineWindow, LoadedDoc, PdfShelf, use_pdf_shelf};
 use crate::{Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
@@ -30,6 +30,8 @@ pub(super) struct Shelf {
     pub lines: Signal<Option<Held<LineWindow>>>,
     /// The places the current find found.
     pub hits: Signal<Option<Held<FoundHits>>>,
+    /// What is held of an open PDF: the tiles, the hits, the thumbnails.
+    pub pdf: PdfShelf,
     /// The files opened ahead.
     pub preloads: Signal<Preloads>,
     /// The file whose folder was asked for after a drop.
@@ -55,6 +57,7 @@ impl Shelf {
             peeked: use_signal(|| None),
             lines: use_signal(|| None),
             hits: use_signal(|| None),
+            pdf: use_pdf_shelf(),
             preloads: use_signal(Preloads::default),
             folder: use_signal(|| None),
             operation: use_signal(|| Operation::Idle),

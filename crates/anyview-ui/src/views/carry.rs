@@ -83,6 +83,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     shelf.peeked.set(None);
     shelf.lines.set(None);
     shelf.hits.set(None);
+    shelf.pdf.reset();
     shelf.left_at.set(Resume::Nothing);
     shelf
         .operation
@@ -178,6 +179,11 @@ fn staged(c: &Carry, out: &StageOut) {
     if let Some(resume) = out.remembered() {
         shelf.left_at.set(resume.clone());
         remember(c, resume);
+    }
+    if let StageOut::Pdf(pdf) = out {
+        // The pages and their search are drawn from the PDF shelf, not the text's.
+        shelf.pdf.carry(pdf.clone());
+        return;
     }
     match out.find() {
         Some(FindOut::Search(query)) => search(c, query),
