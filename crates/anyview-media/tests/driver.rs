@@ -41,8 +41,15 @@ fn a_loaded_recording_says_what_it_has_in_the_order_the_viewer_needs_it() {
 
     let at = |wanted: fn(&MediaEvent) -> bool| rig.events.iter().position(wanted).unwrap();
     let opened = at(|event| matches!(event, MediaEvent::Loaded { .. }));
-    let tracks = at(|event| matches!(event, MediaEvent::Tracks(_)));
-    assert!(opened < tracks, "loaded first, then what it holds");
+    // mpv announces tracks as it opens the file, before it says the file is loaded; what the
+    // driver adds once it is loaded comes after.
+    let last = |wanted: fn(&MediaEvent) -> bool| rig.events.iter().rposition(wanted).unwrap();
+    assert!(
+        opened < last(|event| matches!(event, MediaEvent::Tracks(_))),
+        "the tracks are said again once it is loaded"
+    );
+    assert!(opened < last(|event| matches!(event, MediaEvent::Chapters(_))));
+    assert!(opened < last(|event| matches!(event, MediaEvent::Volume(_))));
     let MediaEvent::Loaded { length } = &rig.events[opened] else {
         unreachable!()
     };
@@ -282,4 +289,25 @@ fn a_file_that_will_not_open_fails_and_closing_ends_the_session() {
     });
     let handled = rig.driver.command(MediaCommand::Close);
     assert_eq!(handled.then, Continuation::Close);
+}
+
+#[test]
+fn a_pause_the_host_asks_for_is_reported_though_mpv_says_nothing_of_it() {
+    let Some((device, queue)) = device() else {
+        return;
+    };
+    let mut rig = Rig::open(&device, &queue, &fixture("clip.mkv"));
+    rig.until("the file to load", loaded);
+    let before = rig.events.len();
+    rig.send(MediaCommand::SetPlayback(Pace::Paused));
+    assert_eq!(
+        rig.events[before..],
+        [MediaEvent::Playback(Pace::Paused)],
+        "said at once, by the driver"
+    );
+    rig.send(MediaCommand::SetPlayback(Pace::Playing));
+    assert_eq!(
+        rig.events.last(),
+        Some(&MediaEvent::Playback(Pace::Playing))
+    );
 }
