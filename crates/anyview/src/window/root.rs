@@ -3,9 +3,10 @@
 //! [`Seed`] as a context ([`seeded_root`]).
 
 use super::opening::Opening;
-use super::seed::Seed;
+use super::seed::{Seed, StackingAsk};
 use crate::host::{Carry, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route};
 use anyview_core::FilePath;
+use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{Edge, HostRequest, Launch, Presentation, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
@@ -43,7 +44,7 @@ pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
 
 /// The window a seed asks for: a normal one, or the small borderless one whose capsule is its
 /// only frame (the window draws nothing of its own on it).
-fn spec_for(seed: &Seed) -> WindowSpec {
+pub(super) fn spec_for(seed: &Seed) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
         Presentation::Mini => {
@@ -154,6 +155,27 @@ fn Window(seed: Seed) -> Element {
     rsx! { ViewerApp {} }
 }
 
+/// The seed of the window made again for `file` in `presentation`.
+pub(super) fn remade(seed: &Seed, file: &FilePath, presentation: Presentation) -> Seed {
+    Seed {
+        factory: seed.factory.clone(),
+        opening: Opening::around(file.clone()),
+        presentation,
+    }
+}
+
+/// What asking the desktop to keep the window just opened above the others comes to, for a
+/// presentation that asks (the small window): `None` for any other.
+pub(super) fn stacking_for(
+    presentation: Presentation,
+    desktop: &dyn StackingAsk,
+) -> Option<StackingOutcome> {
+    match presentation {
+        Presentation::Mini => Some(desktop.ask(Stacking::KeepAbove)),
+        Presentation::Window | Presentation::Peek | Presentation::Background => None,
+    }
+}
+
 /// Open the file this window shows in a window of its own, in `presentation`, picking up where
 /// the person is: the place the window last said is written first, so the new window's probe
 /// finds it. The new window is opened through the app's handle, which only a real app has.
@@ -167,29 +189,14 @@ fn reopen(
         return;
     };
     seed.factory.hosting.flush();
-    let opening = Opening::around(probed.source.path().clone());
-    let reopened = Seed {
-        factory: seed.factory.clone(),
-        opening,
-        presentation,
-    };
+    let reopened = remade(seed, probed.source.path(), presentation);
     if open_in_window(app, reopened).is_err() {
         return;
     }
-    match presentation {
-        Presentation::Mini => match seed
-            .factory
-            .stacking
-            .ask(anyview_platform::Stacking::KeepAbove)
-        {
-            anyview_platform::StackingOutcome::Applied => {}
-            anyview_platform::StackingOutcome::Unsupported => {
-                eprintln!(
-                    "anyview: the desktop does not let a window keep itself above the others"
-                );
-            }
-        },
-        Presentation::Window | Presentation::Peek | Presentation::Background => {}
+    if let Some(StackingOutcome::Unsupported) =
+        stacking_for(presentation, seed.factory.stacking.as_ref())
+    {
+        eprintln!("anyview: the desktop does not let a window keep itself above the others");
     }
 }
 
