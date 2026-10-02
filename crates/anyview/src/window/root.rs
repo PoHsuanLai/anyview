@@ -3,7 +3,7 @@
 
 use super::opening::Opening;
 use super::seed::Seed;
-use crate::host::{Carry, Outcome, Shown, WindowTask, report, report_declined, route};
+use crate::host::{Carry, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route};
 use anyview_core::FilePath;
 use anyview_ui::{Edge, HostRequest, Launch, ViewerApp};
 use dioxus::prelude::*;
@@ -88,7 +88,9 @@ impl Wiring {
         let edge = Edge::new(Arc::clone(&seed.factory.workers), move |request| {
             // A window that closed has no receiver, and nobody is left to ask.
             let _gone = send.unbounded_send(request);
-        });
+        })
+        .with_resume_source(Arc::clone(&seed.factory.resume))
+        .with_first_frames(Arc::clone(&seed.factory.first_frames));
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
@@ -112,9 +114,11 @@ fn Window(seed: Seed) -> Element {
     let window = use_hook(try_consume_context::<WindowHost>);
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
     let hosting = Arc::clone(&seed.factory.hosting);
+    let watching = use_hook(|| Rc::new(watch_for(&seed, &wiring.edge)));
     use_future(move || {
         let taken = wiring.requests.borrow_mut().take();
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
+        let watching = Rc::clone(&watching);
         async move {
             let Some(mut requests) = taken else { return };
             while let Some(request) = requests.next().await {
@@ -131,9 +135,20 @@ fn Window(seed: Seed) -> Element {
                             eprintln!("anyview: cannot copy: {error}");
                         }
                     }
+                    Carry::Window(WindowTask::Watch(file)) => {
+                        if let Some(watching) = watching.as_ref() {
+                            follow(watching, &file);
+                        }
+                    }
+                    Carry::Window(WindowTask::Unwatch) => {
+                        if let Some(watching) = watching.as_ref() {
+                            watching.unwatch();
+                        }
+                    }
                     Carry::Desktop(task) => {
                         let (done, shown) = (hosting.carry_out(task), Rc::clone(&shown));
-                        spawn(async move { ended(done.await, &shown) });
+                        let watching = Rc::clone(&watching);
+                        spawn(async move { ended(done.await, &shown, &watching) });
                     }
                     Carry::Declined(why) => report_declined(why),
                 }
@@ -144,12 +159,34 @@ fn Window(seed: Seed) -> Element {
 }
 
 /// A task ended: say so if it went wrong, and follow the file if it was moved.
-fn ended(outcome: Result<Outcome, tokio::task::JoinError>, shown: &Rc<RefCell<Shown>>) {
+fn ended(
+    outcome: Result<Outcome, tokio::task::JoinError>,
+    shown: &Rc<RefCell<Shown>>,
+    watching: &Rc<Option<WindowWatch>>,
+) {
     let outcome =
         outcome.unwrap_or_else(|error| Outcome::Failed(format!("a task was lost: {error}")));
     if let Outcome::Moved(path) = &outcome {
         let now = shown.take().moved_to(path.clone());
         *shown.borrow_mut() = now;
+        if let Some(watching) = watching.as_ref() {
+            follow(watching, path);
+        }
     }
     report(&outcome);
+}
+
+/// The window's end of the program's file watcher, when there is a watcher: a change of the file
+/// it watches is told to the window through its edge.
+fn watch_for(seed: &Seed, edge: &Edge) -> Option<WindowWatch> {
+    let watcher = seed.factory.watcher.as_ref()?;
+    let edge = edge.clone();
+    Some(watcher.window(move |file| edge.changed(file)))
+}
+
+/// Watch `file` for this window, and say so if the system refuses.
+fn follow(watching: &WindowWatch, file: &FilePath) {
+    if let Err(error) = watching.watch(file) {
+        eprintln!("anyview: cannot watch the file for changes: {error}");
+    }
 }

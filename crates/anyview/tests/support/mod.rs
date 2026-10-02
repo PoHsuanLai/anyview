@@ -2,13 +2,13 @@
 //! for the work, the desktop over fakes for the requests, and a real file to open.
 #![allow(dead_code, clippy::unwrap_used)]
 
-use anyview::host::{Clock, Desktop, Store, Trash, TrashError};
+use anyview::host::{CachedPictures, Clock, Desktop, SETTLE, Store, Trash, TrashError, Watcher};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
 use anyview::window::{Factory, Inbox, Opening, Seed, first_root};
 use anyview_core::FilePath;
 use anyview_platform::PrintOutcome;
-use anyview_platform::testing::{FakeApps, FakePrinter, FakeReveal, FakeShare};
+use anyview_platform::testing::{FakeApps, FakePrinter, FakeReveal, FakeShare, FakeThumbnails};
 use anyview_store::Viewed;
 use ds::prelude::Appearance;
 use ds_harness::{Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, Viewport};
@@ -89,11 +89,13 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
         NoTrash,
         Store::new(&store, now),
     );
-    let factory = Factory {
-        workers: workforce.workers(),
-        hosting: Arc::new(desktop),
-        appearance: Appearance::default(),
-    };
+    let factory = Factory::new(
+        workforce.workers(),
+        Arc::new(desktop),
+        Arc::new(CachedPictures(FakeThumbnails::default())),
+        Watcher::start(SETTLE).ok().map(Arc::new),
+        Appearance::default(),
+    );
     let opening = Opening::around(FilePath::new(file).unwrap());
     let (_openings, inbox) = unbounded();
     let wired = started.elapsed();

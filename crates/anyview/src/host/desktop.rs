@@ -2,6 +2,7 @@
 //! touches is a trait with a fake, so a test runs the same code against records.
 
 use super::outcome::Outcome;
+use super::remembering::{REMEMBER_EVERY, Remembering};
 use super::route::Task;
 use super::store::Store;
 use super::trash::Trash;
@@ -28,6 +29,9 @@ pub trait Hosting: Send + Sync + 'static {
     /// Where the person left `source`, if the file is as it was then. Blocking: call it from a
     /// worker.
     fn resume(&self, source: &Source) -> Option<Resume>;
+
+    /// Write the places still waiting to be kept. Blocking: the program calls it as it ends.
+    fn flush(&self);
 }
 
 /// The Linux desktop.
@@ -41,7 +45,8 @@ struct Parts<A, R, S, P, T> {
     share: S,
     printer: P,
     trash: T,
-    store: Store,
+    store: Arc<Store>,
+    remembering: Remembering,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
@@ -68,14 +73,16 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
         trash: T,
         store: Store,
     ) -> Self {
+        let store = Arc::new(store);
         Desktop {
-            runtime,
+            runtime: runtime.clone(),
             parts: Arc::new(Parts {
                 apps,
                 reveal,
                 share,
                 printer,
                 trash,
+                remembering: Remembering::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
             }),
         }
@@ -117,6 +124,10 @@ where
             .resume(source.path(), source.stamp())
             .unwrap_or_default()
     }
+
+    fn flush(&self) {
+        self.parts.remembering.flush();
+    }
 }
 
 async fn perform<A, R, S, P, T>(parts: &Arc<Parts<A, R, S, P, T>>, task: Task) -> Outcome
@@ -148,14 +159,8 @@ where
             .await
         }
         Task::Remember { source, resume } => {
-            let parts = Arc::clone(parts);
-            blocking(move || {
-                failed(
-                    "keep the place",
-                    parts.store.remember(source.path(), source.stamp(), &resume),
-                )
-            })
-            .await
+            parts.remembering.note(source, resume);
+            Outcome::Done
         }
         Task::Trash(file) => {
             let parts = Arc::clone(parts);

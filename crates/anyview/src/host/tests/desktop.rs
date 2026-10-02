@@ -104,6 +104,12 @@ async fn a_view_is_recorded_in_the_history_and_the_place_is_kept_and_found_again
         .await
         .unwrap();
     assert_eq!(outcome, Outcome::Done);
+    assert_eq!(
+        desktop.resume(&image.source),
+        None,
+        "the place waits to be written with the ones that follow it"
+    );
+    desktop.flush();
     assert_eq!(desktop.resume(&image.source), Some(kept));
 }
 

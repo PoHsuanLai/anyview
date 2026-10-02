@@ -1,8 +1,8 @@
 //! What every window of the program shares, and what makes one window its own.
 
 use super::opening::Opening;
-use crate::host::Hosting;
-use anyview_ui::Workers;
+use crate::host::{HostedResume, Hosting, Watcher};
+use anyview_ui::{FirstFrameSource, ResumeSource, Workers};
 use ds::prelude::Appearance;
 use std::sync::Arc;
 
@@ -14,8 +14,35 @@ pub struct Factory {
     pub workers: Arc<dyn Workers>,
     /// What carries out a window's requests.
     pub hosting: Arc<dyn Hosting>,
+    /// Where files were left, read for every window's probes.
+    pub resume: Arc<dyn ResumeSource>,
+    /// The small pictures shown while a file opens.
+    pub first_frames: Arc<dyn FirstFrameSource>,
+    /// The program's one file watcher, when the system has one.
+    pub watcher: Option<Arc<Watcher>>,
     /// How the windows look.
     pub appearance: Appearance,
+}
+
+impl Factory {
+    /// The wiring of the program: the views read where files were left through `hosting`, and
+    /// first frames from `first_frames`.
+    pub fn new(
+        workers: Arc<dyn Workers>,
+        hosting: Arc<dyn Hosting>,
+        first_frames: Arc<dyn FirstFrameSource>,
+        watcher: Option<Arc<Watcher>>,
+        appearance: Appearance,
+    ) -> Factory {
+        Factory {
+            workers,
+            resume: Arc::new(HostedResume(Arc::clone(&hosting))),
+            hosting,
+            first_frames,
+            watcher,
+            appearance,
+        }
+    }
 }
 
 impl std::fmt::Debug for Factory {

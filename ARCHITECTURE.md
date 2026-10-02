@@ -340,7 +340,7 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `cli` | `parse`, `Invocation` (`Help`, or a `Launch` of the platform's `Request`), `CliError`, `USAGE`: the arguments as the request a launch makes |
 | `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each` and `files_of` (what the viewer's name receives after the first window); `WARM_FOR` |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
-| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Outcome` and `report` |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume` and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome` and `report` |
 | `window` | `Opening` (a file and its folder's sequence), `Factory` and `Seed` (what every window shares, and what makes one window its own), `first_root` and `Inbox` (the root of the first window, which also opens the windows that are asked for later) |
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
@@ -441,6 +441,8 @@ The single place a concept lives. Extend it; never write a second one.
 | The command line | `anyview::cli::parse` |
 | Being the viewer, or forwarding a launch to it | `anyview::program::claim_role` over `anyview_platform::Instance` |
 | What a window's request means to the host | `anyview::host::route` |
+| Telling a window that its file changed on disk | `anyview::host::Watcher` (`WindowWatch`), calling `Edge::changed` |
+| Writing where the person is, not for every scroll | `anyview::host::Remembering` |
 | Carrying out Open With, reveal, share, print, trash, rename, duplicate, the history | `anyview::host::Desktop` (`Hosting::carry_out`) |
 | Moving a file to the trash | `anyview::host::Trash`, `SystemTrash` |
 | The one writer of the history and view memory, and the time it stamps | `anyview::host::Store`, `Clock` |
@@ -557,6 +559,7 @@ their work items and nothing else.
 
 | Thread | Owner | Runs |
 | --- | --- | --- |
+| `anyview-watch` | `host::Watcher` | the file watcher's burst settling: it owns the one `notify` instance's events and calls `Edge::changed` from here |
 | UI | the window (`ds-blitz`) | the machines, the views, `TextureLayer`, Markdown and HTML layout; never blocks |
 | workers, `PoolSize::from_cores(cores)` (cores minus one, at least one) | `runtime::Pool` | back-end jobs, visible-lane first |
 | `anyview-media` | `runtime::Actor` | the media player: built, polled and commanded only there |
