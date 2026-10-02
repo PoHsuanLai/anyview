@@ -3,7 +3,7 @@
 
 use super::media::{MediaIn, MediaStage};
 use super::model::{Stage, StageIn, StageParams};
-use super::pdf::{PdfIn, PdfStage};
+use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
 use super::text::{TextIn, TextStage, TextStep};
 use super::zoom::ZoomDir;
@@ -18,7 +18,7 @@ impl Stage {
         match self {
             Stage::NoStage => None,
             Stage::Raster(_) => raster(command, &params.raster).map(StageIn::Raster),
-            Stage::Pdf(_) => pdf(command).map(StageIn::Pdf),
+            Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
         }
@@ -101,7 +101,7 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
     }
 }
 
-fn pdf(command: StageCommand) -> Option<PdfIn> {
+fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<PdfIn> {
     match command {
         StageCommand::ZoomIn => Some(PdfIn::ZoomStep(ZoomDir::In)),
         StageCommand::ZoomOut => Some(PdfIn::ZoomStep(ZoomDir::Out)),
@@ -113,15 +113,23 @@ fn pdf(command: StageCommand) -> Option<PdfIn> {
         StageCommand::FindPrevious => Some(PdfIn::PreviousHit),
         StageCommand::NextPage => Some(PdfIn::NextPage),
         StageCommand::PreviousPage => Some(PdfIn::PreviousPage),
+        StageCommand::LineUp => Some(PdfIn::GoTo(nudged(
+            stage.place(),
+            LineDir::Up,
+            params.pages,
+        ))),
+        StageCommand::LineDown => Some(PdfIn::GoTo(nudged(
+            stage.place(),
+            LineDir::Down,
+            params.pages,
+        ))),
+        StageCommand::ScrollToStart => Some(PdfIn::GoTo(start())),
+        StageCommand::ScrollToEnd => Some(PdfIn::GoTo(end(params.pages))),
         StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
-        | StageCommand::SeekForward
-        | StageCommand::LineUp
-        | StageCommand::LineDown
-        | StageCommand::ScrollToStart
-        | StageCommand::ScrollToEnd => None,
+        | StageCommand::SeekForward => None,
     }
 }
 

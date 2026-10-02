@@ -28,8 +28,10 @@ pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{OpenError, OpenLink};
-use crate::{PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageParams, Ticket, Viewport};
-use anyview_core::{Facts, Sniffed, Source};
+use crate::{
+    PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket, Viewport,
+};
+use anyview_core::{Facts, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use std::sync::Arc;
@@ -79,6 +81,12 @@ impl StageView for PdfStageView {
             pdf,
             ..StageParams::default()
         }
+    }
+
+    /// The place the file was left is put back now that the page count is known: before it, the
+    /// stage could only keep it inside a one-page document.
+    fn arrived(_doc: &PdfDoc, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {
+        stage.restoring(left_at).into_iter().collect()
     }
 
     fn stage(doc: &Arc<PdfDoc>, cx: &StageCx) -> Element {

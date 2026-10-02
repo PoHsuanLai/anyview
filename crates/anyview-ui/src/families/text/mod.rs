@@ -19,7 +19,7 @@ use crate::{
     Command, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
     StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews, Ticket, TypedText,
 };
-use anyview_core::{Facts, FormatKind, LineIndex, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::Icon;
@@ -113,7 +113,7 @@ impl StageView for TextStageView {
         }
     }
 
-    fn arrived(_doc: &TextDoc, stage: &Stage) -> Vec<StageIn> {
+    fn arrived(_doc: &TextDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
         match stage {
             Stage::Text(TextStage::Finding { query, .. }) => {
                 vec![StageIn::Text(TextIn::Find(query.clone()))]

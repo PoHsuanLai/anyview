@@ -159,7 +159,13 @@ fn told_of(c: &Carry, doc: &crate::LoadedDoc) -> Vec<StageIn> {
         return Vec::new();
     };
     let stage = dispatch.machine.state().peek().stage.clone();
-    doc.view().arrived(&stage)
+    let left_at = c
+        .shelf
+        .probe
+        .peek()
+        .found()
+        .map_or(Resume::Nothing, |probed| probed.resume.clone());
+    doc.view().arrived(&stage, &left_at)
 }
 
 /// A search answered: the hits are kept for the view, and the stage is told how many there are

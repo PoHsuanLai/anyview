@@ -361,3 +361,43 @@ fn every_row_of_the_table_steps_as_written() {
         assert_eq!(next.wake(), None, "{name}: no timer");
     }
 }
+
+#[test]
+fn a_line_key_moves_through_the_pages_and_stops_at_the_ends_of_the_document() {
+    use super::place::{LineDir, end, nudged, start};
+    let pages = PageCount::new(3).unwrap();
+    // name, from, direction, to
+    let cases = [
+        ("down inside a page", to(0, 100), LineDir::Down, to(0, 180)),
+        (
+            "down off the foot of a page",
+            to(0, 960),
+            LineDir::Down,
+            to(1, 40),
+        ),
+        (
+            "down on the last page stops at its foot",
+            to(2, 960),
+            LineDir::Down,
+            to(2, 1000),
+        ),
+        ("up inside a page", to(1, 300), LineDir::Up, to(1, 220)),
+        (
+            "up off the head of a page",
+            to(1, 20),
+            LineDir::Up,
+            to(0, 940),
+        ),
+        (
+            "up on the first page stops at the head",
+            to(0, 20),
+            LineDir::Up,
+            to(0, 0),
+        ),
+    ];
+    for (name, from, dir, want) in cases {
+        assert_eq!(nudged(from, dir, pages), want, "{name}");
+    }
+    assert_eq!(start(), to(0, 0));
+    assert_eq!(end(pages), to(2, 0));
+}
