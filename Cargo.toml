@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/anyview-core",
   "crates/anyview-image",
+  "crates/anyview-pdf",
   "crates/anyview-store",
   "crates/anyview-text",
   "crates/anyview-ui",
@@ -21,6 +22,7 @@ publish = false
 [workspace.dependencies]
 anyview-core = { path = "crates/anyview-core" }
 anyview-image = { path = "crates/anyview-image" }
+anyview-pdf = { path = "crates/anyview-pdf" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
