@@ -283,7 +283,6 @@ dependencies = [
  "dioxus",
  "ds",
  "ds-blitz",
- "ds-core",
  "ds-harness",
  "futures-channel",
  "futures-util",

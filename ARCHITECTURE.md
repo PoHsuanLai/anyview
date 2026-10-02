@@ -31,7 +31,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`) and the window that draws every region (`views`) |
-| L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread); launch, single instance, CLI and wiring the platform join it |
+| L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows and the host that carries out what they ask through the platform |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
 
@@ -45,9 +45,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-peek` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core` (the `work` contract); the wiring change adds the crates it links |
+| `anyview` | `anyview-core`, `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch`, `open_window_with`, the clipboard) |
 
-Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `serde_json` for round-trip tests and `ds-core` with
+Dev-dependencies follow the same table, plus `mpv-wgpu-player`, `wgpu` and `pollster` for `anyview`'s media-thread spike (they never reach its normal build), plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
 directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`, `anyview-peek`). `anyview-peek` also takes
 `ds-harness` (a real Blitz document, and the hybrid GPU painter), `ds-lint` and `dioxus-ssr` as
@@ -65,7 +65,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-ui` | `zbus`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`: the player and the platform reach the views as `anyview-platform` traits and `HostRequest`s, never as dependencies. `tokio` and `wgpu` arrive only through `ds-blitz`, and `image` through `anyview-image`; the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
-| `anyview` | `dioxus`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: the runtime is generic over the back ends and names none of them; the wiring change amends this row with what the binary links |
+| `anyview` | `mpv-wgpu-player`, `rsmpv` anywhere in its tree (the media actor's player is linked when `anyview-media` lands). It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
@@ -331,6 +331,23 @@ and over an actor body.
 | `runtime::runner` | `Runner<B, T>`, `JobHandle`, `JobOutcome` (`Done`, `Skipped`, `Panicked`), `JobPanic` |
 | `runtime::actor` | `Actor`, `ActorBody`, `ActorWake`, `Flow` |
 
+The program is the rest of the library. `main.rs` reads the process's arguments, working directory and
+environment once and calls `program::run`; nothing below it reads `std::env`.
+
+| Module | Holds |
+| --- | --- |
+| `cli` | `parse`, `Invocation` (`Help`, or a `Launch` of the platform's `Request`), `CliError`, `USAGE`: the arguments as the request a launch makes |
+| `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each` and `files_of` (what the viewer's name receives after the first window); `WARM_FOR` |
+| `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Outcome` and `report` |
+| `window` | `Opening` (a file and its folder's sequence), `Factory` and `Seed` (what every window shares, and what makes one window its own), `first_root` and `Inbox` (the root of the first window, which also opens the windows that are asked for later) |
+
+A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
+and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to
+`Hosting::carry_out`, which runs it on the platform runtime and resolves with an `Outcome`. A second launch is
+claimed by the first viewer over D-Bus; its files become `Opening`s (the folder is listed on the blocking pool),
+which the first window's root receives and turns into `ds_blitz::open_window_with` calls on the same event loop.
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -419,6 +436,14 @@ The single place a concept lives. Extend it; never write a second one.
 | The threads: the worker pool, its lanes, panics in jobs | `anyview::runtime::Pool`, `Runner` |
 | Handing a result to the UI thread and waking it | `anyview::runtime::Mailbox`, `Outbox`, `UiWaker` |
 | An object one thread owns, with commands in and events out (the player) | `anyview::runtime::Actor`, `ActorBody` |
+| The views' work on the pool | `anyview::seam::Workforce` (the one `Workers`) |
+| The command line | `anyview::cli::parse` |
+| Being the viewer, or forwarding a launch to it | `anyview::program::claim_role` over `anyview_platform::Instance` |
+| What a window's request means to the host | `anyview::host::route` |
+| Carrying out Open With, reveal, share, print, trash, rename, duplicate, the history | `anyview::host::Desktop` (`Hosting::carry_out`) |
+| Moving a file to the trash | `anyview::host::Trash`, `SystemTrash` |
+| The one writer of the history and view memory, and the time it stamps | `anyview::host::Store`, `Clock` |
+| A window of the viewer, the first and the later ones | `anyview::window::first_root`, `Seed` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
@@ -514,7 +539,13 @@ their work items and nothing else.
 | UI | the window (`ds-blitz`) | the machines, the views, `TextureLayer`, Markdown and HTML layout; never blocks |
 | workers, `PoolSize::from_cores(cores)` (cores minus one, at least one) | `runtime::Pool` | back-end jobs, visible-lane first |
 | `anyview-media` | `runtime::Actor` | the media player: built, polled and commanded only there |
-| async runtime | the binary's tokio runtime | `anyview-platform` (D-Bus, MPRIS) |
+| async runtime | the binary's tokio runtime (`program::start`: one worker, `anyview-platform`) | `anyview-platform` (D-Bus, MPRIS) and the host's tasks (`host::Desktop`); blocking work among them runs on its blocking pool |
+
+`ds-blitz` keeps a process-wide tokio runtime of its own (two workers, entered by `launch`) for the design
+system's portal watch and timers; the binary's is a second one, started before the window so the instance can
+be claimed first. A window's results reach its UI task through the `Edge`'s reply channel, whose waker is the
+task's; the runtime's `Mailbox` carries only how each job ended, for the report of one that panicked
+(`seam`).
 
 The contract, in order of a job's life: a machine output becomes `Runner::submit(lane, ticket, doc,
 job, deadline)`, which returns a `JobHandle` (the ticket and the job's `Stop`). A worker skips a
@@ -632,6 +663,15 @@ fixtures and adds one PDF). The pane is checked three ways: server-side renders 
 real Blitz document through `ds-harness`, with a hybrid-painter test that reads the picture's pixels back
 and skips where no GPU adapter opens. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
 trait.
+
+## 7b. Testing the binary
+
+The command line, the routing of requests and the platform tasks are table tests and `#[tokio::test]`s over the
+platform's fakes (`FakeInstance`, `FakeApps`, `FakeReveal`, `FakeShare`, `FakePrinter`) and a recording `Trash`:
+no bus, no desktop, no real trash. `Env::isolated` stands in where the real `DbusInstance` must report that
+there is no bus. `crates/anyview/tests/open_image.rs` runs the first window's real root under `ds_harness`
+with the runtime's pool and a desktop of fakes, opens a picture, reads back the pixels it drew and the history
+file it wrote. `tests/launch.rs` holds the launch budget (ignored; FINDINGS, "The launch budget").
 
 ## 7a. Testing the views
 
