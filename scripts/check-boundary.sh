@@ -16,8 +16,8 @@ cd "$(dirname "$0")/.."
 # when they exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does
 # blocking file I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
 # anyview-ui holds the pure machines and the views that draw them. The crate itself may name the
-# window (ds-blitz, which brings tokio and wgpu) and the two back ends (which bring image); it never
-# names a bus, a PDF library or a player. The machines inside it stay pure, which is checked per
+# window (ds-blitz, which brings tokio and wgpu) and the three back ends (which bring image and
+# pdfrum); it never names a bus, a PDF library itself (the DIRECT table) or a player. The machines inside it stay pure, which is checked per
 # source file below.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
@@ -40,7 +40,7 @@ RULES=(
   "anyview: dioxus zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
-  "anyview-ui: zbus pdfrum mpv-wgpu-player rsmpv"
+  "anyview-ui: zbus mpv-wgpu-player rsmpv"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
@@ -54,6 +54,7 @@ RULES=(
 # nothing here spawns.
 DIRECT=(
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
 )
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
@@ -128,7 +129,7 @@ EDGES=(
   "anyview: anyview-core"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-core anyview-image anyview-text ds ds-blitz ds-core"
+  "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core ds-core"
@@ -178,7 +179,7 @@ MACHINES=(chrome command keys load navigate palette panel presentation sheet sta
 for machine in "${MACHINES[@]}"; do
   path="crates/anyview-ui/src/$machine"
   [ -d "$path" ] || path="$path.rs"
-  hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\banyview_image\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_' "$path" || true)
+  hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\banyview_image\b|\banyview_pdf\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_' "$path" || true)
   if [ -n "$hits" ]; then
     echo "IMPURE: the machine $machine names an effect or a view"
     echo "$hits" | head -10

@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
+anyview-pdf = { workspace = true }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
