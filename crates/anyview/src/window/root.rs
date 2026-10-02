@@ -1,72 +1,40 @@
-//! The root components. Every window is a [`Window`]; the first one also listens for files to
-//! open in windows of their own, which ds-blitz can only open from inside a component.
+//! The root components. Every window is a [`Window`]: the program opens each through ds-blitz's
+//! `AppHandle` with its [`Seed`] as props ([`window_root`]), and a harness test gives the
+//! [`Seed`] as a context ([`seeded_root`]).
 
-use super::opening::Opening;
 use super::seed::Seed;
 use crate::host::{Carry, Outcome, Shown, WindowTask, report, report_declined, route};
 use anyview_core::FilePath;
 use anyview_ui::{Edge, HostRequest, Launch, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
-use ds_blitz::{WindowSpec, clipboard, open_window_with};
+use ds_blitz::{AppEnded, AppHandle, WindowSpec, clipboard};
 use futures_channel::mpsc::{UnboundedReceiver, unbounded};
 use futures_util::StreamExt;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 /// Where a new window is 1000 by 700 logical pixels until the viewer sizes windows to content.
 const WINDOW: (u32, u32) = (1000, 700);
 
-/// The files to open in more windows, given to the first window's root as a context. Cloneable
-/// and sendable; the first root takes the receiver once.
-#[derive(Debug, Clone)]
-pub struct Inbox(Arc<Mutex<Option<UnboundedReceiver<Opening>>>>);
-
-impl Inbox {
-    /// An inbox over `receiver`.
-    pub fn new(receiver: UnboundedReceiver<Opening>) -> Inbox {
-        Inbox(Arc::new(Mutex::new(Some(receiver))))
-    }
-
-    fn take(&self) -> Option<UnboundedReceiver<Opening>> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
-    }
-}
-
-/// The root of the first window: given the [`Seed`] and the [`Inbox`] as contexts
-/// (`ds_blitz::AppConfig::with_context`).
-pub fn first_root() -> Element {
+/// The root of a window given its [`Seed`] as a context
+/// (`ds_blitz::AppConfig::with_context`, or a harness's).
+pub fn seeded_root() -> Element {
     let seed = use_hook(consume_context::<Seed>);
-    let inbox = use_hook(consume_context::<Inbox>);
-    let shared = seed.factory.clone();
-    use_future(move || {
-        let taken = inbox.take();
-        let shared = shared.clone();
-        async move {
-            let Some(mut openings) = taken else { return };
-            while let Some(opening) = openings.next().await {
-                open_another(Seed {
-                    factory: shared.clone(),
-                    opening,
-                });
-            }
-        }
-    });
     rsx! { Window { seed } }
 }
 
-/// The root of a window opened later.
-fn later_root(seed: Seed) -> Element {
+/// The root of a window opened with its [`Seed`] as props.
+fn window_root(seed: Seed) -> Element {
     rsx! { Window { seed } }
 }
 
-fn open_another(seed: Seed) {
-    let title = title_of(&seed.opening.file);
-    let spec = WindowSpec::new(title, WINDOW.0, WINDOW.1);
-    if let Err(error) = open_window_with(spec, later_root, seed) {
-        eprintln!("anyview: cannot open another window: {error}");
-    }
+/// Open a window on `seed`'s file, from any thread: the way a request that arrives on the
+/// program's runtime reaches the event loop. It fails once the app has ended.
+pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
+    let spec = WindowSpec::new(title_of(&seed.opening.file), WINDOW.0, WINDOW.1);
+    app.open_window_with(spec, window_root, seed)
 }
 
 fn title_of(file: &FilePath) -> String {

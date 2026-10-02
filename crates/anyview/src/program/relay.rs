@@ -1,10 +1,12 @@
-//! What the viewer's name receives after the first window: each file of a forwarded request
-//! becomes an [`Opening`] for the window layer, which opens a new window for it.
+//! What the viewer's name receives: each file of a request, the first launch's or a forwarded one,
+//! becomes an [`Opening`], and each opening a window of its own on the event loop.
 
-use crate::window::Opening;
+use crate::window::{Factory, Opening, Seed, open_in_window};
 use anyview_core::FilePath;
 use anyview_platform::{Primary, Request};
-use futures_channel::mpsc::UnboundedSender;
+use ds_blitz::AppHandle;
+use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use futures_util::StreamExt;
 
 /// The files a request asks to see, each for a window of its own. A peek and a play open the file
 /// like any other until the quick-look window and the player exist.
@@ -34,6 +36,24 @@ pub async fn relay(mut primary: Primary, openings: UnboundedSender<Opening>) {
     while let Some(request) = primary.next().await {
         open_each(files_of(request), &openings).await;
         if openings.is_closed() {
+            return;
+        }
+    }
+}
+
+/// Open a window for each opening, until the channel closes or the app has ended. Windows are
+/// independent: nothing here depends on an earlier one still being open.
+pub async fn open_windows(
+    mut openings: UnboundedReceiver<Opening>,
+    app: AppHandle,
+    factory: Factory,
+) {
+    while let Some(opening) = openings.next().await {
+        let seed = Seed {
+            factory: factory.clone(),
+            opening,
+        };
+        if open_in_window(&app, seed).is_err() {
             return;
         }
     }

@@ -5,14 +5,13 @@
 use anyview::host::{Clock, Desktop, Store, Trash, TrashError};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
-use anyview::window::{Factory, Inbox, Opening, Seed, first_root};
+use anyview::window::{Factory, Opening, Seed, seeded_root};
 use anyview_core::FilePath;
 use anyview_platform::PrintOutcome;
 use anyview_platform::testing::{FakeApps, FakePrinter, FakeReveal, FakeShare};
 use anyview_store::Viewed;
 use ds::prelude::Appearance;
 use ds_harness::{Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, Viewport};
-use futures_channel::mpsc::unbounded;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -95,14 +94,12 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
         appearance: Appearance::default(),
     };
     let opening = Opening::around(FilePath::new(file).unwrap());
-    let (_openings, inbox) = unbounded();
     let wired = started.elapsed();
     let config = HarnessConfig::new(VIEW)
         .with_clock(HarnessClock::Virtual)
         .with_backend(Backend::Hybrid)
-        .with_context(Seed { factory, opening })
-        .with_context(Inbox::new(inbox));
-    let harness = Harness::new(first_root, config);
+        .with_context(Seed { factory, opening });
+    let harness = Harness::new(seeded_root, config);
     let windowed = started.elapsed();
     Rig {
         harness,
