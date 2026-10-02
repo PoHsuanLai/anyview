@@ -2,7 +2,7 @@
 #![cfg(feature = "player")]
 #![allow(dead_code, clippy::unwrap_used)]
 
-use anyview_core::FilePath;
+use anyview_core::{FilePath, MediaTrack};
 use anyview_media::{
     AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaEvent, Queue, TextureView,
     headless_device,
@@ -133,4 +133,53 @@ impl Rig {
     pub fn has(&self, wanted: impl Fn(&MediaEvent) -> bool) -> bool {
         self.events.iter().any(wanted)
     }
+}
+
+/// The newest track list the player announced.
+pub fn last_tracks(events: &[MediaEvent]) -> Option<&[MediaTrack]> {
+    events.iter().rev().find_map(|event| match event {
+        MediaEvent::Tracks(tracks) => Some(tracks.as_slice()),
+        MediaEvent::Loaded { .. }
+        | MediaEvent::Ended(_)
+        | MediaEvent::Playback(_)
+        | MediaEvent::SeekDone
+        | MediaEvent::Buffering(_)
+        | MediaEvent::Position(_)
+        | MediaEvent::Chapters(_)
+        | MediaEvent::Volume(_)
+        | MediaEvent::Speed(_)
+        | MediaEvent::Picture(_)
+        | MediaEvent::ShotSaved(_)
+        | MediaEvent::ShotFailed { .. }
+        | MediaEvent::Failed(_)
+        | MediaEvent::Refused(_) => None,
+    })
+}
+
+/// How many chapters the newest chapter list has.
+pub fn last_chapters(events: &[MediaEvent]) -> Option<usize> {
+    events.iter().rev().find_map(|event| match event {
+        MediaEvent::Chapters(chapters) => Some(chapters.len()),
+        MediaEvent::Loaded { .. }
+        | MediaEvent::Ended(_)
+        | MediaEvent::Playback(_)
+        | MediaEvent::SeekDone
+        | MediaEvent::Buffering(_)
+        | MediaEvent::Position(_)
+        | MediaEvent::Tracks(_)
+        | MediaEvent::Volume(_)
+        | MediaEvent::Speed(_)
+        | MediaEvent::Picture(_)
+        | MediaEvent::ShotSaved(_)
+        | MediaEvent::ShotFailed { .. }
+        | MediaEvent::Failed(_)
+        | MediaEvent::Refused(_) => None,
+    })
+}
+
+/// Whether a position of `micros` microseconds was reported among `events`.
+pub fn position_within(events: &[MediaEvent], micros: std::ops::RangeInclusive<u64>) -> bool {
+    events
+        .iter()
+        .any(|event| matches!(event, MediaEvent::Position(at) if micros.contains(&at.0)))
 }

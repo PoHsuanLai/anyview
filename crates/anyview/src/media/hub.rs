@@ -448,7 +448,9 @@ mod tests {
     #[test]
     fn the_entry_shows_the_session_that_just_played_else_the_one_it_has() {
         let (a, b) = (SessionId(1), SessionId(2));
-        const CASES: &[(&str, Option<u32>, u32, PlaybackStatus, Option<u32>)] = &[
+        /// Name, the session shown, the one that spoke, its status, the session shown after.
+        type Case = (&'static str, Option<u32>, u32, PlaybackStatus, Option<u32>);
+        const CASES: &[Case] = &[
             (
                 "the first to speak is shown",
                 None,

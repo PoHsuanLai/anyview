@@ -51,6 +51,16 @@ struct Parts<A, R, S, P, T> {
     media: Media,
 }
 
+/// What the desktop keeps and plays with besides the platform's traits: the history and view
+/// memory, and the players and exports.
+#[derive(Debug)]
+pub struct Services {
+    /// The history and view memory.
+    pub store: Store,
+    /// The players, the exports and a scratch folder.
+    pub media: Media,
+}
+
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
 /// (Open With), `R` (reveal), `S` (share), `P` (print) and `T` (trash).
 pub struct Desktop<A, R, S, P, T> {
@@ -73,9 +83,9 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
         share: S,
         printer: P,
         trash: T,
-        store: Store,
-        media: Media,
+        services: Services,
     ) -> Self {
+        let Services { store, media } = services;
         let store = Arc::new(store);
         Desktop {
             runtime: runtime.clone(),
@@ -95,7 +105,7 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
 
 impl LinuxDesktop {
     /// The Linux desktop of `env`, its store under `store`.
-    pub fn linux(runtime: Handle, env: &Env, store: Store, media: Media) -> LinuxDesktop {
+    pub fn linux(runtime: Handle, env: &Env, services: Services) -> LinuxDesktop {
         Desktop::new(
             runtime,
             DesktopApps::new(env.clone()),
@@ -103,8 +113,7 @@ impl LinuxDesktop {
             MailShare::new(env.clone()),
             PortalPrinter::new(env.clone()),
             SystemTrash,
-            store,
-            media,
+            services,
         )
     }
 }

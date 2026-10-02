@@ -17,7 +17,7 @@ mod watch;
 #[cfg(test)]
 mod tests;
 
-pub use desktop::{Desktop, Hosting, LinuxDesktop};
+pub use desktop::{Desktop, Hosting, LinuxDesktop, Services};
 pub use media::Media;
 pub use outcome::{Declined, Outcome, report, report_declined};
 pub use pictures::CachedPictures;
