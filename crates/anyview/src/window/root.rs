@@ -2,13 +2,14 @@
 //! `AppHandle` with its [`Seed`] as props ([`window_root`]), and a harness test gives the
 //! [`Seed`] as a context ([`seeded_root`]).
 
+use super::opening::Opening;
 use super::seed::Seed;
 use crate::host::{Carry, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route};
 use anyview_core::FilePath;
-use anyview_ui::{Edge, HostRequest, Launch, ViewerApp};
+use anyview_ui::{Edge, HostRequest, Launch, Presentation, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
-use ds_blitz::{AppEnded, AppHandle, WindowSpec, clipboard};
+use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSpec, clipboard};
 use futures_channel::mpsc::{UnboundedReceiver, unbounded};
 use futures_util::StreamExt;
 use std::cell::RefCell;
@@ -17,6 +18,9 @@ use std::sync::Arc;
 
 /// Where a new window is 1000 by 700 logical pixels until the viewer sizes windows to content.
 const WINDOW: (u32, u32) = (1000, 700);
+
+/// The small window of a recording: 480 by 270, a sixteenth by nine picture.
+const MINI: (u32, u32) = (480, 270);
 
 /// The root of a window given its [`Seed`] as a context
 /// (`ds_blitz::AppConfig::with_context`, or a harness's).
@@ -33,8 +37,22 @@ fn window_root(seed: Seed) -> Element {
 /// Open a window on `seed`'s file, from any thread: the way a request that arrives on the
 /// program's runtime reaches the event loop. It fails once the app has ended.
 pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
-    let spec = WindowSpec::new(title_of(&seed.opening.file), WINDOW.0, WINDOW.1);
+    let spec = spec_for(&seed);
     app.open_window_with(spec, window_root, seed)
+}
+
+/// The window a seed asks for: a normal one, or the small borderless one whose capsule is its
+/// only frame (the window draws nothing of its own on it).
+fn spec_for(seed: &Seed) -> WindowSpec {
+    let title = title_of(&seed.opening.file);
+    match seed.presentation {
+        Presentation::Mini => {
+            WindowSpec::new(title, MINI.0, MINI.1).with_decorations(Decorations::Client)
+        }
+        Presentation::Window | Presentation::Peek | Presentation::Background => {
+            WindowSpec::new(title, WINDOW.0, WINDOW.1)
+        }
+    }
 }
 
 fn title_of(file: &FilePath) -> String {
@@ -58,11 +76,13 @@ impl Wiring {
             let _gone = send.unbounded_send(request);
         })
         .with_resume_source(Arc::clone(&seed.factory.resume))
-        .with_first_frames(Arc::clone(&seed.factory.first_frames));
+        .with_first_frames(Arc::clone(&seed.factory.first_frames))
+        .with_media(Arc::clone(&seed.factory.media));
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
             appearance: seed.factory.appearance,
+            presentation: seed.presentation,
         };
         Wiring {
             edge,
@@ -80,6 +100,7 @@ fn Window(seed: Seed) -> Element {
     use_context_provider(|| edge);
     use_context_provider(|| launch);
     let window = use_hook(try_consume_context::<WindowHost>);
+    let app = ds_blitz::use_app_handle();
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
     let hosting = Arc::clone(&seed.factory.hosting);
     let watching = use_hook(|| Rc::new(watch_for(&seed, &wiring.edge)));
@@ -87,6 +108,7 @@ fn Window(seed: Seed) -> Element {
         let taken = wiring.requests.borrow_mut().take();
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
         let watching = Rc::clone(&watching);
+        let (seed, app) = (seed.clone(), app.clone());
         async move {
             let Some(mut requests) = taken else { return };
             while let Some(request) = requests.next().await {
@@ -113,10 +135,16 @@ fn Window(seed: Seed) -> Element {
                             watching.unwatch();
                         }
                     }
+                    Carry::Window(WindowTask::Reopen(presentation)) => {
+                        reopen(&seed, shown.borrow().file(), app.as_ref(), presentation);
+                        if let Some(window) = &window {
+                            window.host().close();
+                        }
+                    }
                     Carry::Desktop(task) => {
                         let (done, shown) = (hosting.carry_out(task), Rc::clone(&shown));
-                        let watching = Rc::clone(&watching);
-                        spawn(async move { ended(done.await, &shown, &watching) });
+                        let (watching, window) = (Rc::clone(&watching), window.clone());
+                        spawn(async move { ended(done.await, &shown, &watching, window.as_ref()) });
                     }
                     Carry::Declined(why) => report_declined(why),
                 }
@@ -126,11 +154,51 @@ fn Window(seed: Seed) -> Element {
     rsx! { ViewerApp {} }
 }
 
+/// Open the file this window shows in a window of its own, in `presentation`, picking up where
+/// the person is: the place the window last said is written first, so the new window's probe
+/// finds it. The new window is opened through the app's handle, which only a real app has.
+fn reopen(
+    seed: &Seed,
+    shown: Option<&anyview_ui::Probed>,
+    app: Option<&AppHandle>,
+    presentation: Presentation,
+) {
+    let (Some(probed), Some(app)) = (shown, app) else {
+        return;
+    };
+    seed.factory.hosting.flush();
+    let opening = Opening::around(probed.source.path().clone());
+    let reopened = Seed {
+        factory: seed.factory.clone(),
+        opening,
+        presentation,
+    };
+    if open_in_window(app, reopened).is_err() {
+        return;
+    }
+    match presentation {
+        Presentation::Mini => match seed
+            .factory
+            .stacking
+            .ask(anyview_platform::Stacking::KeepAbove)
+        {
+            anyview_platform::StackingOutcome::Applied => {}
+            anyview_platform::StackingOutcome::Unsupported => {
+                eprintln!(
+                    "anyview: the desktop does not let a window keep itself above the others"
+                );
+            }
+        },
+        Presentation::Window | Presentation::Peek | Presentation::Background => {}
+    }
+}
+
 /// A task ended: say so if it went wrong, and follow the file if it was moved.
 fn ended(
     outcome: Result<Outcome, tokio::task::JoinError>,
     shown: &Rc<RefCell<Shown>>,
     watching: &Rc<Option<WindowWatch>>,
+    window: Option<&WindowHost>,
 ) {
     let outcome =
         outcome.unwrap_or_else(|error| Outcome::Failed(format!("a task was lost: {error}")));
@@ -140,6 +208,12 @@ fn ended(
         if let Some(watching) = watching.as_ref() {
             follow(watching, path);
         }
+    }
+    // The file plays with no window now: this window's part is done.
+    if outcome == Outcome::Handed
+        && let Some(window) = window
+    {
+        window.host().close();
     }
     report(&outcome);
 }

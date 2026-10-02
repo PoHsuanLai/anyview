@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
+anyview-media = { workspace = true, features = ["player", "ffmpeg"] }
 anyview-platform = { workspace = true }
 anyview-store = { workspace = true }
 anyview-ui = { workspace = true }
@@ -32,6 +33,5 @@ anyview-platform = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true }
 image = { workspace = true }
 tempfile = { workspace = true }
-mpv-wgpu-player = { workspace = true }
 pollster = { workspace = true }
 wgpu = { workspace = true }

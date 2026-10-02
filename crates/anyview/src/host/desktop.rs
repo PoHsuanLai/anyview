@@ -1,6 +1,7 @@
 //! The desktop, carrying out the tasks the window's requests became. Every platform thing it
 //! touches is a trait with a fake, so a test runs the same code against records.
 
+use super::media::{self, Media};
 use super::outcome::Outcome;
 use super::remembering::{REMEMBER_EVERY, Remembering};
 use super::route::Task;
@@ -47,6 +48,7 @@ struct Parts<A, R, S, P, T> {
     trash: T,
     store: Arc<Store>,
     remembering: Remembering,
+    media: Media,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
@@ -72,6 +74,7 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
         printer: P,
         trash: T,
         store: Store,
+        media: Media,
     ) -> Self {
         let store = Arc::new(store);
         Desktop {
@@ -84,6 +87,7 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
                 trash,
                 remembering: Remembering::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
+                media,
             }),
         }
     }
@@ -91,7 +95,7 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
 
 impl LinuxDesktop {
     /// The Linux desktop of `env`, its store under `store`.
-    pub fn linux(runtime: Handle, env: &Env, store: Store) -> LinuxDesktop {
+    pub fn linux(runtime: Handle, env: &Env, store: Store, media: Media) -> LinuxDesktop {
         Desktop::new(
             runtime,
             DesktopApps::new(env.clone()),
@@ -100,6 +104,7 @@ impl LinuxDesktop {
             PortalPrinter::new(env.clone()),
             SystemTrash,
             store,
+            media,
         )
     }
 }
@@ -168,6 +173,11 @@ where
         }
         Task::Rename { file, to } => blocking(move || rename(&file, &to)).await,
         Task::Duplicate(file) => blocking(move || duplicate(&file)).await,
+        Task::PlayInBackground(probed) => {
+            let media = parts.media.clone();
+            blocking(move || media::play_in_background(&media, &probed)).await
+        }
+        Task::ExportMedia { file, choice } => media::export(&parts.media, &file, choice).await,
     }
 }
 

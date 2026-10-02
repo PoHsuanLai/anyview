@@ -1,21 +1,18 @@
-//! The media architecture's open question: can `mpv-wgpu-player`'s `poll()` run on a dedicated
-//! thread that never presents, writing into a texture made on the window's device, with the
-//! redraw requested from that thread? The player's docs say "call `poll` on the thread that
-//! presents".
+//! The media thread, proven with the real driver: `anyview_media::Driver` is built and polled only on an
+//! actor thread of the runtime, mpv's wake callback wakes that actor, each frame is announced to
+//! this thread through a mailbox whose waker stands for `TextureHandle::redraw`, and this thread
+//! (the UI thread) samples the player's texture in its own render pass and reads the pixels back.
+//! The player's docs say "call `poll` on the thread that presents"; what the viewer relies on is
+//! that polling off that thread and sampling on this one works (FINDINGS, "`Player::poll` works from
+//! a thread that does not present").
 //!
-//! The rig is the viewer's own: a `Device` and `Queue` made on this thread stand for the window's
-//! (headless, no window), the player is built and polled only on an actor thread of the runtime,
-//! mpv's wake callback wakes that actor, and each rewritten frame is announced to this thread
-//! through a mailbox whose waker stands for `TextureHandle::redraw`. This thread is the UI thread:
-//! it samples the player's texture in its own render pass (what the compositor does with a
-//! registered `TextureView`) and reads the pixels back.
-//!
-//! Ignored by default: it needs libmpv, a wgpu adapter and the fixtures of the sibling
-//! `mpv-wgpu` checkout (`cargo test -p anyview --test media_thread -- --ignored --nocapture`).
+//! Ignored by default: it needs a wgpu adapter (`cargo test -p anyview --test media_thread --
+//! --ignored --nocapture`). The fixture is the media crate's own.
 
 use anyview::runtime::{Actor, ActorBody, ActorWake, Flow, Mailbox, Outbox, UiWaker};
-use mpv_wgpu_player::{
-    AudioOutput, Event, Finite, Player, PlayerOptions, Presentation, Seek, Slot, SlotSize,
+use anyview_core::{FilePath, MediaTime};
+use anyview_media::{
+    AudioDriver, Continuation, Driver, FrameSink, MediaCommand, MediaEvent, PictureSlot,
 };
 use std::num::NonZeroU32;
 use std::path::PathBuf;
@@ -27,10 +24,16 @@ const TIMEOUT: Duration = Duration::from_secs(20);
 const WIDTH: u32 = 64;
 const HEIGHT: u32 = 48;
 
-fn fixture(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../mpv/crates/mpv-wgpu-player/tests/fixtures")
-        .join(name)
+fn fixture(name: &str) -> FilePath {
+    FilePath::new(
+        std::fs::canonicalize(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../anyview-media/tests/fixtures")
+                .join(name),
+        )
+        .expect("fixture"),
+    )
+    .expect("absolute")
 }
 
 /// The window's device, as far as a player is concerned.
@@ -69,11 +72,7 @@ impl UiWaker for Redraw {
     }
 }
 
-enum MediaCommand {
-    SeekTo(f64),
-}
-
-enum MediaEvent {
+enum MediaNote {
     Loaded,
     /// The player rewrote its texture on `polled_on`; `view` is what a layer would register.
     Frame {
@@ -82,68 +81,91 @@ enum MediaEvent {
     },
 }
 
-struct Media {
-    player: Player,
+/// What the driver's sink tells the UI thread: the texture and each frame, from the thread that
+/// polled.
+struct ToUi {
+    outbox: Outbox<MediaNote>,
+    last: Option<wgpu::TextureView>,
 }
 
-impl Media {
-    /// Runs on the actor thread: the player is built here, never on the UI thread.
-    fn new(device: &wgpu::Device, queue: &wgpu::Queue, wake: ActorWake<MediaCommand>) -> Media {
-        let mut player = Player::new(
-            device,
-            queue,
-            PlayerOptions {
-                audio_output: AudioOutput::Null,
-            },
-        )
-        .expect("player");
-        player.set_notify(move || wake.wake());
-        player
-            .set_slot(Slot::Sized(SlotSize {
-                width: NonZeroU32::new(WIDTH).expect("non-zero"),
-                height: NonZeroU32::new(HEIGHT).expect("non-zero"),
-            }))
-            .expect("slot");
-        let path = fixture("clip.mkv");
-        player
-            .load(path.to_str().expect("utf-8"))
-            .expect("loadfile");
-        Media { player }
+impl FrameSink for ToUi {
+    fn texture(&mut self, view: &wgpu::TextureView) {
+        self.last = Some(view.clone());
+        self.frame();
     }
+
+    fn frame(&mut self) {
+        if let Some(view) = &self.last {
+            self.outbox.send(MediaNote::Frame {
+                view: view.clone(),
+                polled_on: std::thread::current().id(),
+            });
+        }
+    }
+
+    fn cleared(&mut self) {
+        self.last = None;
+    }
+}
+
+struct Media {
+    driver: Driver,
 }
 
 impl ActorBody for Media {
     type Command = MediaCommand;
-    type Event = MediaEvent;
+    type Event = MediaNote;
 
-    fn command(&mut self, command: MediaCommand, _: &Outbox<MediaEvent>) -> Flow {
-        match command {
-            MediaCommand::SeekTo(seconds) => {
-                let to = Finite::new(seconds).expect("finite");
-                self.player.seek(Seek::Absolute(to)).expect("seek");
+    fn command(&mut self, command: MediaCommand, events: &Outbox<MediaNote>) -> Flow {
+        let handled = self.driver.command(command);
+        for event in handled.events {
+            if matches!(event, MediaEvent::Loaded { .. }) {
+                events.send(MediaNote::Loaded);
             }
         }
-        Flow::Continue
+        match handled.then {
+            Continuation::Keep => Flow::Continue,
+            Continuation::Close => Flow::Quit,
+        }
     }
 
-    fn woken(&mut self, events: &Outbox<MediaEvent>) {
-        let outcome = self.player.poll().expect("poll");
-        for event in self.player.events() {
-            eprintln!("media event: {event:?}");
-            if *event == Event::Loaded {
-                events.send(MediaEvent::Loaded);
+    fn woken(&mut self, events: &Outbox<MediaNote>) {
+        for event in self.driver.woken() {
+            if matches!(event, MediaEvent::Loaded { .. }) {
+                events.send(MediaNote::Loaded);
             }
         }
-        match (outcome.presentation, self.player.picture()) {
-            (Presentation::Updated, mpv_wgpu_player::Picture::Shown(view)) => {
-                events.send(MediaEvent::Frame {
-                    view: view.clone(),
-                    polled_on: std::thread::current().id(),
-                });
-            }
-            (Presentation::Updated, mpv_wgpu_player::Picture::Waiting)
-            | (Presentation::Unchanged, _) => {}
-        }
+    }
+}
+
+impl Media {
+    /// Runs on the actor thread: the driver (and the player in it) is built here, never on the UI
+    /// thread.
+    fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        wake: ActorWake<MediaCommand>,
+        events: Outbox<MediaNote>,
+    ) -> Media {
+        let driver = Driver::open(
+            device,
+            queue,
+            AudioDriver::Null,
+            &fixture("clip.mkv"),
+            Box::new(ToUi {
+                outbox: events,
+                last: None,
+            }),
+            move || wake.wake(),
+        )
+        .expect("driver");
+        let mut media = Media { driver };
+        let slot = PictureSlot::Sized {
+            width: NonZeroU32::new(WIDTH).expect("non-zero"),
+            height: NonZeroU32::new(HEIGHT).expect("non-zero"),
+        };
+        let _ = media.driver.command(MediaCommand::Slot(slot));
+        media
     }
 }
 
@@ -313,7 +335,7 @@ struct Seen {
 
 /// Drains the mailbox on this thread until `done`, sampling every announced frame.
 fn pump(
-    mailbox: &Mailbox<MediaEvent>,
+    mailbox: &Mailbox<MediaNote>,
     redraws: &std::sync::mpsc::Receiver<()>,
     readback: &Readback,
     seen: &mut Seen,
@@ -330,8 +352,8 @@ fn pump(
         let _ = redraws.recv_timeout(Duration::from_millis(500));
         for event in mailbox.drain() {
             match event {
-                MediaEvent::Loaded => seen.loaded = true,
-                MediaEvent::Frame { view, polled_on } => {
+                MediaNote::Loaded => seen.loaded = true,
+                MediaNote::Frame { view, polled_on } => {
                     seen.polled_on.push(polled_on);
                     seen.frames.push(readback.sample(&view));
                 }
@@ -341,11 +363,8 @@ fn pump(
 }
 
 #[test]
-#[ignore = "needs libmpv, a wgpu adapter and the mpv-wgpu checkout's fixtures"]
+#[ignore = "needs a wgpu adapter"]
 fn a_media_thread_that_never_presents_polls_into_a_texture_another_thread_samples() {
-    if !fixture("clip.mkv").exists() {
-        panic!("fixture missing: {}", fixture("clip.mkv").display());
-    }
     let (device, queue, adapter) = open_device();
     eprintln!("adapter: {adapter}");
     let ui_thread = std::thread::current().id();
@@ -353,8 +372,9 @@ fn a_media_thread_that_never_presents_polls_into_a_texture_another_thread_sample
     let (redraw_tx, redraws) = channel();
     let (mailbox, outbox) = Mailbox::new(Redraw(redraw_tx));
     let (media_device, media_queue) = (device.clone(), queue.clone());
+    let for_sink = outbox.clone();
     let actor = Actor::spawn("anyview-media", outbox, move |wake| {
-        Media::new(&media_device, &media_queue, wake)
+        Media::new(&media_device, &media_queue, wake, for_sink)
     })
     .expect("actor");
 
@@ -370,7 +390,9 @@ fn a_media_thread_that_never_presents_polls_into_a_texture_another_thread_sample
 
     // A command from this thread reaches the player on the media thread and playback goes on.
     let before = seen.frames.len();
-    actor.send(MediaCommand::SeekTo(2.0)).expect("send seek");
+    actor
+        .send(MediaCommand::Seek(MediaTime::from_secs(2)))
+        .expect("send seek");
     pump(&mailbox, &redraws, &readback, &mut seen, |s| {
         s.frames.len() >= before + 3
     });

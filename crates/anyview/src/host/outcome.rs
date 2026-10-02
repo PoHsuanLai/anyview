@@ -16,7 +16,8 @@ pub enum Declined {
     /// The window must ask a question first (a new name, a format); it does so through a sheet,
     /// and the answer comes back as its own request.
     NeedsSheet,
-    /// A mini window needs window stacking in the window layer.
+    /// A window does not become a quick look or a background session: only a window or the mini
+    /// window.
     Present,
     /// The clipboard holds text only; the file itself cannot be put on it.
     CopyFile,
@@ -24,8 +25,6 @@ pub enum Declined {
     Edit,
     /// Only a PDF is handed to the print dialog as it is; the rest print through an export.
     PrintNeedsPdf,
-    /// Background playback needs the media player.
-    Playback,
     /// The typed name is not a file name.
     NotAFileName,
     /// Opening a web address a link names needs a platform edge trait for it, which does not exist.
@@ -41,6 +40,8 @@ pub enum Outcome {
     Moved(FilePath),
     /// There was nothing for it to do (no app to open the file with, no way to share it).
     Nothing(&'static str),
+    /// The file plays elsewhere now (with no window): this window's part is done, and it closes.
+    Handed,
     /// It failed; the text says what was being done and what refused.
     Failed(String),
 }
@@ -48,7 +49,7 @@ pub enum Outcome {
 /// The program's one log line for something that did not go as asked. `Done` says nothing.
 pub fn report(outcome: &Outcome) {
     match outcome {
-        Outcome::Done | Outcome::Moved(_) => {}
+        Outcome::Done | Outcome::Moved(_) | Outcome::Handed => {}
         Outcome::Nothing(why) => eprintln!("anyview: nothing to do: {why}"),
         Outcome::Failed(why) => eprintln!("anyview: {why}"),
     }
