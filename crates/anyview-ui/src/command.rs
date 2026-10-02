@@ -14,6 +14,8 @@ pub enum StageCommand {
     ZoomOut,
     /// Fit the content to the window.
     ZoomToFit,
+    /// Fit the content's width to the window.
+    ZoomToWidth,
     /// Show the content at its own size.
     ZoomToActual,
     /// Start a find.
@@ -49,6 +51,7 @@ impl StageCommand {
             }
             [Char('-')] | [Super, Char('-')] => Some(StageCommand::ZoomOut),
             [Char('0')] | [Super, Char('0')] => Some(StageCommand::ZoomToFit),
+            [Char('9')] | [Super, Char('9')] => Some(StageCommand::ZoomToWidth),
             [Char('1')] | [Super, Char('1')] => Some(StageCommand::ZoomToActual),
             [Super, Char('f')] => Some(StageCommand::Find),
             [Super, Char('g')] => Some(StageCommand::FindNext),
@@ -74,6 +77,7 @@ impl StageCommand {
             StageCommand::ZoomIn => vec![Char('+')],
             StageCommand::ZoomOut => vec![Char('-')],
             StageCommand::ZoomToFit => vec![Char('0')],
+            StageCommand::ZoomToWidth => vec![Char('9')],
             StageCommand::ZoomToActual => vec![Char('1')],
             StageCommand::Find => vec![Super, Char('f')],
             StageCommand::FindNext => vec![Super, Char('g')],
