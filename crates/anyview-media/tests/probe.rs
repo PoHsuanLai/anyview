@@ -2,13 +2,13 @@
 
 #![allow(clippy::unwrap_used)]
 
-mod support;
+mod libav;
 
 use anyview_core::{
     FactLabel, MediaContainer, MediaTags, MediaTrack, Peek, StreamKind, TrackId, TrackPlay,
 };
 use anyview_media::{AudioPeek, CoverCodec, MediaPeeked, VideoPeek};
-use support::{fixture, probed, seconds};
+use libav::{fixture, probed, seconds};
 
 fn track(
     id: u32,

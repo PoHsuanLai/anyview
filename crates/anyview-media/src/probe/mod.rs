@@ -99,10 +99,14 @@ pub fn probe_within(path: &Path, cover_limit: u64) -> Result<MediaProbe, MediaEr
         Some(index) => streams::cover_of(&mut input, index, cover_limit),
         None => None,
     };
+    let source = match found.video {
+        Some(_) => TagSource::Container,
+        None => TagSource::ContainerOrAudio,
+    };
     Ok(MediaProbe {
         length,
         container,
-        tags: tags_of(&input),
+        tags: tags_of(&input, source),
         video: found.video,
         audio: found.audio,
         tracks: found.tracks,
@@ -127,14 +131,28 @@ fn length_of(input: &ff::format::context::Input) -> Option<MediaLength> {
     (micros > 0).then_some(MediaLength(MediaTime(micros)))
 }
 
-/// A tag of the container, or of its first stream that has it: Ogg keeps its comments there.
-fn tags_of(input: &ff::format::context::Input) -> MediaTags {
+/// Where a recording's own tags may be found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TagSource {
+    /// The container's.
+    Container,
+    /// The container's, else those of an audio stream: Ogg keeps an audio file's comments there.
+    /// A recording with a picture never takes them, since a stream's title names the track.
+    ContainerOrAudio,
+}
+
+fn tags_of(input: &ff::format::context::Input, source: TagSource) -> MediaTags {
     let tag = |key: &str| {
-        input.metadata().get(key).map(str::to_owned).or_else(|| {
-            input
-                .streams()
-                .find_map(|stream| stream.metadata().get(key).map(str::to_owned))
-        })
+        let own = input.metadata().get(key).map(str::to_owned);
+        match source {
+            TagSource::Container => own,
+            TagSource::ContainerOrAudio => own.or_else(|| {
+                input
+                    .streams()
+                    .filter(|stream| stream.parameters().medium() == ff::media::Type::Audio)
+                    .find_map(|stream| stream.metadata().get(key).map(str::to_owned))
+            }),
+        }
     };
     MediaTags {
         title: tag("title"),
