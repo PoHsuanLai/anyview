@@ -9,5 +9,5 @@ mod step;
 #[cfg(test)]
 mod tests;
 
-pub use event::{EndReason, FrameDirection, Pace, PlayerCommand, PlayerEvent, TrackKind};
+pub use event::{EndReason, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge};
 pub use model::{AfterScrub, MediaError, MediaIn, MediaOut, MediaParams, MediaStage};

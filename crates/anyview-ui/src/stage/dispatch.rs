@@ -1,7 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
-use super::media::{MediaIn, MediaStage};
+use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
@@ -9,7 +9,7 @@ use super::text::{TextIn, TextStage, TextStep};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
 use crate::typed::TypedText;
-use anyview_core::Zoom;
+use anyview_core::{Speed, Zoom};
 
 impl Stage {
     /// The input that carries out `command` on this stage, or `None` when this stage has no
@@ -97,7 +97,18 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::LineUp
         | StageCommand::LineDown
         | StageCommand::ScrollToStart
-        | StageCommand::ScrollToEnd => None,
+        | StageCommand::ScrollToEnd
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextChapter
+        | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd => None,
     }
 }
 
@@ -129,7 +140,18 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
-        | StageCommand::SeekForward => None,
+        | StageCommand::SeekForward
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextChapter
+        | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd => None,
     }
 }
 
@@ -138,6 +160,17 @@ fn media(command: StageCommand) -> Option<MediaIn> {
         StageCommand::TogglePlayback => Some(MediaIn::Toggle),
         StageCommand::SeekBack => Some(MediaIn::SeekBack),
         StageCommand::SeekForward => Some(MediaIn::SeekForward),
+        StageCommand::SlowDown => Some(MediaIn::StepSpeed(StepDirection::Backward)),
+        StageCommand::SpeedUp => Some(MediaIn::StepSpeed(StepDirection::Forward)),
+        StageCommand::NormalSpeed => Some(MediaIn::SetSpeed(Speed::NORMAL)),
+        StageCommand::NextChapter => Some(MediaIn::StepChapter(StepDirection::Forward)),
+        StageCommand::PreviousChapter => Some(MediaIn::StepChapter(StepDirection::Backward)),
+        StageCommand::NextAudioTrack => Some(MediaIn::CycleTrack(TrackKind::Audio)),
+        StageCommand::NextSubtitles => Some(MediaIn::CycleTrack(TrackKind::Subtitles)),
+        StageCommand::StepFrameForward => Some(MediaIn::FrameStep(StepDirection::Forward)),
+        StageCommand::StepFrameBack => Some(MediaIn::FrameStep(StepDirection::Backward)),
+        StageCommand::MarkTrimStart => Some(MediaIn::Mark(TrimEdge::Start)),
+        StageCommand::MarkTrimEnd => Some(MediaIn::Mark(TrimEdge::End)),
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
@@ -177,6 +210,17 @@ fn text(command: StageCommand) -> Option<TextIn> {
         | StageCommand::ZoomToActual
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
-        | StageCommand::SeekForward => None,
+        | StageCommand::SeekForward
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextChapter
+        | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd => None,
     }
 }

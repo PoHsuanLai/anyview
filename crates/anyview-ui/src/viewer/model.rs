@@ -71,6 +71,9 @@ pub enum ViewerIn {
     Navigate(NavigateIn),
     /// How the viewer is on screen.
     Presentation(PresentationIn),
+    /// The window was opened in this presentation: it is so from the start, and nothing is
+    /// asked of the host (it made the window that way).
+    StartAs(Presentation),
     /// The stage showing the file.
     Stage(StageIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the
