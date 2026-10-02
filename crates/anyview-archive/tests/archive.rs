@@ -125,7 +125,7 @@ fn a_stream_larger_than_the_budget_lists_what_fits_and_says_there_may_be_more() 
     let EntryCount::AtLeast(counted) = listing.count else {
         panic!("a cut stream has a lower bound, not {:?}", listing.count);
     };
-    assert!(counted >= 5 && counted < 200, "{counted}");
+    assert!((5..200).contains(&counted), "{counted}");
     assert_eq!(listing.entries[0].path, "file000.txt");
 }
 

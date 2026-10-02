@@ -4,7 +4,9 @@ use crate::described::Described;
 use crate::error::PeekError;
 use crate::folder::FolderSummary;
 use crate::pdf::PdfPeeked;
+use anyview_archive::ArchivePeeked;
 use anyview_core::Peek;
+use anyview_font::FontPeeked;
 use anyview_image::ImagePeek;
 use anyview_text::{CodePeeked, MarkdownPeeked, PlainPeeked, TablePeeked, TreePeeked};
 use std::sync::Arc;
@@ -28,6 +30,10 @@ pub enum Body {
     Table(TablePeeked),
     /// The top level of a JSON tree.
     Tree(TreePeeked),
+    /// An archive's first entries.
+    Archive(ArchivePeeked),
+    /// A font's specimen.
+    Font(FontPeeked),
     /// A folder's counts.
     Folder(FolderSummary),
     /// Nothing to draw but the facts: the kind has no back end yet.
@@ -78,6 +84,18 @@ impl From<TreePeeked> for Body {
     }
 }
 
+impl From<ArchivePeeked> for Body {
+    fn from(peeked: ArchivePeeked) -> Self {
+        Body::Archive(peeked)
+    }
+}
+
+impl From<FontPeeked> for Body {
+    fn from(peeked: FontPeeked) -> Self {
+        Body::Font(peeked)
+    }
+}
+
 impl From<FolderSummary> for Body {
     fn from(peeked: FolderSummary) -> Self {
         Body::Folder(peeked)
@@ -107,6 +125,8 @@ impl Body {
             Body::Markdown(_) => "markdown",
             Body::Table(_) => "table",
             Body::Tree(_) => "tree",
+            Body::Archive(_) => "archive",
+            Body::Font(_) => "font",
             Body::Folder(_) => "folder",
             Body::FactsOnly(_) => "facts",
             Body::Unavailable(_) => "unavailable",

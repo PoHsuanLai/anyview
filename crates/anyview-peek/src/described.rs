@@ -1,9 +1,9 @@
 //! The peek of a kind whose back end does not exist yet: what the file is, from its sniffed type.
 //!
-//! Video, audio, fonts, archives, books, office documents and files of a type nothing opens are
+//! Video, audio, books, office documents and files of a type nothing opens are
 //! each mapped from day one (ARCHITECTURE section 3, rule 3). Until their back ends land they
 //! show what sniffing established, plus the size and date every pane lists, and nothing is
-//! pretended: no duration, no listing, no specimen. A back end replaces its marker's `Peek` impl
+//! pretended: no duration, no cover. A back end replaces its marker's `Peek` impl
 //! with a real one and the registry's arm names the new type.
 
 use anyview_core::{
@@ -96,28 +96,6 @@ impl Describes for AudioKind {
 
 /// The facts-only peek of the kind `Audio`.
 pub type AudioPeek = FactsPeek<AudioKind>;
-
-/// The kind `Font`.
-#[derive(Debug, Clone, Copy)]
-pub struct FontKind;
-
-impl Describes for FontKind {
-    const KIND: FormatKind = FormatKind::Font;
-}
-
-/// The facts-only peek of the kind `Font`.
-pub type FontPeek = FactsPeek<FontKind>;
-
-/// The kind `Archive`.
-#[derive(Debug, Clone, Copy)]
-pub struct ArchiveKind;
-
-impl Describes for ArchiveKind {
-    const KIND: FormatKind = FormatKind::Archive;
-}
-
-/// The facts-only peek of the kind `Archive`.
-pub type ArchivePeek = FactsPeek<ArchiveKind>;
 
 /// The kind `Book`.
 #[derive(Debug, Clone, Copy)]
