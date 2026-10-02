@@ -201,17 +201,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The bus tests need `dbus-daemon`.** The bus tests start one with a private configuration and skip
   with a message on stderr when the program is missing, so a machine without it passes without running them.
   Ends when CI is known to have `dbus-daemon`: make a missing one a failure.
-- **A raised `Stop` reaches pdfrum only between tiles and pages.** pdfrum's per-render stop is a
-  `Deadline` with its own flag, and `Deadline` has no constructor from an existing flag, so the core
-  `Stop`'s flag cannot be the one pdfrum polls inside a draw. `Halt` checks the flag before each tile and
-  each page, and hands pdfrum a `Deadline::at(stop.deadline())`, which does end a draw between the
-  objects of a tile. A tile is at most 512 by 512 pixels, so a raised flag costs at most one tile. Ends if
-  pdfrum adds `Deadline::from_flag(Arc<AtomicBool>)`, or if a tile of a very heavy page proves slow: the
-  flag then becomes pdfrum's.
-- **A page is read once per batch of tiles, not once per zoom.** pdfrum's `PreparedPage` borrows the
-  document, so a worker cannot keep one between jobs: `Schedule::batches` makes one job per page, and the
-  page is prepared (interpreted) again for the next job. Ends if pdfrum offers an owned prepared page
-  (like `OwnedPage`), which `PdfWorker` would then cache for the zoom it is drawing at.
 - **Page size is truncated twice.** The rasterizer truncates a page's device size from a float product;
   the scheduler holds sizes in thousandths of a point and plans from one pixel more than it computes, so it
   never leaves a tile out. The render cuts each tile to the real size and leaves out one that starts past
@@ -379,3 +368,14 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The runtime adds no dependency.** The pool is `std::thread`, a `Mutex` with a `Condvar` and two
   queues; the mailbox and the actor are a `Mutex` and `std::sync::mpsc`. `crossbeam` and `flume` are in
   the lock only through other crates, and a pool with two lanes and one shared queue needs neither.
+- **A raised `Stop` is the flag pdfrum polls.** `Halt` hands pdfrum `Deadline::from_flag(stop.flag())`
+  (`Stop::flag` shares the core `Stop`'s own `Arc<AtomicBool>`), with `.with_budget(..)` when the `Stop`
+  has a deadline. A raise from any thread ends a draw between the drawn objects of a tile, and pdfrum
+  answers `LimitExceeded::Stopped` (or `Time` for the budget), which is `End::Stopped`, never `Failed`.
+  pdfrum never lowers a flag, so a `Stop` is one job's: a worker makes a `Halt` per job. Reading a page
+  (preparing it) is not interruptible by the session's deadline, so a stop that lands there is noticed
+  when the read ends, and a page read cut short is not kept.
+- **A worker reads a page once per zoom.** `PdfWorker` keeps the `OwnedPreparedPage` of its last tile
+  batch, keyed by (document, page, zoom bucket), and reads again only when that key changes. It holds the
+  document's `Arc` through the page; the cache is dropped when the worker is given another document.
+  `PdfWorker::pages_prepared` counts the readings, which is how a test sees the reuse.
