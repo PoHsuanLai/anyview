@@ -123,6 +123,44 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
   facts and Open With…. Ends per type when a family holds it.
+- **`anyview-pdf` carries a local copy of the threading contract.** `work_shim.rs` holds `Backend`,
+  `Stop`, `StopState` and `Ticket` in the shape the plan's section 4b describes, because
+  `anyview_core::work` is being added on another branch. The constructors of `Stop` (`new`,
+  `with_deadline`, `raise`) are the copy's own. Ends at the merge: delete the file and import the four
+  names from `anyview_core`.
+- **A raised `Stop` reaches pdfrum only between tiles and pages.** pdfrum's per-render stop is a
+  `Deadline` with its own flag, and `Deadline` has no constructor from an existing flag, so the core
+  `Stop`'s flag cannot be the one pdfrum polls inside a draw. `Halt` checks the flag before each tile and
+  each page, and hands pdfrum a `Deadline::at(stop.deadline())`, which does end a draw between the
+  objects of a tile. A tile is at most 512 by 512 pixels, so a raised flag costs at most one tile. Ends if
+  pdfrum adds `Deadline::from_flag(Arc<AtomicBool>)`, or if a tile of a very heavy page proves slow: the
+  flag then becomes pdfrum's.
+- **A page is read once per batch of tiles, not once per zoom.** pdfrum's `PreparedPage` borrows the
+  document, so a worker cannot keep one between jobs: `Schedule::batches` makes one job per page, and the
+  page is prepared (interpreted) again for the next job. Ends if pdfrum offers an owned prepared page
+  (like `OwnedPage`), which `PdfWorker` would then cache for the zoom it is drawing at.
+- **Page size is truncated twice.** The rasterizer truncates a page's device size from a float product;
+  the scheduler holds sizes in thousandths of a point and plans from one pixel more than it computes, so it
+  never leaves a tile out. The render cuts each tile to the real size and leaves out one that starts past
+  it, and the scheduler cuts a tile's area to the page as laid out so the spare pixel never makes a tile
+  look visible. A scheduled tile that does not exist is therefore silently absent from its batch's result.
+- **Search finds within a page's text and a phrase across lines, not across pages.** `search_document`
+  loops pages on the caller's worker and extracts each page's text every time; nothing is cached between
+  searches. Ends if repeated finds on a large document are slow: keep each page's `TextPage` (or its
+  search text) in the worker.
+- **A PDF's outline and links keep only pages of the document.** A link to a web address is `Uri`; a named
+  action, a script, another file or a page the document lacks is `Other`; a bookmark that leads to none
+  of this document's pages has `page: None`. Nothing in the crate opens a URI.
+- **Page edits rewrite the whole file, one edit at a time.** `apply` writes the file after each edit and
+  opens it again for the next (pdfrum's `reorder_pages` and `delete_pages` number pages as the document was
+  opened). A long chain of edits costs one full write each. Ends if that matters: fold the chain into one
+  page order, a deletion set and a rotation per page before writing.
+- **Rotating a page adds to the turn it has.** `PageOp::Rotate` is relative, as `Edit::Rotate` is; the
+  file stores the sum as `/Rotate`. A flip is not an edit a PDF takes (`edits_for(Pdf)` omits it), and
+  `page_op` refuses it.
+- **Deleting a page drops what points at it.** pdfrum's `delete_pages` removes the page objects with the
+  next full save's garbage collection; an outline entry or link that led to a deleted page then leads
+  nowhere (`OutlineEntry::page` is `None`, a link is `Other`).
 
 ## Standing facts
 
@@ -176,3 +214,23 @@ on. It is a reference, not a log: how each was found lives in git history.
   `getrandom` 0.3 and 0.4 and `r-efi` 5 and 6 (`rand` under `rav1e` beside `tempfile`).
 - **JPEG XL fixtures are made with ffmpeg's `libjxl`** (`-distance 0`, lossless); `cjxl` is not
   installed. The AVIF fixture exists but is decoded only under the `avif` feature.
+- **pdfrum is pinned at 048515cd (PR #101), through quire.** Its `thiserror` and `smallvec` are exact
+  pins one patch ahead of quire's older lock, so quire's `Cargo.lock` moved with the pin. The facade is
+  built without `edit` and `forms`: page edits and page-range writes go through `pdfrum-edit` directly,
+  and the `markdown` feature (plain-layout text and Markdown) is added by `anyview-pdf`'s manifest.
+- **Tiles equal the whole page.** At a zoom bucket's scale, a tile drawn with `Region::Rect` is byte for
+  byte the same region of a whole-page render on the vello-cpu backend (the test compares them at 72 and
+  144 dpi); pdfrum documents an occasional one-count difference on an antialiased edge, which these
+  fixtures do not show. A page's device size is the truncated float product, as pdfrum computes it.
+- **Page pixels are premultiplied and opaque.** pdfrum's `Pixmap` is premultiplied RGBA8, the form the
+  texture layer uploads; a page is drawn on a white background, so alpha is 255 everywhere and straight
+  equals premultiplied. `Raster::straight_rgba` is the form `anyview-image`'s encoders take.
+- **Zoom buckets are four to the doubling.** Bucket 0 is 1000 permille, every fourth step doubles, the
+  ladder runs from 11 to 64000 permille (the viewer's zoom limits), and a shown scale draws at the lowest
+  bucket at or above it, so the compositor only scales down.
+- **pdfrum's enums are non-exhaustive** (`LinkTarget`, `Error`), and the workspace denies wildcard arms.
+  The crate matches the one or two cases it names with `matches!` and `if let` and sends the rest to
+  `Other` or `PdfError::Pdf`, rather than writing a wildcard arm.
+- **The test fixture is built in memory.** `tests/support/mod.rs` writes a three-page PDF (text on each
+  page, an outline of four entries, a link to a page and a link to a web address, a filled rectangle) with
+  a correct cross-reference table, about 2.5 KB; no binary fixture is committed.
