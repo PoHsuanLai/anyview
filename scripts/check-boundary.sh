@@ -19,11 +19,15 @@ cd "$(dirname "$0")/.."
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
+# anyview-platform is the edge: it alone names the bus and the freedesktop formats (checked for every
+# other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
+# the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
   "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
+  "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
 )
 fail=0
@@ -62,6 +66,7 @@ EDGES=(
   "anyview-ui: anyview-core ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
+  "anyview-platform: anyview-core ds-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
@@ -74,6 +79,30 @@ for edge in "${EDGES[@]}"; do
     fail=1
   else
     echo "edges hold: $crate depends on [${found% }]"
+  fi
+done
+
+# Only anyview-platform names the bus or the freedesktop formats (ARCHITECTURE.md section 1): every
+# other crate in crates/ must reach none of them, however indirectly.
+EDGE_ONLY=(zbus ashpd freedesktop-desktop-entry freedesktop-icons freedesktop-file-parser)
+for dir in crates/*/; do
+  crate="$(basename "$dir")"
+  [ "$crate" = "anyview-platform" ] && continue
+  if ! cargo tree -p "$crate" --depth 0 >/dev/null 2>&1; then
+    echo "ERROR: cargo tree cannot resolve $crate; the platform-only names were not checked"
+    fail=1
+    continue
+  fi
+  leaked=0
+  for dep in "${EDGE_ONLY[@]}"; do
+    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+      echo "LEAK: $crate reaches $dep, which only anyview-platform may name"
+      leaked=1
+      fail=1
+    fi
+  done
+  if [ "$leaked" -eq 0 ]; then
+    echo "platform-only names held: $crate reaches none of ${EDGE_ONLY[*]}"
   fi
 done
 
