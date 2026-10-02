@@ -44,7 +44,7 @@ pub(crate) fn frame_delay(numerator: u32, denominator: u32) -> MediaTime {
 }
 
 /// The size an image file declares, read from its header only.
-fn declared_size(bytes: &[u8], format: ImageFormat) -> Result<PixelSize, ImageError> {
+pub(crate) fn declared_size(bytes: &[u8], format: ImageFormat) -> Result<PixelSize, ImageError> {
     let (width, height) = ImageReader::with_format(Cursor::new(bytes), format)
         .into_dimensions()
         .map_err(|e| decode_error(e, None))?;
