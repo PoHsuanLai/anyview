@@ -211,6 +211,9 @@ mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "a5b79
 # Blocks on the headless wgpu device's futures in that spike: Apache-2.0 OR MIT.
 pollster = "0.4"
 
+# `anyview`: moving a file to the freedesktop trash, in one call. Pure Rust on Linux (no bus): MIT.
+trash = "5"
+
 # The local checkouts the sibling repos build against (quire/CONSUMING.md section 1): blitz-kit from
 # its sibling directory, so every path-linked repo builds one copy, and the vello and anyrender
 # forks (branch quire-filters) that make every CSS `filter` function paint on both backends.
