@@ -1,5 +1,7 @@
 use super::*;
 use ds_core::word::Word;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 enum Act {
@@ -82,6 +84,21 @@ fn a_clone_shares_the_flag() {
     assert_eq!(worker_side.stopped(), StopState::Running);
     stop.request();
     assert_eq!(worker_side.stopped(), StopState::Stopped);
+}
+
+#[test]
+fn the_flag_is_the_one_every_clone_shares() {
+    let stop = Stop::new();
+    let flag = stop.flag();
+    let worker_side = stop.clone();
+    assert!(!flag.load(Ordering::Acquire));
+    stop.request();
+    assert!(flag.load(Ordering::Acquire));
+    assert!(Arc::ptr_eq(&flag, &worker_side.flag()));
+    // Raising the flag from outside is a request too.
+    let other = Stop::new();
+    other.flag().store(true, Ordering::Release);
+    assert_eq!(other.stopped(), StopState::Stopped);
 }
 
 #[test]
