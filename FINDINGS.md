@@ -150,24 +150,21 @@ on. It is a reference, not a log: how each was found lives in git history.
   outline), and the registry's one match on `FormatKind` supplies the `StageFamily`. Ends if the panel's
   tabs are wanted before a file is open (the launcher's pane): then `PanelTab` moves to `anyview-core` and
   `profile/table.rs` gets the column.
-- **A still picture has a first frame only when the host lends one.** `anyview-image` decodes a JPEG or a PNG
-  whole to make even a peek, so a first frame from it would cost what the open costs. The first frame of a
-  still comes from `FirstFrameSource` (the host's thumbnail cache), and of a GIF, a WebP or an SVG from the peeks
-  of `anyview-image`; without the seam a still opens in one step. Ends when the binary implements
-  `FirstFrameSource` over `ThumbnailCache`, or `anyview-image` decodes a JPEG at a reduced size.
-- **The host must carry out `HostRequest::Watch` and `Unwatch`, read `Work::lane`, and lend its seams.** The
-  watcher (`notify`) is the binary's, so a window reloads a changed file only once the binary calls
-  `Edge::changed` for it; `Work::lane` says which jobs are `WorkLane::Preload`, and a pool that puts every job on
-  the visible lane lets a neighbour's open hold up the file the person is waiting for; where files were left is
-  read through `ResumeSource` (`Edge::with_resume_source`), which without one remembers nothing. Ends when the
-  binary does all four.
+- **A still picture has a first frame only when the shared thumbnail cache has one.** `anyview-image` decodes a
+  JPEG or a PNG whole to make even a peek, so a first frame from it would cost what the open costs. The first
+  frame of a still is the cache's (`host/pictures.rs`, over the freedesktop cache, large then normal), so only a
+  file some program has already thumbnailed has one, and the viewer writes none; a GIF, a WebP or an SVG have
+  peeks of `anyview-image`. Ends when `anyview-image` decodes a JPEG at a reduced size, or the viewer stores the
+  thumbnail it makes.
 - **A page of wrapped text is an estimate.** A line wraps where the stylesheet breaks it; how many lines fit a
   page (the size of a page step, and the lines a window reads) is counted from the width of one glyph of the
   code face (`families/text/wrap.rs`), so a line that breaks a row earlier or later than that makes a page step
   a line short or long. Ends when the renderer can report a laid-out line's height.
-- **Home, End and the up and down arrows belong to a text while it shows.** They scroll it (the stage is asked
-  before navigation is), so a text file is left by the left and right arrows only; every other kind of file
-  keeps Home and End for the first and last file. Ends with the keymap setting (the stage keys item below).
+- **Home, End and the up and down arrows belong to a text or a PDF while it shows.** They scroll it (the stage is
+  asked before navigation is), so such a file is left by the left and right arrows only; every other kind of
+  file keeps Home and End for the first and last file. A PDF's Home and End go to the top of its first and last
+  page, and a line key moves it a fixed eightieth of a page (`stage/pdf/place.rs`), whatever the zoom. Ends with
+  the keymap setting (the stage keys item below).
 - **A first frame of a text is only its start.** The first 256 KiB are indexed, so a Markdown file shows as its
   source until the page is rendered, the facts list no line count, a line remembered beyond the start is blank
   until the open lands, and a find waits for the whole file. Ends if a start must be searchable.
@@ -184,10 +181,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   zip-based file fails with `Unsupported` instead of opening as an archive or a document.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
-- **Neighbours are not preloaded and view memory is not restored.** `ViewerOut::Preload` is ignored, and
-  `Launch` carries no `Resume`, so the saved place is never applied. The binary saves it (`HostRequest::Remember`
-  becomes `Store::remember`) and can read it back (`Hosting::resume`, blocking, for a worker); the window ends
-  the gap when `Launch` gains the resume and the open applies it.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
   Ends when they are added there (quire FINDINGS).
 - **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 9 v w Space ⇧← ⇧→
@@ -210,11 +203,16 @@ on. It is a reference, not a log: how each was found lives in git history.
   maps each `PeekOnly` kind to the facts-and-Open-With… view, and a test holds the two tables equal. Each
   row changes with the stage that lands: video and audio with `anyview-media`, and the registry names the
   new view in the same change.
-- **Every PDF scroll is a `HostRequest::Remember`, and the host writes each one.** The stage machine emits
-  `PdfOut::Remember` for each `Scroll` input and the window forwards it, so a wheel makes dozens a second, and
-  the binary's `Task::Remember` is a blocking store write apiece. The text stage does the same per line.
-  Ends when the host keeps the latest and writes it once the reader has rested, or the machine keeps a timer
-  for it.
+- **A place is written at most every 500 ms.** Every settled gesture of a stage says `HostRequest::Remember`
+  (a PDF's wheel and a text's scroll make dozens a second), so the host keeps the latest place of each file
+  (`host/remembering.rs`) and writes it `REMEMBER_EVERY` after the first, on the blocking pool, and what is still
+  waiting when the program ends is written by `Hosting::flush`. A place said in the last half second before a
+  crash is lost. The interval is a constant until the viewer has settings (a `viewer.*` key).
+- **A changed file is told to its window after 150 ms of quiet.** The program's one watcher (`host/watch.rs`,
+  `notify`) watches the folder of each window's file, keeps the events that name the file and lets a burst settle
+  for `SETTLE` before it calls `Edge::changed`; a file renamed in the viewer is followed, but a folder that is
+  removed or unmounted ends the watch without a word. The interval is a constant until the viewer has settings
+  (a `viewer.*` key).
 - **A PDF link's web address is declined.** `HostRequest::OpenUri` reaches the host, which answers
   `Declined::OpenUri`: `anyview-platform` has no trait for opening an address (the portal's `OpenURI`, or
   `xdg-open`) to carry it out. Ends when it has one.
@@ -225,9 +223,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   every page, but a thumbnail is drawn for the 12 pages either side of the reader's (`panel.rs`), because
   the panel has no list that tells the view which rows are on screen; the outline lists every bookmark
   with its depth and ignores `Disclosure`. Ends when quire has a windowed list and the outline a fold.
-- **The arrow keys, Home and End do not scroll a PDF.** The stage commands are the page keys and zoom; a line
-  step needs a `StageCommand` and a `PdfIn` for it. Ends with that input (the text stage's item above is the
-  same gap).
 - **A password-protected PDF is `LoadFailure::Unsupported`.** The viewer has no way to ask for a password;
   `PdfDocument::open_with_password` is there for the sheet that will. Ends with that sheet.
 - **pdfrum draws a 1 px blue box round every link annotation,** even when its `/Border` is `[0 0 0]`: the

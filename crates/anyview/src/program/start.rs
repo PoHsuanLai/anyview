@@ -3,12 +3,12 @@
 use super::relay::{open_each, relay};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
-use crate::host::{Clock, LinuxDesktop, Store};
+use crate::host::{CachedPictures, Clock, Hosting, LinuxDesktop, SETTLE, Store, Watcher};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
 use crate::window::{Factory, Inbox, Opening, Seed, first_root};
 use anyview_core::FilePath;
-use anyview_platform::linux::DbusInstance;
+use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails};
 use anyview_platform::{Env, Request};
 use anyview_store::Viewed;
 use ds::prelude::Appearance;
@@ -119,11 +119,17 @@ fn show(
     });
     let store = Store::new(&env.dirs.data.join(STORE_FOLDER), clock());
     let hosting = Arc::new(LinuxDesktop::linux(runtime.handle().clone(), &env, store));
-    let factory = Factory {
-        workers: workforce.workers(),
-        hosting,
-        appearance: Appearance::default(),
-    };
+    let watcher = Watcher::start(SETTLE)
+        .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))
+        .ok()
+        .map(Arc::new);
+    let factory = Factory::new(
+        workforce.workers(),
+        Arc::clone(&hosting) as Arc<dyn Hosting>,
+        Arc::new(CachedPictures(FreedesktopThumbnails::new(&env))),
+        watcher,
+        Appearance::default(),
+    );
     let title = first
         .file
         .file_name()
@@ -137,6 +143,8 @@ fn show(
         })
         .with_context(Inbox::new(inbox));
     launch(first_root, config);
+    // The places still waiting to be kept are written before the runtime that waits on them ends.
+    hosting.flush();
     drop(workforce);
     // The relay and the report task wait on channels that never close; end them with the process.
     runtime.shutdown_background();

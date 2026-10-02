@@ -105,6 +105,18 @@ fn requests_of_a_window(
             }),
         ),
         (
+            "the window is told when the file it shows changes",
+            open(image),
+            HostRequest::Watch(path(image)),
+            Carry::Window(WindowTask::Watch(path(image))),
+        ),
+        (
+            "and is told nothing once it shows none",
+            open(image),
+            HostRequest::Unwatch,
+            Carry::Window(WindowTask::Unwatch),
+        ),
+        (
             "a link's web address waits for the edge to have a way to open it",
             open(pdf),
             HostRequest::OpenUri("https://example.com/".to_owned()),

@@ -42,6 +42,10 @@ pub enum WindowTask {
     Close,
     /// Put this text on the clipboard.
     CopyText(String),
+    /// Tell the window when this file changes on disk, instead of the one it watched.
+    Watch(FilePath),
+    /// Stop telling the window about changes.
+    Unwatch,
 }
 
 /// Work for the desktop. Each names the file it is about: the window may move on while a task
@@ -98,7 +102,8 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
                 resume,
             })
         }),
-        HostRequest::Watch(_) | HostRequest::Unwatch => declined(shown, Declined::Watch),
+        HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
+        HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
         HostRequest::Run(action) => run(shown, action),
     }
 }
