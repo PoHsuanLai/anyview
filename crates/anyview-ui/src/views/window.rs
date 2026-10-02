@@ -11,6 +11,7 @@ use super::effects::{use_announce, use_work};
 use super::keys::{keys_of, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
+use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, params};
 use super::sheet::{ExportSheet, RenameSheet, TrashSheet};
 use super::shelf::{Dispatch, Shelf, use_area};
@@ -18,8 +19,8 @@ use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
     ChromeIn, Command, Launch, Load, NavigateIn, Palette as PaletteState, PaletteIn, Panel,
-    PanelIn, PanelTab, Sheet, SheetIn, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn,
-    Zone,
+    PanelIn, PanelTab, Presentation, Sheet, SheetIn, StageCommand, StageCx, StageIn, TypedText,
+    Viewer, ViewerIn, Zone,
 };
 use anyview_core::FilePath;
 use dioxus::prelude::*;
@@ -68,12 +69,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     };
     let mut slot = slot;
     slot.set(Some(dispatch));
+    let window = use_hook(try_consume_context::<WindowHost>);
     let mut zone = use_signal(|| Zone::Content);
     let mut root = use_signal(|| None::<Rc<MountedData>>);
 
     // The window opens its file once it has drawn.
     let first = launch.clone();
     use_effect(move || {
+        dispatch.send(ViewerIn::StartAs(first.presentation));
         if let Some(sequence) = first.sequence.clone() {
             dispatch.send(ViewerIn::Navigate(NavigateIn::Start(sequence)));
         }
@@ -107,6 +110,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     });
 
     let state = machine.state()();
+    let presentation = state.presentation;
     let finding = state.stage.is_finding();
     // The keys belong to the window again once the find that held them is closed.
     use_effect(use_reactive!(|finding| {
@@ -139,6 +143,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         work: EventHandler::new(move |job: Job| worker.submit(job)),
         request: EventHandler::new(move |request: HostRequest| requester.request(request)),
         pdf: shelf.pdf,
+        media: shelf.media,
         frame: FrameLook {
             attributes: format!(
                 "data-theme=\"{}\" data-accent=\"{}\" data-motion=\"{}\" data-material=\"window\"",
@@ -217,6 +222,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             div {
                 class: "viewer-stage",
                 onmounted: move |event| measured.on_mounted(event),
+                // The small window has no frame to take hold of: a press on the picture moves it.
+                onpointerdown: move |_| {
+                    if let (Presentation::Mini, Some(window)) = (presentation, window.as_ref()) {
+                        window.host().begin_move();
+                    }
+                },
                 Loadable { phase,
                     if let Some((_, doc)) = current.as_ref() {
                         {doc.view().stage(&cx)}
@@ -227,15 +238,23 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         slots,
                         shown: chrome,
                         onpick: move |command: Command| dispatch.send(ViewerIn::Run(command)),
+                        onscrub: move |event| scrubbed(dispatch, event),
+                        onlevel: move |at| levelled(dispatch, at),
                         onpointerenter: move |()| zone.set(Zone::Capsule),
                         onpointerleave: move |()| zone.set(Zone::Content),
                     }
                 }
-                Titlebar {
-                    title,
-                    shown: chrome,
-                    onpointerenter: move |()| zone.set(Zone::Capsule),
-                    onpointerleave: move |()| zone.set(Zone::Content),
+                // The small borderless window has no titlebar: the picture is what is dragged.
+                match keyed.presentation {
+                    Presentation::Mini => rsx! {},
+                    Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
+                        Titlebar {
+                            title,
+                            shown: chrome,
+                            onpointerenter: move |()| zone.set(Zone::Capsule),
+                            onpointerleave: move |()| zone.set(Zone::Content),
+                        }
+                    },
                 }
             }
             InfoPanel {

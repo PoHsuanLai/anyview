@@ -59,7 +59,13 @@ pub(super) fn use_work(c: &Carry) {
         let Probe::Announced(held, probed) = probe else {
             return;
         };
-        if probed.family == StageFamily::Raster && !ready {
+        // A picture is uploaded to the window's device, and a player draws on it: neither can
+        // start before the window has one.
+        let needs_device = match probed.family {
+            StageFamily::Raster | StageFamily::Media => true,
+            StageFamily::Pdf | StageFamily::Text | StageFamily::PeekOnly => false,
+        };
+        if needs_device && !ready {
             return;
         }
         if let Some(ticket) = peeking.filter(|ticket| *ticket == held) {

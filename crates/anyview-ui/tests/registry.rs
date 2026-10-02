@@ -30,6 +30,8 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
         ("plain text", FormatKind::PlainText, StageFamily::Text),
         ("a table", FormatKind::Table, StageFamily::Text),
         ("json", FormatKind::Tree, StageFamily::Text),
+        ("a video", FormatKind::Video, StageFamily::Media),
+        ("a song", FormatKind::Audio, StageFamily::Media),
         ("an archive", FormatKind::Archive, StageFamily::PeekOnly),
         ("a folder", FormatKind::Folder, StageFamily::PeekOnly),
         ("something else", FormatKind::Other, StageFamily::PeekOnly),

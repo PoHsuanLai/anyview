@@ -4,6 +4,7 @@
 //! side panel waits to be asked for.
 
 use super::window::ViewerWindow;
+use crate::Presentation;
 use anyview_core::{FilePath, Sequence};
 use dioxus::prelude::*;
 use ds::prelude::*;
@@ -18,6 +19,8 @@ pub struct Launch {
     pub sequence: Option<Sequence>,
     /// How the window looks: theme, accent, motion.
     pub appearance: Appearance,
+    /// How the window is on screen: a window, or the small borderless one of a recording.
+    pub presentation: Presentation,
 }
 
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
@@ -26,6 +29,7 @@ pub fn stylesheet() -> String {
         include_str!("style.css"),
         crate::families::TOKEN_CSS,
         crate::families::PDF_CSS,
+        crate::families::MEDIA_CSS,
     ]
     .join("\n")
 }

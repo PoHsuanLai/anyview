@@ -1,0 +1,16 @@
+/* The media stage: the picture or the album card filling the room, the status word over it, the
+   cover that takes the click, the side panel's lists. Tokens only. An album card takes its colour
+   from `data-accent`, so one accent's tokens colour the whole card. */
+
+.viewer-media{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
+.viewer-media[*|data-picture=present]{ background:var(--ink); }
+.viewer-media-card{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-16); background:var(--accent-soft); text-align:center; }
+.viewer-media-title{ margin:0; max-width:100%; font-family:var(--font-ui); font-size:var(--fs-display); color:var(--accent-text); overflow-wrap:anywhere; }
+.viewer-media-artist{ margin:0; font-size:var(--fs-title); color:var(--ink); }
+.viewer-media-album{ margin:0; font-size:var(--fs-body); color:var(--ink-soft); }
+.viewer-media-status{ position:absolute; left:0; right:0; bottom:var(--s-36); margin:0; text-align:center; color:var(--ink-soft); font-size:var(--fs-small); pointer-events:none; }
+.viewer-media-cover{ position:absolute; inset:0; }
+
+.viewer-tracks{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8); }
+.viewer-tracks-heading{ margin:0; color:var(--ink-faint); font-size:var(--fs-small); }
+.viewer-chapters{ display:flex; flex-direction:column; padding:var(--s-8); }

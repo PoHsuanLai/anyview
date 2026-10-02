@@ -30,6 +30,9 @@ pub struct OpenLink {
     pub highlighter: Arc<Highlighter>,
     /// The host's small pictures, for a first frame.
     pub first_frames: Arc<dyn FirstFrameSource>,
+    /// The host's players, when this open may start one: a file opened ahead of the person never
+    /// plays, so a preload carries none.
+    pub(crate) media: Option<super::MediaPort>,
 }
 
 /// A file whose type was read: what to open, how it was sniffed, which stage shows it and where
@@ -153,6 +156,8 @@ pub enum Done {
     Changed { path: FilePath },
     /// What a PDF task made, for the load that asked.
     Pdf { ticket: Ticket, answer: PdfAnswer },
+    /// The player of the load `ticket` has news: the window drains its line.
+    Media { ticket: Ticket },
 }
 
 impl Job {

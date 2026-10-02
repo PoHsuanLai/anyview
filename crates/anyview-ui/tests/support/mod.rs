@@ -1,12 +1,16 @@
 //! A viewer window under the harness: workers that run each job where it is submitted, a scratch
 //! folder of real files for the arrow keys to walk, and the requests the window made of its host.
-#![allow(dead_code, clippy::unwrap_used)]
+#![allow(dead_code, unused_imports, clippy::unwrap_used)]
+
+mod player;
 
 use anyview_core::{FilePath, FileStamp, NonEmpty, Resume, Sequence, SequenceOrigin};
 use anyview_image::Rgba8;
+pub use player::{Answer, FakeLine, FakePlayer};
+
 use anyview_ui::{
-    Edge, FirstFrameSource, HostRequest, Launch, ResumeSource, ViewerApp, Work, WorkKind, WorkLane,
-    Workers,
+    Edge, FirstFrameSource, HostRequest, Launch, MediaHost, Presentation, ResumeSource, ViewerApp,
+    Work, WorkKind, WorkLane, Workers,
 };
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
@@ -234,6 +238,10 @@ pub struct Wiring {
     pub memory: Option<Arc<Memory>>,
     /// The host's small pictures; none when none.
     pub pictures: Option<Arc<Pictures>>,
+    /// The host's players; none when none.
+    pub player: Option<Arc<FakePlayer>>,
+    /// How the window is on screen.
+    pub presentation: Presentation,
 }
 
 /// A viewer window opened on `paths[at]` with the whole list to walk.
@@ -277,10 +285,14 @@ pub fn wired(
     if let Some(pictures) = wiring.pictures {
         edge = edge.with_first_frames(pictures);
     }
+    if let Some(player) = wiring.player {
+        edge = edge.with_media(player as Arc<dyn MediaHost>);
+    }
     let launch = Launch {
         file: current,
         sequence: Some(sequence),
         appearance,
+        presentation: wiring.presentation,
     };
     let config = HarnessConfig::new(VIEW)
         .with_clock(Clock::Virtual)

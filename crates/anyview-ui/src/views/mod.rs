@@ -11,6 +11,7 @@ mod keys;
 mod palette;
 mod panel;
 mod preloads;
+mod scrub;
 mod session;
 mod sheet;
 mod shelf;
