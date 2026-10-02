@@ -73,6 +73,15 @@ pub enum Done {
 }
 
 impl Job {
+    /// The load this job belongs to.
+    pub fn ticket(&self) -> Ticket {
+        match self {
+            Job::Probe { ticket, .. } | Job::Open { ticket, .. } | Job::Lines { ticket, .. } => {
+                *ticket
+            }
+        }
+    }
+
     /// Do the work, blocking until it is done.
     pub fn run(self) -> Done {
         match self {

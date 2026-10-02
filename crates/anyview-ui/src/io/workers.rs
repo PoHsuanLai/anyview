@@ -4,9 +4,9 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::job::{Done, Job};
+use super::job::{Done, Job, Probed};
 use crate::sheet::ExportDraft;
-use crate::{Presentation, TypedText};
+use crate::{Presentation, Ticket, TypedText};
 use anyview_core::{FileAction, Resume};
 use anyview_text::Highlighter;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -31,6 +31,11 @@ impl std::fmt::Debug for Work {
 }
 
 impl Work {
+    /// The load this work belongs to: the pool tags its own delivery with it.
+    pub fn ticket(&self) -> Ticket {
+        self.job.ticket()
+    }
+
     /// Do the job, blocking, and post what it made to the window that asked.
     pub fn run(self) {
         let Work { job, reply } = self;
@@ -54,6 +59,9 @@ impl Reply {
 /// cannot do itself (they touch the platform, the file system or the window).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostRequest {
+    /// The window now shows this file: the host records it as viewed, and it is the file the
+    /// requests below that name none refer to.
+    Opened(Probed),
     /// Carry out a file action on the open file (reveal it, copy it, open it with, print it…).
     Run(FileAction),
     /// Choose another file to open.

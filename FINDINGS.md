@@ -169,11 +169,11 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
 - **Neighbours are not preloaded and view memory is not restored.** `ViewerOut::Preload` is ignored, and
-  `HostRequest::Remember` is a request with no store behind it here (`anyview-store` is the binary's).
+  `Launch` carries no `Resume`, so the saved place is never applied. The binary saves it (`HostRequest::Remember`
+  becomes `Store::remember`) and can read it back (`Hosting::resume`, blocking, for a worker); the window ends
+  the gap when `Launch` gains the resume and the open applies it.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
   Ends when they are added there (quire FINDINGS).
-- **The dev example's pool is a throwaway** (`crates/anyview-ui/examples/viewer.rs`). The binary owns the
-  real one.
 - **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 v w Space ⇧← ⇧→
   PageUp PageDown ⌘F ⌘G ⇧⌘G`. Ends when the viewer has a keymap setting; the palette shows the
   same keys.
@@ -273,6 +273,77 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A pool shared by several back ends has one worker scratch per back end per thread.** A back end whose
   scratch is large (pdfrum's `RenderSession` caches) is held by every worker that ran one of its jobs, up
   to the pool size. Ends if memory shows it: give that back end its own smaller `Pool`.
+- **Closing the first window ends the program, so it cannot stay warm.** ds-blitz's event loop ends with the
+  window `launch` opened and drops every window opened later with it (`window_shell.rs`, `CloseStep::
+  DropExtrasThenEnd`). So `viewer.warm_for` (10 minutes by default, `program::WARM_FOR`, a constant here) is not
+  honoured, a second window dies with the first, and "the second open goes to the warm process" holds only while
+  the first window is open; after that the bus activation starts a cold process. Ends when quire's event loop
+  can outlive its first window: hide the main window instead of closing it while others are open, and when none
+  is left keep the loop for a `linger` the app gives `AppConfig`, then end it. The binary then arms a timer of
+  `WARM_FOR` after the last close.
+- **A bus activation starts the viewer with no window.** `dist/org.quire.Anyview1.service` runs `anyview` with no
+  arguments (its `Exec=/usr/bin/anyview` assumes that install path), and the call that caused it arrives once the
+  name is owned. `launch_viewer` therefore waits for the first request before it opens the first window; until
+  then the process has none. A launch with no files and no bus is a usage error. The windows carry the desktop
+  application id `org.quire.Anyview`, for which no `.desktop` file is shipped yet: add a `org.quire.Anyview.desktop` entry
+  (with `MimeType=` for the families and `Exec=anyview %F`) with the package.
+- **Requests the host does not carry out.** `HostRequest` variants and file actions with no effect, each logged as
+  "not carried out" (`host::Declined`): `PickFile` (the platform edge has no file chooser), `Export` and the actions
+  that open the export sheet (the export pipeline is not wired to the window), `Present` (the mini window and
+  background play need window stacking and the player), `Run(CopyFile)` (the clipboard holds text only),
+  `Run(Rename)` and `Run(ConvertTo)` (a sheet asks first), `Run(Print)` of anything but a PDF (it prints through an
+  export to PDF), `SaveCopy`, `RevertTo`, the flips and a PDF's turns (edits are not wired), `Run(PlayInBackground)` and
+  `Peek` and `Play` requests, which open the file like any other until the quick-look window and the player exist.
+  Each ends with the feature it waits for.
+- **A window is not re-pointed after the host moves its file.** `Rename` moves the file and the host follows it for
+  the requests that come after, but the window still shows the old name, and after `Trash` it still shows the
+  file. Ends when the views can be told a file moved or went (an input for the load machine and the sequence).
+- **Open With opens the default other program.** There is no list to pick from, so `Task::OpenWith` takes the first
+  application that handles the type and is not `org.quire.Anyview*`. Ends when the Open With sheet lists
+  `AppsForType::apps_for`.
+- **Share is mail only and print is a PDF.** `Task::Share` uses the first `ShareTarget` (`Mail`); `Task::Print` hands the
+  PDF file's bytes to the portal.
+- **A job that panics leaves its load waiting.** The runner delivers a panic as `JobOutcome::Panicked` and the
+  program reports it (`seam::notices`), but the `Work` is gone and posts no `Done`, so the window stays on
+  its loading state. Ends when `Work` can fail its own ticket (a `Done` for an abandoned job).
+- **The thumbnail cache does not paint first.** The platform's `ThumbnailCache` is not looked up at launch: the
+  load machine has a `Peeking` state and a `PeekFrame`, and nothing in the window or the binary feeds it. Ends with
+  a probe job that answers the cached thumbnail before the open (the views' load flow), and the launch budget's
+  first-content time then counts it.
+- **The first folder is listed before the first window.** `Opening::around` reads the whole directory (and sorts
+  it) of the first file before the window can be built, because `Launch` carries the sequence; on a folder of
+  tens of thousands of files that is felt. Ends if `Launch` takes the sequence late (a `Start` input after the
+  window is up), as the arrow keys already take it.
+- **Appearance, window size, history cap and the store folder are constants.** `Appearance::default()`, 1000 by
+  700, `HistoryCap::DEFAULT` and `<data>/anyview` (`program::start`) are not settings. The launcher must read
+  the history from the same `<data>/anyview` folder. Ends with quire's `22-SETTINGS` keys.
+- **Two tokio runtimes.** The binary's (one worker, `anyview-platform`) is started before the window so the instance
+  can be claimed before anything is drawn; ds-blitz's own (two workers) starts with `launch`. Ends if ds-blitz
+  can take a runtime handle from the app.
+- **The program logs with `eprintln!`.** There is no logging framework in the workspace; every line goes through
+  `host::report`, `report_declined` or the few messages in `program::start`, prefixed `anyview:`. Ends when
+  quire has a logging path to use.
+- **The trash is not behind `anyview-platform`.** `Trash` and `SystemTrash` (the `trash` crate, pure Rust on
+  Linux, no bus) live in the binary because the crate is cross-platform. Ends if a platform needs its own: the trait
+  then moves to `anyview-platform` beside the others.
+- **`trash` is below the pinned block.** It is `anyview`'s alone, MIT (CONVENTIONS section 10): it joins quire's
+  `docs/workspace-deps.toml` when sill needs to trash a file.
+- **The cold launch is over its budget, and the window's own start-up is the reason.** PLAN section 7 sets
+  150 ms from the process starting to the first content of a JPEG cold, and 50 ms warm. `crates/anyview/tests/
+  launch.rs` (ignored; `cargo test --release -p anyview --test launch -- --ignored --nocapture --test-threads=1`)
+  measures, on a release build under `ds_harness` (a real Blitz document on a real wgpu device, no window and no
+  compositor), three runs on an NVIDIA RTX 5070 Ti over Vulkan: the program's own wiring (runtime, pool, desktop,
+  folder listing) 0.1 ms; the window up (device, fonts, first frame) 230 to 242 ms; the picture ready 8 ms
+  after that (probe, decode and upload on the pool); the first frame with it drawn at 243 to 254 ms in all.
+  A window with nothing in it is up at 255 ms, so the figure is quire's and wgpu's floor, not the viewer's.
+  Warm (the arrow key in an open window to the next picture's first frame) is 4.5 to 4.8 ms, inside the budget by
+  ten times. The bare process (`anyview --help`, exec to exit) is a median 1.1 to 1.4 ms. Not measured: the
+  executable's own start with a window (needs a compositor), the compositor's present, and a one-page PDF (its
+  stage is not in the window yet). The budgets in `launch.rs` are a ratchet: 300 ms cold, 15 ms warm and 5 ms for
+  the bare process today, to be lowered whenever a run beats them and never raised; CI runs the three on a runner
+  with a GPU adapter and fails above them. Ends when the cold figure is under 150 ms: quire opens the device
+  and loads fonts off the first frame's path (or in parallel with the probe, which the binary can start before the
+  window exists), and the thumbnail cache paints first (the item above).
 
 ## Standing facts
 
