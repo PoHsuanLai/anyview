@@ -122,12 +122,18 @@ impl Speed {
     ];
 
     /// `thousandths` clamped into the range of speeds.
-    pub fn from_thousandths(thousandths: u32) -> Self {
-        Speed(thousandths.clamp(Self::MIN.0, Self::MAX.0))
+    pub const fn from_thousandths(thousandths: u32) -> Self {
+        if thousandths < Self::MIN.0 {
+            Self::MIN
+        } else if thousandths > Self::MAX.0 {
+            Self::MAX
+        } else {
+            Speed(thousandths)
+        }
     }
 
     /// The speed in thousandths of the recording's own.
-    pub fn thousandths(self) -> u32 {
+    pub const fn thousandths(self) -> u32 {
         self.0
     }
 }
