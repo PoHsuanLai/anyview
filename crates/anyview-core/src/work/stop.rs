@@ -62,6 +62,12 @@ impl Stop {
         }
     }
 
+    /// The flag itself, shared with every clone: for back ends whose own stop polls a flag.
+    /// Raising it is `request`; it is never lowered.
+    pub fn flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.flag)
+    }
+
     /// When the work must end, if it has a deadline.
     pub fn deadline(&self) -> Option<Instant> {
         self.deadline
