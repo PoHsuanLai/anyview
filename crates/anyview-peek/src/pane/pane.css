@@ -1,16 +1,21 @@
-/* The pane (anyview-peek): a column of the media box, the file's name and its facts. Tokens only;
+/* The pane (anyview-peek): a column of the media box, the file's name and its facts, filling the box the
+   host gives it with no padding of its own (the host pads). The media box takes what the name and the
+   facts leave, so the facts always show; in a parent with no height of its own it is 220px tall. Tokens only;
    the code colours are the label hues' text-safe members, so they read on the card in both
    schemes. The `tok-<class>` names are anyview-text's `TokenClass` slugs. */
-.anyview-pane{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; width:100%; min-height:0; padding:var(--s-16); overflow:hidden; color:var(--ink); }
-.anyview-pane-media{ position:relative; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); min-height:220px; overflow:hidden; }
-.anyview-pane-title{ font-size:var(--fs-title); font-weight:600; color:var(--ink); text-align:center; word-break:break-all; }
+.anyview-pane{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; width:100%; height:100%; min-height:0; overflow:hidden; color:var(--ink); }
+.anyview-pane-media{ position:relative; flex:0 1 220px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); min-width:0; min-height:0; overflow:hidden; }
+.anyview-pane-title{ flex:none; font-size:var(--fs-title); font-weight:600; color:var(--ink); text-align:center; word-break:break-all; }
+.anyview-pane-facts{ flex:none; min-width:0; }
 
-.anyview-picture{ position:relative; flex:none; display:block; }
+.anyview-picture{ position:relative; flex:1 1 0; align-self:stretch; display:block; min-width:0; min-height:0; }
 .anyview-picture-pending{ position:absolute; inset:0; display:flex; }
-.anyview-frame{ flex:none; display:block; border:var(--hair) solid var(--line-soft); border-radius:var(--r-small); }
-.anyview-grid{ align-self:stretch; max-height:220px; overflow:hidden; font-size:var(--fs-small); }
+.anyview-frame{ flex:1 1 0; align-self:stretch; display:block; min-width:0; min-height:0; border:var(--hair) solid var(--line-soft); border-radius:var(--r-small); }
+.anyview-grid{ align-self:stretch; max-height:100%; min-height:0; overflow:hidden; font-size:var(--fs-small); }
 
-.anyview-lines{ align-self:stretch; box-sizing:border-box; max-height:220px; margin:0; padding:var(--s-10); overflow:hidden;
+.anyview-specimen{ align-self:stretch; display:flex; flex-direction:column; align-items:center; gap:var(--s-8); color:var(--ink); }
+.anyview-specimen-line{ flex:none; display:block; max-width:100%; height:auto; }
+.anyview-lines{ align-self:stretch; box-sizing:border-box; max-height:100%; margin:0; padding:var(--s-10); overflow:hidden;
   font-family:var(--font-code); font-size:var(--fs-help); line-height:1.45; color:var(--ink-soft);
   background:var(--surface); border:var(--hair) solid var(--line-soft); border-radius:var(--r-small); }
 .anyview-line{ white-space:pre; }
