@@ -1,6 +1,8 @@
 //! The crate's one error.
 
+use anyview_archive::ArchiveError;
 use anyview_core::{ByteLen, FormatKind};
+use anyview_font::FontError;
 use anyview_image::ImageError;
 use anyview_text::TextError;
 use ds::components::content::pdf_thumb::PdfTrouble;
@@ -19,6 +21,12 @@ pub enum PeekError {
     /// A text, code, Markdown, table or tree peek failed.
     #[error(transparent)]
     Text(#[from] TextError),
+    /// An archive's listing failed.
+    #[error(transparent)]
+    Archive(#[from] ArchiveError),
+    /// A font could not be read.
+    #[error(transparent)]
+    Font(#[from] FontError),
     /// The PDF's first page could not be drawn.
     #[error("{}", .0.label())]
     Pdf(PdfTrouble),
@@ -26,6 +34,20 @@ pub enum PeekError {
     #[error("cannot list {path:?}: {kind}")]
     Folder {
         /// The folder.
+        path: PathBuf,
+        /// What the operating system said.
+        kind: std::io::ErrorKind,
+    },
+    /// The path names nothing.
+    #[error("{path:?} does not exist")]
+    Missing {
+        /// The path.
+        path: PathBuf,
+    },
+    /// The path exists and cannot be read.
+    #[error("cannot read {path:?}: {kind}")]
+    Unreadable {
+        /// The path.
         path: PathBuf,
         /// What the operating system said.
         kind: std::io::ErrorKind,
