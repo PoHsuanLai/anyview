@@ -18,8 +18,8 @@ mod outline;
 mod render;
 mod search;
 mod tile;
-mod work_shim;
 
+pub use anyview_core::work::{Backend, Stop, StopState, Ticket};
 pub use document::{DocId, PdfDocument};
 pub use edit::{PageOp, apply, page_op};
 pub use error::PdfError;
@@ -34,4 +34,3 @@ pub use tile::{
     Priority, Schedule, TILE_SIDE, TileBatch, TileCoord, TileKey, TileRect, ViewWindow, ZoomBucket,
     device_bound, schedule, tile_grid, tile_rect,
 };
-pub use work_shim::{Backend, Stop, StopState, Ticket};

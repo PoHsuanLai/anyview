@@ -22,7 +22,7 @@ fn batch(cells: u32) -> TileBatch {
 
 fn stopped() -> Stop {
     let stop = Stop::new();
-    stop.raise();
+    stop.request();
     stop
 }
 
@@ -58,7 +58,7 @@ fn a_raised_stop_ends_a_batch_before_it_draws_anything() {
     let doc = fixture();
     let stop = Stop::new();
     let held_by_whoever_superseded_the_job = stop.clone();
-    held_by_whoever_superseded_the_job.raise();
+    held_by_whoever_superseded_the_job.request();
     let job = PdfJob::Tiles {
         ticket: Ticket(7),
         batch: batch(2),

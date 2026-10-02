@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/anyview",
   "crates/anyview-core",
   "crates/anyview-image",
   "crates/anyview-platform",
@@ -22,6 +23,7 @@ repository = "https://github.com/PoHsuanLai/anyview"
 publish = false
 
 [workspace.dependencies]
+anyview = { path = "crates/anyview" }
 anyview-core = { path = "crates/anyview-core" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-platform = { path = "crates/anyview-platform" }
@@ -199,6 +201,12 @@ percent-encoding = "2"
 png = "0.18"
 # The stream of a portal request's `Response` signals: MIT OR Apache-2.0.
 futures-util = { version = "0.3", default-features = false }
+# `anyview`'s media-thread spike (dev-dependency only): libmpv playback into a caller-owned wgpu
+# texture, MIT OR Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version.
+mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "a5b796169d71f3b8fe14034d83391f7ea451c89d" }
+# Blocks on the headless wgpu device's futures in that spike: Apache-2.0 OR MIT.
+pollster = "0.4"
+
 # The local checkouts the sibling repos build against (quire/CONSUMING.md section 1): blitz-kit from
 # its sibling directory, so every path-linked repo builds one copy, and the vello and anyrender
 # forks (branch quire-filters) that make every CSS `filter` function paint on both backends.

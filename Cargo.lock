@@ -273,6 +273,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "mpv-wgpu-player",
+ "pollster",
+ "thiserror 2.0.21",
+ "wgpu",
+]
+
+[[package]]
 name = "anyview-core"
 version = "0.1.0"
 dependencies = [
@@ -3675,6 +3686,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "mpv-wgpu"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=a5b796169d71f3b8fe14034d83391f7ea451c89d#a5b796169d71f3b8fe14034d83391f7ea451c89d"
+dependencies = [
+ "bytemuck",
+ "thiserror 2.0.21",
+ "wgpu",
+]
+
+[[package]]
+name = "mpv-wgpu-player"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=a5b796169d71f3b8fe14034d83391f7ea451c89d#a5b796169d71f3b8fe14034d83391f7ea451c89d"
+dependencies = [
+ "bytemuck",
+ "log",
+ "mpv-wgpu",
+ "rsmpv",
+ "thiserror 2.0.21",
+ "wgpu",
+]
+
+[[package]]
 name = "multiversion_no_op"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5115,6 +5149,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "rsmpv"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c43d845c72fe35aba06906f130c10e96665295b7fc948b8246c851c6f5811fec"
+dependencies = [
+ "rsmpv-sys",
+]
+
+[[package]]
+name = "rsmpv-sys"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd7d3d6bf8c3f290a357ef8782b7fd9ce6aa841ceb8a63da239f49e4dc5efc37"
+dependencies = [
+ "pkg-config",
 ]
 
 [[package]]

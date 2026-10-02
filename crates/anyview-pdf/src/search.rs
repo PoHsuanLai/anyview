@@ -6,8 +6,8 @@ use crate::error::PdfError;
 use crate::geometry::{PageRect, displayed};
 use crate::halt::Halt;
 use crate::render::{End, PdfWorker};
-use crate::work_shim::Stop;
 use anyview_core::PageIndex;
+use anyview_core::work::Stop;
 use pdfrum::{CharIndex, FindOptions};
 
 /// Whether letter case matters to a search.
