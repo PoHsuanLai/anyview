@@ -26,6 +26,10 @@ anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
+ds = { path = "../quire/crates/ds" }
+ds-blitz = { path = "../quire/crates/ds-blitz" }
+ds-harness = { path = "../quire/crates/ds-harness" }
+ds-lint = { path = "../quire/crates/ds-lint" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -169,6 +173,11 @@ kamadak-exif = "0.6"
 img-parts = "0.4"
 # AVIF encoder, pure Rust: BSD-3-Clause.
 ravif = { version = "0.13", default-features = false }
+# Unbounded channel whose receiver is a future, so a worker's result wakes the window's UI task:
+# MIT OR Apache-2.0 (already in the tree through dioxus).
+futures-channel = "0.3"
+# `StreamExt::next` on that receiver: MIT OR Apache-2.0.
+futures-util = { version = "0.3", default-features = false }
 # `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
 syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
 # Markdown parser: MIT.
@@ -177,6 +186,26 @@ pulldown-cmark = { version = "0.13", default-features = false, features = ["html
 csv = "1"
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
+
+# The crates that name Blitz, vello and anyrender (the views of `anyview-ui`) build one renderer
+# with the sibling quire checkout: the same patches quire's own root carries, copied verbatim
+# (quire CONSUMING.md section 1). A patch only applies at the workspace root, so a consumer copies
+# it; cargo warns about a patch nothing uses, which is why they arrived with the first crate that
+# names the render stack.
+[patch."https://github.com/PoHsuanLai/blitz-kit"]
+blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
+
+[patch.crates-io]
+vello_common = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_cpu = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_hybrid = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_sparse_shaders = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+glifo = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+anyrender = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_cpu = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_hybrid = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+wgpu_context = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+pixels_window_renderer = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
