@@ -1,7 +1,7 @@
 //! What the palette can run: a file action, or a command for the stage that is showing.
 
 use anyview_core::FileAction;
-use ds_core::vocab::ShortcutKey;
+use ds_core::vocab::{Shortcut, ShortcutKey};
 use ds_core::word::Word;
 
 /// A command a stage understands. The stage that is showing decides what it means, or that it
@@ -65,6 +65,40 @@ impl StageCommand {
     }
 }
 
+impl StageCommand {
+    /// The keys the palette shows beside the command: the first key `from_key` turns back into
+    /// it.
+    pub fn shortcut(self) -> Shortcut {
+        use ShortcutKey::{Char, Left, PageDown, PageUp, Right, Shift, Space, Super};
+        Shortcut(match self {
+            StageCommand::ZoomIn => vec![Char('+')],
+            StageCommand::ZoomOut => vec![Char('-')],
+            StageCommand::ZoomToFit => vec![Char('0')],
+            StageCommand::ZoomToActual => vec![Char('1')],
+            StageCommand::Find => vec![Super, Char('f')],
+            StageCommand::FindNext => vec![Super, Char('g')],
+            StageCommand::FindPrevious => vec![Shift, Super, Char('g')],
+            StageCommand::ToggleSource => vec![Char('v')],
+            StageCommand::ToggleWrap => vec![Char('w')],
+            StageCommand::TogglePlayback => vec![Space],
+            StageCommand::SeekBack => vec![Shift, Left],
+            StageCommand::SeekForward => vec![Shift, Right],
+            StageCommand::NextPage => vec![PageDown],
+            StageCommand::PreviousPage => vec![PageUp],
+        })
+    }
+}
+
+impl Command {
+    /// The words the palette lists the command by.
+    pub fn label(&self) -> String {
+        match self {
+            Command::File(action) => action.label().to_string(),
+            Command::Stage(command) => command.label().to_string(),
+        }
+    }
+}
+
 /// One row the palette can run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Command {
@@ -72,4 +106,21 @@ pub enum Command {
     File(FileAction),
     /// A command for the stage.
     Stage(StageCommand),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_command_has_the_key_that_means_it() {
+        for command in StageCommand::ALL {
+            let keys = command.shortcut().keys();
+            assert_eq!(
+                StageCommand::from_key(&keys),
+                Some(*command),
+                "{command:?} is shown as {keys:?}"
+            );
+        }
+    }
 }

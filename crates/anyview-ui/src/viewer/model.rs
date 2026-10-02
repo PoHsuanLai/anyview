@@ -1,6 +1,7 @@
 //! The root's state, inputs, outputs and parameters.
 
 use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
+use crate::command::Command;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
@@ -65,6 +66,9 @@ pub enum ViewerIn {
     Presentation(PresentationIn),
     /// The stage showing the file.
     Stage(StageIn),
+    /// Run a command from a control the window drew (a capsule button): the same thing the
+    /// palette runs for the row it picked.
+    Run(Command),
     /// A key press, routed by `route`.
     Key(Shortcut),
     /// The time `wake()` named has come.
