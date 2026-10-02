@@ -30,7 +30,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-font` | planned | font facts and the specimen's font face |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | exists | the viewer's pure machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them. Its views (Dioxus) join it with the viewer window |
+| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`) and the window that draws every region (`views`) |
 | L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread); launch, single instance, CLI and wiring the platform join it |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
@@ -39,7 +39,7 @@ planned has no directory yet; its row is the rule it will carry.
 | --- | --- |
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
 | `anyview-store` | `anyview-core` |
-| `anyview-ui` | `anyview-core`, `ds-core` (the `Machine` trait and `Stamp`) |
+| `anyview-ui` | `anyview-core`, `anyview-image`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
@@ -63,7 +63,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
 | `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `zbus`, `ashpd` anywhere in its tree: libmpv and D-Bus stay out of the launcher's process. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
-| `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
+| `anyview-ui` | `zbus`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`: the player and the platform reach the views as `anyview-platform` traits and `HostRequest`s, never as dependencies. `tokio` and `wgpu` arrive only through `ds-blitz`, and `image` through `anyview-image`; the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | `dioxus`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: the runtime is generic over the back ends and names none of them; the wiring change amends this row with what the binary links |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
@@ -151,6 +151,9 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
+| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop` |
+| `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), and the views `raster`, `text` and `peek_only` |
+| `views` | the window: `ViewerApp`, `Launch`, the chrome, the palette, the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
 
@@ -424,6 +427,13 @@ The single place a concept lives. Extend it; never write a second one.
 | Which applications open a type, and opening with one | `anyview_platform::AppsForType` |
 | The shared thumbnail cache, and a file's `file://` URI | `anyview_platform::ThumbnailCache`, `file_uri` |
 | Printing, sharing, revealing a file, keeping a window above | `anyview_platform::Printer`, `Share`, `Reveal`, `WindowStacking` |
+| Which view shows a kind of file, and opening it | `anyview_ui::visit`, `family_of` (`families/registry.rs`) |
+| What a family draws, controls and lists | `anyview_ui::StageView` (`families/view.rs`) |
+| Where a picture lands in the room, and which texels show | `families/raster/geometry.rs` |
+| A key event as a `Shortcut` (⌘ is Control or Command) | `views/keys.rs` |
+| Running a blocking job off the UI thread | `anyview_ui::Workers`, `Work`, `Job::run` (`io/`) |
+| What a window asks of the binary | `anyview_ui::HostRequest` (`io/workers.rs`) |
+| The viewer's own stylesheet and the token colours of code | `anyview_ui::stylesheet`, `TOKEN_CSS` |
 | What lets the root's regions affect each other | `Viewer`'s `step` (`viewer/step.rs`), `viewer/pins.rs`, `viewer/command.rs` |
 
 ## 5. The canonical traits
@@ -469,8 +479,30 @@ a map in a test). `TextLines` and `CodeLines` are generic over the first so a wi
 tested without a file.
 
 `Machine` is quire's pure state machine trait (`ds_core::machine`); every viewer region implements it
-(section 5a). `Stage` as a trait (the viewer's full tier, extending `Peek`) is planned with the
-views; the stage is the enum `anyview_ui::Stage`.
+(section 5a). The viewer's `Stage` is the machine enum of the stage region; the full tier of a family
+of formats is the trait `StageView`, named for what it draws:
+
+```rust
+pub trait StageView: 'static {
+    const FAMILY: StageFamily;
+    type Doc: Debug + Send + Sync + 'static;     // what opening makes: the picture on the GPU, the line index
+    fn open(ticket: Ticket, src: &Source, sniffed: &Sniffed, link: &OpenLink) -> Result<Self::Doc, OpenError>; // on a worker
+    fn facts(doc: &Self::Doc) -> Facts;
+    fn tabs(doc: &Self::Doc) -> PanelTabs;
+    fn params(doc: &Self::Doc, stage: &Stage, area: Option<Area>) -> StageParams;
+    fn stage(doc: &Arc<Self::Doc>, cx: &StageCx) -> Element;                  // the content
+    fn slots(doc: &Self::Doc, cx: &StageCx) -> Vec<CapsuleSlot<Command>>;      // the capsule's controls
+    fn panel(doc: &Arc<Self::Doc>, tab: PanelTab, cx: &StageCx) -> Option<Element>;
+    fn lines(doc: &Arc<Self::Doc>, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>; // default None
+}
+```
+
+The window holds a `LoadedDoc` (an `Arc<dyn DocView>` made by `LoadedDoc::of::<S>`), so drawing needs no
+match on the family. `visit(kind, KindVisitor)` in `families/registry.rs` is the one exhaustive match over
+`FormatKind` for the full tier: every kind maps to a view, and the kinds the full tier does not show yet
+map to `PeekOnlyStageView` (facts and Open With…, a real view). `anyview_core::stage_support` says the same in
+the core's table, and a test holds the two equal. `Workers` (`io/workers.rs`) is the one seam to the
+binary's pool: `fn submit(&self, work: Work)`.
 
 ## 5b. Threads
 
@@ -525,7 +557,23 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `MediaStage` | `Opening`, `Playing`, `Paused`, `Scrubbing { resume }`, `Ended`, `Failed` | `Player(PlayerEvent)`, `Position`, `Toggle`, `Seek*`, `Scrub*`, `SetVolume`, `Select` | `Command(PlayerCommand)`, `Buffering`, `VolumeChanged`, `TracksChanged` |
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
 | `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text` | one family's input each | each family's output, lifted |
-| `Viewer` | one state per region above | `Open`, a region's input, `Key` | each region's output, lifted; `Probe`, `Run`, `PickFile`, `CloseWindow` |
+| `Viewer` | one state per region above | `Open`, a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Run`, `PickFile`, `CloseWindow` |
+
+**Why the machines and the views share a crate.** The machines are the part that must stay pure, and
+they are: each `model.rs` and `step.rs` names only `anyview-core` and `ds-core`, which the script
+checks per file, and a machine's tests run with no window. A second crate for the views would add a
+layer for no second consumer (the binary is the only one) and would split `Viewer`'s outputs from the
+code that carries them out. The module list above is the boundary: the modules before `io` are the
+machines, `io`, `families` and `views` are the edge. `anyview-ui` therefore names Blitz, vello and
+anyrender through `ds-blitz`, which is why the root `Cargo.toml` carries quire's `[patch]` sections.
+
+**Threads.** The library never spawns one. A window hands each blocking job to `Workers` (the binary's
+one bounded pool) as a `Work`; a worker calls `Work::run`, and the `Done` it makes goes through the
+`Reply` into the window's mailbox, where a task turns it into a machine input carrying the load's
+`Ticket`. A decoded picture is uploaded into the window's `TextureHandle` by the worker itself, so
+pixels never pass through the UI thread; a window of lines is read and highlighted on a worker and the
+UI holds only the lines it returned. `Backend` and `Stop` are `anyview_core::work`, re-exported from `io`, the contract of the shared work
+module.
 
 Key routing is `route(key, Regions) -> Route`, not a machine: a sheet, then the palette, then the
 global chords (⌘K, ⌘I, ⌘W, ⌘O, Esc), then the stage, then navigation, then the chrome. A sheet
@@ -584,6 +632,16 @@ fixtures and adds one PDF). The pane is checked three ways: server-side renders 
 real Blitz document through `ds-harness`, with a hybrid-painter test that reads the picture's pixels back
 and skips where no GPU adapter opens. A `Peek` fake in `peek/tests.rs` shows how a generic consumer drives the
 trait.
+
+## 7a. Testing the views
+
+The window is tested through `ds_harness` on the virtual clock (`crates/anyview-ui/tests/viewer_window.rs`):
+the pointer brings the chrome and rest takes it away, ⌘K lists the shared actions, the arrow keys walk the
+folder. Workers there run each job where it is submitted, so a result is in the mailbox by the time the
+harness looks (`tests/support/mod.rs`). A view component's markup is an SSR golden
+(`crates/anyview-ui/tests/snapshots/`, rewritten with `DS_BLESS=1`) and the viewer's stylesheet and the
+markup the harness renders go through `ds_lint`. The registry has a test that every `FormatKind` is mapped
+and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
 
 ## 8. Repo rules
 

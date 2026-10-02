@@ -1,0 +1,27 @@
+/* The viewer window. Only the content shows by default: the stage fills the window and the chrome
+   (the titlebar, the capsule) lies over it, faded in by the chrome machine. Tokens only: every
+   colour, size, face and duration is a design-system token. */
+
+.viewer{ position:relative; display:flex; box-sizing:border-box; width:100%; height:100vh; overflow:hidden; background:var(--paper); color:var(--ink); outline:none; }
+.viewer-stage{ position:relative; display:flex; flex-direction:column; flex:1 1 auto; min-width:0; overflow:hidden; }
+
+.viewer-titlebar{ position:absolute; top:0; left:0; right:0; z-index:var(--z-raise); transition:opacity var(--t-quick) var(--e-out); }
+.viewer-titlebar[*|data-shown=hidden]{ opacity:0; pointer-events:none; }
+
+.viewer-raster{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
+.viewer-raster[*|data-zoom=zoomed]{ cursor:grab; }
+.viewer-raster-picture{ position:absolute; }
+
+.viewer-text{ position:absolute; inset:0; overflow:hidden; font-family:var(--font-code); font-size:var(--fs-mono); }
+.viewer-text[*|data-view=rendered]{ font-family:var(--font-ui); }
+.viewer-line{ display:flex; box-sizing:border-box; height:var(--s-18); line-height:var(--s-18); white-space:pre; overflow:hidden; }
+.viewer-lineno{ flex:none; box-sizing:border-box; width:var(--s-36); padding-right:var(--s-8); text-align:right; color:var(--ink-faint); font-variant-numeric:tabular-nums; user-select:none; }
+.viewer-code{ flex:1 1 auto; min-width:0; padding-left:var(--s-8); }
+.viewer-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+
+.viewer-peek{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.viewer-peek-body{ display:flex; flex-direction:column; align-items:center; gap:var(--s-16); width:100%; max-width:480px; }
+
+.viewer-sheet{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-16); }
+.viewer-sheet-buttons{ display:flex; justify-content:flex-end; gap:var(--s-8); }
+.viewer-peek-facts{ align-self:stretch; }

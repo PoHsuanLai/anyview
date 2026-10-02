@@ -1,0 +1,89 @@
+//! The stage registry: the one exhaustive match over `FormatKind` for the full tier. Adding a kind
+//! is a compile error here until it names the view that shows it, and every kind without its own
+//! view is mapped to [`PeekOnlyStageView`], never left out. `anyview_core::stage_support` says the same
+//! thing in `anyview-core`'s own table; a test holds the two equal.
+
+use super::peek_only::PeekOnlyStageView;
+use super::raster::RasterStageView;
+use super::text::TextStageView;
+use super::view::{LoadedDoc, StageView};
+use crate::io::{OpenError, OpenLink};
+use crate::{StageFamily, Ticket};
+use anyview_core::{FormatKind, Sniffed, Source};
+
+/// Something done with the view that shows a kind, without naming it.
+pub trait KindVisitor {
+    /// What it makes.
+    type Out;
+    /// Do it for the view `S`.
+    fn visit<S: StageView>(self) -> Self::Out;
+}
+
+/// Run `visitor` for the view that shows `kind`.
+pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
+    match kind {
+        FormatKind::Raster | FormatKind::Vector => visitor.visit::<RasterStageView>(),
+        FormatKind::Markdown
+        | FormatKind::Code
+        | FormatKind::PlainText
+        | FormatKind::Table
+        | FormatKind::Tree => visitor.visit::<TextStageView>(),
+        FormatKind::Pdf
+        | FormatKind::Video
+        | FormatKind::Audio
+        | FormatKind::Font
+        | FormatKind::Archive
+        | FormatKind::Book
+        | FormatKind::Office
+        | FormatKind::Folder
+        | FormatKind::Other => visitor.visit::<PeekOnlyStageView>(),
+    }
+}
+
+struct FamilyOf;
+
+impl KindVisitor for FamilyOf {
+    type Out = StageFamily;
+
+    fn visit<S: StageView>(self) -> StageFamily {
+        S::FAMILY
+    }
+}
+
+/// The family of stage that shows `kind`.
+pub fn family_of(kind: FormatKind) -> StageFamily {
+    visit(kind, FamilyOf)
+}
+
+struct Opener<'a> {
+    ticket: Ticket,
+    src: &'a Source,
+    sniffed: &'a Sniffed,
+    link: &'a OpenLink,
+}
+
+impl KindVisitor for Opener<'_> {
+    type Out = Result<LoadedDoc, OpenError>;
+
+    fn visit<S: StageView>(self) -> Self::Out {
+        S::open(self.ticket, self.src, self.sniffed, self.link).map(LoadedDoc::of::<S>)
+    }
+}
+
+/// Open the file whose type `sniffed` established with the view that shows it. Blocking.
+pub(crate) fn open_for(
+    ticket: Ticket,
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenLink,
+) -> Result<LoadedDoc, OpenError> {
+    visit(
+        sniffed.kind(),
+        Opener {
+            ticket,
+            src,
+            sniffed,
+            link,
+        },
+    )
+}
