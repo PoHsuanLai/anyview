@@ -3,8 +3,10 @@
 //! keeps the other to read what happened.
 
 mod apps;
+mod bus;
 mod instance;
 mod media;
+mod mpris_client;
 mod printer;
 mod reveal;
 mod share;
@@ -13,8 +15,10 @@ mod stacking;
 mod thumbnails;
 
 pub use apps::FakeApps;
+pub use bus::PrivateBus;
 pub use instance::{FakeInstance, FakeRole};
-pub use media::FakeMediaSession;
+pub use media::{FakeMediaHandle, FakeMediaSession};
+pub use mpris_client::MprisClient;
 pub use printer::FakePrinter;
 pub use reveal::FakeReveal;
 pub use share::FakeShare;
