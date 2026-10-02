@@ -294,3 +294,39 @@ fn a_find_holds_the_keys_only_while_it_is_up() {
     assert!(!Stage::default().is_finding());
     assert!(!Stage::Text(TextStage::default()).is_finding());
 }
+
+#[test]
+fn the_line_and_edge_keys_scroll_a_pdf_as_they_scroll_a_text() {
+    use super::pdf::PdfIn;
+    use anyview_core::{PageCount, PageIndex, Permille, Zoom};
+    let params = StageParams {
+        pdf: super::pdf::PdfParams {
+            pages: PageCount::new(5).unwrap(),
+            ..super::pdf::PdfParams::default()
+        },
+        ..StageParams::default()
+    };
+    let stage = Stage::Pdf(super::pdf::PdfStage::Reading {
+        view: super::pdf::PageView {
+            page: PageIndex(1),
+            offset: Permille(500),
+            zoom: Zoom::Fit,
+        },
+    });
+    let to = |page, offset| {
+        Some(StageIn::Pdf(PdfIn::GoTo(super::pdf::Destination {
+            page: PageIndex(page),
+            offset: Permille(offset),
+        })))
+    };
+    // name, command, input
+    let cases = [
+        ("a line down", StageCommand::LineDown, to(1, 580)),
+        ("a line up", StageCommand::LineUp, to(1, 420)),
+        ("home", StageCommand::ScrollToStart, to(0, 0)),
+        ("end", StageCommand::ScrollToEnd, to(4, 0)),
+    ];
+    for (name, command, want) in cases {
+        assert_eq!(stage.input_for(command, &params), want, "{name}");
+    }
+}

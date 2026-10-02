@@ -10,7 +10,7 @@ use crate::{
     Command, LoadFlow, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams, Ticket,
     TypedText,
 };
-use anyview_core::{Facts, LineIndex, Sniffed, Source};
+use anyview_core::{Facts, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::{Point, Size};
@@ -152,9 +152,10 @@ pub trait StageView: 'static {
     ) -> StageParams {
         Self::params(doc, stage, area)
     }
-    /// The inputs the stage is told when `doc` lands, given the stage that is showing: an
-    /// animation says it moves, a find already up is asked again of the new copy.
-    fn arrived(_doc: &Self::Doc, _stage: &Stage) -> Vec<StageIn> {
+    /// The inputs the stage is told when `doc` lands, given the stage that is showing and where
+    /// the file was left (`Probed::resume`): an animation says it moves, a find already up is
+    /// asked again of the new copy, a place that needs the document's extent is put back.
+    fn arrived(_doc: &Self::Doc, _stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
         Vec::new()
     }
     /// The content.
@@ -186,7 +187,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
         area: Option<Area>,
         lines: Option<&super::LineWindow>,
     ) -> StageParams;
-    fn arrived(&self, stage: &Stage) -> Vec<StageIn>;
+    fn arrived(&self, stage: &Stage, left_at: &Resume) -> Vec<StageIn>;
     fn stage(&self, cx: &StageCx) -> Element;
     fn slots(&self, cx: &StageCx) -> Vec<CapsuleSlot<Command>>;
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
@@ -225,8 +226,8 @@ impl<S: StageView> DocView for Loaded<S> {
         S::params_seen(&self.doc, stage, area, lines)
     }
 
-    fn arrived(&self, stage: &Stage) -> Vec<StageIn> {
-        S::arrived(&self.doc, stage)
+    fn arrived(&self, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {
+        S::arrived(&self.doc, stage, left_at)
     }
 
     fn stage(&self, cx: &StageCx) -> Element {

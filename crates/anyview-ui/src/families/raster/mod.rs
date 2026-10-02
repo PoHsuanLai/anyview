@@ -14,7 +14,7 @@ use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
     StageIn, StageParams, Ticket,
 };
-use anyview_core::{Facts, Permille, Sniffed, Source};
+use anyview_core::{Facts, Permille, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::Icon;
@@ -83,7 +83,7 @@ impl StageView for RasterStageView {
         }
     }
 
-    fn arrived(doc: &RasterDoc, stage: &Stage) -> Vec<StageIn> {
+    fn arrived(doc: &RasterDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
         let animation = match stage {
             Stage::Raster(raster) => geometry::animation_of(raster),
             Stage::NoStage | Stage::Pdf(_) | Stage::Media(_) | Stage::Text(_) => return Vec::new(),

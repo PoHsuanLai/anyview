@@ -9,6 +9,7 @@
 mod pdf_fixture;
 mod support;
 
+use anyview_core::{PageIndex, Permille, Resume, Zoom};
 use anyview_ui::HostRequest;
 use dioxus::prelude::Modifiers;
 use ds::host::gesture::{Gesture, GesturePhase, Magnification};
@@ -16,7 +17,7 @@ use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query};
 use std::path::PathBuf;
 use std::time::Duration;
-use support::{Requests, VIEW, shot, window};
+use support::{Memory, Requests, VIEW, Wiring, shot, window, wired};
 
 /// The fixture written to a scratch folder: three pages, a find target on two of them, links.
 fn fixture() -> (tempfile::TempDir, Vec<PathBuf>) {
@@ -322,4 +323,55 @@ fn the_markup_of_a_pdf_with_a_find_bar_lints_clean() {
         .filter(|offence| offence.selector != "object.ds-texture-layer")
         .collect();
     assert!(offences.is_empty(), "{offences:#?}");
+}
+
+#[test]
+fn a_pdf_opens_on_the_page_the_store_remembers() {
+    let (_dir, paths) = fixture();
+    let memory = Memory::with(
+        &paths[0],
+        Resume::Pdf {
+            page: PageIndex(2),
+            offset: Permille(0),
+            zoom: Zoom::Fit,
+        },
+    );
+    let wiring = Wiring {
+        memory: Some(memory),
+        ..Wiring::default()
+    };
+    let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), wiring);
+    settle(&mut harness);
+    assert!(
+        capsule(&harness).contains("3 / 3"),
+        "it opened where it was left: {}",
+        capsule(&harness)
+    );
+}
+
+#[test]
+fn end_and_home_go_to_the_last_page_and_the_first_and_a_line_key_scrolls_in_the_page() {
+    let (_dir, mut harness, _) = opened();
+    harness.send(Input::key(ShortcutKey::End));
+    settle(&mut harness);
+    assert!(
+        capsule(&harness).contains("3 / 3"),
+        "End is the last page: {}",
+        capsule(&harness)
+    );
+    harness.send(Input::key(ShortcutKey::Home));
+    settle(&mut harness);
+    assert!(
+        capsule(&harness).contains("1 / 3"),
+        "Home is the first: {}",
+        capsule(&harness)
+    );
+    let before = harness.centre(".viewer-pdf-page");
+    harness.send(Input::key(ShortcutKey::Down));
+    settle(&mut harness);
+    assert_ne!(
+        harness.centre(".viewer-pdf-page"),
+        before,
+        "a line down moved the page up"
+    );
 }
