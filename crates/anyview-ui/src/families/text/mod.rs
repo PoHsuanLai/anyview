@@ -61,7 +61,10 @@ impl StageView for TextStageView {
             None => TextViews::SourceOnly,
         };
         StageParams {
-            text: TextParams { views },
+            text: TextParams {
+                views,
+                ..TextParams::default()
+            },
             ..StageParams::default()
         }
     }

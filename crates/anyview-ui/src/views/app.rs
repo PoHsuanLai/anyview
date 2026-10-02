@@ -131,6 +131,7 @@ fn ViewerWindow(launch: Launch) -> Element {
                 effects.submit(Job::Probe { ticket, path });
             }
             ViewerOut::Load(LoadOut::Open(ticket)) => opening.set(Some(ticket)),
+            ViewerOut::Reload { .. } | ViewerOut::ListFolder(_) => {}
             ViewerOut::Load(
                 LoadOut::Peek(_)
                 | LoadOut::Cancel(_)

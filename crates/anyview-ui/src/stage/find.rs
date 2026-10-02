@@ -72,6 +72,14 @@ impl FindHits {
         }
     }
 
+    /// How many hits there are, when the search found some.
+    pub fn count(self) -> Option<HitCount> {
+        match self {
+            FindHits::Found(cursor) => Some(HitCount(cursor.count.get())),
+            FindHits::Idle | FindHits::Pending | FindHits::NoMatch => None,
+        }
+    }
+
     /// The current hit, when there is one.
     pub fn current(self) -> Option<HitIndex> {
         match self {

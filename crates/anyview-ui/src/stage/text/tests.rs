@@ -104,20 +104,48 @@ const CASES: &[Case] = &[
     (
         "find starts a search",
         BOTH,
+        reading(5, On, Source),
+        TextIn::Find(CAT),
+        TextStage::Finding {
+            query: CAT,
+            hits: FindHits::Pending,
+            place: place(5, On, Source),
+        },
+        &[TextOut::Find(FindOut::Search(CAT))],
+    ),
+    (
+        "a find in a rendered page starts in the source, where hits can be marked",
+        BOTH,
         reading(5, On, Rendered),
         TextIn::Find(CAT),
-        finding(FindHits::Pending, 5),
+        TextStage::Finding {
+            query: CAT,
+            hits: FindHits::Pending,
+            place: place(5, On, Source),
+        },
+        &[TextOut::Show(Source), TextOut::Find(FindOut::Search(CAT))],
+    ),
+    (
+        "a find in a file with only source stays in it",
+        SOURCE_ONLY,
+        reading(5, On, Rendered),
+        TextIn::Find(CAT),
+        TextStage::Finding {
+            query: CAT,
+            hits: FindHits::Pending,
+            place: place(5, On, Rendered),
+        },
         &[TextOut::Find(FindOut::Search(CAT))],
     ),
     (
         "an empty find opens the find bar with nothing to search",
         BOTH,
-        reading(5, On, Rendered),
+        reading(5, On, Source),
         TextIn::Find(TypedText::EMPTY),
         TextStage::Finding {
             query: TypedText::EMPTY,
             hits: FindHits::Idle,
-            place: place(5, On, Rendered),
+            place: place(5, On, Source),
         },
         &[TextOut::Find(FindOut::Clear)],
     ),
@@ -268,7 +296,10 @@ const CASES: &[Case] = &[
 #[test]
 fn every_row_of_the_table_steps_as_written() {
     for (name, views, from, input, state, outs) in CASES {
-        let params = TextParams { views: *views };
+        let params = TextParams {
+            views: *views,
+            ..TextParams::default()
+        };
         let (next, out) = from.clone().step(input.clone(), Stamp(0), &params);
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
@@ -280,4 +311,72 @@ fn every_row_of_the_table_steps_as_written() {
 fn a_stage_opens_rendered_only_when_there_is_a_rendering() {
     assert_eq!(TextStage::opened(BOTH), reading(0, On, Rendered));
     assert_eq!(TextStage::opened(SOURCE_ONLY), reading(0, On, Source));
+}
+
+const EXTENT: TextExtent = TextExtent {
+    lines: LineTotal(100),
+    page: PageLines(20),
+};
+
+/// Name, state before, step, state after, outputs.
+type StepCase = (
+    &'static str,
+    TextStage,
+    TextStep,
+    TextStage,
+    &'static [TextOut],
+);
+
+const fn remembered(line: u32) -> TextOut {
+    TextOut::Remember(Resume::Text {
+        line: LineIndex(line),
+    })
+}
+
+const STEP_CASES: &[StepCase] = &[
+    (
+        "page down moves a page and is remembered",
+        reading(10, On, Source),
+        TextStep::PageDown,
+        reading(30, On, Source),
+        &[remembered(30)],
+    ),
+    (
+        "end goes to the last page",
+        reading(10, On, Source),
+        TextStep::Bottom,
+        reading(80, On, Source),
+        &[remembered(80)],
+    ),
+    (
+        "a step that goes nowhere is not remembered",
+        reading(0, On, Source),
+        TextStep::LineUp,
+        reading(0, On, Source),
+        &[],
+    ),
+    (
+        "stepping keeps the find",
+        finding(found(3, 1), 10),
+        TextStep::LineDown,
+        TextStage::Finding {
+            query: CAT,
+            hits: found(3, 1),
+            place: place(11, On, Rendered),
+        },
+        &[remembered(11)],
+    ),
+];
+
+#[test]
+fn every_key_step_of_the_table_moves_the_line_as_written() {
+    let params = TextParams {
+        extent: EXTENT,
+        ..TextParams::default()
+    };
+    for (name, from, step, state, outs) in STEP_CASES {
+        let (next, out) = from.clone().step(TextIn::Step(*step), Stamp(0), &params);
+        assert_eq!(next, *state, "{name}: state");
+        assert_eq!(out.as_slice(), *outs, "{name}: outputs");
+    }
 }
