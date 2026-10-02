@@ -28,7 +28,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | planned | zip, tar and 7z listings and single-entry extraction |
 | L1 | `anyview-font` | planned | font facts and the specimen's font face |
-| L2 | `anyview-platform` | planned | the edge: traits, their Linux implementations and fakes |
+| L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | planned | the light tier: `Peek` implementations and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer's pure machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them. Its views (Dioxus) join it with the viewer window |
 | L5 | `anyview` | planned | the binary: launch, single instance, CLI, wiring the platform |
@@ -42,10 +42,11 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-ui` | `anyview-core`, `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
+| `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
 
 Dev-dependencies follow the same table, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
-directories (`anyview-store`, `anyview-image`, `anyview-text`).
+directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`).
 
 ### External boundaries (`scripts/check-boundary.sh`)
 
@@ -57,7 +58,8 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`).
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
 | `anyview-peek` (planned) | `mpv-wgpu-player`, `rsmpv`, `wgpu`, `zbus`: libmpv and D-Bus stay out of the launcher's process; pdfrum only through `ds-blitz`'s `pdf` feature |
 | `anyview-ui` | `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`: the machines are pure, and the player, the decoders and the platform reach them as inputs and outputs, never as dependencies. Platform code arrives through `anyview-platform` traits |
-| every crate but `anyview-platform` (planned) | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings |
+| `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
+| every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
 and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
@@ -185,6 +187,61 @@ Token classes are words (`keyword`, `string`, `comment`, …), never colours: th
 as text), keeps only web, mail and relative link targets, and writes local images as `data:` URLs
 read through `LocalFiles`, because quire's sealed frames load nothing else.
 
+## 2e. Modules inside `anyview-platform`
+
+Same rules as section 2: private modules, each public item re-exported once at the crate root; the
+implementations are reached through `linux` and `testing`. A second platform adds `macos/` or
+`windows/` beside `linux/` and selects it in `lib.rs`; no other crate changes. Nothing reads
+`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`),
+a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
+methods are driven by the caller's runtime and never spawn; blocking ones (Open With, thumbnails)
+run on the caller's worker.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `PlatformError` (`NoBus`, `Bus`, `Io`, `Thumbnail`, `Spawn`, `Exec`), `IoOp` |
+| `env` | `Env` (`dirs`, `session`, `spawn`), `Dirs`, `BusRoute` (`Usual`, `Address`, `Absent`) |
+| `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
+| `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
+| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`), `Claim`, `Primary` |
+| `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
+| `apps` | `AppsForType`, `AppEntry`, `DesktopId`, `Association` |
+| `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
+| `printer` | `Printer`, `PrintOutcome` (`Printed`, `Cancelled`, `NoDialog`), `JobTitle` |
+| `share` | `Share`, `ShareTarget` |
+| `reveal` | `Reveal` |
+| `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
+| `linux` | one implementation per trait: `DbusInstance`, `MprisSession`, `DesktopApps`, `FreedesktopThumbnails`, `PortalPrinter`, `MailShare`, `FileManagerReveal`, `NoStacking` |
+| `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession`, `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record |
+
+The trait shapes (a trait whose method awaits returns `impl Future + Send`, so a consumer is
+generic over it rather than holding a `dyn`):
+
+| Trait | Methods |
+| --- | --- |
+| `Instance` | `claim(&Request) -> Result<Claim>`: own `org.quire.Anyview1` (`Claim::Primary`, whose `Primary::next` yields what later launches forwarded) or forward the request to the owner (`Claim::Forwarded`) |
+| `MediaSession` | `publish(&MediaState) -> Result<()>`; `next_control() -> Option<MediaControl>` |
+| `AppsForType` | `apps_for(&Mime) -> Vec<AppEntry>` (default first); `open_with(&DesktopId, &FilePath) -> Result<()>` |
+| `ThumbnailCache` | `lookup(&FilePath, &FileStamp, ThumbSize) -> Result<Option<ThumbPixels>>`; `store(.., &ThumbPixels) -> Result<()>` |
+| `Printer` | `print(&[u8], &JobTitle) -> Result<PrintOutcome>` |
+| `Share` | `targets() -> Vec<ShareTarget>`; `share(&FilePath, ShareTarget) -> Result<()>` |
+| `Reveal` | `reveal(&FilePath) -> Result<()>` |
+| `WindowStacking` | `request(Stacking) -> StackingOutcome` |
+
+On the bus: `org.quire.Anyview1` at `/org/quire/Anyview1` has `Open(as)`, `Peek(s)` and `Play(s)`
+over absolute paths (a relative one is an `InvalidArgs` error), and `dist/org.quire.Anyview1.service`
+is the activation file that starts `anyview` when a call arrives while none runs. The player is
+`org.mpris.MediaPlayer2.anyview` at `/org/mpris/MediaPlayer2`; its track id is
+`/org/quire/Anyview1/Track/<TrackSerial>`. Thumbnails live at
+`<cache>/thumbnails/{normal,large,x-large}/<md5 of the file URI>.png` with `Thumb::URI`,
+`Thumb::MTime` and `Thumb::Size` text chunks. The tests of the bus implementations run against a
+`dbus-daemon` the test starts with its own configuration (no service directories) and skip with a
+message when the program is not installed.
+
+`anyview-platform` depends on `zbus` (its `tokio` feature, so the binary's runtime drives it),
+`freedesktop-desktop-entry`, `tokio` (channels only), `md-5`, `png`, `percent-encoding`, `memfd`,
+`futures-util`, `dirs`, `thiserror`, `anyview-core` and `ds-core`.
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -254,6 +311,12 @@ The single place a concept lives. Extend it; never write a second one.
 | Ignoring a result that arrived after the person left a file | `anyview_ui::Ticket`, `Load` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
+| The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
+| One viewer process, and forwarding a launch to it | `anyview_platform::Instance`, `Request` |
+| Now playing and the desktop's media controls | `anyview_platform::MediaSession`, `MediaState`, `MediaControl` |
+| Which applications open a type, and opening with one | `anyview_platform::AppsForType` |
+| The shared thumbnail cache, and a file's `file://` URI | `anyview_platform::ThumbnailCache`, `file_uri` |
+| Printing, sharing, revealing a file, keeping a window above | `anyview_platform::Printer`, `Share`, `Reveal`, `WindowStacking` |
 | What lets the root's regions affect each other | `Viewer`'s `step` (`viewer/step.rs`), `viewer/pins.rs`, `viewer/command.rs` |
 
 ## 5. The canonical traits

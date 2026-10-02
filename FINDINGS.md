@@ -123,6 +123,39 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
   facts and Open With…. Ends per type when a family holds it.
+- **`anyview-platform`'s dependencies sit below the pinned block.** `md-5`, `percent-encoding`, `png` and
+  `futures-util` are in no pinned list; `zbus` (with `tokio`), `dirs`, `memfd` and `freedesktop-desktop-entry`
+  are. Ends at the next change to quire's `docs/workspace-deps.toml`: add the four and copy the block here.
+  `ashpd` is not used: the print portal is called through `zbus` as `ds-blitz`'s `print` does, so the portal
+  code exists twice (quire's blocking one and this async one). Ends if `ds-blitz` exposes its portal call or
+  the viewer prints through it.
+- **No clipboard in `Share`.** The plan's "copy" is the window's clipboard, which must outlive the call and
+  belongs to the UI crate; `ShareTarget` has only `Mail` (`xdg-email --attach`). Ends when a freedesktop share
+  portal exists, or when the window's clipboard is reached through the platform edge.
+- **`WindowStacking` has no Linux protocol.** `NoStacking` answers `Unsupported` for `KeepAbove`: Wayland
+  clients cannot place themselves, and COSMIC's protocol is not bound. Ends when `anyview-platform` binds a
+  compositor protocol (the shell's layer or a COSMIC toplevel-management request) and the binary passes a
+  window handle to `request`.
+- **Open With is simple.** `apps_for` matches the exact MIME type: no `mime` subclass or alias (so
+  `text/x-rust` is not offered the editors of `text/plain`), no `OnlyShowIn`, `TryExec` or `Terminal=true`,
+  entries in subdirectories of `applications/` are found by scan but not by id (`kde-foo.desktop`), names are
+  untranslated (`Env` carries no locales), and `%f` receives the path, not a URI. Ends when the shared
+  MIME database is read (`shared-mime-info`'s `subclasses` and `aliases`) and `Env` gains locales.
+- **A started program is not reaped.** `ProcessSpawn` drops the child handle, so an exited Open With or mail
+  program stays a zombie until the viewer exits. Ends when the binary installs a `SIGCHLD` reaper or `Spawn`
+  hands the child to a systemd scope.
+- **MPRIS `Position` is not announced.** The spec says clients poll it, so `publish` emits no `Seeked`; a
+  position jump is visible only on the next read. Ends if a client (sill's now-playing) needs `Seeked`:
+  `MediaState` then carries a position-jump marker.
+- **The thumbnail cache has no `fail/` directory and no `xx-large`.** A file that cannot be thumbnailed is
+  retried every time, and the 1024-pixel size of spec 1.0 is not offered. Ends when the launcher's pane
+  measures that retry cost or asks for the size.
+- **`file_uri` uses Unix path bytes.** `uri.rs` reads the path as raw bytes (`OsStrExt`), so it does not
+  build on Windows. Ends when `windows/` is added: `uri.rs` then encodes through `to_string_lossy` for that
+  target.
+- **The bus tests need `dbus-daemon`.** The bus tests start one with a private configuration and skip
+  with a message on stderr when the program is missing, so a machine without it passes without running them.
+  Ends when CI is known to have `dbus-daemon`: make a missing one a failure.
 
 ## Standing facts
 
