@@ -11,19 +11,20 @@ mod error;
 mod folder;
 mod pane;
 mod pdf;
+mod probe;
 mod registry;
 mod when;
 
 pub use any::{AnyPeeked, peek};
 pub use body::{Body, Light};
 pub use described::{
-    ArchiveKind, ArchivePeek, AudioKind, AudioPeek, BookKind, BookPeek, Described, Describes,
-    FactsPeek, FontKind, FontPeek, OfficeKind, OfficePeek, OtherKind, OtherPeek, VideoKind,
-    VideoPeek,
+    AudioKind, AudioPeek, BookKind, BookPeek, Described, Describes, FactsPeek, OfficeKind,
+    OfficePeek, OtherKind, OtherPeek, VideoKind, VideoPeek,
 };
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
 pub use pane::{Pane, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
+pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;

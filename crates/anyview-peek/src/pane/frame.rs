@@ -7,7 +7,6 @@
 //! design tokens and is written in the one scheme every foreign page is shown in.
 
 use dioxus::prelude::*;
-use ds::components::lists::preview::content::PANE_MEDIA;
 
 /// The tag `ds-blitz` knows the frame by.
 const FRAME_TAG: &str = "anyview-peek-markdown";
@@ -39,7 +38,6 @@ pub(super) fn Frame(html: String) -> Element {
             "data-frame-tag": FRAME_TAG,
             title: "Markdown preview",
             srcdoc,
-            style: "width:{PANE_MEDIA.width.0}px;height:{PANE_MEDIA.height.0}px",
         }
     }
 }

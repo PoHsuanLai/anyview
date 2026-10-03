@@ -10,7 +10,7 @@ use crate::window::{Factory, Opening};
 use anyview_core::FilePath;
 use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails};
 use anyview_platform::{Env, Request};
-use anyview_store::Viewed;
+use anyview_store::{STORE_FOLDER, Viewed};
 use ds::prelude::Appearance;
 use ds_blitz::{AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, launch_idle};
 use futures_channel::mpsc::unbounded;
@@ -25,10 +25,6 @@ use tokio::runtime::{Builder, Runtime};
 /// default), so the next open finds the device, the fonts and the instance warm. A constant until
 /// quire's settings have the key (FINDINGS).
 pub const WARM_FOR: Duration = Duration::from_secs(10 * 60);
-
-/// The folder under the person's data directory that holds the history and the view memory. The
-/// launcher reads the same one.
-const STORE_FOLDER: &str = "anyview";
 
 /// The desktop application id the windows carry.
 const APP_ID: &str = "org.quire.Anyview";
@@ -73,13 +69,13 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
             eprintln!("anyview: running without single instance: {error}");
         }
     }
-    let first_files = crate::program::files_of(request);
-    if first_files.is_empty() && !may_wait {
+    let first = crate::program::wanted_by(request);
+    if first.is_empty() && !may_wait {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
     }
     let own = openings.clone();
-    runtime.spawn(async move { open_each(first_files, &own).await });
+    runtime.spawn(async move { open_each(first, &own).await });
     // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
     drop(openings);
     show(runtime, env, inbox)
