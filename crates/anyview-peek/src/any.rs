@@ -2,9 +2,11 @@
 
 use crate::body::{Body, Light};
 use crate::described::Described;
+use crate::frames::{NoFrames, VideoFrames, still_peek};
 use crate::registry::{KindVisitor, visit};
 use crate::when::modified_text;
 use anyview_core::{FactLabel, FactValue, Facts, FormatKind, PeekBudget, Sniffed, Source};
+use std::sync::Arc;
 
 /// What a peek of any file produced: what to draw, and the rows to list beside it. It is the value
 /// a worker sends to the pane, and `Clone + PartialEq + Send` like every `Peek::Peeked`.
@@ -24,6 +26,29 @@ pub struct AnyPeeked {
 /// worker. It never fails: a peek that cannot be made comes back as [`Body::Unavailable`] with
 /// the reason, and the facts the file can still give (its type, size and date).
 pub fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
+    peek_with(src, sniffed, budget, &NoFrames)
+}
+
+/// [`peek`], with `frames` as the host's source of a picture for a video that carries no cover. The
+/// frame replaces only the facts-only card of a video whose header was read; a failed peek, and
+/// every other kind, are as [`peek`] makes them.
+pub fn peek_with(
+    src: &Source,
+    sniffed: &Sniffed,
+    budget: &PeekBudget,
+    frames: &dyn VideoFrames,
+) -> AnyPeeked {
+    let mut peeked = peek_kind(src, sniffed, budget);
+    if peeked.kind == FormatKind::Video
+        && matches!(peeked.body, Body::FactsOnly(_))
+        && let Some(picture) = frames.frame(src)
+    {
+        peeked.body = Body::Picture(Arc::new(still_peek(picture, budget)));
+    }
+    peeked
+}
+
+fn peek_kind(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
     visit(
         sniffed.kind(),
         Run {
