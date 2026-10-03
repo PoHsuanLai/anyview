@@ -279,6 +279,16 @@ mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808
 # (libavcodec 62); 6.1 and 7.1 do not build against it, 9.0 does (FINDINGS, "ffmpeg-next"). Only
 # the features its code uses: the codec and format layers and the resampler.
 ffmpeg-next = { version = "8.1", default-features = false, features = ["codec", "format", "software-resampling"] }
+# `anyview-peek` (feature `media`): a recording's facts, tags and cover without decoding it, pure Rust.
+# `symphonia` reads audio (MP3, AAC and ALAC in MP4, FLAC, Ogg Vorbis and Opus, WAV, AIFF): MPL-2.0,
+# metadata and probing only, no decoder is called. Features: the container readers and the tag formats.
+symphonia = { version = "0.6", default-features = false, features = ["aac", "aiff", "alac", "flac", "id3v1", "id3v2", "ape", "isomp4", "mp3", "ogg", "pcm", "vorbis", "wav"] }
+# `anyview-peek` (feature `media`): the movie header of an MP4, MOV or M4V (tracks, sizes, codecs,
+# length, tags and cover), from Mozilla's parser: MPL-2.0.
+mp4parse = "0.17"
+# `anyview-peek` (feature `media`): the segment info, tracks, tags and attachments of a Matroska or
+# WebM file: Zlib OR MIT OR Apache-2.0.
+matroska-demuxer = "0.8"
 # Blocks on the headless wgpu device's futures: `anyview-media` (feature `player`, to make the
 # device a background session plays on) and its tests. Apache-2.0 OR MIT.
 pollster = "0.4"
