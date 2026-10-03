@@ -33,7 +33,7 @@ pub use export::{
 pub use facts::{Fact, FactLabel, FactValue, Facts};
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
-    Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat,
+    Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, opened_mimes,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Peek, PeekBudget, StageSupport};

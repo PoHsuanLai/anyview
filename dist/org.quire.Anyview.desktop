@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Viewer
+GenericName=File Viewer
+Comment=View images, documents, recordings, text and data
+Exec=anyview %U
+Icon=org.quire.Anyview
+StartupWMClass=org.quire.Anyview
+Terminal=false
+# The viewer claims the bus name org.quire.Anyview1 with its own interface, not
+# org.freedesktop.Application, so the desktop starts it by Exec; dist/org.quire.Anyview1.service
+# is for the viewer's own launcher.
+DBusActivatable=false
+Categories=Graphics;Viewer;AudioVideo;Player;
+Keywords=viewer;image;pdf;video;audio;text;markdown;
+MimeType=application/json;application/pdf;application/x-ndjson;application/xml;audio/aac;audio/aiff;audio/flac;audio/mp4;audio/mpeg;audio/ogg;audio/opus;audio/wav;image/avif;image/bmp;image/gif;image/heic;image/jpeg;image/jxl;image/png;image/svg+xml;image/tiff;image/vnd.adobe.photoshop;image/vnd.microsoft.icon;image/vnd.radiance;image/webp;image/x-dcraw;image/x-exr;image/x-icns;image/x-qoi;image/x-tga;text/css;text/csv;text/html;text/markdown;text/plain;text/tab-separated-values;video/mp2t;video/mp4;video/mpeg;video/ogg;video/quicktime;video/webm;video/x-flv;video/x-m4v;video/x-matroska;video/x-ms-wmv;video/x-msvideo;
