@@ -329,6 +329,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-ffmpeg"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "anyview-platform",
+ "anyview-plugin",
+ "anyview-plugin-protocol",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "anyview-font"
 version = "0.1.0"
 dependencies = [
