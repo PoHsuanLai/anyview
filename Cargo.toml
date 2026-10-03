@@ -235,8 +235,8 @@ pulldown-cmark = { version = "0.13", default-features = false, features = ["html
 csv = "1"
 # `anyview-archive`: listings of zip (central directory only; deflate to extract an entry): MIT.
 zip = { version = "8", default-features = false, features = ["deflate"] }
-# Tar archives, read as a stream: MIT OR Apache-2.0.
-tar = { version = "0.4", default-features = false }
+# Tar archives, read as a stream: `tar` is in the pinned block (MIT OR Apache-2.0), with its default
+# features (a workspace dependency cannot switch them off for one member).
 # gzip streams, pure-Rust backend (already in the tree): MIT OR Apache-2.0.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 # Zstandard streams, pure Rust: MIT.

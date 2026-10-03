@@ -127,7 +127,12 @@ mod tests {
         use crate::kind::kind_of_mime;
         for mime in opened_mimes() {
             let kind = kind_of_mime(&mime);
-            assert_eq!(stage_support(kind), StageSupport::Stage, "{}", mime.as_str());
+            assert_eq!(
+                stage_support(kind),
+                StageSupport::Stage,
+                "{}",
+                mime.as_str()
+            );
         }
     }
 }
