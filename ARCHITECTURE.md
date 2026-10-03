@@ -25,7 +25,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
-| L1 | `anyview-media` | exists | video and audio: the typestate player session over libmpv and the driver an actor runs (feature `player`), a recording's facts and cover art, trims, extracted audio and conversions over libav (feature `ffmpeg`) |
+| L1 | `anyview-media` | exists | video and audio: the typestate player session over the person's own mpv, run as a child process, and the driver an actor runs (feature `player`), and the plan, the names and the asks of the exports a plugin writes; links no libmpv and no libav |
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, and the archive peek |
 | L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
@@ -56,9 +56,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-font` | `anyview-core` |
 | `anyview-peek` | `anyview-archive`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, and the encode of a saved frame), `anyview-media` (features `player` and `ffmpeg`), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
+| `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, and the encode of a saved frame), `anyview-media` (feature `player`), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
 
-Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s exports, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
+Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
 directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform`, `anyview-peek`). `anyview-peek` also takes
 `ds-harness` (a real Blitz document, and the hybrid GPU painter), `ds-lint` and `dioxus-ssr` as
@@ -78,12 +78,13 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust`, `flate2`, `bzip2`, `ruzstd`, `lzma-rs`): the one crate that names `skrifa` for reading a face |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
-| `anyview` | nothing in its tree: it links libmpv and libav through `anyview-media`. It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
-| `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `ffmpeg-next` and `ffmpeg-sys-next` (libav) and, with its `player` feature, `mpv-wgpu-player` and `rsmpv` (libmpv). It spawns no thread, reads no clock, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
+| `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
+| `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `mpv-wgpu-player` (with its `player` feature), built with the `subprocess` host only, so no libmpv and no `rsmpv`. It spawns no thread, reads no clock, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
 | `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: serde, serde_json and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
 | `anyview-ffmpeg` | `anyview-core`, `anyview-media`, `anyview-platform`, `anyview-plugin`, `anyview-ui`, `anyview-peek`, `ds-core`, `ds`, `ds-blitz`, `toml`, `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `image`, `blitz-dom`, `anyrender`, `syntect`: a plugin knows the protocol, `serde`, `serde_json` and `thiserror`, and runs programs; it never links the libraries those programs are made of |
+| every crate | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`: no binding of libmpv or libav anywhere in the workspace (the script checks every crate in `crates/` and `plugins/` and `Cargo.lock`), and `dev/no-linked-codecs.sh` reads `ldd` of the built binary for `libmpv` and `libav*` |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/` and `plugins/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
@@ -372,7 +373,7 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | --- | --- |
 | `cli` | `parse`, `Invocation` (`Help`, or a `Launch` of the platform's `Request`), `CliError`, `USAGE`: the arguments as the request a launch makes |
 | `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows`, `wants_of`, `Want` and `Arrival` (what the viewer's name receives: each file, or a handoff that brings its own results and place, becomes a window through ds-blitz's `AppHandle`, or, for a `Play`, a player with no window); `WARM_FOR` |
-| `media` | the program's players: `MediaHub` (the sessions, the desktop's one now-playing entry and the controls that come back, the sessions with no window), `PlayerHost` (the `MediaHost` a window is lent: a player on a thread of its own per window), `NowPlaying` (MPRIS, or absent without a bus), `Exports`, `ExportHandle`, `ExportEnd` (the pool's runner for transcodes, with stop). Private: `actor` (the `ActorBody` over an `anyview_media::Driver`), `line` (what a window holds of a player), `map` (the player's events and commands to the machine's, both ways), `snapshot` (the entry's state from the events, and how often a moving position is published), `orders` (what each desktop control means to a player), `sink` (the window's texture as the player's picture) |
+| `media` | the program's players: `MediaHub` (the sessions, the desktop's one now-playing entry and the controls that come back, the sessions with no window), `PlayerHost` (the `MediaHost` a window is lent: a player on a thread of its own per window), `NowPlaying` (MPRIS, or absent without a bus), `MediaPlugins` (the registry and the runner: `player`, `reading`, `writer`, `offer`; section 2i), `Exports`, `ExportHandle`, `ExportEnd`, `PluginExport` (the pool's runner for transcodes through the FFmpeg plugin, with progress and stop). Private: `actor` (the `ActorBody` over an `anyview_media::Driver`), `line` (what a window holds of a player), `map` (the player's events and commands to the machine's, both ways), `snapshot` (the entry's state from the events, and how often a moving position is published), `orders` (what each desktop control means to a player), `sink` (the window's texture as the player's picture) |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
 | `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome` and `report`; `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it) |
 | `window` | `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
@@ -387,31 +388,44 @@ and the last one closing leaves the process warm for `WARM_FOR` (`LastWindowClos
 
 ## 2i. Modules inside `anyview-media`
 
-Same rules as section 2: private modules, each public item re-exported once at the crate root. Two C
-libraries sit behind two features. `player` is libmpv (through `mpv-wgpu-player`) drawing into a
-`wgpu` texture the caller owns; `ffmpeg` is libav (through `ffmpeg-next`). The launcher's pane links neither: since PLAN phase P4
-it reads recordings with pure-Rust parsers (section 2f), so only the viewer binary links these two. Nothing here spawns a thread, reads a clock
-or draws a pixel: the binary runs the driver on the media thread and the exports on its pool.
+Same rules as section 2: private modules, each public item re-exported once at the crate root. The crate
+links no libmpv and no libav. Playing is the person's own `mpv`, run as a child process with mpv-wgpu's C
+plugin loaded into it (`mpv-wgpu-player`'s `subprocess` host, section 2m); the feature `player` is that and
+the GPU texture the picture is drawn into. Writing a recording is the FFmpeg plugin's (section 2l): this crate
+only plans the work, names the file and says what to ask. The launcher's pane links none of it: it reads
+recordings with pure-Rust parsers (section 2f). Nothing here spawns a thread, reads a clock or draws a pixel:
+the binary runs the driver on the media thread and the exports on its pool.
 
 | Module | Holds |
 | --- | --- |
-| `error` | `MediaError`, the crate's one error |
+| `error` | `MediaError`, the crate's one error: the player (`Player`, and the typed `PlayerGone`, `PlayerSilent`, `PlayerStart` and `PlayerMissing` of the child process), `Export`, `WriterMissing`, `Stopped`, `NotMedia` |
 | `command` | `MediaCommand` (what the viewer tells the player), `Pace`, `Direction`, `PictureSlot`, `ShotContent` |
-| `event` | `MediaEvent` (what the player says), `EndReason` |
-| `session` (feature `player`) | the typestate: `Session<Idle>` (made on a device and queue, given a file with `open`), `Session<Opening>` (`poll` says whether it opened or gave up: `Opened`), `Session<Loaded>` (the only one that has `tracks`, `chapters`, `seek`, `set_volume`, `set_speed`, `select_track`, `cycle_track`, `step_chapter`, `frame_step`, `screenshot_to_file`), `Report`, `Frame`, `AudioDriver`, `Refused`. Moving between the states consumes the session. `convert` is where the player's words become the viewer's (private) |
-| `driver` (feature `player`) | `Driver` (one session and the state around it: instructions that arrive before the file opens wait and run in order when it does, a position at most ten times a second and held back while a seek is in flight, the end of a file mpv holds open reported as `Ended`), `FrameSink` (where the picture goes: a new texture, a new frame, none), `Handled`, `Continuation` |
+| `event` | `MediaEvent` (what the player says, including `Length`, the length a recording gives after it is loaded), `EndReason` |
+| `session` (feature `player`) | the typestate: `Session<Idle>` (made on a device and queue and an `MpvHost`, given a file with `open`), `Session<Opening>` (`poll` says whether it opened or gave up: `Opened`), `Session<Loaded>` (the only one that has `tracks`, `chapters`, `seek`, `set_volume`, `set_speed`, `select_track`, `cycle_track`, `step_chapter`, `frame_step`, `screenshot_to_file`), `MpvHost` (the `mpv` and the C plugin, from a `play` entry of a plugin manifest), `Report`, `Frame`, `AudioDriver`, `Refused`. Moving between the states consumes the session. `convert` is where the player's words become the viewer's (private) |
+| `driver` (feature `player`) | `Driver` (one session and the state around it: instructions that arrive before the file opens wait and run in order when it does, a position at most ten times a second and held back while a seek is in flight, the length said once it is known, the end of a file mpv holds open reported as `Ended`), `FrameSink` (where the picture goes: a new texture, a new frame, none), `Handled`, `Continuation` |
 | `device` (feature `player`) | `headless_device`: the device a session with no window plays on |
-| `probe` (feature `ffmpeg`) | `probe`, `probe_within`, `MediaProbe`, `VideoFacts`, `AudioFacts`, `CoverArt`, `CoverCodec`, and the light-tier `VideoPeek`, `AudioPeek`, `MediaPeeked`; `streams` and `container` are private |
-| `export` (feature `ffmpeg`) | `plan_export` (a choice as `ExportJob`s: pure), `output_path` (a free name beside the source), `Encoders` (which of M4A, MP3, FLAC, WAV and Opus this libav can write, and which it cannot), `ExportBackend` (a `Backend` whose job is an `ExportRequest` and whose result is an `ExportReport`), `ExportProgress`, `ProgressSink`; `copy` (stream copy), `convert` (decode, resample, encode), `fifo`, `flac`, `gate` (progress and `Stop`) and `run` are private |
-| `libav` (feature `ffmpeg`) | libav's one-time start and the paths it takes (private) |
+| `export` | `plan_export` (a choice as `ExportJob`s: pure), `ask_of` (what a job asks of the plugin: its target, range and bitrate), `target_of` and `offered_kinds` (which target writes a kind, and which kinds fit a file's kind), `output_path` with `NameHints` (a free name beside the source), `ExportRequest`, `ExportProgress`, `ExportReport`, `ProgressSink`; `ask`, `naming`, `plan` and `request` are private |
 
 The session is `Send` and not `Sync`, and its `poll` is called by whoever owns it: the media thread, which
 is not the thread that presents (FINDINGS, "`Player::poll` works from a thread that does not present").
-An export opens its own libav contexts inside `run` and writes to a `.part-` file beside its target that
-is renamed on success, so a failed or stopped export leaves nothing. A trim is a stream copy cut at the
-keyframe at or before its start: it is a copy beside the file, and saving a trim in place waits for the
-save pipeline (PLAN phase E). The frame on screen is not libav's: `ExportJob::MpvScreenshot` is planned
-here and carried out by the player that shows the frame (`MediaCommand::Screenshot`).
+**What the child process changes.** Every call that reaches mpv is a round trip over a socket; the reads of
+tracks, chapters, the position and the length are caches that mpv's events keep. mpv reports the length
+and the chapters a moment after it says the file is loaded, so `Loaded` may carry no length and the driver
+says `Length` when it arrives (the stage keeps it), a chapter instruction waits for the chapter list, and the
+end of a held file is looked for once a poll's last position is in. A crashed or hung mpv is `PlayerGone` or
+`PlayerSilent`: a `Failed` event, which the stage shows as "The player stopped"; a new session is how to play
+again. The frame on screen is mpv's: `ExportJob::MpvScreenshot` is planned here and carried out by the player
+that shows the frame (`MediaCommand::Screenshot`).
+
+**The binary's side (`anyview::media`).** `MediaPlugins` (the registry from `discover(&Env)` and the
+`PluginRunner`) answers four questions: `player` (the `MpvHost` of a kind, else the package that would play it),
+`reading` (a recording's facts and tags: the FFmpeg plugin's, else `anyview-peek`'s pure-Rust ones), `writer`
+(the plugin that writes exports) and `offer` (which media exports the sheet lists). `offer` asks the writer's
+greeting which targets this machine's FFmpeg can encode and keeps those that fit the file's kind (a frame is
+a video's, and the player's, so it is on offer only with a player). With no plugin the viewer shows what it
+can: a recording nothing plays opens as its facts with a `Needs: anyview-mpv` row, and an export sheet with
+nothing to offer says which package adds it. `Exports` runs `PluginExport`, a pool job whose worker waits
+for the plugin, reports its progress and cancels it when stopped (the plugin removes what it wrote).
 
 ## 2j. Modules inside `anyview-archive`
 
@@ -465,7 +479,7 @@ Three crates, a test plugin and the FFmpeg plugin carry it:
 | --- | --- |
 | `anyview-plugin-protocol` (L0) | `Capability`, `HostMessage`, `PluginMessage` and the request and reply types, `PROTOCOL_VERSION`, the frame codec (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`), `ProtocolError`. Pure: `serde`, `serde_json`, `thiserror` |
 | `anyview-plugin` (L1) | `Manifest` (parse and validate TOML), `PluginId`, `Program`, `Provision` (`Probe`, `Peek`, `Thumbnail`, `Decode`, `Export`, `Play`), `Handles`, `Subject`, `Plugins` (the registry), `Candidate`, `Origin`, `Readiness`, `Route`, `MissingPlugin`, `suggested_package`, `PluginError`. Pure |
-| `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner`, `Timeouts`, `PluginFacts`, the private process |
+| `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and `hello`: what the plugin answers on this machine, which a host reads the export targets it can write from), `Timeouts`, `PluginFacts`, the private process |
 | `anyview-ffmpeg` (`plugins/`) | `anyview-ffmpeg`, the FFmpeg plugin (below) |
 | `anyview-plugin-fake` (dev) | `anyview-fake-plugin`, a plugin for one invented kind that can misbehave on request, and the tests |
 
@@ -578,7 +592,7 @@ the capability it is about to ask for (`PluginLacks`), then sends the request. N
 | `probe` | `path` | `facts` |
 | `thumbnail` | `path`, `max_edge` (pixels on the longer side) | `image`, longer side at most `max_edge` |
 | `decode` | `path`, `max_area` (pixels) | `image`, width times height at most `max_area`; the plugin scales down to fit |
-| `export` | `input`, `output`, `target`, `range` (`{start, end}` in microseconds, optional), `stream` (index, optional), `bitrate` (bits a second of a lossy target, optional) | any number of `progress`, then `done` or `error` |
+| `export` | `input`, `output`, `target`, `range` (`{start, end}` in microseconds, optional; an absent `end` is the end of the recording), `stream` (index, optional), `bitrate` (bits a second of a lossy target, optional) | any number of `progress`, then `done` or `error` |
 | `cancel` | none | sent only during an export: the plugin removes its partial output and answers `error` with `code` `cancelled` |
 
 **Replies** (plugin to host):
@@ -643,8 +657,8 @@ output before it answers.
 
 ### The FFmpeg plugin
 
-`plugins/anyview-ffmpeg` (binary `anyview-ffmpeg`, package name `anyview-ffmpeg`) is the plugin that
-replaces `anyview-media`'s `ffmpeg` feature once P5 switches the viewer over. It lives in `plugins/` and not
+`plugins/anyview-ffmpeg` (binary `anyview-ffmpeg`, package name `anyview-ffmpeg`) is the plugin the viewer
+probes and exports recordings with. It lives in `plugins/` and not
 in `crates/` because it is a program with its own package and its own licence story, not a layer of the
 viewer: `crates/` holds what the viewer links, `plugins/` what it runs. It is the one place in the repository
 that reads the environment and starts programs on its own account, since that is what a plugin is. Its
@@ -660,7 +674,7 @@ FFmpeg `hello` lists nothing and stderr says why.
 
 **Facts.** `ffprobe -v error -print_format json -show_format -show_streams -show_chapters`, JSON only.
 The rows, in order, each only when the file has it: `duration`, `dimensions` and `codec` (the first
-moving picture), `framerate`, `audio_codec` (or `codec` for a recording with no picture), `sample_rate`,
+moving picture), `framerate`, `audio-codec` (or `codec` for a recording with no picture), `sample-rate`,
 `channels`, `bitrate` (the sound's, else the container's), `title`, `author` (the artist tag), `album`
 (tags found in the container then the streams, whatever the case of their keys), `streams`
 (`1 video, 2 audio, 1 subtitle, 1 cover`, when there is more than one) and `chapters`. Facts the viewer
@@ -690,7 +704,7 @@ an earlier one. The plugin finds the last video keyframe at or before `range.sta
 decoding; it looks 30 s back, then 10 minutes, then the whole file), and runs
 `ffmpeg -ss KEY -i FILE -t END-KEY ... -c copy -copypriorss 0`. Seeking exactly to the keyframe and dropping
 what precedes it (`-copypriorss 0`) makes the output begin on that keyframe at time zero, with every stream
-aligned to it, as `anyview-media`'s own cut did; without it a subtitle cue that began earlier pulls the
+aligned to it; without it a subtitle cue that began earlier pulls the
 whole file's timeline back. `-ss` is given a microsecond before the keyframe so a rounded timestamp cannot
 make FFmpeg drop the keyframe it was sent to find.
 
@@ -707,6 +721,39 @@ ffmpeg` installs the program as `<prefix>/libexec/anyview/anyview-ffmpeg` and th
 filled in, as `<prefix>/share/anyview/plugins/ffmpeg.toml`; `uninstall.sh` removes both. `dev/install-test.sh`
 covers it. The plugin tests spawn the built program through `PluginRunner` against the media crate's fixtures,
 using the shipped template.
+
+## 2m. Processes, and what to install
+
+The viewer links no codec and no copyleft code: video and audio are played and probed by programs the person
+installs, which it runs (CONVENTIONS section 15, "run, never link"). The processes of one running viewer:
+
+```text
+anyview                          the viewer: windows, the media thread, the pool; MIT OR Apache-2.0
+|                                reads $XDG_DATA_DIRS/anyview/plugins/*.toml once (`discover`)
+|
++-- mpv                          the person's own, one for each playing recording (a child process)
+|     |                          mpv --no-config --idle=yes --vo=libmpv --script=<cplugin> ...
+|     +-- mpv-wgpu-cplugin.so    ours, loaded by mpv with --script; contains no mpv code
+|           frames    a three-slot memfd ring mpv draws into, mapped by the viewer and uploaded
+|                     into the window's wgpu texture
+|           commands  a Unix socket: load, seek, properties, events, screenshots
+|
++-- anyview-ffmpeg               the FFmpeg plugin: one process for each request (facts, thumbnail, export),
+      |                          killed when the call returns or is dropped; protocol v1 over its pipes
+      +-- ffprobe, ffmpeg        the person's own, run by the plugin; progress on a pipe
+```
+
+A crash is an event, never a viewer crash: a dead mpv is `PlayerGone` and the stage shows that the player
+stopped; a plugin that dies, hangs or lies costs one request.
+
+**Runtime packages.** The viewer runs without either, and says so: a recording nothing plays opens as
+its facts with a `Needs: anyview-mpv` row, and the export sheet offers no recording formats and says which
+package adds them. To play and convert, install the distribution's `mpv` and `ffmpeg` (the patent-encumbered
+codecs come from there: Fedora's `ffmpeg-free` plus RPM Fusion's `ffmpeg`, Debian's `ffmpeg`), and the two
+plugins: `dist/install.sh --with-plugin mpv --with-plugin ffmpeg`, which builds mpv-wgpu's C plugin from a
+checkout (`MPV_WGPU_DIR`, default `../mpv`) and the FFmpeg plugin, finds `mpv` on the search path when it runs
+(`--mpv PATH` names another) and writes `mpv.toml` and `ffmpeg.toml` under `<prefix>/share/anyview/plugins`.
+Distribution packages are named `anyview-mpv` and `anyview-ffmpeg`.
 
 ## 3. Layer rules
 
@@ -862,12 +909,12 @@ The single place a concept lives. Extend it; never write a second one.
 | The player's instructions and news, as data | `anyview_media::MediaCommand`, `MediaEvent` |
 | What a player says of a recording (tracks, chapters, tags, whether a picture shows) | `anyview_core::MediaTrack`, `MediaChapter`, `MediaTags`, `VideoPresence` (`media`) |
 | Speed, chapter, trim range, bitrate | `anyview_core::Speed`, `ChapterIndex`, `TimeRange`, `Bitrate` (`units`) |
-| A recording's length, tags, tracks, chapters, codecs and cover, read with libav | `anyview_media::probe`, `MediaProbe` |
+| A recording's facts and tags | `media::MediaPlugins::reading` in the binary: the FFmpeg plugin's rows, else `anyview-peek`'s |
 | A recording in the launcher's pane | `anyview_peek::VideoPeek`, `AudioPeek` (pure-Rust parsers, `media/`), drawn by `anyview-peek`'s pane |
 | A video's frame in the launcher's pane | `anyview_peek::VideoFrames`, `peek_with` (the host's thumbnail cache; `frames.rs`) |
-| What a media export becomes, and its name | `anyview_media::plan_export`, `output_path` |
-| Which audio encoders this libav has | `anyview_media::Encoders` |
-| Cutting, copying and converting a recording, with progress and stop | `anyview_media::ExportBackend` (a pool job), `media::Exports` in the binary |
+| What a media export becomes, what it asks of the plugin, and its name | `anyview_media::plan_export`, `ask_of`, `output_path` |
+| Which media exports a recording offers | `media::MediaPlugins::offer` (the plugin's greeting and the file's kind), `anyview_ui::MediaOffer` |
+| Cutting, copying and converting a recording, with progress and stop | `media::PluginExport` (a pool job asking the FFmpeg plugin), `media::Exports` in the binary |
 | The frame on screen, saved | `MediaCommand::Screenshot` on the player that shows it, then `host/media.rs` encodes it as the format asked |
 | Which players run, the desktop's one entry and its controls | `anyview::media::MediaHub` |
 | What a desktop control means to a player | `orders_for` (`media/orders.rs`) |
@@ -888,7 +935,7 @@ A trait exists where two or more implementations swap or a generic consumer runs
 (CONVENTIONS section 5). Closed sets stay enums.
 
 ```rust
-/// The light tier of one format: cheap, no GPU, no libmpv. One implementation per kind.
+/// The light tier of one format: cheap, no GPU, no player. One implementation per kind.
 pub trait Peek: 'static {
     const KIND: FormatKind;
     type Peeked: Clone + PartialEq + Send + 'static;
@@ -1196,7 +1243,10 @@ map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands th
 `cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
 `dist/uninstall.sh` (sharing `dist/lib.sh`) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
-`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in. `dev/install-test.sh` (also run by
+`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in, and so is each plugin
+(`--with-plugin ffmpeg`, `--with-plugin mpv`; section 2m). The mpv plugin's manifest template is
+`dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
+C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
 `cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools.
 
 ## 8. Repo rules
@@ -1211,18 +1261,21 @@ binary, the entry, the service file (Exec rewritten to the installed binary) and
   cargo test --workspace
   ./scripts/check-boundary.sh
   cargo deny check licenses
+  bash dev/install-test.sh
+  bash dev/no-linked-codecs.sh        # after cargo build -p anyview: ldd shows no libmpv, no libav*
   ```
 
-  `anyview-media` links two C libraries, which the machine needs the development files of: libmpv
-  (`libmpv-dev`) and libav (`libavcodec-dev`, `libavformat-dev`, `libavutil-dev`, `libswresample-dev`),
-  with `pkg-config` and libclang, since `ffmpeg-sys-next` runs bindgen over the headers. Both are linked
-  dynamically (LGPL: link, never paste).
+  Nothing in the workspace links libmpv or libav, so building needs neither (no `libmpv-dev`, no
+  `libavcodec-dev`, no libclang for bindgen). The tests that play need the programs a person has: an `mpv` (`MPV_WGPU_MPV`,
+  else the first on the search path) and mpv-wgpu's C plugin (`MPV_WGPU_CPLUGIN`, built with `cargo build -p
+  mpv-wgpu-cplugin --release` in an mpv-wgpu checkout); the tests of the plugin and of the exports need `ffmpeg` and
+  `ffprobe` and the plugin built by `cargo test --workspace`. Each skips, saying so, when its program is absent.
 
   Where the image does not have `libdav1d-dev` and `pkg-config`, `anyview-image`'s `avif` feature cannot
   build, so clippy and the tests run without `--all-features` (FINDINGS, AVIF decoding).
 
-- **No `unsafe`** anywhere in the workspace; `unsafe_code = "deny"`. `ffmpeg-next` and `mpv-wgpu-player` are
-  safe APIs and `anyview-media` needs none.
+- **No `unsafe`** anywhere in the workspace; `unsafe_code = "deny"`. `mpv-wgpu-player` is a
+  safe API and `anyview-media` needs none.
 - **No `unwrap`** outside tests: clippy's `unwrap_used` is `deny`, and `clippy.toml` allows it in
   tests only.
 - **Stored forms:** a type with `Serialize` is stored or crosses a wire, is adjacently tagged when
