@@ -21,6 +21,7 @@ planned has no directory yet; its row is the rule it will carry.
 | Layer | Crate | Status | Purpose |
 | --- | --- | --- | --- |
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
+| L0 | `anyview-plugin-protocol` | exists | the plugin protocol, version 1: its messages and the length-prefixed JSON frames they travel in; the one crate a plugin author depends on |
 | L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
@@ -28,9 +29,11 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, and the archive peek |
 | L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
+| L1 | `anyview-plugin` | exists | plugins as values: the manifest, its validation, the registry of which plugin serves a kind and capability, the package to suggest when none does |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
+| dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
 | L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows, the players and the desktop's now-playing entry (`media`), and the host that carries out what the windows ask through the platform |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
@@ -38,12 +41,15 @@ planned has no directory yet; its row is the rule it will carry.
 | Crate | May depend on |
 | --- | --- |
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
+| `anyview-plugin-protocol` | nothing in the workspace: `serde`, `serde_json`, `thiserror` |
+| `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol` |
+| `anyview-plugin-fake` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` |
 | `anyview-ui` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
-| `anyview-platform` | `anyview-core`, `ds-core` (`Word` for the closed vocabularies) |
+| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-font` | `anyview-core` |
@@ -72,6 +78,9 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | nothing in its tree: it links libmpv and libav through `anyview-media`. It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
 | `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `ffmpeg-next` and `ffmpeg-sys-next` (libav) and, with its `player` feature, `mpv-wgpu-player` and `rsmpv` (libmpv). It spawns no thread, reads no clock, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
+| `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: serde, serde_json and thiserror only, so a plugin author's tree stays theirs |
+| `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
+| `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
@@ -230,7 +239,7 @@ run on the caller's worker.
 
 | Module | Holds |
 | --- | --- |
-| `error` | `PlatformError` (`NoBus`, `Bus`, `Io`, `Thumbnail`, `Spawn`, `Exec`), `IoOp` |
+| `error` | `PlatformError` (`NoBus`, `Bus`, `Io`, `Thumbnail`, `Spawn`, `Exec`, and the `Plugin*` family: `PluginSilent`, `PluginCrashed`, `PluginProtocol`, `PluginVersion`, `PluginLacks`, `PluginFailed`, `PluginCancelled`), `IoOp` |
 | `env` | `Env` (`dirs`, `session`, `spawn`, `audio_output`: `ANYVIEW_AUDIO_OUTPUT`, as written), `Dirs`, `BusRoute` (`Usual`, `Address`, `Absent`) |
 | `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
 | `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
@@ -241,6 +250,7 @@ run on the caller's worker.
 | `printer` | `Printer`, `PrintOutcome` (`Printed`, `Cancelled`, `NoDialog`), `JobTitle` |
 | `share` | `Share`, `ShareTarget` |
 | `reveal` | `Reveal` |
+| `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts`, `PluginFacts`; the process and its pipe are private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
 | `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection), `MprisSession`, `DesktopApps`, `FreedesktopThumbnails`, `PortalPrinter`, `MailShare`, `FileManagerReveal`, `NoStacking` |
 | `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession` (and `FakeMediaHandle`, its clonable test end, for when the session is given away), `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record. `PrivateBus` (a `dbus-daemon` with a configuration of its own) and `MprisClient` (the control center's end of the player) are the bus tests' rigs |
@@ -279,7 +289,7 @@ message when the program is not installed.
 
 `anyview-platform` depends on `zbus` (its `tokio` feature, so the binary's runtime drives it),
 `freedesktop-desktop-entry`, `tokio` (channels only), `md-5`, `png`, `percent-encoding`, `memfd`,
-`futures-util`, `dirs`, `thiserror`, `anyview-core` and `ds-core`.
+`futures-util`, `dirs`, `rustix` (`poll`, so a plugin's pipe is read with a deadline and no thread), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
@@ -439,6 +449,183 @@ stays a small value whatever the font's size, and what is drawn is the face the 
 maps none of the sample letters shows the first characters it does map. WOFF and WOFF2 are named
 (`face: None`) and not opened.
 
+## 2l. Plugins
+
+Codecs, and every other piece of code that is copyleft or patent-encumbered, are not linked. A plugin
+is a separate executable the person installs, which uses their own distribution's mpv and FFmpeg and
+talks to the viewer over a pipe. The viewer asks it to do one thing and kills it when it is done, so a
+plugin that crashes, hangs or lies costs one request and never the viewer.
+
+Three crates and a test plugin carry it:
+
+| Crate | Holds |
+| --- | --- |
+| `anyview-plugin-protocol` (L0) | `Capability`, `HostMessage`, `PluginMessage` and the request and reply types, `PROTOCOL_VERSION`, the frame codec (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`), `ProtocolError`. Pure: `serde`, `serde_json`, `thiserror` |
+| `anyview-plugin` (L1) | `Manifest` (parse and validate TOML), `PluginId`, `Program`, `Provision` (`Probe`, `Peek`, `Thumbnail`, `Decode`, `Export`, `Play`), `Handles`, `Subject`, `Plugins` (the registry), `Candidate`, `Origin`, `Readiness`, `Route`, `MissingPlugin`, `suggested_package`, `PluginError`. Pure |
+| `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner`, `Timeouts`, `PluginFacts`, the private process |
+| `anyview-plugin-fake` (dev) | `anyview-fake-plugin`, a plugin for one invented kind that can misbehave on request, and the tests |
+
+The manifest lives in `anyview-plugin`, apart from `anyview-core`, so that the core stays free of a TOML
+parser and the protocol crate free of the viewer's vocabulary (a plugin author needs the messages and
+nothing else); the registry is pure so that crates above the platform, which cannot name it, can still be
+handed a `Plugins` value.
+
+### The manifest
+
+A plugin installs one file, `<id>.toml`, in `anyview/plugins/` under a data directory:
+`$XDG_DATA_HOME` (the person's) and each of `$XDG_DATA_DIRS` (the system's). The directories come from
+`Env`; a test builds its own. A file that cannot be read, is not a manifest, or is not named for its id is
+reported (`Discovery::rejected`) and skipped.
+
+```toml
+id = "ffmpeg"                  # [a-z0-9_-], up to 64; must equal the file name without ".toml"
+name = "FFmpeg"                # for people
+protocol = 1                   # the newest protocol version the program speaks
+
+[program]                      # what speaks the protocol; omit for a plugin that only provides play
+path = "/usr/libexec/anyview/anyview-ffmpeg"   # absolute
+args = ["--serve"]             # placed before anything the host adds (nothing in v1)
+
+[[provides]]                   # one entry for each capability, at most once each
+capability = "probe"           # probe | peek | thumbnail | decode | export | play
+kinds = ["video", "audio"]     # FormatKind slugs (anyview-core)
+mimes = ["video/x-extra"]      # optional; kinds and mimes may not both be empty
+
+[[provides]]
+capability = "export"
+kinds = ["audio"]
+targets = ["mp3", "flac"]      # required for export, rejected elsewhere: [a-z0-9_.-], up to 32
+
+[[provides]]
+capability = "play"            # not spoken over this protocol: mpv-wgpu starts the player from these
+kinds = ["video", "audio"]
+mpv = "/usr/bin/mpv"           # absolute; the stock player
+cplugin = "/usr/lib/anyview/mpv-wgpu-cplugin.so"   # absolute; loaded into it with --script
+```
+
+Unknown keys are ignored. Every capability except `play` needs a `[program]`; `play` needs both `mpv`
+and `cplugin` and the others may not carry them. `peek` is not a request of its own: the host serves it by
+asking `probe` and then `thumbnail`, so a plugin that lists `peek` answers both.
+
+Discovery then checks every path the manifest names: the program and `mpv` must exist and be executable,
+the C plugin must exist. A manifest that fails is `Unusable` with the reason and takes part in nothing.
+
+Precedence, applied by `Plugins::resolve` and never dependent on the order the disk lists files in:
+
+1. A manifest whose protocol is newer than the viewer's (`PROTOCOL_VERSION`), or whose programs are
+   unusable, is set aside first, so a broken copy never shadows a working one.
+2. Of the manifests with one id, the higher protocol version wins; at equal versions the person's
+   directory wins over the system's; between system directories the earlier in `$XDG_DATA_DIRS` wins.
+3. Plugins with different ids are tried in the same order (protocol, then the person's first), then by id.
+   `serving(capability, subject)` picks the first that provides the capability and lists the subject's kind
+   or MIME type, preferring one that lists the MIME type itself.
+
+`Plugins::route` turns a request into `Route::Served(plugin)`, `Route::Missing(MissingPlugin)` (no plugin
+serves it, and the static table in `missing.rs` names a package: `anyview-ffmpeg` for probing, peeking,
+thumbnails, frames and exports of video and audio, `anyview-mpv` for playing them) or `Route::Unserved`.
+`MissingPlugin::fact` is the `Needs` row a facts card lists. `export_targets` lists what an export sheet
+may offer: each target of each installed plugin that exports the kind, once.
+
+### Protocol version 1
+
+**Process model.** The host starts the program once for each request and kills it when the call returns
+or is dropped. The plugin reads one request, answers it, and exits. This costs a process start for each
+request, which is nothing next to what ffprobe or ffmpeg cost, and in return a plugin holds no state, a
+leak or a stuck codec cannot outlive its request, and cancelling is killing. A later version that keeps
+a plugin alive for a session adds request ids and says so in `Hello`; version 1 has none, since only one
+request is ever open.
+
+**Streams.** The plugin's stdin carries host messages, its stdout carries plugin messages and nothing
+else, and each line it writes to stderr goes to the viewer's log, prefixed `anyview: plugin <id>:`. The
+last lines also ride in the error when a plugin dies.
+
+**Frame.** Every message is one frame:
+
+```text
+u32 little-endian: length of the JSON   (at most 1 MiB)
+u32 little-endian: length of the payload (at most 512 MiB; zero for most messages)
+JSON of the message
+payload bytes
+```
+
+The JSON is adjacently tagged: `{"kind":"probe","v":{"path":"/a/b.mkv"}}`; a message with no fields is
+`{"kind":"cancel"}`. Keys the reader does not know are ignored, and optional fields have defaults, so
+fields can be added without a version. A plugin written in Rust uses `read_frame` and `write_frame`.
+
+**Handshake.** The plugin speaks first:
+
+```json
+{"kind":"hello","v":{"protocol":1,"name":"ffmpeg","provides":["probe","thumbnail","decode","export"]}}
+```
+
+The host checks that `protocol` is the one it speaks (`PluginVersion` otherwise) and that `provides` lists
+the capability it is about to ask for (`PluginLacks`), then sends the request. No `hello` within
+`Timeouts::hello` (5 s) is `PluginSilent`.
+
+**Requests** (host to plugin; paths are absolute):
+
+| Message | Fields | Answer |
+| --- | --- | --- |
+| `probe` | `path` | `facts` |
+| `thumbnail` | `path`, `max_edge` (pixels on the longer side) | `image`, longer side at most `max_edge` |
+| `decode` | `path`, `max_area` (pixels) | `image`, width times height at most `max_area`; the plugin scales down to fit |
+| `export` | `input`, `output`, `target`, `range` (`{start, end}` in microseconds, optional), `stream` (index, optional) | any number of `progress`, then `done` or `error` |
+| `cancel` | none | sent only during an export: the plugin removes its partial output and answers `error` with `code` `cancelled` |
+
+**Replies** (plugin to host):
+
+| Message | Fields | Meaning |
+| --- | --- | --- |
+| `facts` | `rows`: list of `{label, value}` | `label` is a `FactLabel` slug (`kind`, `title`, `codec`, `duration`...); an unknown label is dropped; `value` is text already formatted for a person |
+| `image` | `width`, `height`; payload | the payload is exactly `width * height * 4` bytes of straight (not premultiplied) RGBA8, rows from the top, already upright |
+| `progress` | `done`, `total` | any unit; `total` 0 when unknown |
+| `done` | `output` (optional) | the export is finished; the plugin writes `output` completely before saying so |
+| `error` | `code`, `message` | `code` is `unsupported`, `unreadable`, `corrupt`, `too_large`, `cancelled` or `failed`; the plugin then exits |
+
+**Pictures** cross as raw RGBA8 in the frame's payload, on the same pipe. A 24-megapixel decode is 96 MB,
+which a pipe moves in tens of milliseconds, against about a second to encode and decode it as PNG; there is
+no side socket, no file descriptor passing and no `unsafe` on either side, and a plugin in any language can
+write it. The host checks the payload against the header and the header against the budget it asked for
+(a plugin that sends more than `max_edge` or `max_area` is `PluginProtocol`), and no payload may exceed
+512 MiB.
+
+**Timeouts, cancel and drop.** Waiting is by `poll` on the pipe, so no thread is needed. A plugin may be
+silent for at most `Timeouts::silence` (30 s) while a request is open; each message starts the wait again,
+so a long export that reports progress is never cut off. When an export's `Stop` is raised the host sends
+`cancel` and gives the plugin `Timeouts::cancel_grace` (2 s) to answer; after that it is killed. The result
+is `PluginCancelled` either way, unless the export finished first. Dropping a call kills the process and
+reaps it.
+
+**Failures** are `PlatformError` variants a caller acts on, and none of them panics or ends the viewer:
+`Spawn` (the program cannot start), `PluginSilent`, `PluginCrashed` (the output ended; carries the exit
+status and the last stderr line), `PluginProtocol` (not a frame, a message out of turn, a picture the wrong
+size or over budget), `PluginVersion`, `PluginLacks`, `PluginFailed` (the plugin's own `error`, with its
+code) and `PluginCancelled`.
+
+**Playback is not on this protocol.** `play` is a capability whose manifest names the `mpv` and the C
+plugin; mpv-wgpu's player starts them and keeps its own frame protocol with its C plugin inside mpv-wgpu.
+
+### The routing seam
+
+Where the viewer chooses a back end for a kind, it asks the plugins when no built-in back end handles the
+kind or capability. `PluginRunner::peek_facts(&Plugins, &Subject, &FilePath)` is that call for facts: a
+plugin that serves `probe` for the kind is run and its rows become `Facts`; otherwise the answer is
+`PluginFacts::Missing(MissingPlugin)`, whose `fact()` the card lists, or `PluginFacts::Unserved`.
+Thumbnails and decodes are `PluginRunner::thumbnail` and `decode` after `Plugins::route(Capability::Thumbnail
+or Decode, ..)`, and exports `PluginRunner::export` after `export_targets`. Like every blocking call these
+run on a worker. Nothing in the viewer calls them yet: the peek registry and the stages still name their
+built-in back ends (FINDINGS, "Plugins are not wired into the viewer").
+
+### Writing a plugin
+
+1. Depend on `anyview-plugin-protocol`.
+2. In `main`, write a `hello` frame, read one frame, answer it as above, and exit. Read stdin on a
+   thread of its own if the plugin must notice `cancel` during an export.
+3. Install the program, and `<id>.toml` next to the others in `<prefix>/share/anyview/plugins/`.
+4. Write nothing to stdout but frames; log to stderr.
+
+`crates/anyview-plugin-fake/src` is a complete example, and its tests drive it through the host.
+
 ## 3. Layer rules
 
 1. **A lower layer never names a higher one.** If something needed lives above, move the shared
@@ -567,6 +754,13 @@ The single place a concept lives. Extend it; never write a second one.
 | Now playing and the desktop's media controls | `anyview_platform::MediaSession`, `MediaState`, `MediaControl` |
 | Which applications open a type, and opening with one | `anyview_platform::AppsForType` |
 | The shared thumbnail cache, and a file's `file://` URI | `anyview_platform::ThumbnailCache`, `file_uri` |
+| What a plugin says of itself (the manifest), and its checks | `anyview_plugin::Manifest`, `PluginError` |
+| Which plugin serves a kind and capability, and which wins when manifests collide | `anyview_plugin::Plugins` (`resolve`, `serving`, `route`, `export_targets`) |
+| The package to suggest for a kind no plugin serves, and the facts row that says it | `anyview_plugin::suggested_package` (`missing.rs`), `MissingPlugin::fact` |
+| The plugin protocol's messages and framing | `anyview_plugin_protocol` (`HostMessage`, `PluginMessage`, `encode_frame`, `FrameDecoder`) |
+| Finding manifests on disk and checking their programs | `anyview_platform::discover` |
+| Starting a plugin and asking it something | `anyview_platform::PluginRunner` |
+| The facts of a kind with no built-in back end, from a plugin or the package that is missing | `anyview_platform::PluginRunner::peek_facts` |
 | Printing, sharing, revealing a file, keeping a window above | `anyview_platform::Printer`, `Share`, `Reveal`, `WindowStacking` |
 | Which view shows a kind of file, and opening it | `anyview_ui::visit`, `family_of` (`families/registry.rs`) |
 | What a family draws, controls and lists | `anyview_ui::StageView` (`families/view.rs`) |
@@ -685,6 +879,7 @@ their work items and nothing else.
 | UI | the window (`ds-blitz`) | the machines, the views, `TextureLayer`, Markdown and HTML layout; never blocks |
 | workers, `PoolSize::from_cores(cores)` (cores minus one, at least one) | `runtime::Pool` | back-end jobs, visible-lane first, and media exports (`media::Exports`) |
 | `anyview-media` (one per recording that plays) | `runtime::Actor` | the media player: built, polled and commanded only there |
+| (none: plugin calls) | the worker that makes them | `PluginRunner` calls block their worker and poll the plugin's pipe, so they spawn no thread of their own; a plugin is a child process, killed when its call ends |
 | async runtime | the binary's tokio runtime (`program::start`: one worker, `anyview-platform`) | `anyview-platform` (D-Bus, MPRIS) and the host's tasks (`host::Desktop`); blocking work among them runs on its blocking pool |
 
 `ds-blitz` keeps a process-wide tokio runtime of its own (two workers, entered by `launch`) for the design

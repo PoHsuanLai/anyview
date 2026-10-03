@@ -502,6 +502,40 @@ on. It is a reference, not a log: how each was found lives in git history.
   process, to be lowered whenever a run beats them and never raised. Not measured: a one-page PDF (its stage is not
   in the window yet), the thumbnail cache painting first (the item above).
 
+- **Plugins are not wired into the viewer.** `anyview-platform` can discover plugins and run `probe`,
+  `thumbnail`, `decode` and `export` (ARCHITECTURE section 2l), and `PluginRunner::peek_facts` is the seam for
+  a kind with no built-in back end, but nothing calls it: the peek registry (`anyview-peek`), the stages and
+  the export sheet still name their built-in back ends, and `anyview-peek` cannot name `anyview-platform`. Ends
+  with plan phase P5: the binary builds `Plugins` once from `Env`, hands the registry (a pure value, so the
+  light tier can hold it) to the peek and the views, a kind with no back end shows the `Needs` row, and the
+  export sheet offers `Plugins::export_targets`.
+- **A plugin is started for each request.** Right for the probe, thumbnail and decode of one file and for an
+  export, but a folder of 500 recordings pays 500 process starts for its thumbnails. Ends if P3's measurements
+  show it: a session mode (kept alive, with request ids announced in `Hello`) is then protocol version 2, and
+  version 1 plugins keep working beside it.
+- **A decoded picture is one 4-byte-a-pixel copy through a pipe, and one more in the host.** A 24-megapixel
+  decode is 96 MB written by the plugin, read in 256 KiB chunks and cut out of the frame buffer (one memmove).
+  Measured in the test it is a fraction of a second even in a debug build, so nothing is done about it. Ends if
+  a real plugin's decode shows it matters: a memfd handed over a Unix socket (`SCM_RIGHTS`) removes both copies
+  and is a new protocol version.
+- **The manifest's programs are absolute paths.** The environment has no `PATH` (it comes in through `Env`), so
+  a manifest that says `ffmpeg` would be resolved by the process's own, which is the ambient lookup the rules
+  forbid. A distribution's package writes its real path. Ends if packaging wants relative names: `Dirs` gains a
+  search path and `discover` resolves against it.
+- **Only `FactLabel` slugs come back from a probe.** A plugin that knows more than the closed labels (an
+  HDR flag, a chapter count) cannot show it; unknown labels are dropped. Ends if P3 needs a row the labels lack:
+  the label is added to `FactLabel` first, and the plugin sends its slug.
+- **The package table is static and names no distribution.** `suggested_package` maps a capability and kind to
+  `anyview-ffmpeg` or `anyview-mpv`; Fedora, Debian and Flathub spell them differently or ship them as extensions.
+  Ends when packaging exists to say how each names them: the table then takes a distribution from `Env`.
+- **Plugin export requests carry a range and a stream and nothing else.** Fields for what P3's exports need
+  (a target's bitrate or quality, subtitles, metadata) are added to `ExportRequest` as optional fields, which a
+  version 1 plugin ignores. `Plugins` keeps no per-target options either: the manifest lists names only.
+- **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
+  they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
+  silence) and nothing else. Ends if plugins come from outside the distribution: a sandbox (bubblewrap, or
+  Flatpak's) wraps the spawn.
+
 ## Standing facts
 
 - **The `[patch]` sections are quire's, copied.** The root `Cargo.toml` carries quire's `[patch.crates-io]` (the

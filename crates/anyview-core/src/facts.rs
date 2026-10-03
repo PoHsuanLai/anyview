@@ -70,6 +70,8 @@ pub enum FactLabel {
     Album,
     /// Where a recording sits in its album, as the tag gives it.
     TrackNumber,
+    /// A plugin the viewer lacks and the package that provides it.
+    Needs,
 }
 
 /// The text shown for a fact, already formatted for a person. A producer builds one from its typed

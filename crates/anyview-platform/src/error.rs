@@ -1,7 +1,9 @@
 //! The one error `anyview-platform` returns, with variants a caller acts on: no bus means the
 //! feature is off, a failed call is reported, a bad file is skipped.
 
+use anyview_plugin_protocol::{Capability, ErrorCode};
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// What the edge was doing to a file or directory when the disk refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +66,65 @@ pub enum PlatformError {
         id: String,
         /// The parser's description.
         reason: String,
+    },
+    /// A plugin sent nothing for too long and was killed.
+    #[error("the plugin {plugin} was silent for {waited:?}")]
+    PluginSilent {
+        /// The plugin's id.
+        plugin: String,
+        /// How long the host waited.
+        waited: Duration,
+    },
+    /// A plugin ended without answering: it crashed, was killed, or exited early.
+    #[error("the plugin {plugin} ended without an answer ({status})")]
+    PluginCrashed {
+        /// The plugin's id.
+        plugin: String,
+        /// How it ended, with the last line it wrote to stderr when it wrote one.
+        status: String,
+    },
+    /// A plugin broke the protocol: bytes that are not a message, a message out of turn, a
+    /// picture of the wrong size.
+    #[error("the plugin {plugin} broke the protocol: {reason}")]
+    PluginProtocol {
+        /// The plugin's id.
+        plugin: String,
+        /// What was wrong.
+        reason: String,
+    },
+    /// A plugin speaks a version of the protocol this viewer does not.
+    #[error("the plugin {plugin} speaks protocol {offered}, this viewer speaks {supported}")]
+    PluginVersion {
+        /// The plugin's id.
+        plugin: String,
+        /// What it said in its `Hello`.
+        offered: u32,
+        /// What the viewer speaks.
+        supported: u32,
+    },
+    /// A plugin's `Hello` does not list the capability that was asked of it.
+    #[error("the plugin {plugin} does not answer {capability:?}")]
+    PluginLacks {
+        /// The plugin's id.
+        plugin: String,
+        /// What was asked.
+        capability: Capability,
+    },
+    /// A plugin answered with an error of its own.
+    #[error("the plugin {plugin} failed ({code:?}): {message}")]
+    PluginFailed {
+        /// The plugin's id.
+        plugin: String,
+        /// What a caller can act on.
+        code: ErrorCode,
+        /// What a person can read.
+        message: String,
+    },
+    /// An export was cancelled and the plugin stopped (or was killed after the grace period).
+    #[error("the plugin {plugin} was stopped")]
+    PluginCancelled {
+        /// The plugin's id.
+        plugin: String,
     },
 }
 
