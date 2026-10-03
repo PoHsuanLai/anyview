@@ -1,7 +1,7 @@
 //! One viewer process: the second launch hands what it was asked to the first and leaves.
 
 use crate::error::PlatformError;
-use anyview_core::FilePath;
+use anyview_core::{FilePath, Resume, Sequence};
 use std::any::Any;
 use std::future::Future;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -15,6 +15,21 @@ pub enum Request {
     Peek(FilePath),
     /// Open this file and start it playing.
     Play(FilePath),
+    /// Open one file the way the launcher's pane left it.
+    Handoff(Handoff),
+}
+
+/// A file the launcher's pane was showing when the person asked to open it: where the pane had
+/// it, and the search results it was chosen from, so the viewer carries on from there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Handoff {
+    /// The file.
+    pub file: FilePath,
+    /// Where the pane had it. `Resume::Nothing` says the pane held no place of its own, and the
+    /// viewer then continues where the person last left the file.
+    pub resume: Resume,
+    /// The results ← and → walk, with `file` among them; `None` when the file came from no list.
+    pub sequence: Option<Sequence>,
 }
 
 /// The right to be the viewer: the requests other launches forward arrive here, and dropping it

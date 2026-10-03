@@ -29,7 +29,7 @@ pub mod testing;
 pub use apps::{AppEntry, AppsForType, Association, DesktopId};
 pub use env::{BusRoute, Dirs, Env};
 pub use error::{IoOp, PlatformError};
-pub use instance::{Claim, Instance, Primary, Request};
+pub use instance::{Claim, Handoff, Instance, Primary, Request};
 pub use media::{
     Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection, TrackSerial,
 };

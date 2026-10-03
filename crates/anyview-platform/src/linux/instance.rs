@@ -1,7 +1,8 @@
 //! Single instance over the session bus: the first viewer owns `org.quire.Anyview1`, and a
-//! later launch calls `Open`, `Peek` or `Play` on it. The `.service` file in `dist/` lets the
+//! later launch calls `Open`, `Peek`, `Play` or `Handoff` on it. The `.service` file in `dist/` lets the
 //! bus start the viewer when someone calls the name while none runs.
 
+use super::handoff;
 use crate::env::Env;
 use crate::error::PlatformError;
 use crate::instance::{Claim, Instance, Primary, Request};
@@ -55,37 +56,60 @@ impl Instance for DbusInstance {
     }
 }
 
-/// Call the running viewer with `request`.
-async fn forward(env: &Env, request: &Request) -> Result<(), PlatformError> {
-    let connection = env
-        .session_builder()?
-        .build()
-        .await
-        .map_err(|error| PlatformError::bus("connect to the session bus", error))?;
-    let to = |method: &'static str| (Some(BUS_NAME), OBJECT_PATH, Some(BUS_NAME), method);
+/// Call the running viewer with `request`, on a connection to the session bus the caller owns
+/// (the launcher has its own). The bus starts the viewer for the call when none runs and the
+/// activation file is installed.
+pub async fn forward_over(
+    connection: &zbus::Connection,
+    request: &Request,
+) -> Result<(), PlatformError> {
+    let call = |method: &'static str| (Some(BUS_NAME), OBJECT_PATH, Some(BUS_NAME), method);
     let reply = match request {
         Request::Open(files) => {
-            let (name, path, interface, method) = to("Open");
+            let (name, path, interface, method) = call("Open");
             connection
                 .call_method(name, path, interface, method, &(paths(files),))
                 .await
         }
         Request::Peek(file) => {
-            let (name, path, interface, method) = to("Peek");
+            let (name, path, interface, method) = call("Peek");
             connection
                 .call_method(name, path, interface, method, &(text(file),))
                 .await
         }
         Request::Play(file) => {
-            let (name, path, interface, method) = to("Play");
+            let (name, path, interface, method) = call("Play");
             connection
                 .call_method(name, path, interface, method, &(text(file),))
+                .await
+        }
+        Request::Handoff(handed) => {
+            let (name, path, interface, method) = call("Handoff");
+            let wire = handoff::encode(handed);
+            connection
+                .call_method(
+                    name,
+                    path,
+                    interface,
+                    method,
+                    &(wire.file, wire.resume, wire.results, wire.entries),
+                )
                 .await
         }
     };
     reply
         .map(drop)
         .map_err(|error| PlatformError::bus("forward the request to the running viewer", error))
+}
+
+/// Call the running viewer with `request` over a connection of `env`'s.
+async fn forward(env: &Env, request: &Request) -> Result<(), PlatformError> {
+    let connection = env
+        .session_builder()?
+        .build()
+        .await
+        .map_err(|error| PlatformError::bus("connect to the session bus", error))?;
+    forward_over(&connection, request).await
 }
 
 fn text(file: &FilePath) -> String {
@@ -133,5 +157,25 @@ impl Service {
     /// Open a file and start it playing.
     fn play(&self, file: String) -> fdo::Result<()> {
         self.hand_over(Request::Play(parse_path(&file)?))
+    }
+
+    /// Open a file as the launcher's pane left it: `resume` is the JSON of where the pane had
+    /// it, `results` the id of the search whose result paths `entries` are (none: the file
+    /// came from no list).
+    fn handoff(
+        &self,
+        file: String,
+        resume: String,
+        results: u64,
+        entries: Vec<String>,
+    ) -> fdo::Result<()> {
+        let wire = handoff::Wire {
+            file,
+            resume,
+            results,
+            entries,
+        };
+        let handed = handoff::decode(&wire).map_err(fdo::Error::InvalidArgs)?;
+        self.hand_over(Request::Handoff(handed))
     }
 }
