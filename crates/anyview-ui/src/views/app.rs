@@ -4,7 +4,7 @@
 //! side panel waits to be asked for.
 
 use super::window::ViewerWindow;
-use crate::Presentation;
+use crate::{Look, LookFeed, Presentation};
 use anyview_core::{FilePath, Sequence};
 use dioxus::prelude::*;
 use ds::prelude::*;
@@ -17,8 +17,8 @@ pub struct Launch {
     pub file: FilePath,
     /// The files around it, with the file's place among them.
     pub sequence: Option<Sequence>,
-    /// How the window looks: theme, accent, motion.
-    pub appearance: Appearance,
+    /// How the window looks when it opens (and for good, when no `LookFeed` is provided).
+    pub look: Look,
     /// How the window is on screen: a window, or the small borderless one of a recording.
     pub presentation: Presentation,
 }
@@ -38,10 +38,44 @@ pub fn stylesheet() -> String {
 #[component]
 pub fn ViewerApp() -> Element {
     let launch = use_hook(consume_context::<Launch>);
+    let look = use_look(&launch);
+    let now = look();
     rsx! {
-        Ds { appearance: launch.appearance, material: Material::Window,
+        Ds {
+            appearance: now.appearance,
+            system: now.system,
+            tint_alpha: now.tint_alpha,
+            typeface: now.typeface,
+            stack: now.stack,
+            material: Material::Window,
             AppStyle { css: stylesheet() }
             ViewerWindow { launch: launch.clone() }
         }
     }
+}
+
+/// The look the window draws now: the feed's latest, which follows the desktop while the window is
+/// open, or the one it was launched with. The feed is read once, so every render takes one branch.
+fn use_look(launch: &Launch) -> ReadSignal<Look> {
+    let feed = use_hook(try_consume_context::<LookFeed>);
+    let mut look = use_signal({
+        let (feed, launched) = (feed.clone(), launch.look.clone());
+        move || match feed {
+            Some(LookFeed(receiver)) => receiver.borrow().clone(),
+            None => launched,
+        }
+    });
+    use_future(move || {
+        let feed = feed.clone();
+        async move {
+            let Some(LookFeed(mut receiver)) = feed else {
+                return;
+            };
+            while receiver.changed().await.is_ok() {
+                let latest = receiver.borrow_and_update().clone();
+                look.set(latest);
+            }
+        }
+    });
+    ReadSignal::new(look)
 }

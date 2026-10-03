@@ -44,6 +44,7 @@ fn a_file_that_is_not_there_or_a_folder_that_cannot_be_read_has_no_sequence() {
 
 mod remaking {
     use super::*;
+    use crate::host::Appearances;
     use crate::host::{Clock, Desktop, Media, Services, Store, Trash, TrashError};
     use crate::media::{MediaHub, PlayerHost};
     use crate::runtime::PoolSize;
@@ -56,8 +57,8 @@ mod remaking {
     };
     use anyview_platform::{PrintOutcome, Stacking, StackingOutcome};
     use anyview_store::Viewed;
+    use anyview_ui::Look;
     use anyview_ui::Presentation;
-    use ds::prelude::Appearance;
     use ds_blitz::{Decorations, WindowSpec};
     use std::sync::Arc;
 
@@ -112,7 +113,7 @@ mod remaking {
                 anyview_platform::testing::FakeThumbnails::default(),
             )),
             None,
-            Appearance::default(),
+            Appearances::fixed(Look::default()),
             Arc::new(PlayerHost::new(hub)),
             Arc::new(stacking),
         );

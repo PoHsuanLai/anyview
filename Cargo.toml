@@ -44,6 +44,8 @@ ds-core = { path = "../quire/crates/ds-core" }
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
 ds = { path = "../quire/crates/ds" }
 ds-blitz = { path = "../quire/crates/ds-blitz" }
+# The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
+ds-settings = { path = "../quire/crates/ds-settings" }
 ds-harness = { path = "../quire/crates/ds-harness" }
 ds-lint = { path = "../quire/crates/ds-lint" }
 
