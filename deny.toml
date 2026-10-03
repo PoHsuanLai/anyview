@@ -18,6 +18,8 @@ allow = [
     "CC0-1.0",
     "Unicode-3.0",
     "Zlib",
+    # bzip2-1.0.6: the bzip2 library's own permissive licence, reached through anyview-archive's bzip2 crate.
+    "bzip2-1.0.6",
     # Weak, file-level copyleft. The note below says why this one is here and GPL is not.
     "MPL-2.0",
 ]

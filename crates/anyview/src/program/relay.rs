@@ -3,26 +3,42 @@
 
 use crate::window::{Factory, Opening, Seed, open_in_window};
 use anyview_core::FilePath;
-use anyview_platform::{Primary, Request};
+use anyview_platform::{Handoff, Primary, Request};
 use ds_blitz::AppHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_util::StreamExt;
 
-/// The files a request asks to see, each for a window of its own. A peek and a play open the file
-/// like any other until the quick-look window and the player exist.
-pub fn files_of(request: Request) -> Vec<FilePath> {
+/// What a request asks to see, each for a window of its own.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Wanted {
+    /// A file, with the files of its folder around it.
+    Around(FilePath),
+    /// A file the launcher handed over with its results and its place.
+    Handed(Handoff),
+}
+
+/// The windows a request asks for. A peek and a play open the file like any other until the
+/// quick-look window and the player exist.
+pub fn wanted_by(request: Request) -> Vec<Wanted> {
     match request {
-        Request::Open(files) => files,
-        Request::Peek(file) | Request::Play(file) => vec![file],
+        Request::Open(files) => files.into_iter().map(Wanted::Around).collect(),
+        Request::Peek(file) | Request::Play(file) => vec![Wanted::Around(file)],
+        Request::Handoff(handed) => vec![Wanted::Handed(handed)],
     }
 }
 
-/// Make an opening of each file (listing its folder on the blocking pool) and hand it to
-/// `openings`, until the windows are gone.
-pub async fn open_each(files: Vec<FilePath>, openings: &UnboundedSender<Opening>) {
-    for file in files {
-        let Ok(opening) = tokio::task::spawn_blocking(move || Opening::around(file)).await else {
-            continue;
+/// Make an opening of each (listing a folder on the blocking pool) and hand it to `openings`,
+/// until the windows are gone.
+pub async fn open_each(wanted: Vec<Wanted>, openings: &UnboundedSender<Opening>) {
+    for one in wanted {
+        let opening = match one {
+            Wanted::Around(file) => {
+                match tokio::task::spawn_blocking(move || Opening::around(file)).await {
+                    Ok(opening) => opening,
+                    Err(_) => continue,
+                }
+            }
+            Wanted::Handed(handed) => Opening::handed(handed),
         };
         if openings.unbounded_send(opening).is_err() {
             return;
@@ -34,7 +50,7 @@ pub async fn open_each(files: Vec<FilePath>, openings: &UnboundedSender<Opening>
 /// files in new windows.
 pub async fn relay(mut primary: Primary, openings: UnboundedSender<Opening>) {
     while let Some(request) = primary.next().await {
-        open_each(files_of(request), &openings).await;
+        open_each(wanted_by(request), &openings).await;
         if openings.is_closed() {
             return;
         }

@@ -1,0 +1,28 @@
+[package]
+name = "anyview-archive"
+description = "Archives for the viewer: zip, tar, 7z and compressed-stream listings, extracting one entry, and the archive peek."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+bzip2 = { workspace = true }
+ds-core = { workspace = true }
+flate2 = { workspace = true }
+lzma-rs = { workspace = true }
+ruzstd = { workspace = true }
+sevenz-rust = { workspace = true }
+tar = { workspace = true }
+thiserror = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+sevenz-rust = { workspace = true, features = ["compress"] }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
