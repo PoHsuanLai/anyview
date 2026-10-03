@@ -290,6 +290,7 @@ dependencies = [
  "futures-util",
  "image",
  "notify",
+ "percent-encoding",
  "pollster",
  "tempfile",
  "thiserror 2.0.21",
