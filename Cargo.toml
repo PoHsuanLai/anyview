@@ -51,7 +51,7 @@ ds-lint = { path = "../quire/crates/ds-lint" }
 
 # The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
 # each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
-blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "54b79083c6744b3767104c3e7646add2170b94b7" }
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "43a6030cc589995ef29b77bac56e3d851815e521" }
 
 # Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
@@ -101,11 +101,11 @@ calloop = "0.14"
 calloop-wayland-source = "0.4"
 xkbcommon = "0.8"
 raw-window-handle = "0.6"
-keyboard-types = "0.7"
+keyboard-types = { version = "0.7", features = ["serde"] }
 cursor-icon = "1"
 
 # Common.
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util", "process"] }
 thiserror = "2"
 # Local wall-clock time with the system time zone (the bar clock); std cannot answer it.
 jiff = "0.2"
@@ -165,13 +165,45 @@ fend-core = "1.5.8"
 clap = { version = "4", features = ["derive"] }
 # latchkey lives in mailo until it is split into its own repo; cargo finds crates/latchkey itself.
 latchkey = { git = "https://github.com/PoHsuanLai/mailo", rev = "43ebf45f244a23c1e79c84b5d859b6fa1ba5bc7a" }
+# ---- Companion / agent stack (agent-spec section 1.4) ----
+# Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
+cedar-policy = "4.13"
+# actions-mcp: pin the minor.
+rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
+# model-http: one HTTP stack, Unix sockets. The cloud TLS stack is rustls, never OpenSSL.
+hyper = "1"
+hyper-util = "0.1.21"
+http-body-util = "0.1"
+hyper-rustls = "0.27"
+rustls = "0.23"
+base64 = "0.22"
+fast_image_resize = "6.1.0"
+blake3 = "1"
+# almanac-seal.
+chacha20poly1305 = "0.10"
+zeroize = "1"
+getrandom = "0.3"
+# eventlog, recall: SQLCipher built from source with a vendored OpenSSL (spike S-SQL: FTS5 works
+# in an encrypted DB, a wrong key fails, licences pass the allow-list).
+rusqlite = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
+tar = "0.4"
+oo7 = "0.6"
+# recall-fastembed only; excluded from the gate.
+fastembed = "7.1"
+# The minor cosmic-comp's lock resolves.
+reis = "0.7"
+atspi = "0.30"
+# voiced (docket): the capture device through pipewire-rs, MIT (libpipewire through bindgen;
+# agent-spec voice.md section 2.3, spike V-A).
+pipewire = "0.10"
+# Dev-dependencies.
+proptest = "1"
+tempfile = "3"
 # ---- END PINNED BLOCK ----
 
 # anyview-only, outside the pinned block (they are not shared with quire, shell-host or sill).
 # Magic-byte file type detection: MIT. `anyview-core` sniffs a file's first 4 KiB with it.
 infer = "0.19"
-# Scratch directories for `anyview-store`'s file tests (dev-dependency only): MIT OR Apache-2.0.
-tempfile = "3"
 # Decoders and codecs of `anyview-image`. `image` itself is pinned above with png and jpeg only; the
 # crate adds the other formats through its own feature list (FINDINGS: pinned features).
 # JPEG XL decoder, pure Rust: MIT OR Apache-2.0.
@@ -232,6 +264,10 @@ trash = "5"
 [patch."https://github.com/PoHsuanLai/blitz-kit"]
 blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
 
+# vello and anyrender come from our forks (github.com/PoHsuanLai/vello and /anyrender, branch
+# quire-filters): the colour matrix filter, multi-threaded filter layers and CSS filter lists, so
+# every CSS `filter` function paints on both backends. Move back to crates.io once upstream has
+# them (blitz-kit docs/blitz-gaps.md tracks the PRs).
 [patch.crates-io]
 vello_common = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
 vello_cpu = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
