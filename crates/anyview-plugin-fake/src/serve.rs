@@ -104,6 +104,7 @@ fn hello(behaviour: &Behaviour) -> PluginMessage {
         protocol,
         name: "fake".to_owned(),
         provides,
+        targets: Vec::new(),
     })
 }
 
