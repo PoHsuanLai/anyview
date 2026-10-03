@@ -49,7 +49,16 @@ cd "$(dirname "$0")/.."
 # anyview-peek's forbids both libraries, since the launcher links it with the `ffmpeg` feature alone
 # (`cargo tree -p` resolves only that package's features, so the player's stay out of its tree). The
 # media crate itself spawns nothing, reads no clock and draws nothing: no runtime, no bus, no UI.
+# anyview-plugin-protocol is what a plugin author depends on, so it is pure and small: `serde`,
+# `serde_json` and `thiserror` and nothing of the viewer's (no anyview-core, no ds-core, no `toml`),
+# and no runtime, bus, GPU, decoder or UI. anyview-plugin is the manifest and the registry as values:
+# it names anyview-core and the protocol, and parses TOML, and reaches no runtime, bus, GPU, decoder,
+# player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate and nothing else
+# (its dev-dependencies, which the checks below do not look at, are the host's crates).
 RULES=(
+  "anyview-plugin-protocol: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
+  "anyview-plugin: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
+  "anyview-plugin-fake: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
@@ -149,12 +158,15 @@ EDGES=(
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
-  "anyview-platform: anyview-core ds-core"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"
   "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-media anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
+  "anyview-plugin: anyview-core anyview-plugin-protocol"
+  "anyview-plugin-protocol: "
+  "anyview-plugin-fake: anyview-plugin-protocol"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
