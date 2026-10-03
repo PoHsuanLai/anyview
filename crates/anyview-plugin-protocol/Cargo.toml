@@ -1,0 +1,17 @@
+[package]
+name = "anyview-plugin-protocol"
+description = "The plugin protocol, version 1: the messages a viewer and a plugin exchange and the framing they travel in. Pure, so a plugin author depends on this crate alone."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -62,6 +62,8 @@ pub enum FactLabel {
     Author,
     /// The album a recording belongs to.
     Album,
+    /// A plugin the viewer lacks and the package that provides it.
+    Needs,
 }
 
 /// The text shown for a fact, already formatted for a person. A producer builds one from its typed
