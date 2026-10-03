@@ -11,7 +11,8 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
-anyview-media = { workspace = true, features = ["player", "ffmpeg"] }
+anyview-media = { workspace = true, features = ["player"] }
+anyview-peek = { workspace = true }
 anyview-platform = { workspace = true }
 anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }

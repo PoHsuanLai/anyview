@@ -1,8 +1,17 @@
 //! The sheet's states, inputs and outputs.
 
 use super::draft::{ExportDraft, ExportKindPick};
+use super::offer::MediaOffer;
 use crate::typed::TypedText;
+use anyview_core::Fact;
 use ds_core::vocab::ShortcutKey;
+
+/// What opening a sheet reads besides its input: what the host can write.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SheetParams {
+    /// The media exports on offer for the open recording.
+    pub media: MediaOffer,
+}
 
 /// Which sheet is up, with what it holds.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -12,6 +21,8 @@ pub enum Sheet {
     Closed,
     /// Choosing an export.
     Export { draft: ExportDraft },
+    /// An export the viewer cannot offer: the row says which package adds it.
+    Unavailable { needs: Fact },
     /// Asking before the file goes to the trash.
     ConfirmTrash,
     /// Typing a new name.
@@ -23,6 +34,8 @@ pub enum Sheet {
 pub enum SheetIn {
     /// Open the export sheet on this draft (the default of the file's format).
     OpenExport(ExportDraft),
+    /// Open the sheet that says nothing can be exported yet and which package adds it.
+    OpenUnavailable(Fact),
     /// Ask whether to trash the file.
     AskTrash,
     /// Ask for a new name, starting from the current one.

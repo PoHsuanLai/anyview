@@ -30,15 +30,33 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
     }
 }
 
+/// The export sheet for what the stage shows. A recording's depends on what is installed: with
+/// nothing on offer the sheet says which package adds the exports.
+fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
+    let opening = match export_family(&viewer.stage) {
+        None => None,
+        Some(ExportFamily::Media) => {
+            let offer = &params.sheet.media;
+            match (offer.first(), offer.needs()) {
+                (Some(choice), _) => Some(SheetIn::OpenExport(ExportDraft::Media(choice))),
+                (None, Some(needs)) => Some(SheetIn::OpenUnavailable(needs.clone())),
+                (None, None) => None,
+            }
+        }
+        Some(family) => ExportDraft::first_of(family).map(SheetIn::OpenExport),
+    };
+    match opening {
+        Some(input) => sheet(viewer, input, at, params),
+        None => (viewer, vec![]),
+    }
+}
+
 /// Export, trash and the mini window are the viewer's own to start; a turn goes to an image
 /// stage; every other action is the edge's.
 fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let handed_over = |viewer: Viewer| (viewer, vec![ViewerOut::Run(action)]);
     match action {
-        FileAction::Export => match export_family(&viewer.stage).and_then(ExportDraft::first_of) {
-            Some(draft) => sheet(viewer, SheetIn::OpenExport(draft), at, params),
-            None => (viewer, vec![]),
-        },
+        FileAction::Export => export(viewer, at, params),
         FileAction::MoveToTrash => sheet(viewer, SheetIn::AskTrash, at, params),
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
         FileAction::RotateLeft => turn(viewer, Spin::Left, action, at, params),

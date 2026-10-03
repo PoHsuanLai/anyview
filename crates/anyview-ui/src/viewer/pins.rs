@@ -19,7 +19,10 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 Palette::Closed => false,
             };
             let sheet = match viewer.sheet {
-                Sheet::Export { .. } | Sheet::ConfirmTrash | Sheet::Rename { .. } => true,
+                Sheet::Export { .. }
+                | Sheet::Unavailable { .. }
+                | Sheet::ConfirmTrash
+                | Sheet::Rename { .. } => true,
                 Sheet::Closed => false,
             };
             palette || sheet

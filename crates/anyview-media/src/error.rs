@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-/// Why the player, a probe or an export could not do what was asked.
+/// Why the player, an export could not do what was asked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum MediaError {
     /// mpv refused a call, or the player could not be made.
@@ -20,9 +20,9 @@ pub enum MediaError {
     /// mpv or its C plugin could not be started: not found, the wrong version, or refused.
     #[error("cannot start mpv: {0}")]
     PlayerStart(String),
-    /// libav refused a call: the file is not a recording it reads, or a codec failed.
-    #[error("libav failed: {0}")]
-    Libav(String),
+    /// The plugin that writes recordings refused or failed; it says why.
+    #[error("the export failed: {0}")]
+    Export(String),
     /// No graphics adapter opened, so the player has nothing to draw on.
     #[error("no graphics adapter for the player")]
     NoDevice,
@@ -36,15 +36,9 @@ pub enum MediaError {
         /// What the system said.
         kind: std::io::ErrorKind,
     },
-    /// An audio export of a recording that has no audio track.
-    #[error("the recording has no audio track")]
-    NoAudio,
-    /// A frame export of a recording that shows no picture.
-    #[error("the recording shows no picture")]
-    NoPicture,
-    /// The system's libav has no encoder for what was asked.
-    #[error("this system's libav has no {0} encoder")]
-    EncoderMissing(&'static str),
+    /// No plugin writes recordings: this package would.
+    #[error("no plugin writes recordings; {0} would")]
+    WriterMissing(&'static str),
     /// The work was stopped before it finished; what it had written is removed.
     #[error("the export was stopped")]
     Stopped,

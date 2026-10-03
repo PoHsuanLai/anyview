@@ -5,8 +5,8 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
-    ChromeParams, Command, PaletteParams, PanelParams, PresentationParams, Stage, StageCommand,
-    StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
+    ChromeParams, Command, MediaOffer, PaletteParams, PanelParams, PresentationParams, SheetParams,
+    Stage, StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FormatKind, Reach, actions_for, reach};
 use ds_core::word::Word;
@@ -125,6 +125,9 @@ pub(super) fn params(
             rows: ranked(commands(kind, stage, &measured), query),
         },
         presentation: PresentationParams::default(),
+        sheet: SheetParams {
+            media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
+        },
         stage: measured,
     }
 }

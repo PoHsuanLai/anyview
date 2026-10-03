@@ -1,46 +1,29 @@
 //! The program's players with the real player: a window's session plays a fixture on its own
 //! thread, its picture reaches the window's texture, the desktop's now-playing entry follows it
 //! and the desktop's controls obey; a session with no window plays, is stopped from the entry and
-//! ends when its recording does; and the media exports a window asks for are written beside the
-//! file. Sound is off (`ao=null`). A machine with no graphics adapter skips them, saying so.
+//! ends when its recording does; and the frame of a window's picture is saved beside the file. Sound is off (`ao=null`). A machine with no graphics adapter skips them, saying so.
 
 #![allow(clippy::unwrap_used)]
 
 mod support;
 
-use anyview::host::{
-    Clock, Desktop, Hosting, Media, Outcome, Services, Store, Task, Trash, TrashError,
-};
+use anyview::host::{Outcome, Task};
 use anyview::media::{MediaHub, PlayerHost};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
-use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FileStamp, MediaExport, MediaTime, ModTime, Percent,
-    RasterTarget, Resume, SniffStep, Source, TimeRange, Volume, sniff,
-};
+use anyview_core::{FilePath, MediaExport, MediaTime, Percent, RasterTarget, Resume, Volume};
 use anyview_media::AudioDriver;
-use anyview_platform::testing::{
-    FakeApps, FakeMediaHandle, FakeMediaSession, FakePrinter, FakeReveal, FakeShare,
-};
-use anyview_platform::{MediaControl, PlaybackStatus, PrintOutcome};
-use anyview_store::Viewed;
+use anyview_platform::testing::{FakeMediaHandle, FakeMediaSession};
+use anyview_platform::{MediaControl, PlaybackStatus};
 use anyview_ui::{
-    MediaHost, MediaLine, MediaNotice, MediaStart, MediaWake, Pace, PlayerEvent, Probed,
-    SlotPixels, StageFamily, family_of,
+    MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaWake, Pace, PlayerEvent,
+    SlotPixels,
 };
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
-use support::{eventually, gpu, media_fixture};
+use support::{copy_into, desktop, eventually, gpu, media_fixture, probed};
 use tokio::runtime::Runtime;
-
-struct NoTrash;
-
-impl Trash for NoTrash {
-    fn trash(&self, _file: &FilePath) -> Result<(), TrashError> {
-        Ok(())
-    }
-}
 
 struct Rig {
     runtime: Runtime,
@@ -108,7 +91,10 @@ impl Window {
                 }),
             })
             .unwrap();
-        let line = Arc::clone(&started.line);
+        let MediaPlayback::Line(line) = &started.playback else {
+            panic!("a player was started");
+        };
+        let line = Arc::clone(line);
         line.resize(Some(SlotPixels {
             width: NonZeroU32::new(64).unwrap(),
             height: NonZeroU32::new(48).unwrap(),
@@ -160,7 +146,13 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
                 Some(length.0.as_millis())
             }
             MediaNotice::Player(PlayerEvent::LengthKnown(length)) => Some(length.0.as_millis()),
-            _ => None,
+            MediaNotice::Player(_)
+            | MediaNotice::Position(_)
+            | MediaNotice::Tracks(_)
+            | MediaNotice::Chapters(_)
+            | MediaNotice::Speed(_)
+            | MediaNotice::Picture(_)
+            | MediaNotice::Failed(_) => None,
         })
     };
     window.listen("the length", |heard| length_of(heard).is_some());
@@ -258,10 +250,11 @@ fn a_session_with_no_window_plays_is_stopped_from_the_entry_and_goes() {
         return;
     };
     let tone = media_fixture("tone.flac");
-    if let Err(error) = rig
-        .hub
-        .play_in_background(&tone, &probed(&tone).sniffed, &Resume::Nothing)
-    {
+    if let Err(error) = rig.hub.play_in_background(
+        &probed(&tone).source,
+        &probed(&tone).sniffed,
+        &Resume::Nothing,
+    ) {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }
@@ -294,10 +287,11 @@ fn a_session_with_no_window_ends_when_its_recording_does() {
         return;
     };
     let tone = media_fixture("tone.flac");
-    if let Err(error) = rig
-        .hub
-        .play_in_background(&tone, &probed(&tone).sniffed, &Resume::Nothing)
-    {
+    if let Err(error) = rig.hub.play_in_background(
+        &probed(&tone).source,
+        &probed(&tone).sniffed,
+        &Resume::Nothing,
+    ) {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }
@@ -322,9 +316,9 @@ fn a_background_session_starts_where_the_file_was_left() {
         audio: anyview_core::TrackChoice::Auto,
         subtitles: anyview_core::TrackChoice::Auto,
     };
-    if let Err(error) = rig
-        .hub
-        .play_in_background(&clip, &probed(&clip).sniffed, &left)
+    if let Err(error) =
+        rig.hub
+            .play_in_background(&probed(&clip).source, &probed(&clip).sniffed, &left)
     {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
@@ -336,103 +330,6 @@ fn a_background_session_starts_where_the_file_was_left() {
     eventually("the session to end", || !rig.hub.plays_in_background());
 }
 
-fn desktop(rig: &Rig, scratch: &std::path::Path) -> Arc<dyn Hosting> {
-    let now: Clock = Arc::new(|| Viewed(1_700_000_000));
-    Arc::new(Desktop::new(
-        rig.runtime.handle().clone(),
-        FakeApps::default(),
-        FakeReveal::default(),
-        FakeShare::default(),
-        FakePrinter::answering(PrintOutcome::Printed),
-        NoTrash,
-        Services {
-            store: Store::new(&scratch.join("store"), now),
-            media: Media {
-                hub: rig.hub.clone(),
-                exports: rig.workforce.exports(),
-                scratch: scratch.join("cache"),
-            },
-        },
-    ))
-}
-
-fn probed(file: &FilePath) -> Probed {
-    let bytes = std::fs::read(file.as_path()).unwrap();
-    let name = FileName::new(file.file_name().unwrap().as_str()).unwrap();
-    let SniffStep::Done(sniffed) = sniff(&FileHead::new(&bytes[..bytes.len().min(4096)]), &name)
-    else {
-        panic!("a recording needs no look inside");
-    };
-    let family: StageFamily = family_of(sniffed.kind());
-    Probed {
-        source: Source::new(
-            file.clone(),
-            FileStamp {
-                len: ByteLen(bytes.len() as u64),
-                modified: ModTime(1),
-            },
-        ),
-        sniffed,
-        family,
-        resume: Resume::Nothing,
-    }
-}
-
-/// `name` copied into `dir`, so what an export writes beside it lands in the scratch folder.
-fn copy_into(dir: &std::path::Path, name: &str) -> FilePath {
-    let to = dir.join(name);
-    std::fs::copy(media_fixture(name).as_path(), &to).unwrap();
-    FilePath::new(std::fs::canonicalize(to).unwrap()).unwrap()
-}
-
-#[test]
-fn a_cut_and_a_track_are_written_beside_the_recording() {
-    let Some(rig) = rig() else {
-        return;
-    };
-    let dir = tempfile::tempdir().unwrap();
-    let hosting = desktop(&rig, dir.path());
-    let clip = copy_into(dir.path(), "clip.mkv");
-    let trim = MediaExport::Trim(
-        TimeRange::new(
-            MediaTime::from_millis(1500),
-            Some(MediaTime::from_millis(2500)),
-        )
-        .unwrap(),
-    );
-    let outcome = rig
-        .runtime
-        .block_on(hosting.carry_out(Task::ExportMedia {
-            file: probed(&clip),
-            choice: trim,
-        }))
-        .unwrap();
-    assert_eq!(outcome, Outcome::Done);
-    let cut = dir.path().join("clip trimmed.mkv");
-    assert!(
-        cut.exists(),
-        "{:?}",
-        std::fs::read_dir(dir.path()).unwrap().collect::<Vec<_>>()
-    );
-    let probe = anyview_media::probe(&cut).unwrap();
-    let length = probe.length.unwrap().0.as_millis();
-    assert!(
-        (900..=1800).contains(&length),
-        "a keyframe-aligned cut about a second long: {length} ms"
-    );
-
-    let tone = copy_into(dir.path(), "tone.flac");
-    let outcome = rig
-        .runtime
-        .block_on(hosting.carry_out(Task::ExportMedia {
-            file: probed(&tone),
-            choice: MediaExport::AudioOnly(anyview_core::AudioTarget::Wav),
-        }))
-        .unwrap();
-    assert_eq!(outcome, Outcome::Done);
-    assert!(dir.path().join("tone.wav").exists());
-}
-
 #[test]
 fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for() {
     let Some(gpu) = gpu() else {
@@ -442,7 +339,7 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
         return;
     };
     let dir = tempfile::tempdir().unwrap();
-    let hosting = desktop(&rig, dir.path());
+    let hosting = desktop(&rig.runtime, &rig.hub, &rig.workforce, dir.path());
     let clip = copy_into(dir.path(), "clip.mkv");
     let host = PlayerHost::new(rig.hub.clone());
     let mut window = Window::open(&host, &gpu, &clip);
@@ -498,7 +395,7 @@ fn a_frame_of_a_recording_no_window_plays_is_a_failure_not_a_hang() {
         return;
     };
     let dir = tempfile::tempdir().unwrap();
-    let hosting = desktop(&rig, dir.path());
+    let hosting = desktop(&rig.runtime, &rig.hub, &rig.workforce, dir.path());
     let clip = copy_into(dir.path(), "clip.mkv");
     let outcome = rig
         .runtime

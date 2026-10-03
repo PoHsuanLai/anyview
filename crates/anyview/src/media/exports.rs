@@ -1,10 +1,14 @@
-//! Media exports on the pool: a transcode is blocking libav work for one worker, with progress
-//! and a `Stop`; the frame comes from the player that shows it.
+//! Media exports on the pool: a transcode is a request to the FFmpeg plugin that one worker waits
+//! on, with progress and a `Stop` that cancels it; the frame comes from the player that shows it.
 
+use super::plugins::ExportTool;
 use crate::runtime::{JobHandle, JobOutcome, Lane, Pool, Runner};
 use crate::seam::Settled;
-use anyview_core::work::{Ticket, Ticketed};
-use anyview_media::{ExportBackend, ExportReport, ExportRequest, MediaError};
+use anyview_core::work::{Backend, Stop, Ticket, Ticketed};
+use anyview_core::{MediaLength, MediaTime};
+use anyview_media::{ExportProgress, ExportReport, ExportRequest, MediaError, ask_of};
+use anyview_platform::PlatformError;
+use anyview_plugin_protocol::{ExportRequest as PluginRequest, MicroRange};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -15,7 +19,7 @@ use tokio::sync::oneshot;
 pub enum ExportEnd {
     /// It wrote its file.
     Written(ExportReport),
-    /// libav refused, a codec is missing, or it was stopped.
+    /// The plugin refused, a codec is missing, or it was stopped.
     Failed(MediaError),
     /// The job panicked, with its message.
     Panicked(String),
@@ -46,7 +50,7 @@ type Waiting = Mutex<HashMap<Ticket, oneshot::Sender<ExportEnd>>>;
 
 /// The pool's runner for media exports.
 pub struct Exports {
-    runner: Runner<ExportBackend, Settled>,
+    runner: Runner<PluginExport, Settled>,
     waiting: Arc<Waiting>,
     tickets: AtomicU64,
 }
@@ -99,8 +103,8 @@ impl Exports {
         }
     }
 
-    /// Queue `request`.
-    pub fn submit(&self, request: ExportRequest) -> ExportHandle {
+    /// Queue `request`, to be written by the plugin `tool` names.
+    pub fn submit(&self, tool: Arc<ExportTool>, request: ExportRequest) -> ExportHandle {
         let ticket = Ticket(self.tickets.fetch_add(1, Ordering::Relaxed));
         let (tell, ended) = oneshot::channel();
         self.waiting
@@ -109,7 +113,62 @@ impl Exports {
             .insert(ticket, tell);
         let job = self
             .runner
-            .submit(Lane::Visible, ticket, Arc::new(()), request, None);
+            .submit(Lane::Visible, ticket, tool, request, None);
         ExportHandle { job, ended }
+    }
+}
+
+/// The media export as a pool back end: the job is a request to a plugin, and the worker waits
+/// for its answer, telling the request's sink how far it is and cancelling it when stopped.
+#[derive(Debug, Clone, Copy)]
+pub struct PluginExport;
+
+impl Backend for PluginExport {
+    type Doc = ExportTool;
+    type Worker = ();
+    type Job = ExportRequest;
+    type Done = Result<ExportReport, MediaError>;
+
+    fn run(tool: &ExportTool, _: &mut (), job: ExportRequest, stop: &Stop) -> Self::Done {
+        let ask = ask_of(&job.job)?;
+        let anyview_core::ExportJob::Transcode { source, .. } = &job.job else {
+            return Err(MediaError::NotMedia);
+        };
+        let request = PluginRequest {
+            input: source.as_path().to_path_buf(),
+            output: job.to.as_path().to_path_buf(),
+            target: ask.target.to_owned(),
+            range: (ask.from > MediaTime::default() || ask.to.is_some()).then(|| MicroRange {
+                start: ask.from.0,
+                end: ask.to.map(|at| at.0),
+            }),
+            stream: None,
+            bitrate: ask.bitrate.map(|rate| rate.kbps().saturating_mul(1000)),
+        };
+        let progress = job.progress.clone();
+        let written = tool
+            .runner
+            .export(&tool.plugin, &request, stop, |said| {
+                (progress)(ExportProgress {
+                    done: MediaTime(said.done),
+                    of: (said.total > 0).then_some(MediaLength(MediaTime(said.total))),
+                });
+            })
+            .map_err(failure)?;
+        let path = match written.output {
+            Some(other) => anyview_core::FilePath::new(other).unwrap_or(job.to),
+            None => job.to,
+        };
+        Ok(ExportReport { path })
+    }
+}
+
+/// A plugin's failure as the crate that plans exports reports it: a stopped export is stopped,
+/// anything else carries the plugin's own words.
+fn failure(error: PlatformError) -> MediaError {
+    if matches!(error, PlatformError::PluginCancelled { .. }) {
+        MediaError::Stopped
+    } else {
+        MediaError::Export(error.to_string())
     }
 }

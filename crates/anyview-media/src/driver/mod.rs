@@ -200,13 +200,20 @@ impl Driver {
             // mpv says nothing of a pause the host asked for (its getter changes at once, so the
             // property's echo is no change), and the window and the desktop's entry must hear it.
             MediaCommand::SetPlayback(pace) => match session.set_playback(pace) {
-                Ok(()) => events.push(MediaEvent::Playback(session.pace())),
+                Ok(()) => {
+                    events.push(MediaEvent::Playback(session.pace()));
+                    match pace {
+                        Pace::Playing => self.ending = Ending::Unreported,
+                        Pace::Paused => {}
+                    }
+                }
                 Err(error) => events.push(MediaEvent::Refused(error.to_string())),
             },
             MediaCommand::Seek(to) => match session.seek(to) {
                 Ok(()) => {
                     self.reported = None;
                     self.seeking = Seeking::Waiting;
+                    self.ending = Ending::Unreported;
                 }
                 Err(error) => events.push(MediaEvent::Refused(error.to_string())),
             },
@@ -343,7 +350,9 @@ impl Driver {
         let Some(Held::Loaded(session)) = &self.held else {
             return;
         };
-        if self.seeking == Seeking::Waiting {
+        // A file held at its end says nothing more of where it is: the child process reports the
+        // last position after the pause, and a position after the end would read as playing again.
+        if self.seeking == Seeking::Waiting || self.ending == Ending::Reported {
             return;
         }
         let Some(now) = session.position() else {

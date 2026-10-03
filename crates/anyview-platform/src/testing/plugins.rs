@@ -11,6 +11,8 @@ pub struct PluginSet<'a> {
     pub play: Option<(&'a Path, &'a Path)>,
     /// The FFmpeg plugin's program, when it is installed.
     pub ffmpeg: Option<&'a Path>,
+    /// What its manifest adds to the program's command line (`--ffmpeg PATH`).
+    pub ffmpeg_args: &'a [String],
 }
 
 /// The registry `set` makes.
@@ -27,8 +29,9 @@ pub fn plugins_with(set: PluginSet<'_>) -> Plugins {
     }
     if let Some(program) = set.ffmpeg {
         let mut text = format!(
-            "id = \"ffmpeg\"\nname = \"FFmpeg\"\nprotocol = 1\n[program]\npath = {:?}\n",
-            program.display().to_string()
+            "id = \"ffmpeg\"\nname = \"FFmpeg\"\nprotocol = 1\n[program]\npath = {:?}\nargs = {:?}\n",
+            program.display().to_string(),
+            set.ffmpeg_args
         );
         for capability in ["probe", "peek", "thumbnail", "decode"] {
             text.push_str(&format!(

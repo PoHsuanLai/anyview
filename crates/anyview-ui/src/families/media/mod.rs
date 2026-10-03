@@ -19,7 +19,8 @@ pub use shelf::{MediaShelf, use_media_shelf};
 use crate::families::view::{Area, Held, Leaving, StageCx, StageView};
 use crate::io::{MediaLine, OpenError, OpenLink};
 use crate::{
-    Command, MediaIn, PanelTab, PanelTabs, Stage, StageFamily, StageIn, StageParams, Ticket,
+    Command, MediaIn, MediaOffer, PanelTab, PanelTabs, Stage, StageFamily, StageIn, StageParams,
+    Ticket,
 };
 use anyview_core::{Facts, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -49,8 +50,11 @@ impl StageView for MediaStageView {
         doc.facts.clone()
     }
 
-    fn tabs(_doc: &MediaDoc) -> PanelTabs {
-        PanelTabs::of(&[PanelTab::Info, PanelTab::Tracks, PanelTab::Contents])
+    fn tabs(doc: &MediaDoc) -> PanelTabs {
+        match doc.needs() {
+            Some(_) => PanelTabs::of(&[PanelTab::Info]),
+            None => PanelTabs::of(&[PanelTab::Info, PanelTab::Tracks, PanelTab::Contents]),
+        }
     }
 
     fn params(_doc: &MediaDoc, _stage: &Stage, _area: Option<Area>) -> StageParams {
@@ -101,6 +105,10 @@ impl StageView for MediaStageView {
     }
 
     fn line(doc: &MediaDoc) -> Option<Arc<dyn MediaLine>> {
-        Some(Arc::clone(doc.line()))
+        doc.line().map(Arc::clone)
+    }
+
+    fn media_offer(doc: &MediaDoc) -> MediaOffer {
+        doc.offer().clone()
     }
 }

@@ -6,9 +6,15 @@ use super::audio::accent_for;
 use super::doc::MediaDoc;
 use crate::families::view::{Area, Held, StageCx};
 use crate::io::SlotPixels;
-use crate::{MediaError, MediaIn, MediaStage, Stage, StageIn};
+use crate::{Command, MediaError, MediaIn, MediaStage, Stage, StageIn};
 use anyview_core::VideoPresence;
+use anyview_core::{Fact, FileAction};
 use dioxus::prelude::*;
+use ds::components::content::text_runs::TextLine;
+use ds::components::controls::button::Button;
+use ds::components::fields::fact_list::FactList;
+use ds::components::overlays::empty_state::EmptyState;
+use ds::prelude::Icon;
 use ds_blitz::{Sampling, TextureFit, TextureLayer};
 use ds_core::word::Word;
 use std::num::NonZeroU32;
@@ -45,10 +51,17 @@ fn status(stage: &Stage) -> Option<&'static str> {
 
 #[component]
 pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
-    let line = std::sync::Arc::clone(doc.0.line());
+    let line = doc.0.line().map(std::sync::Arc::clone);
     let slot = cx.area.and_then(slot_of);
     // The player draws into a rectangle the size of the room; it is told whenever that changes.
-    use_effect(use_reactive!(|slot| line.resize(slot)));
+    use_effect(use_reactive!(|slot| {
+        if let Some(line) = &line {
+            line.resize(slot);
+        }
+    }));
+    if let Some(needs) = doc.0.needs() {
+        return rsx! { Unplayable { doc: doc.clone(), needs: needs.clone(), cx: cx.clone() } };
+    }
     let live = cx.media.read();
     let picture = live.picture;
     drop(live);
@@ -94,6 +107,39 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
             div {
                 class: "viewer-media-cover",
                 onclick: move |_| send.call(StageIn::Media(MediaIn::Toggle)),
+            }
+        }
+    }
+}
+
+/// A recording no plugin plays: its facts, the package that would play it, and Open With….
+#[component]
+fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
+    let run = cx.run;
+    let facts: Vec<ds::components::fields::fact_list::Fact> = doc
+        .0
+        .facts
+        .rows()
+        .iter()
+        .map(|row| {
+            ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
+        })
+        .collect();
+    rsx! {
+        div { class: "viewer-peek",
+            div { class: "viewer-peek-body",
+                EmptyState {
+                    icon: Icon::File,
+                    title: doc.0.title().to_owned(),
+                    description: Some(TextLine::from(format!("{}: {}", needs.label.label(), needs.value.as_str()))),
+                    action: rsx! {
+                        Button {
+                            label: "Open With…",
+                            onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                        }
+                    },
+                }
+                div { class: "viewer-peek-facts", FactList { facts } }
             }
         }
     }
