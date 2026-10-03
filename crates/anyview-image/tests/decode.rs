@@ -6,7 +6,7 @@
 mod support;
 
 use anyview_core::{MediaTime, PixelLen, PixelSize};
-use anyview_image::{Decoded, ImageError, Rgba8, decode, decode_bytes};
+use anyview_image::{Decoded, ImageError, Rgba8, declared_size, decode, decode_bytes};
 use support::{bytes, fixture, sniffed};
 
 const RED: [u8; 4] = [255, 0, 0, 255];
@@ -206,4 +206,32 @@ fn an_avif_says_the_feature_is_missing_without_it() {
             format: anyview_core::RasterFormat::Avif
         })
     );
+}
+
+#[test]
+fn the_size_a_header_declares_is_the_size_decoding_gives_upright() {
+    // name, whether the header route reads this format
+    const CASES: &[(&str, bool)] = &[
+        ("quadrants.png", true),
+        ("plain.jpg", true),
+        ("rotated.jpg", true),
+        ("spin.gif", true),
+        ("anim.webp", true),
+        ("lossy.webp", true),
+        ("photo.jxl", false),
+        ("logo.svg", false),
+    ];
+    for (name, read) in CASES {
+        let (src, sniffed) = fixture(name);
+        let declared = declared_size(&src, &sniffed).unwrap();
+        if !read {
+            assert_eq!(declared, None, "{name}: size comes from decoding");
+            continue;
+        }
+        let decoded = match decode(&src, &sniffed).unwrap() {
+            Decoded::Still(picture) => picture.size(),
+            Decoded::Animated(animation) => animation.frames.first().pixels.size(),
+        };
+        assert_eq!(declared, Some(decoded), "{name}");
+    }
 }

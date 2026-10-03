@@ -6,12 +6,13 @@ use super::model::{Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::keys::{Regions, Route, route};
+use crate::load::Ticket;
 use crate::load::{LoadIn, LoadOut};
 use crate::navigate::{NavigateIn, NavigateOut};
 use crate::palette::{PaletteIn, PaletteOut};
 use crate::presentation::Presentation;
-use crate::stage::{Stage, StageIn};
-use anyview_core::FilePath;
+use crate::stage::{Stage, StageFamily, StageIn};
+use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
 use ds_core::machine::{Elapsed, Machine};
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::Shortcut;
@@ -51,6 +52,8 @@ impl Machine for Viewer {
 fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> Step {
     match input {
         ViewerIn::Open(path) => begin(viewer, &path, at, params),
+        ViewerIn::Reload(path) => reload(viewer, &path, at),
+        ViewerIn::Dropped(paths) => dropped(viewer, paths, at, params),
         ViewerIn::Load(input) => load(viewer, input, at, params),
         ViewerIn::Chrome(input) => chrome(viewer, input, at, params),
         ViewerIn::Panel(input) => panel(viewer, input, at, params),
@@ -59,6 +62,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
+        ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
         ViewerIn::Elapsed => elapsed(viewer, at, params),
     }
@@ -67,14 +71,40 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
 /// Start loading `path`: the load takes a new ticket, and whatever stage showed the file before
 /// goes, so nothing of it answers inputs meant for the next one.
 fn begin(viewer: Viewer, path: &FilePath, at: Stamp, _params: &ViewerParams) -> Step {
+    let (viewer, outs) = restart(viewer, path, at, |ticket, path| ViewerOut::Probe {
+        ticket,
+        path,
+    });
+    (
+        Viewer {
+            stage: Stage::NoStage,
+            ..viewer
+        },
+        outs,
+    )
+}
+
+/// Load `path` again after it changed: the stage stays, so the new copy opens where the old one
+/// was left (the probe of the same family keeps it, see `load`).
+fn reload(viewer: Viewer, path: &FilePath, at: Stamp) -> Step {
+    restart(viewer, path, at, |ticket, path| ViewerOut::Reload {
+        ticket,
+        path,
+    })
+}
+
+/// The load begun afresh: its outputs, with the probe made into the root's own `probe` output.
+fn restart(
+    viewer: Viewer,
+    path: &FilePath,
+    at: Stamp,
+    probe: fn(Ticket, FilePath) -> ViewerOut,
+) -> Step {
     let (load, outs) = viewer.load.step(LoadIn::Begin, at, &());
     let outs = outs
         .into_iter()
         .map(|out| match out {
-            LoadOut::Probe(ticket) => ViewerOut::Probe {
-                ticket,
-                path: path.clone(),
-            },
+            LoadOut::Probe(ticket) => probe(ticket, path.clone()),
             LoadOut::Peek(_)
             | LoadOut::Open(_)
             | LoadOut::Cancel(_)
@@ -83,15 +113,30 @@ fn begin(viewer: Viewer, path: &FilePath, at: Stamp, _params: &ViewerParams) -> 
             | LoadOut::ShowFull(_) => ViewerOut::Load(out),
         })
         .collect();
-    let stage = Stage::NoStage;
-    (
-        Viewer {
-            load,
-            stage,
-            ..viewer
-        },
-        outs,
-    )
+    (Viewer { load, ..viewer }, outs)
+}
+
+/// Files dropped on the window. The first opens and the walk is over until a list for it exists:
+/// one file's list is its folder (asked of the window), many files are the list.
+fn dropped(viewer: Viewer, paths: Vec<FilePath>, at: Stamp, params: &ViewerParams) -> Step {
+    let Some(first) = paths.first().cloned() else {
+        return (viewer, vec![]);
+    };
+    let (viewer, mut outs) = navigate(viewer, NavigateIn::Leave, at, params);
+    let (viewer, more) = begin(viewer, &first, at, params);
+    outs.extend(more);
+    match NonEmpty::from_vec(paths) {
+        Some(entries) if entries.count().get() > 1 => {
+            let sequence = Sequence::new(entries, SequenceOrigin::Selection);
+            let (viewer, more) = navigate(viewer, NavigateIn::Start(sequence), at, params);
+            outs.extend(more);
+            (viewer, outs)
+        }
+        Some(_) | None => {
+            outs.push(ViewerOut::ListFolder(first));
+            (viewer, outs)
+        }
+    }
 }
 
 /// A result of the load in flight. A stage the probe chose replaces the one showing.
@@ -116,8 +161,8 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
                     | LoadOut::ShowFirstFrame(_)
                     | LoadOut::ShowFull(_) => None,
                 })
-                .map_or(viewer.stage, |family| {
-                    Stage::for_family(family, params.stage.text.views)
+                .map_or(viewer.stage.clone(), |family| {
+                    kept_or_new(&viewer.stage, family, params)
                 });
             let outs = outs.into_iter().map(ViewerOut::Load).collect();
             (
@@ -129,6 +174,16 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
                 outs,
             )
         }
+    }
+}
+
+/// The stage for a file of `family`: the one showing when it is already of that family (a reload
+/// keeps its place), otherwise a new one.
+fn kept_or_new(showing: &Stage, family: StageFamily, params: &ViewerParams) -> Stage {
+    if showing.family() == family {
+        showing.clone()
+    } else {
+        Stage::for_family(family, params.stage.text.views)
     }
 }
 

@@ -154,17 +154,17 @@ fn profile_of(kind: FormatKind) -> KindProfile {
         FormatKind::Pdf => profile(PDF, PDF_EDITS, Stage),
         FormatKind::Raster => profile(IMAGE, IMAGE_EDITS, Stage),
         FormatKind::Vector => profile(VECTOR, NO_EDITS, Stage),
-        FormatKind::Video => profile(VIDEO, NO_EDITS, Stage),
-        FormatKind::Audio => profile(AUDIO, NO_EDITS, Stage),
+        FormatKind::Video => profile(VIDEO, NO_EDITS, PeekOnly),
+        FormatKind::Audio => profile(AUDIO, NO_EDITS, PeekOnly),
         FormatKind::Markdown | FormatKind::Code | FormatKind::PlainText => {
             profile(TEXT, NO_EDITS, Stage)
         }
-        FormatKind::Table | FormatKind::Tree | FormatKind::Font | FormatKind::Archive => {
-            profile(PLAIN, NO_EDITS, Stage)
-        }
-        FormatKind::Book | FormatKind::Office | FormatKind::Other => {
-            profile(PLAIN, NO_EDITS, PeekOnly)
-        }
+        FormatKind::Table | FormatKind::Tree => profile(PLAIN, NO_EDITS, Stage),
+        FormatKind::Font
+        | FormatKind::Archive
+        | FormatKind::Book
+        | FormatKind::Office
+        | FormatKind::Other => profile(PLAIN, NO_EDITS, PeekOnly),
         FormatKind::Folder => profile(FOLDER, NO_EDITS, PeekOnly),
     }
 }

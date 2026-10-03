@@ -1,6 +1,7 @@
 //! The root's state, inputs, outputs and parameters.
 
 use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
+use crate::command::Command;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
@@ -49,6 +50,13 @@ pub enum ViewerIn {
     /// Open this file, leaving whatever was open. A load result for the file left behind is
     /// ignored by its ticket.
     Open(FilePath),
+    /// Open this file again because it changed on disk, keeping where the person is in it: the
+    /// stage stays while the new copy loads, and what shows stays until it lands.
+    Reload(FilePath),
+    /// Files were dropped on the window: the first one opens. A single file's folder becomes the
+    /// sequence (the window lists it and answers with `Navigate(Start)`); several files are the
+    /// sequence themselves.
+    Dropped(Vec<FilePath>),
     /// A result of the load in flight. `LoadIn::Begin` is not sent this way; `Open` begins one.
     Load(LoadIn),
     /// The hover chrome.
@@ -65,6 +73,9 @@ pub enum ViewerIn {
     Presentation(PresentationIn),
     /// The stage showing the file.
     Stage(StageIn),
+    /// Run a command from a control the window drew (a capsule button): the same thing the
+    /// palette runs for the row it picked.
+    Run(Command),
     /// A key press, routed by `route`.
     Key(Shortcut),
     /// The time `wake()` named has come.
@@ -82,6 +93,11 @@ impl From<ds_core::machine::Elapsed> for ViewerIn {
 pub enum ViewerOut {
     /// Sniff this file for this load.
     Probe { ticket: Ticket, path: FilePath },
+    /// Sniff this file again for this load, leaving what shows in place until the result lands.
+    Reload { ticket: Ticket, path: FilePath },
+    /// List the files beside this one for the sequence: the answer is `Navigate(Start)`, or
+    /// nothing when the folder cannot be read.
+    ListFolder(FilePath),
     /// From the load, except its probe (above).
     Load(LoadOut),
     /// From the chrome.

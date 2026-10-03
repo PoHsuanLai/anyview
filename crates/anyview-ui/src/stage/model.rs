@@ -1,10 +1,12 @@
 //! The stage region as the viewer's root sees it: one of the four stage machines, or none.
 
 use super::family::StageFamily;
+use super::find::FindOut;
 use super::media::{MediaIn, MediaOut, MediaParams, MediaStage};
 use super::pdf::{PdfIn, PdfOut, PdfParams, PdfStage};
 use super::raster::{RasterIn, RasterOut, RasterParams, RasterStage};
 use super::text::{TextIn, TextOut, TextParams, TextStage, TextViews};
+use anyview_core::Resume;
 
 /// What shows the open file's content.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -68,6 +70,32 @@ pub enum StageOut {
     Media(MediaOut),
     /// From the text stage.
     Text(TextOut),
+}
+
+impl StageOut {
+    /// The place to keep for next time, when this is a stage saying where the person is.
+    pub fn remembered(&self) -> Option<&Resume> {
+        match self {
+            StageOut::Raster(RasterOut::Remember(resume))
+            | StageOut::Text(TextOut::Remember(resume))
+            | StageOut::Pdf(PdfOut::Remember(resume)) => Some(resume),
+            StageOut::Raster(RasterOut::Turned(_) | RasterOut::ShowFrame(_))
+            | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
+            | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_))
+            | StageOut::Media(_) => None,
+        }
+    }
+
+    /// What the stage asks of its search, when this is that.
+    pub fn find(&self) -> Option<&FindOut> {
+        match self {
+            StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),
+            StageOut::Raster(_)
+            | StageOut::Text(TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_))
+            | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_))
+            | StageOut::Media(_) => None,
+        }
+    }
 }
 
 /// What each stage needs from the view and settings.

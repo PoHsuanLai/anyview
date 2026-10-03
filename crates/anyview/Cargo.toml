@@ -1,0 +1,37 @@
+[package]
+name = "anyview"
+description = "The viewer binary: the threads that serve the machines (a bounded worker pool and the media actor), and the program that wires everything else."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+anyview-image = { workspace = true }
+anyview-platform = { workspace = true }
+anyview-store = { workspace = true }
+anyview-ui = { workspace = true }
+dioxus = { workspace = true }
+ds = { workspace = true }
+ds-blitz = { workspace = true }
+futures-channel = { workspace = true }
+futures-util = { workspace = true }
+notify = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+trash = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+anyview-platform = { workspace = true, features = ["testing"] }
+ds-harness = { workspace = true }
+image = { workspace = true }
+tempfile = { workspace = true }
+mpv-wgpu-player = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }

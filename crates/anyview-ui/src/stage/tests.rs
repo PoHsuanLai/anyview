@@ -191,9 +191,9 @@ fn escape_undoes_what_the_stage_has_open() {
 
 #[test]
 fn keys_stand_for_commands() {
-    use ShortcutKey::{Char, Left, PageDown, Right, Shift, Space, Super};
+    use ShortcutKey::{Char, Down, End, Home, Left, PageDown, Right, Shift, Space, Super, Up};
     // name, keys, command
-    let cases: [(&str, &[ShortcutKey], Option<StageCommand>); 11] = [
+    let cases: [(&str, &[ShortcutKey], Option<StageCommand>); 15] = [
         ("plus", &[Char('+')], Some(StageCommand::ZoomIn)),
         ("equals", &[Char('=')], Some(StageCommand::ZoomIn)),
         ("minus", &[Char('-')], Some(StageCommand::ZoomOut)),
@@ -213,8 +213,120 @@ fn keys_stand_for_commands() {
         ),
         ("page down", &[PageDown], Some(StageCommand::NextPage)),
         ("bare right walks the sequence instead", &[Right], None),
+        (
+            "home scrolls to the start of a text",
+            &[Home],
+            Some(StageCommand::ScrollToStart),
+        ),
+        (
+            "end scrolls to the end",
+            &[End],
+            Some(StageCommand::ScrollToEnd),
+        ),
+        ("up is a line up", &[Up], Some(StageCommand::LineUp)),
+        ("down is a line down", &[Down], Some(StageCommand::LineDown)),
     ];
     for (name, keys, want) in cases {
         assert_eq!(StageCommand::from_key(keys), want, "{name}");
+    }
+}
+
+#[test]
+fn only_a_stage_that_has_a_place_or_a_search_says_so_in_its_outputs() {
+    use crate::stage::{FindOut, HitIndex};
+    let resume = anyview_core::Resume::Text { line: LineIndex(4) };
+    // name, output, the place it remembers, the search it asks for
+    let cases: Vec<(
+        &str,
+        StageOut,
+        Option<anyview_core::Resume>,
+        Option<FindOut>,
+    )> = vec![
+        (
+            "a text remembers its line",
+            StageOut::Text(TextOut::Remember(resume.clone())),
+            Some(resume.clone()),
+            None,
+        ),
+        (
+            "a text searches",
+            StageOut::Text(TextOut::Find(FindOut::ShowHit(HitIndex(2)))),
+            None,
+            Some(FindOut::ShowHit(HitIndex(2))),
+        ),
+        (
+            "a text scrolling is neither",
+            StageOut::Text(TextOut::ScrollTo(LineIndex(4))),
+            None,
+            None,
+        ),
+        (
+            "a picture remembers its zoom",
+            StageOut::Raster(RasterOut::Remember(anyview_core::Resume::Nothing)),
+            Some(anyview_core::Resume::Nothing),
+            None,
+        ),
+        (
+            "a recording asks for neither",
+            StageOut::Media(MediaOut::TracksChanged),
+            None,
+            None,
+        ),
+    ];
+    for (name, out, remembered, find) in cases {
+        assert_eq!(out.remembered(), remembered.as_ref(), "{name}: place");
+        assert_eq!(out.find(), find.as_ref(), "{name}: search");
+    }
+}
+
+#[test]
+fn a_find_holds_the_keys_only_while_it_is_up() {
+    let finding = Stage::Text(TextStage::Finding {
+        query: TypedText::EMPTY,
+        hits: FindHits::Idle,
+        place: TextPlace {
+            line: LineIndex(0),
+            wrap: Wrap::On,
+            view: TextView::Source,
+        },
+    });
+    assert!(finding.is_finding());
+    assert!(!Stage::default().is_finding());
+    assert!(!Stage::Text(TextStage::default()).is_finding());
+}
+
+#[test]
+fn the_line_and_edge_keys_scroll_a_pdf_as_they_scroll_a_text() {
+    use super::pdf::PdfIn;
+    use anyview_core::{PageCount, PageIndex, Permille, Zoom};
+    let params = StageParams {
+        pdf: super::pdf::PdfParams {
+            pages: PageCount::new(5).unwrap(),
+            ..super::pdf::PdfParams::default()
+        },
+        ..StageParams::default()
+    };
+    let stage = Stage::Pdf(super::pdf::PdfStage::Reading {
+        view: super::pdf::PageView {
+            page: PageIndex(1),
+            offset: Permille(500),
+            zoom: Zoom::Fit,
+        },
+    });
+    let to = |page, offset| {
+        Some(StageIn::Pdf(PdfIn::GoTo(super::pdf::Destination {
+            page: PageIndex(page),
+            offset: Permille(offset),
+        })))
+    };
+    // name, command, input
+    let cases = [
+        ("a line down", StageCommand::LineDown, to(1, 580)),
+        ("a line up", StageCommand::LineUp, to(1, 420)),
+        ("home", StageCommand::ScrollToStart, to(0, 0)),
+        ("end", StageCommand::ScrollToEnd, to(4, 0)),
+    ];
+    for (name, command, want) in cases {
+        assert_eq!(stage.input_for(command, &params), want, "{name}");
     }
 }

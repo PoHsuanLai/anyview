@@ -15,16 +15,58 @@ cd "$(dirname "$0")/.."
 # one. The crates above it (anyview-peek and the back ends not yet written) are added to this table
 # when they exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does
 # blocking file I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
-# anyview-ui is the viewer's pure machines: no bus, no runtime, no GPU, no decoder, no player.
+# anyview-ui holds the pure machines and the views that draw them. The crate itself may name the
+# window (ds-blitz, which brings tokio and wgpu) and the three back ends (which bring image and
+# pdfrum); it never names a bus, a PDF library itself (the DIRECT table) or a player. The machines inside it stay pure, which is checked per
+# source file below.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
+# anyview-platform is the edge: it alone names the bus and the freedesktop formats (checked for every
+# other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
+# the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
+# anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
+# Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never the media
+# player or D-Bus. What it may not name itself is the DIRECT table below.
+# anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
+# to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
+# other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
+# because the binary owns every thread.
+# anyview (the binary) owns every thread and joins the crates: the window (anyview-ui, ds, ds-blitz),
+# the platform edge, the store and the core. Everything they bring comes along (the renderer, `wgpu`,
+# the decoders, D-Bus), so what it may not reach is only the media player, which is not linked into
+# it yet; what it may not NAME in its own manifest is the DIRECT table below: the binary asks for the
+# renderer, a decoder, the bus or a PDF library only through the crate that owns it. It does name
+# `dioxus`, for the root component every window shares. The media-thread spike links the player and
+# wgpu as dev-dependencies, which `-e normal,build` does not see.
 RULES=(
+  "anyview: mpv-wgpu-player rsmpv"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
-  "anyview-ui: tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image"
+  "anyview-ui: zbus mpv-wgpu-player rsmpv"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
+  "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
+  "anyview-peek: mpv-wgpu-player rsmpv zbus ashpd"
+  "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
+)
+
+# Dependencies a crate may reach only THROUGH another, never name in its own manifest. anyview-peek
+# links `wgpu`, pdfrum and tokio because `ds-blitz` does; it must not depend on them itself, so a
+# texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
+# nothing here spawns.
+DIRECT=(
+  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
+)
+
+# The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
+# dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 532 today,
+# almost all of it `ds` and `ds-blitz`, which the launcher already links.
+BUDGETS=(
+  "anyview-peek: 560"
 )
 fail=0
 
@@ -51,17 +93,52 @@ for rule in "${RULES[@]}"; do
   fi
 done
 
+for rule in "${DIRECT[@]}"; do
+  crate="${rule%%:*}"
+  read -r -a forbidden <<<"${rule#*:}"
+  direct=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
+    | awk '{print $1}' | sort -u)
+  named=0
+  for dep in "${forbidden[@]}"; do
+    if grep -qx "$dep" <<<"$direct"; then
+      echo "DIRECT: $crate names $dep itself; reach it through ds-blitz"
+      named=1
+      fail=1
+    fi
+  done
+  if [ "$named" -eq 0 ]; then
+    echo "direct deps hold: $crate names none of ${forbidden[*]}"
+  fi
+done
+
+for budget in "${BUDGETS[@]}"; do
+  crate="${budget%%:*}"
+  limit="${budget#*: }"
+  count=$(cargo tree -p "$crate" -e normal,build --prefix none --format '{p}' 2>/dev/null \
+    | sed 's/ (\*)$//' | sort -u | grep -c .)
+  if [ "$count" -gt "$limit" ]; then
+    echo "BUDGET: $crate has $count packages, the budget is $limit"
+    fail=1
+  else
+    echo "budget holds: $crate has $count packages of $limit"
+  fi
+done
+
 # The allowed edges between our own crates (ARCHITECTURE.md section 1): each crate's direct normal
 # and build dependencies that live in a path (this workspace and the sibling quire checkout), and
 # nothing else. A dependency on a crate not listed here is a leak; so is one the crate no longer
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
+  "anyview: anyview-core anyview-image anyview-platform anyview-store anyview-ui ds ds-blitz"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-core ds-core"
+  "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
+  "anyview-platform: anyview-core ds-core"
+  "anyview-peek: anyview-core anyview-image anyview-text ds ds-blitz"
+  "anyview-pdf: anyview-core"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
@@ -76,5 +153,45 @@ for edge in "${EDGES[@]}"; do
     echo "edges hold: $crate depends on [${found% }]"
   fi
 done
+
+# Only anyview-platform names the bus or the freedesktop formats (ARCHITECTURE.md section 1): every
+# other crate in crates/ must reach none of them, however indirectly. The binary links the platform
+# crate, so it reaches them through it; its DIRECT row above holds it to never naming them.
+EDGE_ONLY=(zbus ashpd freedesktop-desktop-entry freedesktop-icons freedesktop-file-parser)
+for dir in crates/*/; do
+  crate="$(basename "$dir")"
+  [ "$crate" = "anyview-platform" ] && continue
+  [ "$crate" = "anyview" ] && continue
+  if ! cargo tree -p "$crate" --depth 0 >/dev/null 2>&1; then
+    echo "ERROR: cargo tree cannot resolve $crate; the platform-only names were not checked"
+    fail=1
+    continue
+  fi
+  leaked=0
+  for dep in "${EDGE_ONLY[@]}"; do
+    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+      echo "LEAK: $crate reaches $dep, which only anyview-platform may name"
+      leaked=1
+      fail=1
+    fi
+  done
+  if [ "$leaked" -eq 0 ]; then
+    echo "platform-only names held: $crate reaches none of ${EDGE_ONLY[*]}"
+  fi
+done
+# The machines of anyview-ui are pure: their source names no view, no quire component, no decoder,
+# no disk, no thread and no clock. The effects are carried out by `io`, `families` and `views`.
+MACHINES=(chrome command keys load navigate palette panel presentation sheet stage time typed viewer)
+for machine in "${MACHINES[@]}"; do
+  path="crates/anyview-ui/src/$machine"
+  [ -d "$path" ] || path="$path.rs"
+  hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\banyview_image\b|\banyview_pdf\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_' "$path" || true)
+  if [ -n "$hits" ]; then
+    echo "IMPURE: the machine $machine names an effect or a view"
+    echo "$hits" | head -10
+    fail=1
+  fi
+done
+echo "machines hold: ${MACHINES[*]} name no view, decoder, disk, thread or clock"
 
 exit "$fail"
