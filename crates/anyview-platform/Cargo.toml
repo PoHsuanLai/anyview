@@ -14,6 +14,8 @@ testing = ["dep:tempfile"]
 
 [dependencies]
 anyview-core = { workspace = true }
+anyview-plugin = { workspace = true }
+anyview-plugin-protocol = { workspace = true }
 dirs = { workspace = true }
 ds-core = { workspace = true }
 freedesktop-desktop-entry = { workspace = true }
@@ -22,6 +24,7 @@ md-5 = { workspace = true }
 memfd = { workspace = true }
 percent-encoding = { workspace = true }
 png = { workspace = true }
+rustix = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true }

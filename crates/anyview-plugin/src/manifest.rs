@@ -145,17 +145,21 @@ impl Manifest {
             .find(|provision| provision.capability() == capability)
     }
 
-    /// Every path the manifest names that must exist and be executable or loadable: the
-    /// program, the player's `mpv` and its C plugin.
-    pub fn paths(&self) -> Vec<&Path> {
-        let program = self.program.iter().map(|program| program.path.as_path());
+    /// Every path the manifest names that must be there before the plugin is usable, with what
+    /// each must be: the program, the player's `mpv` and its C plugin.
+    pub fn paths(&self) -> Vec<(&Path, PathRole)> {
+        let program = self
+            .program
+            .iter()
+            .map(|program| (program.path.as_path(), PathRole::Executable));
         let players = self
             .provides
             .iter()
             .filter_map(|provision| match provision {
-                Provision::Play(play) => {
-                    Some([play.player.mpv.as_path(), play.player.cplugin.as_path()])
-                }
+                Provision::Play(play) => Some([
+                    (play.player.mpv.as_path(), PathRole::Executable),
+                    (play.player.cplugin.as_path(), PathRole::Library),
+                ]),
                 Provision::Probe(_)
                 | Provision::Peek(_)
                 | Provision::Thumbnail(_)
@@ -164,6 +168,15 @@ impl Manifest {
             });
         program.chain(players.flatten()).collect()
     }
+}
+
+/// What a path a manifest names must be.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathRole {
+    /// A file that can be run.
+    Executable,
+    /// A file that is loaded, not run.
+    Library,
 }
 
 fn absolute(path: PathBuf) -> Result<PathBuf, PluginError> {

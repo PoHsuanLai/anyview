@@ -16,7 +16,7 @@ mod registry;
 
 pub use error::PluginError;
 pub use handles::{Handles, Subject};
-pub use manifest::{Manifest, PluginId, Program};
+pub use manifest::{Manifest, PathRole, PluginId, Program};
 pub use missing::{MissingPlugin, Package, suggested_package};
 pub use provision::{ExportProvision, PlayProvision, Player, Provision, TargetName};
 pub use registry::{Candidate, Installed, Origin, Plugins, Readiness, Route, Unusable};
