@@ -14,6 +14,7 @@ mod env;
 mod error;
 mod instance;
 mod media;
+mod plugin;
 mod printer;
 mod reveal;
 mod share;
@@ -33,6 +34,7 @@ pub use instance::{Claim, Handoff, Instance, Primary, Request};
 pub use media::{
     Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection, TrackSerial,
 };
+pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover};
 pub use printer::{JobTitle, PrintOutcome, Printer};
 pub use reveal::Reveal;
 pub use share::{Share, ShareTarget};
