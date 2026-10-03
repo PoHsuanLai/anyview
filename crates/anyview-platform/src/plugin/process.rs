@@ -11,6 +11,7 @@ use anyview_plugin_protocol::{
 use rustix::event::{PollFd, PollFlags, poll};
 use rustix::time::Timespec;
 use std::io::{Read, Write};
+use std::os::unix::process::CommandExt;
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -57,8 +58,10 @@ impl PluginProcess {
                     plugin: id.clone(),
                     reason: "the manifest has no program".to_owned(),
                 })?;
+        // A group of its own, so that killing the plugin kills what it started (its ffmpeg) too.
         let mut child = Command::new(&program.path)
             .args(&program.args)
+            .process_group(0)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -230,7 +233,7 @@ impl PluginProcess {
                 Ok(Some(status)) => return status.to_string(),
                 Ok(None) if Instant::now() < end => std::thread::sleep(Duration::from_millis(5)),
                 Ok(None) => {
-                    let _ = self.child.kill();
+                    self.kill();
                     let _ = self.child.wait();
                     return "killed after it closed its output".to_owned();
                 }
@@ -258,9 +261,21 @@ impl PluginProcess {
     }
 }
 
+impl PluginProcess {
+    /// Kills the plugin and everything in its process group: a plugin that runs a program (the
+    /// FFmpeg plugin runs ffmpeg) would otherwise leave it running when the plugin is killed.
+    fn kill(&mut self) {
+        let _ = rustix::process::kill_process_group(
+            rustix::process::Pid::from_child(&self.child),
+            rustix::process::Signal::KILL,
+        );
+        let _ = self.child.kill();
+    }
+}
+
 impl Drop for PluginProcess {
     fn drop(&mut self) {
-        let _ = self.child.kill();
+        self.kill();
         let _ = self.child.wait();
     }
 }
