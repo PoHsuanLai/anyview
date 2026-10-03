@@ -35,14 +35,14 @@ pub fn rows(probed: &Probed) -> Vec<FactRow> {
     if let Some(audio) = audio {
         if let Some(codec) = &audio.codec_name {
             let label = if video.is_some() {
-                "audio_codec"
+                "audio-codec"
             } else {
                 "codec"
             };
             rows.push(row(label, codec.clone()));
         }
         if let Some(hz) = number(&audio.sample_rate).filter(|hz| *hz > 0.0) {
-            rows.push(row("sample_rate", format!("{} kHz", hz / 1000.0)));
+            rows.push(row("sample-rate", format!("{} kHz", hz / 1000.0)));
         }
         if let Some(channels) = channels(audio) {
             rows.push(row("channels", channels));
@@ -197,8 +197,8 @@ mod tests {
                 "dimensions",
                 "codec",
                 "framerate",
-                "audio_codec",
-                "sample_rate",
+                "audio-codec",
+                "sample-rate",
                 "channels",
                 "bitrate",
                 "title",
@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(value(&rows, "duration"), "1:02:07");
         assert_eq!(value(&rows, "dimensions"), "1920 × 1080");
         assert_eq!(value(&rows, "framerate"), "29.97 fps");
-        assert_eq!(value(&rows, "sample_rate"), "44.1 kHz");
+        assert_eq!(value(&rows, "sample-rate"), "44.1 kHz");
         assert_eq!(value(&rows, "channels"), "5.1");
         assert_eq!(value(&rows, "bitrate"), "384 kbit/s");
         assert_eq!(value(&rows, "streams"), "1 video, 1 audio, 1 subtitle");
@@ -228,9 +228,9 @@ mod tests {
         let rows = rows(&probed);
         assert_eq!(
             labels(&rows),
-            ["duration", "codec", "sample_rate", "channels", "bitrate"]
+            ["duration", "codec", "sample-rate", "channels", "bitrate"]
         );
-        assert_eq!(value(&rows, "sample_rate"), "8 kHz");
+        assert_eq!(value(&rows, "sample-rate"), "8 kHz");
         assert_eq!(value(&rows, "channels"), "mono");
         assert_eq!(value(&rows, "bitrate"), "64 kbit/s");
     }
