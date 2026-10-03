@@ -6,6 +6,9 @@
 #   --dry-run     print every action, change nothing
 #   --prefix DIR  the prefix it was installed under (default: /usr/local as root, else ~/.local)
 #
+# It removes the plugins too (the FFmpeg plugin's program and manifest), whether or not install.sh
+# was asked for them.
+#
 # DESTDIR names the staging root it was installed into. A default set with install.sh
 # --set-default is a line in the person's mimeapps.list; it is left there (a default that names
 # a missing entry is ignored by the desktop).
@@ -21,7 +24,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run) DRY_RUN=yes ;;
     --prefix) PREFIX="${2:?--prefix needs a directory}"; shift ;;
     --prefix=*) PREFIX="${1#--prefix=}" ;;
-    -h|--help) sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) say "uninstall.sh: unknown argument $1 (try --help)"; exit 2 ;;
   esac
   shift
@@ -50,6 +53,15 @@ say "1. files"
 remove_file "$PREFIX/bin/anyview"
 remove_file "$PREFIX/share/applications/$APP_ID.desktop"
 remove_file "$PREFIX/share/dbus-1/services/$BUS_NAME.service"
+# The plugins install.sh --with-plugin put in: their programs and manifests, and the folders that
+# held them when nothing else is in them.
+remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
+remove_file "$PREFIX/share/anyview/plugins/ffmpeg.toml"
+if [[ "$DRY_RUN" == no ]]; then
+  for folder in libexec/anyview share/anyview/plugins share/anyview; do
+    [[ -d "$(dest "$PREFIX/$folder")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "$PREFIX/$folder")"
+  done
+fi
 # The sizes install wrote are the folders that hold the viewer's icon; a size another program
 # also fills keeps its folder.
 icons_left=no
