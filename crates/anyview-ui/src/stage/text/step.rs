@@ -1,7 +1,10 @@
 //! The text stage's transitions.
 
 use super::super::find::{FindHits, FindOut, HitStep};
-use super::model::{TextIn, TextOut, TextParams, TextPlace, TextStage, TextView, TextViews, Wrap};
+use super::model::{
+    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
+};
+use super::steps::stepped as step_line;
 use crate::typed::TypedText;
 use anyview_core::{LineIndex, Resume};
 use ds_core::machine::Machine;
@@ -57,6 +60,34 @@ fn other_view(view: TextView, views: TextViews) -> Option<TextView> {
     }
 }
 
+/// A find marks its hits in the source lines, which a rendered page does not have: when the file
+/// has a source view, the find starts there.
+fn source_for_hits(place: TextPlace, params: &TextParams) -> (TextPlace, Vec<TextOut>) {
+    match (place.view, params.views) {
+        (TextView::Rendered, TextViews::RenderedAndSource) => (
+            TextPlace {
+                view: TextView::Source,
+                ..place
+            },
+            vec![TextOut::Show(TextView::Source)],
+        ),
+        (TextView::Rendered, TextViews::SourceOnly)
+        | (TextView::Source, TextViews::RenderedAndSource | TextViews::SourceOnly) => {
+            (place, vec![])
+        }
+    }
+}
+
+/// A key step: the line at the top moves, and the new place is remembered when it did.
+fn walked(place: TextPlace, step: TextStep, params: &TextParams) -> (TextPlace, Vec<TextOut>) {
+    let line = step_line(place.line, step, params.extent);
+    if line == place.line {
+        (place, vec![])
+    } else {
+        (TextPlace { line, ..place }, vec![remember(line)])
+    }
+}
+
 fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
     let stay = |place: TextPlace| (TextStage::Reading { place }, vec![]);
     match input {
@@ -66,8 +97,13 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             },
             vec![remember(line)],
         ),
+        TextIn::Step(step) => {
+            let (place, outs) = walked(place, step, params);
+            (TextStage::Reading { place }, outs)
+        }
         TextIn::Find(query) => {
-            let outs = vec![search(&query)];
+            let (place, mut outs) = source_for_hits(place, params);
+            outs.push(search(&query));
             let hits = FindHits::asked(&query);
             (TextStage::Finding { query, hits, place }, outs)
         }
@@ -141,6 +177,10 @@ fn finding(
             },
             vec![remember(line)],
         ),
+        TextIn::Step(step) => {
+            let (place, outs) = walked(place, step, params);
+            (TextStage::Finding { query, hits, place }, outs)
+        }
         TextIn::Find(text) => {
             let outs = vec![search(&text)];
             let hits = FindHits::asked(&text);

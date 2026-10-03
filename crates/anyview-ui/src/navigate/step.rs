@@ -36,6 +36,7 @@ fn idle(input: NavigateIn) -> Step {
         | NavigateIn::Previous
         | NavigateIn::First
         | NavigateIn::Last
+        | NavigateIn::Leave
         | NavigateIn::Elapsed => (Navigate::Idle, vec![]),
     }
 }
@@ -50,6 +51,7 @@ fn walking(sequence: Sequence, input: NavigateIn) -> Step {
         NavigateIn::Previous => walk(sequence, SequenceMove::Previous),
         NavigateIn::First => walk(sequence, SequenceMove::First),
         NavigateIn::Last => walk(sequence, SequenceMove::Last),
+        NavigateIn::Leave => (Navigate::Idle, vec![]),
         NavigateIn::Elapsed => (Navigate::Walking { sequence }, vec![]),
     }
 }

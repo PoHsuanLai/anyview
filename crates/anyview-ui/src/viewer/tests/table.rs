@@ -1,5 +1,6 @@
 use super::support::*;
 use crate::chrome::*;
+use crate::command::Command;
 use crate::load::*;
 use crate::palette::*;
 use crate::panel::*;
@@ -104,6 +105,31 @@ const CASES: &[Case] = &[
             vec![
                 ViewerOut::Sheet(SheetOut::Opened),
                 ViewerOut::Palette(PaletteOut::Closed),
+            ]
+        },
+    ),
+    (
+        "a command from a control turns the image like the palette's row does",
+        || Viewer {
+            stage: image(),
+            ..Viewer::default()
+        },
+        || ViewerIn::Run(Command::File(FileAction::RotateRight)),
+        0,
+        || Viewer {
+            stage: Stage::Raster(RasterStage::Fitted {
+                turn: QuarterTurn::Quarter,
+                anim: Animation::Still,
+            }),
+            ..Viewer::default()
+        },
+        || {
+            vec![
+                ViewerOut::Stage(StageOut::Raster(RasterOut::Turned(QuarterTurn::Quarter))),
+                ViewerOut::Stage(StageOut::Raster(RasterOut::Remember(Resume::Raster {
+                    zoom: Zoom::Fit,
+                    centre: DocPoint::default(),
+                }))),
             ]
         },
     ),

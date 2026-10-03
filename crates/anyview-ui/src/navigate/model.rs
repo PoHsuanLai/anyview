@@ -26,6 +26,9 @@ pub enum NavigateIn {
     First,
     /// End: the last file.
     Last,
+    /// The open file is no longer one of the list (another file was dropped on the window): there
+    /// is nothing to walk until a list for the new file arrives.
+    Leave,
     /// The clock; navigation keeps no timer.
     Elapsed,
 }

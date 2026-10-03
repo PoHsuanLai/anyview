@@ -1,8 +1,12 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/anyview",
   "crates/anyview-core",
   "crates/anyview-image",
+  "crates/anyview-platform",
+  "crates/anyview-peek",
+  "crates/anyview-pdf",
   "crates/anyview-store",
   "crates/anyview-text",
   "crates/anyview-ui",
@@ -19,13 +23,23 @@ repository = "https://github.com/PoHsuanLai/anyview"
 publish = false
 
 [workspace.dependencies]
+anyview = { path = "crates/anyview" }
 anyview-core = { path = "crates/anyview-core" }
 anyview-image = { path = "crates/anyview-image" }
+anyview-platform = { path = "crates/anyview-platform" }
+anyview-peek = { path = "crates/anyview-peek" }
+anyview-pdf = { path = "crates/anyview-pdf" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
+# The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
+# `TextureLayer`), and the test driver and lint (dev-dependencies only).
+ds = { path = "../quire/crates/ds" }
+ds-blitz = { path = "../quire/crates/ds-blitz" }
+ds-harness = { path = "../quire/crates/ds-harness" }
+ds-lint = { path = "../quire/crates/ds-lint" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -114,16 +128,16 @@ peniko = "0.6"
 # (scenes as vector PDF pages); it writes through pdfrum-edit (glyph-run fonts subset and
 # instanced, gradients, JPEG and PNG passthrough; `variable-fonts` lets the subsetter instance
 # variable and CFF2 faces). Every pdfrum crate is taken from one git rev so the tree holds one
-# copy of each; the rev is main after PR #100 (pdfrum-anyrender added).
-pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
-pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549", features = ["variable-fonts"] }
-pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
-pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
+# copy of each; the rev is master after #102 (stop flag, owned page) and #103 (link border).
+pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
+pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb", features = ["variable-fonts"] }
+pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
+pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb" }
 # Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
 # the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
 skrifa = "0.44"
 # Reading PDFs back in tests (text, fonts, images, a rasterised page): dev-dependency only.
-pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549", default-features = false, features = ["vello-cpu"] }
+pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "8c7faadc3f858a005bbd03f564cdeb49fca63aeb", default-features = false, features = ["vello-cpu"] }
 # The print portal's fd, from a sealed anonymous file (ds-blitz's `print` feature, Linux only).
 memfd = "0.6"
 # Spellchecking (ds-blitz's `spell` feature): a pure-Rust Hunspell-compatible checker,
@@ -169,6 +183,12 @@ kamadak-exif = "0.6"
 img-parts = "0.4"
 # AVIF encoder, pure Rust: BSD-3-Clause.
 ravif = { version = "0.13", default-features = false }
+# Unbounded channel whose receiver is a future, so a worker's result wakes the window's UI task:
+# MIT OR Apache-2.0 (already in the tree through dioxus).
+futures-channel = "0.3"
+# `StreamExt::next` on that receiver, and the stream of a portal request's `Response` signals
+# (`anyview-platform`): MIT OR Apache-2.0.
+futures-util = { version = "0.3", default-features = false }
 # `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
 syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
 # Markdown parser: MIT.
@@ -177,6 +197,42 @@ pulldown-cmark = { version = "0.13", default-features = false, features = ["html
 csv = "1"
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
+
+# `anyview-platform`: the one crate that names D-Bus and the freedesktop file formats.
+# MD5 of a file URI, which names its thumbnail (the freedesktop thumbnail spec): MIT OR Apache-2.0.
+md-5 = "0.10"
+# Percent-encoding of a file URI: MIT OR Apache-2.0.
+percent-encoding = "2"
+# Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
+png = "0.18"
+# `anyview`'s media-thread spike (dev-dependency only): libmpv playback into a caller-owned wgpu
+# texture, MIT OR Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version.
+mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808983c57dc0e7c475e5baea23a124420b7a2f" }
+# Blocks on the headless wgpu device's futures in that spike: Apache-2.0 OR MIT.
+pollster = "0.4"
+
+# `anyview`: moving a file to the freedesktop trash, in one call. Pure Rust on Linux (no bus): MIT.
+trash = "5"
+
+# The local checkouts the sibling repos build against (quire/CONSUMING.md section 1): blitz-kit from
+# its sibling directory, so every path-linked repo builds one copy, and the vello and anyrender
+# forks (branch quire-filters) that make every CSS `filter` function paint on both backends.
+# Copied from quire's and sill's root manifests; they apply only at a workspace root, and
+# `anyview-peek` is the first crate here that names the renderer.
+[patch."https://github.com/PoHsuanLai/blitz-kit"]
+blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
+
+[patch.crates-io]
+vello_common = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_cpu = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_hybrid = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+vello_sparse_shaders = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+glifo = { git = "https://github.com/PoHsuanLai/vello", rev = "1722f6234e10b95d574d2252698a6cc7cdcadb82" }
+anyrender = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_cpu = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+anyrender_vello_hybrid = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+wgpu_context = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+pixels_window_renderer = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -1,0 +1,22 @@
+[package]
+name = "anyview-pdf"
+description = "PDF for the viewer: open, page sizes, tile scheduling and rendering, search across the document, outline, links, page edits and exports."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+# The pinned block builds the facade with the vello-cpu rasterizer only; text and Markdown
+# extraction are added here.
+pdfrum = { workspace = true, features = ["markdown"] }
+# Page edits and page-range writes go straight to the editor: it has `reorder_pages`, which the
+# facade's `DocEdit` does not.
+pdfrum-edit = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

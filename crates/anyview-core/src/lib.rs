@@ -2,7 +2,8 @@
 //! in, the sequence arrow keys walk, the actions, edits and exports a file offers, and the view
 //! memory a file keeps. No I/O, no clock, no renderer: effects belong to the crates above.
 //!
-//! Every public item is reached from this root, once.
+//! Every public item is reached from this root, once, except the contract with the threads, which
+//! is reached through its one public module, `work`.
 
 mod action;
 mod edit;
@@ -17,6 +18,7 @@ mod sequence;
 mod sniff;
 mod source;
 mod units;
+pub mod work;
 
 pub use action::{FileAction, Reach, reach, shortcut};
 pub use edit::{Edit, EditKind};

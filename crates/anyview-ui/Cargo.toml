@@ -1,6 +1,6 @@
 [package]
 name = "anyview-ui"
-description = "The viewer's pure state machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them."
+description = "The viewer's pure state machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing, the root) and the Dioxus views and stages that draw them."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,23 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+anyview-image = { workspace = true }
+anyview-pdf = { workspace = true }
+anyview-text = { workspace = true }
+dioxus = { workspace = true }
+ds = { workspace = true }
+ds-blitz = { workspace = true }
 ds-core = { workspace = true }
+futures-channel = { workspace = true }
+futures-util = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+ds-harness = { workspace = true }
+ds-lint = { workspace = true }
+dioxus-ssr = { workspace = true }
+image = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

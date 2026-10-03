@@ -2,8 +2,11 @@
 
 mod finding;
 mod model;
+mod place;
 mod step;
 #[cfg(test)]
 mod tests;
 
 pub use model::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+pub(crate) use place::{LineDir, nudged};
+pub(crate) use place::{end, start};

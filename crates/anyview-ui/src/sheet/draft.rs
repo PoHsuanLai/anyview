@@ -109,6 +109,37 @@ impl ExportDraft {
     }
 }
 
+impl ExportDraft {
+    /// The kind this draft is, as the pop-up's current entry.
+    pub fn pick(self) -> ExportKindPick {
+        match self {
+            ExportDraft::Raster(choice) => ExportKindPick::Raster(choice.kind()),
+            ExportDraft::Pdf(choice) => ExportKindPick::Pdf(choice.kind()),
+            ExportDraft::Text(choice) => ExportKindPick::Text(choice.kind()),
+            ExportDraft::Media(choice) => ExportKindPick::Media(choice.kind()),
+        }
+    }
+
+    /// Every kind the pop-up lists for this draft's format, with its words.
+    pub fn choices(self) -> Vec<(ExportKindPick, &'static str)> {
+        match self {
+            ExportDraft::Raster(_) => listed::<RasterExport>(ExportKindPick::Raster),
+            ExportDraft::Pdf(_) => listed::<PdfExport>(ExportKindPick::Pdf),
+            ExportDraft::Text(_) => listed::<TextExport>(ExportKindPick::Text),
+            ExportDraft::Media(_) => listed::<MediaExport>(ExportKindPick::Media),
+        }
+    }
+}
+
+fn listed<E: ExportChoice>(
+    wrap: fn(E::Kind) -> ExportKindPick,
+) -> Vec<(ExportKindPick, &'static str)> {
+    E::kinds()
+        .iter()
+        .map(|kind| (wrap(*kind), kind.label()))
+        .collect()
+}
+
 fn first<E: ExportChoice>() -> Option<E> {
     E::kinds().first().map(|kind| E::default_for(*kind))
 }

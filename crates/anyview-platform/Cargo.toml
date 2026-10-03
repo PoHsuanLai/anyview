@@ -1,0 +1,33 @@
+[package]
+name = "anyview-platform"
+description = "The platform edge: single instance, media session, Open With, thumbnail cache, print, share, reveal and window stacking, each a trait with a Linux implementation and a fake."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# The fakes (`anyview_platform::testing`), for the tests of the crates that consume the traits.
+testing = []
+
+[dependencies]
+anyview-core = { workspace = true }
+dirs = { workspace = true }
+ds-core = { workspace = true }
+freedesktop-desktop-entry = { workspace = true }
+futures-util = { workspace = true }
+md-5 = { workspace = true }
+memfd = { workspace = true }
+percent-encoding = { workspace = true }
+png = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+zbus = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
