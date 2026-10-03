@@ -509,6 +509,27 @@ on. It is a reference, not a log: how each was found lives in git history.
   with plan phase P5: the binary builds `Plugins` once from `Env`, hands the registry (a pure value, so the
   light tier can hold it) to the peek and the views, a kind with no back end shows the `Needs` row, and the
   export sheet offers `Plugins::export_targets`.
+- **The FFmpeg plugin was built and tested against FFmpeg 8.1 only** (Fedora's `ffmpeg-free` 8.1.x: aac, libmp3lame, flac,
+  pcm, libopus and the experimental native opus are present; no libx264). Plan P3 says FFmpeg 5 to 8: the
+  options it passes (`-progress`, `-copypriorss`, `-map 0:V`, `-read_intervals`, the JSON `ffprobe`) exist
+  from 4, but no other FFmpeg is installed here to prove it, and the plugin refuses a release older than 4.
+  Ends when it runs under a 5 and a 6 or 7 image.
+- **The manifest lists every target the plugin knows; the machine's FFmpeg may write fewer.** `hello.targets`
+  says which, but `Plugins::export_targets` reads the manifest and `PluginRunner` does not hand the greeting
+  back, so an export sheet would offer MP3 on a machine with no LAME and get `unsupported`. P5 should have the
+  runner return the greeting's targets (or ask once) and filter the sheet with them.
+- **A plugin that is killed with SIGKILL leaves its children unless the host kills the group.** Measured:
+  ffmpeg keeps running after its `-progress` pipe is closed. `PluginProcess` now starts a plugin in its own
+  process group and kills the group on drop; a host that spawns plugins some other way has to do the same.
+- **A plugin start costs about 130 ms of its own, then the work.** Measured with this machine's FFmpeg 8.1: `ffmpeg
+  -version` and `-encoders` together about 65 ms (ffprobe's own version is not asked), `ffprobe` of a 3 s clip about
+  90 ms, one scaled frame about 70 ms. A thumbnail is a start, a probe and a frame: about 280 ms. The thumbnail
+  cache hides it for a folder seen before; a first look at 500 recordings would pay 500 starts. This is the measurement the item below waits for:
+  if it matters, the session mode (protocol version 2) is the fix, and a cache of the `-encoders` answer is the
+  cheaper first step.
+- **Trim with several video streams, or a recording whose first keyframe is after the start, aligns to the first
+  video stream only.** The keyframe is looked up on the first moving picture; other pictures are copied from the
+  same point. A cover or a subtitle that began before the keyframe is dropped, as `anyview-media`'s cut does.
 - **A plugin is started for each request.** Right for the probe, thumbnail and decode of one file and for an
   export, but a folder of 500 recordings pays 500 process starts for its thumbnails. Ends if P3's measurements
   show it: a session mode (kept alive, with request ids announced in `Hello`) is then protocol version 2, and

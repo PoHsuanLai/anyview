@@ -1,0 +1,35 @@
+# The manifest of the FFmpeg plugin (ARCHITECTURE section 2l). install.sh --with-plugin ffmpeg fills in
+# @PREFIX@ and installs the result as <prefix>/share/anyview/plugins/ffmpeg.toml; the file name is the id.
+#
+# The plugin runs the person's own ffprobe and ffmpeg: it looks for them as `--ffmpeg` and `--ffprobe`
+# arguments (add them to `args` to name an absolute path), then the ANYVIEW_FFMPEG and ANYVIEW_FFPROBE
+# environment variables, then the search path. The export targets below are what the plugin can write
+# with the best FFmpeg; it tells the host in `hello` which of them this machine's FFmpeg can encode.
+id = "ffmpeg"
+name = "FFmpeg"
+protocol = 1
+
+[program]
+path = "@PREFIX@/libexec/anyview/anyview-ffmpeg"
+args = []
+
+[[provides]]
+capability = "probe"
+kinds = ["video", "audio"]
+
+[[provides]]
+capability = "peek"
+kinds = ["video", "audio"]
+
+[[provides]]
+capability = "thumbnail"
+kinds = ["video", "audio"]
+
+[[provides]]
+capability = "decode"
+kinds = ["video", "audio"]
+
+[[provides]]
+capability = "export"
+kinds = ["video", "audio"]
+targets = ["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus"]
