@@ -114,7 +114,36 @@ check "missing icons install no icon" bash -c "! find $stage -name '*.png' | gre
 uninstall >/dev/null 2>&1
 check "uninstall empties that tree too" empty "$stage"
 
-# 6. A relative prefix is refused, and nothing was written for it.
+# 6. --with-plugin ffmpeg adds the plugin's program and its manifest, and only when asked.
+printf '#!/bin/sh\necho fake plugin\n' >"$scratch/anyview-ffmpeg"
+chmod +x "$scratch/anyview-ffmpeg"
+export ANYVIEW_FFMPEG_PLUGIN_BIN="$scratch/anyview-ffmpeg"
+manifest="$installed/share/anyview/plugins/ffmpeg.toml"
+out="$(install --dry-run --with-plugin ffmpeg 2>&1)"
+check "dry run names the plugin program" grep -q "$prefix/libexec/anyview/anyview-ffmpeg" <<<"$out"
+check "dry run names the plugin manifest" grep -q "$prefix/share/anyview/plugins/ffmpeg.toml" <<<"$out"
+check "dry run installs no plugin" empty "$stage"
+install >/dev/null 2>&1
+check "without --with-plugin no plugin is installed" test ! -e "$installed/libexec" -a ! -e "$manifest"
+uninstall >/dev/null 2>&1
+install --with-plugin ffmpeg >"$scratch/plugin.out" 2>&1
+check "the plugin's program is installed and executable" test -x "$installed/libexec/anyview/anyview-ffmpeg"
+check "the manifest is installed" test -f "$manifest"
+check "the manifest is the id's file" grep -qx 'id = "ffmpeg"' "$manifest"
+check "the manifest names the installed program, without DESTDIR" grep -qx "path = \"$prefix/libexec/anyview/anyview-ffmpeg\"" "$manifest"
+check "no placeholder is left in the manifest" bash -c "! grep -q '@' $manifest"
+check "the manifest lists the export targets" grep -q 'targets = \["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus"\]' "$manifest"
+check "the viewer is installed beside it" test -x "$installed/bin/anyview"
+check "staging the plugin registered nothing" test ! -s "$calls"
+install --with-plugin ffmpeg >"$scratch/plugin-again.out" 2>&1
+check "a second plugin install leaves the files alone" grep -q "unchanged: $prefix/libexec/anyview/anyview-ffmpeg" "$scratch/plugin-again.out"
+check "an unknown plugin is refused" bash -c "! DESTDIR=$stage bash $repo/dist/install.sh --prefix $prefix --with-plugin nope >/dev/null 2>&1"
+uninstall >"$scratch/plugin-uninstall.out" 2>&1
+check "uninstall removes the plugin and leaves the staging tree empty" empty "$stage"
+check "uninstall names the plugin it removed" grep -q "remove $prefix/libexec/anyview/anyview-ffmpeg" "$scratch/plugin-uninstall.out"
+unset ANYVIEW_FFMPEG_PLUGIN_BIN
+
+# 7. A relative prefix is refused, and nothing was written for it.
 check "a relative prefix is refused" bash -c "! DESTDIR=$stage bash $repo/dist/install.sh --prefix rel >/dev/null 2>&1"
 check "the refusal wrote nothing" empty "$stage"
 
