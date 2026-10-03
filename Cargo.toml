@@ -277,16 +277,11 @@ md-5 = "0.10"
 percent-encoding = "2"
 # Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
 png = "0.18"
-# `anyview-media` (feature `player`): libmpv playback into a caller-owned wgpu texture, MIT OR
-# Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version. libmpv itself is LGPL,
-# linked dynamically and never pasted.
-mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808983c57dc0e7c475e5baea23a124420b7a2f" }
-# `anyview-media` (feature `ffmpeg`): safe bindings to the system's libav* (probing, trim, audio
-# extraction and conversion), WTFPL for the binding crates (`ffmpeg-sys-next` too); libav is LGPL,
-# linked dynamically and never pasted. 8.1 is the major that matches the FFmpeg 8 this machine ships
-# (libavcodec 62); 6.1 and 7.1 do not build against it, 9.0 does (FINDINGS, "ffmpeg-next"). Only
-# the features its code uses: the codec and format layers and the resampler.
-ffmpeg-next = { version = "8.1", default-features = false, features = ["codec", "format", "software-resampling"] }
+# `anyview-media` (feature `player`): playback into a caller-owned wgpu texture, MIT OR Apache-2.0; the
+# rev is mpv-wgpu master. Only its `subprocess` feature is taken: the person's own `mpv` runs as a child
+# process with mpv-wgpu's C plugin loaded into it, so no libmpv and no `rsmpv` is linked, and the
+# distribution's GPL mpv stays a program we run (CONVENTIONS section 15).
+mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "d017756e20988270b708d979632da9817c8cae34", default-features = false, features = ["subprocess"] }
 # `anyview-peek` (feature `media`): a recording's facts, tags and cover without decoding it, pure Rust.
 # `symphonia` reads audio (MP3, AAC and ALAC in MP4, FLAC, Ogg Vorbis and Opus, WAV, AIFF): MPL-2.0,
 # metadata and probing only, no decoder is called. Features: the container readers and the tag formats.

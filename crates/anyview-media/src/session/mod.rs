@@ -1,4 +1,4 @@
-//! The player as a typestate. A [`Session`] owns one libmpv player and is `Idle` (nothing
+//! The player as a typestate. A [`Session`] owns one mpv player (the person's `mpv`, run as a child process) and is `Idle` (nothing
 //! asked for), `Opening` (a file was given and mpv has not said it is open) or `Loaded` (it
 //! has). What only a loaded recording has (its tracks and chapters, a seek, the volume) exists
 //! on `Session<Loaded>` and nowhere else, so asking an idle player for its tracks is a compile
@@ -31,12 +31,11 @@ mod report;
 
 pub use idle::Refused;
 pub use opening::Opened;
-pub use options::AudioDriver;
+pub use options::{AudioDriver, MpvHost};
 pub use report::{Frame, Report};
 
 use crate::command::PictureSlot;
 use crate::error::MediaError;
-use anyview_core::MediaLength;
 use mpv_wgpu_player::Player;
 
 /// A session with nothing asked for yet.
@@ -49,14 +48,13 @@ pub struct Opening;
 
 /// A session whose file is open.
 #[derive(Debug, Clone, Copy)]
-pub struct Loaded {
-    pub(super) length: Option<MediaLength>,
-}
+pub struct Loaded;
 
-/// One libmpv player, in the state `S`.
+/// One mpv player, in the state `S`.
 pub struct Session<S> {
     player: Player,
-    state: S,
+    /// Which state it is in: a marker, read only by the compiler.
+    _state: S,
 }
 
 impl<S> std::fmt::Debug for Session<S> {
@@ -89,12 +87,22 @@ impl<S> Session<S> {
     fn with_state<T>(self, state: T) -> Session<T> {
         Session {
             player: self.player,
-            state,
+            _state: state,
         }
     }
 }
 
-/// A failure of the player as this crate reports it.
+/// A failure of the player as this crate reports it: the ones that say the mpv process is gone,
+/// silent or would not start are typed, since the viewer shows them as a stopped player.
 pub(super) fn fault(error: mpv_wgpu_player::Error) -> MediaError {
-    MediaError::Player(error.to_string())
+    match error {
+        mpv_wgpu_player::Error::HostGone => MediaError::PlayerGone,
+        mpv_wgpu_player::Error::HostTimeout => MediaError::PlayerSilent,
+        mpv_wgpu_player::Error::HostStart(reason) => MediaError::PlayerStart(reason),
+        mpv_wgpu_player::Error::Mpv(_)
+        | mpv_wgpu_player::Error::InvalidSize
+        | mpv_wgpu_player::Error::Gpu
+        | mpv_wgpu_player::Error::PathNotUtf8
+        | mpv_wgpu_player::Error::NoSuchChapter(_) => MediaError::Player(error.to_string()),
+    }
 }

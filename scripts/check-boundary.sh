@@ -41,15 +41,18 @@ cd "$(dirname "$0")/.."
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
 # because the binary owns every thread.
 # anyview (the binary) owns every thread and joins the crates: the window (anyview-ui, ds, ds-blitz),
-# the platform edge, the media crate, the store and the core. Everything they bring comes along (the
-# renderer, `wgpu`, the decoders, libmpv and libav through anyview-media, D-Bus), so it has no rule of
-# what it may reach; what it may not NAME in its own manifest is the DIRECT table below: the binary
-# asks for the renderer, a decoder, the player, libav, the bus or a PDF library only through the
-# crate that owns it. It does name `dioxus`, for the root component every window shares.
-# anyview-media is the only crate that names `ffmpeg-next` and `ffmpeg-sys-next` (libav) and, with its
-# `player` feature, `mpv-wgpu-player` and `rsmpv` (libmpv): every other crate's row forbids libav, and
-# anyview-peek's forbids both libraries. (Phase P3 and P5 of PLAN.md replace them with plugins.) The
-# media crate itself spawns nothing, reads no clock and draws nothing: no runtime, no bus, no UI.
+# the platform edge, the plugin registry, the media crate, the light tier's readers, the store and the
+# core. Everything they bring comes along (the renderer, `wgpu`, the decoders, D-Bus), so it has no rule
+# of what it may reach; what it may not NAME in its own manifest is the DIRECT table below: the binary
+# asks for the renderer, a decoder, the player, a codec library, the bus or a PDF library only through
+# the crate that owns it. It does name `dioxus`, for the root component every window shares.
+# No crate links libmpv or libav (CONVENTIONS section 15, "run, never link"): `rsmpv`, `rsmpv-sys`,
+# `ffmpeg-next` and `ffmpeg-sys-next` are forbidden in every crate's tree by FORBIDDEN_EVERYWHERE
+# below, and `dev/ldd-test.sh` checks that the built binary has no libmpv and no libav*. Playing is the
+# person's own mpv run as a child process (anyview-media with its `player` feature, through
+# `mpv-wgpu-player`'s `subprocess` host, which links no mpv), and probing and writing recordings is the
+# FFmpeg plugin. The media crate itself spawns nothing, reads no clock and draws nothing: no runtime,
+# no bus, no UI.
 # anyview-plugin-protocol is what a plugin author depends on, so it is pure and small: `serde`,
 # `serde_json` and `thiserror` and nothing of the viewer's (no anyview-core, no ds-core, no `toml`),
 # and no runtime, bus, GPU, decoder or UI. anyview-plugin is the manifest and the registry as values:
@@ -61,6 +64,11 @@ cd "$(dirname "$0")/.."
 # and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
 # player, and not anyview-media, anyview-platform, the core or the UI; `cargo tree` for it must show
 # no `ffmpeg-next` and no `rsmpv` (its dev-dependencies, the host's crates for the tests, are not looked at).
+# Forbidden in every crate's tree, whatever its row says: the bindings of libmpv and of libav, and so the
+# libraries themselves (CONVENTIONS section 15). Codec and copyleft code lives in separate-process plugins
+# that use the person's own distro tools.
+FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next)
+
 RULES=(
   "anyview-ffmpeg: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-plugin-protocol: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
@@ -84,7 +92,7 @@ RULES=(
 # texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
 # nothing here spawns.
 DIRECT=(
-  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
 )
@@ -94,9 +102,12 @@ DIRECT=(
 # budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 587 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
-# crates, mp4parse, matroska-demuxer). It was 575 with libav's bindings; the parsers cost 12 more.
+# crates, mp4parse, matroska-demuxer). The viewer (anyview) is 656: the peek's tree and the window, the
+# platform edge and the plugin registry, with no libmpv or libav binding in it. Both ratchet down when a
+# change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 590"
+  "anyview: 660"
 )
 fail=0
 
@@ -120,6 +131,34 @@ for rule in "${RULES[@]}"; do
   done
   if [ "$leaked" -eq 0 ]; then
     echo "boundary holds: $crate reaches none of ${forbidden[*]}"
+  fi
+done
+
+# No crate of the workspace reaches the bindings of libmpv or libav, and the lockfile does not hold
+# them at all, so a dev-dependency cannot bring them back either.
+for dir in crates/*/ plugins/*/; do
+  crate="$(basename "$dir")"
+  if ! cargo tree -p "$crate" --depth 0 >/dev/null 2>&1; then
+    echo "ERROR: cargo tree cannot resolve $crate; the codec boundary was not checked"
+    fail=1
+    continue
+  fi
+  leaked=0
+  for dep in "${FORBIDDEN_EVERYWHERE[@]}"; do
+    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+      echo "LEAK: $crate depends on $dep: codecs are run as plugins, never linked"
+      leaked=1
+      fail=1
+    fi
+  done
+  if [ "$leaked" -eq 0 ]; then
+    echo "codec boundary holds: $crate reaches none of ${FORBIDDEN_EVERYWHERE[*]}"
+  fi
+done
+for dep in "${FORBIDDEN_EVERYWHERE[@]}"; do
+  if grep -qx "name = \"$dep\"" Cargo.lock; then
+    echo "LEAK: Cargo.lock holds $dep"
+    fail=1
   fi
 done
 
@@ -160,7 +199,7 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-image anyview-media anyview-platform anyview-store anyview-ui ds ds-blitz ds-settings"
+  "anyview: anyview-core anyview-image anyview-media anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"

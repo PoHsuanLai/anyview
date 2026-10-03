@@ -19,7 +19,10 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
     let keys = key.keys();
     let keys = keys.as_slice();
     match regions.sheet {
-        Sheet::Export { draft: _ } | Sheet::ConfirmTrash | Sheet::Rename { name: _ } => {
+        Sheet::Export { draft: _ }
+        | Sheet::Unavailable { needs: _ }
+        | Sheet::ConfirmTrash
+        | Sheet::Rename { name: _ } => {
             return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}

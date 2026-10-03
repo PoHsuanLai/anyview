@@ -1,6 +1,6 @@
 [package]
 name = "anyview-media"
-description = "Video and audio: the player session over libmpv, the facts and cover art libav reads, and the trim, extraction and conversion libav writes."
+description = "Video and audio: the player session over the person's own mpv, run as a child process, and the plan, the names and the asks of the exports a plugin writes."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,17 +8,15 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
-# The two C libraries are separate features so the launcher can link the one it needs: it takes
-# `ffmpeg` (a recording's facts and cover art) and never `player` (libmpv and the GPU).
+# `player` is the session and the driver: mpv-wgpu's subprocess host and the GPU. The planning and
+# naming of exports needs neither.
 [features]
-default = ["player", "ffmpeg"]
+default = ["player"]
 player = ["dep:mpv-wgpu-player", "dep:wgpu", "dep:pollster"]
-ffmpeg = ["dep:ffmpeg-next"]
 
 [dependencies]
 anyview-core = { workspace = true }
 ds-core = { workspace = true }
-ffmpeg-next = { workspace = true, optional = true }
 mpv-wgpu-player = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 thiserror = { workspace = true }
