@@ -28,12 +28,16 @@ pub enum FactLabel {
     AudioCodec,
     /// How many bits a second the streams of a recording take.
     Bitrate,
+    /// How many pictures a second a video shows.
+    Framerate,
     /// Samples a second of a recording's sound.
     SampleRate,
     /// How many channels a recording's sound has.
     Channels,
     /// What a recording holds: how many video, audio and subtitle tracks.
     Streams,
+    /// How many chapters a recording is divided into.
+    Chapters,
     /// The camera that took a photo.
     Camera,
     /// The lens a photo was taken with.

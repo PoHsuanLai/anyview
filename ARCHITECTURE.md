@@ -33,6 +33,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
+| plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
 | L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows, the players and the desktop's now-playing entry (`media`), and the host that carries out what the windows ask through the platform |
 
@@ -44,6 +45,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-plugin-protocol` | nothing in the workspace: `serde`, `serde_json`, `thiserror` |
 | `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol` |
 | `anyview-plugin-fake` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
+| `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` |
 | `anyview-ui` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies) |
@@ -81,7 +83,8 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: serde, serde_json and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
-| every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/`) |
+| `anyview-ffmpeg` | `anyview-core`, `anyview-media`, `anyview-platform`, `anyview-plugin`, `anyview-ui`, `anyview-peek`, `ds-core`, `ds`, `ds-blitz`, `toml`, `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `image`, `blitz-dom`, `anyrender`, `syntect`: a plugin knows the protocol, `serde`, `serde_json` and `thiserror`, and runs programs; it never links the libraries those programs are made of |
+| every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/` and `plugins/`) |
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
 and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
@@ -456,13 +459,14 @@ is a separate executable the person installs, which uses their own distribution'
 talks to the viewer over a pipe. The viewer asks it to do one thing and kills it when it is done, so a
 plugin that crashes, hangs or lies costs one request and never the viewer.
 
-Three crates and a test plugin carry it:
+Three crates, a test plugin and the FFmpeg plugin carry it:
 
 | Crate | Holds |
 | --- | --- |
 | `anyview-plugin-protocol` (L0) | `Capability`, `HostMessage`, `PluginMessage` and the request and reply types, `PROTOCOL_VERSION`, the frame codec (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`), `ProtocolError`. Pure: `serde`, `serde_json`, `thiserror` |
 | `anyview-plugin` (L1) | `Manifest` (parse and validate TOML), `PluginId`, `Program`, `Provision` (`Probe`, `Peek`, `Thumbnail`, `Decode`, `Export`, `Play`), `Handles`, `Subject`, `Plugins` (the registry), `Candidate`, `Origin`, `Readiness`, `Route`, `MissingPlugin`, `suggested_package`, `PluginError`. Pure |
 | `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner`, `Timeouts`, `PluginFacts`, the private process |
+| `anyview-ffmpeg` (`plugins/`) | `anyview-ffmpeg`, the FFmpeg plugin (below) |
 | `anyview-plugin-fake` (dev) | `anyview-fake-plugin`, a plugin for one invented kind that can misbehave on request, and the tests |
 
 The manifest lives in `anyview-plugin`, apart from `anyview-core`, so that the core stays free of a TOML
@@ -555,8 +559,13 @@ fields can be added without a version. A plugin written in Rust uses `read_frame
 **Handshake.** The plugin speaks first:
 
 ```json
-{"kind":"hello","v":{"protocol":1,"name":"ffmpeg","provides":["probe","thumbnail","decode","export"]}}
+{"kind":"hello","v":{"protocol":1,"name":"ffmpeg","provides":["probe","thumbnail","decode","export"],"targets":["trim","mp3"]}}
 ```
+
+`targets` is optional (empty when absent): the export targets the plugin can write on this machine, which may
+be fewer than its manifest lists, since a distribution's FFmpeg may lack an encoder. A plugin that is asked
+for a target it cannot write answers `unsupported`. A plugin that cannot do its work at all (no FFmpeg) says
+hello with an empty `provides`, logs why on stderr and exits, and the host reports `PluginLacks`.
 
 The host checks that `protocol` is the one it speaks (`PluginVersion` otherwise) and that `provides` lists
 the capability it is about to ask for (`PluginLacks`), then sends the request. No `hello` within
@@ -569,7 +578,7 @@ the capability it is about to ask for (`PluginLacks`), then sends the request. N
 | `probe` | `path` | `facts` |
 | `thumbnail` | `path`, `max_edge` (pixels on the longer side) | `image`, longer side at most `max_edge` |
 | `decode` | `path`, `max_area` (pixels) | `image`, width times height at most `max_area`; the plugin scales down to fit |
-| `export` | `input`, `output`, `target`, `range` (`{start, end}` in microseconds, optional), `stream` (index, optional) | any number of `progress`, then `done` or `error` |
+| `export` | `input`, `output`, `target`, `range` (`{start, end}` in microseconds, optional), `stream` (index, optional), `bitrate` (bits a second of a lossy target, optional) | any number of `progress`, then `done` or `error` |
 | `cancel` | none | sent only during an export: the plugin removes its partial output and answers `error` with `code` `cancelled` |
 
 **Replies** (plugin to host):
@@ -621,10 +630,83 @@ built-in back ends (FINDINGS, "Plugins are not wired into the viewer").
 1. Depend on `anyview-plugin-protocol`.
 2. In `main`, write a `hello` frame, read one frame, answer it as above, and exit. Read stdin on a
    thread of its own if the plugin must notice `cancel` during an export.
-3. Install the program, and `<id>.toml` next to the others in `<prefix>/share/anyview/plugins/`.
+3. Install the program (the FFmpeg plugin's goes in `<prefix>/libexec/anyview/`), and `<id>.toml` next to the
+   others in `<prefix>/share/anyview/plugins/`.
 4. Write nothing to stdout but frames; log to stderr.
 
 `crates/anyview-plugin-fake/src` is a complete example, and its tests drive it through the host.
+
+**A plugin's process group.** The host starts a plugin in a process group of its own and, when the call ends
+or is dropped, kills the group, so a program the plugin started (ffmpeg) dies with it even when the plugin
+is killed and cannot clean up. A plugin that cancels still kills its own children and removes its partial
+output before it answers.
+
+### The FFmpeg plugin
+
+`plugins/anyview-ffmpeg` (binary `anyview-ffmpeg`, package name `anyview-ffmpeg`) is the plugin that
+replaces `anyview-media`'s `ffmpeg` feature once P5 switches the viewer over. It lives in `plugins/` and not
+in `crates/` because it is a program with its own package and its own licence story, not a layer of the
+viewer: `crates/` holds what the viewer links, `plugins/` what it runs. It is the one place in the repository
+that reads the environment and starts programs on its own account, since that is what a plugin is. Its
+only edge is `anyview-plugin-protocol` (plus `serde`, `serde_json`, `thiserror`); `cargo tree` for it holds
+no `ffmpeg-next`, `ffmpeg-sys-next` or `rsmpv`, and `check-boundary` says so for its dependency tree.
+
+**Finding the tools.** `ffmpeg` and `ffprobe` are each found as an absolute path in the manifest's
+`args` (`--ffmpeg PATH`, `--ffprobe PATH`), else `ANYVIEW_FFMPEG` and `ANYVIEW_FFPROBE`, else the first
+match on `PATH`. A path that is named and is not an executable file is an error, never a reason to look
+further. At startup it runs `ffmpeg -version` (FFmpeg 4 or newer, or a development build) and
+`ffmpeg -hide_banner -encoders` once, so `hello` lists only the targets this machine can encode. With no
+FFmpeg `hello` lists nothing and stderr says why.
+
+**Facts.** `ffprobe -v error -print_format json -show_format -show_streams -show_chapters`, JSON only.
+The rows, in order, each only when the file has it: `duration`, `dimensions` and `codec` (the first
+moving picture), `framerate`, `audio_codec` (or `codec` for a recording with no picture), `sample_rate`,
+`channels`, `bitrate` (the sound's, else the container's), `title`, `author` (the artist tag), `album`
+(tags found in the container then the streams, whatever the case of their keys), `streams`
+(`1 video, 2 audio, 1 subtitle, 1 cover`, when there is more than one) and `chapters`. Facts the viewer
+fills itself (`kind`, `size`, `modified`) are not sent.
+
+**Pictures.** `thumbnail` and `decode` run `ffmpeg -ss T -i FILE -map 0:N -frames:v 1 -vf scale=W:H,setsar=1
+-pix_fmt rgba -f rawvideo pipe:1` and send the bytes as the `image` payload. The size is worked out from the
+probe (pixel aspect applied, a quarter turn swapping the sides, never enlarged), so the reply is exactly what
+the host's budget allows. `T` is a tenth of the duration, at most five seconds, and falls back to the first
+frame for a recording too short for it. A sound shows its attached cover; one with none answers `unsupported`.
+
+**Export targets**, spelled as the manifest spells them:
+
+| Target | Writes | How |
+| --- | --- | --- |
+| `trim` | the recording cut to `range`, in the container the output's extension names | stream copy of every picture (not covers), sound and subtitle stream; chapters and tags kept |
+| `audio-copy` | the audio track as it is | `-c copy` of the track FFmpeg would pick (most channels), or `stream` |
+| `m4a`, `mp3`, `opus` | AAC, MP3 (LAME), Opus (libopus, else the native encoder) | `bitrate`, 192 kbit/s when absent; at most two channels; MP3 resamples to 44.1 kHz when LAME lacks the rate, Opus to 48 kHz |
+| `flac`, `wav` | lossless FLAC, 16-bit PCM | the source's rate and channels |
+
+All of them honour `range` (audio is cut to the sample) and `stream`. The viewer's own names for the
+output files stay the viewer's: the host passes `output` and the extension it wants.
+
+**Trim and the keyframe.** A cut of a recording with pictures can only begin where a picture does not depend on
+an earlier one. The plugin finds the last video keyframe at or before `range.start` with
+`ffprobe -select_streams INDEX -read_intervals ... -show_entries packet=pts_time,flags` (packets only, no
+decoding; it looks 30 s back, then 10 minutes, then the whole file), and runs
+`ffmpeg -ss KEY -i FILE -t END-KEY ... -c copy -copypriorss 0`. Seeking exactly to the keyframe and dropping
+what precedes it (`-copypriorss 0`) makes the output begin on that keyframe at time zero, with every stream
+aligned to it, as `anyview-media`'s own cut did; without it a subtitle cue that began earlier pulls the
+whole file's timeline back. `-ss` is given a microsecond before the keyframe so a rounded timestamp cannot
+make FFmpeg drop the keyframe it was sent to find.
+
+**Progress, cancel and the output.** Progress is `-progress pipe:1 -nostats`: each `out_time_us=` line is a
+`progress` message with `total` the length written (zero when unknown); a last one reaches `total` before
+`done`. ffmpeg writes to a hidden `.part-<name>` beside the output and the file is renamed into place only
+when ffmpeg succeeded and left something, so an export is whole or absent. It never overwrites: an existing
+`output` is an error before anything runs, and again just before the rename. `cancel` (or the host closing
+its pipe) kills ffmpeg, removes the partial file and answers `cancelled`; ffmpeg's last stderr lines ride in
+the message when it fails.
+
+**Install.** `dist/plugins/anyview-ffmpeg.toml.in` is the manifest template; `dist/install.sh --with-plugin
+ffmpeg` installs the program as `<prefix>/libexec/anyview/anyview-ffmpeg` and the template, with `@PREFIX@`
+filled in, as `<prefix>/share/anyview/plugins/ffmpeg.toml`; `uninstall.sh` removes both. `dev/install-test.sh`
+covers it. The plugin tests spawn the built program through `PluginRunner` against the media crate's fixtures,
+using the shipped template.
 
 ## 3. Layer rules
 

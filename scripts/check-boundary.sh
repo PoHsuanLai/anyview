@@ -56,7 +56,13 @@ cd "$(dirname "$0")/.."
 # it names anyview-core and the protocol, and parses TOML, and reaches no runtime, bus, GPU, decoder,
 # player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate and nothing else
 # (its dev-dependencies, which the checks below do not look at, are the host's crates).
+# anyview-ffmpeg (under plugins/, since it is a program shipped as its own package and no layer of
+# the viewer) is a plugin like the fake one: the protocol crate, `serde`, `serde_json` and `thiserror`,
+# and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
+# player, and not anyview-media, anyview-platform, the core or the UI; `cargo tree` for it must show
+# no `ffmpeg-next` and no `rsmpv` (its dev-dependencies, the host's crates for the tests, are not looked at).
 RULES=(
+  "anyview-ffmpeg: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-plugin-protocol: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-plugin: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
   "anyview-plugin-fake: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
@@ -169,6 +175,7 @@ EDGES=(
   "anyview-plugin: anyview-core anyview-plugin-protocol"
   "anyview-plugin-protocol: "
   "anyview-plugin-fake: anyview-plugin-protocol"
+  "anyview-ffmpeg: anyview-plugin-protocol"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
@@ -188,7 +195,7 @@ done
 # other crate in crates/ must reach none of them, however indirectly. The binary links the platform
 # crate, so it reaches them through it; its DIRECT row above holds it to never naming them.
 EDGE_ONLY=(zbus ashpd freedesktop-desktop-entry freedesktop-icons freedesktop-file-parser)
-for dir in crates/*/; do
+for dir in crates/*/ plugins/*/; do
   crate="$(basename "$dir")"
   [ "$crate" = "anyview-platform" ] && continue
   [ "$crate" = "anyview" ] && continue
