@@ -1,5 +1,6 @@
 //! Peeking at recordings through the registry: libav's facts, and the cover an audio file carries.
 
+#![cfg(feature = "media")]
 #![allow(clippy::unwrap_used)]
 
 mod support;

@@ -8,14 +8,21 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+# `media` (on by default) is the recording's peek: libav reads its facts and, for audio, its cover.
+# Off, a recording is peeked as a file of a kind with no back end: its type, size and date.
+[features]
+default = ["media"]
+media = ["anyview-media/ffmpeg"]
+
 [dependencies]
 anyview-archive = { workspace = true }
 anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }
-# `ffmpeg` only: a recording's facts and cover, read with libav. Never `player`, so libmpv and the
-# GPU player stay out of the launcher's tree.
-anyview-media = { workspace = true, features = ["ffmpeg"] }
+# Without features: the error type the peek names. The `media` feature turns on `ffmpeg` (libav, a
+# recording's facts and cover). Never `player`, so libmpv and the GPU player stay out of the
+# launcher's tree.
+anyview-media = { workspace = true }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
