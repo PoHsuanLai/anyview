@@ -2093,6 +2093,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ds-behaviour"
+version = "0.1.0"
+dependencies = [
+ "ds-core",
+]
+
+[[package]]
 name = "ds-blitz"
 version = "0.1.0"
 dependencies = [
@@ -2207,6 +2214,7 @@ name = "ds-settings"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "ds-behaviour",
  "ds-core",
  "ds-settings-derive",
  "ds-style",
