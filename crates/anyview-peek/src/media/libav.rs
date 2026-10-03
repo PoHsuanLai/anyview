@@ -2,6 +2,7 @@
 //! recording is never decoded here, only its header read and its cover picture reduced to the pane's
 //! size; the player (libmpv) is not in this crate's tree.
 
+use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
 use anyview_core::{
@@ -130,5 +131,14 @@ impl Peek for AudioPeek {
 
     fn facts(peeked: &MediaLook) -> Facts {
         rows(peeked, anyview_media::AudioPeek::facts)
+    }
+}
+
+impl From<MediaLook> for Body {
+    fn from(peeked: MediaLook) -> Self {
+        match peeked.cover {
+            Some(cover) => Body::Picture(cover),
+            None => Body::FactsOnly(peeked.described),
+        }
     }
 }
