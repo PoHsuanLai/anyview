@@ -128,8 +128,8 @@ rustix = { version = "1.1", default-features = false, features = ["std", "event"
 futures-timer = "3"
 cssparser = "0.37"
 notify = "8.2"
-# zbus: shell repos (sill, shell-host) take this tokio line and also enable `ds-settings/tokio`.
-# quire and app repos take `zbus = { version = "5.19" }` with its default async-io backend: a library
+# zbus: shell repos (sill, shell-host) and programs that own their tokio runtime (anyview) take
+# this tokio line and also enable `ds-settings/tokio`. quire and the other app repos take `zbus = { version = "5.19" }` with its default async-io backend: a library
 # must not pick the executor for its consumers (mailo's blocking keyring calls under a tokio runtime
 # panicked when ds-settings forced zbus/tokio through feature unification).
 zbus = { version = "5.19", default-features = false, features = ["tokio"] }

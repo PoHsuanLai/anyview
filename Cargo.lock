@@ -2089,6 +2089,7 @@ dependencies = [
  "ds-style",
  "serde",
  "thiserror 2.0.21",
+ "toml",
 ]
 
 [[package]]
@@ -2115,8 +2116,12 @@ dependencies = [
  "pdfrum",
  "pdfrum-anyrender",
  "peniko",
+ "raw-window-handle",
  "thiserror 2.0.21",
  "tokio",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
  "webbrowser",
  "wgpu",
  "wgpu_context",
