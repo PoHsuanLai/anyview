@@ -34,8 +34,8 @@ fn a_video_with_sound_chapters_and_subtitles_has_its_facts() {
         ("dimensions", "64 × 48"),
         ("codec", "mpeg4"),
         ("framerate", "10 fps"),
-        ("audio_codec", "vorbis"),
-        ("sample_rate", "8 kHz"),
+        ("audio-codec", "vorbis"),
+        ("sample-rate", "8 kHz"),
         ("channels", "mono"),
     ];
     assert_eq!(got[..want.len()], want, "{got:?}");
@@ -47,6 +47,22 @@ fn a_video_with_sound_chapters_and_subtitles_has_its_facts() {
 }
 
 #[test]
+fn every_row_the_plugin_sends_is_a_label_the_viewer_knows() {
+    require_ffmpeg!();
+    use anyview_core::FactLabel;
+    use ds_core::word::Word;
+    for name in ["clip.mkv", "tone.flac", "cover.mp3"] {
+        for row in probe(name) {
+            assert!(
+                FactLabel::parse(&row.label).is_some(),
+                "{name}: the viewer drops the row {:?}, which it does not know",
+                row.label
+            );
+        }
+    }
+}
+
+#[test]
 fn a_sound_has_a_plain_codec_and_a_cover_is_counted() {
     require_ffmpeg!();
     let flac = probe("tone.flac");
@@ -55,7 +71,7 @@ fn a_sound_has_a_plain_codec_and_a_cover_is_counted() {
         [
             ("duration", "0:02"),
             ("codec", "flac"),
-            ("sample_rate", "8 kHz"),
+            ("sample-rate", "8 kHz"),
             ("channels", "mono"),
         ]
     );
