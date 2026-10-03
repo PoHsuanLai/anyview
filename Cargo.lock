@@ -280,6 +280,8 @@ dependencies = [
  "anyview-image",
  "anyview-media",
  "anyview-platform",
+ "anyview-plugin",
+ "anyview-plugin-protocol",
  "anyview-store",
  "anyview-ui",
  "dioxus",
@@ -4252,7 +4254,7 @@ dependencies = [
 [[package]]
 name = "mpv-wgpu"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=88808983c57dc0e7c475e5baea23a124420b7a2f#88808983c57dc0e7c475e5baea23a124420b7a2f"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=d017756e20988270b708d979632da9817c8cae34#d017756e20988270b708d979632da9817c8cae34"
 dependencies = [
  "bytemuck",
  "thiserror 2.0.21",
@@ -4262,14 +4264,22 @@ dependencies = [
 [[package]]
 name = "mpv-wgpu-player"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=88808983c57dc0e7c475e5baea23a124420b7a2f#88808983c57dc0e7c475e5baea23a124420b7a2f"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=d017756e20988270b708d979632da9817c8cae34#d017756e20988270b708d979632da9817c8cae34"
 dependencies = [
  "bytemuck",
  "log",
  "mpv-wgpu",
- "rsmpv",
+ "mpv-wgpu-protocol",
  "thiserror 2.0.21",
  "wgpu",
+]
+
+[[package]]
+name = "mpv-wgpu-protocol"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=d017756e20988270b708d979632da9817c8cae34#d017756e20988270b708d979632da9817c8cae34"
+dependencies = [
+ "rustix",
 ]
 
 [[package]]
@@ -5798,24 +5808,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "rsmpv"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c43d845c72fe35aba06906f130c10e96665295b7fc948b8246c851c6f5811fec"
-dependencies = [
- "rsmpv-sys",
-]
-
-[[package]]
-name = "rsmpv-sys"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd7d3d6bf8c3f290a357ef8782b7fd9ce6aa841ceb8a63da239f49e4dc5efc37"
-dependencies = [
- "pkg-config",
 ]
 
 [[package]]

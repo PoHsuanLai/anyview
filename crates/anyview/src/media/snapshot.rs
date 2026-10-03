@@ -68,6 +68,7 @@ impl Snapshot {
                 self.state.status = PlaybackStatus::Playing;
                 self.state.seek = Ability::Can;
             }
+            MediaEvent::Length(length) => self.state.length = Some(*length),
             MediaEvent::Playback(Pace::Playing) => self.state.status = PlaybackStatus::Playing,
             MediaEvent::Playback(Pace::Paused) => {
                 if self.state.status != PlaybackStatus::Stopped {

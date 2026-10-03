@@ -574,3 +574,67 @@ fn a_scrub_restores_what_the_person_had() {
         );
     }
 }
+
+#[test]
+fn a_length_that_arrives_after_opening_is_kept_by_every_state_that_shows_a_recording() {
+    let longer = MediaLength(secs(250));
+    let told = event(PlayerEvent::LengthKnown(longer));
+    let at = secs(7);
+    // name, state, what it becomes
+    let cases: Vec<(&str, MediaStage, MediaStage)> = vec![
+        (
+            "playing",
+            MediaStage::Playing {
+                at,
+                length: MediaLength::default(),
+            },
+            MediaStage::Playing { at, length: longer },
+        ),
+        (
+            "paused",
+            MediaStage::Paused {
+                at,
+                length: MediaLength::default(),
+            },
+            MediaStage::Paused { at, length: longer },
+        ),
+        (
+            "ended",
+            MediaStage::Ended {
+                at,
+                length: MediaLength::default(),
+            },
+            MediaStage::Ended { at, length: longer },
+        ),
+        (
+            "scrubbing",
+            MediaStage::Scrubbing {
+                from: at,
+                to: at,
+                length: MediaLength::default(),
+                resume: AfterScrub::Stay,
+            },
+            MediaStage::Scrubbing {
+                from: at,
+                to: at,
+                length: longer,
+                resume: AfterScrub::Stay,
+            },
+        ),
+        (
+            "opening has nothing to change",
+            MediaStage::Opening,
+            MediaStage::Opening,
+        ),
+        (
+            "a failed stage stays failed",
+            MediaStage::Failed(MediaError::PlaybackFailed),
+            MediaStage::Failed(MediaError::PlaybackFailed),
+        ),
+    ];
+    for (name, before, after) in cases {
+        let (now, outs) = before.step(told, Stamp::default(), &MediaParams::default());
+        assert_eq!(now, after, "{name}");
+        assert!(outs.is_empty(), "{name}: {outs:?}");
+    }
+}

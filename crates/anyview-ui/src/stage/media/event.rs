@@ -33,6 +33,8 @@ pub enum Pace {
 pub enum PlayerEvent {
     /// The file finished opening; it is this long.
     Loaded { length: MediaLength },
+    /// The recording's length became known after `Loaded` said it had none.
+    LengthKnown(MediaLength),
     /// The file stopped.
     Ended(EndReason),
     /// Pause state changed, whoever changed it.

@@ -86,12 +86,18 @@ impl MediaHost for PlayerHost {
         let facts = probe.as_ref().map(facts_of).unwrap_or_default();
         let length = probe.as_ref().and_then(|probe| probe.length);
 
+        let host = self
+            .hub
+            .inner
+            .player(&start.sniffed)
+            .map_err(|error| OpenError::Media(error.to_string()))?;
         let id: SessionId = self.hub.inner.next_id();
         let snapshot = Snapshot::new(&start.file, &tags, TrackSerial(id.0));
         let plan = Plan {
             device,
             queue,
             audio: self.hub.inner.audio(),
+            host,
             file: start.file.clone(),
             sink: Box::new(WindowSink(start.texture.clone())),
             snapshot,

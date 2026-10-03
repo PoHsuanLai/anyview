@@ -1,7 +1,28 @@
 //! What a session is made with.
 
 use ds_core::word::Word;
-use mpv_wgpu_player::AudioOutput;
+use mpv_wgpu_player::{AudioOutput, Host, SubprocessOptions};
+use std::path::PathBuf;
+
+/// The programs a session runs: the person's own `mpv` and the C plugin of mpv-wgpu that is loaded
+/// into it. They come from a `play` entry of a plugin manifest; nothing here looks for them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MpvHost {
+    /// The stock player, an absolute path.
+    pub mpv: PathBuf,
+    /// The shared library loaded into it, an absolute path.
+    pub cplugin: PathBuf,
+}
+
+impl MpvHost {
+    pub(super) fn host(&self) -> Host {
+        Host::Subprocess(SubprocessOptions {
+            mpv: Some(self.mpv.clone()),
+            cplugin: Some(self.cplugin.clone()),
+            extra_args: Vec::new(),
+        })
+    }
+}
 
 /// Which audio driver plays the sound.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Word)]

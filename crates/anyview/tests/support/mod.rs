@@ -6,17 +6,17 @@ use anyview::host::Appearances;
 use anyview::host::{
     CachedPictures, Clock, Desktop, Media, SETTLE, Services, Store, Trash, TrashError, Watcher,
 };
-use anyview::media::{MediaHub, PlayerHost};
+use anyview::media::{MediaHub, MediaPlugins, PlayerHost};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
 use anyview::window::{Factory, Opening, Seed, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
-use anyview_platform::PrintOutcome;
 use anyview_platform::testing::{
     FakeApps, FakeMediaHandle, FakeMediaSession, FakePrinter, FakeReveal, FakeShare, FakeStacking,
-    FakeThumbnails, StackingSupport,
+    FakeThumbnails, PluginSet, StackingSupport, plugins_with,
 };
+use anyview_platform::{PluginRunner, PrintOutcome};
 use anyview_store::Viewed;
 use anyview_ui::Look;
 use ds_harness::{Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, Viewport};
@@ -98,6 +98,7 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
         move || std::future::ready(session),
         None,
         AudioDriver::Null,
+        Arc::new(MediaPlugins::default()),
     );
     let media = Media {
         hub: hub.clone(),
@@ -213,4 +214,81 @@ pub fn eventually(what: &str, mut done: impl FnMut() -> bool) {
         std::thread::sleep(Duration::from_millis(20));
     }
     panic!("{what} did not happen within 20 s");
+}
+
+/// The programs that play, when this machine has them: the stock `mpv` (`MPV_WGPU_MPV`, else the
+/// first on the search path) and the C plugin built from mpv-wgpu (`MPV_WGPU_CPLUGIN`).
+pub fn mpv_programs() -> Option<(PathBuf, PathBuf)> {
+    let cplugin = std::env::var_os("MPV_WGPU_CPLUGIN").map(PathBuf::from);
+    let mpv = std::env::var_os("MPV_WGPU_MPV")
+        .map(PathBuf::from)
+        .or_else(|| on_path("mpv"));
+    match (mpv, cplugin) {
+        (Some(mpv), Some(cplugin)) if cplugin.is_file() => Some((mpv, cplugin)),
+        (None, _) => {
+            eprintln!("SKIPPED: no mpv (set MPV_WGPU_MPV or put mpv on the search path)");
+            None
+        }
+        (Some(_), _) => {
+            eprintln!("SKIPPED: no mpv-wgpu C plugin (set MPV_WGPU_CPLUGIN)");
+            None
+        }
+    }
+}
+
+/// The program `name` on the search path, when there is one.
+pub fn on_path(name: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// The FFmpeg plugin built from this workspace, beside the test binaries' folder, when this
+/// machine has FFmpeg for it to run (`cargo test --workspace` builds it; `cargo build -p
+/// anyview-ffmpeg` does otherwise).
+pub fn ffmpeg_program() -> Option<PathBuf> {
+    if on_path("ffmpeg").is_none() || on_path("ffprobe").is_none() {
+        eprintln!("SKIPPED: no ffmpeg and ffprobe on the search path");
+        return None;
+    }
+    let tests = std::env::current_exe().ok()?;
+    let built = tests.parent()?.parent()?.join("anyview-ffmpeg");
+    if built.is_file() {
+        Some(built)
+    } else {
+        eprintln!("SKIPPED: the FFmpeg plugin is not built (cargo build -p anyview-ffmpeg)");
+        None
+    }
+}
+
+/// Plugins for a test: whichever of playing and FFmpeg this machine has, as asked.
+pub fn plugins(play: bool, ffmpeg: bool) -> Option<Arc<MediaPlugins>> {
+    let programs = if play { Some(mpv_programs()?) } else { None };
+    let program = if ffmpeg {
+        Some(ffmpeg_program()?)
+    } else {
+        None
+    };
+    let set = PluginSet {
+        play: programs
+            .as_ref()
+            .map(|(mpv, cplugin)| (mpv.as_path(), cplugin.as_path())),
+        ffmpeg: program.as_deref(),
+    };
+    Some(Arc::new(MediaPlugins::new(
+        plugins_with(set),
+        PluginRunner::default(),
+    )))
+}
+
+/// What `file` is, from its first bytes: a recording needs no look inside.
+pub fn sniffed_of(file: &FilePath) -> anyview_core::Sniffed {
+    let bytes = std::fs::read(file.as_path()).unwrap();
+    let name = anyview_core::FileName::new(file.file_name().unwrap().as_str()).unwrap();
+    let head = anyview_core::FileHead::new(&bytes[..bytes.len().min(4096)]);
+    match anyview_core::sniff(&head, &name) {
+        anyview_core::SniffStep::Done(sniffed) => sniffed,
+        anyview_core::SniffStep::LookInside(_) => panic!("a recording needs no look inside"),
+    }
 }

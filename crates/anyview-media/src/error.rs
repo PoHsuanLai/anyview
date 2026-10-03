@@ -5,9 +5,21 @@ use std::path::PathBuf;
 /// Why the player, a probe or an export could not do what was asked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum MediaError {
-    /// libmpv refused a call, or the player could not be made.
+    /// mpv refused a call, or the player could not be made.
     #[error("the player failed: {0}")]
     Player(String),
+    /// No plugin plays recordings: this package would.
+    #[error("no plugin plays recordings; {0} would")]
+    PlayerMissing(&'static str),
+    /// The mpv process exited or crashed; a new session is the only way to play again.
+    #[error("the mpv process stopped")]
+    PlayerGone,
+    /// The mpv process did not answer in time; it may be hung.
+    #[error("the mpv process did not answer")]
+    PlayerSilent,
+    /// mpv or its C plugin could not be started: not found, the wrong version, or refused.
+    #[error("cannot start mpv: {0}")]
+    PlayerStart(String),
     /// libav refused a call: the file is not a recording it reads, or a codec failed.
     #[error("libav failed: {0}")]
     Libav(String),

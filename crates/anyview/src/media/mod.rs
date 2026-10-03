@@ -11,6 +11,7 @@ mod line;
 mod map;
 mod now_playing;
 mod orders;
+mod plugins;
 mod sink;
 mod snapshot;
 
@@ -18,3 +19,4 @@ pub use exports::{ExportEnd, ExportHandle, Exports};
 pub use host::PlayerHost;
 pub use hub::MediaHub;
 pub use now_playing::NowPlaying;
+pub use plugins::{MediaPlugins, PlayRoute};

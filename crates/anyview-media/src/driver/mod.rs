@@ -16,7 +16,7 @@ pub use sink::FrameSink;
 use crate::command::{MediaCommand, Pace, PictureSlot};
 use crate::error::MediaError;
 use crate::event::{EndReason, MediaEvent};
-use crate::session::{AudioDriver, Frame, Idle, Report, Session};
+use crate::session::{AudioDriver, Frame, Idle, MpvHost, Report, Session};
 use anyview_core::{FilePath, MediaTime};
 use held::{Held, Moved};
 
@@ -55,6 +55,24 @@ enum Seeking {
     Waiting,
 }
 
+/// Whether the recording's length has been told to the owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Told {
+    /// Not yet: the file is not loaded, or it was loaded with no length.
+    Not,
+    /// Said, in `Loaded` or in `Length`.
+    Yes,
+}
+
+/// Whether the end of the recording has been reported since playback last moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ending {
+    /// Not reported: a pause at the end is the end.
+    Unreported,
+    /// Reported; playing or seeking makes it unreported again.
+    Reported,
+}
+
 /// Whether the texture the player draws into has been shown to the sink.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Announced {
@@ -74,6 +92,8 @@ pub struct Driver {
     slot: PictureSlot,
     reported: Option<MediaTime>,
     seeking: Seeking,
+    ending: Ending,
+    length: Told,
 }
 
 impl std::fmt::Debug for Driver {
@@ -83,7 +103,8 @@ impl std::fmt::Debug for Driver {
 }
 
 impl Driver {
-    /// A player on `device` and `queue` playing `file` with its sound on `audio`. `wake` is
+    /// A player on `device` and `queue` playing `file` with its sound on `audio`, mpv run as `host`
+    /// says. `wake` is
     /// called, from an mpv thread, whenever the player wants `woken` called; it must only wake.
     /// It is also called once here, after the file is handed over: mpv's first events may be
     /// queued already, and it calls back only when its queue goes from empty to not, so a player
@@ -92,11 +113,12 @@ impl Driver {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         audio: AudioDriver,
+        host: &MpvHost,
         file: &FilePath,
         sink: Box<dyn FrameSink>,
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Result<Driver, MediaError> {
-        let mut idle: Session<Idle> = Session::new(device, queue, audio)?;
+        let mut idle: Session<Idle> = Session::new(device, queue, audio, host)?;
         let wake = std::sync::Arc::new(wake);
         let for_player = std::sync::Arc::clone(&wake);
         idle.set_notify(move || for_player());
@@ -110,6 +132,8 @@ impl Driver {
             slot: PictureSlot::Empty,
             reported: None,
             seeking: Seeking::Settled,
+            ending: Ending::Unreported,
+            length: Told::Not,
         })
     }
 
@@ -133,6 +157,7 @@ impl Driver {
         if moved == Moved::ToLoaded {
             self.loaded(&mut events);
         }
+        self.watch_length(&mut events);
         self.watch_position(&mut events);
         events
     }
@@ -247,32 +272,69 @@ impl Driver {
         }
     }
 
-    /// Copy a poll's events out, adding the end of a file that mpv held open.
+    /// Copy a poll's events out, adding the end of a file that mpv held open. mpv pauses a finished
+    /// file a frame before its length, and the child process reports that last position after the
+    /// pause, so the end is looked for once the whole poll is in.
     fn absorb(&mut self, report: Report, events: &mut Vec<MediaEvent>) {
         for event in report.events {
-            let held = matches!(event, MediaEvent::Playback(Pace::Paused));
             events.push(event);
-            if held && self.at_the_end() {
-                events.push(MediaEvent::Ended(EndReason::Eof));
+            match events.last() {
+                Some(MediaEvent::SeekDone) => {
+                    self.reported = None;
+                    self.seeking = Seeking::Settled;
+                    self.ending = Ending::Unreported;
+                }
+                Some(MediaEvent::Ended(_)) => self.seeking = Seeking::Settled,
+                Some(MediaEvent::Playback(Pace::Playing)) => self.ending = Ending::Unreported,
+                Some(MediaEvent::Loaded { length: Some(_) } | MediaEvent::Length(_)) => {
+                    self.length = Told::Yes;
+                }
+                Some(
+                    MediaEvent::Playback(Pace::Paused)
+                    | MediaEvent::Loaded { length: None }
+                    | MediaEvent::Buffering(_)
+                    | MediaEvent::Position(_)
+                    | MediaEvent::Tracks(_)
+                    | MediaEvent::Chapters(_)
+                    | MediaEvent::Volume(_)
+                    | MediaEvent::Speed(_)
+                    | MediaEvent::Picture(_)
+                    | MediaEvent::ShotSaved(_)
+                    | MediaEvent::ShotFailed { .. }
+                    | MediaEvent::Failed(_)
+                    | MediaEvent::Refused(_),
+                )
+                | None => {}
             }
-            if matches!(events.last(), Some(MediaEvent::SeekDone)) {
-                self.reported = None;
-                self.seeking = Seeking::Settled;
-            }
-            if matches!(events.last(), Some(MediaEvent::Ended(_))) {
-                self.seeking = Seeking::Settled;
-            }
+        }
+        if self.ending == Ending::Unreported && self.held_at_the_end() {
+            self.ending = Ending::Reported;
+            events.push(MediaEvent::Ended(EndReason::Eof));
         }
     }
 
-    /// Whether the position is within a frame or so of the length.
-    fn at_the_end(&self) -> bool {
+    /// Whether a paused player is within a frame or so of the length.
+    fn held_at_the_end(&self) -> bool {
         let Some(Held::Loaded(session)) = &self.held else {
             return false;
         };
-        match (session.position(), session.length()) {
-            (Some(at), Some(length)) => at.0.saturating_add(END_SLACK) >= length.0.0,
-            (None, _) | (_, None) => false,
+        match (session.pace(), session.position(), session.length()) {
+            (Pace::Paused, Some(at), Some(length)) => at.0.saturating_add(END_SLACK) >= length.0.0,
+            (Pace::Playing, _, _) | (_, None, _) | (_, _, None) => false,
+        }
+    }
+
+    /// Say the length once the recording gives it, when `Loaded` could not.
+    fn watch_length(&mut self, events: &mut Vec<MediaEvent>) {
+        let Some(Held::Loaded(session)) = &self.held else {
+            return;
+        };
+        if self.length == Told::Yes {
+            return;
+        }
+        if let Some(length) = session.length() {
+            self.length = Told::Yes;
+            events.push(MediaEvent::Length(length));
         }
     }
 

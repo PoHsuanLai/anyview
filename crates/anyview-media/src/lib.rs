@@ -1,5 +1,5 @@
 //! Video and audio for the viewer. Two C libraries sit behind two features, so the launcher can
-//! link the one it needs: `player` is libmpv drawing into a texture the caller owns (a typestate
+//! link the one it needs: `player` is mpv (the person's own, run as a child process) drawing into a texture the caller owns (a typestate
 //! `Session`, and the `Driver` an actor runs), and `ffmpeg` is libav reading a recording's facts
 //! and cover art and writing trims, extracted audio and conversions. This is the only crate that
 //! names either library. Nothing here spawns a thread or reads a clock: the binary runs the
@@ -42,7 +42,9 @@ pub use probe::{
     probe, probe_within,
 };
 #[cfg(feature = "player")]
-pub use session::{AudioDriver, Frame, Idle, Loaded, Opened, Opening, Refused, Report, Session};
+pub use session::{
+    AudioDriver, Frame, Idle, Loaded, MpvHost, Opened, Opening, Refused, Report, Session,
+};
 /// The texture type the player draws into, named so a [`FrameSink`] can be written without
 /// depending on `wgpu` itself.
 #[cfg(feature = "player")]

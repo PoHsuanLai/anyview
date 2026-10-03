@@ -38,6 +38,10 @@ fn a_loaded_recording_says_what_it_has_in_the_order_the_viewer_needs_it() {
     };
     let mut rig = Rig::open(&device, &queue, &fixture("clip.mkv"));
     rig.until("the file to load", loaded);
+    // The child process lists the chapters a moment after the file is loaded.
+    rig.until("the chapters", |events| {
+        support::last_chapters(events).is_some_and(|count| count >= 1)
+    });
 
     let at = |wanted: fn(&MediaEvent) -> bool| rig.events.iter().position(wanted).unwrap();
     let opened = at(|event| matches!(event, MediaEvent::Loaded { .. }));
@@ -50,10 +54,16 @@ fn a_loaded_recording_says_what_it_has_in_the_order_the_viewer_needs_it() {
     );
     assert!(opened < last(|event| matches!(event, MediaEvent::Chapters(_))));
     assert!(opened < last(|event| matches!(event, MediaEvent::Volume(_))));
-    let MediaEvent::Loaded { length } = &rig.events[opened] else {
-        unreachable!()
-    };
-    let length = length.unwrap().0.as_millis();
+    rig.until("the length", |events| support::length_of(events).is_some());
+    let said = |wanted: fn(&MediaEvent) -> bool| rig.events.iter().filter(|e| wanted(e)).count();
+    assert_eq!(
+        said(|event| matches!(event, MediaEvent::Length(_)))
+            + said(|event| matches!(event, MediaEvent::Loaded { length: Some(_) })),
+        1,
+        "the length is said once, with `Loaded` or after it: {:?}",
+        rig.events
+    );
+    let length = support::length_of(&rig.events).unwrap().0.as_millis();
     assert!((2900..=3200).contains(&length), "3.03 s, not {length} ms");
 
     let tracks = support::last_tracks(&rig.events).unwrap();
@@ -189,6 +199,11 @@ fn track_chapter_and_speed_instructions_are_carried_out() {
     };
     let mut rig = Rig::open(&device, &queue, &fixture("clip.mkv"));
     rig.until("the file to load", loaded);
+    // The child process lists the chapters a moment after the file is loaded; a chapter can only
+    // be gone to once they are known.
+    rig.until("the chapters", |events| {
+        support::last_chapters(events).is_some_and(|count| count >= 1)
+    });
     rig.send(MediaCommand::SelectTrack {
         kind: StreamKind::Audio,
         choice: TrackChoice::Track(TrackId(2)),
@@ -289,4 +304,93 @@ fn a_pause_the_host_asks_for_is_reported_though_mpv_says_nothing_of_it() {
         rig.events.last(),
         Some(&MediaEvent::Playback(Pace::Playing))
     );
+}
+
+/// A script that stands in for `mpv`: it records its own process id, then becomes the real one, so
+/// a test can end the player the way a crash would.
+fn recording_mpv(
+    dir: &std::path::Path,
+    real: &std::path::Path,
+) -> (std::path::PathBuf, std::path::PathBuf) {
+    use std::os::unix::fs::PermissionsExt;
+    let pid = dir.join("mpv.pid");
+    let script = dir.join("mpv");
+    std::fs::write(
+        &script,
+        format!(
+            "#!/bin/sh\necho $$ > '{}'\nexec '{}' \"$@\"\n",
+            pid.display(),
+            real.display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    (script, pid)
+}
+
+#[test]
+fn a_crashed_mpv_is_a_failed_event_and_never_a_panic() {
+    let Some((device, queue)) = device() else {
+        return;
+    };
+    let real = support::mpv_host().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let (script, pid) = recording_mpv(dir.path(), &real.mpv);
+    let host = anyview_media::MpvHost {
+        mpv: script,
+        cplugin: real.cplugin,
+    };
+    let mut rig = Rig::open_with(&device, &queue, &host, &fixture("clip.mkv"));
+    rig.until("the file to load", loaded);
+    let pid = std::fs::read_to_string(pid).unwrap();
+    let killed = std::process::Command::new("kill")
+        .args(["-9", pid.trim()])
+        .status()
+        .unwrap();
+    assert!(killed.success(), "the player's process was found");
+    rig.until("the failure", |events| {
+        events
+            .iter()
+            .any(|event| matches!(event, MediaEvent::Failed(_)))
+    });
+    // The driver still answers: an instruction after the crash is refused, not fatal.
+    rig.send(MediaCommand::SetPlayback(Pace::Paused));
+    assert!(
+        rig.has(|event| matches!(event, MediaEvent::Refused(reason) if reason.contains("mpv"))),
+        "the refusal names the player: {:?}",
+        rig.events
+    );
+    let handled = rig.driver.command(MediaCommand::Close);
+    assert_eq!(handled.then, Continuation::Close);
+}
+
+#[test]
+fn an_mpv_that_will_not_start_is_a_typed_error_naming_what_was_missing() {
+    let Some((device, queue)) = device() else {
+        return;
+    };
+    let real = support::mpv_host().unwrap();
+    let host = anyview_media::MpvHost {
+        mpv: "/nonexistent/mpv".into(),
+        cplugin: real.cplugin,
+    };
+    let (tx, _wakes) = std::sync::mpsc::channel();
+    let started = anyview_media::Driver::open(
+        &device,
+        &queue,
+        anyview_media::AudioDriver::Null,
+        &host,
+        &fixture("clip.mkv"),
+        Box::new(support::Recording::default()),
+        move || {
+            let _ = tx.send(());
+        },
+    );
+    match started {
+        Err(anyview_media::MediaError::PlayerStart(reason)) => {
+            assert!(reason.contains("/nonexistent/mpv"), "{reason}");
+        }
+        Err(other) => panic!("another error: {other:?}"),
+        Ok(_) => panic!("a player started with no mpv"),
+    }
 }

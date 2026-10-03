@@ -6,7 +6,7 @@ use super::audio::accent_for;
 use super::doc::MediaDoc;
 use crate::families::view::{Area, Held, StageCx};
 use crate::io::SlotPixels;
-use crate::{MediaIn, MediaStage, Stage, StageIn};
+use crate::{MediaError, MediaIn, MediaStage, Stage, StageIn};
 use anyview_core::VideoPresence;
 use dioxus::prelude::*;
 use ds_blitz::{Sampling, TextureFit, TextureLayer};
@@ -26,7 +26,10 @@ fn slot_of(area: Area) -> Option<SlotPixels> {
 fn status(stage: &Stage) -> Option<&'static str> {
     match stage {
         Stage::Media(MediaStage::Opening) => Some("Opening"),
-        Stage::Media(MediaStage::Failed(_)) => Some("This recording cannot be played"),
+        Stage::Media(MediaStage::Failed(MediaError::OpenFailed)) => {
+            Some("This recording cannot be played")
+        }
+        Stage::Media(MediaStage::Failed(MediaError::PlaybackFailed)) => Some("The player stopped"),
         Stage::Media(
             MediaStage::Playing { .. }
             | MediaStage::Paused { .. }
