@@ -1,7 +1,8 @@
-//! `anyview [FILE...]`, `anyview --peek FILE`, `anyview --play FILE`.
+//! `anyview [FILE|URI...]`, `anyview --peek FILE`, `anyview --play FILE`.
 
 use anyview_core::{CoreError, FilePath};
 use anyview_platform::Request;
+use percent_encoding::percent_decode_str;
 use std::ffi::OsString;
 
 /// How the program is used, for `--help` and for a usage error.
@@ -38,6 +39,9 @@ pub enum CliError {
     /// A file name that is not valid UTF-8, which the viewer's history cannot hold.
     #[error("{0:?} is not valid UTF-8")]
     NotUtf8(OsString),
+    /// A URI that is not a file on this machine (`%U` hands the viewer whatever the file manager has).
+    #[error("{0:?} is not a local file")]
+    NotLocal(String),
     /// The working directory is not an absolute path (a broken environment).
     #[error(transparent)]
     Path(#[from] CoreError),
@@ -105,9 +109,37 @@ fn one(mode: Mode, mut files: Vec<FilePath>) -> Result<FilePath, CliError> {
     }
 }
 
+/// The path a `file://` URI names (a host of `localhost` or none), percent-decoded; `None` for a
+/// plain path, an error for any other scheme.
+fn uri_path(text: &str) -> Result<Option<String>, CliError> {
+    let Some((scheme, rest)) = text.split_once("://") else {
+        return Ok(None);
+    };
+    if scheme.is_empty()
+        || !scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c))
+    {
+        return Ok(None);
+    }
+    let local = scheme
+        .eq_ignore_ascii_case("file")
+        .then(|| rest.strip_prefix("localhost").unwrap_or(rest))
+        .filter(|path| path.starts_with('/'));
+    let Some(path) = local else {
+        return Err(CliError::NotLocal(text.to_owned()));
+    };
+    percent_decode_str(path)
+        .decode_utf8()
+        .map(|decoded| Some(decoded.into_owned()))
+        .map_err(|_| CliError::NotUtf8(OsString::from(text)))
+}
+
 fn resolve(text: &str, cwd: &FilePath) -> Result<FilePath, CliError> {
     if text.is_empty() {
         return Err(CliError::EmptyName);
     }
+    let decoded = uri_path(text)?;
+    let text = decoded.as_deref().unwrap_or(text);
     Ok(FilePath::new(cwd.as_path().join(text))?)
 }

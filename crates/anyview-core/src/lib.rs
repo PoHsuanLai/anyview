@@ -34,6 +34,7 @@ pub use facts::{Fact, FactLabel, FactValue, Facts};
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
     Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, kind_of_mime,
+    opened_mimes,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Peek, PeekBudget, StageSupport};

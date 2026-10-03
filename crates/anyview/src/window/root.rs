@@ -84,7 +84,7 @@ impl Wiring {
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
-            appearance: seed.factory.appearance,
+            look: seed.factory.appearances.current(),
             presentation: seed.presentation,
         };
         Wiring {
@@ -119,6 +119,8 @@ fn Window(seed: Seed) -> Element {
     let (edge, launch) = (wiring.edge.clone(), wiring.launch.clone());
     use_context_provider(|| edge);
     use_context_provider(|| launch);
+    let looks = seed.factory.appearances.feed();
+    use_context_provider(|| looks);
     let window = use_hook(try_consume_context::<WindowHost>);
     let app = ds_blitz::use_app_handle();
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
