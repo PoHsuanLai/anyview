@@ -631,3 +631,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   `anyview_pdf::Priority`) is mapped to the pool's `Lane` by `seam/workforce.rs`, so the tiles of the room run
   before the tiles read ahead, thumbnails and links; the stage also ends (`Stop`) the batches a scroll left
   behind.
+- **The desktop appearance is not wired yet.** The viewer and its windows still use `Appearance::default()`;
+  following quire's `ds-settings` (one watch in the binary feeding every window) is open. It could not be built
+  here: quire master (ad88e532) has no `Capsule` scrub and level slots or `Scrubber` (they are on quire's
+  unmerged `av/q-media`), so `anyview-ui` and everything above it fail to compile against master.
+- **`quire/docs/workspace-deps.toml` has drifted from quire's `Cargo.toml`.** The doc still pins blitz-kit
+  54b7908 and lacks the fork comment, `proc-macro-crate` and the zbus note; anyview took the doc and moved only
+  the blitz-kit rev to quire's 43a6030.
+- **`install.sh --set-default` is not undone by `uninstall.sh`.** The default is a line in the person's
+  mimeapps.list; a default naming a missing entry is ignored by the desktop. The default covers images, plain
+  text, Markdown and PDF, never HTML, tables, audio or video.
