@@ -2,6 +2,7 @@
 //! for the work, the desktop over fakes for the requests, and a real file to open.
 #![allow(dead_code, clippy::unwrap_used)]
 
+use anyview::host::Appearances;
 use anyview::host::{
     CachedPictures, Clock, Desktop, Media, SETTLE, Services, Store, Trash, TrashError, Watcher,
 };
@@ -17,7 +18,7 @@ use anyview_platform::testing::{
     FakeThumbnails, StackingSupport,
 };
 use anyview_store::Viewed;
-use ds::prelude::Appearance;
+use anyview_ui::Look;
 use ds_harness::{Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, Viewport};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
@@ -120,7 +121,7 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
         Arc::new(desktop),
         Arc::new(CachedPictures(FakeThumbnails::default())),
         Watcher::start(SETTLE).ok().map(Arc::new),
-        Appearance::default(),
+        Appearances::fixed(Look::default()),
         Arc::new(PlayerHost::new(hub.clone())),
         Arc::new(FakeStacking::with(StackingSupport::Unsupported)),
     );

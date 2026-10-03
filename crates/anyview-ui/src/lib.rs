@@ -15,6 +15,7 @@ mod families;
 mod io;
 mod keys;
 mod load;
+mod look;
 mod navigate;
 mod palette;
 mod panel;
@@ -48,6 +49,7 @@ pub use keys::{Regions, Route, route};
 pub use load::{
     Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
 };
+pub use look::{Look, LookFeed};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};

@@ -897,6 +897,16 @@ a `MediaHost` that records what the window sends and says what the test makes it
 for the picture). The registry has a test that every `FormatKind` is mapped
 and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
 
+## 7d. Appearance
+
+The one desktop appearance (`quire/appearance.toml`, the settings portal) is read and watched by the binary alone:
+`host/appearance.rs` (`Appearances::follow`) loads `ds_settings::AppearanceFile` from a `Store` rooted at
+`env.dirs.config`, starts `SystemPrefsWatch`, and publishes each settled change as a `Look` on a
+`tokio::sync::watch`. Every window gets the receiver as a `LookFeed` root context; `ViewerApp` follows it (a window
+with none keeps `Launch.look`). `anyview-ui` holds `Look` as plain data and does not name `ds-settings`. The program
+never writes the file and keeps none of its own. The host (`ds-blitz`) calls `follow_root` per frame, so a scheme
+switch repaints text; the viewer runs no frame loop of its own.
+
 ## 7c. Packaging (`dist/`)
 
 `dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, `DBusActivatable=false`: the bus name
