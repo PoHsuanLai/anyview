@@ -421,6 +421,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-plugin"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "anyview-plugin-protocol",
+ "serde",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
+name = "anyview-plugin-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "anyview-store"
 version = "0.1.0"
 dependencies = [
@@ -2093,6 +2113,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ds-behaviour"
+version = "0.1.0"
+dependencies = [
+ "ds-core",
+]
+
+[[package]]
 name = "ds-blitz"
 version = "0.1.0"
 dependencies = [
@@ -2207,6 +2234,7 @@ name = "ds-settings"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "ds-behaviour",
  "ds-core",
  "ds-settings-derive",
  "ds-style",

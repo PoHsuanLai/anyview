@@ -8,6 +8,8 @@ members = [
   "crates/anyview-image",
   "crates/anyview-media",
   "crates/anyview-platform",
+  "crates/anyview-plugin",
+  "crates/anyview-plugin-protocol",
   "crates/anyview-peek",
   "crates/anyview-pdf",
   "crates/anyview-store",
@@ -33,6 +35,8 @@ anyview-font = { path = "crates/anyview-font" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
 anyview-platform = { path = "crates/anyview-platform" }
+anyview-plugin = { path = "crates/anyview-plugin" }
+anyview-plugin-protocol = { path = "crates/anyview-plugin-protocol" }
 anyview-peek = { path = "crates/anyview-peek" }
 anyview-pdf = { path = "crates/anyview-pdf" }
 anyview-store = { path = "crates/anyview-store" }
