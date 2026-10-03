@@ -835,6 +835,18 @@ a `MediaHost` that records what the window sends and says what the test makes it
 for the picture). The registry has a test that every `FormatKind` is mapped
 and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
 
+## 7c. Packaging (`dist/`)
+
+`dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, `DBusActivatable=false`: the bus name
+`org.quire.Anyview1` has its own interface, not `org.freedesktop.Application`). Its `MimeType` line is
+`anyview_core::opened_mimes()`: the media types of the kinds with `StageSupport::Stage`, the one kind-to-MIME
+map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
+`cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
+`dist/uninstall.sh` (sharing `dist/lib.sh`) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
+binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
+`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in. `dev/install-test.sh` (also run by
+`cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools.
+
 ## 8. Repo rules
 
 - **Effect boundary** (`scripts/check-boundary.sh`): the tables in section 1. A pure crate that
