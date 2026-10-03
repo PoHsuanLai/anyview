@@ -5,11 +5,13 @@
 //! implementation.
 
 use crate::body::Light;
-use crate::described::{ArchivePeek, BookPeek, FontPeek, OfficePeek, OtherPeek};
+use crate::described::{BookPeek, OfficePeek, OtherPeek};
 use crate::folder::FolderPeek;
 use crate::media::{AudioPeek, VideoPeek};
 use crate::pdf::PdfPeek;
+use anyview_archive::ArchivePeek;
 use anyview_core::FormatKind;
+use anyview_font::FontPeek;
 use anyview_image::{RasterPeek, VectorPeek};
 use anyview_text::{CodePeek, MarkdownPeek, PlainPeek, TablePeek, TreePeek};
 

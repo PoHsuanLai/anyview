@@ -1,5 +1,8 @@
 use super::*;
-use anyview_core::FilePath;
+use anyview_core::{
+    FilePath, NonEmpty, PageIndex, Permille, ResultsId, Resume, Sequence, SequenceOrigin, Zoom,
+};
+use anyview_platform::Handoff;
 
 fn touch(dir: &std::path::Path, name: &str) -> FilePath {
     std::fs::write(dir.join(name), "x").unwrap();
@@ -32,7 +35,8 @@ fn a_file_that_is_not_there_or_a_folder_that_cannot_be_read_has_no_sequence() {
         Opening::around(missing.clone()),
         Opening {
             file: missing,
-            sequence: None
+            sequence: None,
+            resume: Resume::Nothing,
         },
         "the window still opens, to say the file is not there"
     );
@@ -217,4 +221,35 @@ mod remaking {
             assert_eq!(stacking.requested().len(), 1, "the others asked nothing");
         }
     }
+}
+
+#[test]
+fn a_handed_file_opens_with_the_results_and_the_place_it_brought() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = touch(dir.path(), "a.pdf");
+    let b = touch(dir.path(), "b.pdf");
+    touch(dir.path(), "c.pdf");
+    let results = Sequence::starting_at(
+        NonEmpty::from_vec(vec![b.clone(), a.clone()]).unwrap(),
+        &a,
+        SequenceOrigin::Results(ResultsId(3)),
+    )
+    .unwrap();
+    let place = Resume::Pdf {
+        page: PageIndex(2),
+        offset: Permille(0),
+        zoom: Zoom::Fit,
+    };
+    let opening = Opening::handed(Handoff {
+        file: a.clone(),
+        resume: place.clone(),
+        sequence: Some(results.clone()),
+    });
+    assert_eq!(opening.file, a);
+    assert_eq!(opening.resume, place);
+    assert_eq!(
+        opening.sequence,
+        Some(results),
+        "the results are the sequence, not the folder (which holds c.pdf too)"
+    );
 }

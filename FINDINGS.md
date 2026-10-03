@@ -6,13 +6,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **quire's `PreviewPane` cannot hold anyview's pane.** It takes data, `PaneContent` (`Image`, `Text`, `Pdf`,
-  `App`, `Facts`, `Emoji`, `Web`), not an element, and draws its own media, caption and actions column.
-  `anyview_peek::Pane` draws the media, the name and the facts itself, so sill (phase C) cannot put it
-  inside `PreviewPane` to keep its action row, its cue, its pending look and its slide-in. Ends when quire
-  gives `PreviewPane` a slot (`PaneContent::Slot(Element)`) or splits its frame (the actions, the cue and
-  the entrance) from its content; then `Pane` goes in the slot. Until then the launcher can lay `Pane` out
-  beside its own actions.
 - **quire's `PdfPage::Ready` carries a PNG `data:` URL.** The PDF peek goes through `ds_blitz::pdf_thumb_blocking`
   (the cache the launcher already uses), whose page is `ImageSource`, so a PDF's first page is the one
   picture here that is not a `TextureLayer`. Ends when quire's `PdfPage::Ready` can hold pixels for a
@@ -31,27 +24,51 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Fonts, archives, books, office
-  documents and unknown files are `FactsPeek`: the type, the size and the date, with no listing and no
-  specimen. Each ends when its crate lands (`anyview-font`, `anyview-archive`) and the registry's arm names
-  the real peek. A book or office file that is a zip is an archive here, because opening the zip is the
-  archive crate's job. Video and audio have libav's peeks (duration, size, codecs, tags, an audio file's
-  cover); a video has no poster in the pane, which the plan leaves to the thumbnail cache the viewer fills.
+- **The kinds with no back end show only what sniffing says.** Books, office documents and unknown files
+  are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
+  lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
+  because opening the zip for its cover is not done yet. Video and audio have libav's peeks (duration, size,
+  codecs, tags, an audio file's cover); a video has no poster in the pane, which the plan leaves to the
+  thumbnail cache the viewer fills.
 - **The launcher's pane links libav.** `anyview-peek` takes `anyview-media` with its `ffmpeg` feature, so
   libavformat, libavcodec, libavutil and libswresample are loaded by the launcher's process (libmpv and the
-  GPU player are not: the `player` feature is never on for it). The tree is 543 packages against the
-  budget of 560, about eleven of them `ffmpeg-next`, `ffmpeg-sys-next` and the build-time bindgen. Ends if
+  GPU player are not: the `player` feature is never on for it). The tree is 574 packages (with the archive and
+  font crates) against the budget of 580, about eleven of them `ffmpeg-next`, `ffmpeg-sys-next` and the build-time bindgen. Ends if
   the launcher's start-up shows the cost: the probe can then move behind a process of its own, or the pane
   can show the type, the size and the date for recordings, as before.
+- **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
+  index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
+  entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
+  into memory up to the same number of bytes, so a tarball larger than that lists its first entries with a
+  lower-bound count. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
+  deadline and a listing can stream a tar without holding it.
+- **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
+  zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry
+  lists normally and is `ArchiveError::Encrypted` only when extracted. RAR is not supported (plan section 3.6a).
+- **A font is read whole.** Its tables lie all over the file, so a font longer than the peek budget is
+  `FontError::OverBudget` and the pane shows the plate; a large CJK face needs a budget that covers it. Ends
+  if the peek reads the table directory and only the tables it needs.
+- **The specimen is unshaped.** Each line is set with advance widths: no kerning, no ligatures, no
+  right-to-left, no colour glyphs, and a variable font is drawn at its default location. A collection shows
+  its first face. WOFF and WOFF2 are named, not opened (`face: None`): skrifa reads neither container. Ends
+  with the plan's phase F (WOFF2 needs a Brotli decoder) and, for shaping, when the specimen lines are drawn by
+  parley instead of from outlines.
+- **The specimen is fixed text.** The three sample lines are Latin capitals, lowercase and digits; a font
+  with none of them shows the first characters it maps. Ends if the pane should show a script's own sample
+  (a language of the person's choosing).
+
 - **A folder summary is one level deep.** `FolderPeek` counts the first 10,000 non-hidden entries, adds up the
   size of the files directly inside it (not the contents of folders), and sniffs the first files the byte
   budget pays for (4 KiB each), so on a large folder the named kinds are those of the first files by name.
   Ends if a recursive size matters: it needs a deadline the peeks do not have yet (`PeekBudget::time` is
   not enforced).
-- **The pane has one width.** Its media box is quire's `PANE_MEDIA` (328 by 220 px), a table shows at most six
-  columns and forty rows, and code and plain lines are clipped, not wrapped or scrolled. It is a glance for
-  a 360 px pane; the viewer's stages are the full views. Ends when the launcher's pane gets other widths:
-  the media box then reads its parent's size.
+- **The pane fills the box its host gives it, but a PDF page is told its size.** `Pane` has no padding of its
+  own (the host pads), is as tall as its parent, and its media box (220 px when the parent has no height)
+  shrinks so the name and every fact stay inside; a picture, lines, a table and the Markdown frame take
+  their size from that box. `PdfThumb` cannot (it draws a page into the `Size` it is given), so `Pane`'s
+  `page_room` prop (default `PANE_MEDIA`, 328 by 220 px) is the page's box and the host passes what its box
+  leaves. A table still shows at most six columns and forty rows, and code and plain lines are clipped, not
+  wrapped or scrolled. Ends when quire's `PdfPage::Ready` becomes a texture the pane draws like a picture.
 - **The Markdown start is shown on a white sheet.** The peek's HTML goes into an `<iframe srcdoc>` whose own
   stylesheet has literal colours, because a frame cannot read the pane's tokens; it is dark on white in both
   schemes, as a mail's original message is (`--foreign-ground`). Ends when the Markdown stage's stylesheet
@@ -130,9 +147,16 @@ on. It is a reference, not a log: how each was found lives in git history.
   files, and `record_view` prunes view memory of vanished, replaced and no-longer-listed files
   with no switch. Ends when quire's `22-SETTINGS` has `viewer.history.*` keys; the caller then
   passes the cap to `StoreWriter::new`.
-- **History rows carry a `FormatKind`, not a MIME type.** The launcher's file rows are keyed by
-  MIME. Ends when `sill-launcher` maps a kind to its MIME (or `anyview-core` exposes the mapping)
-  and merges history into file ranking.
+- **A history row's media type is its kind's commonest one.** `mime_for(kind)` gives `image/png` for a raster and
+  `text/plain` for code and plain text alike, so a launcher row built from the history shows that type's glyph and
+  actions, not the file's own media type. The row's pane sniffs the file, so what it shows is right. Ends if the
+  history stores the sniffed media type.
+- **The pane holds no place, so a handoff brings `Resume::Nothing`.** The launcher's pane shows a file's start and
+  scrolls nothing, so opening from it continues where the viewer last left the file. `Handoff` and the wire carry a
+  `Resume` for a pane that holds one (a PDF page, a playing position). Ends when the pane has state of its own.
+- **A handoff carries no activation token.** `Handoff` (like `Open`) has no platform-data argument, so the window the
+  viewer opens for a launcher's handoff relies on the compositor to map it on top. Ends when the compositor
+  refuses focus to such a window: the methods then take the xdg-activation token.
 - **A touched file forgets its view memory.** The fingerprint is exact length plus modification
   time, so a `touch` or a restore from backup drops the stored position. Ends if that proves
   annoying: compare length only, or add a content hash of the head.
@@ -184,8 +208,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   Blitz's and untested here. Ends if quire offers the frame's token block alone.
 - **The viewer's chords treat Control and Command as one.** `views/keys.rs` folds both to `Super` (⌘), so
   Ctrl+K opens the palette on Linux. A person's own keymap is the settings item above.
-- **A zip is not probed.** `sniff` asks for the zip's entries and `anyview-archive` does not exist, so a
-  zip-based file fails with `Unsupported` instead of opening as an archive or a document.
+- **The viewer's own probe does not look inside a zip.** `anyview_peek::probe` does (through
+  `anyview_archive::zip_entries`), but `anyview-ui`'s `io/probe.rs` answers `Unrecognised` for a zip, so a
+  zip-based file a launcher hands over opens a window that says so, while its pane showed the listing. Ends
+  when the probe moves below `anyview-ui` (into a crate both it and `anyview-peek` may name) and the viewer
+  calls the same one.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
@@ -430,8 +457,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   tens of thousands of files that is felt. Ends if `Launch` takes the sequence late (a `Start` input after the
   window is up), as the arrow keys already take it.
 - **Appearance, window size, history cap and the store folder are constants.** `Appearance::default()`, 1000 by
-  700, `HistoryCap::DEFAULT` and `<data>/anyview` (`program::start`) are not settings. The launcher must read
-  the history from the same `<data>/anyview` folder. Ends with quire's `22-SETTINGS` keys.
+  700, `HistoryCap::DEFAULT` and `anyview_store::STORE_FOLDER` (`<data>/anyview`, which the launcher reads by the
+  same constant) are not settings. Ends with quire's `22-SETTINGS` keys.
 - **Two tokio runtimes.** The binary's (one worker, `anyview-platform`) is started before the window so the instance
   can be claimed before anything is drawn; ds-blitz's own (two workers) starts with `launch`. Ends if ds-blitz
   can take a runtime handle from the app.
@@ -490,8 +517,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
-  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 560 distinct packages;
-  `anyview-peek` is 532 today, of which `ds` and `ds-blitz` are nearly all.
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 580 distinct packages;
+  `anyview-peek` is 574 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  `anyview-archive`, `skrifa` and libav's bindings the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those
   manifests name; they apply only at a workspace root, so they live in this root. They were added with

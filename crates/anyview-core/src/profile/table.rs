@@ -3,12 +3,13 @@
 
 use crate::action::FileAction;
 use crate::edit::EditKind;
-use crate::kind::FormatKind;
+use crate::kind::{FormatKind, Mime};
 use crate::peek::StageSupport;
 
 /// Everything that varies by kind of file.
 #[derive(Debug, Clone, Copy)]
 struct KindProfile {
+    mime: &'static str,
     actions: &'static [FileAction],
     edits: &'static [EditKind],
     stage: StageSupport,
@@ -139,11 +140,13 @@ const IMAGE_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::Flip];
 const PDF_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::DeletePages, EditKind::MovePage];
 
 const fn profile(
+    mime: &'static str,
     actions: &'static [FileAction],
     edits: &'static [EditKind],
     stage: StageSupport,
 ) -> KindProfile {
     KindProfile {
+        mime,
         actions,
         edits,
         stage,
@@ -153,21 +156,26 @@ const fn profile(
 fn profile_of(kind: FormatKind) -> KindProfile {
     use StageSupport::{PeekOnly, Stage};
     match kind {
-        FormatKind::Pdf => profile(PDF, PDF_EDITS, Stage),
-        FormatKind::Raster => profile(IMAGE, IMAGE_EDITS, Stage),
-        FormatKind::Vector => profile(VECTOR, NO_EDITS, Stage),
-        FormatKind::Video => profile(VIDEO, NO_EDITS, Stage),
-        FormatKind::Audio => profile(AUDIO, NO_EDITS, Stage),
-        FormatKind::Markdown | FormatKind::Code | FormatKind::PlainText => {
-            profile(TEXT, NO_EDITS, Stage)
-        }
-        FormatKind::Table | FormatKind::Tree => profile(PLAIN, NO_EDITS, Stage),
-        FormatKind::Font
-        | FormatKind::Archive
-        | FormatKind::Book
-        | FormatKind::Office
-        | FormatKind::Other => profile(PLAIN, NO_EDITS, PeekOnly),
-        FormatKind::Folder => profile(FOLDER, NO_EDITS, PeekOnly),
+        FormatKind::Pdf => profile("application/pdf", PDF, PDF_EDITS, Stage),
+        FormatKind::Raster => profile("image/png", IMAGE, IMAGE_EDITS, Stage),
+        FormatKind::Vector => profile("image/svg+xml", VECTOR, NO_EDITS, Stage),
+        FormatKind::Video => profile("video/mp4", VIDEO, NO_EDITS, Stage),
+        FormatKind::Audio => profile("audio/mpeg", AUDIO, NO_EDITS, Stage),
+        FormatKind::Markdown => profile("text/markdown", TEXT, NO_EDITS, Stage),
+        FormatKind::Code | FormatKind::PlainText => profile("text/plain", TEXT, NO_EDITS, Stage),
+        FormatKind::Table => profile("text/csv", PLAIN, NO_EDITS, Stage),
+        FormatKind::Tree => profile("application/json", PLAIN, NO_EDITS, Stage),
+        FormatKind::Font => profile("font/ttf", PLAIN, NO_EDITS, PeekOnly),
+        FormatKind::Archive => profile("application/zip", PLAIN, NO_EDITS, PeekOnly),
+        FormatKind::Book => profile("application/epub+zip", PLAIN, NO_EDITS, PeekOnly),
+        FormatKind::Office => profile(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            PLAIN,
+            NO_EDITS,
+            PeekOnly,
+        ),
+        FormatKind::Folder => profile("inode/directory", FOLDER, NO_EDITS, PeekOnly),
+        FormatKind::Other => profile("application/octet-stream", PLAIN, NO_EDITS, PeekOnly),
     }
 }
 
@@ -175,6 +183,13 @@ fn profile_of(kind: FormatKind) -> KindProfile {
 /// includes it, and the viewer those that include the viewer.
 pub fn actions_for(kind: FormatKind) -> &'static [FileAction] {
     profile_of(kind).actions
+}
+
+/// A media type a file of `kind` has, for a row that knows only the kind (a recently viewed
+/// file the history names): the commonest type of the kind. `kind_of_mime` of it is `kind`, except
+/// that code and plain text share `text/plain`, which names plain text.
+pub fn mime_for(kind: FormatKind) -> Mime {
+    Mime::known(profile_of(kind).mime)
 }
 
 /// The sorts of edit a file of `kind` can be saved with in place.
