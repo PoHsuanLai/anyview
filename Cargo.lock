@@ -1841,6 +1841,7 @@ version = "0.1.0"
 dependencies = [
  "dioxus",
  "ds-core",
+ "ds-intents",
  "ds-motion",
  "ds-style",
  "serde",
@@ -1926,6 +1927,13 @@ dependencies = [
  "vello_hybrid",
  "wgpu",
  "wgpu_context",
+]
+
+[[package]]
+name = "ds-intents"
+version = "0.1.0"
+dependencies = [
+ "ds-core",
 ]
 
 [[package]]
