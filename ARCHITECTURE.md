@@ -31,7 +31,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
 | L1 | `anyview-plugin` | exists | plugins as values: the manifest, its validation, the registry of which plugin serves a kind and capability, the package to suggest when none does |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
-| L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (libav) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
+| L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
 | dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
 | L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows, the players and the desktop's now-playing entry (`media`), and the host that carries out what the windows ask through the platform |
@@ -53,7 +53,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-pdf` | `anyview-core` |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-font` | `anyview-core` |
-| `anyview-peek` | `anyview-archive`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-media` (feature `ffmpeg` only, behind peek's `media` feature), `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
+| `anyview-peek` | `anyview-archive`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
 | `anyview` | `anyview-core`, `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, and the encode of a saved frame), `anyview-media` (features `player` and `ffmpeg`), `anyview-platform`, `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s exports, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
@@ -70,7 +70,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
-| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `zbus`, `ashpd` anywhere in its tree: libmpv and D-Bus stay out of the launcher's process. libav is in it by default, through `anyview-media`'s `ffmpeg` feature, which peek's `media` feature turns on (`--no-default-features` leaves libav out and a recording is peeked as facts only); which reads a recording's facts and cover art for the pane (section 2i); the player feature is never turned on for it, because `cargo tree -p` resolves only that package's features. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself, nor `ffmpeg-next`: the DIRECT table of the script. Its tree is held to a package-count budget |
+| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd` anywhere in its tree: no libmpv, no libav and no D-Bus in the launcher's process, and no `anyview-media` at all. Its `media` feature (default on) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); `--no-default-features` leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
@@ -301,8 +301,10 @@ are blocking and run on the caller's worker; only `pane` draws.
 | `registry` | `KindVisitor`, `visit`: the one exhaustive match over `FormatKind` in the light tier |
 | `body` | `Body` (the type-erased result), `Light` (a `Peek` whose result and error convert into `Body` and `PeekError`) |
 | `probe` | `Probed`, `probe`: what a path is, from `stat`, its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive |
-| `any` | `AnyPeeked` and `peek`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable` |
-| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`VideoPeek`, `AudioPeek`, `BookPeek`, `OfficePeek`, `OtherPeek`): what sniffing established, nothing pretended |
+| `any` | `AnyPeeked`, `peek` and `peek_with`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable`; `peek_with` also gives a video that shows only its facts the host's frame |
+| `frames` | `VideoFrames`, `NoFrames`: the seam through which the host lends a video's cached thumbnail (the peek names no platform crate, so the host reads the cache) |
+| `media` | `VideoPeek`, `AudioPeek`, `MediaLook`; with the `media` feature, private `recording` (`Recording`, the header as plain values, and its rows), `audio` (symphonia: MP3, AAC and ALAC in M4A, FLAC, Ogg Vorbis and Opus, WAV, AIFF; tags, track number and the front cover), `mp4` (mp4parse over the `ftyp` and `moov` boxes alone, found by seeking over the rest: MP4, M4V, MOV), `matroska` (matroska-demuxer: MKV, WebM) and `peek` (which parser a container goes to, the cover reduced to the budget); AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video go to no parser; without the feature, `absent` (`FactsPeek`) |
+| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`BookPeek`, `OfficePeek`, `OtherPeek`; `VideoPeek` and `AudioPeek` only without `media`): what sniffing established, nothing pretended |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
 | `when` | `modified_text`: a modification time as UTC |
@@ -384,8 +386,8 @@ and the last one closing leaves the process warm for `WARM_FOR` (`LastWindowClos
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. Two C
 libraries sit behind two features. `player` is libmpv (through `mpv-wgpu-player`) drawing into a
-`wgpu` texture the caller owns; `ffmpeg` is libav (through `ffmpeg-next`). The launcher's pane links the
-second alone, so libmpv and the GPU never enter its process. Nothing here spawns a thread, reads a clock
+`wgpu` texture the caller owns; `ffmpeg` is libav (through `ffmpeg-next`). The launcher's pane links neither: since PLAN phase P4
+it reads recordings with pure-Rust parsers (section 2f), so only the viewer binary links these two. Nothing here spawns a thread, reads a clock
 or draws a pixel: the binary runs the driver on the media thread and the exports on its pool.
 
 | Module | Holds |
@@ -779,7 +781,8 @@ The single place a concept lives. Extend it; never write a second one.
 | What a player says of a recording (tracks, chapters, tags, whether a picture shows) | `anyview_core::MediaTrack`, `MediaChapter`, `MediaTags`, `VideoPresence` (`media`) |
 | Speed, chapter, trim range, bitrate | `anyview_core::Speed`, `ChapterIndex`, `TimeRange`, `Bitrate` (`units`) |
 | A recording's length, tags, tracks, chapters, codecs and cover, read with libav | `anyview_media::probe`, `MediaProbe` |
-| A recording in the launcher's pane | `anyview_media::VideoPeek`, `AudioPeek` (libav only), drawn by `anyview-peek`'s `media` |
+| A recording in the launcher's pane | `anyview_peek::VideoPeek`, `AudioPeek` (pure-Rust parsers, `media/`), drawn by `anyview-peek`'s pane |
+| A video's frame in the launcher's pane | `anyview_peek::VideoFrames`, `peek_with` (the host's thumbnail cache; `frames.rs`) |
 | What a media export becomes, and its name | `anyview_media::plan_export`, `output_path` |
 | Which audio encoders this libav has | `anyview_media::Encoders` |
 | Cutting, copying and converting a recording, with progress and stop | `anyview_media::ExportBackend` (a pool job), `media::Exports` in the binary |

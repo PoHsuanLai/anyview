@@ -63,7 +63,7 @@ ds-lint = { path = "../quire/crates/ds-lint" }
 
 # The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
 # each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
-blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "43a6030cc589995ef29b77bac56e3d851815e521" }
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "953c2ecf277829b5a57b8d3e1227df5b5f50dfd8" }
 
 # Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
@@ -285,6 +285,16 @@ mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808
 # (libavcodec 62); 6.1 and 7.1 do not build against it, 9.0 does (FINDINGS, "ffmpeg-next"). Only
 # the features its code uses: the codec and format layers and the resampler.
 ffmpeg-next = { version = "8.1", default-features = false, features = ["codec", "format", "software-resampling"] }
+# `anyview-peek` (feature `media`): a recording's facts, tags and cover without decoding it, pure Rust.
+# `symphonia` reads audio (MP3, AAC and ALAC in MP4, FLAC, Ogg Vorbis and Opus, WAV, AIFF): MPL-2.0,
+# metadata and probing only, no decoder is called. Features: the container readers and the tag formats.
+symphonia = { version = "0.6", default-features = false, features = ["aac", "aiff", "alac", "flac", "id3v1", "id3v2", "ape", "isomp4", "mp3", "ogg", "pcm", "vorbis", "wav"] }
+# `anyview-peek` (feature `media`): the movie header of an MP4, MOV or M4V (tracks, sizes, codecs,
+# length, tags and cover), from Mozilla's parser: MPL-2.0.
+mp4parse = "0.17"
+# `anyview-peek` (feature `media`): the segment info, tracks, tags and attachments of a Matroska or
+# WebM file: Zlib OR MIT OR Apache-2.0.
+matroska-demuxer = "0.8"
 # Blocks on the headless wgpu device's futures: `anyview-media` (feature `player`, to make the
 # device a background session plays on) and its tests. Apache-2.0 OR MIT.
 pollster = "0.4"

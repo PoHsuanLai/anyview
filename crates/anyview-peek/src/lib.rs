@@ -9,6 +9,7 @@ mod body;
 mod described;
 mod error;
 mod folder;
+mod frames;
 mod media;
 mod pane;
 mod pdf;
@@ -16,7 +17,7 @@ mod probe;
 mod registry;
 mod when;
 
-pub use any::{AnyPeeked, peek};
+pub use any::{AnyPeeked, peek, peek_with};
 pub use body::{Body, Light};
 pub use described::{
     BookKind, BookPeek, Described, Describes, FactsPeek, OfficeKind, OfficePeek, OtherKind,
@@ -24,6 +25,7 @@ pub use described::{
 };
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
+pub use frames::{NoFrames, VideoFrames};
 pub use media::{AudioPeek, MediaLook, VideoPeek};
 pub use pane::{Pane, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
