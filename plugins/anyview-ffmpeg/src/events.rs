@@ -32,10 +32,10 @@ pub fn forward_host(mut input: impl Read, events: &Sender<Event>) {
 /// Reads ffmpeg's `-progress` lines (`key=value`) and sends the time written.
 pub fn forward_progress(output: impl Read, events: &Sender<Event>) {
     for line in BufReader::new(output).lines().map_while(Result::ok) {
-        if let Some(time) = progress_time(&line) {
-            if events.send(Event::Progress(time)).is_err() {
-                return;
-            }
+        if let Some(time) = progress_time(&line)
+            && events.send(Event::Progress(time)).is_err()
+        {
+            return;
         }
     }
     let _ = events.send(Event::FfmpegEnded);

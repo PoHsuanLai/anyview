@@ -71,7 +71,9 @@ pub struct Tools {
 }
 
 impl Tools {
-    /// Finds both programs and checks that they run and that FFmpeg is new enough.
+    /// Finds both programs and checks that ffmpeg runs and is new enough. ffprobe is only found: it
+    /// is the same suite, and asking it for its version too would add a process start to every
+    /// request.
     pub fn locate(lookup: &Lookup) -> Result<Tools, FfmpegError> {
         let ffmpeg = find(
             "ffmpeg",
@@ -86,7 +88,6 @@ impl Tools {
             lookup.path.as_deref(),
         )?;
         let version = version_of("ffmpeg", &ffmpeg)?;
-        version_of("ffprobe", &ffprobe)?;
         Ok(Tools {
             ffmpeg,
             ffprobe,
