@@ -1,0 +1,23 @@
+[package]
+name = "anyview-core"
+description = "The viewer's pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+ds-core = { workspace = true }
+infer = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# `ds_core::testing::word_matches_serde`, for the stored `Word` enums.
+ds-core = { workspace = true, features = ["testing"] }
+serde_json = { workspace = true }

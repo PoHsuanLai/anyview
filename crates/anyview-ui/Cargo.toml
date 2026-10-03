@@ -1,0 +1,16 @@
+[package]
+name = "anyview-ui"
+description = "The viewer's pure state machines: chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+ds-core = { workspace = true }
+
+[lints]
+workspace = true

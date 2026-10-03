@@ -1,0 +1,190 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/anyview-core",
+  "crates/anyview-image",
+  "crates/anyview-store",
+  "crates/anyview-text",
+  "crates/anyview-ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+# What pdfrum's crates declare (quire CONSUMING.md section 1); the toolchain itself is pinned in
+# rust-toolchain.toml.
+rust-version = "1.92"
+repository = "https://github.com/PoHsuanLai/anyview"
+publish = false
+
+[workspace.dependencies]
+anyview-core = { path = "crates/anyview-core" }
+anyview-image = { path = "crates/anyview-image" }
+anyview-store = { path = "crates/anyview-store" }
+anyview-text = { path = "crates/anyview-text" }
+anyview-ui = { path = "crates/anyview-ui" }
+# Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
+ds-core = { path = "../quire/crates/ds-core" }
+
+# ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
+# Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
+# dedicated "toolchain bump" wave that runs every repo's gates. Versions of the render stack
+# (anyrender, vello, wgpu, parley) are the ones blitz's own Cargo.lock resolves at this rev;
+# taffy (git) and stylo come through the blitz crates and are never named directly.
+
+# The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
+# each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "54b79083c6744b3767104c3e7646add2170b94b7" }
+
+# Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
+# blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
+blitz-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad", default-features = false, features = ["svg", "system-fonts", "custom-widget", "accessibility"] }
+blitz-paint = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad", features = ["custom-widget"] }
+blitz-traits = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad" }
+# The HTML parser (html5ever 0.39): an `<iframe srcdoc>` builds a real sub-document. ds-blitz
+# installs it in headless documents; the window gets it through dioxus-native's `html` feature.
+blitz-html = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad" }
+dioxus-native-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad", default-features = false, features = ["svg", "system-fonts", "accessibility"] }
+# The portable window path for apps (winit); the shell uses shell-host instead.
+dioxus-native = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad", default-features = false, features = ["vello-hybrid", "svg", "system-fonts", "accessibility"] }
+# The window shell under dioxus-native, named for `ds_blitz::open_window`: its proxy and window
+# config types build a second DioxusNativeApplication on the same event loop. dioxus-native's
+# own `dioxus:` asset resolver and link opener come with it (both already in the tree through
+# dioxus-native, same versions), since ds-blitz now builds the window's document itself.
+blitz-shell = { git = "https://github.com/PoHsuanLai/blitz", rev = "1b23fbd9d6465b7ee8acfe8e7deb36a2d5be6fad", default-features = false }
+dioxus-asset-resolver = { version = "0.7", features = ["native"] }
+webbrowser = "1.0"
+# The system clipboard's text/html, for an edit surface's paste (ds-blitz): blitz-shell's own
+# arboard (its `clipboard` feature, same features), read directly since ShellProvider has text only.
+arboard = { version = "3.6", default-features = false }
+
+# Dioxus 0.7.x (renderer-free core; mailo is on 0.7.10).
+dioxus = { version = "0.7", default-features = false, features = ["macro", "html", "hooks", "signals"] }
+dioxus-document = "0.7"
+
+# Render stack, matched to blitz's lockfile at the rev above.
+anyrender = "0.13"
+anyrender_vello_hybrid = "0.10"
+anyrender_vello_cpu = { version = "0.17", features = ["multithreading", "filters"] }
+vello_hybrid = "0.1"
+wgpu = "29"
+wgpu_context = "0.9"
+# Per-device image cache for the shared hybrid renderer (SPIKE.md S1 finding 5).
+rustc-hash = "2"
+vello_common = "0.1"
+parley = { version = "0.11.1", default-features = false, features = ["std"] }
+image = { version = "0.25.6", default-features = false, features = ["png", "jpeg"] }
+
+# Wayland client (shell-host and sill share one sctk major: cosmic-client-toolkit uses 0.20).
+smithay-client-toolkit = { version = "0.20", default-features = false, features = ["calloop", "xkbcommon"] }
+wayland-client = "0.31"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-protocols = { version = "0.32.13", features = ["client", "staging", "unstable"] }
+calloop = "0.14"
+calloop-wayland-source = "0.4"
+xkbcommon = "0.8"
+raw-window-handle = "0.6"
+keyboard-types = "0.7"
+cursor-icon = "1"
+
+# Common.
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+thiserror = "2"
+# Local wall-clock time with the system time zone (the bar clock); std cannot answer it.
+jiff = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Safe syscalls where std has none: SOCK_SEQPACKET for the palmrest socket (shell-host
+# input/palmrest.rs, palmrest), hidraw/uinput ioctls (palmrest). Already in every tree through
+# wayland-backend at 1.1.x; the features are the union of both users.
+rustix = { version = "1.1", default-features = false, features = ["std", "event", "fs", "net", "time", "process"] }
+futures-timer = "3"
+cssparser = "0.37"
+notify = "8.2"
+zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
+dirs = "6"
+toml = "1"
+# SSR renders for component goldens and markup lint (dev-dependency in consumers).
+dioxus-ssr = "0.7"
+# Named directly for image paints in custom widgets (blitz re-exports nothing).
+peniko = "0.6"
+# PDF output (ds-blitz `pdf`): pdfrum, the user's own pure-Rust PDF library
+# (github.com/PoHsuanLai/pdfrum, MIT OR Apache-2.0). `pdfrum-anyrender` is the anyrender painter
+# (scenes as vector PDF pages); it writes through pdfrum-edit (glyph-run fonts subset and
+# instanced, gradients, JPEG and PNG passthrough; `variable-fonts` lets the subsetter instance
+# variable and CFF2 faces). Every pdfrum crate is taken from one git rev so the tree holds one
+# copy of each; the rev is main after PR #100 (pdfrum-anyrender added).
+pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
+pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549", features = ["variable-fonts"] }
+pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
+pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549" }
+# Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
+# the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
+skrifa = "0.44"
+# Reading PDFs back in tests (text, fonts, images, a rasterised page): dev-dependency only.
+pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "613710405bcd239684e23fb8ad2bcb9aab329549", default-features = false, features = ["vello-cpu"] }
+# The print portal's fd, from a sealed anonymous file (ds-blitz's `print` feature, Linux only).
+memfd = "0.6"
+# Spellchecking (ds-blitz's `spell` feature): a pure-Rust Hunspell-compatible checker,
+# MPL-2.0 (file-level copyleft, allowed by deny.toml), used unmodified. Dictionaries are the
+# system's (/usr/share/hunspell); none is bundled.
+spellbook = "0.4"
+# Proc-macro crates for ds-settings-derive.
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
+
+# Shell-only (COSMIC).
+cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols", rev = "c0cff4db14c37ed954983158e4055aa94c7741d9" }
+upower_dbus = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "eed01dd3609e90e3c8cd043656734c500956c793" }
+cosmic-dbus-networkmanager = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "eed01dd3609e90e3c8cd043656734c500956c793" }
+logind-zbus = "5"
+libpulse-binding = "2.30"
+system-tray = "0.8.9"
+freedesktop-desktop-entry = "0.8.3"
+freedesktop-icons = "0.4"
+nucleo-matcher = "0.3.1"
+fend-core = "1.5.8"
+clap = { version = "4", features = ["derive"] }
+# latchkey lives in mailo until it is split into its own repo; cargo finds crates/latchkey itself.
+latchkey = { git = "https://github.com/PoHsuanLai/mailo", rev = "43ebf45f244a23c1e79c84b5d859b6fa1ba5bc7a" }
+# ---- END PINNED BLOCK ----
+
+# anyview-only, outside the pinned block (they are not shared with quire, shell-host or sill).
+# Magic-byte file type detection: MIT. `anyview-core` sniffs a file's first 4 KiB with it.
+infer = "0.19"
+# Scratch directories for `anyview-store`'s file tests (dev-dependency only): MIT OR Apache-2.0.
+tempfile = "3"
+# Decoders and codecs of `anyview-image`. `image` itself is pinned above with png and jpeg only; the
+# crate adds the other formats through its own feature list (FINDINGS: pinned features).
+# JPEG XL decoder, pure Rust: MIT OR Apache-2.0.
+jxl-oxide = "0.12"
+# SVG renderer, the version sill already resolves (0.48), without text so no font is read
+# implicitly: MPL-2.0-free, Apache-2.0 OR MIT.
+resvg = { version = "0.48", default-features = false }
+# EXIF reader (library name `exif`): BSD-2-Clause.
+kamadak-exif = "0.6"
+# Splices EXIF and ICC segments in and out of JPEG, PNG and WebP containers: MIT OR Apache-2.0.
+img-parts = "0.4"
+# AVIF encoder, pure Rust: BSD-3-Clause.
+ravif = { version = "0.13", default-features = false }
+# `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
+syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
+# Markdown parser: MIT.
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+# Delimited tables: MIT OR Unlicense.
+csv = "1"
+# Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
+encoding_rs = "0.8"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+
+# Matching on our own enums names every variant, so adding one is a compile error wherever it
+# matters (CONVENTIONS section 4; plan section 4.3). Tests may unwrap (clippy.toml).
+[workspace.lints.clippy]
+unwrap_used = "deny"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
