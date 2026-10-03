@@ -44,7 +44,7 @@ pub(super) fn open(
         .media
         .as_ref()
         .ok_or_else(|| OpenError::Media("a file opened ahead does not play".to_owned()))?;
-    let started = port.start(ticket, src.path().clone(), link.texture.clone())?;
+    let started = port.start(ticket, src, sniffed, link.texture.clone())?;
     let facts = Facts::empty()
         .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
         .with(FactLabel::Size, FactValue::size(src.stamp().len));

@@ -49,7 +49,8 @@ struct Rig {
     workforce: Arc<Workforce>,
 }
 
-fn rig() -> Rig {
+fn rig() -> Option<Rig> {
+    let plugins = support::plugins(true, false)?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -62,6 +63,7 @@ fn rig() -> Rig {
         move || std::future::ready(session),
         None,
         AudioDriver::Null,
+        plugins,
     );
     let workforce = Arc::new(
         Workforce::start(
@@ -70,12 +72,12 @@ fn rig() -> Rig {
         )
         .unwrap(),
     );
-    Rig {
+    Some(Rig {
         runtime,
         hub,
         desk,
         workforce,
-    }
+    })
 }
 
 fn last_state(desk: &FakeMediaHandle) -> Option<anyview_platform::MediaState> {
@@ -98,6 +100,8 @@ impl Window {
         let started = host
             .start(MediaStart {
                 file: file.clone(),
+                source: probed(file).source,
+                sniffed: probed(file).sniffed,
                 texture: texture.clone(),
                 wake: MediaWake::new(move || {
                     let _ = tx.send(());
@@ -140,23 +144,27 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
     let Some(gpu) = gpu() else {
         return;
     };
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let host = PlayerHost::new(rig.hub.clone());
     let clip = media_fixture("clip.mkv");
     let mut window = Window::open(&host, &gpu, &clip);
 
     window.listen("the clip to load", is_loaded);
-    let length = window
-        .heard
-        .iter()
-        .find_map(|notice| {
-            if let MediaNotice::Player(PlayerEvent::Loaded { length }) = notice {
+    // The child process reports the length a moment after the file is loaded: with `Loaded` or
+    // after it.
+    let length_of = |heard: &[MediaNotice]| {
+        heard.iter().find_map(|notice| match notice {
+            MediaNotice::Player(PlayerEvent::Loaded { length }) if length.0.as_millis() > 0 => {
                 Some(length.0.as_millis())
-            } else {
-                None
             }
+            MediaNotice::Player(PlayerEvent::LengthKnown(length)) => Some(length.0.as_millis()),
+            _ => None,
         })
-        .unwrap();
+    };
+    window.listen("the length", |heard| length_of(heard).is_some());
+    let length = length_of(&window.heard).unwrap();
     assert!(
         (2900..=3200).contains(&length),
         "the clip is 3 s long: {length} ms"
@@ -246,9 +254,14 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
 
 #[test]
 fn a_session_with_no_window_plays_is_stopped_from_the_entry_and_goes() {
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let tone = media_fixture("tone.flac");
-    if let Err(error) = rig.hub.play_in_background(&tone, &Resume::Nothing) {
+    if let Err(error) = rig
+        .hub
+        .play_in_background(&tone, &probed(&tone).sniffed, &Resume::Nothing)
+    {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }
@@ -277,9 +290,14 @@ fn a_session_with_no_window_plays_is_stopped_from_the_entry_and_goes() {
 
 #[test]
 fn a_session_with_no_window_ends_when_its_recording_does() {
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let tone = media_fixture("tone.flac");
-    if let Err(error) = rig.hub.play_in_background(&tone, &Resume::Nothing) {
+    if let Err(error) = rig
+        .hub
+        .play_in_background(&tone, &probed(&tone).sniffed, &Resume::Nothing)
+    {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }
@@ -294,7 +312,9 @@ fn a_session_with_no_window_ends_when_its_recording_does() {
 
 #[test]
 fn a_background_session_starts_where_the_file_was_left() {
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let clip = media_fixture("clip.mkv");
     let left = Resume::Media {
         at: MediaTime::from_millis(1500),
@@ -302,7 +322,10 @@ fn a_background_session_starts_where_the_file_was_left() {
         audio: anyview_core::TrackChoice::Auto,
         subtitles: anyview_core::TrackChoice::Auto,
     };
-    if let Err(error) = rig.hub.play_in_background(&clip, &left) {
+    if let Err(error) = rig
+        .hub
+        .play_in_background(&clip, &probed(&clip).sniffed, &left)
+    {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }
@@ -364,7 +387,9 @@ fn copy_into(dir: &std::path::Path, name: &str) -> FilePath {
 
 #[test]
 fn a_cut_and_a_track_are_written_beside_the_recording() {
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let dir = tempfile::tempdir().unwrap();
     let hosting = desktop(&rig, dir.path());
     let clip = copy_into(dir.path(), "clip.mkv");
@@ -413,7 +438,9 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
     let Some(gpu) = gpu() else {
         return;
     };
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let dir = tempfile::tempdir().unwrap();
     let hosting = desktop(&rig, dir.path());
     let clip = copy_into(dir.path(), "clip.mkv");
@@ -467,7 +494,9 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
 
 #[test]
 fn a_frame_of_a_recording_no_window_plays_is_a_failure_not_a_hang() {
-    let rig = rig();
+    let Some(rig) = rig() else {
+        return;
+    };
     let dir = tempfile::tempdir().unwrap();
     let hosting = desktop(&rig, dir.path());
     let clip = copy_into(dir.path(), "clip.mkv");

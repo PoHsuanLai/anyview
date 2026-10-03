@@ -12,7 +12,7 @@ use anyview_core::Resume;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{MprisClient, PrivateBus};
 use std::time::Duration;
-use support::{eventually, media_fixture};
+use support::{eventually, media_fixture, sniffed_of};
 
 #[test]
 fn the_control_center_sees_a_background_session_pauses_it_and_stops_it() {
@@ -24,17 +24,22 @@ fn the_control_center_sees_a_background_session_pauses_it_and_stops_it() {
         .enable_all()
         .build()
         .unwrap();
+    let Some(plugins) = support::plugins(true, false) else {
+        return;
+    };
     let env = bus.env();
     let hub = MediaHub::start(
         runtime.handle(),
         move || async move { NowPlaying::register(&env).await },
         None,
         AudioDriver::Null,
+        plugins,
     );
     let client = runtime.block_on(MprisClient::connect(&bus)).unwrap();
     let status = |client: &MprisClient| runtime.block_on(client.status()).unwrap_or_default();
 
-    if let Err(error) = hub.play_in_background(&media_fixture("tone.flac"), &Resume::Nothing) {
+    let tone = media_fixture("tone.flac");
+    if let Err(error) = hub.play_in_background(&tone, &sniffed_of(&tone), &Resume::Nothing) {
         eprintln!("SKIPPED: cannot start a background session ({error})");
         return;
     }

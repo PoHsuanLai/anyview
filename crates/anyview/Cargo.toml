@@ -13,6 +13,8 @@ anyview-core = { workspace = true }
 anyview-image = { workspace = true }
 anyview-media = { workspace = true, features = ["player", "ffmpeg"] }
 anyview-platform = { workspace = true }
+anyview-plugin = { workspace = true }
+anyview-plugin-protocol = { workspace = true }
 anyview-store = { workspace = true }
 anyview-ui = { workspace = true }
 dioxus = { workspace = true }

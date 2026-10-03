@@ -23,7 +23,8 @@ use support::{device, fixture};
 /// An idle session on the test device.
 fn idle() -> Option<Session<Idle>> {
     let (device, queue) = device()?;
-    Some(Session::new(&device, &queue, AudioDriver::Null).unwrap())
+    let host = support::mpv_host()?;
+    Some(Session::new(&device, &queue, AudioDriver::Null, &host).unwrap())
 }
 
 /// Open `name` and poll until the player says so: the loaded session and what it said while

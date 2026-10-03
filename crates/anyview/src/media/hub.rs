@@ -8,10 +8,12 @@
 
 use super::line::LiveLine;
 use super::orders::{Home, Order, orders_for};
+use super::plugins::{MediaPlugins, PlayRoute};
 use crate::runtime::{Actor, Mailbox, RuntimeError, UiWaker};
-use anyview_core::{FilePath, Resume};
-use anyview_media::{AudioDriver, MediaCommand, MediaError, PictureSlot, ShotContent};
+use anyview_core::{FilePath, Resume, Sniffed};
+use anyview_media::{AudioDriver, MediaCommand, MediaError, MpvHost, PictureSlot, ShotContent};
 use anyview_platform::{MediaControl, MediaSession, MediaState, PlaybackStatus};
+use anyview_plugin::Subject;
 use ds_blitz::{AppHandle, AppHold};
 use std::collections::HashMap;
 use std::future::Future;
@@ -89,6 +91,7 @@ pub(super) struct Inner {
     shots: Mutex<Vec<ShotWaiter>>,
     app: Option<AppHandle>,
     audio: AudioDriver,
+    plugins: Arc<MediaPlugins>,
     runtime: tokio::runtime::Handle,
 }
 
@@ -103,6 +106,19 @@ impl Inner {
 
     pub(super) fn audio(&self) -> AudioDriver {
         self.audio
+    }
+
+    /// The programs that play `sniffed`'s file, or why there are none.
+    pub(super) fn player(&self, sniffed: &Sniffed) -> Result<MpvHost, MediaError> {
+        let subject = Subject {
+            kind: sniffed.kind(),
+            mime: Some(sniffed.mime()),
+        };
+        match self.plugins.player(&subject) {
+            PlayRoute::Ready(host) => Ok(host),
+            PlayRoute::Missing(missing) => Err(MediaError::PlayerMissing(missing.package.name())),
+            PlayRoute::Unserved => Err(MediaError::NotMedia),
+        }
     }
 
     /// A session's entry changed.
@@ -198,12 +214,13 @@ impl MediaHub {
     /// A hub whose desktop entry is made by `register` when the first player speaks, so a viewer
     /// that plays nothing shows nothing to the desktop, and served on `runtime`. `app` is the event
     /// loop that background sessions hold open and that Quit ends; `audio` is the sound driver every
-    /// session plays on.
+    /// session plays on; `plugins` are what plays, probes and exports a recording.
     pub fn start<S, F, Fut>(
         runtime: &tokio::runtime::Handle,
         register: F,
         app: Option<AppHandle>,
         audio: AudioDriver,
+        plugins: Arc<MediaPlugins>,
     ) -> MediaHub
     where
         S: MediaSession + Send + 'static,
@@ -218,6 +235,7 @@ impl MediaHub {
             shots: Mutex::new(Vec::new()),
             app,
             audio,
+            plugins,
             runtime: runtime.clone(),
         });
         runtime.spawn(serve(register, inbox, Arc::downgrade(&inner)));
@@ -226,7 +244,13 @@ impl MediaHub {
 
     /// Start a session playing `file` with no window, picking up where `resume` says, and hold
     /// the event loop open while it plays. Blocking: it makes a graphics device and a player.
-    pub fn play_in_background(&self, file: &FilePath, resume: &Resume) -> Result<(), MediaError> {
+    pub fn play_in_background(
+        &self,
+        file: &FilePath,
+        sniffed: &Sniffed,
+        resume: &Resume,
+    ) -> Result<(), MediaError> {
+        let host = self.inner.player(sniffed)?;
         let (device, queue) = anyview_media::headless_device()?;
         let tags = anyview_media::probe(file.as_path())
             .map(|probe| probe.tags)
@@ -238,6 +262,7 @@ impl MediaHub {
             device,
             queue,
             audio: self.inner.audio(),
+            host,
             file: file.clone(),
             sink: Box::new(super::sink::NoSink),
             snapshot,

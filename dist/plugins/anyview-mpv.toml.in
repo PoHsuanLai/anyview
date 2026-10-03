@@ -1,0 +1,17 @@
+# The manifest of the playback plugin (ARCHITECTURE section 2l). install.sh --with-plugin mpv fills in
+# @MPV@ (the person's own mpv, found on the search path at install time or named with --mpv) and
+# @PREFIX@, and installs the result as <prefix>/share/anyview/plugins/mpv.toml; the file name is the id.
+#
+# Playback is not spoken over the plugin protocol. The viewer runs this mpv as a child process with the
+# C plugin of mpv-wgpu loaded into it (`--script`), so no libmpv and no mpv code is linked into the
+# viewer: the distribution's mpv, and the codecs its FFmpeg has, stay programs we run. Edit `mpv` to use
+# another build.
+id = "mpv"
+name = "mpv"
+protocol = 1
+
+[[provides]]
+capability = "play"
+kinds = ["video", "audio"]
+mpv = "@MPV@"
+cplugin = "@PREFIX@/libexec/anyview/mpv-wgpu-cplugin.so"

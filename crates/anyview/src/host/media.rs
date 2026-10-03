@@ -33,7 +33,10 @@ impl std::fmt::Debug for Media {
 /// Start the file playing with no window, from where it was left. Blocking.
 pub(super) fn play_in_background(media: &Media, probed: &Probed) -> Outcome {
     let resume: &Resume = &probed.resume;
-    match media.hub.play_in_background(probed.source.path(), resume) {
+    match media
+        .hub
+        .play_in_background(probed.source.path(), &probed.sniffed, resume)
+    {
         Ok(()) => Outcome::Handed,
         Err(error) => Outcome::Failed(format!("cannot play the file: {error}")),
     }

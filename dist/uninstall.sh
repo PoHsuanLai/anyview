@@ -6,8 +6,8 @@
 #   --dry-run     print every action, change nothing
 #   --prefix DIR  the prefix it was installed under (default: /usr/local as root, else ~/.local)
 #
-# It removes the plugins too (the FFmpeg plugin's program and manifest), whether or not install.sh
-# was asked for them.
+# It removes the plugins too (the FFmpeg plugin's program and manifest, the mpv plugin's C plugin and
+# manifest), whether or not install.sh was asked for them.
 #
 # DESTDIR names the staging root it was installed into. A default set with install.sh
 # --set-default is a line in the person's mimeapps.list; it is left there (a default that names
@@ -57,6 +57,8 @@ remove_file "$PREFIX/share/dbus-1/services/$BUS_NAME.service"
 # held them when nothing else is in them.
 remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
 remove_file "$PREFIX/share/anyview/plugins/ffmpeg.toml"
+remove_file "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
+remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
 if [[ "$DRY_RUN" == no ]]; then
   for folder in libexec/anyview share/anyview/plugins share/anyview; do
     [[ -d "$(dest "$PREFIX/$folder")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "$PREFIX/$folder")"

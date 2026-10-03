@@ -7,8 +7,8 @@ use super::workers::Reply;
 use crate::stage::{MediaError, PlayerCommand, PlayerEvent};
 use crate::{Done, OpenError, Ticket};
 use anyview_core::{
-    Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Speed,
-    VideoPresence,
+    Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed, Source,
+    Speed, VideoPresence,
 };
 use ds_blitz::TextureHandle;
 use std::fmt::Debug;
@@ -73,6 +73,11 @@ impl Debug for MediaWake {
 pub struct MediaStart {
     /// The recording.
     pub file: FilePath,
+    /// The file as the load read it: what the host reads the recording's facts from when no
+    /// plugin does.
+    pub source: Source,
+    /// What the load found the file to be.
+    pub sniffed: Sniffed,
     /// Where the picture is shown. The player's thread updates it and asks for a redraw.
     pub texture: TextureHandle,
     /// How the player tells the window it has news.
@@ -130,13 +135,16 @@ impl MediaPort {
     pub(crate) fn start(
         &self,
         ticket: Ticket,
-        file: FilePath,
+        source: &Source,
+        sniffed: &Sniffed,
         texture: TextureHandle,
     ) -> Result<MediaStarted, OpenError> {
         let reply = self.reply.clone();
         let wake = MediaWake::new(move || reply.post(Done::Media { ticket }));
         self.host.start(MediaStart {
-            file,
+            file: source.path().clone(),
+            source: source.clone(),
+            sniffed: sniffed.clone(),
             texture,
             wake,
         })
