@@ -1,7 +1,8 @@
 //! The player's side of the media stage: what it reports and what it is told. The events mirror
 //! mpv-wgpu-player's, as this crate's own types so the stage depends on no player.
 
-use anyview_core::{MediaLength, MediaTime, Percent, TrackChoice, Volume};
+use anyview_core::{ChapterIndex, MediaLength, MediaTime, Percent, Speed, TrackChoice, Volume};
+use ds_core::word::Word;
 
 /// Why the file stopped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -55,13 +56,22 @@ pub enum TrackKind {
     Subtitles,
 }
 
-/// Which way a frame step goes.
+/// Which way a step goes: a frame, a chapter or a speed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FrameDirection {
+pub enum StepDirection {
     /// To the next frame.
     Forward,
     /// To the previous frame.
     Backward,
+}
+
+/// Which end of a trim a mark sets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
+pub enum TrimEdge {
+    /// Where the kept part begins.
+    Start,
+    /// Where the kept part ends.
+    End,
 }
 
 /// A command for the player, as data.
@@ -79,5 +89,15 @@ pub enum PlayerCommand {
         choice: TrackChoice,
     },
     /// Step one frame; only meaningful while held.
-    FrameStep(FrameDirection),
+    FrameStep(StepDirection),
+    /// Play at this speed.
+    SetSpeed(Speed),
+    /// Play the next preset speed up or down from the one playing.
+    StepSpeed(StepDirection),
+    /// Play the next track of a kind, wrapping.
+    CycleTrack(TrackKind),
+    /// Jump to the next or previous chapter.
+    StepChapter(StepDirection),
+    /// Jump to a chapter.
+    GoToChapter(ChapterIndex),
 }

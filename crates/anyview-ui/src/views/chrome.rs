@@ -5,11 +5,12 @@
 
 use crate::Command;
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::model::{CapsuleSlot, ScrubEvent};
 use ds::components::chrome::capsule::view::Capsule;
 use ds::components::chrome::titlebar_parts::TitleParts;
 use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
 use ds::prelude::{Material, Shown, Surface};
+use ds_core::vocab::Fraction;
 use ds_core::word::Word;
 
 /// The titlebar: the window's title and lights on the bar material, over the top of the content.
@@ -44,6 +45,8 @@ pub(super) fn Controls(
     slots: Vec<CapsuleSlot<Command>>,
     shown: Shown,
     onpick: EventHandler<Command>,
+    onscrub: EventHandler<ScrubEvent>,
+    onlevel: EventHandler<Fraction>,
     onpointerenter: EventHandler<()>,
     onpointerleave: EventHandler<()>,
 ) -> Element {
@@ -53,6 +56,8 @@ pub(super) fn Controls(
             slots,
             shown,
             onpick,
+            onscrub,
+            onlevel,
             onpointerenter,
             onpointerleave,
         }

@@ -88,6 +88,9 @@ pub struct Env {
     pub session: BusRoute,
     /// How a program is started.
     pub spawn: Arc<dyn Spawn>,
+    /// The audio driver the person asked for (`ANYVIEW_AUDIO_OUTPUT`), as they wrote it: the
+    /// player parses it, and without one it lets the system's sound server choose.
+    pub audio_output: Option<String>,
 }
 
 impl Env {
@@ -97,6 +100,9 @@ impl Env {
             dirs: Dirs::from_process(),
             session: BusRoute::Usual,
             spawn: Arc::new(ProcessSpawn),
+            audio_output: std::env::var("ANYVIEW_AUDIO_OUTPUT")
+                .ok()
+                .filter(|text| !text.is_empty()),
         }
     }
 
@@ -107,6 +113,7 @@ impl Env {
             dirs: Dirs::under(scratch),
             session: BusRoute::Absent,
             spawn: Arc::new(RefuseSpawn),
+            audio_output: None,
         }
     }
 

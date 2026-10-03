@@ -38,6 +38,14 @@ pub enum CoreError {
         /// The last page, zero-based.
         end: u32,
     },
+    /// A time range that ends at or before its start.
+    #[error("a time range cannot end at {end} us before it starts at {start} us")]
+    TimeRangeEmpty {
+        /// Where it starts, in microseconds.
+        start: u64,
+        /// Where it ends, in microseconds.
+        end: u64,
+    },
     /// A resolution outside `1..=2400` dpi.
     #[error("a resolution must be 1 to 2400 dpi, not {value}")]
     DpiOutOfRange {

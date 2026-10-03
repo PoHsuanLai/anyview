@@ -103,18 +103,30 @@ pub(super) fn seek_target(
         | MediaIn::SetVolume(_)
         | MediaIn::Select { kind: _, choice: _ }
         | MediaIn::FrameStep(_)
+        | MediaIn::SetSpeed(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_)
+        | MediaIn::Mark(_)
+        | MediaIn::Restore { .. }
         | MediaIn::Failed(_)
         | MediaIn::Elapsed => None,
     }
 }
 
-/// The commands that do not depend on where playback is: volume and track choices.
+/// The commands that do not depend on where playback is: volume, speed, tracks and chapters.
 pub(super) fn setting(input: MediaIn) -> Option<MediaOut> {
     match input {
         MediaIn::SetVolume(volume) => Some(command(PlayerCommand::SetVolume(volume))),
         MediaIn::Select { kind, choice } => {
             Some(command(PlayerCommand::SelectTrack { kind, choice }))
         }
+        MediaIn::SetSpeed(speed) => Some(command(PlayerCommand::SetSpeed(speed))),
+        MediaIn::StepSpeed(direction) => Some(command(PlayerCommand::StepSpeed(direction))),
+        MediaIn::CycleTrack(kind) => Some(command(PlayerCommand::CycleTrack(kind))),
+        MediaIn::StepChapter(direction) => Some(command(PlayerCommand::StepChapter(direction))),
+        MediaIn::GoToChapter(chapter) => Some(command(PlayerCommand::GoToChapter(chapter))),
         MediaIn::Player(_)
         | MediaIn::Position(_)
         | MediaIn::Toggle
@@ -126,9 +138,63 @@ pub(super) fn setting(input: MediaIn) -> Option<MediaOut> {
         | MediaIn::ScrubEnd
         | MediaIn::ScrubCancel
         | MediaIn::FrameStep(_)
+        | MediaIn::Mark(_)
+        | MediaIn::Restore { .. }
         | MediaIn::Failed(_)
         | MediaIn::Elapsed => None,
     }
+}
+
+/// The mark an input sets at `at`, if it is one.
+pub(super) fn marked(input: MediaIn, at: MediaTime) -> Option<MediaOut> {
+    match input {
+        MediaIn::Mark(edge) => Some(MediaOut::Marked { edge, at }),
+        MediaIn::Player(_)
+        | MediaIn::Position(_)
+        | MediaIn::Toggle
+        | MediaIn::SeekBack
+        | MediaIn::SeekForward
+        | MediaIn::SeekTo(_)
+        | MediaIn::ScrubStart
+        | MediaIn::ScrubTo(_)
+        | MediaIn::ScrubEnd
+        | MediaIn::ScrubCancel
+        | MediaIn::SetVolume(_)
+        | MediaIn::Select { kind: _, choice: _ }
+        | MediaIn::FrameStep(_)
+        | MediaIn::SetSpeed(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_)
+        | MediaIn::Restore { .. }
+        | MediaIn::Failed(_)
+        | MediaIn::Elapsed => None,
+    }
+}
+
+/// The commands that put a person's settings back, in the order the player should hear them.
+fn restoring(
+    at: MediaTime,
+    volume: anyview_core::Volume,
+    audio: anyview_core::TrackChoice,
+    subtitles: anyview_core::TrackChoice,
+) -> Vec<MediaOut> {
+    use super::event::TrackKind;
+    let seek = (at.0 > 0).then(|| command(PlayerCommand::Seek(at)));
+    seek.into_iter()
+        .chain([
+            command(PlayerCommand::SetVolume(volume)),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Audio,
+                choice: audio,
+            }),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Subtitles,
+                choice: subtitles,
+            }),
+        ])
+        .collect()
 }
 
 fn opening(input: MediaIn) -> Step {
@@ -146,7 +212,13 @@ fn opening(input: MediaIn) -> Step {
         }
         MediaIn::Failed(error) => (MediaStage::Failed(error), vec![]),
         MediaIn::Player(event) => stay(notice(event).into_iter().collect()),
-        MediaIn::SetVolume(_) | MediaIn::Select { kind: _, choice: _ } => {
+        MediaIn::Restore {
+            at,
+            volume,
+            audio,
+            subtitles,
+        } => stay(restoring(at, volume, audio, subtitles)),
+        MediaIn::SetVolume(_) | MediaIn::Select { kind: _, choice: _ } | MediaIn::SetSpeed(_) => {
             stay(setting(input).into_iter().collect())
         }
         MediaIn::Position(_)
@@ -159,6 +231,11 @@ fn opening(input: MediaIn) -> Step {
         | MediaIn::ScrubEnd
         | MediaIn::ScrubCancel
         | MediaIn::FrameStep(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_)
+        | MediaIn::Mark(_)
         | MediaIn::Elapsed => stay(vec![]),
     }
 }
@@ -178,6 +255,13 @@ fn failed(error: MediaError, input: MediaIn) -> Step {
         | MediaIn::SetVolume(_)
         | MediaIn::Select { kind: _, choice: _ }
         | MediaIn::FrameStep(_)
+        | MediaIn::SetSpeed(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_)
+        | MediaIn::Mark(_)
+        | MediaIn::Restore { .. }
         | MediaIn::Failed(_)
         | MediaIn::Elapsed => (MediaStage::Failed(error), vec![]),
     }

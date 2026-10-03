@@ -4,8 +4,9 @@
 //! region); [`DocView`] is the loaded document seen without its family, which is what the window
 //! holds, so the window needs no match on the family to draw it.
 
+use crate::families::media::MediaShelf;
 use crate::families::pdf::PdfShelf;
-use crate::io::{HostRequest, Job, OpenError, OpenLink};
+use crate::io::{HostRequest, Job, MediaLine, OpenError, OpenLink};
 use crate::{
     Command, LoadFlow, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams, Ticket,
     TypedText,
@@ -95,6 +96,8 @@ pub struct StageCx {
     pub request: EventHandler<HostRequest>,
     /// What the window holds of an open PDF: the tiles, the hits, the thumbnails.
     pub pdf: PdfShelf,
+    /// What the window holds of the recording that plays: the position, the lists.
+    pub media: MediaShelf,
     /// The scheme the content is drawn in, for a sealed frame that cannot inherit it.
     pub frame: FrameLook,
 }
@@ -107,12 +110,23 @@ pub struct FrameLook {
     pub attributes: String,
 }
 
+/// What becomes of a document when the person walks away from its file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Leaving {
+    /// It is kept as it was left, so coming back to the file needs no open.
+    Keep,
+    /// It is let go: a recording that kept its player would go on playing unseen.
+    Release,
+}
+
 /// One family of formats in the viewer's full tier.
 pub trait StageView: 'static {
     /// The family of stage machine this draws.
     const FAMILY: crate::StageFamily;
     /// Whether a file of this family has a first frame cheaper than the full open.
     const FLOW: LoadFlow = LoadFlow::OpenOnly;
+    /// What happens to the document when the person leaves its file.
+    const LEAVING: Leaving = Leaving::Keep;
     /// What opening a file makes: the decoded picture, the text index.
     type Doc: Debug + Send + Sync + 'static;
 
@@ -175,6 +189,10 @@ pub trait StageView: 'static {
     fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
         None
     }
+    /// The line to the player, for a family that plays.
+    fn line(_doc: &Self::Doc) -> Option<Arc<dyn MediaLine>> {
+        None
+    }
 }
 
 /// A loaded document of any family, as the window reads it.
@@ -193,6 +211,8 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
+    fn leaving(&self) -> Leaving;
+    fn line(&self) -> Option<Arc<dyn MediaLine>>;
 }
 
 /// A document of family `S`, which is how it knows how to draw itself.
@@ -248,5 +268,13 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {
         S::search(&self.doc, ticket, query)
+    }
+
+    fn leaving(&self) -> Leaving {
+        S::LEAVING
+    }
+
+    fn line(&self) -> Option<Arc<dyn MediaLine>> {
+        S::line(&self.doc)
     }
 }

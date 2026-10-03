@@ -3,7 +3,7 @@
 
 use super::outcome::Declined;
 use anyview_core::{FileAction, FileName, FilePath, FormatKind, Resume, Source};
-use anyview_ui::{HostRequest, Probed};
+use anyview_ui::{ExportDraft, HostRequest, Presentation, Probed};
 
 /// The file a window shows, as the host last heard of it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -13,6 +13,11 @@ impl Shown {
     /// What the window shows, once it has told the host.
     pub fn file(&self) -> Option<&Probed> {
         self.0.as_ref()
+    }
+
+    /// The window is now at `resume` in its file, as the last request said.
+    pub fn remembering(self, resume: Resume) -> Shown {
+        Shown(self.0.map(|probed| Probed { resume, ..probed }))
     }
 
     /// The window shows the file `path` names now, after the host moved it.
@@ -46,6 +51,9 @@ pub enum WindowTask {
     Watch(FilePath),
     /// Stop telling the window about changes.
     Unwatch,
+    /// Open the file shown in a window of its own presentation, and close this one: the window
+    /// is made again rather than resized, since a window cannot change its own frame.
+    Reopen(Presentation),
 }
 
 /// Work for the desktop. Each names the file it is about: the window may move on while a task
@@ -70,6 +78,13 @@ pub enum Task {
     Rename { file: FilePath, to: FileName },
     /// Copy the file beside itself under a free name.
     Duplicate(FilePath),
+    /// Play the file with no window, from where the person left it.
+    PlayInBackground(Probed),
+    /// Write a media export of the file beside it: a cut, the audio, or the frame on screen.
+    ExportMedia {
+        file: Probed,
+        choice: anyview_core::MediaExport,
+    },
 }
 
 /// The task for `request`, and what the window shows afterwards.
@@ -81,8 +96,8 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         }
         HostRequest::CloseWindow => (shown, Carry::Window(WindowTask::Close)),
         HostRequest::PickFile => declined(shown, Declined::PickFile),
-        HostRequest::Export(_) => declined(shown, Declined::Export),
-        HostRequest::Present(_) => declined(shown, Declined::Present),
+        HostRequest::Export(draft) => export(shown, draft),
+        HostRequest::Present(presentation) => present(shown, presentation),
         HostRequest::OpenUri(_) => declined(shown, Declined::OpenUri),
         HostRequest::Trash => about_file(shown, |probed| {
             Carry::Desktop(Task::Trash(probed.source.path().clone()))
@@ -96,12 +111,15 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
             }),
             Err(_) => declined(shown, Declined::NotAFileName),
         },
-        HostRequest::Remember(resume) => about_file(shown, |probed| {
-            Carry::Desktop(Task::Remember {
-                source: probed.source.clone(),
-                resume,
-            })
-        }),
+        HostRequest::Remember(resume) => {
+            let (shown, carry) = about_file(shown, |probed| {
+                Carry::Desktop(Task::Remember {
+                    source: probed.source.clone(),
+                    resume: resume.clone(),
+                })
+            });
+            (shown.remembering(resume), carry)
+        }
         HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
         HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
         HostRequest::Run(action) => run(shown, action),
@@ -143,6 +161,7 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
                 Carry::Declined(Declined::PrintNeedsPdf)
             }
         }),
+        // The viewer opens the export sheet for this; the sheet's answer is `HostRequest::Export`.
         FileAction::Export => declined(shown, Declined::Export),
         FileAction::Rename | FileAction::ConvertTo => declined(shown, Declined::NeedsSheet),
         FileAction::CopyFile => declined(shown, Declined::CopyFile),
@@ -152,9 +171,39 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
         | FileAction::RotateRight
         | FileAction::FlipHorizontal
         | FileAction::FlipVertical => declined(shown, Declined::Edit),
-        FileAction::PlayInBackground | FileAction::PlayInMiniWindow => {
-            declined(shown, Declined::Playback)
+        FileAction::PlayInBackground => about_file(shown, |probed| {
+            Carry::Desktop(Task::PlayInBackground(probed.clone()))
+        }),
+        FileAction::PlayInMiniWindow => {
+            (shown, Carry::Window(WindowTask::Reopen(Presentation::Mini)))
         }
+    }
+}
+
+/// An export the window's sheet confirmed. Only recordings are written here: the other formats'
+/// exports wait for the export pipeline.
+fn export(shown: Shown, draft: ExportDraft) -> (Shown, Carry) {
+    match draft {
+        ExportDraft::Media(choice) => about_file(shown, |probed| {
+            Carry::Desktop(Task::ExportMedia {
+                file: probed.clone(),
+                choice,
+            })
+        }),
+        ExportDraft::Raster(_) | ExportDraft::Pdf(_) | ExportDraft::Text(_) => {
+            declined(shown, Declined::Export)
+        }
+    }
+}
+
+/// The window is to be on screen another way. A window is made again to do it; a quick look or
+/// a background session is not something an open window becomes.
+fn present(shown: Shown, presentation: Presentation) -> (Shown, Carry) {
+    match presentation {
+        Presentation::Mini | Presentation::Window => {
+            about_file(shown, |_| Carry::Window(WindowTask::Reopen(presentation)))
+        }
+        Presentation::Peek | Presentation::Background => declined(shown, Declined::Present),
     }
 }
 

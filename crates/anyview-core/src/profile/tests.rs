@@ -82,13 +82,17 @@ const CASES: &[Row] = &[
         FormatKind::Video,
         &[FileAction::Export, FileAction::PlayInMiniWindow],
         &[],
-        StageSupport::PeekOnly,
+        StageSupport::Stage,
     ),
     row(
         FormatKind::Audio,
-        &[FileAction::PlayInBackground],
+        &[
+            FileAction::Export,
+            FileAction::ConvertTo,
+            FileAction::PlayInBackground,
+        ],
         &[],
-        StageSupport::PeekOnly,
+        StageSupport::Stage,
     ),
     row(
         FormatKind::Markdown,

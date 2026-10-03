@@ -1,7 +1,7 @@
 //! The pieces exports share: how a raster image is encoded and how it is resized first.
 
 use super::extension::ExportExtension;
-use crate::units::{Percent, Permille, PixelLen, Quality};
+use crate::units::{Bitrate, Percent, Permille, PixelLen, Quality};
 
 /// A raster encoding with the options it has. WebP is lossless only (the pure-Rust encoder has no
 /// lossy mode), so it carries none; there is no HEIC or JPEG XL target because no pure-Rust
@@ -53,4 +53,41 @@ pub enum Resize {
     Scaled(Permille),
     /// Scale so the longer side has this many pixels.
     LongEdge(PixelLen),
+}
+
+/// What audio is written as: the track as it is, or a re-encode with the options it has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AudioTarget {
+    /// The track as it is, with no re-encode.
+    Copy,
+    /// AAC in an M4A file.
+    M4a(Bitrate),
+    /// MP3.
+    Mp3(Bitrate),
+    /// Lossless FLAC.
+    Flac,
+    /// Uncompressed 16-bit WAV.
+    Wav,
+    /// Opus in an Ogg file.
+    Opus(Bitrate),
+}
+
+impl AudioTarget {
+    /// The bitrate a new lossy export starts at.
+    pub fn default_bitrate() -> Bitrate {
+        Bitrate::from_kbps(192)
+    }
+
+    /// The extension of the file this writes: fixed for a re-encode, and left to the back end
+    /// for a copy, which takes the extension of the codec it carries.
+    pub fn extension(self) -> ExportExtension {
+        match self {
+            AudioTarget::Copy => ExportExtension::Matching,
+            AudioTarget::M4a(_) => ExportExtension::M4a,
+            AudioTarget::Mp3(_) => ExportExtension::Mp3,
+            AudioTarget::Flac => ExportExtension::Flac,
+            AudioTarget::Wav => ExportExtension::Wav,
+            AudioTarget::Opus(_) => ExportExtension::Opus,
+        }
+    }
 }

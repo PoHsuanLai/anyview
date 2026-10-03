@@ -24,11 +24,18 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Video, audio, books, office documents and
-  unknown files are `FactsPeek`: the type, the size and the date, with no duration, no cover and no
-  listing. Each ends when its crate lands (`anyview-media`, and the cover peeks) and the registry's arm
-  names the real peek. A book or office file that is a zip is an archive here, because opening the zip
-  for its cover is not done yet.
+- **The kinds with no back end show only what sniffing says.** Books, office documents and unknown files
+  are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
+  lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
+  because opening the zip for its cover is not done yet. Video and audio have libav's peeks (duration, size,
+  codecs, tags, an audio file's cover); a video has no poster in the pane, which the plan leaves to the
+  thumbnail cache the viewer fills.
+- **The launcher's pane links libav.** `anyview-peek` takes `anyview-media` with its `ffmpeg` feature, so
+  libavformat, libavcodec, libavutil and libswresample are loaded by the launcher's process (libmpv and the
+  GPU player are not: the `player` feature is never on for it). The tree is 574 packages (with the archive and
+  font crates) against the budget of 580, about eleven of them `ffmpeg-next`, `ffmpeg-sys-next` and the build-time bindgen. Ends if
+  the launcher's start-up shows the cost: the probe can then move behind a process of its own, or the pane
+  can show the type, the size and the date for recordings, as before.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -211,11 +218,21 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
   Ends when they are added there (quire FINDINGS).
 - **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 9 v w Space ⇧← ⇧→
-  PageUp PageDown ⌘F ⌘G ⇧⌘G`. Ends when the viewer has a keymap setting; the palette shows the
+  PageUp PageDown ⌘F ⌘G ⇧⌘G` and, for a recording, `[ ] ⌫ n p a s . , i o` (slower, faster, normal speed,
+  next and previous chapter, next audio track, next subtitles, a frame forward and back, the trim's start and
+  end). Ends when the viewer has a keymap setting; the palette shows the
   same keys.
 - **Mini stays when the file stops being media.** Walking the sequence from a video in the mini
   window to an image leaves the presentation `Mini`; `Presentation` only leaves `Mini` on
   `ToWindow`. Ends when the root promotes the window as the stage family changes.
+- **The mini window is a window made again.** A window cannot resize or restyle itself (`HostWindow` has no
+  such call), so "Play in Mini Window" opens a new 480 by 270 borderless window for the file, picking up
+  the place the old one wrote (the host flushes it first), and closes the old one. The compositor chooses
+  where the new one goes. A press on the picture moves it (`begin_move`), so a click on the picture does
+  not toggle playback there: the capsule and Space do. Ends when `HostWindow` can set a size and a frame.
+- **Keeping the mini window above is asked for and refused.** `Reopen(Mini)` asks `WindowStacking` for
+  `KeepAbove` and says once on stderr that the desktop does not allow it (Linux answers `Unsupported`).
+  Ends with the platform binding a protocol (see `WindowStacking has no Linux protocol`).
 - **Rotating a zoomed image refits it.** A centre in the old orientation has no meaning in the
   new one, so `RasterStage` returns to `Fitted` with the new turn. Ends if a rotated view should
   keep its zoom: the centre then needs rotating about the content's middle.
@@ -224,12 +241,12 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Find hits are addressed by index.** The stages hold the hit count and the current index; the
   edge keeps the hits and maps an index to a place. A document whose hits change while a find is
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
-- **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON
-  and PDF have a stage (images, text shown as source, PDF pages as tiles); video, audio, fonts, archives,
-  books, office documents, folders and unknown files are `PeekOnly`. The registry (`families/registry.rs`)
-  maps each `PeekOnly` kind to the facts-and-Open-With… view, and a test holds the two tables equal. Each
-  row changes with the stage that lands: video and audio with `anyview-media`, and the registry names the
-  new view in the same change.
+- **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON,
+  PDF, video and audio have a stage (images, text shown as source, PDF pages as tiles, a recording as the
+  player's picture or an album card); fonts, archives, books, office documents, folders and unknown files
+  are `PeekOnly`. The registry (`families/registry.rs`) maps each `PeekOnly` kind to the
+  facts-and-Open-With… view, and a test holds the two tables equal. Each row changes with the stage that
+  lands, and the registry names the new view in the same change.
 - **A place is written at most every 500 ms.** Every settled gesture of a stage says `HostRequest::Remember`
   (a PDF's wheel and a text's scroll make dozens a second), so the host keeps the latest place of each file
   (`host/remembering.rs`) and writes it `REMEMBER_EVERY` after the first, on the blocking pool, and what is still
@@ -270,7 +287,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`WindowStacking` has no Linux protocol.** `NoStacking` answers `Unsupported` for `KeepAbove`: Wayland
   clients cannot place themselves, and COSMIC's protocol is not bound. Ends when `anyview-platform` binds a
   compositor protocol (the shell's layer or a COSMIC toplevel-management request) and the binary passes a
-  window handle to `request`.
+  window handle to `request`. The mini window asks for it and reports the refusal.
 - **Open With is simple.** `apps_for` matches the exact MIME type: no `mime` subclass or alias (so
   `text/x-rust` is not offered the editors of `text/plain`), no `OnlyShowIn`, `TryExec` or `Terminal=true`,
   entries in subdirectories of `applications/` are found by scan but not by id (`kde-foo.desktop`), names are
@@ -314,23 +331,93 @@ on. It is a reference, not a log: how each was found lives in git history.
   next full save's garbage collection; an outline entry or link that led to a deleted page then leads
   nowhere (`OutlineEntry::page` is `None`, a link is `Other`).
 
-- **The media thread is proven headless, not in a window.** `crates/anyview/tests/media_thread.rs`
-  plays through a device made without a surface and samples the picture in its own pass; a real
-  window's `TextureLayer` (`Gpu::register_view` of the player's view, `TextureHandle::redraw` from the
-  media thread) is not exercised. Ends when the viewer's media view lands: run the same scenario
-  against `ds-blitz`'s `Gpu` and keep the test.
+- **The media thread is proven headless, and the window's texture is fed by it.** `crates/anyview/tests/media_thread.rs`
+  runs the real `anyview_media::Driver` on an actor thread of the runtime, builds a device with no
+  surface and samples the picture on the test thread in its own render pass (11 frames, 9 distinct, none
+  black, every poll on one thread that is not the UI thread). `crates/anyview/tests/media_hub.rs` runs
+  `PlayerHost` against a `Gpu` made on such a device: the media thread's sink calls
+  `TextureHandle::replace_view` and `redraw`, and the handle's size becomes the player's slot. The window
+  itself (`TextureLayer` of that handle) is drawn in the real binary (the `ANYVIEW_SHOTS` pictures of
+  the media window were made under the harness with a scripted player; the real binary was run by hand on
+  Wayland, see the report of the change that landed it).
 - **`Player` hands out a `TextureView`, and its texture is replaced when the slot changes size.**
-  `Picture::Shown` is the only way to the picture, so a layer registers it with
-  `Gpu::register_view` (wgpu's `TextureView::texture` is not needed), and every `set_slot` to a
-  new size makes a new texture that must be registered again. The media actor re-announces the view
-  after each size change. Ends if `mpv-wgpu-player` offers a stable texture or a texture-changed event.
-- **`mpv-wgpu-player` and `pollster` sit below the pinned block.** They are dev-dependencies of `anyview`
-  (the spike), the player at mpv-wgpu `8880898` (master), which resolves the one `wgpu` 29.0.4 the
-  tree already has. Ends when the viewer links the player as a normal dependency: add both to quire's
-  `docs/workspace-deps.toml` first (CONVENTIONS section 10), then copy the block here.
-- **The spike's fixtures are the sibling `mpv-wgpu` checkout's.** `media_thread.rs` reads
-  `../mpv/crates/mpv-wgpu-player/tests/fixtures/clip.mkv` and is `#[ignore]` (it needs libmpv, a GPU
-  adapter and that checkout). Ends when the media crate carries its own small clip under `tests/fixtures/`.
+  `Picture::Shown` is the only way to the picture, so the window's handle shows it with
+  `TextureHandle::replace_view`, and every `set_slot` to a new size makes a new texture that must be
+  shown again. The driver announces the texture to its `FrameSink` once, and again after each slot
+  change. A window that is dragged larger makes a texture for each size it passes through. Ends if
+  `mpv-wgpu-player` offers a stable texture or a texture-changed event.
+- **`mpv-wgpu-player`, `ffmpeg-next` and `pollster` sit below the pinned block.** They are
+  `anyview-media`'s, the player at mpv-wgpu `8880898` (master), which resolves the one `wgpu` 29.0.4 the
+  tree already has, and none is shared with quire, shell-host or sill, so they stay outside the block like
+  `jxl-oxide` (CONVENTIONS section 10: the block is for what the repos share). Ends if another repo
+  links either: they then move into quire's `docs/workspace-deps.toml` first.
+- **The media crate carries its own fixtures.** `crates/anyview-media/tests/fixtures/` holds `clip.mkv`
+  (3 s, mpeg4 64 by 48, two Vorbis tracks, a subtitle track, chapters), `tone.flac` (2 s) and
+  `cover.mp3` (2 s with an attached PNG), each under 20 KB, copied from the sibling `mpv-wgpu` checkout's
+  player tests. The peek, UI and binary tests reach them by path.
+- **`ffmpeg-next` is 8.1: the major that matches this machine's FFmpeg 8.1.2 (libavcodec 62).** Checked: 8.1.0
+  and 9.0.0 build here; 6.1.1 and 7.1.0 fail in their build scripts against FFmpeg 8. The crate detects the
+  installed libav at build time and sets `ffmpeg_N_M` cfgs (thresholds from 3.0 to 9.0), so one release
+  is meant to build against the older libavs the distros ship, but only FFmpeg 8 is built and tested here.
+  As far as I know the distros ship Ubuntu 24.04 6.1 (libavcodec 60), Debian 12 5.1 (59), Debian 13 7.1
+  (61) and Fedora 44 8.1 (62); the plan's "Debian and Ubuntu ship 6.x" holds for Ubuntu 24.04 only. A 6.x
+  build needs `libavcodec-dev`, `libavformat-dev`, `libavutil-dev`, `libswresample-dev`, `pkg-config` and
+  libclang (bindgen), and should select the older channel-layout API through the cfgs; the code uses only
+  channel-layout calls present under both. Unverified: no 6.x headers are installed here. Ends when CI has
+  a 6.x image: build and test there, and pin `ffmpeg-next` to the older major if it fails.
+- **cargo-deny sees crates, not the libraries they link.** `ffmpeg-next` and `ffmpeg-sys-next` are WTFPL (no
+  condition; allowed by name in `deny.toml`, not for every crate), and `rsmpv-sys` and the rest pass as MIT.
+  libav and libmpv are LGPL, loaded as shared libraries and never copied here, which no licence check
+  can verify: it holds because `anyview-media` is the one crate that names either library, and the
+  `-sys` crates link with `pkg-config` rather than building their own copy (the `build` features are off).
+- **libav's encoders are detected, not assumed.** `Encoders::detect` asks the loaded libav whether it can write
+  each target: AAC for M4A, libmp3lame for MP3, FLAC, 16-bit PCM for WAV, libopus (else the native Opus)
+  for Opus. Here every one is present (aac, libmp3lame, flac, pcm_s16le, libopus); a libav built without
+  one reports it by name (`MediaError::EncoderMissing`) and `Encoders::missing` lists the absent ones.
+  Copying a track needs no encoder.
+- **libav workarounds.** `ffmpeg-next`'s `Packet::write` refuses an empty packet, which FLAC's final
+  header arrives in, so `flac.rs` patches the total sample count into STREAMINFO after the trailer; a stream
+  copy cannot clear `codec_tag` without `unsafe`, so it keeps tags and relies on the muxers; `format::input`
+  and `output` unwrap a path that is not UTF-8, so the paths are checked first; Ogg keeps comments on the
+  stream, not the container; AAC at 96 kbit/s mono 8 kHz logs "Too many bits … clamping", which is harmless.
+- **A trim is a copy cut at the keyframe at or before its start.** The part kept begins at that keyframe, not
+  at the mark (clip.mkv's keyframes are at 0.03, 1.23 and 2.43 s, so a cut from 1.5 s starts at 1.23 s and
+  is about 1.27 s long for a mark at 2.5 s), and ends at the first packet past the end mark. It is written
+  beside the source as `<name> trimmed.<ext>`; saving a trim in place waits for the save pipeline
+  (PLAN phase E).
+- **The end of a file mpv holds open is read from the position.** With `keep-open` mpv pauses at the last
+  frame and says nothing but `Playback(Paused)`, so the driver calls it ended when it pauses within a
+  quarter second of the length. A pause in the last quarter second is therefore read as the end, and
+  Play from there starts again from the start. Ends if the player reports `eof-reached`.
+- **No position is reported while a seek is in flight.** The position mpv reports between a seek and its
+  `playback-restart` is where it was, so the driver holds its reports until `SeekDone` (or `Ended`). It
+  is what lets a restored place be applied without the start of the file being reported, and kept, in
+  front of it.
+- **A recording's place is kept once it has moved a second or changed a setting, and never while opening.**
+  `views/arrive.rs` compares what the player reports with what was last kept, and keeps nothing until the
+  stage has left `Opening`, so a player's first report cannot overwrite the place a file was left at.
+  A place is put back with instructions sent at once, which the driver holds until the file opens.
+- **A recording left behind is released, and one ahead is never played.** `StageView::LEAVING` is `Release`
+  for the media view: the document the window leaves is dropped (so its player ends) rather than stashed
+  for a quick return, and a preload carries no player, so a neighbour recording does not open.
+- **The export sheet offers every media export for every recording.** Saving a frame of an audio file
+  without a picture fails with the player's message, and an export of a still frame needs the window
+  that plays the file (a background session has none). Ends when the sheet lists the kinds a file has.
+- **A media export shows no progress and the window cannot stop one.** `ExportRequest::progress` and
+  `ExportHandle::stop` exist and are tested, but no view shows a progress or offers Stop, so the desktop task
+  reports only how it ended. Ends with the export pipeline's progress sheet (PLAN phase E).
+- **The desktop has one now-playing entry for every player.** It shows the session that last started playing,
+  and its controls act on that one. Two windows playing at once share it. Next and Previous are not
+  offered (`skip` is `Cannot`): walking the sequence is a window's. `Raise` does nothing; `Quit` ends
+  the viewer.
+- **The volume slider is scaled to 150 percent.** The recording's own level (100) sits at two thirds of the
+  slider, since mpv amplifies to 150.
+- **The audio driver is `ANYVIEW_AUDIO_OUTPUT`.** `auto` (the default), `pulse`, `pipewire`, `alsa` or `null`,
+  read once into `Env`; a name that is none of them is said and ignored. `null` plays nothing: it is how the
+  tests and a run on a machine with a person asleep nearby are made quiet.
+- **A process that plays with no window stays up.** `Play` (the command line or the bus) starts a player with
+  no window, held by `ds_blitz::AppHandle::hold`; stopping it from the now-playing entry (or its recording
+  ending) lets the hold go, and the process exits one `WARM_FOR` later if no window opened.
 - **A pool shared by several back ends has one worker scratch per back end per thread.** A back end whose
   scratch is large (pdfrum's `RenderSession` caches) is held by every worker that ran one of its jobs, up
   to the pool size. Ends if memory shows it: give that back end its own smaller `Pool`.
@@ -431,8 +518,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
   renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 580 distinct packages;
-  `anyview-peek` is 562 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
-  `anyview-archive` and `skrifa` the rest.
+  `anyview-peek` is 574 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  `anyview-archive`, `skrifa` and libav's bindings the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those
   manifests name; they apply only at a workspace root, so they live in this root. They were added with

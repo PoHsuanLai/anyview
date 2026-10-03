@@ -5,6 +5,7 @@
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
+use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::seams::{FirstFrameSource, Forgetful, NoPictures, ResumeSource};
 use crate::sheet::ExportDraft;
 use crate::{Presentation, Ticket, TypedText};
@@ -147,6 +148,7 @@ pub struct Edge {
     highlighter: Arc<Highlighter>,
     resume: Arc<dyn ResumeSource>,
     first_frames: Arc<dyn FirstFrameSource>,
+    media: Arc<dyn MediaHost>,
 }
 
 impl std::fmt::Debug for Edge {
@@ -170,6 +172,7 @@ impl Edge {
             highlighter: Arc::new(Highlighter::new()),
             resume: Arc::new(Forgetful),
             first_frames: Arc::new(NoPictures),
+            media: Arc::new(NoPlayer),
         }
     }
 
@@ -187,6 +190,14 @@ impl Edge {
     pub fn with_first_frames(self, source: Arc<dyn FirstFrameSource>) -> Edge {
         Edge {
             first_frames: source,
+            ..self
+        }
+    }
+
+    /// The same edge starting its players with `host`: without one a recording does not open.
+    pub fn with_media(self, host: Arc<dyn MediaHost>) -> Edge {
+        Edge {
+            media: host,
             ..self
         }
     }
@@ -210,9 +221,21 @@ impl Edge {
     /// What an open of a file into `texture` needs.
     pub(crate) fn link(&self, texture: TextureHandle) -> OpenLink {
         OpenLink {
+            media: Some(MediaPort {
+                host: Arc::clone(&self.media),
+                reply: self.reply.clone(),
+            }),
+            ..self.link_for_preload(texture)
+        }
+    }
+
+    /// What opening a file ahead of the person needs: the same, but it can start no player.
+    pub(crate) fn link_for_preload(&self, texture: TextureHandle) -> OpenLink {
+        OpenLink {
             texture,
             highlighter: Arc::clone(&self.highlighter),
             first_frames: Arc::clone(&self.first_frames),
+            media: None,
         }
     }
 

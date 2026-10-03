@@ -1,0 +1,31 @@
+[package]
+name = "anyview-media"
+description = "Video and audio: the player session over libmpv, the facts and cover art libav reads, and the trim, extraction and conversion libav writes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# The two C libraries are separate features so the launcher can link the one it needs: it takes
+# `ffmpeg` (a recording's facts and cover art) and never `player` (libmpv and the GPU).
+[features]
+default = ["player", "ffmpeg"]
+player = ["dep:mpv-wgpu-player", "dep:wgpu", "dep:pollster"]
+ffmpeg = ["dep:ffmpeg-next"]
+
+[dependencies]
+anyview-core = { workspace = true }
+ds-core = { workspace = true }
+ffmpeg-next = { workspace = true, optional = true }
+mpv-wgpu-player = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+thiserror = { workspace = true }
+wgpu = { workspace = true, optional = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }

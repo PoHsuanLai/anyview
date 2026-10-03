@@ -106,6 +106,8 @@ const AUDIO: &[FileAction] = &[
     Rename,
     Duplicate,
     MoveToTrash,
+    Export,
+    ConvertTo,
     PlayInBackground,
 ];
 const TEXT: &[FileAction] = &[
@@ -157,8 +159,8 @@ fn profile_of(kind: FormatKind) -> KindProfile {
         FormatKind::Pdf => profile("application/pdf", PDF, PDF_EDITS, Stage),
         FormatKind::Raster => profile("image/png", IMAGE, IMAGE_EDITS, Stage),
         FormatKind::Vector => profile("image/svg+xml", VECTOR, NO_EDITS, Stage),
-        FormatKind::Video => profile("video/mp4", VIDEO, NO_EDITS, PeekOnly),
-        FormatKind::Audio => profile("audio/mpeg", AUDIO, NO_EDITS, PeekOnly),
+        FormatKind::Video => profile("video/mp4", VIDEO, NO_EDITS, Stage),
+        FormatKind::Audio => profile("audio/mpeg", AUDIO, NO_EDITS, Stage),
         FormatKind::Markdown => profile("text/markdown", TEXT, NO_EDITS, Stage),
         FormatKind::Code | FormatKind::PlainText => profile("text/plain", TEXT, NO_EDITS, Stage),
         FormatKind::Table => profile("text/csv", PLAIN, NO_EDITS, Stage),

@@ -98,6 +98,11 @@ impl Family for MediaContainer {
 }
 
 impl MediaContainer {
+    /// The extension the container's files are named with, without the dot: its first.
+    pub fn extension(self) -> &'static str {
+        self.extensions()[0]
+    }
+
     /// Whether the container is shown as video or played as audio.
     pub fn kind(self) -> FormatKind {
         match self {

@@ -1,14 +1,18 @@
 //! Assembling the program and running its event loop.
 
-use super::relay::{open_each, open_windows, relay};
+use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
-use crate::host::{CachedPictures, Clock, Hosting, LinuxDesktop, SETTLE, Store, Watcher};
+use crate::host::{
+    CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store, Watcher,
+};
+use crate::media::{MediaHub, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
-use crate::window::{Factory, Opening};
+use crate::window::Factory;
 use anyview_core::FilePath;
-use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails};
+use anyview_media::AudioDriver;
+use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
 use anyview_platform::{Env, Request};
 use anyview_store::{STORE_FOLDER, Viewed};
 use ds::prelude::Appearance;
@@ -55,7 +59,7 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
         }
     };
     let role = runtime.block_on(claim_role(&DbusInstance::new(env.clone()), &request));
-    let (openings, inbox) = unbounded();
+    let (arrivals, inbox) = unbounded();
     // A process the bus started has no file of its own: the call that started it arrives once
     // the name is owned. Without the bus nothing else will ever ask, so a launch with no file is
     // a usage error.
@@ -63,21 +67,21 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     match role {
         Role::Forwarded => return ExitCode::SUCCESS,
         Role::Primary(primary) => {
-            runtime.spawn(relay(primary, openings.clone()));
+            runtime.spawn(relay(primary, arrivals.clone()));
         }
         Role::Alone(error) => {
             eprintln!("anyview: running without single instance: {error}");
         }
     }
-    let first = crate::program::wanted_by(request);
+    let first = wants_of(request);
     if first.is_empty() && !may_wait {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
     }
-    let own = openings.clone();
+    let own = arrivals.clone();
     runtime.spawn(async move { open_each(first, &own).await });
     // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
-    drop(openings);
+    drop(arrivals);
     show(runtime, env, inbox)
 }
 
@@ -93,7 +97,7 @@ fn platform_runtime() -> std::io::Result<Runtime> {
 fn show(
     runtime: Runtime,
     env: Env,
-    inbox: futures_channel::mpsc::UnboundedReceiver<Opening>,
+    inbox: futures_channel::mpsc::UnboundedReceiver<Arrival>,
 ) -> ExitCode {
     let waker = NoticeWaker::default();
     let cores = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
@@ -113,8 +117,26 @@ fn show(
             }
         }
     });
+    let app = AppHandle::new();
+    let audio = audio_driver(env.audio_output.as_deref());
+    let for_bus = env.clone();
+    let hub = MediaHub::start(
+        runtime.handle(),
+        move || async move { NowPlaying::register(&for_bus).await },
+        Some(app.clone()),
+        audio,
+    );
+    let media = Media {
+        hub: hub.clone(),
+        exports: workforce.exports(),
+        scratch: env.dirs.cache.join(STORE_FOLDER),
+    };
     let store = Store::new(&env.dirs.data.join(STORE_FOLDER), clock());
-    let hosting = Arc::new(LinuxDesktop::linux(runtime.handle().clone(), &env, store));
+    let hosting = Arc::new(LinuxDesktop::linux(
+        runtime.handle().clone(),
+        &env,
+        Services { store, media },
+    ));
     let watcher = Watcher::start(SETTLE)
         .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))
         .ok()
@@ -125,9 +147,10 @@ fn show(
         Arc::new(CachedPictures(FreedesktopThumbnails::new(&env))),
         watcher,
         Appearance::default(),
+        Arc::new(PlayerHost::new(hub.clone())),
+        Arc::new(NoStacking),
     );
-    let app = AppHandle::new();
-    runtime.spawn(open_windows(inbox, app.clone(), factory));
+    runtime.spawn(open_windows(inbox, app.clone(), factory, hub.clone()));
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
     // `WARM_FOR`.
@@ -137,12 +160,26 @@ fn show(
         .with_last_window(LastWindowClosed::StayFor(WARM_FOR))
         .with_handle(app);
     launch_idle(config);
-    // The places still waiting to be kept are written before the runtime that waits on them ends.
+    // The places still waiting to be kept are written before the runtime that waits on them ends,
+    // and a player with no window ends with the program.
     hosting.flush();
+    hub.stop_background();
     drop(workforce);
     // The relay and the report task wait on channels that never close; end them with the process.
     runtime.shutdown_background();
     ExitCode::SUCCESS
+}
+
+/// The audio driver the person asked for, or the system's own choice. A name that is not a
+/// driver is said and ignored: the sound should still play.
+fn audio_driver(asked: Option<&str>) -> AudioDriver {
+    match asked {
+        None => AudioDriver::Auto,
+        Some(text) => AudioDriver::from_name(text).unwrap_or_else(|| {
+            eprintln!("anyview: {text:?} is not an audio driver; using the system's");
+            AudioDriver::Auto
+        }),
+    }
 }
 
 /// The wall clock, in whole seconds since the epoch. The one place the program reads the time.

@@ -1,7 +1,12 @@
 use super::support::{PDF, PNG, probed};
 use crate::host::{Carry, Declined, Shown, Task, WindowTask, route};
-use anyview_core::{FileAction, FileName, Resume};
+use anyview_core::{FileAction, FileName, MediaExport, Resume};
 use anyview_ui::{ExportDraft, HostRequest, Presentation, TypedText};
+
+/// The export the sheet confirms for a trim of the whole recording.
+fn media_export() -> ExportDraft {
+    ExportDraft::Media(MediaExport::Trim(anyview_core::TimeRange::WHOLE))
+}
 
 fn requests_of_a_window(
     image: &anyview_ui::Probed,
@@ -153,10 +158,16 @@ fn requests_of_a_window(
             Carry::Declined(Declined::Edit),
         ),
         (
-            "background playback needs the player",
+            "background playback hands the probed file, with the place it was left, to the desktop",
             open(image),
             HostRequest::Run(FileAction::PlayInBackground),
-            Carry::Declined(Declined::Playback),
+            Carry::Desktop(Task::PlayInBackground(image.clone())),
+        ),
+        (
+            "the mini window is a window made again for the file",
+            open(image),
+            HostRequest::Run(FileAction::PlayInMiniWindow),
+            Carry::Window(WindowTask::Reopen(Presentation::Mini)),
         ),
         (
             "a rename without its sheet",
@@ -165,13 +176,40 @@ fn requests_of_a_window(
             Carry::Declined(Declined::NeedsSheet),
         ),
         (
-            "the mini window is the window layer's",
+            "becoming the mini window is making one",
             open(image),
             HostRequest::Present(Presentation::Mini),
+            Carry::Window(WindowTask::Reopen(Presentation::Mini)),
+        ),
+        (
+            "becoming a window again from the mini window is making one",
+            open(image),
+            HostRequest::Present(Presentation::Window),
+            Carry::Window(WindowTask::Reopen(Presentation::Window)),
+        ),
+        (
+            "a window does not become a quick look",
+            open(image),
+            HostRequest::Present(Presentation::Peek),
             Carry::Declined(Declined::Present),
         ),
         (
-            "an export is not wired",
+            "nor a background session: that is a file action",
+            open(image),
+            HostRequest::Present(Presentation::Background),
+            Carry::Declined(Declined::Present),
+        ),
+        (
+            "a recording's export is written beside it",
+            open(image),
+            HostRequest::Export(media_export()),
+            Carry::Desktop(Task::ExportMedia {
+                file: image.clone(),
+                choice: MediaExport::Trim(anyview_core::TimeRange::WHOLE),
+            }),
+        ),
+        (
+            "an image's export waits for the export pipeline",
             open(image),
             HostRequest::Export(ExportDraft::first_of(anyview_ui::ExportFamily::Raster).unwrap()),
             Carry::Declined(Declined::Export),
@@ -218,5 +256,31 @@ fn the_file_shown_is_the_last_one_opened_and_follows_a_move() {
         moved.file().map(|probed| probed.source.stamp()),
         Some(second.source.stamp()),
         "and nothing else did"
+    );
+}
+
+#[test]
+fn the_window_says_where_it_is_and_the_host_keeps_it_for_the_files_next_task() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = probed(dir.path(), "a.png", PNG);
+    let (shown, _) = route(Shown::default(), HostRequest::Opened(image.clone()));
+    let place = Resume::Media {
+        at: anyview_core::MediaTime::from_secs(90),
+        volume: anyview_core::Volume::FULL,
+        audio: anyview_core::TrackChoice::Auto,
+        subtitles: anyview_core::TrackChoice::Off,
+    };
+    let (shown, carry) = route(shown, HostRequest::Remember(place.clone()));
+    assert_eq!(
+        carry,
+        Carry::Desktop(Task::Remember {
+            source: image.source.clone(),
+            resume: place.clone(),
+        })
+    );
+    assert_eq!(
+        shown.file().map(|probed| probed.resume.clone()),
+        Some(place),
+        "a background session or a new window starts from here"
     );
 }

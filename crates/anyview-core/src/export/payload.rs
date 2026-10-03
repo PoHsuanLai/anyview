@@ -103,3 +103,13 @@ pub enum Subtitles {
     #[default]
     Omit,
 }
+
+/// Which streams of a recording a transcode keeps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Word)]
+pub enum StreamPick {
+    /// Every stream: the recording as it is, cut or not.
+    #[default]
+    Everything,
+    /// The audio track only.
+    AudioOnly,
+}

@@ -13,6 +13,9 @@ anyview-archive = { workspace = true }
 anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }
+# `ffmpeg` only: a recording's facts and cover, read with libav. Never `player`, so libmpv and the
+# GPU player stay out of the launcher's tree.
+anyview-media = { workspace = true, features = ["ffmpeg"] }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }

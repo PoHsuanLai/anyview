@@ -1,5 +1,7 @@
 use super::*;
-use anyview_core::{MediaLength, MediaTime, Percent, TrackChoice, Volume};
+use anyview_core::{
+    ChapterIndex, MediaLength, MediaTime, Percent, Speed, TrackChoice, TrackId, Volume,
+};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
@@ -46,6 +48,22 @@ const fn seek(seconds: u64) -> MediaOut {
 const fn pace(pace: Pace) -> MediaOut {
     MediaOut::Command(PlayerCommand::SetPlayback(pace))
 }
+
+const fn command(command: PlayerCommand) -> MediaOut {
+    MediaOut::Command(command)
+}
+const fn marked(edge: TrimEdge, seconds: u64) -> MediaOut {
+    MediaOut::Marked {
+        edge,
+        at: secs(seconds),
+    }
+}
+const RESTORE: MediaIn = MediaIn::Restore {
+    at: secs(25),
+    volume: Volume::SILENT,
+    audio: TrackChoice::Track(TrackId(2)),
+    subtitles: TrackChoice::Off,
+};
 
 /// Name, state before, input, state after, outputs. Seek steps are 5 s.
 type Case = (
@@ -158,11 +176,11 @@ const CASES: &[Case] = &[
     (
         "a frame step holds first",
         playing(20),
-        MediaIn::FrameStep(FrameDirection::Forward),
+        MediaIn::FrameStep(StepDirection::Forward),
         paused(20),
         &[
             pace(Pace::Paused),
-            MediaOut::Command(PlayerCommand::FrameStep(FrameDirection::Forward)),
+            MediaOut::Command(PlayerCommand::FrameStep(StepDirection::Forward)),
         ],
     ),
     (
@@ -265,10 +283,10 @@ const CASES: &[Case] = &[
     (
         "a frame step while held steps",
         paused(20),
-        MediaIn::FrameStep(FrameDirection::Backward),
+        MediaIn::FrameStep(StepDirection::Backward),
         paused(20),
         &[MediaOut::Command(PlayerCommand::FrameStep(
-            FrameDirection::Backward,
+            StepDirection::Backward,
         ))],
     ),
     (
@@ -373,6 +391,153 @@ const CASES: &[Case] = &[
         "a failed stage ignores the position",
         MediaStage::Failed(MediaError::OpenFailed),
         MediaIn::Position(secs(1)),
+        MediaStage::Failed(MediaError::OpenFailed),
+        &[],
+    ),
+    (
+        "a place left is put back at once: the position, then the volume and the tracks",
+        MediaStage::Opening,
+        RESTORE,
+        MediaStage::Opening,
+        &[
+            seek(25),
+            command(PlayerCommand::SetVolume(Volume::SILENT)),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Audio,
+                choice: TrackChoice::Track(TrackId(2)),
+            }),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Subtitles,
+                choice: TrackChoice::Off,
+            }),
+        ],
+    ),
+    (
+        "a place at the start asks for no seek",
+        MediaStage::Opening,
+        MediaIn::Restore {
+            at: MediaTime(0),
+            volume: Volume::FULL,
+            audio: TrackChoice::Auto,
+            subtitles: TrackChoice::Auto,
+        },
+        MediaStage::Opening,
+        &[
+            command(PlayerCommand::SetVolume(Volume::FULL)),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Audio,
+                choice: TrackChoice::Auto,
+            }),
+            command(PlayerCommand::SelectTrack {
+                kind: TrackKind::Subtitles,
+                choice: TrackChoice::Auto,
+            }),
+        ],
+    ),
+    (
+        "a place is not put back once the recording plays",
+        playing(20),
+        RESTORE,
+        playing(20),
+        &[],
+    ),
+    (
+        "a speed set while opening reaches the player",
+        MediaStage::Opening,
+        MediaIn::SetSpeed(Speed::NORMAL),
+        MediaStage::Opening,
+        &[command(PlayerCommand::SetSpeed(Speed::NORMAL))],
+    ),
+    (
+        "stepping the speed before the file is open is nothing",
+        MediaStage::Opening,
+        MediaIn::StepSpeed(StepDirection::Forward),
+        MediaStage::Opening,
+        &[],
+    ),
+    (
+        "a chapter before the file is open is nothing",
+        MediaStage::Opening,
+        MediaIn::GoToChapter(ChapterIndex(1)),
+        MediaStage::Opening,
+        &[],
+    ),
+    (
+        "a mark before the file is open is nothing",
+        MediaStage::Opening,
+        MediaIn::Mark(TrimEdge::Start),
+        MediaStage::Opening,
+        &[],
+    ),
+    (
+        "stepping the speed tells the player, which knows the speed",
+        playing(20),
+        MediaIn::StepSpeed(StepDirection::Forward),
+        playing(20),
+        &[command(PlayerCommand::StepSpeed(StepDirection::Forward))],
+    ),
+    (
+        "a speed is set while held",
+        paused(20),
+        MediaIn::SetSpeed(Speed::from_thousandths(1500)),
+        paused(20),
+        &[command(PlayerCommand::SetSpeed(Speed::from_thousandths(
+            1500,
+        )))],
+    ),
+    (
+        "cycling the subtitles tells the player",
+        playing(20),
+        MediaIn::CycleTrack(TrackKind::Subtitles),
+        playing(20),
+        &[command(PlayerCommand::CycleTrack(TrackKind::Subtitles))],
+    ),
+    (
+        "the next chapter tells the player",
+        playing(20),
+        MediaIn::StepChapter(StepDirection::Forward),
+        playing(20),
+        &[command(PlayerCommand::StepChapter(StepDirection::Forward))],
+    ),
+    (
+        "a chapter picked from the list tells the player",
+        paused(20),
+        MediaIn::GoToChapter(ChapterIndex(2)),
+        paused(20),
+        &[command(PlayerCommand::GoToChapter(ChapterIndex(2)))],
+    ),
+    (
+        "a mark while playing is where playback is",
+        playing(20),
+        MediaIn::Mark(TrimEdge::Start),
+        playing(20),
+        &[marked(TrimEdge::Start, 20)],
+    ),
+    (
+        "a mark while held is where playback is held",
+        paused(33),
+        MediaIn::Mark(TrimEdge::End),
+        paused(33),
+        &[marked(TrimEdge::End, 33)],
+    ),
+    (
+        "a mark while the slider is held is where the slider is",
+        scrubbing(20, 60, AfterScrub::Play),
+        MediaIn::Mark(TrimEdge::Start),
+        scrubbing(20, 60, AfterScrub::Play),
+        &[marked(TrimEdge::Start, 60)],
+    ),
+    (
+        "a mark at the end is the end",
+        ended(100),
+        MediaIn::Mark(TrimEdge::End),
+        ended(100),
+        &[marked(TrimEdge::End, 100)],
+    ),
+    (
+        "a failed stage marks nothing",
+        MediaStage::Failed(MediaError::OpenFailed),
+        MediaIn::Mark(TrimEdge::Start),
         MediaStage::Failed(MediaError::OpenFailed),
         &[],
     ),

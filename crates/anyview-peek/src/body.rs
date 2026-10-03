@@ -3,6 +3,7 @@
 use crate::described::Described;
 use crate::error::PeekError;
 use crate::folder::FolderSummary;
+use crate::media::MediaLook;
 use crate::pdf::PdfPeeked;
 use anyview_archive::ArchivePeeked;
 use anyview_core::Peek;
@@ -99,6 +100,15 @@ impl From<FontPeeked> for Body {
 impl From<FolderSummary> for Body {
     fn from(peeked: FolderSummary) -> Self {
         Body::Folder(peeked)
+    }
+}
+
+impl From<MediaLook> for Body {
+    fn from(peeked: MediaLook) -> Self {
+        match peeked.cover {
+            Some(cover) => Body::Picture(cover),
+            None => Body::FactsOnly(peeked.described),
+        }
     }
 }
 
