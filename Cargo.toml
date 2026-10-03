@@ -16,6 +16,7 @@ members = [
   "crates/anyview-store",
   "crates/anyview-text",
   "crates/anyview-ui",
+  "plugins/anyview-ffmpeg",
 ]
 
 [workspace.package]
@@ -44,6 +45,7 @@ anyview-pdf = { path = "crates/anyview-pdf" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
+anyview-ffmpeg = { path = "plugins/anyview-ffmpeg" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
