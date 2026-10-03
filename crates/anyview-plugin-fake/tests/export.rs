@@ -21,6 +21,7 @@ fn request(scratch: &Scratch, target: &str) -> (ExportRequest, PathBuf) {
         target: target.to_owned(),
         range: None,
         stream: None,
+        bitrate: None,
     };
     (request, output)
 }

@@ -55,6 +55,10 @@ pub struct Hello {
     pub name: String,
     /// The requests it answers.
     pub provides: Vec<Capability>,
+    /// The export targets it can write on this machine, which may be fewer than its manifest
+    /// lists (a distribution's FFmpeg may lack an encoder). Empty when it does not say.
+    #[serde(default)]
+    pub targets: Vec<String>,
 }
 
 /// `Probe`: facts about a file.
@@ -106,6 +110,9 @@ pub struct ExportRequest {
     /// The stream to keep, by index; the default streams when absent.
     #[serde(default)]
     pub stream: Option<u32>,
+    /// The bitrate of a lossy target, in bits a second; the plugin's own default when absent.
+    #[serde(default)]
+    pub bitrate: Option<u32>,
 }
 
 /// One row of a probe's answer.
@@ -246,6 +253,17 @@ mod tests {
         };
         assert_eq!(request.range, None);
         assert_eq!(request.stream, None);
+        assert_eq!(request.bitrate, None);
+    }
+
+    #[test]
+    fn a_hello_without_targets_still_reads() {
+        let json = r#"{"kind":"hello","v":{"protocol":1,"name":"old","provides":["probe"]}}"#;
+        let message: PluginMessage = serde_json::from_str(json).unwrap();
+        let PluginMessage::Hello(hello) = message else {
+            panic!("a hello");
+        };
+        assert!(hello.targets.is_empty());
     }
 
     #[test]
@@ -255,6 +273,7 @@ mod tests {
                 protocol: PROTOCOL_VERSION,
                 name: "fake".into(),
                 provides: vec![Capability::Probe, Capability::Export],
+                targets: vec!["mp3".into()],
             }),
             PluginMessage::Facts(FactsReply {
                 rows: vec![FactRow {
