@@ -1,6 +1,6 @@
 //! Table tests for the per-kind profile: `actions_for`, `edits_for` and `stage_support`.
 
-use super::{actions_for, edits_for, stage_support};
+use super::{actions_for, edits_for, mime_for, stage_support};
 use crate::action::{FileAction, Reach, reach};
 use crate::edit::EditKind;
 use crate::kind::FormatKind;
@@ -228,5 +228,19 @@ fn a_launcher_row_never_lists_a_viewer_only_action_it_cannot_run() {
             .collect();
         assert!(launcher.contains(&FileAction::Open), "{kind:?}");
         assert!(!launcher.contains(&FileAction::Print), "{kind:?}");
+    }
+}
+
+#[test]
+fn every_kind_has_a_media_type_that_names_it_back() {
+    for kind in FormatKind::ALL {
+        let mime = mime_for(*kind);
+        // Code and plain text share `text/plain`, which names plain text.
+        let want = if *kind == FormatKind::Code {
+            FormatKind::PlainText
+        } else {
+            *kind
+        };
+        assert_eq!(crate::kind_of_mime(&mime), want, "{kind:?} gave {mime:?}");
     }
 }

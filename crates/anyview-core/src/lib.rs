@@ -33,11 +33,11 @@ pub use export::{
 pub use facts::{Fact, FactLabel, FactValue, Facts};
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
-    Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat,
+    Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, kind_of_mime,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Peek, PeekBudget, StageSupport};
-pub use profile::{actions_for, edits_for, stage_support};
+pub use profile::{actions_for, edits_for, mime_for, stage_support};
 pub use resume::{Resume, TrackChoice, TrackId};
 pub use sequence::{
     Neighbours, NonEmpty, ResultsId, Sequence, SequenceMove, SequenceOrigin, SequencePosition,

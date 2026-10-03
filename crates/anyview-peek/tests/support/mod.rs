@@ -17,6 +17,7 @@ pub enum Home {
     Image,
     Text,
     Media,
+    Font,
 }
 
 /// The path of a fixture.
@@ -27,6 +28,7 @@ pub fn path(home: Home, name: &str) -> PathBuf {
         Home::Image => crates.join("anyview-image"),
         Home::Text => crates.join("anyview-text"),
         Home::Media => crates.join("anyview-media"),
+        Home::Font => crates.join("anyview-font"),
     };
     dir.join("tests/fixtures").join(name)
 }
@@ -83,4 +85,24 @@ pub fn rows(facts: &anyview_core::Facts) -> Vec<(&'static str, String)> {
         .iter()
         .map(|fact| (fact.label.slug(), fact.value.as_str().to_owned()))
         .collect()
+}
+
+/// A zip of `entries` (a name ending in `/` is a folder) written as `bundle.zip` in `dir`, handed to
+/// the viewer as a file on disk.
+pub fn zip_on_disk(dir: &Path, entries: &[(&str, &str)]) -> (Source, Sniffed) {
+    use std::io::Write;
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    for (name, body) in entries {
+        if name.ends_with('/') {
+            writer.add_directory(*name, options).unwrap();
+        } else {
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(body.as_bytes()).unwrap();
+        }
+    }
+    let path = dir.join("bundle.zip");
+    std::fs::write(&path, writer.finish().unwrap().into_inner()).unwrap();
+    on_disk(&path, 1_790_951_400_000_000_000)
 }

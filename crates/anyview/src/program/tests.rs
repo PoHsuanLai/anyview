@@ -1,8 +1,8 @@
 use super::*;
-use anyview_core::FilePath;
+use anyview_core::{FilePath, NonEmpty, ResultsId, Resume, Sequence, SequenceOrigin};
 use anyview_platform::linux::DbusInstance;
 use anyview_platform::testing::{FakeInstance, FakeRole};
-use anyview_platform::{Env, Request};
+use anyview_platform::{Env, Handoff, Request};
 use futures_channel::mpsc::unbounded;
 use futures_util::StreamExt;
 use std::time::Duration;
@@ -13,6 +13,17 @@ fn path(text: &str) -> FilePath {
 
 #[test]
 fn a_request_is_what_is_wanted_of_each_file() {
+    let results = Sequence::starting_at(
+        NonEmpty::from_vec(vec![path("/a/1.pdf"), path("/a/2.pdf")]).unwrap(),
+        &path("/a/2.pdf"),
+        SequenceOrigin::Results(ResultsId(5)),
+    )
+    .unwrap();
+    let handed = Handoff {
+        file: path("/a/2.pdf"),
+        resume: Resume::Nothing,
+        sequence: Some(results),
+    };
     let cases = [
         (
             "files keep their order, each for a window",
@@ -33,6 +44,11 @@ fn a_request_is_what_is_wanted_of_each_file() {
             "a play has no window",
             Request::Play(path("/a/1.mp3")),
             vec![Want::Play(path("/a/1.mp3"))],
+        ),
+        (
+            "a handoff keeps its results and its place",
+            Request::Handoff(handed.clone()),
+            vec![Want::Handed(handed)],
         ),
     ];
     for (name, request, want) in cases {
@@ -118,4 +134,49 @@ async fn a_request_forwarded_to_the_viewer_arrives_as_an_opening_per_file() {
         );
         assert_eq!(sequence.current(), &opening.file);
     }
+}
+
+#[tokio::test]
+async fn a_handoff_forwarded_to_the_viewer_opens_the_results_it_names_not_the_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let files: Vec<FilePath> = ["a.pdf", "b.pdf", "c.pdf"]
+        .iter()
+        .map(|name| {
+            std::fs::write(dir.path().join(name), "x").unwrap();
+            path(dir.path().join(name).to_str().unwrap())
+        })
+        .collect();
+    let results = Sequence::starting_at(
+        NonEmpty::from_vec(vec![files[2].clone(), files[0].clone()]).unwrap(),
+        &files[0],
+        SequenceOrigin::Results(ResultsId(9)),
+    )
+    .unwrap();
+    let instance = FakeInstance::new(FakeRole::FirstLaunch);
+    let Role::Primary(primary) = claim_role(&instance, &Request::Open(vec![])).await else {
+        panic!("the first launch is the viewer");
+    };
+    let (openings, mut arrived) = unbounded::<Arrival>();
+    let serving = tokio::spawn(relay(primary, openings));
+
+    instance.forward(Request::Handoff(Handoff {
+        file: files[0].clone(),
+        resume: Resume::Nothing,
+        sequence: Some(results.clone()),
+    }));
+    let Arrival::Window(opening) = tokio::time::timeout(Duration::from_secs(10), arrived.next())
+        .await
+        .unwrap()
+        .unwrap()
+    else {
+        panic!("a handoff is a window");
+    };
+    serving.abort();
+
+    assert_eq!(opening.file, files[0]);
+    assert_eq!(
+        opening.sequence,
+        Some(results),
+        "the walk is the search's results, not the three files of the folder"
+    );
 }
