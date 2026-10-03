@@ -181,7 +181,8 @@ mod tests {
 
     #[test]
     fn a_picture_is_fitted_without_being_enlarged() {
-        const CASES: &[(&str, (u32, u32), Fit, (u32, u32))] = &[
+        type Size = (u32, u32);
+        const CASES: &[(&str, Size, Fit, Size)] = &[
             ("small stays", (64, 48), Fit::Edge(256), (64, 48)),
             ("wide", (1920, 1080), Fit::Edge(256), (256, 144)),
             ("tall", (1080, 1920), Fit::Edge(256), (144, 256)),

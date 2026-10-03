@@ -300,7 +300,7 @@ fn cancel_kills_ffmpeg_and_removes_the_partial_file() {
         }
     );
     assert!(
-        steps >= 2 && steps < 15,
+        (2..15).contains(&steps),
         "it stopped early, after {steps} steps"
     );
     assert!(!output.exists());
