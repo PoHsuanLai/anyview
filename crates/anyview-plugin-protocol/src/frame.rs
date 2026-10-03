@@ -156,8 +156,10 @@ impl FrameDecoder {
             return Ok(None);
         }
         let message = parse(&self.buffer[HEADER..HEADER + json_len])?;
-        let payload = self.buffer[HEADER + json_len..total].to_vec();
-        self.buffer.drain(..total);
+        // Whatever follows this frame stays; the frame's own bytes become its payload.
+        let rest = self.buffer.split_off(total);
+        let mut payload = std::mem::replace(&mut self.buffer, rest);
+        payload.drain(..HEADER + json_len);
         Ok(Some(Frame { message, payload }))
     }
 
