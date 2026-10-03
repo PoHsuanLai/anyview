@@ -12,19 +12,21 @@ mod folder;
 mod media;
 mod pane;
 mod pdf;
+mod probe;
 mod registry;
 mod when;
 
 pub use any::{AnyPeeked, peek};
 pub use body::{Body, Light};
 pub use described::{
-    ArchiveKind, ArchivePeek, BookKind, BookPeek, Described, Describes, FactsPeek, FontKind,
-    FontPeek, OfficeKind, OfficePeek, OtherKind, OtherPeek,
+    BookKind, BookPeek, Described, Describes, FactsPeek, OfficeKind, OfficePeek, OtherKind,
+    OtherPeek,
 };
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
 pub use media::{AudioPeek, MediaLook, VideoPeek};
 pub use pane::{Pane, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
+pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;

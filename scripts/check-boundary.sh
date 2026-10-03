@@ -22,6 +22,10 @@ cd "$(dirname "$0")/.."
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
+# anyview-archive and anyview-font are the same kind of blocking back end: no runtime, no bus, no GPU,
+# no UI, no Blitz, no player, no image decoder, highlighter or Markdown parser. The archive crate is
+# the one that names the container codecs (zip, tar, 7z, gzip, bzip2, xz, Zstandard), and the font
+# crate the one that names skrifa for reading a face; neither reaches the other's.
 # anyview-platform is the edge: it alone names the bus and the freedesktop formats (checked for every
 # other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
@@ -51,6 +55,8 @@ RULES=(
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
+  "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
+  "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
   "anyview-peek: mpv-wgpu-player rsmpv zbus ashpd"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
   "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender"
@@ -68,10 +74,11 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 532 today,
-# almost all of it `ds` and `ds-blitz`, which the launcher already links.
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 574 today:
+# about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
+# of anyview-archive, skrifa and libav's bindings (anyview-media, `ffmpeg` feature).
 BUDGETS=(
-  "anyview-peek: 560"
+  "anyview-peek: 580"
 )
 fail=0
 
@@ -142,8 +149,10 @@ EDGES=(
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core ds-core"
-  "anyview-peek: anyview-core anyview-image anyview-media anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-media anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
+  "anyview-archive: anyview-core ds-core"
+  "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
 )
 for edge in "${EDGES[@]}"; do

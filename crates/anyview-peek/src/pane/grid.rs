@@ -1,5 +1,7 @@
 //! The first rows of a table and the top level of a tree, both as quire's `Table`.
 
+use anyview_archive::{ArchivePeeked, EntryKind};
+use anyview_core::FactValue;
 use anyview_text::{RowLabel, TablePeeked, TreePeeked, TreeRow};
 use dioxus::prelude::*;
 use ds::components::lists::table::model::{Sorting, TableColumn, TableRow};
@@ -41,6 +43,32 @@ pub(super) fn tree(peeked: &TreePeeked) -> Element {
         TableRow::new(at, key, cells)
     });
     grid(vec!["Key".to_owned(), "Value".to_owned()], rows.collect())
+}
+
+/// The first entries of an archive: each one's path (a folder's ends in `/`) and its size.
+pub(super) fn archive(peeked: &ArchivePeeked) -> Element {
+    let rows = peeked
+        .listing
+        .entries
+        .iter()
+        .enumerate()
+        .map(|(at, entry)| {
+            let name = match entry.kind {
+                EntryKind::Directory if !entry.path.ends_with('/') => format!("{}/", entry.path),
+                EntryKind::Directory | EntryKind::File | EntryKind::Link | EntryKind::Other => {
+                    entry.path.clone()
+                }
+            };
+            let size = match (entry.kind, entry.size) {
+                (EntryKind::File, Some(size)) => FactValue::size(size).as_str().to_owned(),
+                (
+                    EntryKind::File | EntryKind::Directory | EntryKind::Link | EntryKind::Other,
+                    _,
+                ) => String::new(),
+            };
+            TableRow::new(at, name.clone(), vec![cell(&name), cell(&size)])
+        });
+    grid(vec!["Name".to_owned(), "Size".to_owned()], rows.collect())
 }
 
 fn key_text(row: &TreeRow) -> String {

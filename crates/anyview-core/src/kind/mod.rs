@@ -9,6 +9,7 @@ mod family;
 mod font;
 mod media;
 mod mime;
+mod of_mime;
 mod office;
 mod opened;
 mod raster;
@@ -23,13 +24,14 @@ pub use encoding::TextEncoding;
 pub use font::FontFormat;
 pub use media::MediaContainer;
 pub use mime::Mime;
+pub use of_mime::kind_of_mime;
 pub use office::OfficeFormat;
 pub use opened::opened_mimes;
 pub use raster::RasterFormat;
 pub use syntax::SyntaxName;
 pub use tree::TreeFormat;
 
-pub(crate) use family::{Family, from_extension};
+pub(crate) use family::{Family, from_extension, from_mime};
 pub(crate) use syntax::{for_extension as syntax_for_extension, for_name as syntax_for_name};
 
 use ds_core::word::Word;

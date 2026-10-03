@@ -4,10 +4,12 @@
 
 use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
-use crate::host::{Carry, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route};
-use anyview_core::FilePath;
+use crate::host::{
+    Carry, HandedResume, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route,
+};
+use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
-use anyview_ui::{Edge, HostRequest, Launch, Presentation, ViewerApp};
+use anyview_ui::{Edge, HostRequest, Launch, Presentation, ResumeSource, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSpec, clipboard};
@@ -76,7 +78,7 @@ impl Wiring {
             // A window that closed has no receiver, and nobody is left to ask.
             let _gone = send.unbounded_send(request);
         })
-        .with_resume_source(Arc::clone(&seed.factory.resume))
+        .with_resume_source(resume_of(seed))
         .with_first_frames(Arc::clone(&seed.factory.first_frames))
         .with_media(Arc::clone(&seed.factory.media));
         let launch = Launch {
@@ -90,6 +92,23 @@ impl Wiring {
             launch,
             requests: Rc::new(RefCell::new(Some(receive))),
         }
+    }
+}
+
+/// Where the window's file was left: the store's memory, except that a place the launcher's pane
+/// handed over is the first answer for the file it was handed with.
+fn resume_of(seed: &Seed) -> Arc<dyn ResumeSource> {
+    let stored = Arc::clone(&seed.factory.resume);
+    match &seed.opening.resume {
+        Resume::Nothing => stored,
+        place @ (Resume::Raster { .. }
+        | Resume::Pdf { .. }
+        | Resume::Media { .. }
+        | Resume::Text { .. }) => Arc::new(HandedResume::new(
+            seed.opening.file.clone(),
+            place.clone(),
+            stored,
+        )),
     }
 }
 

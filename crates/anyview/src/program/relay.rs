@@ -5,7 +5,7 @@
 use crate::media::MediaHub;
 use crate::window::{Factory, Opening, Seed, open_in_window};
 use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Resume};
-use anyview_platform::{Primary, Request};
+use anyview_platform::{Handoff, Primary, Request};
 use anyview_ui::Presentation;
 use ds_blitz::AppHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -23,10 +23,12 @@ pub enum Arrival {
 /// What a request asks of one file, before the folder around it is listed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Want {
-    /// Show it in a window.
+    /// Show it in a window, with the files of its folder around it.
     Show(FilePath),
     /// Play it with no window.
     Play(FilePath),
+    /// Show a file the launcher handed over with its results and its place.
+    Handed(Handoff),
 }
 
 /// The files a request asks for and what is wanted of each. A peek shows like an open until the
@@ -36,6 +38,7 @@ pub fn wants_of(request: Request) -> Vec<Want> {
         Request::Open(files) => files.into_iter().map(Want::Show).collect(),
         Request::Peek(file) => vec![Want::Show(file)],
         Request::Play(file) => vec![Want::Play(file)],
+        Request::Handoff(handed) => vec![Want::Handed(handed)],
     }
 }
 
@@ -52,6 +55,7 @@ pub async fn open_each(wants: Vec<Want>, arrivals: &UnboundedSender<Arrival>) {
                 Arrival::Window(opening)
             }
             Want::Play(file) => Arrival::Background(file),
+            Want::Handed(handed) => Arrival::Window(Opening::handed(handed)),
         };
         if arrivals.unbounded_send(arrival).is_err() {
             return;

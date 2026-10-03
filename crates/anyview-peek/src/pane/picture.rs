@@ -3,7 +3,6 @@
 
 use anyview_image::ImagePeek;
 use dioxus::prelude::*;
-use ds::components::lists::preview::content::PANE_MEDIA;
 use ds::components::overlays::skeleton::{Skeleton, SkeletonShape};
 use ds::root::common::Common;
 use ds_blitz::{PixelFormat, Pixels, TextureFit, TextureLayer, use_gpu};
@@ -11,7 +10,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// `image` fitted into the pane's media box. The device arrives with the window's first frame, so
+/// `image` fitted into the pane's media box (the box is the picture's: it fills it and the layer fits the
+/// picture inside at its own aspect). The device arrives with the window's first frame, so
 /// until then (and on a renderer with no device, which draws no texture at all) the box shows a
 /// placeholder block instead of a blank.
 #[component]
@@ -43,12 +43,8 @@ pub(super) fn Picture(image: Arc<ImagePeek>, label: String) -> Element {
         }
         uploaded_now
     };
-    let room = format!(
-        "width:{}px;height:{}px",
-        PANE_MEDIA.width.0, PANE_MEDIA.height.0
-    );
     rsx! {
-        div { class: "anyview-picture", "data-state": if shown { "ready" } else { "pending" }, style: room,
+        div { class: "anyview-picture", "data-state": if shown { "ready" } else { "pending" },
             TextureLayer {
                 texture: Some(texture.clone()),
                 fit: TextureFit::Contain,

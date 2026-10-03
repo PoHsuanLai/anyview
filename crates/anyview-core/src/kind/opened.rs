@@ -121,4 +121,13 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn every_opened_type_names_a_kind_with_a_stage() {
+        use crate::kind::kind_of_mime;
+        for mime in opened_mimes() {
+            let kind = kind_of_mime(&mime);
+            assert_eq!(stage_support(kind), StageSupport::Stage, "{}", mime.as_str());
+        }
+    }
 }
