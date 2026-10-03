@@ -659,3 +659,19 @@ on. It is a reference, not a log: how each was found lives in git history.
   `anyview_pdf::Priority`) is mapped to the pool's `Lane` by `seam/workforce.rs`, so the tiles of the room run
   before the tiles read ahead, thumbnails and links; the stage also ends (`Stop`) the batches a scroll left
   behind.
+- **The windows follow the desktop's appearance, but the Space look is the root's default.** `Look` carries
+  theme, accent, motion, the system's scheme and contrast, and the material and typeface keys; `Ds { look }`
+  (a `SpaceLook`) has no key in `appearance.toml`, so it stays the default. A change of the file or the portal
+  reaches an open window through `Appearances` and `LookFeed`; the first read of the portal is awaited before
+  the first window, so a dark desktop does not flash light.
+- **`ds-settings` brings `zbus` to the binary only.** `anyview-ui` takes `Look` as data and does not name
+  `ds-settings` (its rule forbids `zbus`); the binary converts `Environment` to `Look` (`host/appearance.rs`).
+  `ds-settings`' `tokio` feature is on, matching the pinned `zbus`.
+- **`quire/docs/workspace-deps.toml` has drifted from quire's `Cargo.toml`.** The doc still pins blitz-kit
+  54b7908 and lacks the fork comment, `proc-macro-crate` and the zbus note; anyview took the doc and moved only
+  the blitz-kit rev to quire's 43a6030.
+- **`install.sh --set-default` is not undone by `uninstall.sh`.** The default is a line in the person's
+  mimeapps.list; a default naming a missing entry is ignored by the desktop. The default covers images, plain
+  text, Markdown and PDF, never HTML, tables, audio or video.
+- **`tar` is taken from the pinned block with its default features.** A workspace dependency cannot switch
+  them off for one member, so `anyview-archive` now also builds `tar`'s `xattr` support (one more package, `xattr`).

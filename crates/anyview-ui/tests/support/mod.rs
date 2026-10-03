@@ -9,8 +9,8 @@ use anyview_image::Rgba8;
 pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
-    Edge, FirstFrameSource, HostRequest, Launch, MediaHost, Presentation, ResumeSource, ViewerApp,
-    Work, WorkKind, WorkLane, Workers,
+    Edge, FirstFrameSource, HostRequest, Launch, LookFeed, MediaHost, Presentation, ResumeSource,
+    ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
@@ -242,6 +242,8 @@ pub struct Wiring {
     pub player: Option<Arc<FakePlayer>>,
     /// How the window is on screen.
     pub presentation: Presentation,
+    /// The desktop's look as it changes; the launch look for good when none.
+    pub feed: Option<LookFeed>,
 }
 
 /// A viewer window opened on `paths[at]` with the whole list to walk.
@@ -291,14 +293,17 @@ pub fn wired(
     let launch = Launch {
         file: current,
         sequence: Some(sequence),
-        appearance,
+        look: appearance.into(),
         presentation: wiring.presentation,
     };
-    let config = HarnessConfig::new(VIEW)
+    let mut config = HarnessConfig::new(VIEW)
         .with_clock(Clock::Virtual)
         .with_backend(Backend::Hybrid)
         .with_context(edge.clone())
         .with_context(launch);
+    if let Some(feed) = wiring.feed {
+        config = config.with_context(feed);
+    }
     let mut harness = Harness::new(ViewerApp, config);
     harness.advance(Duration::from_millis(500));
     (harness, requests, edge)

@@ -18,9 +18,11 @@ anyview-ui = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true }
+ds-settings = { workspace = true, features = ["dioxus", "tokio"] }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 notify = { workspace = true }
+percent-encoding = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 trash = { workspace = true }

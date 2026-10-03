@@ -143,7 +143,7 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-image anyview-media anyview-platform anyview-store anyview-ui ds ds-blitz"
+  "anyview: anyview-core anyview-image anyview-media anyview-platform anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"

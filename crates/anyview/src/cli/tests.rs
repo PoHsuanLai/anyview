@@ -79,6 +79,24 @@ fn arguments_become_the_request_a_launch_makes() {
             Err(CliError::UnknownFlag("--fullscreen".to_owned())),
         ),
         ("an empty name", vec![""], Err(CliError::EmptyName)),
+        (
+            "a file URI is the path it names, decoded",
+            vec!["file:///tmp/a%20b%C3%A9.png", "file://localhost/x.txt"],
+            Ok(Invocation::Launch(Request::Open(vec![
+                path("/tmp/a b\u{e9}.png"),
+                path("/x.txt"),
+            ]))),
+        ),
+        (
+            "a URI of another machine is refused",
+            vec!["file://host/x.txt"],
+            Err(CliError::NotLocal("file://host/x.txt".to_owned())),
+        ),
+        (
+            "a URI of another scheme is refused",
+            vec!["https://example.org/x.png"],
+            Err(CliError::NotLocal("https://example.org/x.png".to_owned())),
+        ),
     ];
     for (name, list, want) in cases {
         assert_eq!(parse(&args(&list), &cwd), want, "{name}");

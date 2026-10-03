@@ -897,6 +897,28 @@ a `MediaHost` that records what the window sends and says what the test makes it
 for the picture). The registry has a test that every `FormatKind` is mapped
 and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
 
+## 7d. Appearance
+
+The one desktop appearance (`quire/appearance.toml`, the settings portal) is read and watched by the binary alone:
+`host/appearance.rs` (`Appearances::follow`) loads `ds_settings::AppearanceFile` from a `Store` rooted at
+`env.dirs.config`, starts `SystemPrefsWatch`, and publishes each settled change as a `Look` on a
+`tokio::sync::watch`. Every window gets the receiver as a `LookFeed` root context; `ViewerApp` follows it (a window
+with none keeps `Launch.look`). `anyview-ui` holds `Look` as plain data and does not name `ds-settings`. The program
+never writes the file and keeps none of its own. The host (`ds-blitz`) calls `follow_root` per frame, so a scheme
+switch repaints text; the viewer runs no frame loop of its own.
+
+## 7c. Packaging (`dist/`)
+
+`dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, `DBusActivatable=false`: the bus name
+`org.quire.Anyview1` has its own interface, not `org.freedesktop.Application`). Its `MimeType` line is
+`anyview_core::opened_mimes()`: the media types of the kinds with `StageSupport::Stage`, the one kind-to-MIME
+map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
+`cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
+`dist/uninstall.sh` (sharing `dist/lib.sh`) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
+binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
+`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in. `dev/install-test.sh` (also run by
+`cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools.
+
 ## 8. Repo rules
 
 - **Effect boundary** (`scripts/check-boundary.sh`): the tables in section 1. A pure crate that

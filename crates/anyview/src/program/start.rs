@@ -4,7 +4,8 @@ use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::host::{
-    CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store, Watcher,
+    Appearances, CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store,
+    Watcher,
 };
 use crate::media::{MediaHub, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -15,8 +16,10 @@ use anyview_media::AudioDriver;
 use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
 use anyview_platform::{Env, Request};
 use anyview_store::{STORE_FOLDER, Viewed};
-use ds::prelude::Appearance;
-use ds_blitz::{AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, launch_idle};
+use ds_blitz::{
+    AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
+};
+use ds_settings::{AppName, ConfigRoot, SystemPrefsSource};
 use futures_channel::mpsc::unbounded;
 use std::ffi::OsString;
 use std::num::NonZeroUsize;
@@ -141,12 +144,17 @@ fn show(
         .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))
         .ok()
         .map(Arc::new);
+    let appearances = runtime.block_on(Appearances::follow(
+        ds_settings::Store::new(ConfigRoot::Scratch(env.dirs.config.clone()), AppName::QUIRE),
+        SystemPrefsSource::Portal,
+        Arc::new(TokioSpawner::on(runtime.handle().clone())),
+    ));
     let factory = Factory::new(
         workforce.workers(),
         Arc::clone(&hosting) as Arc<dyn Hosting>,
         Arc::new(CachedPictures(FreedesktopThumbnails::new(&env))),
         watcher,
-        Appearance::default(),
+        appearances,
         Arc::new(PlayerHost::new(hub.clone())),
         Arc::new(NoStacking),
     );

@@ -3,6 +3,7 @@
 //! through the platform's traits ([`Desktop`]). Routing is pure and decides; the desktop only
 //! does.
 
+mod appearance;
 mod desktop;
 mod media;
 mod outcome;
@@ -18,6 +19,7 @@ mod watch;
 #[cfg(test)]
 mod tests;
 
+pub use appearance::{Appearances, look_of};
 pub use desktop::{Desktop, Hosting, LinuxDesktop, Services};
 pub use media::Media;
 pub use outcome::{Declined, Outcome, report, report_declined};
