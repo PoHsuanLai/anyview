@@ -1,7 +1,7 @@
 //! The media stage's states, inputs and outputs.
 
-use super::event::{FrameDirection, PlayerCommand, PlayerEvent, TrackKind};
-use anyview_core::{MediaLength, MediaTime, Percent, TrackChoice, Volume};
+use super::event::{PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge};
+use anyview_core::{ChapterIndex, MediaLength, MediaTime, Percent, Speed, TrackChoice, Volume};
 use ds_core::word::Word;
 
 /// What to do when a scrub ends: scrubbing pauses the player so the picture follows the pointer,
@@ -47,6 +47,19 @@ pub enum MediaStage {
     Failed(MediaError),
 }
 
+impl MediaStage {
+    /// How long the recording runs, once the player has said.
+    pub fn length(&self) -> Option<MediaLength> {
+        match self {
+            MediaStage::Playing { length, .. }
+            | MediaStage::Paused { length, .. }
+            | MediaStage::Scrubbing { length, .. }
+            | MediaStage::Ended { length, .. } => Some(*length),
+            MediaStage::Opening | MediaStage::Failed(_) => None,
+        }
+    }
+}
+
 /// What moves the stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaIn {
@@ -78,7 +91,27 @@ pub enum MediaIn {
         choice: TrackChoice,
     },
     /// Step one frame.
-    FrameStep(FrameDirection),
+    FrameStep(StepDirection),
+    /// Play at this speed.
+    SetSpeed(Speed),
+    /// Play the next preset speed up or down.
+    StepSpeed(StepDirection),
+    /// Play the next track of a kind, wrapping.
+    CycleTrack(TrackKind),
+    /// Jump to the next or previous chapter.
+    StepChapter(StepDirection),
+    /// Jump to a chapter.
+    GoToChapter(ChapterIndex),
+    /// Mark where a trim begins or ends, at the position now.
+    Mark(TrimEdge),
+    /// Put the settings the person left back: the position, the volume and the tracks. They
+    /// are told to the player at once and it applies them when the file opens.
+    Restore {
+        at: MediaTime,
+        volume: Volume,
+        audio: TrackChoice,
+        subtitles: TrackChoice,
+    },
     /// The player could not be started at all.
     Failed(MediaError),
     /// The clock; the stage keeps no timer.
@@ -102,6 +135,8 @@ pub enum MediaOut {
     VolumeChanged(Volume),
     /// Read the track list again for the panel.
     TracksChanged,
+    /// The position a trim's end is marked at: the window keeps the marks the export uses.
+    Marked { edge: TrimEdge, at: MediaTime },
 }
 
 /// What the stage needs from settings.

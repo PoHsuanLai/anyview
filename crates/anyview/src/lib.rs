@@ -4,6 +4,7 @@
 
 pub mod cli;
 pub mod host;
+pub mod media;
 pub mod program;
 pub mod runtime;
 pub mod seam;

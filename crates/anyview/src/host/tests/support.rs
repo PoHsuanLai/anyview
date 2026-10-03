@@ -1,10 +1,14 @@
 //! Files, fakes and a desktop made of them.
 
-use crate::host::{Clock, Desktop, Store, Trash, TrashError};
+use crate::host::{Clock, Desktop, Media, Services, Store, Trash, TrashError};
+use crate::media::{Exports, MediaHub};
+use crate::runtime::{Mailbox, Pool, PoolSize};
+use crate::seam::NoticeWaker;
 use anyview_core::{
     ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, sniff,
 };
-use anyview_platform::testing::{FakeApps, FakePrinter, FakeReveal, FakeShare};
+use anyview_media::AudioDriver;
+use anyview_platform::testing::{FakeApps, FakeMediaSession, FakePrinter, FakeReveal, FakeShare};
 use anyview_platform::{AppEntry, Association, DesktopId, PrintOutcome};
 use anyview_store::Viewed;
 use anyview_ui::{Probed, StageFamily, family_of};
@@ -71,6 +75,8 @@ pub struct Fakes {
     pub share: FakeShare,
     pub printer: FakePrinter,
     pub trash: FakeTrash,
+    /// The pool the exports run on, kept alive for the desktop's life.
+    pub pool: Pool,
 }
 
 pub type TestDesktop = Desktop<FakeApps, FakeReveal, FakeShare, FakePrinter, FakeTrash>;
@@ -91,8 +97,20 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
         share: FakeShare::default(),
         printer: FakePrinter::answering(PrintOutcome::Printed),
         trash: FakeTrash::default(),
+        pool: Pool::new(PoolSize::exactly(std::num::NonZeroUsize::MIN)).unwrap(),
     };
     let now: Clock = Arc::new(|| NOW);
+    let (_mailbox, outbox) = Mailbox::new(NoticeWaker::default());
+    let media = Media {
+        hub: MediaHub::start(
+            &tokio::runtime::Handle::current(),
+            || std::future::ready(FakeMediaSession::new()),
+            None,
+            AudioDriver::Null,
+        ),
+        exports: Arc::new(Exports::new(&fakes.pool, outbox)),
+        scratch: scratch.join("cache"),
+    };
     let desktop = Desktop::new(
         tokio::runtime::Handle::current(),
         fakes.apps.clone(),
@@ -100,7 +118,10 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
         fakes.share.clone(),
         fakes.printer.clone(),
         fakes.trash.clone(),
-        Store::new(&scratch.join("store"), now),
+        Services {
+            store: Store::new(&scratch.join("store"), now),
+            media,
+        },
     );
     (desktop, fakes)
 }

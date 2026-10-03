@@ -11,6 +11,7 @@ mod error;
 mod export;
 mod facts;
 mod kind;
+mod media;
 mod peek;
 mod profile;
 mod resume;
@@ -24,16 +25,17 @@ pub use action::{FileAction, Reach, reach, shortcut};
 pub use edit::{Edit, EditKind};
 pub use error::CoreError;
 pub use export::{
-    ExportChoice, ExportExtension, ExportJob, HtmlDoc, MediaExport, MediaExportKind, MetadataCarry,
-    NoExport, NoExportKind, Orientation, PaperSize, PdfExport, PdfExportKind, PdfPages,
-    PixelSource, PrintLayout, RasterExport, RasterExportKind, RasterTarget, Resize, Subtitles,
-    TextExport, TextExportKind, TextFlavour, TextSource,
+    AudioTarget, ExportChoice, ExportExtension, ExportJob, HtmlDoc, MediaExport, MediaExportKind,
+    MetadataCarry, NoExport, NoExportKind, Orientation, PaperSize, PdfExport, PdfExportKind,
+    PdfPages, PixelSource, PrintLayout, RasterExport, RasterExportKind, RasterTarget, Resize,
+    StreamPick, Subtitles, TextExport, TextExportKind, TextFlavour, TextSource,
 };
 pub use facts::{Fact, FactLabel, FactValue, Facts};
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
     Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, kind_of_mime,
 };
+pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Peek, PeekBudget, StageSupport};
 pub use profile::{actions_for, edits_for, mime_for, stage_support};
 pub use resume::{Resume, TrackChoice, TrackId};
@@ -46,7 +48,7 @@ pub use sniff::{
 };
 pub use source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
 pub use units::{
-    Axis, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime, PageCount, PageIndex,
-    PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen, PixelSize, Quality,
-    QuarterTurn, Volume, Zoom,
+    Axis, Bitrate, ChapterIndex, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime,
+    PageCount, PageIndex, PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen,
+    PixelSize, Quality, QuarterTurn, Speed, TimeRange, Volume, Zoom,
 };

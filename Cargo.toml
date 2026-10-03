@@ -6,6 +6,7 @@ members = [
   "crates/anyview-core",
   "crates/anyview-font",
   "crates/anyview-image",
+  "crates/anyview-media",
   "crates/anyview-platform",
   "crates/anyview-peek",
   "crates/anyview-pdf",
@@ -30,6 +31,7 @@ anyview-archive = { path = "crates/anyview-archive" }
 anyview-core = { path = "crates/anyview-core" }
 anyview-font = { path = "crates/anyview-font" }
 anyview-image = { path = "crates/anyview-image" }
+anyview-media = { path = "crates/anyview-media", default-features = false }
 anyview-platform = { path = "crates/anyview-platform" }
 anyview-peek = { path = "crates/anyview-peek" }
 anyview-pdf = { path = "crates/anyview-pdf" }
@@ -224,10 +226,18 @@ md-5 = "0.10"
 percent-encoding = "2"
 # Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
 png = "0.18"
-# `anyview`'s media-thread spike (dev-dependency only): libmpv playback into a caller-owned wgpu
-# texture, MIT OR Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version.
+# `anyview-media` (feature `player`): libmpv playback into a caller-owned wgpu texture, MIT OR
+# Apache-2.0; the rev is mpv-wgpu master. It uses wgpu 29, the pinned version. libmpv itself is LGPL,
+# linked dynamically and never pasted.
 mpv-wgpu-player = { git = "https://github.com/PoHsuanLai/mpv-wgpu", rev = "88808983c57dc0e7c475e5baea23a124420b7a2f" }
-# Blocks on the headless wgpu device's futures in that spike: Apache-2.0 OR MIT.
+# `anyview-media` (feature `ffmpeg`): safe bindings to the system's libav* (probing, trim, audio
+# extraction and conversion), WTFPL for the binding crates (`ffmpeg-sys-next` too); libav is LGPL,
+# linked dynamically and never pasted. 8.1 is the major that matches the FFmpeg 8 this machine ships
+# (libavcodec 62); 6.1 and 7.1 do not build against it, 9.0 does (FINDINGS, "ffmpeg-next"). Only
+# the features its code uses: the codec and format layers and the resampler.
+ffmpeg-next = { version = "8.1", default-features = false, features = ["codec", "format", "software-resampling"] }
+# Blocks on the headless wgpu device's futures: `anyview-media` (feature `player`, to make the
+# device a background session plays on) and its tests. Apache-2.0 OR MIT.
 pollster = "0.4"
 
 # `anyview`: moving a file to the freedesktop trash, in one call. Pure Rust on Linux (no bus): MIT.

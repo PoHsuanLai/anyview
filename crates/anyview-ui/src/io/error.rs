@@ -23,6 +23,9 @@ pub enum OpenError {
     /// The picture cannot be put on the GPU.
     #[error("the picture cannot be shown: {0}")]
     Gpu(GpuError),
+    /// The player could not be started.
+    #[error("the player could not start: {0}")]
+    Media(String),
     /// The probe could not tell what the file is (a zip needs its entries listed).
     #[error("the viewer cannot tell what this file is")]
     Unrecognised,
@@ -40,7 +43,9 @@ impl OpenError {
             }
             OpenError::Text(_) => LoadFailure::Damaged,
             OpenError::Pdf(failure) => pdf_failure(*failure),
-            OpenError::Gpu(_) | OpenError::Unrecognised => LoadFailure::Unsupported,
+            OpenError::Gpu(_) | OpenError::Media(_) | OpenError::Unrecognised => {
+                LoadFailure::Unsupported
+            }
         }
     }
 }

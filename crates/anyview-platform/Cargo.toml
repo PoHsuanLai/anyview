@@ -10,7 +10,7 @@ publish.workspace = true
 
 [features]
 # The fakes (`anyview_platform::testing`), for the tests of the crates that consume the traits.
-testing = []
+testing = ["dep:tempfile"]
 
 [dependencies]
 anyview-core = { workspace = true }
@@ -23,6 +23,7 @@ memfd = { workspace = true }
 percent-encoding = { workspace = true }
 png = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 zbus = { workspace = true }
@@ -31,4 +32,6 @@ zbus = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+# The integration tests use the fakes and the private bus behind `testing`.
+anyview-platform = { path = ".", features = ["testing"] }
 tempfile = { workspace = true }

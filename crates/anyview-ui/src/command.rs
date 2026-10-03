@@ -46,6 +46,28 @@ pub enum StageCommand {
     ScrollToStart,
     /// The end of a text.
     ScrollToEnd,
+    /// Play the next speed down.
+    SlowDown,
+    /// Play the next speed up.
+    SpeedUp,
+    /// Play at the recording's own speed.
+    NormalSpeed,
+    /// Jump to the next chapter.
+    NextChapter,
+    /// Jump to the previous chapter.
+    PreviousChapter,
+    /// Play the next audio track.
+    NextAudioTrack,
+    /// Show the next subtitle track, then none.
+    NextSubtitles,
+    /// Show the next frame.
+    StepFrameForward,
+    /// Show the previous frame.
+    StepFrameBack,
+    /// Mark where a trim starts, at the position now.
+    MarkTrimStart,
+    /// Mark where a trim ends, at the position now.
+    MarkTrimEnd,
 }
 
 impl StageCommand {
@@ -53,7 +75,8 @@ impl StageCommand {
     /// first, in the order `Shortcut::keys` normalises to.
     pub fn from_key(keys: &[ShortcutKey]) -> Option<StageCommand> {
         use ShortcutKey::{
-            Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super, Up,
+            Backspace, Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super,
+            Up,
         };
         match keys {
             [Char('+' | '=')] | [Shift, Char('+')] | [Super, Char('+' | '=')] => {
@@ -77,6 +100,17 @@ impl StageCommand {
             [Down] => Some(StageCommand::LineDown),
             [Home] => Some(StageCommand::ScrollToStart),
             [End] => Some(StageCommand::ScrollToEnd),
+            [Char('[')] => Some(StageCommand::SlowDown),
+            [Char(']')] => Some(StageCommand::SpeedUp),
+            [Backspace] => Some(StageCommand::NormalSpeed),
+            [Char('n')] => Some(StageCommand::NextChapter),
+            [Char('p')] => Some(StageCommand::PreviousChapter),
+            [Char('a')] => Some(StageCommand::NextAudioTrack),
+            [Char('s')] => Some(StageCommand::NextSubtitles),
+            [Char('.')] => Some(StageCommand::StepFrameForward),
+            [Char(',')] => Some(StageCommand::StepFrameBack),
+            [Char('i')] => Some(StageCommand::MarkTrimStart),
+            [Char('o')] => Some(StageCommand::MarkTrimEnd),
             _ => None,
         }
     }
@@ -87,7 +121,8 @@ impl StageCommand {
     /// it.
     pub fn shortcut(self) -> Shortcut {
         use ShortcutKey::{
-            Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super, Up,
+            Backspace, Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super,
+            Up,
         };
         Shortcut(match self {
             StageCommand::ZoomIn => vec![Char('+')],
@@ -109,6 +144,17 @@ impl StageCommand {
             StageCommand::LineDown => vec![Down],
             StageCommand::ScrollToStart => vec![Home],
             StageCommand::ScrollToEnd => vec![End],
+            StageCommand::SlowDown => vec![Char('[')],
+            StageCommand::SpeedUp => vec![Char(']')],
+            StageCommand::NormalSpeed => vec![Backspace],
+            StageCommand::NextChapter => vec![Char('n')],
+            StageCommand::PreviousChapter => vec![Char('p')],
+            StageCommand::NextAudioTrack => vec![Char('a')],
+            StageCommand::NextSubtitles => vec![Char('s')],
+            StageCommand::StepFrameForward => vec![Char('.')],
+            StageCommand::StepFrameBack => vec![Char(',')],
+            StageCommand::MarkTrimStart => vec![Char('i')],
+            StageCommand::MarkTrimEnd => vec![Char('o')],
         })
     }
 }

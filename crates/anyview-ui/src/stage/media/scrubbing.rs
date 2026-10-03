@@ -2,7 +2,7 @@
 
 use super::event::{Pace, PlayerCommand};
 use super::model::{AfterScrub, MediaIn, MediaParams, MediaStage};
-use super::step::{Step, command, notice, seek_target, setting};
+use super::step::{Step, command, marked, notice, seek_target, setting};
 use anyview_core::{MediaLength, MediaTime};
 
 /// A scrub in progress: where it began, where it is, the recording's length, what to do after.
@@ -39,9 +39,14 @@ pub(super) fn scrubbing(this: MediaStage, scrub: Scrub, input: MediaIn) -> Step 
         MediaIn::ScrubCancel => finished(from, length, resume),
         MediaIn::Failed(error) => (MediaStage::Failed(error), vec![]),
         MediaIn::Player(event) => (this, notice(event).into_iter().collect()),
-        MediaIn::SetVolume(_) | MediaIn::Select { kind: _, choice: _ } => {
-            (this, setting(input).into_iter().collect())
-        }
+        MediaIn::SetVolume(_)
+        | MediaIn::Select { kind: _, choice: _ }
+        | MediaIn::SetSpeed(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_) => (this, setting(input).into_iter().collect()),
+        MediaIn::Mark(_) => (this, marked(input, to).into_iter().collect()),
         MediaIn::Position(_)
         | MediaIn::Toggle
         | MediaIn::SeekBack
@@ -49,6 +54,7 @@ pub(super) fn scrubbing(this: MediaStage, scrub: Scrub, input: MediaIn) -> Step 
         | MediaIn::SeekTo(_)
         | MediaIn::ScrubStart
         | MediaIn::FrameStep(_)
+        | MediaIn::Restore { .. }
         | MediaIn::Elapsed => (this, vec![]),
     }
 }
@@ -94,14 +100,20 @@ pub(super) fn ended(
         ),
         MediaIn::Failed(error) => (MediaStage::Failed(error), vec![]),
         MediaIn::Player(event) => (this, notice(event).into_iter().collect()),
-        MediaIn::SetVolume(_) | MediaIn::Select { kind: _, choice: _ } => {
-            (this, setting(input).into_iter().collect())
-        }
+        MediaIn::SetVolume(_)
+        | MediaIn::Select { kind: _, choice: _ }
+        | MediaIn::SetSpeed(_)
+        | MediaIn::StepSpeed(_)
+        | MediaIn::CycleTrack(_)
+        | MediaIn::StepChapter(_)
+        | MediaIn::GoToChapter(_) => (this, setting(input).into_iter().collect()),
+        MediaIn::Mark(_) => (this, marked(input, at).into_iter().collect()),
         MediaIn::Position(_)
         | MediaIn::ScrubTo(_)
         | MediaIn::ScrubEnd
         | MediaIn::ScrubCancel
         | MediaIn::FrameStep(_)
+        | MediaIn::Restore { .. }
         | MediaIn::Elapsed => (this, vec![]),
     }
 }

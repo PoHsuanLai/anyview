@@ -12,4 +12,4 @@ mod tests;
 
 pub use opening::{Opening, sequence_around};
 pub use root::{open_in_window, seeded_root};
-pub use seed::{Factory, Seed};
+pub use seed::{Factory, Seed, StackingAsk};

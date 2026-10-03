@@ -30,31 +30,36 @@ cd "$(dirname "$0")/.."
 # other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
 # anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
-# Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never the media
-# player or D-Bus. What it may not name itself is the DIRECT table below.
+# Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never libmpv or
+# D-Bus. It links libav through `anyview-media`'s `ffmpeg` feature, to read a recording's facts and
+# cover art for the pane. What it may not name itself is the DIRECT table below.
 # anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
 # because the binary owns every thread.
 # anyview (the binary) owns every thread and joins the crates: the window (anyview-ui, ds, ds-blitz),
-# the platform edge, the store and the core. Everything they bring comes along (the renderer, `wgpu`,
-# the decoders, D-Bus), so what it may not reach is only the media player, which is not linked into
-# it yet; what it may not NAME in its own manifest is the DIRECT table below: the binary asks for the
-# renderer, a decoder, the bus or a PDF library only through the crate that owns it. It does name
-# `dioxus`, for the root component every window shares. The media-thread spike links the player and
-# wgpu as dev-dependencies, which `-e normal,build` does not see.
+# the platform edge, the media crate, the store and the core. Everything they bring comes along (the
+# renderer, `wgpu`, the decoders, libmpv and libav through anyview-media, D-Bus), so it has no rule of
+# what it may reach; what it may not NAME in its own manifest is the DIRECT table below: the binary
+# asks for the renderer, a decoder, the player, libav, the bus or a PDF library only through the
+# crate that owns it. It does name `dioxus`, for the root component every window shares.
+# anyview-media is the only crate that names `ffmpeg-next` and `ffmpeg-sys-next` (libav) and, with its
+# `player` feature, `mpv-wgpu-player` and `rsmpv` (libmpv): every other crate's row forbids libav, and
+# anyview-peek's forbids both libraries, since the launcher links it with the `ffmpeg` feature alone
+# (`cargo tree -p` resolves only that package's features, so the player's stay out of its tree). The
+# media crate itself spawns nothing, reads no clock and draws nothing: no runtime, no bus, no UI.
 RULES=(
-  "anyview: mpv-wgpu-player rsmpv"
-  "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image syntect blitz-dom anyrender serde_json"
-  "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint anyrender"
-  "anyview-ui: zbus mpv-wgpu-player rsmpv"
-  "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
-  "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
-  "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
-  "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
-  "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
+  "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image syntect blitz-dom anyrender serde_json"
+  "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
+  "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
+  "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
+  "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
+  "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
+  "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
+  "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
   "anyview-peek: mpv-wgpu-player rsmpv zbus ashpd"
-  "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
+  "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
+  "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender"
 )
 
 # Dependencies a crate may reach only THROUGH another, never name in its own manifest. anyview-peek
@@ -62,16 +67,16 @@ RULES=(
 # texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
 # nothing here spawns.
 DIRECT=(
-  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
-  "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
 )
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 562 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 574 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
-# of anyview-archive and skrifa.
+# of anyview-archive, skrifa and libav's bindings (anyview-media, `ffmpeg` feature).
 BUDGETS=(
   "anyview-peek: 580"
 )
@@ -137,14 +142,15 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-image anyview-platform anyview-store anyview-ui ds ds-blitz"
+  "anyview: anyview-core anyview-image anyview-media anyview-platform anyview-store anyview-ui ds ds-blitz"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core ds-core"
-  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-media anyview-text ds ds-blitz"
+  "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"

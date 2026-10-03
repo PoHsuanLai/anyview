@@ -255,29 +255,13 @@ fn a_damaged_pdf_is_a_page_that_says_so() {
 #[test]
 fn kinds_without_a_back_end_show_their_type_size_and_date() {
     // name, file name, bytes, kind, kind words
-    const CASES: &[(&str, &str, &[u8], FormatKind, &str)] = &[
-        (
-            "video",
-            "clip.mp4",
-            b"\0\0\0\x18ftypmp42\0\0\0\0mp42isom",
-            FormatKind::Video,
-            "Video (MP4)",
-        ),
-        (
-            "audio",
-            "song.flac",
-            b"fLaC\0\0\0\x22\0\0",
-            FormatKind::Audio,
-            "Audio (FLAC)",
-        ),
-        (
-            "other",
-            "blob.bin",
-            b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0",
-            FormatKind::Other,
-            "application/octet-stream",
-        ),
-    ];
+    const CASES: &[(&str, &str, &[u8], FormatKind, &str)] = &[(
+        "other",
+        "blob.bin",
+        b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0",
+        FormatKind::Other,
+        "application/octet-stream",
+    )];
     let dir = tempfile::tempdir().unwrap();
     for (name, file, bytes, kind, words) in CASES {
         let path = dir.path().join(file);

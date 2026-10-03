@@ -4,6 +4,7 @@ use anyview_archive::ArchiveError;
 use anyview_core::{ByteLen, FormatKind};
 use anyview_font::FontError;
 use anyview_image::ImageError;
+use anyview_media::MediaError;
 use anyview_text::TextError;
 use ds::components::content::pdf_thumb::PdfTrouble;
 use ds::prelude::Word;
@@ -21,6 +22,9 @@ pub enum PeekError {
     /// A text, code, Markdown, table or tree peek failed.
     #[error(transparent)]
     Text(#[from] TextError),
+    /// libav could not read the recording.
+    #[error(transparent)]
+    Media(#[from] MediaError),
     /// An archive's listing failed.
     #[error(transparent)]
     Archive(#[from] ArchiveError),

@@ -1,5 +1,6 @@
 //! The pool, its runner for the views' work and the mailbox its endings come back through.
 
+use crate::media::Exports;
 use crate::runtime::{Lane, Mailbox, Pool, PoolSize, Runner, RuntimeError, UiWaker};
 use anyview_core::work::{Backend, Stop, Ticketed};
 use anyview_ui::{Work, WorkLane, Workers};
@@ -52,6 +53,7 @@ pub struct Workforce {
     // Declared first so it drops first: the workers stop before the mailbox they post to goes.
     _pool: Pool,
     workers: Arc<dyn Workers>,
+    exports: Arc<Exports>,
     mailbox: Mailbox<Settled>,
 }
 
@@ -67,10 +69,12 @@ impl Workforce {
     pub fn start(size: PoolSize, waker: impl UiWaker) -> Result<Workforce, RuntimeError> {
         let pool = Pool::new(size)?;
         let (mailbox, outbox) = Mailbox::new(waker);
+        let exports = Arc::new(Exports::new(&pool, outbox.clone()));
         let runner = Runner::<WorkBackend, Settled>::new(&pool, outbox, || (), |ended| ended);
         Ok(Workforce {
             _pool: pool,
             workers: Arc::new(PoolWorkers { runner }),
+            exports,
             mailbox,
         })
     }
@@ -78,6 +82,11 @@ impl Workforce {
     /// What the views submit their work to; clones share the pool.
     pub fn workers(&self) -> Arc<dyn Workers> {
         Arc::clone(&self.workers)
+    }
+
+    /// The pool's runner for media exports; clones share the pool.
+    pub fn exports(&self) -> Arc<Exports> {
+        Arc::clone(&self.exports)
     }
 
     /// How the jobs that ended since the last call ended, oldest first.
