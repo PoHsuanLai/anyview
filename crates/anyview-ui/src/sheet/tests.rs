@@ -181,3 +181,27 @@ fn enter_confirms_and_escape_cancels_and_letters_mean_nothing() {
     );
     assert_eq!(SheetIn::from_key(&[ShortcutKey::Char('x')]), None);
 }
+
+#[test]
+fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_writes_nothing() {
+    let needs = anyview_core::Fact {
+        label: anyview_core::FactLabel::Needs,
+        value: anyview_core::FactValue::text("anyview-ffmpeg (to convert it)"),
+    };
+    let (open, outs) = Sheet::Closed.step(SheetIn::OpenUnavailable(needs.clone()), Stamp(0), &());
+    assert_eq!(
+        open,
+        Sheet::Unavailable {
+            needs: needs.clone()
+        }
+    );
+    assert_eq!(outs, [SheetOut::Opened]);
+    for (name, input) in [("Enter", SheetIn::Confirm), ("Escape", SheetIn::Cancel)] {
+        let (closed, outs) = open.clone().step(input, Stamp(0), &());
+        assert_eq!(closed, Sheet::Closed, "{name}");
+        assert_eq!(outs, [SheetOut::Closed], "{name}: no export is written");
+    }
+    let (still, outs) = open.clone().step(SheetIn::OpenExport(PNG), Stamp(0), &());
+    assert_eq!(still, open, "a sheet that is up ignores another");
+    assert!(outs.is_empty());
+}

@@ -146,6 +146,20 @@ fn a_file_mpv_holds_open_at_its_end_is_reported_as_ended() {
         .position(|event| *event == MediaEvent::Ended(EndReason::Eof))
         .unwrap();
     assert!(paused < ended, "mpv paused, then the driver said it ended");
+    // The child process reports the last position after the pause; said after the end it would
+    // read as the file playing again, so nothing is said of the position until it moves again.
+    for _ in 0..10 {
+        let _ = rig.wakes.recv_timeout(std::time::Duration::from_millis(50));
+        let heard = rig.driver.woken();
+        rig.events.extend(heard);
+    }
+    assert!(
+        !rig.events[ended..]
+            .iter()
+            .any(|event| matches!(event, MediaEvent::Position(_))),
+        "{:?}",
+        &rig.events[ended..]
+    );
 }
 
 #[test]

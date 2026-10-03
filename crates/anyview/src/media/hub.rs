@@ -10,7 +10,7 @@ use super::line::LiveLine;
 use super::orders::{Home, Order, orders_for};
 use super::plugins::{MediaPlugins, PlayRoute};
 use crate::runtime::{Actor, Mailbox, RuntimeError, UiWaker};
-use anyview_core::{FilePath, Resume, Sniffed};
+use anyview_core::{FilePath, Resume, Sniffed, Source};
 use anyview_media::{AudioDriver, MediaCommand, MediaError, MpvHost, PictureSlot, ShotContent};
 use anyview_platform::{MediaControl, MediaSession, MediaState, PlaybackStatus};
 use anyview_plugin::Subject;
@@ -106,6 +106,10 @@ impl Inner {
 
     pub(super) fn audio(&self) -> AudioDriver {
         self.audio
+    }
+
+    pub(super) fn plugins(&self) -> &MediaPlugins {
+        &self.plugins
     }
 
     /// The programs that play `sniffed`'s file, or why there are none.
@@ -246,15 +250,14 @@ impl MediaHub {
     /// the event loop open while it plays. Blocking: it makes a graphics device and a player.
     pub fn play_in_background(
         &self,
-        file: &FilePath,
+        source: &Source,
         sniffed: &Sniffed,
         resume: &Resume,
     ) -> Result<(), MediaError> {
+        let file = source.path();
         let host = self.inner.player(sniffed)?;
         let (device, queue) = anyview_media::headless_device()?;
-        let tags = anyview_media::probe(file.as_path())
-            .map(|probe| probe.tags)
-            .unwrap_or_default();
+        let tags = self.inner.plugins().reading(source, sniffed).tags;
         let id = self.inner.next_id();
         let snapshot =
             super::snapshot::Snapshot::new(file, &tags, anyview_platform::TrackSerial(id.0));
@@ -293,6 +296,11 @@ impl MediaHub {
             Owner::Background(Background { line, _hold: hold }),
         );
         Ok(())
+    }
+
+    /// The plugins that play, read and write recordings.
+    pub fn plugins(&self) -> &MediaPlugins {
+        self.inner.plugins()
     }
 
     /// Whether a background session is playing: the program has no window to leave open for it.

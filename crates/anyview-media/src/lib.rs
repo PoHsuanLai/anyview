@@ -1,21 +1,17 @@
-//! Video and audio for the viewer. Two C libraries sit behind two features, so the launcher can
-//! link the one it needs: `player` is mpv (the person's own, run as a child process) drawing into a texture the caller owns (a typestate
-//! `Session`, and the `Driver` an actor runs), and `ffmpeg` is libav reading a recording's facts
-//! and cover art and writing trims, extracted audio and conversions. This is the only crate that
-//! names either library. Nothing here spawns a thread or reads a clock: the binary runs the
-//! driver on its media thread and the exports on its pool.
+//! Video and audio for the viewer. Playing is mpv, the person's own, run as a child process with
+//! mpv-wgpu's C plugin loaded into it, drawing into a texture the caller owns (a typestate
+//! `Session`, and the `Driver` an actor runs); feature `player`. Writing a trim, extracted audio
+//! or a conversion is the FFmpeg plugin's: this crate plans and names the work (`plan_export`,
+//! `ask_of`, `output_path`) and the binary asks the plugin. No library of codecs is linked and
+//! nothing here spawns a thread or reads a clock: the binary runs the driver on its media thread
+//! and the exports on its pool.
 //!
 //! Every public item is reached from this root, once.
 
 mod command;
 mod error;
 mod event;
-#[cfg(feature = "ffmpeg")]
 mod export;
-#[cfg(feature = "ffmpeg")]
-mod libav;
-#[cfg(feature = "ffmpeg")]
-mod probe;
 
 #[cfg(feature = "player")]
 mod device;
@@ -31,15 +27,9 @@ pub use device::headless_device;
 pub use driver::{Continuation, Driver, FrameSink, Handled};
 pub use error::MediaError;
 pub use event::{EndReason, MediaEvent};
-#[cfg(feature = "ffmpeg")]
 pub use export::{
-    AudioFormat, Encoder, Encoders, ExportBackend, ExportProgress, ExportReport, ExportRequest,
-    ProgressSink, output_path, plan_export,
-};
-#[cfg(feature = "ffmpeg")]
-pub use probe::{
-    AudioFacts, AudioPeek, CoverArt, CoverCodec, MediaPeeked, MediaProbe, VideoFacts, VideoPeek,
-    probe, probe_within,
+    Ask, ExportProgress, ExportReport, ExportRequest, NameHints, ProgressSink, ask_of,
+    offered_kinds, output_path, plan_export, target_of,
 };
 #[cfg(feature = "player")]
 pub use session::{

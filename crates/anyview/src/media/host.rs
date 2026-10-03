@@ -4,13 +4,13 @@ use super::actor::{MediaActor, Plan};
 use super::hub::{MediaHub, SessionId};
 use super::line::LiveLine;
 use super::orders::Home;
+use super::plugins::{PlayRoute, Playing, Reading};
 use super::sink::WindowSink;
 use super::snapshot::Snapshot;
 use crate::runtime::{Actor, Mailbox, UiWaker};
-use anyview_core::{FactLabel, FactValue, Facts, MediaTags};
-use anyview_media::MediaProbe;
 use anyview_platform::TrackSerial;
-use anyview_ui::{MediaHost, MediaStart, MediaStarted, MediaWake, OpenError};
+use anyview_plugin::Subject;
+use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError};
 use std::sync::Arc;
 
 /// Starts a player on its own media thread for each window that asks.
@@ -35,62 +35,39 @@ impl UiWaker for WakeWindow {
     }
 }
 
-/// The rows of facts a probe gives: how long it runs, how it is made and what it says of itself.
-pub(super) fn facts_of(probe: &MediaProbe) -> Facts {
-    let mut facts = Facts::empty();
-    if let Some(length) = probe.length {
-        facts = facts.with(FactLabel::Duration, FactValue::duration(length));
-    }
-    if let Some(video) = &probe.video {
-        facts = facts
-            .with(FactLabel::Dimensions, FactValue::dimensions(video.size))
-            .with(FactLabel::Codec, FactValue::text(video.codec.clone()));
-    }
-    if let Some(audio) = &probe.audio {
-        let label = match probe.video {
-            Some(_) => FactLabel::AudioCodec,
-            None => FactLabel::Codec,
-        };
-        facts = facts.with(label, FactValue::text(audio.codec.clone()));
-        if let Some(rate) = audio.bitrate {
-            facts = facts.with(FactLabel::Bitrate, FactValue::bitrate(rate));
-        }
-    }
-    for (label, tag) in [
-        (FactLabel::Title, &probe.tags.title),
-        (FactLabel::Author, &probe.tags.artist),
-        (FactLabel::Album, &probe.tags.album),
-    ] {
-        if let Some(text) = tag {
-            facts = facts.with(label, FactValue::text(text.clone()));
-        }
-    }
-    facts
-}
-
 impl MediaHost for PlayerHost {
     fn start(&self, start: MediaStart) -> Result<MediaStarted, OpenError> {
+        let plugins = self.hub.plugins();
+        // What the file says of itself. A recording the plugin cannot read may still play, so
+        // facts that cannot be had are a recording with fewer rows.
+        let Reading { facts, tags } = plugins.reading(&start.source, &start.sniffed);
+        let subject = Subject {
+            kind: start.sniffed.kind(),
+            mime: Some(start.sniffed.mime()),
+        };
+        let host = match plugins.player(&subject) {
+            PlayRoute::Ready(host) => host,
+            PlayRoute::Missing(missing) => {
+                return Ok(MediaStarted {
+                    playback: MediaPlayback::Missing(missing.fact()),
+                    offer: plugins.offer(&start.sniffed, Playing::No),
+                    tags,
+                    facts,
+                    length: None,
+                });
+            }
+            PlayRoute::Unserved => {
+                return Err(OpenError::Media(
+                    "no plugin plays this kind of file".to_owned(),
+                ));
+            }
+        };
         let gpu = start.texture.gpu();
         let (Some(device), Some(queue)) = (gpu.device(), gpu.queue()) else {
             return Err(OpenError::Media(
                 "the window has no graphics device yet".to_owned(),
             ));
         };
-        // What the file says of itself. A recording libav cannot read may still play, so a probe
-        // that fails is a recording with no facts.
-        let probe = anyview_media::probe(start.file.as_path()).ok();
-        let tags: MediaTags = probe
-            .as_ref()
-            .map(|probe| probe.tags.clone())
-            .unwrap_or_default();
-        let facts = probe.as_ref().map(facts_of).unwrap_or_default();
-        let length = probe.as_ref().and_then(|probe| probe.length);
-
-        let host = self
-            .hub
-            .inner
-            .player(&start.sniffed)
-            .map_err(|error| OpenError::Media(error.to_string()))?;
         let id: SessionId = self.hub.inner.next_id();
         let snapshot = Snapshot::new(&start.file, &tags, TrackSerial(id.0));
         let plan = Plan {
@@ -118,10 +95,11 @@ impl MediaHost for PlayerHost {
         });
         self.hub.register_window(id, start.file, &line);
         Ok(MediaStarted {
-            line,
+            playback: MediaPlayback::Line(line),
+            offer: plugins.offer(&start.sniffed, Playing::Yes),
             tags,
             facts,
-            length,
+            length: None,
         })
     }
 }

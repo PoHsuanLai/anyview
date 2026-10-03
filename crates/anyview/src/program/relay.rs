@@ -5,7 +5,7 @@
 use crate::media::MediaHub;
 use crate::window::{Factory, Opening, Seed, open_in_window};
 use anyview_core::{
-    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Sniffed, sniff,
+    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Sniffed, Source, sniff,
 };
 use anyview_media::MediaError;
 use anyview_platform::{Handoff, Primary, Request};
@@ -102,11 +102,13 @@ pub async fn open_windows(
             Arrival::Background(file) => {
                 let (hub, resume) = (hub.clone(), factory.resume.clone());
                 let started = tokio::task::spawn_blocking(move || {
-                    let left = stamp_of(&file)
-                        .map_or(Resume::Nothing, |stamp| resume.recall(&file, stamp));
-                    match sniffed_of(&file) {
-                        Some(sniffed) => hub.play_in_background(&file, &sniffed, &left),
-                        None => Err(MediaError::NotMedia),
+                    let stamp = stamp_of(&file);
+                    let left = stamp.map_or(Resume::Nothing, |stamp| resume.recall(&file, stamp));
+                    match (stamp, sniffed_of(&file)) {
+                        (Some(stamp), Some(sniffed)) => {
+                            hub.play_in_background(&Source::new(file, stamp), &sniffed, &left)
+                        }
+                        (None, _) | (_, None) => Err(MediaError::NotMedia),
                     }
                 })
                 .await;
