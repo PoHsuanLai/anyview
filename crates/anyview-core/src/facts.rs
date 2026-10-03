@@ -30,11 +30,11 @@ pub enum FactLabel {
     Bitrate,
     /// How many pictures a second a video shows.
     Framerate,
-    /// How many samples a second the sound of a recording has.
+    /// Samples a second of a recording's sound.
     SampleRate,
-    /// How many channels the sound has: mono, stereo, 5.1.
+    /// How many channels a recording's sound has.
     Channels,
-    /// What streams a recording holds: pictures, sound, subtitles.
+    /// What a recording holds: how many video, audio and subtitle tracks.
     Streams,
     /// How many chapters a recording is divided into.
     Chapters,
@@ -72,6 +72,8 @@ pub enum FactLabel {
     Author,
     /// The album a recording belongs to.
     Album,
+    /// Where a recording sits in its album, as the tag gives it.
+    TrackNumber,
     /// A plugin the viewer lacks and the package that provides it.
     Needs,
 }
@@ -112,6 +114,26 @@ impl FactValue {
     /// `192 kbit/s`.
     pub fn bitrate(rate: Bitrate) -> Self {
         FactValue(format!("{} kbit/s", rate.kbps()))
+    }
+
+    /// `44.1 kHz`, or `48 kHz`: samples a second in kilohertz, trailing zeros dropped.
+    pub fn sample_rate(hertz: u32) -> Self {
+        let tenths = (u64::from(hertz) + 50) / 100;
+        let (whole, tenth) = (tenths / 10, tenths % 10);
+        FactValue(if tenth == 0 {
+            format!("{whole} kHz")
+        } else {
+            format!("{whole}.{tenth} kHz")
+        })
+    }
+
+    /// `mono`, `stereo`, or `6 channels`.
+    pub fn channels(count: u16) -> Self {
+        FactValue(match count {
+            1 => "mono".to_owned(),
+            2 => "stereo".to_owned(),
+            n => format!("{n} channels"),
+        })
     }
 
     /// A size in decimal units with one digit after the point, rounded down: `412 B`, `1.5 KB`,
@@ -201,6 +223,23 @@ mod tests {
         ];
         for (name, bytes, want) in CASES {
             assert_eq!(FactValue::size(ByteLen(*bytes)).as_str(), *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn sample_rates_and_channels_read_as_a_person_says_them() {
+        const RATES: &[(u32, &str)] = &[
+            (44_100, "44.1 kHz"),
+            (48_000, "48 kHz"),
+            (22_050, "22.1 kHz"),
+            (8_000, "8 kHz"),
+        ];
+        for (hertz, want) in RATES {
+            assert_eq!(FactValue::sample_rate(*hertz).as_str(), *want, "{hertz}");
+        }
+        const CHANNELS: &[(u16, &str)] = &[(1, "mono"), (2, "stereo"), (6, "6 channels")];
+        for (count, want) in CHANNELS {
+            assert_eq!(FactValue::channels(*count).as_str(), *want, "{count}");
         }
     }
 
