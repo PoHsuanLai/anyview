@@ -27,15 +27,24 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The kinds with no back end show only what sniffing says.** Books, office documents and unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
   lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
-  because opening the zip for its cover is not done yet. Video and audio have libav's peeks (duration, size,
-  codecs, tags, an audio file's cover); a video has no poster in the pane, which the plan leaves to the
-  thumbnail cache the viewer fills.
-- **The launcher's pane links libav.** `anyview-peek` takes `anyview-media` with its `ffmpeg` feature, so
-  libavformat, libavcodec, libavutil and libswresample are loaded by the launcher's process (libmpv and the
-  GPU player are not: the `player` feature is never on for it). The tree is 574 packages (with the archive and
-  font crates) against the budget of 580, about eleven of them `ffmpeg-next`, `ffmpeg-sys-next` and the build-time bindgen. Ends if
-  the launcher's start-up shows the cost: the probe can then move behind a process of its own, or the pane
-  can show the type, the size and the date for recordings, as before.
+  because opening the zip for its cover is not done yet. Video and audio are read by pure-Rust header parsers (below).
+- **The launcher's media peek is pure Rust, and has gaps libav did not.** `anyview-peek`'s `media` feature
+  reads headers with `symphonia` (audio), `mp4parse` (MP4, M4V, MOV) and `matroska-demuxer` (MKV, WebM); no
+  libav, no libmpv and no `anyview-media` is in its tree (PLAN phase P4). What it cannot do:
+  - **AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video get facts only** (type, size, date): nothing here parses them.
+  - **A video has a frame only from the desktop's thumbnail cache.** The host passes a `VideoFrames` to
+    `peek_with`; with none, or no cached thumbnail for this version of the file, the pane shows the facts card.
+  - **A Matroska cover is not read**: `matroska-demuxer` has no attachment accessor. A WebM or MKV shows its
+    cached thumbnail or its facts. An MP4's `covr` cover is read.
+  - **HEVC is named by scanning the movie box for its sample-entry code**, since `mp4parse` has no codec type
+    for it; other codecs it does not know show as `video`. Fragmented MP4 gets its length from `mvhd`, which
+    may be zero (no duration row).
+  - **The bitrate is the file's size over its length** (less the cover), not the stream's stated rate, and
+    `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
+  - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
+  - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
+  - The tree is 587 packages (575 with libav's bindings) against the budget of 590. Ends with the plugin
+    phases (P3 replaces the viewer's `ffmpeg-next`; P5 forbids it everywhere).
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -517,9 +526,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
-  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 580 distinct packages;
-  `anyview-peek` is 574 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
-  `anyview-archive`, `skrifa` and libav's bindings the rest.
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 590 distinct packages;
+  `anyview-peek` is 587 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  `anyview-archive`, `skrifa` and the media parsers the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those
   manifests name; they apply only at a workspace root, so they live in this root. They were added with

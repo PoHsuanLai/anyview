@@ -31,9 +31,11 @@ cd "$(dirname "$0")/.."
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
 # anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
 # Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never libmpv or
-# D-Bus. It links libav through `anyview-media`'s `ffmpeg` feature, switched on by peek's own `media`
-# feature (default on), to read a recording's facts and cover art for the pane; `cargo tree -p` below
-# runs with the default features, so libav is in the tree it checks. What it may not name itself is the DIRECT table below.
+# D-Bus, and never libav or libmpv: its `media` feature (default on) reads a recording's facts and
+# cover art with pure-Rust parsers (symphonia, mp4parse, matroska-demuxer), and a video's frame comes
+# from a thumbnail source the host injects. `cargo tree -p` below runs with the default features, so
+# those parsers are in the tree it checks and `ffmpeg-next`, `ffmpeg-sys-next`, `rsmpv` and
+# `rsmpv-sys` must not be. It does not depend on `anyview-media` at all. What it may not name itself is the DIRECT table below.
 # anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
@@ -46,8 +48,7 @@ cd "$(dirname "$0")/.."
 # crate that owns it. It does name `dioxus`, for the root component every window shares.
 # anyview-media is the only crate that names `ffmpeg-next` and `ffmpeg-sys-next` (libav) and, with its
 # `player` feature, `mpv-wgpu-player` and `rsmpv` (libmpv): every other crate's row forbids libav, and
-# anyview-peek's forbids both libraries, since the launcher links it with the `ffmpeg` feature alone
-# (`cargo tree -p` resolves only that package's features, so the player's stay out of its tree). The
+# anyview-peek's forbids both libraries. (Phase P3 and P5 of PLAN.md replace them with plugins.) The
 # media crate itself spawns nothing, reads no clock and draws nothing: no runtime, no bus, no UI.
 RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image syntect blitz-dom anyrender serde_json"
@@ -58,7 +59,7 @@ RULES=(
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
   "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
   "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
-  "anyview-peek: mpv-wgpu-player rsmpv zbus ashpd"
+  "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
   "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender"
 )
@@ -75,11 +76,12 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 574 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 587 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
-# of anyview-archive, skrifa and libav's bindings (anyview-media, `ffmpeg` feature).
+# of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
+# crates, mp4parse, matroska-demuxer). It was 575 with libav's bindings; the parsers cost 12 more.
 BUDGETS=(
-  "anyview-peek: 580"
+  "anyview-peek: 590"
 )
 fail=0
 
@@ -150,7 +152,7 @@ EDGES=(
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core ds-core"
-  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-media anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-font: anyview-core"
