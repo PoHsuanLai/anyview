@@ -31,8 +31,9 @@ cd "$(dirname "$0")/.."
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
 # anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
 # Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never libmpv or
-# D-Bus. It links libav through `anyview-media`'s `ffmpeg` feature, to read a recording's facts and
-# cover art for the pane. What it may not name itself is the DIRECT table below.
+# D-Bus. It links libav through `anyview-media`'s `ffmpeg` feature, switched on by peek's own `media`
+# feature (default on), to read a recording's facts and cover art for the pane; `cargo tree -p` below
+# runs with the default features, so libav is in the tree it checks. What it may not name itself is the DIRECT table below.
 # anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
