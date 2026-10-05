@@ -71,11 +71,14 @@ wildcards = "allow"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# The pinned git dependencies, all rev-pinned in Cargo.lock: our forks and pdfrum, mpv-wgpu, and
+# The pinned git dependencies, all rev-pinned in Cargo.lock: quire and blitz-kit (the desktop
+# manifest's revs), our forks and pdfrum, mpv-wgpu, and
 # taffy (reached through blitz).
 allow-git = [
     "https://github.com/PoHsuanLai/anyrender",
     "https://github.com/PoHsuanLai/blitz",
+    "https://github.com/PoHsuanLai/blitz-kit",
+    "https://github.com/PoHsuanLai/quire",
     "https://github.com/PoHsuanLai/mpv-wgpu",
     "https://github.com/PoHsuanLai/pdfrum",
     "https://github.com/PoHsuanLai/vello",
