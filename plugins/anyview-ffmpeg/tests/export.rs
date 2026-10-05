@@ -58,8 +58,8 @@ fn each_target_writes_a_file_of_its_codec_and_the_length_of_the_source() {
             "{target} of {source} lasts {seconds}, not {whole}"
         );
         assert!(
-            !scratch.path(&format!(".part-out.{extension}")).exists(),
-            "{target}: no partial file is left"
+            partials(&scratch.path("")).is_empty(),
+            "{target}: no partial file is left (for .{extension})"
         );
     }
 }
@@ -305,7 +305,7 @@ fn cancel_kills_ffmpeg_and_removes_the_partial_file() {
     );
     assert!(!output.exists());
     assert!(
-        !scratch.path(".part-never.flac").exists(),
+        partials(&scratch.path("")).is_empty(),
         "the partial file is gone"
     );
     let pid: u32 = std::fs::read_to_string(&pidfile)
@@ -343,7 +343,7 @@ fn a_failing_ffmpeg_is_an_error_with_what_it_said_and_leaves_no_file() {
         "{error:?}"
     );
     assert!(!output.exists());
-    assert!(!scratch.path(".part-bad.flac").exists());
+    assert!(partials(&scratch.path("")).is_empty());
 }
 
 #[test]
@@ -421,4 +421,13 @@ fn a_host_that_gives_up_on_a_silent_export_kills_ffmpeg_with_the_plugin() {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert!(!alive(pid), "ffmpeg (pid {pid}) died with the plugin");
+}
+
+/// The hidden temporary files of exports in `dir`.
+fn partials(dir: &std::path::Path) -> Vec<String> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(".part-"))
+        .collect()
 }
