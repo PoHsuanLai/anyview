@@ -19,6 +19,9 @@ pub struct Dirs {
     pub data: PathBuf,
     /// `$XDG_CACHE_HOME`, else `~/.cache`.
     pub cache: PathBuf,
+    /// `$XDG_STATE_HOME`, else `~/.local/state`: what must outlive a cache clean but is not a
+    /// setting, such as the originals kept before a save in place.
+    pub state: PathBuf,
     /// `$XDG_CONFIG_DIRS`, most important first.
     pub config_dirs: Vec<PathBuf>,
     /// `$XDG_DATA_DIRS`, most important first.
@@ -34,6 +37,7 @@ impl Dirs {
             config: dirs::config_dir().unwrap_or_else(|| home.join(".config")),
             data: dirs::data_dir().unwrap_or_else(|| home.join(".local/share")),
             cache: dirs::cache_dir().unwrap_or_else(|| home.join(".cache")),
+            state: dirs::state_dir().unwrap_or_else(|| home.join(".local/state")),
             config_dirs: search_path("XDG_CONFIG_DIRS", "/etc/xdg"),
             data_dirs: search_path("XDG_DATA_DIRS", "/usr/local/share:/usr/share"),
             home,
@@ -41,7 +45,7 @@ impl Dirs {
     }
 
     /// Every directory inside `root` (a test's scratch folder): `root/home`, `root/config`,
-    /// `root/data`, `root/cache`, and one system directory each, `root/etc-xdg` and
+    /// `root/data`, `root/cache`, `root/state`, and one system directory each, `root/etc-xdg` and
     /// `root/share`.
     pub fn under(root: &Path) -> Dirs {
         Dirs {
@@ -49,6 +53,7 @@ impl Dirs {
             config: root.join("config"),
             data: root.join("data"),
             cache: root.join("cache"),
+            state: root.join("state"),
             config_dirs: vec![root.join("etc-xdg")],
             data_dirs: vec![root.join("share")],
         }

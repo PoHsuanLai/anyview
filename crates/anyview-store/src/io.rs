@@ -9,7 +9,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreError {
+pub(crate) fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreError {
     StoreError::Io {
         op,
         path: path.to_path_buf(),
