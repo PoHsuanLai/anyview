@@ -3,16 +3,24 @@
 
 use super::links::scheme;
 use anyview_core::{FileHead, FileName, FilePath, FormatKind, SniffStep, sniff};
+use std::collections::HashMap;
+use std::io::Read;
 
 /// The largest image, in bytes, that is inlined: a `data:` URL is a third larger than the file and
 /// lives in the HTML string.
 const MAX_INLINE: usize = 8 * 1024 * 1024;
 
+/// The most that all the images of one document add to its HTML, counted in the `data:` URLs
+/// written: a document may name the same large file again and again, and each mention is a copy.
+const MAX_DOCUMENT_INLINE: usize = 32 * 1024 * 1024;
+
 /// Reads the files a document refers to. The viewer's edge implements it over the disk and a test
 /// over a map, so rendering stays pure.
 pub trait LocalFiles {
-    /// The bytes of the file at `path`, or `None` when it cannot be read.
-    fn read(&self, path: &FilePath) -> Option<Vec<u8>>;
+    /// The bytes of the file at `path`, or `None` when it cannot be read, is not a regular file
+    /// (a device, a pipe, a folder) or is longer than `most` bytes. A reader never holds more than
+    /// `most` bytes of a file, whatever the file claims to be.
+    fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>>;
 }
 
 /// No files at all: every local image is shown as its alt text. A peek renders with this.
@@ -20,7 +28,7 @@ pub trait LocalFiles {
 pub struct NoFiles;
 
 impl LocalFiles for NoFiles {
-    fn read(&self, _: &FilePath) -> Option<Vec<u8>> {
+    fn read(&self, _: &FilePath, _: usize) -> Option<Vec<u8>> {
         None
     }
 }
@@ -30,8 +38,21 @@ impl LocalFiles for NoFiles {
 pub struct DiskFiles;
 
 impl LocalFiles for DiskFiles {
-    fn read(&self, path: &FilePath) -> Option<Vec<u8>> {
-        std::fs::read(path.as_path()).ok()
+    fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>> {
+        // Asked before opening, because opening a named pipe waits for a writer, and again after,
+        // so the file that is read is the file that was looked at.
+        if !std::fs::metadata(path.as_path()).ok()?.is_file() {
+            return None;
+        }
+        let file = std::fs::File::open(path.as_path()).ok()?;
+        if !file.metadata().ok()?.is_file() {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        file.take(u64::try_from(most).ok()?.saturating_add(1))
+            .read_to_end(&mut bytes)
+            .ok()?;
+        (bytes.len() <= most).then_some(bytes)
     }
 }
 
@@ -74,31 +95,67 @@ fn target(url: &str, base: Option<&FilePath>) -> Option<FilePath> {
     FilePath::new(base?.as_path().join(decoded)).ok()
 }
 
-/// The `data:` URL an image reference becomes, or `None` when it must not be shown: a remote or
-/// otherwise non-local address, a file that cannot be read, is too large or is not an image.
-/// A reference that already is a `data:image/` URL is kept.
-pub(super) fn data_url(
-    url: &str,
-    base: Option<&FilePath>,
-    files: &dyn LocalFiles,
-) -> Option<String> {
-    let url = url.trim();
-    match scheme(url).as_deref() {
-        Some("data") => return url.starts_with("data:image/").then(|| url.to_owned()),
-        Some(_) => return None,
-        None => {}
+/// The images of one document: what has been read, and how much of the document's allowance the
+/// `data:` URLs written so far have spent.
+pub(super) struct Inliner<'a> {
+    base: Option<&'a FilePath>,
+    files: &'a dyn LocalFiles,
+    /// The `data:` URL of each path asked for, `None` for a path that is not an image or could
+    /// not be read: a file named twice is read once.
+    urls: HashMap<FilePath, Option<String>>,
+    spent: usize,
+}
+
+impl<'a> Inliner<'a> {
+    pub(super) fn new(base: Option<&'a FilePath>, files: &'a dyn LocalFiles) -> Self {
+        Inliner {
+            base,
+            files,
+            urls: HashMap::new(),
+            spent: 0,
+        }
     }
-    let path = target(url, base)?;
-    let bytes = files.read(&path)?;
-    if bytes.len() > MAX_INLINE {
-        return None;
+
+    /// The `data:` URL an image reference becomes, or `None` when it must not be shown: a remote
+    /// or otherwise non-local address, a file that cannot be read, is too large or is not an
+    /// image, or an image that would take the document past its allowance. A reference that
+    /// already is a `data:image/` URL is kept.
+    pub(super) fn data_url(&mut self, url: &str) -> Option<String> {
+        let url = url.trim();
+        match scheme(url).as_deref() {
+            Some("data") => return url.starts_with("data:image/").then(|| url.to_owned()),
+            Some(_) => return None,
+            None => {}
+        }
+        let path = target(url, self.base)?;
+        let inlined = match self.urls.get(&path) {
+            Some(known) => known.clone(),
+            None => {
+                let read = self.read_image(&path);
+                self.urls.insert(path, read.clone());
+                read
+            }
+        }?;
+        let spent = self.spent.checked_add(inlined.len())?;
+        if spent > MAX_DOCUMENT_INLINE {
+            return None;
+        }
+        self.spent = spent;
+        Some(inlined)
     }
-    let name = path.file_name()?;
-    let mime = image_mime(&bytes, &name)?;
-    Some(format!(
-        "data:{mime};base64,{}",
-        ds_core::base64::encode(&bytes)
-    ))
+
+    fn read_image(&self, path: &FilePath) -> Option<String> {
+        let bytes = self.files.read(path, MAX_INLINE)?;
+        if bytes.len() > MAX_INLINE {
+            return None;
+        }
+        let name = path.file_name()?;
+        let mime = image_mime(&bytes, &name)?;
+        Some(format!(
+            "data:{mime};base64,{}",
+            ds_core::base64::encode(&bytes)
+        ))
+    }
 }
 
 /// The MIME type of an image file, or `None` for a file that sniffs as anything else.
@@ -123,8 +180,9 @@ mod tests {
     struct Files(HashMap<String, Vec<u8>>);
 
     impl LocalFiles for Files {
-        fn read(&self, path: &FilePath) -> Option<Vec<u8>> {
-            self.0.get(path.as_path().to_str()?).cloned()
+        fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>> {
+            let bytes = self.0.get(path.as_path().to_str()?)?;
+            (bytes.len() <= most).then(|| bytes.clone())
         }
     }
 
@@ -185,20 +243,30 @@ mod tests {
             ("empty", "", None),
         ];
         for (name, url, want) in cases {
-            assert_eq!(data_url(url, Some(&base), &files()), want, "{name}");
+            assert_eq!(
+                Inliner::new(Some(&base), &files()).data_url(url),
+                want,
+                "{name}"
+            );
         }
     }
 
     #[test]
     fn a_relative_reference_needs_a_base_directory() {
-        assert_eq!(data_url("pic.png", None, &files()), None);
-        assert_eq!(data_url("/notes/pic.png", None, &files()), Some(png_url()));
+        assert_eq!(Inliner::new(None, &files()).data_url("pic.png"), None);
+        assert_eq!(
+            Inliner::new(None, &files()).data_url("/notes/pic.png"),
+            Some(png_url())
+        );
     }
 
     #[test]
     fn no_files_means_no_images() {
         let base = FilePath::new("/notes").unwrap();
-        assert_eq!(data_url("pic.png", Some(&base), &NoFiles), None);
+        assert_eq!(
+            Inliner::new(Some(&base), &NoFiles).data_url("pic.png"),
+            None
+        );
     }
 
     #[test]
@@ -213,6 +281,87 @@ mod tests {
         ];
         for (text, want) in CASES {
             assert_eq!(percent_decode(text), *want, "{text}");
+        }
+    }
+
+    /// A reader that counts the files it is asked for.
+    struct Counting<'a>(&'a Files, std::cell::Cell<usize>);
+
+    impl LocalFiles for Counting<'_> {
+        fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>> {
+            self.1.set(self.1.get() + 1);
+            self.0.read(path, most)
+        }
+    }
+
+    #[test]
+    fn a_file_named_again_is_read_once() {
+        let files = files();
+        let counting = Counting(&files, std::cell::Cell::new(0));
+        let mut inliner = Inliner::new(None, &counting);
+        for _ in 0..5 {
+            assert_eq!(inliner.data_url("/notes/pic.png"), Some(png_url()));
+        }
+        assert_eq!(inliner.data_url("/notes/missing.png"), None);
+        assert_eq!(inliner.data_url("/notes/missing.png"), None);
+        assert_eq!(counting.1.get(), 2);
+    }
+
+    #[test]
+    fn a_document_stops_inlining_when_its_images_have_spent_the_allowance() {
+        let big = [PNG, &vec![0; MAX_INLINE - PNG.len()]].concat();
+        let files = Files(HashMap::from([("/notes/big.png".to_owned(), big)]));
+        let copy = Inliner::new(None, &files)
+            .data_url("/notes/big.png")
+            .unwrap()
+            .len();
+        let mut inliner = Inliner::new(None, &files);
+        let shown = (0..2000)
+            .filter(|_| inliner.data_url("/notes/big.png").is_some())
+            .count();
+        assert_eq!(shown, MAX_DOCUMENT_INLINE / copy);
+    }
+
+    #[test]
+    fn the_disk_reads_regular_files_only_and_never_more_than_asked() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = |name: &str| FilePath::new(dir.path().join(name)).unwrap();
+        std::fs::write(file("pic.png").as_path(), PNG).unwrap();
+        std::fs::create_dir(file("folder").as_path()).unwrap();
+        let pipe = file("pipe.png");
+        let made = std::process::Command::new("mkfifo")
+            .arg(pipe.as_path())
+            .status()
+            .unwrap();
+        assert!(made.success());
+        let zero = FilePath::new("/dev/zero").unwrap();
+        // name, path, most, bytes
+        let cases: Vec<(&str, FilePath, usize, Option<Vec<u8>>)> = vec![
+            ("a file", file("pic.png"), MAX_INLINE, Some(PNG.to_vec())),
+            (
+                "a file exactly at the limit",
+                file("pic.png"),
+                PNG.len(),
+                Some(PNG.to_vec()),
+            ),
+            (
+                "a file one past the limit",
+                file("pic.png"),
+                PNG.len() - 1,
+                None,
+            ),
+            ("a folder", file("folder"), MAX_INLINE, None),
+            ("a named pipe", pipe, MAX_INLINE, None),
+            ("a device that never ends", zero, MAX_INLINE, None),
+            (
+                "a path that is not there",
+                file("gone.png"),
+                MAX_INLINE,
+                None,
+            ),
+        ];
+        for (name, path, most, want) in cases {
+            assert_eq!(DiskFiles.read(&path, most), want, "{name}");
         }
     }
 }

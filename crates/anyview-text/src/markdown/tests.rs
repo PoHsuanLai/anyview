@@ -6,8 +6,9 @@ use std::collections::HashMap;
 struct Files(HashMap<String, Vec<u8>>);
 
 impl LocalFiles for Files {
-    fn read(&self, path: &FilePath) -> Option<Vec<u8>> {
-        self.0.get(path.as_path().to_str()?).cloned()
+    fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>> {
+        let bytes = self.0.get(path.as_path().to_str()?)?;
+        (bytes.len() <= most).then(|| bytes.clone())
     }
 }
 
@@ -255,4 +256,44 @@ fn an_empty_document_renders_nothing() {
     let rendered = plain("");
     assert_eq!(rendered.html, "");
     assert!(rendered.outline.is_empty());
+}
+
+#[test]
+fn an_image_that_names_a_device_is_shown_as_its_alt_text_and_never_read_to_the_end() {
+    let rendered = render(
+        "![the void](/dev/zero) and ![fifty](/dev/urandom)\n",
+        &RenderEnv {
+            base: None,
+            files: &DiskFiles,
+            highlighter: None,
+        },
+    );
+    assert_eq!(
+        rendered
+            .html
+            .matches("<span class=\"missing-image\">")
+            .count(),
+        2
+    );
+    assert!(!rendered.html.contains("data:"));
+}
+
+#[test]
+fn a_document_that_names_one_large_image_again_and_again_stops_inlining_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let big = [PNG, &vec![0; 6 * 1024 * 1024]].concat();
+    std::fs::write(dir.path().join("big.png"), big).unwrap();
+    let base = FilePath::new(dir.path()).unwrap();
+    let source = "![a](big.png)\n\n".repeat(1000);
+    let rendered = render(
+        &source,
+        &RenderEnv {
+            base: Some(&base),
+            files: &DiskFiles,
+            highlighter: None,
+        },
+    );
+    let inlined = rendered.html.matches("<img").count();
+    assert!((1..10).contains(&inlined), "{inlined} copies");
+    assert!(rendered.html.len() < 48 * 1024 * 1024);
 }
