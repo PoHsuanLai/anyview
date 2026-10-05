@@ -19,6 +19,7 @@ mod sequence;
 mod sniff;
 mod source;
 mod trail;
+mod tree_path;
 mod units;
 pub mod work;
 
@@ -50,6 +51,7 @@ pub use sniff::{
 };
 pub use source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
+pub use tree_path::{OpenNodes, TreePath};
 pub use units::{
     Axis, Bitrate, ChapterIndex, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime,
     PageCount, PageIndex, PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen,

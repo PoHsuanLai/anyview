@@ -47,6 +47,10 @@ impl OpenError {
             OpenError::Text(anyview_text::TextError::Read { kind, .. }) => {
                 OpenError::Read(*kind).failure()
             }
+            OpenError::Text(
+                anyview_text::TextError::WorkbookTooLarge { .. }
+                | anyview_text::TextError::JsonOverBudget,
+            ) => LoadFailure::Unsupported,
             OpenError::Text(_) => LoadFailure::Damaged,
             OpenError::Pdf(failure) => pdf_failure(*failure),
             OpenError::Book(error) => book_failure(error),
@@ -92,5 +96,41 @@ fn book_failure(error: &anyview_book::BookError) -> LoadFailure {
         (Some(kind), _) => OpenError::Read(kind).failure(),
         (None, true) => LoadFailure::Unsupported,
         (None, false) => LoadFailure::Damaged,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyview_core::ByteLen;
+    use anyview_text::TextError;
+
+    #[test]
+    fn a_json_or_workbook_over_budget_is_unsupported_not_damaged() {
+        // name, error, what the load machine is told
+        let cases = [
+            (
+                "json over the budget",
+                OpenError::Text(TextError::JsonOverBudget),
+                LoadFailure::Unsupported,
+            ),
+            (
+                "a workbook over the budget",
+                OpenError::Text(TextError::WorkbookTooLarge {
+                    allowed: ByteLen(1),
+                }),
+                LoadFailure::Unsupported,
+            ),
+            (
+                "a table that does not parse",
+                OpenError::Text(TextError::Table {
+                    reason: String::new(),
+                }),
+                LoadFailure::Damaged,
+            ),
+        ];
+        for (name, error, expected) in cases {
+            assert_eq!(error.failure(), expected, "{name}");
+        }
     }
 }

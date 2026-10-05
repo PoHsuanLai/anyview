@@ -1,6 +1,6 @@
 [package]
 name = "anyview-text"
-description = "Text for the viewer: encodings and windowed lines, syntax highlighting into token classes, Markdown to HTML, CSV tables and JSON trees."
+description = "Text for the viewer: encodings and windowed lines, syntax highlighting into token classes, Markdown to HTML, CSV tables, spreadsheets and JSON trees."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 ds-core = { workspace = true }
+calamine = { workspace = true }
 csv = { workspace = true }
 encoding_rs = { workspace = true }
 pulldown-cmark = { workspace = true }
@@ -21,6 +22,8 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# Builds the workbook the sheet tests read: a test fixture, never a normal dependency.
+zip = { workspace = true }
 
 [lints]
 workspace = true

@@ -12,9 +12,13 @@ use dioxus::prelude::*;
 pub(super) fn section_of(stage: &Stage) -> Option<SectionIndex> {
     match stage {
         Stage::Book(BookStage::Reading { section }) => Some(*section),
-        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Media(_) | Stage::Text(_) => {
-            None
-        }
+        Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Pdf(_)
+        | Stage::Media(_)
+        | Stage::Text(_)
+        | Stage::Table(_)
+        | Stage::Tree(_) => None,
     }
 }
 

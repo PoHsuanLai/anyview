@@ -6,9 +6,10 @@
 
 use crate::body::Light;
 use crate::book::BookPeek;
-use crate::described::{OfficePeek, OtherPeek};
+use crate::described::OtherPeek;
 use crate::folder::FolderPeek;
 use crate::media::{AudioPeek, VideoPeek};
+use crate::office::OfficePeek;
 use crate::pdf::PdfPeek;
 use anyview_archive::ArchivePeek;
 use anyview_core::FormatKind;

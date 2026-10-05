@@ -45,7 +45,7 @@ pub(super) fn binary(extension: &str) -> Option<Sniffed> {
         return Some(of(FormatKind::Book, format, FormatDetail::Book(format)));
     }
     from_extension::<OfficeFormat>(extension)
-        .map(|format| of(FormatKind::Office, format, FormatDetail::Office(format)))
+        .map(|format| of(format.kind(), format, FormatDetail::Office(format)))
 }
 
 /// The kind of a text file from its name: Markdown, a table, a tree, an SVG, source code, or plain

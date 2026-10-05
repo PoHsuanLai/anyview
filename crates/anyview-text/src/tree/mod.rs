@@ -5,35 +5,20 @@
 
 mod node;
 mod rows;
+mod visible;
 
 #[cfg(test)]
 mod tests;
 
 pub use rows::{ChildCount, NodeKind, RowLabel, TreeRow};
+pub use visible::{Openness, VisibleRow};
 
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{LineIndex, TreeFormat};
+use crate::peek::head::read_limited;
+use anyview_core::{ByteLen, LineIndex, Source, TreeFormat, TreePath};
 use node::Node;
 use std::ops::Range;
-
-/// Where a node is: the position of each child to take, from the root. The root is the empty path.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TreePath(Vec<u32>);
-
-impl TreePath {
-    /// The root.
-    pub fn root() -> Self {
-        TreePath(Vec::new())
-    }
-
-    /// The path to this node's child at `position`.
-    pub fn child(&self, position: u32) -> Self {
-        let mut steps = self.0.clone();
-        steps.push(position);
-        TreePath(steps)
-    }
-}
 
 /// A parsed JSON document, or the values of a JSON Lines file as the items of an array.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +60,21 @@ impl Tree {
         Ok(Tree { format, root })
     }
 
+    /// The document in the file `src` names, reading at most `limit` bytes. A JSON document is one
+    /// value and cannot be read in part, so a larger one is [`TextError::JsonOverBudget`]; a JSON
+    /// Lines file is read as far as `limit` reaches, and says so in the coverage it returns.
+    pub fn read(
+        src: &Source,
+        format: TreeFormat,
+        limit: ByteLen,
+    ) -> Result<(Self, Coverage), TextError> {
+        let head = read_limited(src, limit)?;
+        if format == TreeFormat::Json && head.coverage == Coverage::Prefix {
+            return Err(TextError::JsonOverBudget);
+        }
+        Ok((Tree::parse(&head.text, format)?, head.coverage))
+    }
+
     /// The document in a file's bytes: the encoding is detected, a byte-order mark skipped.
     pub fn parse_bytes(bytes: &[u8], format: TreeFormat) -> Result<Self, TextError> {
         let detected = detect(bytes, Coverage::Whole);
@@ -88,7 +88,7 @@ impl Tree {
     }
 
     fn node(&self, path: &TreePath) -> Option<&Node> {
-        path.0.iter().try_fold(&self.root, |node, step| {
+        path.steps().iter().try_fold(&self.root, |node, step| {
             let step = *step as usize; // a u32 fits a usize
             match node {
                 Node::Object(entries) => entries.get(step).map(|(_, child)| child),
@@ -102,17 +102,15 @@ impl Tree {
     /// by the last step's key or index.
     pub fn row(&self, path: &TreePath) -> Result<TreeRow, TextError> {
         let node = self.node(path).ok_or(TextError::NoSuchNode)?;
-        let Some((last, parent)) = path.0.split_last() else {
+        let Some((last, parent)) = path.split_last() else {
             return Ok(rows::row(RowLabel::Root, node));
         };
-        let parent_node = self
-            .node(&TreePath(parent.to_vec()))
-            .ok_or(TextError::NoSuchNode)?;
+        let parent_node = self.node(&parent).ok_or(TextError::NoSuchNode)?;
         let label = match parent_node {
             Node::Object(entries) => entries
-                .get(*last as usize)
+                .get(last as usize)
                 .map(|(key, _)| RowLabel::Key(key.clone())),
-            Node::Array(_) => Some(RowLabel::Index(*last)),
+            Node::Array(_) => Some(RowLabel::Index(last)),
             Node::Scalar { .. } => None,
         }
         .ok_or(TextError::NoSuchNode)?;

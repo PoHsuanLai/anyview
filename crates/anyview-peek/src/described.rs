@@ -1,8 +1,7 @@
 //! The peek of a kind whose back end does not exist yet: what the file is, from its sniffed type.
 //!
-//! Office documents and files of a type nothing opens are
-//! each mapped from day one (ARCHITECTURE section 3, rule 3). Until their back ends land they
-//! show what sniffing established, plus the size and date every pane lists, and nothing is
+//! Files of a type nothing opens are each mapped from day one (ARCHITECTURE section 3, rule 3).
+//! Until their back ends land they show what sniffing established, plus the size and date every pane lists, and nothing is
 //! pretended: no duration, no cover. A back end replaces its marker's `Peek` impl
 //! with a real one and the registry's arm names the new type.
 
@@ -74,17 +73,6 @@ impl<K: Describes> Peek for FactsPeek<K> {
 }
 
 // The kinds that have no back end yet, one unit type each, for [`FactsPeek`] to be generic over.
-
-/// The kind `Office`.
-#[derive(Debug, Clone, Copy)]
-pub struct OfficeKind;
-
-impl Describes for OfficeKind {
-    const KIND: FormatKind = FormatKind::Office;
-}
-
-/// The facts-only peek of the kind `Office`.
-pub type OfficePeek = FactsPeek<OfficeKind>;
 
 /// The kind `Other`.
 #[derive(Debug, Clone, Copy)]

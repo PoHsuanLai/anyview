@@ -63,9 +63,12 @@ pub(super) fn use_work(c: &Carry) {
         // start before the window has one.
         let needs_device = match probed.family {
             StageFamily::Raster | StageFamily::Media => true,
-            StageFamily::Pdf | StageFamily::Text | StageFamily::Book | StageFamily::PeekOnly => {
-                false
-            }
+            StageFamily::Pdf
+            | StageFamily::Text
+            | StageFamily::Book
+            | StageFamily::Table
+            | StageFamily::Tree
+            | StageFamily::PeekOnly => false,
         };
         if needs_device && !ready {
             return;

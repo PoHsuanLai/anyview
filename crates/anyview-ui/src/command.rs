@@ -74,6 +74,12 @@ pub enum StageCommand {
     MovePageEarlier,
     /// Move the page on screen one place later in a PDF.
     MovePageLater,
+    /// The next sheet of a workbook.
+    NextSheet,
+    /// The previous sheet of a workbook.
+    PreviousSheet,
+    /// Close every open node of a tree but the top level.
+    CollapseAll,
 }
 
 impl StageCommand {
@@ -120,6 +126,9 @@ impl StageCommand {
             [Shift, Super, Backspace] => Some(StageCommand::DeletePage),
             [Shift, Super, Up] => Some(StageCommand::MovePageEarlier),
             [Shift, Super, Down] => Some(StageCommand::MovePageLater),
+            [Super, Char(']')] => Some(StageCommand::NextSheet),
+            [Super, Char('[')] => Some(StageCommand::PreviousSheet),
+            [Char('c')] => Some(StageCommand::CollapseAll),
             _ => None,
         }
     }
@@ -167,6 +176,9 @@ impl StageCommand {
             StageCommand::DeletePage => vec![Shift, Super, Backspace],
             StageCommand::MovePageEarlier => vec![Shift, Super, Up],
             StageCommand::MovePageLater => vec![Shift, Super, Down],
+            StageCommand::NextSheet => vec![Super, Char(']')],
+            StageCommand::PreviousSheet => vec![Super, Char('[')],
+            StageCommand::CollapseAll => vec![Char('c')],
         })
     }
 }

@@ -48,6 +48,18 @@ pub enum TextError {
         /// The parser's own words.
         reason: String,
     },
+    /// A workbook that does not open.
+    #[error("cannot read the workbook: {reason}")]
+    Workbook {
+        /// The reader's own words.
+        reason: String,
+    },
+    /// A workbook larger than the viewer reads into memory.
+    #[error("the workbook is larger than the {} bytes the viewer opens", .allowed.0)]
+    WorkbookTooLarge {
+        /// The most it opens.
+        allowed: anyview_core::ByteLen,
+    },
     /// A tree path that leads nowhere.
     #[error("no node at that path")]
     NoSuchNode,

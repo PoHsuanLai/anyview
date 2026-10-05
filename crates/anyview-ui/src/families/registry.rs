@@ -8,7 +8,9 @@ use super::media::MediaStageView;
 use super::pdf::PdfStageView;
 use super::peek_only::PeekOnlyStageView;
 use super::raster::RasterStageView;
+use super::table::TableStageView;
 use super::text::TextStageView;
+use super::tree::TreeStageView;
 use super::view::{LoadedDoc, StageView};
 use crate::io::{OpenError, OpenLink};
 use crate::{LoadFlow, StageFamily, Ticket};
@@ -26,11 +28,11 @@ pub trait KindVisitor {
 pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
     match kind {
         FormatKind::Raster | FormatKind::Vector => visitor.visit::<RasterStageView>(),
-        FormatKind::Markdown
-        | FormatKind::Code
-        | FormatKind::PlainText
-        | FormatKind::Table
-        | FormatKind::Tree => visitor.visit::<TextStageView>(),
+        FormatKind::Markdown | FormatKind::Code | FormatKind::PlainText => {
+            visitor.visit::<TextStageView>()
+        }
+        FormatKind::Table => visitor.visit::<TableStageView>(),
+        FormatKind::Tree => visitor.visit::<TreeStageView>(),
         FormatKind::Pdf => visitor.visit::<PdfStageView>(),
         FormatKind::Book => visitor.visit::<BookStageView>(),
         FormatKind::Video | FormatKind::Audio => visitor.visit::<MediaStageView>(),

@@ -28,7 +28,10 @@ pub use markdown::{
 };
 pub use peek::{
     CodePeek, CodePeeked, MarkdownPeek, MarkdownPeeked, PEEK_LINES, PlainPeek, PlainPeeked,
-    TablePeek, TablePeeked, Tally, TreePeek, TreePeeked,
+    TablePeek, TablePeeked, TableSource, Tally, TreePeek, TreePeeked,
 };
-pub use table::{ColumnCount, HeaderMode, RowCount, RowIndex, Table};
-pub use tree::{ChildCount, NodeKind, RowLabel, Tree, TreePath, TreeRow};
+pub use table::{
+    CharWidth, ColumnCount, HeaderMode, RowCount, RowIndex, SHEET_ROWS, Separator, Sheet,
+    TABLE_BYTES, TABLE_ROWS, Table, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook,
+};
+pub use tree::{ChildCount, NodeKind, Openness, RowLabel, Tree, TreeRow, VisibleRow};
