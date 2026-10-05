@@ -5,11 +5,11 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
-    ChromeParams, Command, MediaOffer, Motion, PaletteParams, PanelParams, PresentationParams,
-    SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText,
-    ViewerParams,
+    ChromeParams, Command, EditOffer, MediaOffer, Motion, PaletteParams, PanelParams,
+    PresentationParams, SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews,
+    Ticket, TypedText, ViewerParams,
 };
-use anyview_core::{FormatKind, Reach, actions_for, reach};
+use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
 use ds::prelude::MotionLevel;
 use ds_core::word::Word;
 
@@ -60,11 +60,13 @@ pub(super) fn commands(
     kind: Option<FormatKind>,
     stage: &Stage,
     params: &StageParams,
+    offer: EditOffer,
 ) -> Vec<Command> {
     let files = kind
         .map(actions_for)
         .unwrap_or_default()
         .iter()
+        .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
         .filter(|action| match reach(**action) {
             Reach::Viewer | Reach::Both => true,
             Reach::Launcher => false,
@@ -75,6 +77,17 @@ pub(super) fn commands(
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     files.chain(stages).collect()
+}
+
+/// Whether `action` turns or flips the picture.
+fn is_picture_edit(action: FileAction) -> bool {
+    matches!(
+        action,
+        FileAction::RotateLeft
+            | FileAction::RotateRight
+            | FileAction::FlipHorizontal
+            | FileAction::FlipVertical
+    )
 }
 
 /// Whether `query` names `label`: every letter of the query, in order, ignoring case.
@@ -111,6 +124,7 @@ pub(super) fn params(
     level: MotionLevel,
 ) -> ViewerParams {
     let kind = probe.found().map(|probed| probed.sniffed.kind());
+    let offer = doc.map_or(EditOffer::Plain, |doc| doc.view().edit_offer());
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
@@ -129,11 +143,12 @@ pub(super) fn params(
         chrome: ChromeParams::default(),
         panel: doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params()),
         palette: PaletteParams {
-            rows: ranked(commands(kind, stage, &measured), query),
+            rows: ranked(commands(kind, stage, &measured, offer), query),
         },
         presentation: PresentationParams::default(),
         sheet: SheetParams {
             media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
+            edit: offer,
         },
         stage: measured,
     }

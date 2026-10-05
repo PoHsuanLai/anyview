@@ -22,6 +22,7 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 Sheet::Export { .. }
                 | Sheet::Unavailable { .. }
                 | Sheet::ConfirmTrash
+                | Sheet::ConfirmEdit { .. }
                 | Sheet::Rename { .. }
                 | Sheet::SaveCopy { .. }
                 | Sheet::Revert { .. }
