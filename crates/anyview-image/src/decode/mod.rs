@@ -12,6 +12,7 @@ mod svg;
 
 pub use colour::{ColourInfo, ColourModel};
 pub(crate) use look::{Looked, look};
+pub(crate) use svg::Svg;
 
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
@@ -95,15 +96,22 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
 /// read that way (JPEG XL and SVG, whose size comes from decoding or drawing them) or the file
 /// declares more pixels than a decode accepts.
 pub fn declared_size(src: &Source, sniffed: &Sniffed) -> Result<Option<PixelSize>, ImageError> {
+    declared_size_of(&read(src)?, sniffed)
+}
+
+/// [`declared_size`] of a file already read.
+pub(crate) fn declared_size_of(
+    bytes: &[u8],
+    sniffed: &Sniffed,
+) -> Result<Option<PixelSize>, ImageError> {
     let Codec::Image(format) = codec_for(sniffed)? else {
         return Ok(None);
     };
-    let bytes = read(src)?;
-    let size = stills::declared_size(&bytes, format)?;
+    let size = stills::declared_size(bytes, format)?;
     if size.area() > MAX_DECODE_AREA {
         return Ok(None);
     }
-    let turn = crate::exif::ExifFacts::read(&bytes).orientation.turn;
+    let turn = crate::exif::ExifFacts::read(bytes).orientation.turn;
     Ok(Some(match turn {
         QuarterTurn::None | QuarterTurn::Half => size,
         QuarterTurn::Quarter | QuarterTurn::ThreeQuarter => PixelSize {

@@ -1,6 +1,10 @@
 use super::support::{NOW, PDF, PNG, desktop, entry, path, probed};
 use crate::host::{Hosting, Outcome, Task};
-use anyview_core::{FileName, FormatKind, Resume};
+use anyview_core::{
+    ExportChoice, FileName, FormatKind, PageSelection, PixelLen, PixelSize, RasterExport,
+    RasterTarget, Resize, Resume, TextExport, TextExportKind, TextFlavour,
+};
+use anyview_export::DocumentExport;
 use anyview_platform::{DesktopId, ShareTarget};
 use anyview_store::{HistoryRead, read_history};
 
@@ -72,6 +76,99 @@ async fn print_hands_the_pdf_bytes_and_its_name_to_the_printer() {
     assert_eq!(jobs.len(), 1);
     assert_eq!(jobs[0].0.0, "report.pdf");
     assert_eq!(jobs[0].1, PDF.len());
+}
+
+#[tokio::test]
+async fn print_lays_out_a_picture_and_a_document_as_a_pdf_for_the_printer() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = probed(dir.path(), "a.png", &png());
+    let notes = probed(dir.path(), "notes.md", b"# Minutes\n\nWe agreed to ship.\n");
+    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    for file in [&image, &notes] {
+        let outcome = desktop.carry_out(Task::Print(file.clone())).await.unwrap();
+        assert_eq!(outcome, Outcome::Done);
+    }
+    let titles: Vec<String> = fakes
+        .printer
+        .jobs()
+        .into_iter()
+        .map(|job| job.0.0)
+        .collect();
+    assert_eq!(titles, ["a.png", "notes.md"]);
+    let pdfs = fakes.printer.pdfs();
+    assert_eq!(pdfs.len(), 2);
+    assert!(
+        pdfs.iter().all(|pdf| pdf.starts_with(b"%PDF-")),
+        "both are PDFs"
+    );
+    assert_ne!(pdfs[0], std::fs::read(dir.path().join("a.png")).unwrap());
+    let text = anyview_pdf_text(&pdfs[1]);
+    assert!(
+        text.contains("Minutes") && text.contains("We agreed"),
+        "{text:?}"
+    );
+    let listed: Vec<String> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(".pdf"))
+        .collect();
+    assert!(listed.is_empty(), "printing writes no file: {listed:?}");
+}
+
+#[tokio::test]
+async fn print_of_a_file_that_cannot_be_laid_out_is_a_failure_and_prints_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let broken = probed(dir.path(), "a.png", PNG);
+    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let outcome = desktop.carry_out(Task::Print(broken)).await.unwrap();
+    assert!(matches!(outcome, Outcome::Failed(_)), "{outcome:?}");
+    assert!(fakes.printer.jobs().is_empty());
+}
+
+#[tokio::test]
+async fn an_export_is_written_beside_the_file_and_a_failed_one_leaves_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let notes = probed(dir.path(), "notes.md", b"# Minutes\n\nWe agreed to ship.\n");
+    let broken = probed(dir.path(), "broken.png", PNG);
+    let (desktop, _) = desktop(dir.path(), vec![]);
+    let to_pdf = DocumentExport::Text(TextExport::default_for(TextExportKind::Pdf));
+    let outcome = desktop
+        .carry_out(Task::ExportDocument {
+            file: notes,
+            choice: to_pdf,
+        })
+        .await
+        .unwrap();
+    assert_eq!(outcome, Outcome::Done);
+    let written = std::fs::read(dir.path().join("notes.pdf")).unwrap();
+    assert!(anyview_pdf_text(&written).contains("We agreed to ship"));
+
+    let again = DocumentExport::Raster(RasterExport::Image(RasterTarget::Tiff, Resize::Original));
+    let outcome = desktop
+        .carry_out(Task::ExportDocument {
+            file: broken,
+            choice: again,
+        })
+        .await
+        .unwrap();
+    assert!(matches!(outcome, Outcome::Failed(_)), "{outcome:?}");
+    assert!(!dir.path().join("broken.tiff").exists());
+}
+
+/// A PNG that decodes: 8 by 8, one colour.
+fn png() -> Vec<u8> {
+    let size = PixelSize {
+        width: PixelLen(8),
+        height: PixelLen(8),
+    };
+    let picture = anyview_image::Rgba8::new(size, vec![90; 8 * 8 * 4]).unwrap();
+    anyview_image::encode(&picture, RasterTarget::Png).unwrap()
+}
+
+/// The text of a PDF, read the way the viewer reads one.
+fn anyview_pdf_text(bytes: &[u8]) -> String {
+    let doc = anyview_pdf::PdfDocument::from_bytes(bytes.to_vec()).unwrap();
+    anyview_pdf::write_text(&doc, PageSelection::All, TextFlavour::Plain).unwrap()
 }
 
 #[tokio::test]

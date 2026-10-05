@@ -12,8 +12,6 @@ pub enum Declined {
     AlreadyOpen,
     /// Choosing another file needs a file chooser the platform edge does not have.
     PickFile,
-    /// Exports are written by the export pipeline, which is not wired to the window.
-    Export,
     /// The window must ask a question first (a new name, a format); it does so through a sheet,
     /// and the answer comes back as its own request.
     NeedsSheet,
@@ -30,8 +28,8 @@ pub enum Declined {
     NothingToUndo,
     /// Nothing was taken back in this window, so there is nothing to do again.
     NothingToRedo,
-    /// Only a PDF is handed to the print dialog as it is; the rest print through an export.
-    PrintNeedsPdf,
+    /// Nothing of this kind is laid out on paper (a recording, a table, an archive).
+    NotPrintable,
     /// The typed name is not a file name.
     NotAFileName,
     /// Opening a web address a link names needs a platform edge trait for it, which does not exist.

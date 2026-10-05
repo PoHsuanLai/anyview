@@ -77,6 +77,7 @@ RULES=(
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
+  "anyview-export: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
@@ -95,6 +96,7 @@ DIRECT=(
   "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
+  "anyview-export: wgpu pdfrum pdfrum-anyrender pdfrum-edit image tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
 )
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
@@ -199,7 +201,7 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
+  "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
@@ -211,6 +213,7 @@ EDGES=(
   "anyview-archive: anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
+  "anyview-export: anyview-core anyview-image anyview-pdf anyview-text ds-blitz ds-core"
   "anyview-plugin: anyview-core anyview-plugin-protocol"
   "anyview-plugin-protocol: "
   "anyview-plugin-fake: anyview-plugin-protocol"
