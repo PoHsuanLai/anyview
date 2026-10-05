@@ -5,7 +5,7 @@ use super::tally::Tally;
 use crate::code::{Highlighter, TokenLine};
 use crate::encoding::TextCodec;
 use crate::error::TextError;
-use crate::lines::split;
+use crate::lines::split_start;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
     SyntaxName,
@@ -56,9 +56,9 @@ impl Peek for CodePeek {
             });
         };
         let head = read_head(src, budget)?;
-        let all = split(&head.text);
-        let total = Tally::of(all.len(), head.coverage);
-        let shown = all[..all.len().min(PEEK_LINES)].join("\n");
+        let (start, count) = split_start(&head.text, PEEK_LINES);
+        let total = Tally::of(count, head.coverage);
+        let shown = start.join("\n");
         let highlighter = Highlighter::new();
         let lines = highlighter.snippet(highlighter.syntax(syntax), &shown);
         Ok(CodePeeked {
