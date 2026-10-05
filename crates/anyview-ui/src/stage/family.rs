@@ -13,6 +13,10 @@ pub enum StageFamily {
     Media,
     /// Text, code and Markdown.
     Text,
+    /// Delimited tables and spreadsheets: rows and sheets.
+    Table,
+    /// JSON and JSON Lines: a tree that opens node by node.
+    Tree,
     /// No stage: the file shows its facts and Open With… (`StageSupport::PeekOnly`).
     PeekOnly,
 }

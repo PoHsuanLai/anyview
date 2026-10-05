@@ -86,7 +86,12 @@ impl StageView for RasterStageView {
     fn arrived(doc: &RasterDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
         let animation = match stage {
             Stage::Raster(raster) => geometry::animation_of(raster),
-            Stage::NoStage | Stage::Pdf(_) | Stage::Media(_) | Stage::Text(_) => return Vec::new(),
+            Stage::NoStage
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Table(_)
+            | Stage::Tree(_) => return Vec::new(),
         };
         match (
             doc.plays(),

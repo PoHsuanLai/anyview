@@ -39,8 +39,9 @@ pub use families::{
     LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, PDF_CSS,
     PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
     PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
-    RasterTarget, ReadyTile, StageCx, StageView, TOKEN_CSS, TextDoc, TextStageView, TrimMarks,
-    family_of, flow_of, use_media_shelf, use_pdf_shelf, visit,
+    RasterTarget, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
+    TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, family_of, flow_of, use_media_shelf,
+    use_pdf_shelf, visit,
 };
 pub use io::{
     Backend, Done, Edge, FirstFrameSource, HostRequest, Job, MediaHost, MediaLine, MediaNotice,
@@ -67,9 +68,11 @@ pub use stage::{
     AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameIndex,
     HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaError, MediaIn, MediaOut, MediaParams,
     MediaStage, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand,
-    PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, Stage, StageFamily, StageIn,
-    StageOut, StageParams, StepDirection, TextExtent, TextIn, TextOut, TextParams, TextPlace,
-    TextStage, TextStep, TextView, TextViews, TrackKind, TrimEdge, Viewport, Wrap, ZoomDir,
+    PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, RowNo, SheetNo, SheetTotal, Stage,
+    StageFamily, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams,
+    TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView,
+    TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap,
+    ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};

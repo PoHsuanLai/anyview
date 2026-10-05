@@ -5,8 +5,14 @@
 use crate::families::view::{Area, StageCx, StageView};
 use crate::io::{OpenError, OpenLink};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
-use anyview_core::{FactLabel, FactValue, Facts, FileAction, FormatKind, Sniffed, Source};
+use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
+use anyview_core::{
+    FactLabel, FactValue, Facts, FileAction, FileHead, FileName, FormatDetail, FormatKind,
+    RasterTarget, SniffStep, Sniffed, Source, sniff,
+};
+use anyview_image::{Decoded, decode_bytes, encode};
 use dioxus::prelude::*;
+use ds::components::content::image_source::ImageSource;
 use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
 use ds::components::fields::fact_list::{Fact, FactList};
@@ -24,6 +30,28 @@ pub struct PeekOnlyDoc {
     pub kind: FormatKind,
     /// Its rows.
     pub facts: Facts,
+    /// The picture an office document carries of itself, ready to draw.
+    pub thumbnail: Option<ImageSource>,
+}
+
+/// The picture of an office document as a PNG `data:` source, or `None` when it has none or it
+/// will not decode: the facts stand without it.
+fn thumbnail_of(look: &OfficeLook) -> Option<ImageSource> {
+    let thumbnail = look.thumbnail.as_ref()?;
+    let name = match thumbnail.codec {
+        ThumbnailCodec::Png => "thumbnail.png",
+        ThumbnailCodec::Jpeg => "thumbnail.jpg",
+    };
+    let head = FileHead::new(&thumbnail.bytes[..thumbnail.bytes.len().min(4096)]);
+    let SniffStep::Done(sniffed) = sniff(&head, &FileName::new(name).ok()?) else {
+        return None;
+    };
+    let Decoded::Still(picture) = decode_bytes(&thumbnail.bytes, &sniffed).ok()? else {
+        return None;
+    };
+    encode(&picture, RasterTarget::Png)
+        .ok()
+        .map(|png| ImageSource::png(&png))
 }
 
 /// Every kind the full tier does not show yet.
@@ -44,13 +72,32 @@ impl StageView for PeekOnlyStageView {
             .path()
             .file_name()
             .map_or_else(String::new, |name| name.as_str().to_owned());
-        let facts = Facts::empty()
+        let base = Facts::empty()
             .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
             .with(FactLabel::Size, FactValue::size(src.stamp().len));
+        let look = match sniffed.detail() {
+            FormatDetail::Office(format) => office_look(src.path(), *format).unwrap_or_default(),
+            FormatDetail::None
+            | FormatDetail::Raster(_)
+            | FormatDetail::Code(_)
+            | FormatDetail::Table(_)
+            | FormatDetail::Tree(_)
+            | FormatDetail::Text(_)
+            | FormatDetail::Media(_)
+            | FormatDetail::Font(_)
+            | FormatDetail::Archive(_)
+            | FormatDetail::Book(_) => OfficeLook::default(),
+        };
+        let facts = look
+            .facts()
+            .rows()
+            .iter()
+            .fold(base, |facts, row| facts.with(row.label, row.value.clone()));
         Ok(PeekOnlyDoc {
             name,
             kind: sniffed.kind(),
             facts,
+            thumbnail: thumbnail_of(&look),
         })
     }
 
@@ -77,6 +124,9 @@ impl StageView for PeekOnlyStageView {
         rsx! {
             div { class: "viewer-peek",
                 div { class: "viewer-peek-body",
+                if let Some(thumbnail) = doc.thumbnail.clone() {
+                    img { class: "viewer-peek-thumbnail", alt: "First page", src: thumbnail.0 }
+                }
                 EmptyState {
                     icon: Icon::File,
                     title: doc.name.clone(),
