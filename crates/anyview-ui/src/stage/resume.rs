@@ -17,6 +17,8 @@ impl Stage {
             Stage::Pdf(_) => StageFamily::Pdf,
             Stage::Media(_) => StageFamily::Media,
             Stage::Text(_) => StageFamily::Text,
+            Stage::Table(_) => StageFamily::Table,
+            Stage::Tree(_) => StageFamily::Tree,
         }
     }
 
@@ -24,7 +26,7 @@ impl Stage {
     /// stage's position belongs to its player) is `Resume::Nothing`.
     pub fn resume(&self) -> Resume {
         match self {
-            Stage::NoStage | Stage::Media(_) => Resume::Nothing,
+            Stage::NoStage | Stage::Media(_) | Stage::Table(_) | Stage::Tree(_) => Resume::Nothing,
             Stage::Raster(RasterStage::Fitted { .. }) => Resume::Raster {
                 zoom: Zoom::Fit,
                 centre: DocPoint::default(),
@@ -55,6 +57,8 @@ impl Stage {
     /// (a place remembered for another kind of file, or nothing).
     pub fn restoring(&self, resume: &Resume) -> Option<StageIn> {
         match (self, resume) {
+            // A table's sheet and a tree's open nodes are not kept: no place is put back.
+            (Stage::Table(_) | Stage::Tree(_), _) => None,
             (Stage::Raster(_), Resume::Raster { zoom, centre }) => {
                 Some(StageIn::Raster(RasterIn::Restore {
                     zoom: *zoom,

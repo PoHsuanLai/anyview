@@ -8,10 +8,13 @@ mod model;
 mod pdf;
 mod raster;
 mod resume;
+mod row;
 mod step;
+mod table;
 #[cfg(test)]
 mod tests;
 mod text;
+mod tree;
 mod zoom;
 
 pub use family::StageFamily;
@@ -25,8 +28,11 @@ pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub use raster::{
     Animation, FrameCount, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage,
 };
+pub use row::RowNo;
+pub use table::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
 pub use text::{
     LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
     TextView, TextViews, Wrap,
 };
+pub use tree::{TreeIn, TreeOut, TreeParams, TreeStage};
 pub use zoom::{Viewport, ZoomDir};

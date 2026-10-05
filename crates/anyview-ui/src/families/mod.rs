@@ -7,7 +7,9 @@ mod pdf;
 mod peek_only;
 mod raster;
 mod registry;
+mod table;
 mod text;
+mod tree;
 mod view;
 
 pub use media::{
@@ -22,9 +24,11 @@ pub use peek_only::{PeekOnlyDoc, PeekOnlyStageView};
 pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView, RasterTarget};
 pub use registry::{KindVisitor, family_of, flow_of, visit};
 pub(crate) use registry::{open_for, peek_for};
+pub use table::{SheetDoc, TableDoc, TableStageView};
 pub(crate) use text::top_for;
 pub(crate) use text::views_of;
 pub use text::{FoundHits, LineWindow, TextDoc, TextStageView};
+pub use tree::{TreeDoc, TreeStageView};
 pub use view::{Area, FrameLook, Held, Leaving, LoadedDoc, StageCx, StageView};
 
 /// The colour of each token class of highlighted code, in tokens only.

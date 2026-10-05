@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyview-archive = { workspace = true }
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
 anyview-pdf = { workspace = true }

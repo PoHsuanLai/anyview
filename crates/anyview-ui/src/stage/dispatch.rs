@@ -5,7 +5,9 @@ use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
+use super::table::{TableIn, TableStage};
 use super::text::{TextIn, TextStage, TextStep};
+use super::tree::{TreeIn, TreeStage};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
 use crate::typed::TypedText;
@@ -21,6 +23,8 @@ impl Stage {
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
+            Stage::Table(_) => table(command).map(StageIn::Table),
+            Stage::Tree(_) => tree(command).map(StageIn::Tree),
         }
     }
 
@@ -32,7 +36,9 @@ impl Stage {
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. }) => false,
+            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Table(_)
+            | Stage::Tree(_) => false,
         }
     }
 
@@ -60,6 +66,11 @@ impl Stage {
             ) => None,
             Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::CloseFind)),
             Stage::Text(TextStage::Reading { .. }) => None,
+            Stage::Table(TableStage::Selected { .. }) => Some(StageIn::Table(TableIn::Deselect)),
+            Stage::Tree(TreeStage::Selected { .. }) => Some(StageIn::Tree(TreeIn::Deselect)),
+            Stage::Table(TableStage::Browsing { .. }) | Stage::Tree(TreeStage::Browsing { .. }) => {
+                None
+            }
         }
     }
 }
@@ -111,7 +122,10 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::MarkTrimEnd
         | StageCommand::DeletePage
         | StageCommand::MovePageEarlier
-        | StageCommand::MovePageLater => None,
+        | StageCommand::MovePageLater
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet
+        | StageCommand::CollapseAll => None,
     }
 }
 
@@ -157,7 +171,10 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::StepFrameForward
         | StageCommand::StepFrameBack
         | StageCommand::MarkTrimStart
-        | StageCommand::MarkTrimEnd => None,
+        | StageCommand::MarkTrimEnd
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet
+        | StageCommand::CollapseAll => None,
     }
 }
 
@@ -195,7 +212,10 @@ fn media(command: StageCommand) -> Option<MediaIn> {
         | StageCommand::ScrollToEnd
         | StageCommand::DeletePage
         | StageCommand::MovePageEarlier
-        | StageCommand::MovePageLater => None,
+        | StageCommand::MovePageLater
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet
+        | StageCommand::CollapseAll => None,
     }
 }
 
@@ -233,6 +253,91 @@ fn text(command: StageCommand) -> Option<TextIn> {
         | StageCommand::MarkTrimEnd
         | StageCommand::DeletePage
         | StageCommand::MovePageEarlier
-        | StageCommand::MovePageLater => None,
+        | StageCommand::MovePageLater
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet
+        | StageCommand::CollapseAll => None,
+    }
+}
+
+fn table(command: StageCommand) -> Option<TableIn> {
+    match command {
+        StageCommand::NextSheet => Some(TableIn::NextSheet),
+        StageCommand::PreviousSheet => Some(TableIn::PreviousSheet),
+        StageCommand::ZoomIn
+        | StageCommand::ZoomOut
+        | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
+        | StageCommand::ZoomToActual
+        | StageCommand::Find
+        | StageCommand::FindNext
+        | StageCommand::FindPrevious
+        | StageCommand::ToggleSource
+        | StageCommand::ToggleWrap
+        | StageCommand::TogglePlayback
+        | StageCommand::SeekBack
+        | StageCommand::SeekForward
+        | StageCommand::NextPage
+        | StageCommand::PreviousPage
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::ScrollToStart
+        | StageCommand::ScrollToEnd
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextChapter
+        | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater
+        | StageCommand::CollapseAll => None,
+    }
+}
+
+fn tree(command: StageCommand) -> Option<TreeIn> {
+    match command {
+        StageCommand::CollapseAll => Some(TreeIn::CollapseAll),
+        StageCommand::ZoomIn
+        | StageCommand::ZoomOut
+        | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
+        | StageCommand::ZoomToActual
+        | StageCommand::Find
+        | StageCommand::FindNext
+        | StageCommand::FindPrevious
+        | StageCommand::ToggleSource
+        | StageCommand::ToggleWrap
+        | StageCommand::TogglePlayback
+        | StageCommand::SeekBack
+        | StageCommand::SeekForward
+        | StageCommand::NextPage
+        | StageCommand::PreviousPage
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::ScrollToStart
+        | StageCommand::ScrollToEnd
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextChapter
+        | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet => None,
     }
 }

@@ -5,7 +5,9 @@ use super::find::FindOut;
 use super::media::{MediaIn, MediaOut, MediaParams, MediaStage};
 use super::pdf::{PdfIn, PdfOut, PdfParams, PdfStage};
 use super::raster::{RasterIn, RasterOut, RasterParams, RasterStage};
+use super::table::{TableIn, TableOut, TableParams, TableStage};
 use super::text::{TextIn, TextOut, TextParams, TextStage, TextViews};
+use super::tree::{TreeIn, TreeOut, TreeParams, TreeStage};
 use anyview_core::Resume;
 
 /// What shows the open file's content.
@@ -22,6 +24,10 @@ pub enum Stage {
     Media(MediaStage),
     /// Text, code or Markdown.
     Text(TextStage),
+    /// A table or a spreadsheet.
+    Table(TableStage),
+    /// A JSON document.
+    Tree(TreeStage),
 }
 
 impl Stage {
@@ -32,6 +38,8 @@ impl Stage {
             StageFamily::Pdf => Stage::Pdf(PdfStage::default()),
             StageFamily::Media => Stage::Media(MediaStage::default()),
             StageFamily::Text => Stage::Text(TextStage::opened(views)),
+            StageFamily::Table => Stage::Table(TableStage::default()),
+            StageFamily::Tree => Stage::Tree(TreeStage::default()),
             StageFamily::PeekOnly => Stage::NoStage,
         }
     }
@@ -49,6 +57,10 @@ pub enum StageIn {
     Media(MediaIn),
     /// For the text stage.
     Text(TextIn),
+    /// For the table stage.
+    Table(TableIn),
+    /// For the tree stage.
+    Tree(TreeIn),
     /// The clock, for every stage.
     Elapsed,
 }
@@ -70,6 +82,10 @@ pub enum StageOut {
     Media(MediaOut),
     /// From the text stage.
     Text(TextOut),
+    /// From the table stage, which asks for nothing.
+    Table(TableOut),
+    /// From the tree stage, which asks for nothing.
+    Tree(TreeOut),
 }
 
 impl StageOut {
@@ -83,6 +99,8 @@ impl StageOut {
             | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
             | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
+            StageOut::Table(out) => match *out {},
+            StageOut::Tree(out) => match *out {},
         }
     }
 
@@ -94,6 +112,8 @@ impl StageOut {
             | StageOut::Text(TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_))
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
+            StageOut::Table(out) => match *out {},
+            StageOut::Tree(out) => match *out {},
         }
     }
 }
@@ -109,4 +129,8 @@ pub struct StageParams {
     pub media: MediaParams,
     /// For the text stage.
     pub text: TextParams,
+    /// For the table stage.
+    pub table: TableParams,
+    /// For the tree stage.
+    pub tree: TreeParams,
 }

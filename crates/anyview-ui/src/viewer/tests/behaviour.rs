@@ -217,7 +217,12 @@ fn line_of(viewer: &Viewer) -> Option<u32> {
         Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) => {
             Some(place.line.0)
         }
-        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Media(_) => None,
+        Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Pdf(_)
+        | Stage::Media(_)
+        | Stage::Table(_)
+        | Stage::Tree(_) => None,
     }
 }
 
