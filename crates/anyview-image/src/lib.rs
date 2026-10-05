@@ -5,6 +5,7 @@
 //! Every public item is reached from this root, once.
 
 mod decode;
+mod edit;
 mod encode;
 mod error;
 mod exif;
@@ -19,6 +20,7 @@ pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, declared_size, decode,
     decode_bytes,
 };
+pub use edit::edited;
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
 pub use exif::{ExifFacts, Exposure, Ratio};
@@ -26,5 +28,5 @@ pub use export::{ImageFile, encode_file, plan_export};
 pub use orientation::{ExifOrientation, Mirror};
 pub use peek::{ImagePeek, PeekedFormat, RasterPeek, VectorPeek};
 pub use pixels::{PremultipliedRgba8, Rgba8};
-pub use rotate::rotate_jpeg;
+pub use rotate::{flip_jpeg, rotate_jpeg};
 pub use scale::resized;

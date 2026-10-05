@@ -118,6 +118,7 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
         Services {
+            versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&store, now),
             media,
         },
@@ -340,6 +341,7 @@ pub fn desktop(
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
         Services {
+            versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&scratch.join("store"), now),
             media: Media {
                 hub: hub.clone(),

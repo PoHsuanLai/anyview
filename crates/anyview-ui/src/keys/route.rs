@@ -3,10 +3,13 @@
 use super::model::{Regions, Route};
 use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
+use crate::edits::Rewind;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
+use crate::stage::Stage;
+use ds_core::standard_action::StandardAction;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
 /// Which region gets `key`, given the states of the regions that can claim it: a sheet, then the
@@ -22,7 +25,13 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         Sheet::Export { draft: _ }
         | Sheet::Unavailable { needs: _ }
         | Sheet::ConfirmTrash
-        | Sheet::Rename { name: _ } => {
+        | Sheet::Rename { name: _ }
+        | Sheet::SaveCopy { name: _ }
+        | Sheet::Revert {
+            versions: _,
+            chosen: _,
+        }
+        | Sheet::NoVersions => {
             return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}
@@ -50,8 +59,22 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
         [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
         [ShortcutKey::Super, ShortcutKey::Char('o')] => Some(Route::OpenFile),
         [ShortcutKey::Escape] => Some(escape(regions)),
-        _ => None,
+        keys => rewind(keys, regions.stage).map(Route::Rewind),
     }
+}
+
+/// The standard undo and redo keys, unless a find bar is up: its field has its own undo.
+fn rewind(keys: &[ShortcutKey], stage: &Stage) -> Option<Rewind> {
+    if stage.is_finding() {
+        return None;
+    }
+    [
+        (StandardAction::Undo, Rewind::Undo),
+        (StandardAction::Redo, Rewind::Redo),
+    ]
+    .into_iter()
+    .find(|(standard, _)| Shortcut::standard(*standard).keys() == keys)
+    .map(|(_, rewind)| rewind)
 }
 
 /// ⌘I: close the panel when it already shows Info, otherwise show Info.

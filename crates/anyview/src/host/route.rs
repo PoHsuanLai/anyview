@@ -1,32 +1,59 @@
 //! A request a window made of its host as the task that carries it out. Pure: it reads the file
 //! the window shows, never the disk, so every request and every action has a row in the tests.
 
+use super::editing;
 use super::outcome::Declined;
-use anyview_core::{FileAction, FileName, FilePath, Resume, Source, actions_for};
+use anyview_core::{FileAction, FileName, FilePath, Resume, Source, Trail, actions_for};
 use anyview_export::DocumentExport;
-use anyview_ui::{ExportDraft, HostRequest, Presentation, Probed};
+use anyview_store::VersionId;
+use anyview_ui::{EditRequest, ExportDraft, HostRequest, Presentation, Probed, VersionKey};
 
 /// The file a window shows, as the host last heard of it.
+///
+/// With it, the trail of its saves: the versions they kept, which undo and redo go through. They
+/// belong to one file, so a window that shows another starts a new trail.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Shown(Option<Probed>);
+pub struct Shown {
+    pub(super) file: Option<Probed>,
+    pub(super) trail: Trail<VersionId>,
+}
 
 impl Shown {
     /// What the window shows, once it has told the host.
     pub fn file(&self) -> Option<&Probed> {
-        self.0.as_ref()
+        self.file.as_ref()
+    }
+
+    /// The window shows `probed` now: the same file again keeps its trail, another starts one.
+    fn showing(self, probed: Probed) -> Shown {
+        let same = self
+            .file
+            .as_ref()
+            .is_some_and(|shown| shown.source.path() == probed.source.path());
+        Shown {
+            file: Some(probed),
+            trail: if same { self.trail } else { Trail::default() },
+        }
     }
 
     /// The window is now at `resume` in its file, as the last request said.
     pub fn remembering(self, resume: Resume) -> Shown {
-        Shown(self.0.map(|probed| Probed { resume, ..probed }))
+        Shown {
+            file: self.file.map(|probed| Probed { resume, ..probed }),
+            ..self
+        }
     }
 
-    /// The window shows the file `path` names now, after the host moved it.
+    /// The window shows the file `path` names now, after the host moved it: the versions kept
+    /// were of the file at its old name, so the trail starts again.
     pub fn moved_to(self, path: FilePath) -> Shown {
-        Shown(self.0.map(|mut probed| {
-            probed.source = Source::new(path, probed.source.stamp());
-            probed
-        }))
+        Shown {
+            file: self.file.map(|mut probed| {
+                probed.source = Source::new(path, probed.source.stamp());
+                probed
+            }),
+            trail: Trail::default(),
+        }
     }
 }
 
@@ -91,6 +118,14 @@ pub enum Task {
         file: Probed,
         choice: anyview_core::MediaExport,
     },
+    /// Save the file in place with this change, after keeping the original.
+    Edit { file: Probed, request: EditRequest },
+    /// Put a kept version back as the file; what it is now is kept first.
+    Restore { file: FilePath, version: VersionId },
+    /// Put back the kept version this key names.
+    RevertTo { file: FilePath, key: VersionKey },
+    /// Write a copy of the file at `to`, which must not exist.
+    SaveCopy { file: FilePath, to: FilePath },
 }
 
 /// The task for `request`, and what the window shows afterwards.
@@ -98,7 +133,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
     match request {
         HostRequest::Opened(probed) => {
             let carry = Carry::Desktop(Task::RecordView(probed.clone()));
-            (Shown(Some(probed)), carry)
+            (shown.showing(probed), carry)
         }
         HostRequest::CloseWindow => (shown, Carry::Window(WindowTask::Close)),
         HostRequest::PickFile => declined(shown, Declined::PickFile),
@@ -126,6 +161,10 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
             });
             (shown.remembering(resume), carry)
         }
+        HostRequest::Edit(request) => editing::edit(shown, request),
+        HostRequest::Rewind(rewind) => editing::rewind(shown, rewind),
+        HostRequest::RevertTo(key) => editing::revert(shown, key),
+        HostRequest::SaveCopy(typed) => editing::save_copy(shown, typed),
         HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
         HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
         HostRequest::Run(action) => run(shown, action),

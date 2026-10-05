@@ -248,6 +248,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Panel(input) => panel(viewer, input, at, params),
         Route::CloseWindow => (viewer, vec![ViewerOut::CloseWindow]),
         Route::OpenFile => (viewer, vec![ViewerOut::PickFile]),
+        Route::Rewind(rewind) => (viewer, vec![ViewerOut::Rewind(rewind)]),
         Route::Dismiss => dismissed(viewer),
         Route::Stage(input) => stage(viewer, input, at, params),
         Route::Navigate(input) => navigate(viewer, input, at, params),

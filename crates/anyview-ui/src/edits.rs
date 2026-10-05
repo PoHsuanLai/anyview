@@ -1,0 +1,39 @@
+//! What the viewer asks of its host to change a file: an edit, going back through the edits, and
+//! going back to a version. The host does them (they write the person's file); the viewer only
+//! says which.
+
+use anyview_core::{Edit, PageIndex};
+
+/// An edit, and the page of a PDF the person is on when they ask. A turn of a PDF turns that
+/// page; a picture has no pages and says the first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EditRequest {
+    /// What to change.
+    pub edit: Edit,
+    /// The page the person is on.
+    pub page: PageIndex,
+}
+
+impl EditRequest {
+    /// `edit` of a picture.
+    pub fn of_picture(edit: Edit) -> Self {
+        EditRequest {
+            edit,
+            page: PageIndex(0),
+        }
+    }
+
+    /// `edit` asked on `page` of a PDF.
+    pub fn on_page(edit: Edit, page: PageIndex) -> Self {
+        EditRequest { edit, page }
+    }
+}
+
+/// A step through the saves of the open file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Rewind {
+    /// Take back the last edit.
+    Undo,
+    /// Do again the edit that was taken back.
+    Redo,
+}

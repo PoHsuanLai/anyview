@@ -6,8 +6,8 @@ use super::session::Probe;
 use crate::families::{FoundHits, Held};
 use crate::io::{Done, Job};
 use crate::{
-    Freshness, LoadIn, NavigateIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText, ViewerIn,
-    freshness,
+    Freshness, LoadIn, NavigateIn, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
+    VersionList, ViewerIn, freshness,
 };
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
@@ -40,6 +40,14 @@ pub(super) fn arrived(done: Done, c: &Carry) {
         }
         Done::Stamped { path, stamp } => stamped(c, &path, stamp),
         Done::Folder { path, result } => folder(c, &path, result),
+        Done::Versions { path, rows } => {
+            if shown_path(c).as_ref() == Some(&path) {
+                send(
+                    c,
+                    ViewerIn::Sheet(SheetIn::OpenRevert(VersionList::new(rows))),
+                );
+            }
+        }
         Done::Changed { path } => {
             if shown_path(c).as_ref() == Some(&path) {
                 c.edge.submit(Job::Stat { path });
@@ -132,7 +140,7 @@ fn pdf_arrived(c: &Carry, ticket: Ticket, answer: crate::PdfAnswer) {
 }
 
 /// The file on screen.
-fn shown_path(c: &Carry) -> Option<FilePath> {
+pub(super) fn shown_path(c: &Carry) -> Option<FilePath> {
     c.shelf
         .probe
         .peek()

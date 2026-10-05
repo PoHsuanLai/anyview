@@ -13,7 +13,9 @@ use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, params};
-use super::sheet::{ExportSheet, RenameSheet, TrashSheet, UnavailableSheet};
+use super::sheet::{
+    ExportSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
+};
 use super::shelf::{Dispatch, Shelf, use_area};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
@@ -297,11 +299,37 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     }
                 },
                 Sheet::Rename { name } => rsx! {
-                    RenameSheet {
+                    NameSheet {
+                        label: "Rename",
+                        confirm: "Rename",
                         name: name.clone(),
                         ontyped: move |text: TypedText| dispatch.send(ViewerIn::Sheet(SheetIn::Typed(text))),
                         onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
+                Sheet::SaveCopy { name } => rsx! {
+                    NameSheet {
+                        label: "Save a Copy",
+                        confirm: "Save",
+                        name: name.clone(),
+                        ontyped: move |text: TypedText| dispatch.send(ViewerIn::Sheet(SheetIn::Typed(text))),
+                        onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
+                Sheet::Revert { versions, chosen } => rsx! {
+                    RevertSheet {
+                        versions: versions.clone(),
+                        chosen: chosen.clone(),
+                        onpick: move |key| dispatch.send(ViewerIn::Sheet(SheetIn::PickVersion(key))),
+                        onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
+                Sheet::NoVersions => rsx! {
+                    NoVersionsSheet {
+                        onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
                 Sheet::Unavailable { needs } => rsx! {
