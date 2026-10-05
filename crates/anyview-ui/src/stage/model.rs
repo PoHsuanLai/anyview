@@ -99,7 +99,7 @@ impl StageOut {
 }
 
 /// What each stage needs from the view and settings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StageParams {
     /// For the raster stage.
     pub raster: RasterParams,

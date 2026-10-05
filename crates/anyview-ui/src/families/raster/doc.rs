@@ -3,13 +3,13 @@
 //! touching the UI thread, and the document the UI receives is only the picture's size.
 
 use crate::io::{Backend, OpenError, OpenLink, Stop};
-use crate::{FrameIndex, Ticket};
+use crate::{FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, PixelArea,
     PixelSize, RasterFormat, Sniffed, Source,
 };
 use anyview_image::{
-    Animation, Decoded, ImagePeek, RasterPeek, Rgba8, VectorPeek, declared_size, decode,
+    Animation, Decoded, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek, declared_size, decode,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -52,6 +52,8 @@ pub struct RasterDoc {
     /// The rows of the Info tab.
     pub facts: Facts,
     pub(crate) strip: Option<Arc<FrameStrip>>,
+    /// How many runs the animation asks for.
+    pub(crate) runs: Runs,
 }
 
 impl RasterDoc {
@@ -63,12 +65,11 @@ impl RasterDoc {
             .map_or(&self.texture, |shown| &shown.texture)
     }
 
-    /// How long `frame` stays on screen, for an animation.
-    pub(crate) fn delay_at(&self, frame: FrameIndex) -> Option<Duration> {
-        self.strip
-            .as_ref()
-            .and_then(|strip| strip.frames.get(frame.0 as usize))
-            .map(|shown| shown.delay)
+    /// How long each frame of an animation stays on screen; none for a still.
+    pub(crate) fn delays(&self) -> FrameDelays {
+        FrameDelays(self.strip.as_ref().map_or_else(Default::default, |strip| {
+            strip.frames.iter().map(|shown| shown.delay).collect()
+        }))
     }
 
     /// Whether the file is an animation with all its frames ready.
@@ -129,13 +130,29 @@ fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
     match decode(&target.source, &target.sniffed)? {
         Decoded::Still(picture) => {
             upload(&target.texture, &picture)?;
-            Ok(doc_of(target, picture.size(), 1, None))
+            Ok(doc_of(target, picture.size(), 1, None, Runs::Forever))
+        }
+        Decoded::HeldStill { picture, frames } => {
+            upload(&target.texture, &picture)?;
+            let mut doc = doc_of(target, picture.size(), frames.0, None, Runs::Forever);
+            doc.facts = doc.facts.with(
+                FactLabel::Frames,
+                FactValue::text(format!(
+                    "{} (too large to play; showing the first)",
+                    frames.0
+                )),
+            );
+            Ok(doc)
         }
         Decoded::Animated(animation) => {
             let strip = upload_frames(&target.texture, &animation)?;
             let first = animation.frames.first().pixels.size();
             let count = u32::try_from(animation.frames.count().get()).unwrap_or(u32::MAX);
-            Ok(doc_of(target, first, count, Some(Arc::new(strip))))
+            let runs = match animation.plays {
+                Plays::Forever => Runs::Forever,
+                Plays::Times(times) => Runs::Times(times),
+            };
+            Ok(doc_of(target, first, count, Some(Arc::new(strip)), runs))
         }
     }
 }
@@ -145,6 +162,7 @@ fn doc_of(
     size: PixelSize,
     frames: u32,
     strip: Option<Arc<FrameStrip>>,
+    runs: Runs,
 ) -> RasterDoc {
     RasterDoc {
         texture: target.texture.clone(),
@@ -153,6 +171,7 @@ fn doc_of(
         frames,
         facts: facts(&target.source, &target.sniffed, size, frames),
         strip,
+        runs,
     }
 }
 
@@ -195,6 +214,7 @@ pub(crate) fn first_frame(
         frames,
         facts,
         strip: None,
+        runs: Runs::Forever,
     }))
 }
 

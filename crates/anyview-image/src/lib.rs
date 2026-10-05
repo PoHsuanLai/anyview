@@ -17,7 +17,7 @@ mod rotate;
 mod scale;
 
 pub use decode::{
-    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, declared_size, decode,
+    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, declared_size, decode,
     decode_bytes,
 };
 pub use edit::edited;
