@@ -165,6 +165,9 @@ install_file() {
     say "  unchanged: $dst"
     return 0
   fi
+  # Written below, so this run owns it (an identical file already there is not recorded).
+  note_install_dirs "$(dirname "$dst")"
+  note_install_file "$dst"
   step "install $dst" privileged install -Dm"$mode" "$src" "$real"
 }
 
@@ -258,6 +261,9 @@ for px in $sizes; do
   install_file 644 "$ICONS/$px.png" \
     "$PREFIX/share/icons/hicolor/${px}x${px}/apps/$APP_ID.png"
 done
+
+say "3b. receipt"
+write_receipt "$PREFIX"
 
 say "4. desktop databases"
 if [[ -n "$DESTDIR" ]]; then

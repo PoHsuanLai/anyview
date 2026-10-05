@@ -105,10 +105,12 @@ fn a_failed_write_leaves_the_original_untouched_and_no_temporary_file() {
     assert!(matches!(result, Err(StoreError::Io { .. })), "{result:?}");
     assert_eq!(read(&s.file), "before");
     assert_eq!(fs::read_dir(folder).unwrap().count(), 1);
-    // The kept original is still there for a retry, which now succeeds.
-    assert_eq!(s.versions.list(&s.file).unwrap().len(), 1);
-    backed.write_in_place().unwrap();
+    // The file is as it was, so the copy kept of it is redundant and went with the failure.
+    assert_eq!(s.versions.list(&s.file).unwrap().len(), 0);
+    // A retry is a new backup, and now succeeds.
+    save(&s, "after", 6);
     assert_eq!(read(&s.file), "after");
+    assert_eq!(s.versions.list(&s.file).unwrap().len(), 1);
 }
 
 #[test]

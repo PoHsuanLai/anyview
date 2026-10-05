@@ -233,7 +233,7 @@ EDGES=(
   "anyview-book: anyview-archive anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
-  "anyview-export: anyview-core anyview-image anyview-pdf anyview-text ds-blitz ds-core"
+  "anyview-export: anyview-core anyview-image anyview-pdf anyview-store anyview-text ds-blitz ds-core"
   "anyview-plugin: anyview-core anyview-plugin-protocol"
   "anyview-plugin-protocol: "
   "anyview-plugin-fake: anyview-plugin-protocol"

@@ -52,14 +52,14 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-tool-kit` | `anyview-plugin-protocol` |
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
-| `anyview-store` | `anyview-core` |
+| `anyview-store` | `anyview-core` (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
 | `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, `ds-core` (`Word` for the closed vocabularies) |
 | `anyview-pdf` | `anyview-core` |
-| `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
+| `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
@@ -147,7 +147,8 @@ no other public path. A module names only modules above it in this list.
 ## 2a. Modules inside `anyview-store`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root.
-`io` is the only module that touches the disk; the others are pure.
+`io` is the only module that touches the disk; the others are pure, except the file-system modules
+named below.
 
 | Module | Holds |
 | --- | --- |
@@ -159,6 +160,18 @@ Same rules as section 2: private modules, each public item re-exported once at t
 | `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `ResumeSource` and `FirstFrameSource` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
 | `reader` | `read_history`, `HistoryRead`: the API the launcher links |
 | `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
+| `save` | the save pipeline: `Pending`, `BackedUp` (consumed by `write_in_place`), `Written`, `Durability` |
+| `versions` | `Versions` (back up, list, restore), `Version`, `VersionId`, `KeepPeriod`, `SavedAt`; kept versions are private (`0700` folders, `0600` files), a version identical to the file's latest is not made again, a sidecar that cannot be read is skipped by `list` |
+| `prune`, `rekey` | `Versions::prune` (by age, the half-made files of a crash, then the size cap `DEFAULT_CAP`, a file's newest version never; nothing by age when the clock is over a year past the newest version) and `Versions::rekey` (a renamed file's versions follow it) |
+| `place` | `free_beside`, `is_free`, `rename_noreplace` (`renameat2` with `RENAME_NOREPLACE`, a link and unlink where the file system has none), `link_new`, `copy_new`, `partial_beside`, `is_taken`: Rename, Duplicate and every export claim names here, never by looking first |
+| `attrs`, `sweep`, `guard`, `original` | the owner, extended attributes and ACLs a save and a copy keep, and `is_read_only`; `sweep_leftovers` (temporary files of dead processes); one save of a real path at a time in the process; a file's identity at backup time, for the stamp check before the rename |
+
+A save writes a temporary file beside the original (its mode, owner, xattrs and ACLs, named for the
+process and a counter), syncs it and renames it over; a file with other hard links is written in place
+after the backup so the links stay one file; a read-only file is refused. If the file changed since the
+backup, what it holds then is kept before it is replaced. A save that fails before it touched the file
+drops the copy it kept. A folder sync that fails after the rename is `Durability::Unconfirmed`, not an
+error.
 
 On disk, under a root the caller names: `history.json` (the `History`, newest first, capped) and
 `resume/<hash of path>.json` (one record per file: path, `FileStamp`, `Resume`). A file is written
@@ -733,9 +746,11 @@ make FFmpeg drop the keyframe it was sent to find.
 
 **Progress, cancel and the output.** Progress is `-progress pipe:1 -nostats`: each `out_time_us=` line is a
 `progress` message with `total` the length written (zero when unknown); a last one reaches `total` before
-`done`. ffmpeg writes to a hidden `.part-<name>` beside the output and the file is renamed into place only
-when ffmpeg succeeded and left something, so an export is whole or absent. It never overwrites: an existing
-`output` is an error before anything runs, and again just before the rename. `cancel` (or the host closing
+`done`. ffmpeg writes to a hidden `.part-<pid>-<n>-<name>` beside the output (made new by the plugin, so it never
+touches a file it did not make) and the file is given its name only when ffmpeg succeeded and left something, so
+an export is whole or absent. It never overwrites: an existing `output` (a dangling symlink included) is an
+error before anything runs, and a hard link claims the name at the end. The partial files of dead plugin
+processes are removed at the next export. `cancel` (or the host closing
 its pipe) kills ffmpeg, removes the partial file and answers `cancelled`; ffmpeg's last stderr lines ride in
 the message when it fails.
 
@@ -856,8 +871,8 @@ runs `ExportJob`s and knows no format's options.
 | `error` | `ExportError` (`Image`, `Pdf`, `Text`, `Layout`, `Path`, `Read`, `Write`, `Exists`, `NoFreeName`, `NothingToWrite`, `NotADocument`) |
 | `choice` | `DocumentExport` (`Raster`, `Pdf`, `Text`): what a person chose of a file that is not a recording |
 | `run` | `export` (plan, run each job, write each file; the files already written are removed if a later one fails) and `printout` (a PDF as it is, an image or a text document laid out as one) |
-| `name` | `free_beside` (`<stem><suffix>.<extension>` or with ` 2`, ` 3`: the first free) and the suffix each job adds (`page 3`, `pages 2-4`, `copy`) |
-| `write` | `write_new`: a hidden temporary file beside the destination, synced, renamed into place; an existing destination is never replaced |
+| `name` | the suffix each job adds (`page 3`, `pages 2-4`, `copy`) and where a job's file goes (`anyview_store::free_beside`: the first free name) |
+| `write` | `write_new`: a hidden temporary file beside the destination, made new, synced, linked to the destination; an existing destination is never replaced, and the hidden files of dead processes are swept first |
 | `produce` | the one match on `ExportJob`: a job as the bytes of one file; `raster`, `pdf`, `pictures` and `print` are its parts, and `session` holds what the jobs of a run share (the open PDF and its worker, the highlighter) |
 
 An export is a copy beside the original under a free name, never the original: a JPEG exported as a JPEG
@@ -1368,7 +1383,7 @@ switch repaints text; the viewer runs no frame loop of its own.
 `anyview_core::opened_mimes()`: the media types of the kinds with `StageSupport::Stage`, the one kind-to-MIME
 map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
 `cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
-`dist/uninstall.sh` (sharing `dist/lib.sh`) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
+`dist/uninstall.sh` (sharing `dist/lib.sh`; install records a receipt, uninstall removes only what it names) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
 `$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in, and so is each plugin
 (`--with-plugin ffmpeg`, `--with-plugin heif`, `--with-plugin raw`, `--with-plugin mpv`; section 2m). The mpv plugin's manifest template is
