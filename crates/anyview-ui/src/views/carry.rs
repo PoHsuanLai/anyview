@@ -103,6 +103,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     shelf.loaded.set(None);
     shelf.peeked.set(None);
     shelf.lines.set(None);
+    shelf.section.set(None);
     shelf.hits.set(None);
     shelf.pdf.reset();
     shelf.media.reset();
@@ -136,7 +137,8 @@ fn remember_on_leaving(c: &Carry) {
         placed @ (Resume::Raster { .. }
         | Resume::Pdf { .. }
         | Resume::Media { .. }
-        | Resume::Text { .. }) => remember(c, &placed),
+        | Resume::Text { .. }
+        | Resume::Book { .. }) => remember(c, &placed),
     }
 }
 
@@ -161,7 +163,8 @@ fn keep_the_one_left(c: &Carry) {
         placed @ (Resume::Raster { .. }
         | Resume::Pdf { .. }
         | Resume::Media { .. }
-        | Resume::Text { .. }) => placed,
+        | Resume::Text { .. }
+        | Resume::Book { .. }) => placed,
     };
     shelf.preloads.write().stash(Preloaded {
         probed: crate::io::Probed { resume, ..probed },

@@ -1,6 +1,8 @@
 //! View memory: where a person left a file, so opening it again continues there.
 
-use crate::units::{DocPoint, LineIndex, MediaTime, PageIndex, Permille, Volume, Zoom};
+use crate::units::{
+    DocPoint, LineIndex, MediaTime, PageIndex, Permille, SectionIndex, Volume, Zoom,
+};
 
 /// A track of audio or subtitles in a recording, by its number in the container.
 #[derive(
@@ -58,6 +60,11 @@ pub enum Resume {
         /// The line at the top of the window.
         line: LineIndex,
     },
+    /// A book: the chapter or comic page being read.
+    Book {
+        /// The section on screen.
+        section: SectionIndex,
+    },
     /// Nothing worth restoring.
     Nothing,
 }
@@ -105,6 +112,13 @@ mod tests {
                     line: LineIndex(480),
                 },
                 r#"{"kind":"text","v":{"line":480}}"#,
+            ),
+            (
+                "book",
+                Resume::Book {
+                    section: SectionIndex(7),
+                },
+                r#"{"kind":"book","v":{"section":7}}"#,
             ),
             ("nothing", Resume::Nothing, r#"{"kind":"nothing"}"#),
         ]

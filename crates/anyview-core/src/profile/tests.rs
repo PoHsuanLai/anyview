@@ -116,7 +116,7 @@ const CASES: &[Row] = &[
     row(FormatKind::Tree, &[], &[], StageSupport::Stage),
     row(FormatKind::Font, &[], &[], StageSupport::PeekOnly),
     row(FormatKind::Archive, &[], &[], StageSupport::PeekOnly),
-    row(FormatKind::Book, &[], &[], StageSupport::PeekOnly),
+    row(FormatKind::Book, &[], &[], StageSupport::Stage),
     row(FormatKind::Office, &[], &[], StageSupport::PeekOnly),
     row(FormatKind::Other, &[], &[], StageSupport::PeekOnly),
 ];
