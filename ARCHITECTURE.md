@@ -140,7 +140,7 @@ no other public path. A module names only modules above it in this list.
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
 | `facts` | `FactLabel`, `FactValue`, `Facts` |
-| `peek` | `Peek`, `PeekBudget`, `StageSupport` |
+| `peek` | `Peek`, `PeekBudget`, `Deadline` (the budget's time as an instant a long loop asks about; cooperative), `StageSupport` |
 | `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
 | `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `mime_for`, `stage_support` |
 
@@ -578,7 +578,8 @@ request is ever open.
 
 **Streams.** The plugin's stdin carries host messages, its stdout carries plugin messages and nothing
 else, and each line it writes to stderr goes to the viewer's log, prefixed `anyview: plugin <id>:`. The
-last lines also ride in the error when a plugin dies.
+last lines also ride in the error when a plugin dies. A line is kept to 4 KiB (the rest is dropped), and stderr
+is drained when a request is sent as well as while the host waits, so a chatty plugin never blocks on a full pipe.
 
 **Frame.** Every message is one frame:
 
@@ -633,7 +634,8 @@ which a pipe moves in tens of milliseconds, against about a second to encode and
 no side socket, no file descriptor passing and no `unsafe` on either side, and a plugin in any language can
 write it. The host checks the payload against the header and the header against the budget it asked for
 (a plugin that sends more than `max_edge` or `max_area` is `PluginProtocol`), and no payload may exceed
-512 MiB.
+512 MiB. A reply that may carry a picture is held to the bytes of the pixels asked for: a header that
+announces more is refused before any of the payload is buffered.
 
 **Timeouts, cancel and drop.** Waiting is by `poll` on the pipe, so no thread is needed. A plugin may be
 silent for at most `Timeouts::silence` (30 s) while a request is open; each message starts the wait again,
