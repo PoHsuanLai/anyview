@@ -1,5 +1,6 @@
 //! The stages: what shows a file's content, one machine per family of formats.
 
+mod book;
 mod dispatch;
 mod family;
 mod find;
@@ -14,6 +15,7 @@ mod tests;
 mod text;
 mod zoom;
 
+pub use book::{BookIn, BookOut, BookParams, BookStage};
 pub use family::StageFamily;
 pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep};
 pub use media::{

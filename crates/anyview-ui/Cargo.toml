@@ -9,6 +9,8 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyview-archive = { workspace = true }
+anyview-book = { workspace = true }
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
 anyview-pdf = { workspace = true }
@@ -28,6 +30,8 @@ ds-lint = { workspace = true }
 dioxus-ssr = { workspace = true }
 image = { workspace = true }
 tempfile = { workspace = true }
+# Builds the EPUB and the comic the book window tests open (a fixture, never a normal dependency).
+zip = { workspace = true }
 
 [lints]
 workspace = true

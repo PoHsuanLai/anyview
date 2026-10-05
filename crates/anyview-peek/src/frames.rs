@@ -5,8 +5,13 @@
 //! hands [`peek_with`](crate::peek_with) a [`VideoFrames`], and a video whose header gave no cover
 //! shows its frame; without one, or without a cached thumbnail, the pane shows the facts card.
 
-use anyview_core::{PeekBudget, PixelLen, RasterFormat, Resize, Source};
-use anyview_image::{ExifFacts, FrameCount, ImagePeek, PeekedFormat, Rgba8, resized};
+use anyview_core::{
+    FileHead, FileName, FormatDetail, PeekBudget, PixelLen, RasterFormat, Resize, SniffStep,
+    Source, sniff,
+};
+use anyview_image::{
+    Decoded, ExifFacts, FrameCount, ImagePeek, PeekedFormat, Rgba8, decode_bytes, resized,
+};
 use std::fmt::Debug;
 
 /// Where the host finds a picture of a video it did not decode.
@@ -51,4 +56,30 @@ pub(crate) fn still_peek(picture: Rgba8, budget: &PeekBudget) -> ImagePeek {
         exif: ExifFacts::none(),
         format: PeekedFormat::Raster(RasterFormat::Png),
     }
+}
+
+/// The still picture in the image file `bytes` (`name` says what format it is, since a cover has
+/// no file of its own), reduced to `budget`. `None` when it will not decode or is an animation:
+/// a cover is a nicety and the facts still stand.
+pub(crate) fn cover_picture(bytes: &[u8], name: &str, budget: &PeekBudget) -> Option<ImagePeek> {
+    let head = FileHead::new(&bytes[..bytes.len().min(4096)]);
+    let SniffStep::Done(sniffed) = sniff(&head, &FileName::new(name).ok()?) else {
+        return None;
+    };
+    let Decoded::Still(picture) = decode_bytes(bytes, &sniffed).ok()? else {
+        return None;
+    };
+    let source_size = picture.size();
+    let picture = reduced(picture, budget);
+    let FormatDetail::Raster(format) = sniffed.detail() else {
+        return None;
+    };
+    Some(ImagePeek {
+        picture,
+        source_size,
+        frames: FrameCount(1),
+        colour: None,
+        exif: ExifFacts::none(),
+        format: PeekedFormat::Raster(*format),
+    })
 }
