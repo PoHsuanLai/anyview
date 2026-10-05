@@ -68,6 +68,12 @@ pub enum StageCommand {
     MarkTrimStart,
     /// Mark where a trim ends, at the position now.
     MarkTrimEnd,
+    /// Remove the page on screen from a PDF.
+    DeletePage,
+    /// Move the page on screen one place earlier in a PDF.
+    MovePageEarlier,
+    /// Move the page on screen one place later in a PDF.
+    MovePageLater,
 }
 
 impl StageCommand {
@@ -111,6 +117,9 @@ impl StageCommand {
             [Char(',')] => Some(StageCommand::StepFrameBack),
             [Char('i')] => Some(StageCommand::MarkTrimStart),
             [Char('o')] => Some(StageCommand::MarkTrimEnd),
+            [Shift, Super, Backspace] => Some(StageCommand::DeletePage),
+            [Shift, Super, Up] => Some(StageCommand::MovePageEarlier),
+            [Shift, Super, Down] => Some(StageCommand::MovePageLater),
             _ => None,
         }
     }
@@ -155,6 +164,9 @@ impl StageCommand {
             StageCommand::StepFrameBack => vec![Char(',')],
             StageCommand::MarkTrimStart => vec![Char('i')],
             StageCommand::MarkTrimEnd => vec![Char('o')],
+            StageCommand::DeletePage => vec![Shift, Super, Backspace],
+            StageCommand::MovePageEarlier => vec![Shift, Super, Up],
+            StageCommand::MovePageLater => vec![Shift, Super, Down],
         })
     }
 }

@@ -1,8 +1,8 @@
 use super::*;
 use crate::typed::TypedText;
 use anyview_core::{
-    PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind, RasterTarget, Resize,
-    TextExport,
+    ByteLen, PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind, RasterTarget,
+    Resize, TextExport,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -15,6 +15,33 @@ const PDF_PAGES: ExportDraft = ExportDraft::Pdf(PdfExport::Pdf(PageSelection::Al
 const PDF_TEXT: ExportDraft = ExportDraft::Pdf(PdfExport::PlainText);
 const TEXT: ExportDraft = ExportDraft::Text(TextExport::PlainText);
 
+const ROWS: &[VersionRow] = &[
+    VersionRow {
+        key: VersionKey::from_static("k/new"),
+        saved_at: 200,
+        size: ByteLen(20),
+    },
+    VersionRow {
+        key: VersionKey::from_static("k/old"),
+        saved_at: 100,
+        size: ByteLen(10),
+    },
+];
+const VERSIONS: VersionList = VersionList::from_static(ROWS);
+const NEW: VersionKey = VersionKey::from_static("k/new");
+const OLD: VersionKey = VersionKey::from_static("k/old");
+
+const fn reverting(chosen: VersionKey) -> Sheet {
+    Sheet::Revert {
+        versions: VERSIONS,
+        chosen,
+    }
+}
+const fn copying(name: &'static str) -> Sheet {
+    Sheet::SaveCopy {
+        name: TypedText::from_static(name),
+    }
+}
 const fn export(draft: ExportDraft) -> Sheet {
     Sheet::Export { draft }
 }
@@ -141,6 +168,100 @@ const CASES: &[Case] = &[
         rename(""),
         SheetIn::Confirm,
         rename(""),
+        &[],
+    ),
+    (
+        "asking to save a copy starts from the proposed name",
+        Sheet::Closed,
+        SheetIn::AskSaveCopy(TypedText::from_static("a copy.png")),
+        copying("a copy.png"),
+        &[SheetOut::Opened],
+    ),
+    (
+        "typing replaces the name of the copy",
+        copying("a"),
+        SheetIn::Typed(TypedText::from_static("ab")),
+        copying("ab"),
+        &[],
+    ),
+    (
+        "confirming a name saves the copy and closes",
+        copying("b.png"),
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[
+            SheetOut::SaveCopy(TypedText::from_static("b.png")),
+            SheetOut::Closed,
+        ],
+    ),
+    (
+        "a copy with no name cannot be confirmed",
+        copying(""),
+        SheetIn::Confirm,
+        copying(""),
+        &[],
+    ),
+    (
+        "cancelling a copy closes",
+        copying("b.png"),
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "the revert sheet opens on the newest version",
+        Sheet::Closed,
+        SheetIn::OpenRevert(Some(VERSIONS)),
+        reverting(NEW),
+        &[SheetOut::Opened],
+    ),
+    (
+        "a file with no kept version opens the sheet that says so",
+        Sheet::Closed,
+        SheetIn::OpenRevert(None),
+        Sheet::NoVersions,
+        &[SheetOut::Opened],
+    ),
+    (
+        "picking a row chooses it",
+        reverting(NEW),
+        SheetIn::PickVersion(OLD),
+        reverting(OLD),
+        &[],
+    ),
+    (
+        "a version that is not listed cannot be picked",
+        reverting(NEW),
+        SheetIn::PickVersion(VersionKey::from_static("k/none")),
+        reverting(NEW),
+        &[],
+    ),
+    (
+        "confirming goes back to the chosen version and closes",
+        reverting(OLD),
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Revert(OLD), SheetOut::Closed],
+    ),
+    (
+        "cancelling the revert closes without going back",
+        reverting(OLD),
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "enter puts away the sheet that says there is nothing to go back to",
+        Sheet::NoVersions,
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "that sheet ignores a request to open another",
+        Sheet::NoVersions,
+        SheetIn::AskTrash,
+        Sheet::NoVersions,
         &[],
     ),
     (

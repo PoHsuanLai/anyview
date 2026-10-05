@@ -18,6 +18,7 @@ mod resume;
 mod sequence;
 mod sniff;
 mod source;
+mod trail;
 mod units;
 pub mod work;
 
@@ -48,6 +49,7 @@ pub use sniff::{
     FileHead, SniffStep, Sniffed, ZipEntries, ZipProbe, sniff, sniff_folder, sniff_zip,
 };
 pub use source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
+pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use units::{
     Axis, Bitrate, ChapterIndex, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime,
     PageCount, PageIndex, PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen,

@@ -1,11 +1,13 @@
 //! The PDF stage's transitions for reading and jumping; finding is in `finding`.
 
 use super::super::find::{FindHits, FindOut};
+use super::super::media::StepDirection;
 use super::super::zoom::stepped;
 use super::finding::finding;
 use super::model::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+use crate::edits::EditRequest;
 use crate::typed::TypedText;
-use anyview_core::{PageIndex, Permille, Resume, Zoom};
+use anyview_core::{Edit, PageIndex, PageRange, Permille, Resume, Zoom};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
@@ -79,6 +81,8 @@ pub(super) fn zoom_asked(input: &PdfIn, params: &PdfParams) -> Option<Zoom> {
         | PdfIn::NextPage
         | PdfIn::PreviousPage
         | PdfIn::Arrived
+        | PdfIn::DeletePage
+        | PdfIn::MovePage(_)
         | PdfIn::Restore(_)
         | PdfIn::Elapsed => None,
     }
@@ -107,6 +111,8 @@ pub(super) fn page_beside(
         | PdfIn::CloseFind
         | PdfIn::GoTo(_)
         | PdfIn::Arrived
+        | PdfIn::DeletePage
+        | PdfIn::MovePage(_)
         | PdfIn::Restore(_)
         | PdfIn::Elapsed => return None,
     };
@@ -118,6 +124,49 @@ pub(super) fn page_beside(
 
 pub(super) fn search(query: &TypedText) -> PdfOut {
     PdfOut::Find(FindOut::asked(query))
+}
+
+/// The edit of `page` that `input` asks for: a delete of it, or a move one place; nothing when
+/// the document would be left with no page, or the page is already at the end it moves towards.
+pub(super) fn page_edit(page: PageIndex, input: &PdfIn, params: &PdfParams) -> Vec<PdfOut> {
+    let edit = match input {
+        PdfIn::DeletePage if params.pages.get() > 1 => {
+            PageRange::new(page, page).map(Edit::DeletePages).ok()
+        }
+        PdfIn::MovePage(StepDirection::Forward) if page.0 + 1 < params.pages.get() => {
+            Some(Edit::MovePage {
+                from: page,
+                to: PageIndex(page.0 + 1),
+            })
+        }
+        PdfIn::MovePage(StepDirection::Backward) if page.0 > 0 => Some(Edit::MovePage {
+            from: page,
+            to: PageIndex(page.0 - 1),
+        }),
+        PdfIn::DeletePage
+        | PdfIn::MovePage(_)
+        | PdfIn::Scroll { page: _, offset: _ }
+        | PdfIn::SetZoom(_)
+        | PdfIn::ZoomStep(_)
+        | PdfIn::Find(_)
+        | PdfIn::Results {
+            query: _,
+            count: _,
+            nearest: _,
+        }
+        | PdfIn::NextHit
+        | PdfIn::PreviousHit
+        | PdfIn::CloseFind
+        | PdfIn::GoTo(_)
+        | PdfIn::NextPage
+        | PdfIn::PreviousPage
+        | PdfIn::Arrived
+        | PdfIn::Restore(_)
+        | PdfIn::Elapsed => None,
+    };
+    edit.map(|edit| PdfOut::Edit(EditRequest::on_page(edit, page)))
+        .into_iter()
+        .collect()
 }
 
 fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
@@ -140,6 +189,10 @@ fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
             (PdfStage::Finding { query, hits, view }, outs)
         }
         PdfIn::GoTo(target) => jump(view, target, params),
+        PdfIn::DeletePage | PdfIn::MovePage(_) => {
+            let outs = page_edit(view.page, &input, params);
+            (PdfStage::Reading { view }, outs)
+        }
         PdfIn::NextPage | PdfIn::PreviousPage => match page_beside(view.page, &input, params) {
             Some(target) => jump(view, target, params),
             None => stay(view),
@@ -222,6 +275,10 @@ fn jumping(target: Destination, view: PageView, input: PdfIn, params: &PdfParams
             None => (this, vec![]),
         },
         PdfIn::GoTo(to) => jump(view, to, params),
+        PdfIn::DeletePage | PdfIn::MovePage(_) => {
+            let outs = page_edit(target.page, &input, params);
+            (this, outs)
+        }
         PdfIn::NextPage | PdfIn::PreviousPage => match page_beside(target.page, &input, params) {
             Some(to) => jump(view, to, params),
             None => (this, vec![]),

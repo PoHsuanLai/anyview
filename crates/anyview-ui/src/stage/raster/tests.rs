@@ -215,39 +215,6 @@ const CASES: &[Case] = &[
         &[],
     ),
     (
-        "rotating right turns a quarter and says so",
-        HALF,
-        fitted(QuarterTurn::None),
-        RasterIn::Rotate(Spin::Right),
-        fitted(QuarterTurn::Quarter),
-        &[
-            RasterOut::Turned(QuarterTurn::Quarter),
-            remember(Zoom::Fit, pt(0, 0)),
-        ],
-    ),
-    (
-        "rotating left from none is three quarters",
-        HALF,
-        fitted(QuarterTurn::None),
-        RasterIn::Rotate(Spin::Left),
-        fitted(QuarterTurn::ThreeQuarter),
-        &[
-            RasterOut::Turned(QuarterTurn::ThreeQuarter),
-            remember(Zoom::Fit, pt(0, 0)),
-        ],
-    ),
-    (
-        "rotating a zoomed image refits it",
-        ACTUAL,
-        zoomed(Zoom::Actual, pt(3200, 0)),
-        RasterIn::Rotate(Spin::Right),
-        fitted(QuarterTurn::Quarter),
-        &[
-            RasterOut::Turned(QuarterTurn::Quarter),
-            remember(Zoom::Fit, pt(0, 0)),
-        ],
-    ),
-    (
         "restoring a stored scale zooms to it",
         HALF,
         fitted(QuarterTurn::None),

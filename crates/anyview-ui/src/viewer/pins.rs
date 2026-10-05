@@ -22,7 +22,10 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 Sheet::Export { .. }
                 | Sheet::Unavailable { .. }
                 | Sheet::ConfirmTrash
-                | Sheet::Rename { .. } => true,
+                | Sheet::Rename { .. }
+                | Sheet::SaveCopy { .. }
+                | Sheet::Revert { .. }
+                | Sheet::NoVersions => true,
                 Sheet::Closed => false,
             };
             palette || sheet

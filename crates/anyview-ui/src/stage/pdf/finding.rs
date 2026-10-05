@@ -2,7 +2,7 @@
 
 use super::super::find::{FindHits, FindOut, HitStep};
 use super::model::{PageView, PdfIn, PdfOut, PdfParams, PdfStage};
-use super::step::{Step, page_beside, remember, scrolled, search, zoom_asked};
+use super::step::{Step, page_beside, page_edit, remember, scrolled, search, zoom_asked};
 use crate::typed::TypedText;
 
 fn stay(query: TypedText, hits: FindHits, view: PageView) -> Step {
@@ -73,6 +73,10 @@ pub(super) fn finding(
         PdfIn::CloseFind => closed(view),
         PdfIn::GoTo(target) => {
             let outs = vec![PdfOut::ScrollTo(target)];
+            (PdfStage::Finding { query, hits, view }, outs)
+        }
+        PdfIn::DeletePage | PdfIn::MovePage(_) => {
+            let outs = page_edit(view.page, &input, params);
             (PdfStage::Finding { query, hits, view }, outs)
         }
         PdfIn::NextPage | PdfIn::PreviousPage => match page_beside(view.page, &input, params) {

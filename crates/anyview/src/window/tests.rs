@@ -99,6 +99,7 @@ mod remaking {
             FakePrinter::answering(PrintOutcome::Printed),
             NoTrash,
             Services {
+                versions: anyview_store::Versions::under_state(&dir.join("state")),
                 store: Store::new(&dir.join("store"), now),
                 media: Media {
                     hub: hub.clone(),

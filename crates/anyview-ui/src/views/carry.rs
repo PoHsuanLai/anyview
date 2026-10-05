@@ -1,12 +1,14 @@
 //! What the window does with each output of the root machine. Nothing here decides: an output says
 //! what is wanted, and this hands it to a worker, a signal the views read, or the host.
 
+use super::arrive::shown_path;
 use super::shelf::{Dispatch, Shelf};
 use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
-    ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PresentationOut,
-    SheetOut, Stage, StageIn, StageOut, TextIn, TextStage, Ticket, TypedText, ViewerIn, ViewerOut,
+    ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut, PresentationOut,
+    SheetIn, SheetOut, Stage, StageIn, StageOut, TextIn, TextStage, Ticket, TypedText, ViewerIn,
+    ViewerOut,
 };
 use anyview_core::{FilePath, Neighbours, Resume};
 use dioxus::prelude::*;
@@ -62,6 +64,22 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         }
         ViewerOut::Sheet(SheetOut::Trash) => c.edge.request(HostRequest::Trash),
         ViewerOut::Sheet(SheetOut::Rename(name)) => c.edge.request(HostRequest::Rename(name)),
+        ViewerOut::Sheet(SheetOut::SaveCopy(name)) => c.edge.request(HostRequest::SaveCopy(name)),
+        ViewerOut::Sheet(SheetOut::Revert(version)) => {
+            c.edge.request(HostRequest::RevertTo(version));
+        }
+        ViewerOut::Edit(request) => c.edge.request(HostRequest::Edit(request)),
+        ViewerOut::Rewind(rewind) => c.edge.request(HostRequest::Rewind(rewind)),
+        ViewerOut::ListVersions => {
+            if let Some(path) = shown_path(c) {
+                c.edge.submit(Job::Versions { path });
+            }
+        }
+        ViewerOut::NameCopy => {
+            if let (Some(path), Some(dispatch)) = (shown_path(c), c.dispatch()) {
+                dispatch.send(ViewerIn::Sheet(SheetIn::AskSaveCopy(copy_name(&path))));
+            }
+        }
         ViewerOut::Presentation(PresentationOut::Become(presentation)) => {
             c.edge.request(HostRequest::Present(presentation));
         }
@@ -193,6 +211,10 @@ fn staged(c: &Carry, out: &StageOut) {
         media_out(c, media);
         return;
     }
+    if let StageOut::Pdf(PdfOut::Edit(request)) = out {
+        c.edge.request(HostRequest::Edit(*request));
+        return;
+    }
     if let StageOut::Pdf(pdf) = out {
         // The pages and their search are drawn from the PDF shelf, not the text's.
         shelf.pdf.carry(pdf.clone());
@@ -255,5 +277,38 @@ fn reveal(c: &Carry, index: HitIndex) {
     let top = top_for(hit.line, place.line, page);
     if top != place.line {
         dispatch.send(ViewerIn::Stage(StageIn::Text(TextIn::Scroll(top))));
+    }
+}
+
+/// The name proposed for a copy of `file`: `name copy.ext`, beside it.
+fn copy_name(file: &FilePath) -> TypedText {
+    let path = file.as_path();
+    let stem = path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let extension = path
+        .extension()
+        .map(|extension| format!(".{}", extension.to_string_lossy()))
+        .unwrap_or_default();
+    TypedText::new(format!("{stem} copy{extension}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_copy_is_named_after_its_file() {
+        // name, file, proposed name
+        const CASES: &[(&str, &str, &str)] = &[
+            ("with an extension", "/p/photo.png", "photo copy.png"),
+            ("with none", "/p/notes", "notes copy"),
+            ("with two dots", "/p/a.tar.gz", "a.tar copy.gz"),
+        ];
+        for (name, file, want) in CASES {
+            let proposed = copy_name(&FilePath::new(file).unwrap());
+            assert_eq!(proposed.as_str(), *want, "{name}");
+        }
     }
 }

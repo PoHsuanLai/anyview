@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 /// `bytes` as the new file `to`. The bytes go to a hidden file in the same folder first and are
 /// given the name `to` only when they are all on disk, so `to` never holds part of them. A `to`
 /// that exists is left as it is, whoever made it.
-pub(crate) fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
+pub fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
     let write_error = |error: std::io::Error| ExportError::Write {
         path: to.to_path_buf(),
         kind: error.kind(),
