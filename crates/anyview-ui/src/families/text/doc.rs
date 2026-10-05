@@ -4,13 +4,13 @@
 
 use super::find::FoundHits;
 use crate::TypedText;
-use crate::io::{DiskFiles, OpenError, OpenLink};
+use crate::io::{OpenError, OpenLink};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
 };
 use anyview_text::{
-    CodeLines, FileBytes, Highlighter, LineCount, Needle, RenderEnv, Rendered, SyntaxId, TextLines,
-    TokenLine, render,
+    CodeLines, DiskFiles, FileBytes, Highlighter, LineCount, Needle, RenderEnv, Rendered, SyntaxId,
+    TextLines, TokenLine, render,
 };
 use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};

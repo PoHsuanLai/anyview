@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 pub struct FakePrinter {
     outcome: PrintOutcome,
     jobs: Arc<Mutex<Vec<(JobTitle, usize)>>>,
+    pdfs: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 impl FakePrinter {
@@ -16,6 +17,7 @@ impl FakePrinter {
         FakePrinter {
             outcome,
             jobs: Arc::default(),
+            pdfs: Arc::default(),
         }
     }
 
@@ -23,11 +25,17 @@ impl FakePrinter {
     pub fn jobs(&self) -> Vec<(JobTitle, usize)> {
         locked(&self.jobs).clone()
     }
+
+    /// The PDF of each job, oldest first.
+    pub fn pdfs(&self) -> Vec<Vec<u8>> {
+        locked(&self.pdfs).clone()
+    }
 }
 
 impl Printer for FakePrinter {
     async fn print(&self, pdf: &[u8], title: &JobTitle) -> Result<PrintOutcome, PlatformError> {
         locked(&self.jobs).push((title.clone(), pdf.len()));
+        locked(&self.pdfs).push(pdf.to_vec());
         Ok(self.outcome)
     }
 }

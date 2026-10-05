@@ -4,6 +4,7 @@ members = [
   "crates/anyview",
   "crates/anyview-archive",
   "crates/anyview-core",
+  "crates/anyview-export",
   "crates/anyview-font",
   "crates/anyview-image",
   "crates/anyview-media",
@@ -33,6 +34,7 @@ publish = false
 anyview = { path = "crates/anyview" }
 anyview-archive = { path = "crates/anyview-archive" }
 anyview-core = { path = "crates/anyview-core" }
+anyview-export = { path = "crates/anyview-export" }
 anyview-font = { path = "crates/anyview-font" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
