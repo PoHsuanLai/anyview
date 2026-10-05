@@ -242,7 +242,7 @@ kamadak-exif = "0.6"
 img-parts = "0.4"
 # PSD (MIT OR Apache-2.0) and ICNS (MIT): pure Rust readers for the two container formats `image` lacks.
 psd = "0.3.5"
-icns = "0.3"
+icns = { version = "0.3", default-features = false }
 # AVIF encoder, pure Rust: BSD-3-Clause.
 ravif = { version = "0.13", default-features = false }
 # Unbounded channel whose receiver is a future, so a worker's result wakes the window's UI task:

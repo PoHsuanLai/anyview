@@ -222,9 +222,12 @@ fn an_icon_family_decodes_to_its_largest_picture() {
         (icns::IconType::RGBA32_16x16, 16, 10),
         (icns::IconType::RGBA32_32x32, 32, 90),
     ] {
-        let mut image = icns::Image::new(icns::PixelFormat::RGBA, side, side);
-        image.data_mut().fill(grey);
-        family.add_icon_with_type(&image, kind).unwrap();
+        let picture = RgbaImage::from_pixel(side, side, image::Rgba([grey; 4]));
+        let mut png = Cursor::new(Vec::new());
+        picture.write_to(&mut png, ImageFormat::Png).unwrap();
+        family
+            .elements
+            .push(icns::IconElement::new(kind.ostype(), png.into_inner()));
     }
     let mut bytes = Vec::new();
     family.write(&mut bytes).unwrap();

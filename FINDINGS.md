@@ -44,7 +44,7 @@ on. It is a reference, not a log: how each was found lives in git history.
     `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
-  - The tree is 587 packages against the budget of 590.
+  - The tree is 599 packages against the budget of 599.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -561,7 +561,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  656 packages against a budget of 660, with no libmpv or libav in it. Ends if the header readers move to a crate
+  669 packages against a budget of 669, with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
@@ -592,8 +592,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
-  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 590 distinct packages;
-  `anyview-peek` is 587 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 599 distinct packages (raised from 590 for the PSD,
+  ICNS and OpenEXR/HDR still formats in `anyview-image`, which the peek links: `psd`, `icns`, `exr` and the
+  inflate and SIMD crates `exr` needs);
+  `anyview-peek` is 599 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
   `anyview-archive`, `skrifa` and the media parsers the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those

@@ -6,7 +6,7 @@ use super::colour::{ColourInfo, ColourModel};
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use anyview_core::{PixelLen, PixelSize};
-use icns::{IconFamily, PixelFormat};
+use icns::{Encoding, IconFamily, IconType, PixelFormat};
 use std::io::Cursor;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -59,6 +59,29 @@ pub(crate) fn psd(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
     Ok((Rgba8::new(size, pixels)?, colour))
 }
 
+/// One entry of an icon family as a picture. The `icns` crate is built without its own PNG reader,
+/// so a PNG-packed entry goes through `image`; a JPEG 2000 one is skipped, as no decoder here reads
+/// it.
+fn icon_picture(family: &IconFamily, kind: IconType) -> Option<Rgba8> {
+    let (width, height) = (kind.pixel_width(), kind.pixel_height());
+    if kind.encoding() == Encoding::JP2PNG {
+        let element = family.elements.iter().find(|e| e.ostype == kind.ostype())?;
+        let decoded =
+            image::load_from_memory_with_format(&element.data, image::ImageFormat::Png).ok()?;
+        return (decoded.width() == width && decoded.height() == height)
+            .then(|| Rgba8::from_image(decoded.into_rgba8()));
+    }
+    let image = family
+        .get_icon_with_type(kind)
+        .ok()?
+        .convert_to(PixelFormat::RGBA);
+    let size = PixelSize {
+        width: PixelLen(image.width()),
+        height: PixelLen(image.height()),
+    };
+    Rgba8::new(size, image.into_data().into_vec()).ok()
+}
+
 /// The largest picture of an icon family that can be decoded.
 pub(crate) fn icns(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
     let family = IconFamily::read(Cursor::new(bytes)).map_err(decode_error)?;
@@ -71,15 +94,9 @@ pub(crate) fn icns(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
         bits: 8,
     };
     for kind in kinds {
-        let Ok(image) = family.get_icon_with_type(kind) else {
-            continue;
-        };
-        let image = image.convert_to(PixelFormat::RGBA);
-        let size = PixelSize {
-            width: PixelLen(image.width()),
-            height: PixelLen(image.height()),
-        };
-        return Ok((Rgba8::new(size, image.into_data().into_vec())?, colour));
+        if let Some(picture) = icon_picture(&family, kind) {
+            return Ok((picture, colour));
+        }
     }
     Err(decode_error(
         "the icon family holds no picture this build reads",
@@ -89,15 +106,17 @@ pub(crate) fn icns(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use icns::{IconType, Image};
 
     #[test]
     fn an_icon_family_decodes_to_its_largest_picture() {
         let mut family = IconFamily::new();
         for (kind, side) in [(IconType::RGBA32_16x16, 16), (IconType::RGBA32_32x32, 32)] {
-            let mut image = Image::new(PixelFormat::RGBA, side, side);
-            image.data_mut().fill(200);
-            family.add_icon_with_type(&image, kind).unwrap();
+            let picture = image::RgbaImage::from_pixel(side, side, image::Rgba([200; 4]));
+            let mut png = Cursor::new(Vec::new());
+            picture.write_to(&mut png, image::ImageFormat::Png).unwrap();
+            family
+                .elements
+                .push(icns::IconElement::new(kind.ostype(), png.into_inner()));
         }
         let mut bytes = Vec::new();
         family.write(&mut bytes).unwrap();
