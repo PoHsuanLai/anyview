@@ -109,6 +109,11 @@ fn unclaimed(keys: &[ShortcutKey], regions: &Regions<'_>) -> Route {
         return Route::Stage(input);
     }
     if let Some(input) = NavigateIn::from_key(keys) {
+        // A row picked in a table or a tree is the reader's place: Left and Right do not carry
+        // them off to another file until Esc puts the cursor away.
+        if regions.stage.has_cursor() {
+            return Route::Ignored;
+        }
         return Route::Navigate(input);
     }
     match keys {

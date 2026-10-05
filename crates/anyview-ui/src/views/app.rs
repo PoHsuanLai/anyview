@@ -38,7 +38,7 @@ pub fn stylesheet() -> String {
 #[component]
 pub fn ViewerApp() -> Element {
     let launch = use_hook(consume_context::<Launch>);
-    let look = use_look(&launch);
+    let look = use_look(launch.look.clone());
     let now = look();
     rsx! {
         Ds {
@@ -55,11 +55,11 @@ pub fn ViewerApp() -> Element {
 }
 
 /// The look the window draws now: the feed's latest, which follows the desktop while the window is
-/// open, or the one it was launched with. The feed is read once, so every render takes one branch.
-fn use_look(launch: &Launch) -> ReadSignal<Look> {
+/// open, or `launched`, the one it was opened with. The feed is read once, so every render takes one branch.
+pub(super) fn use_look(launched: Look) -> ReadSignal<Look> {
     let feed = use_hook(try_consume_context::<LookFeed>);
     let mut look = use_signal({
-        let (feed, launched) = (feed.clone(), launch.look.clone());
+        let feed = feed.clone();
         move || match feed {
             Some(LookFeed(receiver)) => receiver.borrow().clone(),
             None => launched,

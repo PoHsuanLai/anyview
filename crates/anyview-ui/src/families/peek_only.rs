@@ -3,7 +3,7 @@
 //! stub: a person sees what the file is and hands it to the program that can show it.
 
 use crate::families::view::{Area, StageCx, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{OpenError, OpenLink, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
 use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
 use anyview_core::{
@@ -32,6 +32,10 @@ pub struct PeekOnlyDoc {
     pub facts: Facts,
     /// The picture an office document carries of itself, ready to draw.
     pub thumbnail: Option<ImageSource>,
+    /// What an archive holds, one line an entry.
+    pub listing: Vec<String>,
+    /// Whether the contents could be read.
+    pub readable: Readable,
 }
 
 /// The picture of an office document as a PNG `data:` source, or `None` when it has none or it
@@ -54,6 +58,39 @@ fn thumbnail_of(look: &OfficeLook) -> Option<ImageSource> {
         .map(|png| ImageSource::png(&png))
 }
 
+/// The line under a file's name: what the viewer does for the kind, in words that never say the
+/// viewer is lacking (a mature viewer says what to do instead).
+fn description_of(doc: &PeekOnlyDoc) -> String {
+    let unreadable = doc.readable == Readable::No;
+    match doc.kind {
+        FormatKind::Archive if unreadable => {
+            "The contents could not be read. The archive may be damaged.".to_owned()
+        }
+        FormatKind::Archive if doc.listing.is_empty() => {
+            "Open it with an app that extracts archives.".to_owned()
+        }
+        FormatKind::Archive => "What the archive holds is listed below.".to_owned(),
+        FormatKind::Folder => "A folder.".to_owned(),
+        FormatKind::Font => "Open it with a font app to look at it or install it.".to_owned(),
+        FormatKind::Office => "Open it with an office app to read or edit it.".to_owned(),
+        FormatKind::Raster
+        | FormatKind::Vector
+        | FormatKind::Pdf
+        | FormatKind::PlainText
+        | FormatKind::Markdown
+        | FormatKind::Code
+        | FormatKind::Table
+        | FormatKind::Tree
+        | FormatKind::Video
+        | FormatKind::Audio
+        | FormatKind::Book
+        | FormatKind::Other => {
+            "The viewer can\u{2019}t show this kind of file. Another app may be able to open it."
+                .to_owned()
+        }
+    }
+}
+
 /// Every kind the full tier does not show yet.
 #[derive(Debug, Clone, Copy)]
 pub struct PeekOnlyStageView;
@@ -66,7 +103,7 @@ impl StageView for PeekOnlyStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        link: &OpenLink,
     ) -> Result<PeekOnlyDoc, OpenError> {
         let name = src
             .path()
@@ -88,16 +125,26 @@ impl StageView for PeekOnlyStageView {
             | FormatDetail::Archive(_)
             | FormatDetail::Book(_) => OfficeLook::default(),
         };
+        // The host's card says what the launcher's pane says of the file: its friendly kind and
+        // what the format holds. Without one the viewer lists the kind and size it knows.
+        let card = link.cards.card(src, sniffed).unwrap_or_default();
+        let start = if card.facts.rows().is_empty() {
+            base
+        } else {
+            card.facts.clone()
+        };
         let facts = look
             .facts()
             .rows()
             .iter()
-            .fold(base, |facts, row| facts.with(row.label, row.value.clone()));
+            .fold(start, |facts, row| facts.with(row.label, row.value.clone()));
         Ok(PeekOnlyDoc {
             name,
             kind: sniffed.kind(),
             facts,
             thumbnail: thumbnail_of(&look),
+            listing: card.listing,
+            readable: card.unreadable,
         })
     }
 
@@ -121,24 +168,38 @@ impl StageView for PeekOnlyStageView {
             .iter()
             .map(|row| Fact::new(row.label.label(), row.value.as_str()))
             .collect();
+        let description = description_of(doc);
         rsx! {
             div { class: "viewer-peek",
                 div { class: "viewer-peek-body",
-                if let Some(thumbnail) = doc.thumbnail.clone() {
-                    img { class: "viewer-peek-thumbnail", alt: "First page", src: thumbnail.0 }
-                }
-                EmptyState {
-                    icon: Icon::File,
-                    title: doc.name.clone(),
-                    description: Some(TextLine::from(format!("The viewer cannot show {} files yet.", doc.kind.label().to_lowercase()))),
-                    action: rsx! {
-                        Button {
-                            label: "Open With…",
-                            onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                    if let Some(thumbnail) = doc.thumbnail.clone() {
+                        img { class: "viewer-peek-thumbnail", alt: "First page", src: thumbnail.0 }
+                    }
+                    EmptyState {
+                        icon: Icon::File,
+                        title: doc.name.clone(),
+                        description: Some(TextLine::from(description)),
+                        action: rsx! {
+                            div { class: "viewer-failed-actions",
+                                Button {
+                                    label: "Open With\u{2026}",
+                                    onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                                }
+                                Button {
+                                    label: "Show in Folder",
+                                    onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
+                                }
+                            }
+                        },
+                    }
+                    div { class: "viewer-peek-facts", FactList { facts } }
+                    if !doc.listing.is_empty() {
+                        ul { class: "viewer-peek-listing", aria_label: "Contents",
+                            for line in doc.listing.iter() {
+                                li { "{line}" }
+                            }
                         }
-                    },
-                }
-                div { class: "viewer-peek-facts", FactList { facts } }
+                    }
                 }
             }
         }

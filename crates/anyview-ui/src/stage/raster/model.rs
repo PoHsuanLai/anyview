@@ -97,6 +97,16 @@ impl Default for RasterStage {
     }
 }
 
+impl RasterStage {
+    /// Whether the open image moves: only then are playback and frame stepping its commands.
+    pub fn is_animated(&self) -> bool {
+        let (RasterStage::Fitted { anim, .. }
+        | RasterStage::Zoomed { anim, .. }
+        | RasterStage::Panning { anim, .. }) = self;
+        !matches!(anim, Animation::Still)
+    }
+}
+
 /// What moves the stage. Points are in the content's own space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RasterIn {

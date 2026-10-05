@@ -16,6 +16,9 @@ use anyview_ui::{EditRequest, ExportDraft, HostRequest, Presentation, Probed, Ve
 pub struct Shown {
     pub(super) file: Option<Probed>,
     pub(super) trail: Trail<VersionId>,
+    /// Edits and undos asked for while a save was being written, in the order they came: each
+    /// is asked again when the save ends.
+    pub(super) queued: Vec<HostRequest>,
 }
 
 impl Shown {
@@ -33,6 +36,7 @@ impl Shown {
         Shown {
             file: Some(probed),
             trail: if same { self.trail } else { Trail::default() },
+            queued: if same { self.queued } else { Vec::new() },
         }
     }
 
@@ -53,6 +57,7 @@ impl Shown {
                 probed
             }),
             trail: Trail::default(),
+            queued: self.queued,
         }
     }
 }
@@ -75,6 +80,8 @@ pub enum WindowTask {
     Close,
     /// Put this text on the clipboard.
     CopyText(String),
+    /// Open each of these files in a window of its own, and close this one (the welcome window).
+    OpenFiles(Vec<FilePath>),
     /// Tell the window when this file changes on disk, instead of the one it watched.
     Watch(FilePath),
     /// Stop telling the window about changes.
@@ -96,6 +103,10 @@ pub enum Task {
     OpenWith(Probed),
     /// Show the file in the file manager.
     Reveal(FilePath),
+    /// Ask the person for a file in the desktop's dialog; what they choose opens in the window.
+    PickFile,
+    /// Open a web or mail address with the program that handles it.
+    OpenLink(String),
     /// Send the file by mail.
     Share(FilePath),
     /// Hand the file to the print dialog: a PDF as it is, anything else laid out as a PDF first.
@@ -136,10 +147,11 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
             (shown.showing(probed), carry)
         }
         HostRequest::CloseWindow => (shown, Carry::Window(WindowTask::Close)),
-        HostRequest::PickFile => declined(shown, Declined::PickFile),
+        HostRequest::PickFile => (shown, Carry::Desktop(Task::PickFile)),
+        HostRequest::Reveal(file) => (shown, Carry::Desktop(Task::Reveal(file))),
         HostRequest::Export(draft) => export(shown, draft),
         HostRequest::Present(presentation) => present(shown, presentation),
-        HostRequest::OpenUri(_) => declined(shown, Declined::OpenUri),
+        HostRequest::OpenUri(uri) => (shown, Carry::Desktop(Task::OpenLink(uri))),
         HostRequest::Trash => about_file(shown, |probed| {
             Carry::Desktop(Task::Trash(probed.source.path().clone()))
         }),
@@ -165,6 +177,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::Rewind(rewind) => editing::rewind(shown, rewind),
         HostRequest::RevertTo(key) => editing::revert(shown, key),
         HostRequest::SaveCopy(typed) => editing::save_copy(shown, typed),
+        HostRequest::OpenFiles(files) => (shown, Carry::Window(WindowTask::OpenFiles(files))),
         HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
         HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
         HostRequest::Run(action) => run(shown, action),

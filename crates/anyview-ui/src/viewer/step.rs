@@ -5,6 +5,7 @@ use super::command::run;
 use super::model::{Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
+use crate::command::Command;
 use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{LoadIn, LoadOut};
@@ -12,7 +13,7 @@ use crate::navigate::{NavigateIn, NavigateOut};
 use crate::palette::{PaletteIn, PaletteOut};
 use crate::presentation::Presentation;
 use crate::stage::{Stage, StageFamily, StageIn};
-use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
+use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::Shortcut;
@@ -248,7 +249,23 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Stage(input) => stage(viewer, input, at, params),
         Route::Navigate(input) => navigate(viewer, input, at, params),
         Route::Chrome(input) => chrome(viewer, input, at, params),
-        Route::Swallowed | Route::Ignored => (viewer, vec![]),
+        Route::Ignored => file_key(viewer, key, at, params),
+        Route::Swallowed => (viewer, vec![]),
+    }
+}
+
+/// A key no region claimed, which may be the shortcut of a file action the open file offers (⌘P,
+/// ⌘D, ⌘[ …): the action runs as the palette's row would.
+fn file_key(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> Step {
+    let keys = key.keys();
+    let action = params
+        .files
+        .iter()
+        .find(|action| shortcut(**action).is_some_and(|bound| bound.keys() == keys))
+        .copied();
+    match action {
+        Some(action) => run(viewer, Command::File(action), at, params),
+        None => (viewer, vec![]),
     }
 }
 

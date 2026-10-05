@@ -31,7 +31,7 @@ pub use raster::{
     Animation, FrameCount, FrameDelays, FrameIndex, Motion, RasterIn, RasterOut, RasterParams,
     RasterStage, Runs,
 };
-pub use row::RowNo;
+pub use row::{RowNo, RowStep};
 pub use table::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
 pub use text::{
     LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,

@@ -34,7 +34,11 @@ fn sheet_asked(sheet: SheetNo, input: TableIn, total: SheetTotal) -> Option<Shee
         TableIn::NextSheet => Some(SheetNo(sheet.0.saturating_add(1).min(last))),
         TableIn::PreviousSheet => Some(SheetNo(sheet.0.saturating_sub(1).min(last))),
         TableIn::ChooseSheet(chosen) if chosen.0 <= last => Some(chosen),
-        TableIn::ChooseSheet(_) | TableIn::Select(_) | TableIn::Deselect | TableIn::Elapsed => None,
+        TableIn::ChooseSheet(_)
+        | TableIn::Select(_)
+        | TableIn::Move(_)
+        | TableIn::Deselect
+        | TableIn::Elapsed => None,
     }
 }
 
@@ -45,6 +49,10 @@ fn browsing(sheet: SheetNo, input: TableIn, params: &TableParams) -> Step {
             (TableStage::Browsing { sheet }, vec![])
         }
         TableIn::Select(row) => (TableStage::Selected { sheet, row }, vec![]),
+        TableIn::Move(step) => match step.from(None, params.rows, params.page) {
+            Some(row) => (TableStage::Selected { sheet, row }, vec![]),
+            None => (TableStage::Browsing { sheet }, vec![]),
+        },
         TableIn::Deselect | TableIn::Elapsed => (TableStage::Browsing { sheet }, vec![]),
     }
 }
@@ -64,6 +72,12 @@ fn selected(
             }
         }
         TableIn::Select(row) => (TableStage::Selected { sheet, row }, vec![]),
+        TableIn::Move(step) => {
+            let row = step
+                .from(Some(row), params.rows, params.page)
+                .unwrap_or(row);
+            (TableStage::Selected { sheet, row }, vec![])
+        }
         TableIn::Deselect => (TableStage::Browsing { sheet }, vec![]),
         TableIn::Elapsed => (TableStage::Selected { sheet, row }, vec![]),
     }

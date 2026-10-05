@@ -3,7 +3,7 @@
 //! play with no window.
 
 use crate::media::MediaHub;
-use crate::window::{Factory, Opening, Seed, open_in_window};
+use crate::window::{Factory, Opening, Seed, open_in_window, open_welcome};
 use anyview_core::{
     ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Sniffed, Source, sniff,
 };
@@ -22,6 +22,18 @@ pub enum Arrival {
     Window(Opening),
     /// A recording to play with no window.
     Background(FilePath),
+    /// The welcome window: a launch that named no file.
+    Welcome(WelcomeWhen),
+}
+
+/// When a welcome window is wanted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WelcomeWhen {
+    /// Another launch with no file asked for it: it opens.
+    Always,
+    /// The first launch had no file, and the bus may still deliver the request that started it:
+    /// the window opens only if no other has.
+    IfNoWindow,
 }
 
 /// What a request asks of one file, before the folder around it is listed.
@@ -71,7 +83,12 @@ pub async fn open_each(wants: Vec<Want>, arrivals: &UnboundedSender<Arrival>) {
 /// files in new windows.
 pub async fn relay(mut primary: Primary, arrivals: UnboundedSender<Arrival>) {
     while let Some(request) = primary.next().await {
-        open_each(wants_of(request), &arrivals).await;
+        let wants = wants_of(request);
+        if wants.is_empty() {
+            // A launch with no file: what a person sees is a window to choose one in.
+            let _gone = arrivals.unbounded_send(Arrival::Welcome(WelcomeWhen::Always));
+        }
+        open_each(wants, &arrivals).await;
         if arrivals.is_closed() {
             return;
         }
@@ -87,8 +104,19 @@ pub async fn open_windows(
     factory: Factory,
     hub: MediaHub,
 ) {
+    let mut opened = 0_u32;
     while let Some(arrival) = arrivals.next().await {
         match arrival {
+            Arrival::Welcome(when) => {
+                let wanted = match when {
+                    WelcomeWhen::Always => true,
+                    WelcomeWhen::IfNoWindow => opened == 0,
+                };
+                if wanted && open_welcome(&app, factory.clone()).is_err() {
+                    return;
+                }
+                opened += 1;
+            }
             Arrival::Window(opening) => {
                 let seed = Seed {
                     factory: factory.clone(),
@@ -98,6 +126,7 @@ pub async fn open_windows(
                 if open_in_window(&app, seed).is_err() {
                     return;
                 }
+                opened += 1;
             }
             Arrival::Background(file) => {
                 let (hub, resume) = (hub.clone(), factory.resume.clone());

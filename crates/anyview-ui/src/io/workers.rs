@@ -6,9 +6,10 @@
 
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
+use super::notice::Notice;
 use super::seams::{
-    FirstFrameSource, Forgetful, ImagePlugins, NoImagePlugins, NoPictures, NoVersions,
-    ResumeSource, VersionSource,
+    FileCards, FirstFrameSource, Forgetful, ImagePlugins, NoCards, NoImagePlugins, NoPictures,
+    NoVersions, ResumeSource, VersionSource,
 };
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
@@ -156,6 +157,11 @@ pub enum HostRequest {
     Unwatch,
     /// Show the window this way.
     Present(Presentation),
+    /// Open these files, each in a window of its own, and close this window: the welcome window's
+    /// answer to a choice or a drop.
+    OpenFiles(Vec<FilePath>),
+    /// Show this file in the file manager (a notice's "Show in Folder").
+    Reveal(FilePath),
     /// Open a web or mail address a link of the open file names, with the program that handles it.
     OpenUri(String),
 }
@@ -175,6 +181,7 @@ pub struct Edge {
     first_frames: Arc<dyn FirstFrameSource>,
     media: Arc<dyn MediaHost>,
     image_plugins: Arc<dyn ImagePlugins>,
+    cards: Arc<dyn FileCards>,
 }
 
 impl std::fmt::Debug for Edge {
@@ -201,6 +208,7 @@ impl Edge {
             first_frames: Arc::new(NoPictures),
             media: Arc::new(NoPlayer),
             image_plugins: Arc::new(NoImagePlugins),
+            cards: Arc::new(NoCards),
         }
     }
 
@@ -248,11 +256,35 @@ impl Edge {
         }
     }
 
+    /// The same edge showing the files no stage covers (fonts, archives, folders, office documents)
+    /// as `cards` describe them: without them a card lists only the kind and the size.
+    pub fn with_cards(self, cards: Arc<dyn FileCards>) -> Edge {
+        Edge { cards, ..self }
+    }
+
     /// Tell the window that `path` changed on disk. The window looks at the file's stamp and
     /// reloads it only if it differs from the one it opened, so a spurious event costs one stat.
     /// Callable from any thread, and a no-op once the window is gone.
     pub fn changed(&self, path: FilePath) {
         self.reply.post(Done::Changed { path });
+    }
+
+    /// Tell the window which files the person chose in the file dialog: they open as dropped
+    /// files do. Callable from any thread, and a no-op once the window is gone.
+    pub fn chosen(&self, files: Vec<FilePath>) {
+        self.reply.post(Done::Chosen { files });
+    }
+
+    /// Tell the window the file it shows was renamed: the window opens it again under `to`,
+    /// where the person is. Callable from any thread, and a no-op once the window is gone.
+    pub fn moved(&self, to: FilePath) {
+        self.reply.post(Done::Moved { to });
+    }
+
+    /// Tell the window how a task ended: it shows the notice for a moment. Callable from any
+    /// thread, and a no-op once the window is gone.
+    pub fn notify(&self, notice: Notice) {
+        self.reply.post(Done::Notice(notice));
     }
 
     /// Ask a worker to do `job`; its result arrives in the mailbox.
@@ -283,6 +315,7 @@ impl Edge {
             highlighter: Arc::clone(&self.highlighter),
             first_frames: Arc::clone(&self.first_frames),
             image_plugins: Arc::clone(&self.image_plugins),
+            cards: Arc::clone(&self.cards),
             media: None,
         }
     }

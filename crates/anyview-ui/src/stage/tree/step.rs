@@ -14,10 +14,10 @@ impl Machine for TreeStage {
     type Params = TreeParams;
     type Ctx = ();
 
-    fn step(self, input: TreeIn, _at: Stamp, _params: &TreeParams, _cx: &()) -> Step {
+    fn step(self, input: TreeIn, _at: Stamp, params: &TreeParams, _cx: &()) -> Step {
         match self {
-            TreeStage::Browsing { open } => browsing(open, input),
-            TreeStage::Selected { open, row } => selected(open, row, input),
+            TreeStage::Browsing { open } => browsing(open, input, params),
+            TreeStage::Selected { open, row } => selected(open, row, input, params),
         }
     }
 
@@ -35,16 +35,20 @@ fn opened(open: &OpenNodes, input: &TreeIn) -> Option<OpenNodes> {
         TreeIn::Open(path) => Some(open.clone().opened(path.clone())),
         TreeIn::Close(path) => Some(open.clone().closed(path)),
         TreeIn::CollapseAll => Some(OpenNodes::top_level()),
-        TreeIn::Select(_) | TreeIn::Deselect | TreeIn::Elapsed => None,
+        TreeIn::Select(_) | TreeIn::Move(_) | TreeIn::Deselect | TreeIn::Elapsed => None,
     }
 }
 
-fn browsing(open: OpenNodes, input: TreeIn) -> Step {
+fn browsing(open: OpenNodes, input: TreeIn, params: &TreeParams) -> Step {
     if let Some(open) = opened(&open, &input) {
         return (TreeStage::Browsing { open }, vec![]);
     }
     match input {
         TreeIn::Select(row) => (TreeStage::Selected { open, row }, vec![]),
+        TreeIn::Move(step) => match step.from(None, params.rows, params.page) {
+            Some(row) => (TreeStage::Selected { open, row }, vec![]),
+            None => (TreeStage::Browsing { open }, vec![]),
+        },
         TreeIn::Toggle(_)
         | TreeIn::Open(_)
         | TreeIn::Close(_)
@@ -54,7 +58,7 @@ fn browsing(open: OpenNodes, input: TreeIn) -> Step {
     }
 }
 
-fn selected(open: OpenNodes, row: RowNo, input: TreeIn) -> Step {
+fn selected(open: OpenNodes, row: RowNo, input: TreeIn, params: &TreeParams) -> Step {
     if let Some(next) = opened(&open, &input) {
         // Collapsing everything may take the cursor's row away: it goes back to the top.
         return match input {
@@ -62,13 +66,19 @@ fn selected(open: OpenNodes, row: RowNo, input: TreeIn) -> Step {
             TreeIn::Toggle(_) | TreeIn::Open(_) | TreeIn::Close(_) => {
                 (TreeStage::Selected { open: next, row }, vec![])
             }
-            TreeIn::Select(_) | TreeIn::Deselect | TreeIn::Elapsed => {
+            TreeIn::Select(_) | TreeIn::Move(_) | TreeIn::Deselect | TreeIn::Elapsed => {
                 (TreeStage::Selected { open, row }, vec![])
             }
         };
     }
     match input {
         TreeIn::Select(row) => (TreeStage::Selected { open, row }, vec![]),
+        TreeIn::Move(step) => {
+            let row = step
+                .from(Some(row), params.rows, params.page)
+                .unwrap_or(row);
+            (TreeStage::Selected { open, row }, vec![])
+        }
         TreeIn::Deselect => (TreeStage::Browsing { open }, vec![]),
         TreeIn::Toggle(_)
         | TreeIn::Open(_)

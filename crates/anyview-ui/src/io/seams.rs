@@ -4,7 +4,7 @@
 //! goes out as a `HostRequest`.
 
 use crate::sheet::VersionRow;
-use anyview_core::{Fact, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
+use anyview_core::{Fact, Facts, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;
 
@@ -42,6 +42,47 @@ pub trait ImagePlugins: Debug + Send + Sync + 'static {
     /// The picture of `source`, a file of `sniffed`'s type, with at most `max_area` pixels. Blocking:
     /// it starts a program and waits for it, so a worker calls it, never the UI thread.
     fn decode(&self, source: &Source, sniffed: &Sniffed, max_area: PixelArea) -> PluginPicture;
+}
+
+/// What the host's light tier makes of a file the viewer has no stage for: the rows it lists for
+/// the file in the launcher's pane, and what is inside it when it holds things.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FileCard {
+    /// The rows: a friendly kind, the size, and what the format itself says (a font's family, an
+    /// archive's entry count, a folder's tally).
+    pub facts: Facts,
+    /// The entries of an archive, one line each, in the archive's own order.
+    pub listing: Vec<String>,
+    /// Whether the file's contents could not be read: it looks damaged.
+    pub unreadable: Readable,
+}
+
+/// Whether a card's contents could be read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Readable {
+    /// They could, or the format has none to read.
+    #[default]
+    Yes,
+    /// They could not.
+    No,
+}
+
+/// The light tier the host links (`anyview-peek`), lent to the views as cards for the files they
+/// have no stage for, so a font, an archive or a folder shows what its peek shows.
+pub trait FileCards: Debug + Send + Sync + 'static {
+    /// The card of `source`, a file of `sniffed`'s type, or `None` when the host has none.
+    /// Blocking.
+    fn card(&self, source: &Source, sniffed: &Sniffed) -> Option<FileCard>;
+}
+
+/// The default `FileCards`: the host has none, so the views list what they know themselves.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NoCards;
+
+impl FileCards for NoCards {
+    fn card(&self, _source: &Source, _sniffed: &Sniffed) -> Option<FileCard> {
+        None
+    }
 }
 
 /// The kept versions of a file, listed from the store the binary keeps.

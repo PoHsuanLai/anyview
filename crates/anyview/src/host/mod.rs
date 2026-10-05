@@ -4,9 +4,11 @@
 //! does.
 
 mod appearance;
+mod cards;
 mod desktop;
 mod documents;
 mod editing;
+mod feedback;
 mod image_plugins;
 mod media;
 mod outcome;
@@ -25,10 +27,15 @@ mod watch;
 mod tests;
 
 pub use appearance::{Appearances, look_of};
+pub use cards::PeekCards;
 pub use desktop::{Desktop, Hosting, LinuxDesktop, Services};
+pub use feedback::{
+    Doing, log, notice_of, notice_of_declined, report, subject_of, tell, tell_declined,
+    tell_problem,
+};
 pub use image_plugins::ImageHost;
 pub use media::Media;
-pub use outcome::{Declined, Outcome, report, report_declined};
+pub use outcome::{Declined, Outcome};
 pub use pictures::CachedPictures;
 pub use remembering::{REMEMBER_EVERY, Remembering};
 pub use resume::HostedResume;

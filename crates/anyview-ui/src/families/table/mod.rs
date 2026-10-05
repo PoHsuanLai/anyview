@@ -48,10 +48,25 @@ impl StageView for TableStageView {
         }
     }
 
-    fn params(doc: &TableDoc, _stage: &Stage, _area: Option<Area>) -> StageParams {
+    fn params(doc: &TableDoc, stage: &Stage, area: Option<Area>) -> StageParams {
+        let at = match stage {
+            Stage::Table(stage) => stage.sheet().0 as usize, // a u32 fits a usize
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Book(_)
+            | Stage::Tree(_) => 0,
+        };
         StageParams {
             table: TableParams {
                 sheets: SheetTotal(u32::try_from(doc.sheets.len()).unwrap_or(u32::MAX)),
+                rows: doc
+                    .sheets
+                    .get(at)
+                    .map_or(0, |sheet| sheet.table.row_count().0),
+                page: view::page_of(area),
             },
             ..StageParams::default()
         }
