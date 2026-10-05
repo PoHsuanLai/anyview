@@ -1,0 +1,8 @@
+# The Vulkan loader walks its list of live devices without a lock when it names an object
+# (vkSetDebugUtilsObjectNameEXT), and every harness test makes and drops its own instance and
+# device, so a parallel test run segfaults in loader_get_icd_and_device. wgpu's debug flag is what
+# loads that extension and names objects; off, there is nothing to race. `force` is not set, so
+# a person can still turn it on for one run (WGPU_DEBUG=1 cargo test).
+[env]
+WGPU_DEBUG = "0"
+WGPU_VALIDATION = "0"
