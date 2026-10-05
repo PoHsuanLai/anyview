@@ -32,6 +32,7 @@ fn after_export(stage: Stage, offer: MediaOffer) -> Sheet {
     let (viewer, _) = viewer.step(
         ViewerIn::Run(Command::File(FileAction::Export)),
         Stamp(0),
+        &(),
         &params,
     );
     viewer.sheet

@@ -28,7 +28,7 @@ fn opening_a_file_probes_it_and_drops_the_stage_of_the_last_one() {
         stage: image(),
         ..Viewer::default()
     };
-    let (viewer, outs) = viewer.step(ViewerIn::Open(path("/a.png")), Stamp(0), &params);
+    let (viewer, outs) = viewer.step(ViewerIn::Open(path("/a.png")), Stamp(0), &(), &params);
     assert_eq!(
         outs,
         vec![ViewerOut::Probe {
@@ -38,7 +38,7 @@ fn opening_a_file_probes_it_and_drops_the_stage_of_the_last_one() {
     );
     assert_eq!(viewer.stage, Stage::NoStage);
     // A second open abandons the first: the old ticket is cancelled and a new one probed.
-    let (viewer, outs) = viewer.step(ViewerIn::Open(path("/b.png")), Stamp(1), &params);
+    let (viewer, outs) = viewer.step(ViewerIn::Open(path("/b.png")), Stamp(1), &(), &params);
     assert_eq!(
         outs,
         vec![
@@ -55,7 +55,7 @@ fn opening_a_file_probes_it_and_drops_the_stage_of_the_last_one() {
         flow: LoadFlow::OpenOnly,
         stage: StageFamily::Media,
     });
-    let (after, outs) = viewer.clone().step(late, Stamp(2), &params);
+    let (after, outs) = viewer.clone().step(late, Stamp(2), &(), &params);
     assert_eq!((after, outs), (viewer, vec![]));
 }
 
@@ -68,9 +68,10 @@ fn the_arrow_keys_walk_the_sequence_and_preload_around_the_new_file() {
     let (viewer, _) = Viewer::default().step(
         ViewerIn::Navigate(NavigateIn::Start(sequence)),
         Stamp(0),
+        &(),
         &params,
     );
-    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Right]), Stamp(1), &params);
+    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Right]), Stamp(1), &(), &params);
     assert_eq!(
         outs,
         vec![
@@ -89,7 +90,7 @@ fn the_arrow_keys_walk_the_sequence_and_preload_around_the_new_file() {
 
 /// The viewer after `keys`, and what it asked for.
 fn pressed(viewer: Viewer, keys: &[ShortcutKey], at: u64) -> (Viewer, Vec<ViewerOut>) {
-    viewer.step(key(keys), Stamp(at), &params())
+    viewer.step(key(keys), Stamp(at), &(), &params())
 }
 
 #[test]
@@ -117,14 +118,14 @@ fn keys_open_and_close_the_regions_in_the_order_they_are_open() {
 fn escape_closes_a_quick_look_and_leaves_a_window() {
     let params = params();
     let esc = || key(&[ShortcutKey::Escape]);
-    let (_, peek) = Viewer::launched(Presentation::Peek).step(esc(), Stamp(0), &params);
+    let (_, peek) = Viewer::launched(Presentation::Peek).step(esc(), Stamp(0), &(), &params);
     assert_eq!(peek, vec![ViewerOut::CloseWindow]);
     for presentation in [
         Presentation::Window,
         Presentation::Mini,
         Presentation::Background,
     ] {
-        let (_, outs) = Viewer::launched(presentation).step(esc(), Stamp(0), &params);
+        let (_, outs) = Viewer::launched(presentation).step(esc(), Stamp(0), &(), &params);
         assert_eq!(outs, vec![], "{presentation:?}");
     }
 }
@@ -136,6 +137,7 @@ fn a_viewer_at_rest_runs_no_timer_and_the_chrome_sets_the_only_wake() {
     let (viewer, _) = Viewer::default().step(
         ViewerIn::Chrome(ChromeIn::PointerMoved(Zone::Content)),
         Stamp(1000),
+        &(),
         &params,
     );
     assert_eq!(viewer.wake(), Some(Stamp(1150)));
@@ -147,9 +149,10 @@ fn the_chrome_hides_through_the_root_at_exactly_the_idle_deadline() {
     let (viewer, _) = Viewer::default().step(
         ViewerIn::Chrome(ChromeIn::PointerMoved(Zone::Content)),
         Stamp(1000),
+        &(),
         &params,
     );
-    let (rest, log) = settle(viewer, &params, 10);
+    let (rest, log) = settle(viewer, &(), &params, 10);
     assert_eq!(rest, Viewer::default());
     let fade_out = ViewerOut::Chrome(ChromeOut::Fade {
         to: Shown::Hidden,

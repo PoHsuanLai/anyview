@@ -14,8 +14,9 @@ impl Machine for Sheet {
     type In = SheetIn;
     type Out = SheetOut;
     type Params = ();
+    type Ctx = ();
 
-    fn step(self, input: SheetIn, _at: Stamp, _params: &()) -> Step {
+    fn step(self, input: SheetIn, _at: Stamp, _params: &(), _cx: &()) -> Step {
         match self {
             Sheet::Closed => closed(input),
             Sheet::Export { draft } => export(draft, input),

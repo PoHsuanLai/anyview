@@ -104,7 +104,7 @@ const CASES: &[Case] = &[
 fn every_row_of_the_table_steps_as_written() {
     for (name, content, from, input, state, outs) in CASES {
         let params = PresentationParams { content: *content };
-        let (next, out) = from.step(*input, Stamp(0), &params);
+        let (next, out) = from.step(*input, Stamp(0), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");
@@ -117,7 +117,7 @@ fn no_input_ever_reaches_peek_or_background() {
     for from in [Window, Peek, Mini, Background] {
         for content in [Media, Document] {
             for input in [ToWindow, ToMini, PresentationIn::Elapsed] {
-                let (next, _) = from.step(input, Stamp(0), &PresentationParams { content });
+                let (next, _) = from.step(input, Stamp(0), &PresentationParams { content }, &());
                 assert!(
                     next == from || (next != Peek && next != Background),
                     "{from:?} on {input:?} became {next:?}"

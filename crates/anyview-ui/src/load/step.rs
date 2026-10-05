@@ -10,8 +10,9 @@ impl Machine for Load {
     type In = LoadIn;
     type Out = LoadOut;
     type Params = ();
+    type Ctx = ();
 
-    fn step(self, input: LoadIn, _at: Stamp, _params: &()) -> Step {
+    fn step(self, input: LoadIn, _at: Stamp, _params: &(), _cx: &()) -> Step {
         match self {
             Load::Idle { ticket } | Load::Ready { ticket } => settled(self, ticket, input),
             Load::Failed { ticket, reason: _ } => settled(self, ticket, input),

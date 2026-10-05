@@ -11,7 +11,7 @@ use ds_core::time::stamp::Stamp;
 type Step = (Stage, Vec<StageOut>);
 
 /// A stage stepped on `input`, lifted into the region's types.
-fn lifted<M: Machine>(
+fn lifted<M: Machine<Ctx = ()>>(
     machine: M,
     input: M::In,
     at: Stamp,
@@ -19,7 +19,7 @@ fn lifted<M: Machine>(
     wrap: fn(M) -> Stage,
     out: fn(M::Out) -> StageOut,
 ) -> Step {
-    let (next, outs) = machine.step(input, at, params);
+    let (next, outs) = machine.step(input, at, params, &());
     (wrap(next), outs.into_iter().map(out).collect())
 }
 
@@ -27,8 +27,9 @@ impl Machine for Stage {
     type In = StageIn;
     type Out = StageOut;
     type Params = StageParams;
+    type Ctx = ();
 
-    fn step(self, input: StageIn, at: Stamp, params: &StageParams) -> Step {
+    fn step(self, input: StageIn, at: Stamp, params: &StageParams, _cx: &()) -> Step {
         match self {
             Stage::NoStage => (Stage::NoStage, vec![]),
             Stage::Raster(stage) => raster(stage, input, at, params),

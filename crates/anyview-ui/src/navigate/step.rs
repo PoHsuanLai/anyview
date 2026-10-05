@@ -11,8 +11,9 @@ impl Machine for Navigate {
     type In = NavigateIn;
     type Out = NavigateOut;
     type Params = ();
+    type Ctx = ();
 
-    fn step(self, input: NavigateIn, _at: Stamp, _params: &()) -> Step {
+    fn step(self, input: NavigateIn, _at: Stamp, _params: &(), _cx: &()) -> Step {
         match self {
             Navigate::Idle => idle(input),
             Navigate::Walking { sequence } => walking(sequence, input),

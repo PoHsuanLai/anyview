@@ -20,9 +20,11 @@ use ds_core::vocab::Shortcut;
 impl Machine for Viewer {
     type In = ViewerIn;
     type Out = ViewerOut;
-    type Params = ViewerParams;
+    /// Nothing is set: everything the machine reads from outside is `Ctx`, read at each step.
+    type Params = ();
+    type Ctx = ViewerParams;
 
-    fn step(self, input: ViewerIn, at: Stamp, params: &ViewerParams) -> Step {
+    fn step(self, input: ViewerIn, at: Stamp, _: &(), params: &ViewerParams) -> Step {
         let before = wanted(&self);
         let (viewer, mut outs) = apply(self, input, at, params);
         let (viewer, pinned) = synced(viewer, &before, at, params);
@@ -61,13 +63,6 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Sheet(input) => sheet(viewer, input, at, params),
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
-        ViewerIn::StartAs(presentation) => (
-            Viewer {
-                presentation,
-                ..viewer
-            },
-            vec![],
-        ),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
@@ -107,7 +102,7 @@ fn restart(
     at: Stamp,
     probe: fn(Ticket, FilePath) -> ViewerOut,
 ) -> Step {
-    let (load, outs) = viewer.load.step(LoadIn::Begin, at, &());
+    let (load, outs) = viewer.load.step(LoadIn::Begin, at, &(), &());
     let outs = outs
         .into_iter()
         .map(|out| match out {
@@ -156,7 +151,7 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
         | LoadIn::Opened { .. }
         | LoadIn::Failed { .. }
         | LoadIn::Elapsed => {
-            let (load, outs) = viewer.load.step(input, at, &());
+            let (load, outs) = viewer.load.step(input, at, &(), &());
             let stage = outs
                 .iter()
                 .find_map(|out| match out {
@@ -196,7 +191,7 @@ fn kept_or_new(showing: &Stage, family: StageFamily, params: &ViewerParams) -> S
 
 /// The palette's own transitions, then what it ran.
 fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
-    let (palette, outs) = viewer.palette.clone().step(input, at, &params.palette);
+    let (palette, outs) = viewer.palette.clone().step(input, at, &params.palette, &());
     let viewer = Viewer { palette, ..viewer };
     outs.into_iter()
         .fold((viewer, vec![]), |(viewer, mut outs), out| match out {
@@ -214,7 +209,7 @@ fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -
 
 /// A move along the sequence; landing on a file begins loading it.
 fn navigate(viewer: Viewer, input: NavigateIn, at: Stamp, params: &ViewerParams) -> Step {
-    let (navigate, outs) = viewer.navigate.clone().step(input, at, &());
+    let (navigate, outs) = viewer.navigate.clone().step(input, at, &(), &());
     let viewer = Viewer { navigate, ..viewer };
     outs.into_iter()
         .fold((viewer, vec![]), |(viewer, mut outs), out| match out {

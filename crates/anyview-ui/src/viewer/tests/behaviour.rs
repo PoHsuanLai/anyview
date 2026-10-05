@@ -52,7 +52,7 @@ fn a_reload_probes_the_file_again_and_leaves_the_stage_and_its_place_alone() {
     let (reloading, outs) =
         showing
             .clone()
-            .step(ViewerIn::Reload(path("/a.png")), Stamp(0), &params);
+            .step(ViewerIn::Reload(path("/a.png")), Stamp(0), &(), &params);
     assert_eq!(
         outs,
         vec![ViewerOut::Reload {
@@ -63,7 +63,7 @@ fn a_reload_probes_the_file_again_and_leaves_the_stage_and_its_place_alone() {
     assert_eq!(reloading.stage, showing.stage, "the stage is not dropped");
     assert_eq!(reloading.load, Load::Probing { ticket: Ticket(5) });
     // The probe names the same family: the stage, with its zoom and centre, is the one that goes on.
-    let (opening, _) = reloading.step(probed(5, StageFamily::Raster), Stamp(1), &params);
+    let (opening, _) = reloading.step(probed(5, StageFamily::Raster), Stamp(1), &(), &params);
     assert_eq!(opening.stage, showing.stage);
 }
 
@@ -75,16 +75,17 @@ fn a_reload_of_a_file_that_became_another_kind_gets_a_new_stage() {
         load: Load::Ready { ticket: Ticket(4) },
         ..Viewer::default()
     };
-    let (reloading, _) = showing.step(ViewerIn::Reload(path("/a.png")), Stamp(0), &params);
-    let (opening, _) = reloading.step(probed(5, StageFamily::Text), Stamp(1), &params);
+    let (reloading, _) = showing.step(ViewerIn::Reload(path("/a.png")), Stamp(0), &(), &params);
+    let (opening, _) = reloading.step(probed(5, StageFamily::Text), Stamp(1), &(), &params);
     assert_eq!(opening.stage.family(), StageFamily::Text);
 }
 
 #[test]
 fn a_reload_abandons_a_load_still_in_flight_and_a_late_result_of_it_is_ignored() {
     let params = params();
-    let (viewer, _) = Viewer::default().step(ViewerIn::Open(path("/a.png")), Stamp(0), &params);
-    let (viewer, outs) = viewer.step(ViewerIn::Reload(path("/a.png")), Stamp(1), &params);
+    let (viewer, _) =
+        Viewer::default().step(ViewerIn::Open(path("/a.png")), Stamp(0), &(), &params);
+    let (viewer, outs) = viewer.step(ViewerIn::Reload(path("/a.png")), Stamp(1), &(), &params);
     assert_eq!(
         outs,
         vec![
@@ -97,7 +98,7 @@ fn a_reload_abandons_a_load_still_in_flight_and_a_late_result_of_it_is_ignored()
     );
     let (after, outs) = viewer
         .clone()
-        .step(probed(1, StageFamily::Raster), Stamp(2), &params);
+        .step(probed(1, StageFamily::Raster), Stamp(2), &(), &params);
     assert_eq!((after, outs), (viewer, vec![]));
 }
 
@@ -118,9 +119,10 @@ fn a_dropped_file_opens_and_its_folder_is_asked_for_as_the_list_to_walk() {
     .step(
         ViewerIn::Navigate(NavigateIn::Start(sequence)),
         Stamp(0),
+        &(),
         &params,
     );
-    let (viewer, outs) = viewer.step(dropped(&["/new/x.png"]), Stamp(1), &params);
+    let (viewer, outs) = viewer.step(dropped(&["/new/x.png"]), Stamp(1), &(), &params);
     assert_eq!(
         outs,
         vec![
@@ -145,6 +147,7 @@ fn several_dropped_files_are_the_list_and_the_first_opens() {
     let (viewer, outs) = Viewer::default().step(
         dropped(&["/a/1.png", "/b/2.png", "/a/3.png"]),
         Stamp(0),
+        &(),
         &params,
     );
     let Navigate::Walking { sequence } = &viewer.navigate else {
@@ -171,7 +174,8 @@ fn several_dropped_files_are_the_list_and_the_first_opens() {
 #[test]
 fn dropping_nothing_changes_nothing() {
     let params = params();
-    let (viewer, outs) = Viewer::default().step(ViewerIn::Dropped(Vec::new()), Stamp(0), &params);
+    let (viewer, outs) =
+        Viewer::default().step(ViewerIn::Dropped(Vec::new()), Stamp(0), &(), &params);
     assert_eq!((viewer, outs), (Viewer::default(), vec![]));
 }
 
@@ -202,6 +206,7 @@ fn pressed(viewer: Viewer, keys: &[ShortcutKey]) -> Viewer {
         .step(
             ViewerIn::Key(Shortcut(keys.to_vec())),
             Stamp(0),
+            &(),
             &long_text(),
         )
         .0
@@ -253,6 +258,7 @@ fn home_and_end_still_walk_the_folder_for_a_file_that_does_not_scroll() {
     let (_, outs) = viewer.step(
         ViewerIn::Key(Shortcut(vec![ShortcutKey::End])),
         Stamp(0),
+        &(),
         &params(),
     );
     assert!(
@@ -273,11 +279,12 @@ fn a_command_to_step_the_text_is_the_same_as_its_key() {
     let (viewer, _) = viewer.step(
         ViewerIn::Run(Command::Stage(StageCommand::LineDown)),
         Stamp(0),
+        &(),
         &long_text(),
     );
     assert_eq!(line_of(&viewer), Some(11));
     let input = StageIn::Text(TextIn::Step(TextStep::LineDown));
-    let (again, _) = viewer.step(ViewerIn::Stage(input), Stamp(1), &long_text());
+    let (again, _) = viewer.step(ViewerIn::Stage(input), Stamp(1), &(), &long_text());
     assert_eq!(line_of(&again), Some(12));
 }
 
@@ -293,6 +300,7 @@ fn a_restore_input_is_taken_by_a_fresh_raster_stage() {
             centre: DocPoint::default(),
         })),
         Stamp(0),
+        &(),
         &params(),
     );
     assert_eq!(
