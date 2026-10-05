@@ -123,6 +123,7 @@ no other public path. A module names only modules above it in this list.
 | `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind` |
+| `trail` | `Trail`, `TrailIn`, `TrailOut`, `TrailStacks`: undo and redo for one file as a pure machine over the versions its saves kept, generic over what names a version |
 | `action` | `FileAction`, `Reach`, `reach`, `shortcut` |
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
@@ -193,7 +194,8 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded`, `Animation`, `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`, `stills`, `jxl`, `svg` and `look` are private |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
-| `rotate` | `rotate_jpeg`: lossless rotation by rewriting the EXIF orientation segment |
+| `rotate` | `rotate_jpeg`, `flip_jpeg`: lossless rotation and mirroring by rewriting the EXIF orientation segment |
+| `edit` | `edited`: an `Edit` applied to a picture file: a JPEG through its orientation tag alone, PNG, WebP, TIFF and BMP decoded, moved and written again with their metadata; animations and the formats with no lossless writer are refused |
 
 **Alpha** is straight (not premultiplied) everywhere in this crate; `Rgba8::premultiplied` is the
 conversion a GPU compositor needs, and `PremultipliedRgba8` is a distinct type so the two cannot be
