@@ -10,7 +10,7 @@ use crate::host::{
 use crate::media::{MediaHub, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
-use crate::window::Factory;
+use crate::window::{Factory, WINDOW};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
@@ -162,7 +162,7 @@ fn show(
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
     // `WARM_FOR`.
-    let config = AppConfig::new("anyview", 1000, 700)
+    let config = AppConfig::new("anyview", WINDOW)
         .with_app_id(AppId(APP_ID.to_owned()))
         .with_decorations(Decorations::Client)
         .with_last_window(LastWindowClosed::StayFor(WARM_FOR))
