@@ -23,6 +23,5 @@ mod write;
 
 pub use choice::DocumentExport;
 pub use error::ExportError;
-pub use name::free_beside;
 pub use run::{export, printout};
 pub use write::write_new;

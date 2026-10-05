@@ -61,10 +61,44 @@ icon_sizes() {
   done | sort -n
 }
 
-# The directories a staging run may leave empty after an uninstall are removed, deepest first. A
-# real system keeps its own share/ tree: only the icon folders this program's files sat in go.
-prune_empty() {
-  if [[ -n "$DESTDIR" ]]; then
-    [[ -d "$DESTDIR" ]] && find "$DESTDIR" -mindepth 1 -depth -type d -empty -delete
+# What install.sh did, so uninstall.sh removes that and nothing else. install.sh records each file it
+# wrote and each directory it had to make in a receipt, <prefix>/share/anyview/install-receipt, one
+# `file PATH` or `dir PATH` line each (paths as the running system sees them, never under DESTDIR).
+# A file that was already there, identical, is not recorded: it is not ours. Directories are listed
+# outermost first, so uninstall removes them in reverse, and only when empty.
+RECEIPT_REL="share/anyview/install-receipt"
+RECEIPT_NEW=()
+
+# note_install_dirs DIR: remember the directories above (and including) DIR that do not exist yet,
+# so they are the ones this run makes.
+note_install_dirs() {
+  local dir="$1" missing=()
+  while [[ -n "$dir" && "$dir" != / && ! -d "$(dest "$dir")" ]]; do
+    missing=("$dir" ${missing[@]+"${missing[@]}"})
+    dir="$(dirname "$dir")"
+  done
+  local made
+  for made in ${missing[@]+"${missing[@]}"}; do RECEIPT_NEW+=("dir $made"); done
+}
+
+# note_install_file DST: remember that this run wrote DST.
+note_install_file() { RECEIPT_NEW+=("file $1"); }
+
+# write_receipt PREFIX: the receipt, with what an earlier install recorded kept. A dry run only says so.
+write_receipt() {
+  local prefix="$1" receipt old tmp
+  receipt="$prefix/$RECEIPT_REL"
+  note_install_dirs "$(dirname "$receipt")"
+  note_install_file "$receipt"
+  if [[ "$DRY_RUN" == yes ]]; then
+    say "  install $receipt"
+    say "      (records what this install wrote, for uninstall.sh)"
+    return 0
   fi
+  old=""
+  [[ -f "$(dest "$receipt")" ]] && old="$(cat "$(dest "$receipt")")"
+  tmp="$(mktemp)"
+  { [[ -z "$old" ]] || printf '%s\n' "$old"; printf '%s\n' "${RECEIPT_NEW[@]}"; } | awk '!seen[$0]++' >"$tmp"
+  step "install $receipt" privileged install -Dm644 "$tmp" "$(dest "$receipt")"
+  rm -f "$tmp"
 }
