@@ -82,6 +82,7 @@ const VECTOR: &[FileAction] = &[
     Duplicate,
     MoveToTrash,
     Print,
+    Export,
 ];
 const VIDEO: &[FileAction] = &[
     Open,
