@@ -9,13 +9,13 @@
 mod support;
 
 use anyview_core::{
-    ChapterIndex, MediaChapter, MediaExport, MediaLength, MediaTags, MediaTime, MediaTrack,
-    Percent, Resume, Speed, StreamKind, TimeRange, TrackChoice, TrackId, TrackPlay, VideoPresence,
-    Volume,
+    ChapterIndex, Fact, FactLabel, FactValue, MediaChapter, MediaExport, MediaExportKind,
+    MediaLength, MediaTags, MediaTime, MediaTrack, Percent, Resume, Speed, StreamKind, TimeRange,
+    TrackChoice, TrackId, TrackPlay, VideoPresence, Volume,
 };
 use anyview_ui::{
-    ExportDraft, HostRequest, MediaError, MediaNotice, Pace, PlayerCommand, PlayerEvent,
-    Presentation, StepDirection, TrackKind,
+    ExportDraft, HostRequest, MediaError, MediaNotice, MediaOffer, Pace, PlayerCommand,
+    PlayerEvent, Presentation, StepDirection, TrackKind,
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query};
@@ -775,4 +775,183 @@ fn what_a_recording_looks_like_is_saved_for_a_person_to_see() {
     if let Some(path) = shot("media-video-panel.png") {
         harness.render().unwrap().save(path).unwrap();
     }
+}
+
+/// Opens the first file with a host that answers as `answer` and offers `offer`.
+fn open_answering(answer: Answer, offer: Option<MediaOffer>) -> Opened {
+    let (dir, paths) = folder(FILES);
+    let player = FakePlayer::answering(answer);
+    let player = match offer {
+        Some(offer) => player.offering(offer),
+        None => player,
+    };
+    let memory = Arc::new(Memory::default());
+    let (harness, requests, _) = wired(
+        &paths,
+        0,
+        Appearance::default(),
+        Wiring {
+            player: Some(Arc::clone(&player)),
+            memory: Some(Arc::clone(&memory)),
+            ..Wiring::default()
+        },
+    );
+    Opened {
+        _dir: dir,
+        paths,
+        harness,
+        requests,
+        player,
+        memory,
+    }
+}
+
+fn needs(package: &str, purpose: &str) -> Fact {
+    Fact {
+        label: FactLabel::Needs,
+        value: FactValue::text(format!("{package} (to {purpose})")),
+    }
+}
+
+/// The export command from the palette.
+fn export_from_the_palette(harness: &mut Harness) {
+    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    settle(harness);
+    for letter in "export".chars() {
+        harness.send(Input::key(ShortcutKey::Char(letter)));
+    }
+    settle(harness);
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(harness);
+}
+
+#[test]
+fn a_recording_no_plugin_plays_opens_as_its_facts_and_names_the_package_that_would() {
+    let Opened {
+        harness, player, ..
+    } = open_answering(Answer::Missing, None);
+    assert_eq!(player.starts(), 0, "no player was started");
+    let text = harness.text_of(".viewer").unwrap_or_default();
+    assert!(
+        text.contains("Needs") && text.contains("anyview-mpv (to play it)"),
+        "the row that names the package: {text}"
+    );
+    assert!(
+        text.contains("h264"),
+        "and what the host read of the file: {text}"
+    );
+    assert_eq!(harness.count(".viewer-peek"), 1, "a facts card");
+    assert_eq!(
+        harness.count(".viewer-media-status"),
+        0,
+        "it is not an opening that never ends"
+    );
+    assert_eq!(
+        harness.count(".ds-scrubber"),
+        0,
+        "there is nothing to scrub"
+    );
+}
+
+#[test]
+fn the_export_sheet_lists_only_the_formats_on_offer() {
+    let offer = MediaOffer::new(
+        vec![MediaExportKind::ToMp3, MediaExportKind::ToWav],
+        Some(needs("anyview-ffmpeg", "convert it")),
+    );
+    let Opened {
+        mut harness,
+        requests,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    export_from_the_palette(&mut harness);
+    assert_eq!(
+        harness.count(".viewer-sheet .ds-segmented-segment"),
+        2,
+        "only what the machine can write"
+    );
+    let text = harness.text_of(".viewer-sheet").unwrap_or_default();
+    assert!(
+        text.contains("anyview-ffmpeg"),
+        "what is missing is said: {text}"
+    );
+    harness.send(Input::click(
+        harness
+            .centre(".viewer-sheet-buttons .ds-button:nth-child(2)")
+            .unwrap(),
+    ));
+    settle(&mut harness);
+    let exported: Vec<ExportDraft> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|request| {
+            if let HostRequest::Export(draft) = request {
+                Some(*draft)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(
+        matches!(
+            exported.as_slice(),
+            [ExportDraft::Media(MediaExport::AudioOnly(
+                anyview_core::AudioTarget::Mp3(_)
+            ))]
+        ),
+        "the sheet opened on the first kind on offer: {exported:?}"
+    );
+}
+
+#[test]
+fn with_nothing_on_offer_the_sheet_says_which_package_adds_the_exports_and_writes_nothing() {
+    let offer = MediaOffer::new(vec![], Some(needs("anyview-ffmpeg", "convert it")));
+    let Opened {
+        mut harness,
+        requests,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    export_from_the_palette(&mut harness);
+    assert_eq!(
+        harness.count(".viewer-sheet .ds-segmented-segment"),
+        0,
+        "no format to pick"
+    );
+    let text = harness.text_of(".viewer-sheet").unwrap_or_default();
+    assert!(
+        text.contains("anyview-ffmpeg (to convert it)"),
+        "the package: {text}"
+    );
+    harness.send(Input::click(
+        harness.centre(".viewer-sheet-buttons .ds-button").unwrap(),
+    ));
+    settle(&mut harness);
+    assert_eq!(harness.count(".viewer-sheet"), 0, "OK puts the sheet away");
+    assert!(
+        requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|request| !matches!(request, HostRequest::Export(_))),
+        "nothing was asked of the host"
+    );
+}
+
+#[test]
+fn a_player_that_stops_mid_recording_is_said_to_have_stopped() {
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open();
+    let line = player.latest().unwrap();
+    playing(&line, 10);
+    line.say(&[MediaNotice::Failed(MediaError::PlaybackFailed)]);
+    settle(&mut harness);
+    assert!(
+        harness
+            .text_of(".viewer-media-status")
+            .is_some_and(|word| word == "The player stopped")
+    );
 }

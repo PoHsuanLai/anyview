@@ -107,6 +107,7 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
             || std::future::ready(FakeMediaSession::new()),
             None,
             AudioDriver::Null,
+            Arc::new(crate::media::MediaPlugins::default()),
         ),
         exports: Arc::new(Exports::new(&fakes.pool, outbox)),
         scratch: scratch.join("cache"),

@@ -85,6 +85,9 @@ pub(super) fn notices_of(event: &MediaEvent, opened: Opened) -> Vec<MediaNotice>
         MediaEvent::Loaded { length } => vec![MediaNotice::Player(PlayerEvent::Loaded {
             length: length.unwrap_or(MediaLength::default()),
         })],
+        MediaEvent::Length(length) => {
+            vec![MediaNotice::Player(PlayerEvent::LengthKnown(*length))]
+        }
         MediaEvent::Ended(reason) => vec![MediaNotice::Player(PlayerEvent::Ended(ended(*reason)))],
         MediaEvent::Playback(now) => {
             vec![MediaNotice::Player(PlayerEvent::Playback(ui_pace(*now)))]
@@ -201,6 +204,12 @@ mod tests {
                 vec![MediaNotice::Player(PlayerEvent::Loaded {
                     length: MediaLength::default(),
                 })],
+            ),
+            (
+                "a length that came after opening",
+                MediaEvent::Length(length),
+                Opened::Yes,
+                vec![MediaNotice::Player(PlayerEvent::LengthKnown(length))],
             ),
             (
                 "the end",

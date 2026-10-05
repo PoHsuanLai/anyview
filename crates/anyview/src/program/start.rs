@@ -7,14 +7,14 @@ use crate::host::{
     Appearances, CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store,
     Watcher,
 };
-use crate::media::{MediaHub, NowPlaying, PlayerHost};
+use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
 use crate::window::{Factory, WINDOW};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
-use anyview_platform::{Env, Request};
+use anyview_platform::{Env, PluginRunner, Request, discover};
 use anyview_store::{STORE_FOLDER, Viewed};
 use ds_blitz::{
     AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
@@ -123,11 +123,21 @@ fn show(
     let app = AppHandle::new();
     let audio = audio_driver(env.audio_output.as_deref());
     let for_bus = env.clone();
+    let found = discover(&env);
+    for rejected in &found.rejected {
+        eprintln!(
+            "anyview: plugin {} is not usable: {}",
+            rejected.file.display(),
+            rejected.error
+        );
+    }
+    let plugins = Arc::new(MediaPlugins::new(found.plugins, PluginRunner::default()));
     let hub = MediaHub::start(
         runtime.handle(),
         move || async move { NowPlaying::register(&for_bus).await },
         Some(app.clone()),
         audio,
+        Arc::clone(&plugins),
     );
     let media = Media {
         hub: hub.clone(),

@@ -40,17 +40,3 @@ confidence-threshold = 0.9
 #
 # What stays out of that list is strong copyleft: GPL, AGPL, EUPL. Those would change what this
 # project may be distributed as, and a dependency arriving under one should stop the build.
-
-# The two crates that bind libav are WTFPL: no condition at all, FSF "free", but not a licence this
-# list knows, so each is allowed by name rather than the licence for every crate. cargo-deny reads
-# crate manifests only: the C libraries they link (libav*, and libmpv through `rsmpv-sys`) are LGPL,
-# loaded as shared libraries and never copied into this repository, and nothing here can see them. That
-# rule, "link, never paste", is CONVENTIONS section 15's and is held by `anyview-media` being the one
-# crate that names either library (`scripts/check-boundary.sh`).
-[[licenses.exceptions]]
-allow = ["WTFPL"]
-crate = "ffmpeg-next"
-
-[[licenses.exceptions]]
-allow = ["WTFPL"]
-crate = "ffmpeg-sys-next"

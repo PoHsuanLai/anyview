@@ -2,7 +2,7 @@
 # Install the viewer: the binary, the desktop entry, the D-Bus service file and the icons. Safe to
 # run again: a file already in place and identical is left alone.
 #
-#   dist/install.sh [--dry-run] [--prefix DIR] [--no-build] [--set-default] [--with-plugin ffmpeg]
+#   dist/install.sh [--dry-run] [--prefix DIR] [--no-build] [--set-default] [--with-plugin NAME] [--mpv PATH]
 #
 #   --dry-run      print every action, change nothing (does not build, does not use sudo)
 #   --prefix DIR   where it goes: DIR/bin, DIR/share/... (default: /usr/local as root, else ~/.local)
@@ -12,11 +12,18 @@
 #   --with-plugin NAME  also install a plugin (ffmpeg: facts, pictures and exports of video and audio, through the
 #                  person's own ffprobe and ffmpeg): its program under DIR/libexec/anyview and its manifest under
 #                  DIR/share/anyview/plugins. Off unless asked; may be given once for each plugin.
+#                  (mpv: playback, through the person's own mpv run as a child process with mpv-wgpu's C
+#                  plugin loaded into it: the plugin is built from an mpv-wgpu checkout and installed as
+#                  DIR/libexec/anyview/mpv-wgpu-cplugin.so, and the manifest names the mpv found on the
+#                  search path.) Without these plugins the viewer shows recordings as facts only.
+#   --mpv PATH     the mpv the mpv plugin's manifest names (default: the first `mpv` on the search path)
 #
 # Environment:
 #   DESTDIR        stage under this directory instead of the real root (nothing is registered)
 #   ANYVIEW_BIN    the binary to install (default: release build under $CARGO_TARGET_DIR or target/)
 #   ANYVIEW_FFMPEG_PLUGIN_BIN  the FFmpeg plugin's program to install (same default place, anyview-ffmpeg)
+#   MPV_WGPU_DIR   an mpv-wgpu checkout to build the mpv plugin's C plugin from (default: ../mpv)
+#   ANYVIEW_MPV_CPLUGIN  the C plugin (libmpv_wgpu_cplugin.so) to install instead of building it
 #   QUIRE_DIR      a quire checkout with assets/icons/apps/viewer/<px>.png (default: ../quire)
 set -euo pipefail
 
@@ -28,6 +35,8 @@ PREFIX=""
 BUILD=yes
 SET_DEFAULT=no
 WITH_FFMPEG=no
+WITH_MPV=no
+MPV_PATH=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=yes ;;
@@ -38,9 +47,12 @@ while [[ $# -gt 0 ]]; do
     --with-plugin) plugin="${2:?--with-plugin needs a name}"; shift
       case "$plugin" in
         ffmpeg) WITH_FFMPEG=yes ;;
-        *) say "install.sh: unknown plugin $plugin (the plugins are: ffmpeg)"; exit 2 ;;
+        mpv) WITH_MPV=yes ;;
+        *) say "install.sh: unknown plugin $plugin (the plugins are: ffmpeg, mpv)"; exit 2 ;;
       esac ;;
-    -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --mpv) MPV_PATH="${2:?--mpv needs a path}"; shift ;;
+    --mpv=*) MPV_PATH="${1#--mpv=}" ;;
+    -h|--help) sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) say "install.sh: unknown argument $1 (try --help)"; exit 2 ;;
   esac
   shift
@@ -53,6 +65,8 @@ choose_sudo "$PREFIX"
 
 BIN="${ANYVIEW_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview}"
 FFMPEG_BIN="${ANYVIEW_FFMPEG_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview-ffmpeg}"
+MPV_WGPU="${MPV_WGPU_DIR:-$HERE/../mpv}"
+MPV_CPLUGIN="${ANYVIEW_MPV_CPLUGIN:-${MPV_WGPU_TARGET_DIR:-$MPV_WGPU/target}/release/libmpv_wgpu_cplugin.so}"
 QUIRE="${QUIRE_DIR:-$HERE/../quire}"
 say "anyview install to $PREFIX$([[ -n "$DESTDIR" ]] && echo " (staged in $DESTDIR)") ($([[ $DRY_RUN == yes ]] && echo 'dry run: nothing is changed' || echo 'for real'))"
 
@@ -78,6 +92,39 @@ if [[ "$WITH_FFMPEG" == yes ]]; then
   fi
   if [[ "$DRY_RUN" == no && ! -x "$FFMPEG_BIN" ]]; then
     say "install.sh: no FFmpeg plugin at $FFMPEG_BIN (build it, or set ANYVIEW_FFMPEG_PLUGIN_BIN)"
+    exit 1
+  fi
+fi
+
+if [[ "$WITH_MPV" == yes ]]; then
+  # The mpv the manifest names is looked up now, on the search path, so the viewer never searches
+  # the person's PATH when it runs; --mpv names another.
+  if [[ -z "$MPV_PATH" ]]; then
+    MPV_PATH="$(command -v mpv || true)"
+  fi
+  if [[ -z "$MPV_PATH" ]]; then
+    if [[ "$DRY_RUN" == yes ]]; then
+      MPV_PATH="/usr/bin/mpv"
+      say "  no mpv on the search path (a real run would stop here; use --mpv PATH or install mpv)"
+    else
+      say "install.sh: no mpv on the search path (install mpv, or name one with --mpv PATH)"
+      exit 1
+    fi
+  fi
+  [[ "$MPV_PATH" == /* ]] || MPV_PATH="$(cd "$(dirname "$MPV_PATH")" 2>/dev/null && pwd)/$(basename "$MPV_PATH")"
+  if [[ "$DRY_RUN" == no && ! -x "$MPV_PATH" ]]; then
+    say "install.sh: $MPV_PATH is not an executable mpv (use --mpv PATH)"
+    exit 1
+  fi
+  if [[ "$BUILD" == no || -n "${ANYVIEW_MPV_CPLUGIN:-}" ]]; then
+    say "  skipped: using $MPV_CPLUGIN for the mpv plugin"
+  elif [[ "$DRY_RUN" == yes ]]; then
+    say "  would run: cargo build --release -p mpv-wgpu-cplugin (in $MPV_WGPU)"
+  else
+    (cd "$MPV_WGPU" && cargo build --release -p mpv-wgpu-cplugin)
+  fi
+  if [[ "$DRY_RUN" == no && ! -f "$MPV_CPLUGIN" ]]; then
+    say "install.sh: no mpv-wgpu C plugin at $MPV_CPLUGIN (set MPV_WGPU_DIR to a checkout, or ANYVIEW_MPV_CPLUGIN)"
     exit 1
   fi
 fi
@@ -123,12 +170,29 @@ if [[ "$WITH_FFMPEG" == yes ]]; then
     say "      (path = $PREFIX/libexec/anyview/anyview-ffmpeg, from dist/plugins/anyview-ffmpeg.toml.in)"
   else
     rendered_plugin="$(mktemp)"
-    trap 'rm -f "$rendered" "$rendered_plugin"' EXIT
+    trap 'rm -f "$rendered" "${rendered_plugin:-}"' EXIT
     sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-ffmpeg.toml.in" >"$rendered_plugin"
     install_file 644 "$rendered_plugin" "$manifest"
   fi
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 \
     || warn "ffmpeg and ffprobe are not on the search path: the plugin offers nothing until they are installed"
+fi
+
+# The mpv plugin has no program of its own: its manifest names the person's mpv and the C plugin
+# installed beside the other plugin programs.
+if [[ "$WITH_MPV" == yes ]]; then
+  say "2c. the mpv plugin"
+  install_file 755 "$MPV_CPLUGIN" "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
+  manifest="$PREFIX/share/anyview/plugins/mpv.toml"
+  if [[ "$DRY_RUN" == yes ]]; then
+    say "  install $manifest"
+    say "      (mpv = $MPV_PATH, cplugin = $PREFIX/libexec/anyview/mpv-wgpu-cplugin.so, from dist/plugins/anyview-mpv.toml.in)"
+  else
+    rendered_mpv="$(mktemp)"
+    trap 'rm -f "$rendered" "${rendered_plugin:-}" "$rendered_mpv"' EXIT
+    sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" "$HERE/dist/plugins/anyview-mpv.toml.in" >"$rendered_mpv"
+    install_file 644 "$rendered_mpv" "$manifest"
+  fi
 fi
 
 say "3. icons"

@@ -89,6 +89,7 @@ mod remaking {
             || std::future::ready(FakeMediaSession::new()),
             None,
             AudioDriver::Null,
+            Arc::new(crate::media::MediaPlugins::default()),
         );
         let desktop = Desktop::new(
             runtime.handle().clone(),

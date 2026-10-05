@@ -16,6 +16,9 @@ impl Machine for MediaStage {
     type Params = MediaParams;
 
     fn step(self, input: MediaIn, _at: Stamp, params: &MediaParams) -> Step {
+        if let MediaIn::Player(PlayerEvent::LengthKnown(length)) = input {
+            return (self.with_length(length), vec![]);
+        }
         match self {
             MediaStage::Opening => opening(input),
             MediaStage::Playing { at, length } => playing(self, at, length, input, params),
@@ -60,6 +63,7 @@ pub(super) fn notice(event: PlayerEvent) -> Option<MediaOut> {
         PlayerEvent::VolumeChanged(volume) => Some(MediaOut::VolumeChanged(volume)),
         PlayerEvent::TracksChanged => Some(MediaOut::TracksChanged),
         PlayerEvent::Loaded { length: _ }
+        | PlayerEvent::LengthKnown(_)
         | PlayerEvent::Ended(_)
         | PlayerEvent::Playback(_)
         | PlayerEvent::SeekDone => None,

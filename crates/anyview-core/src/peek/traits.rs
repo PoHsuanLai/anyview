@@ -6,7 +6,7 @@ use crate::kind::FormatKind;
 use crate::sniff::Sniffed;
 use crate::source::Source;
 
-/// The light tier of one format: cheap, no GPU, no libmpv. It runs in the launcher pane and as the
+/// The light tier of one format: cheap, no GPU, no player. It runs in the launcher pane and as the
 /// viewer's first frame. Each format implements it once, and a generic consumer runs over the
 /// implementations (CONVENTIONS section 5).
 pub trait Peek: 'static {

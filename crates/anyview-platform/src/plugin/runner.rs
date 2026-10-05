@@ -7,8 +7,8 @@ use anyview_core::work::{Stop, StopState};
 use anyview_core::{FilePath, PixelArea, PixelLen, PixelSize};
 use anyview_plugin::Installed;
 use anyview_plugin_protocol::{
-    Capability, DecodeRequest, Done, ExportRequest, FactRow, Frame, HostMessage, ImageHeader,
-    PluginMessage, ProbeRequest, Progress, ThumbnailRequest,
+    Capability, DecodeRequest, Done, ExportRequest, FactRow, Frame, Hello, HostMessage,
+    ImageHeader, PluginMessage, ProbeRequest, Progress, ThumbnailRequest,
 };
 use std::time::{Duration, Instant};
 
@@ -48,6 +48,15 @@ impl PluginRunner {
     /// A runner that waits as `timeouts` say.
     pub fn new(timeouts: Timeouts) -> PluginRunner {
         PluginRunner { timeouts }
+    }
+
+    /// What `plugin` says of itself when started: the requests it answers on this machine and
+    /// the export targets it can write. The manifest names every request and target the plugin
+    /// knows; a distribution's FFmpeg may encode fewer, and one that is missing answers none.
+    /// Blocking: it starts the plugin and kills it.
+    pub fn hello(&self, plugin: &Installed) -> Result<Hello, PlatformError> {
+        let mut process = PluginProcess::spawn(plugin)?;
+        self.greeting(&mut process)
     }
 
     /// The rows of facts `plugin` reads from `path`. Blocking.
@@ -173,12 +182,25 @@ impl PluginRunner {
         request: &HostMessage,
     ) -> Result<PluginProcess, PlatformError> {
         let mut process = PluginProcess::spawn(plugin)?;
+        let hello = self.greeting(&mut process)?;
+        if !hello.provides.contains(&capability) {
+            return Err(PlatformError::PluginLacks {
+                plugin: process.id().to_owned(),
+                capability,
+            });
+        }
+        process.send(request)?;
+        Ok(process)
+    }
+
+    /// The plugin's `Hello`, checked against the protocol this host speaks.
+    fn greeting(&self, process: &mut PluginProcess) -> Result<Hello, PlatformError> {
         let hello = match process.receive(self.timeouts.hello)? {
             Arrival::Message(Frame {
                 message: PluginMessage::Hello(hello),
                 ..
             }) => hello,
-            Arrival::Message(other) => return Err(unexpected(&process, &other)),
+            Arrival::Message(other) => return Err(unexpected(process, &other)),
             Arrival::Quiet => {
                 return Err(PlatformError::PluginSilent {
                     plugin: process.id().to_owned(),
@@ -193,14 +215,7 @@ impl PluginRunner {
                 supported: PluginProcess::supported(),
             });
         }
-        if !hello.provides.contains(&capability) {
-            return Err(PlatformError::PluginLacks {
-                plugin: process.id().to_owned(),
-                capability,
-            });
-        }
-        process.send(request)?;
-        Ok(process)
+        Ok(hello)
     }
 
     /// The one message that answers a request that has no progress.

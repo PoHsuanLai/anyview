@@ -79,6 +79,14 @@ pub(crate) fn level_to_volume(at: Fraction) -> Volume {
 
 /// The controls, left to right.
 pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    // A recording nothing plays has no controls of a player; what can still be done is the export.
+    if doc.needs().is_some() {
+        return vec![CapsuleSlot::button(
+            Command::File(FileAction::Export),
+            "Export",
+            Icon::Camera,
+        )];
+    }
     let Stage::Media(stage) = &cx.stage else {
         return Vec::new();
     };
