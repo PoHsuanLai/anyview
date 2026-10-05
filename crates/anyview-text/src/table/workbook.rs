@@ -182,7 +182,9 @@ fn read_sheet(
             let mut reader = book.worksheet_cells_reader(name).map_err(failed)?;
             gather(|| reader.next_cell().map_err(failed), left)
         }
-        other => Ok(cut(&other.worksheet_range(name).map_err(failed)?, left)),
+        other @ (Sheets::Xls(_) | Sheets::Ods(_)) => {
+            Ok(cut(&other.worksheet_range(name).map_err(failed)?, left))
+        }
     }
 }
 

@@ -116,19 +116,19 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 605 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 590 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
 # crates, mp4parse, matroska-demuxer) and the Photoshop, ICNS and OpenEXR readers of anyview-image
 # (psd, icns, exr and its inflate and SIMD helpers; the budgets rose by nine for them), and the
 # EPUB package reader of anyview-book (roxmltree, one more), and the spreadsheet and
 # office readers of anyview-text and anyview-archive (calamine and quick-xml for XLSX and ODS, with what
-# they pull in, five more). The viewer (anyview) is 675: the peek's
+# they pull in, five more). The viewer (anyview) is 660: the peek's
 # tree and the window, the platform edge and the plugin registry, with no libmpv or libav binding in
 # it. Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
-  "anyview-peek: 605"
-  "anyview: 675"
+  "anyview-peek: 590"
+  "anyview: 660"
 )
 fail=0
 
