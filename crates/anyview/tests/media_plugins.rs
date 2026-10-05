@@ -256,13 +256,21 @@ fn a_stopped_export_is_stopped_and_leaves_nothing_behind() {
     };
     let handle = rig.workforce.exports().submit(tool, request);
     // The partial file shows up, then the stop comes.
-    let partial = dir.path().join(".part-out.wav");
+    let has_partial = || {
+        std::fs::read_dir(dir.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".part-")
+        })
+    };
     let started = std::time::Instant::now();
-    while !partial.exists() && started.elapsed() < std::time::Duration::from_secs(10) {
+    while !has_partial() && started.elapsed() < std::time::Duration::from_secs(10) {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert!(
-        partial.exists(),
+        has_partial(),
         "the plugin began writing: {:?}",
         listing(dir.path())
     );
