@@ -6,6 +6,14 @@ use ds_core::time::stamp::Stamp;
 
 type Step<V> = (Trail<V>, Vec<TrailOut<V>>);
 
+impl<V: Clone + PartialEq + 'static> Trail<V> {
+    /// The trail after `input`, and what it wants done: a step for a caller that keeps no clock
+    /// (the trail has no timer).
+    pub fn after(self, input: TrailIn<V>) -> (Self, Vec<TrailOut<V>>) {
+        self.step(input, Stamp(0), &())
+    }
+}
+
 impl<V: Clone + PartialEq + 'static> Machine for Trail<V> {
     type In = TrailIn<V>;
     type Out = TrailOut<V>;
@@ -32,8 +40,7 @@ impl<V: Clone + PartialEq + 'static> Machine for Trail<V> {
 
 fn resting<V: Clone>(mut stacks: TrailStacks<V>, input: TrailIn<V>) -> Step<V> {
     match input {
-        TrailIn::Edit => (Trail::Saving(stacks), vec![TrailOut::Save]),
-        TrailIn::Revert(version) => (Trail::Saving(stacks), vec![TrailOut::Restore(version)]),
+        TrailIn::Save => (Trail::Saving(stacks), vec![TrailOut::Save]),
         TrailIn::Undo => match stacks.done.pop() {
             Some(taken) => {
                 let out = TrailOut::Restore(taken.clone());
@@ -52,7 +59,7 @@ fn resting<V: Clone>(mut stacks: TrailStacks<V>, input: TrailIn<V>) -> Step<V> {
     }
 }
 
-/// A saved edit or a revert keeps what it replaced, which undo goes back to; it makes every
+/// A save keeps what it replaced, which undo goes back to; it makes every
 /// earlier undo a branch that is gone.
 fn saving<V>(mut stacks: TrailStacks<V>, input: TrailIn<V>) -> Step<V> {
     match input {
@@ -62,7 +69,7 @@ fn saving<V>(mut stacks: TrailStacks<V>, input: TrailIn<V>) -> Step<V> {
             (Trail::Resting(stacks), vec![])
         }
         TrailIn::Failed => (Trail::Resting(stacks), vec![]),
-        TrailIn::Edit | TrailIn::Revert(_) | TrailIn::Undo | TrailIn::Redo => {
+        TrailIn::Save | TrailIn::Undo | TrailIn::Redo => {
             (Trail::Saving(stacks), vec![TrailOut::Busy])
         }
         TrailIn::Elapsed => (Trail::Saving(stacks), vec![]),
@@ -81,7 +88,7 @@ fn undoing<V>(mut stacks: TrailStacks<V>, taken: V, input: TrailIn<V>) -> Step<V
             stacks.done.push(taken);
             (Trail::Resting(stacks), vec![])
         }
-        TrailIn::Edit | TrailIn::Revert(_) | TrailIn::Undo | TrailIn::Redo => {
+        TrailIn::Save | TrailIn::Undo | TrailIn::Redo => {
             (Trail::Undoing { stacks, taken }, vec![TrailOut::Busy])
         }
         TrailIn::Elapsed => (Trail::Undoing { stacks, taken }, vec![]),
@@ -99,7 +106,7 @@ fn redoing<V>(mut stacks: TrailStacks<V>, taken: V, input: TrailIn<V>) -> Step<V
             stacks.undone.push(taken);
             (Trail::Resting(stacks), vec![])
         }
-        TrailIn::Edit | TrailIn::Revert(_) | TrailIn::Undo | TrailIn::Redo => {
+        TrailIn::Save | TrailIn::Undo | TrailIn::Redo => {
             (Trail::Redoing { stacks, taken }, vec![TrailOut::Busy])
         }
         TrailIn::Elapsed => (Trail::Redoing { stacks, taken }, vec![]),

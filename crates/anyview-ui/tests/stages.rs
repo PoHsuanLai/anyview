@@ -120,30 +120,6 @@ fn a_key_and_a_pinch_zoom_the_picture_and_the_capsule_says_how_far() {
 }
 
 #[test]
-fn rotating_right_turns_each_quadrant_a_quarter_clockwise() {
-    let (_dir, mut harness) = picture();
-    harness.send(Input::pointer_move(centre()));
-    harness.advance(Duration::from_millis(300));
-    let button = harness
-        .centre("[aria-label=\"Rotate right\"]")
-        .expect("the rotate button");
-    harness.send(Input::click(button));
-    harness.advance(Duration::from_millis(100));
-    let image = harness.render().unwrap();
-    // Turned a quarter clockwise the picture is 32 wide and 48 tall: red moves to the top right.
-    for (name, dx, dy, want) in [
-        ("top left", -8.0, -12.0, BLUE),
-        ("top right", 8.0, -12.0, RED),
-        ("bottom left", -8.0, 12.0, YELLOW),
-        ("bottom right", 8.0, 12.0, GREEN),
-    ] {
-        let got = rgb(&image, dx, dy);
-        assert!(is(got, want), "{name}: {got:?} is not {want:?}");
-    }
-    save(&mut harness, "picture-rotated.png");
-}
-
-#[test]
 fn a_wheel_scrolls_a_text_file_by_whole_lines_and_the_lines_are_highlighted() {
     let (_dir, paths) = folder(&[("anyview-text", "sample.rs", "sample.rs")]);
     let (mut harness, _) = window(&paths, 0, Appearance::default());

@@ -5,6 +5,7 @@
 
 mod appearance;
 mod desktop;
+mod editing;
 mod media;
 mod outcome;
 mod pictures;
@@ -12,8 +13,10 @@ mod remembering;
 mod resume;
 mod resume_handed;
 mod route;
+mod saving;
 mod store;
 mod trash;
+mod version_rows;
 mod watch;
 
 #[cfg(test)]
@@ -28,6 +31,8 @@ pub use remembering::{REMEMBER_EVERY, Remembering};
 pub use resume::HostedResume;
 pub use resume_handed::HandedResume;
 pub use route::{Carry, Shown, Task, WindowTask, route};
+pub use saving::prune_versions;
 pub use store::{Clock, Store};
 pub use trash::{SystemTrash, Trash, TrashError};
+pub use version_rows::HostedVersions;
 pub use watch::{SETTLE, Told, Watcher, WindowWatch};

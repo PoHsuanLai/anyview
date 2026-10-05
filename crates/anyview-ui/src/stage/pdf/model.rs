@@ -1,7 +1,9 @@
 //! The PDF stage's states, inputs and outputs.
 
 use super::super::find::{FindHits, FindOut, HitCount, HitIndex};
+use super::super::media::StepDirection;
 use super::super::zoom::{Viewport, ZoomDir};
+use crate::edits::EditRequest;
 use crate::typed::TypedText;
 use anyview_core::{PageCount, PageIndex, Permille, Resume, Zoom};
 
@@ -85,6 +87,10 @@ pub enum PdfIn {
     PreviousPage,
     /// The scroll to the target of a jump finished.
     Arrived,
+    /// Remove the page the reader is on.
+    DeletePage,
+    /// Move the page the reader is on one place earlier or later.
+    MovePage(StepDirection),
     /// Restore where the person left the file.
     Restore(Resume),
     /// The clock; the stage keeps no timer.
@@ -106,6 +112,8 @@ pub enum PdfOut {
     ScrollTo(Destination),
     /// Something for the search: run it, show a hit, clear the marks.
     Find(FindOut),
+    /// Change the document's pages: the host saves it.
+    Edit(EditRequest),
 }
 
 /// What the stage needs to know of the open document and the window.

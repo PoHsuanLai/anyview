@@ -6,8 +6,11 @@
 
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
-use super::seams::{FirstFrameSource, Forgetful, NoPictures, ResumeSource};
-use crate::sheet::ExportDraft;
+use super::seams::{
+    FirstFrameSource, Forgetful, NoPictures, NoVersions, ResumeSource, VersionSource,
+};
+use crate::edits::{EditRequest, Rewind};
+use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::{FileAction, FilePath, Resume};
 use anyview_text::Highlighter;
@@ -42,6 +45,8 @@ pub enum WorkKind {
     Folder,
     /// Draw tiles, a thumbnail or a search of an open PDF.
     Pdf,
+    /// List the versions kept of a file.
+    Versions,
 }
 
 /// One job and the way back from it.
@@ -49,6 +54,7 @@ pub struct Work {
     job: Job,
     reply: Reply,
     resume: Arc<dyn ResumeSource>,
+    versions: Arc<dyn VersionSource>,
 }
 
 impl std::fmt::Debug for Work {
@@ -71,8 +77,13 @@ impl Work {
 
     /// Do the job, blocking, and post what it made to the window that asked.
     pub fn run(self) {
-        let Work { job, reply, resume } = self;
-        reply.post(job.run(resume.as_ref()));
+        let Work {
+            job,
+            reply,
+            resume,
+            versions,
+        } = self;
+        reply.post(job.run(resume.as_ref(), versions.as_ref()));
     }
 
     /// What the work does.
@@ -87,6 +98,7 @@ impl Work {
             Job::Stat { .. } => WorkKind::Stat,
             Job::Folder { .. } => WorkKind::Folder,
             Job::Pdf(_) => WorkKind::Pdf,
+            Job::Versions { .. } => WorkKind::Versions,
         }
     }
 }
@@ -122,6 +134,14 @@ pub enum HostRequest {
     Trash,
     /// Rename the open file.
     Rename(TypedText),
+    /// Save the open file in place with this change; the host keeps the original first.
+    Edit(EditRequest),
+    /// Take back the last edit of the open file, or do it again.
+    Rewind(Rewind),
+    /// Put this kept version back as the open file.
+    RevertTo(VersionKey),
+    /// Write a copy of the open file under this name or at this path.
+    SaveCopy(TypedText),
     /// Keep where the person is in the open file, for next time. Sent whenever a gesture settles,
     /// so the host may coalesce them.
     Remember(Resume),
@@ -147,6 +167,7 @@ pub struct Edge {
     requests: Arc<dyn Fn(HostRequest) + Send + Sync>,
     highlighter: Arc<Highlighter>,
     resume: Arc<dyn ResumeSource>,
+    versions: Arc<dyn VersionSource>,
     first_frames: Arc<dyn FirstFrameSource>,
     media: Arc<dyn MediaHost>,
 }
@@ -171,6 +192,7 @@ impl Edge {
             requests: Arc::new(requests),
             highlighter: Arc::new(Highlighter::new()),
             resume: Arc::new(Forgetful),
+            versions: Arc::new(NoVersions),
             first_frames: Arc::new(NoPictures),
             media: Arc::new(NoPlayer),
         }
@@ -181,6 +203,15 @@ impl Edge {
     pub fn with_resume_source(self, source: Arc<dyn ResumeSource>) -> Edge {
         Edge {
             resume: source,
+            ..self
+        }
+    }
+
+    /// The same edge listing a file's kept versions from `source`: without one a file has none to
+    /// go back to.
+    pub fn with_version_source(self, source: Arc<dyn VersionSource>) -> Edge {
+        Edge {
+            versions: source,
             ..self
         }
     }
@@ -215,6 +246,7 @@ impl Edge {
             job,
             reply: self.reply.clone(),
             resume: Arc::clone(&self.resume),
+            versions: Arc::clone(&self.versions),
         });
     }
 

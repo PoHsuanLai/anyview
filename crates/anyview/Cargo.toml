@@ -12,6 +12,7 @@ publish.workspace = true
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
 anyview-media = { workspace = true, features = ["player"] }
+anyview-pdf = { workspace = true }
 anyview-peek = { workspace = true }
 anyview-platform = { workspace = true }
 anyview-plugin = { workspace = true }

@@ -79,9 +79,9 @@ impl StageOut {
             StageOut::Raster(RasterOut::Remember(resume))
             | StageOut::Text(TextOut::Remember(resume))
             | StageOut::Pdf(PdfOut::Remember(resume)) => Some(resume),
-            StageOut::Raster(RasterOut::Turned(_) | RasterOut::ShowFrame(_))
+            StageOut::Raster(RasterOut::ShowFrame(_))
             | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
-            | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_))
+            | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
         }
     }
@@ -92,7 +92,7 @@ impl StageOut {
             StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),
             StageOut::Raster(_)
             | StageOut::Text(TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_))
-            | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_))
+            | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
         }
     }

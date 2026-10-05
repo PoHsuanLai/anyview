@@ -1,7 +1,7 @@
 //! The raster stage's transitions.
 
 use super::super::zoom::{centre_about, scale_of, stepped};
-use super::model::{Animation, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage, Spin};
+use super::model::{Animation, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage};
 use anyview_core::{DocPoint, DocUnit, QuarterTurn, Resume, Zoom};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -85,25 +85,6 @@ fn zoomed_to(
     }
 }
 
-fn rotated(turn: QuarterTurn, spin: Spin) -> QuarterTurn {
-    match spin {
-        Spin::Left => turn.then(QuarterTurn::ThreeQuarter),
-        Spin::Right => turn.then(QuarterTurn::Quarter),
-    }
-}
-
-/// Rotating refits: a centre in the old orientation means nothing in the new one.
-fn rotate_fitted(turn: QuarterTurn, anim: Animation, spin: Spin) -> Step {
-    let turn = rotated(turn, spin);
-    (
-        RasterStage::Fitted { turn, anim },
-        vec![
-            RasterOut::Turned(turn),
-            remembered(Zoom::Fit, DocPoint::default()),
-        ],
-    )
-}
-
 fn animated(anim: Animation, input: RasterIn) -> Option<(Animation, Vec<RasterOut>)> {
     match (anim, input) {
         (Animation::Still, RasterIn::Animated(of)) => {
@@ -149,7 +130,6 @@ fn fitted(
         }
         RasterIn::SetZoom { zoom, at } => zoomed_to(turn, anim, clamped(zoom), at, params),
         RasterIn::DoubleClick { at } => zoomed_to(turn, anim, Zoom::Actual, at, params),
-        RasterIn::Rotate(spin) => rotate_fitted(turn, anim, spin),
         RasterIn::Restore { zoom, centre } => restored(turn, anim, zoom, centre),
         RasterIn::Animated(_) | RasterIn::FrameTick | RasterIn::TogglePlayback => {
             match animated(anim, input) {
@@ -181,7 +161,6 @@ fn zoomed(this: RasterStage, view: View, input: RasterIn, params: &RasterParams)
             },
             vec![],
         ),
-        RasterIn::Rotate(spin) => rotate_fitted(turn, anim, spin),
         RasterIn::Restore { zoom, centre } => restored(turn, anim, zoom, centre),
         RasterIn::Animated(_) | RasterIn::FrameTick | RasterIn::TogglePlayback => {
             match animated(anim, input) {
@@ -246,7 +225,6 @@ fn panning(this: RasterStage, view: View, input: RasterIn) -> Step {
         | RasterIn::SetZoom { zoom: _, at: _ }
         | RasterIn::DoubleClick { at: _ }
         | RasterIn::PanStart
-        | RasterIn::Rotate(_)
         | RasterIn::Restore { zoom: _, centre: _ }
         | RasterIn::Elapsed => (this, vec![]),
     }

@@ -27,7 +27,7 @@ impl<V> Default for TrailStacks<V> {
 pub enum Trail<V> {
     /// Nothing is being written.
     Resting(TrailStacks<V>),
-    /// A save, or a revert, is being written; it will keep the version of what it replaces.
+    /// A save is being written; it will keep the version of what it replaces.
     Saving(TrailStacks<V>),
     /// `taken`, the newest of `done`, is being put back.
     Undoing { stacks: TrailStacks<V>, taken: V },
@@ -44,10 +44,8 @@ impl<V> Default for Trail<V> {
 /// What moves the trail.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrailIn<V> {
-    /// An edit is wanted.
-    Edit,
-    /// This kept version is wanted back as the file.
-    Revert(V),
+    /// A save is wanted: an edit, or a revert to a kept version. Either keeps what it replaces.
+    Save,
     /// Go back one save.
     Undo,
     /// Go forward one undo.
@@ -69,7 +67,7 @@ impl<V> From<Elapsed> for TrailIn<V> {
 /// What the trail wants done, or why it declined.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrailOut<V> {
-    /// Write the edit.
+    /// Write the save.
     Save,
     /// Put this kept version back as the file.
     Restore(V),

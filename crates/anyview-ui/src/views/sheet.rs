@@ -1,13 +1,15 @@
-//! The modal sheets: export, rename and the trash question. The sheet machine says which is open
+//! The modal sheets: export, rename, save a copy, revert to a version and the trash question. The sheet machine says which is open
 //! and what it holds; these draw them and report the person's choices as sheet inputs.
 
-use crate::{ExportDraft, ExportKindPick, MediaOffer, TypedText};
+use crate::{ExportDraft, ExportKindPick, MediaOffer, TypedText, VersionKey, VersionList};
 use anyview_core::Fact;
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
 use ds::components::controls::segmented::Tracking;
 use ds::components::overlays::alert_model::{AlertButton, AlertRole};
-use ds::prelude::{Alert, Button, Choice, FieldFocus, SegmentedControl, Sheet, TextField};
+use ds::prelude::{
+    Alert, Button, Choice, FieldFocus, RadioGroup, SegmentedControl, Sheet, TextField,
+};
 use ds_core::word::Word;
 
 /// "Move to Trash?": Esc cancels, the destructive button is never the default.
@@ -29,16 +31,19 @@ pub(super) fn TrashSheet(
     }
 }
 
-/// Typing a new name.
+/// Typing a name: a new one for the file, or the one a copy is saved under. `label` names the
+/// sheet and its field's purpose, `confirm` its default button.
 #[component]
-pub(super) fn RenameSheet(
+pub(super) fn NameSheet(
+    label: &'static str,
+    confirm: &'static str,
     name: TypedText,
     ontyped: EventHandler<TypedText>,
     onconfirm: EventHandler<()>,
     oncancel: EventHandler<()>,
 ) -> Element {
     rsx! {
-        Sheet { label: "Rename", onclose: move |()| oncancel.call(()),
+        Sheet { label, onclose: move |()| oncancel.call(()),
             div { class: "viewer-sheet",
                 TextField {
                     label: "Name",
@@ -48,7 +53,57 @@ pub(super) fn RenameSheet(
                 }
                 div { class: "viewer-sheet-buttons",
                     Button { label: "Cancel", onclick: move |_| oncancel.call(()) }
-                    Button { label: "Rename", answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
+                    Button { label: confirm, answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
+                }
+            }
+        }
+    }
+}
+
+/// Choosing which kept version of the file to go back to, newest first.
+#[component]
+pub(super) fn RevertSheet(
+    versions: VersionList,
+    chosen: VersionKey,
+    onpick: EventHandler<VersionKey>,
+    onconfirm: EventHandler<()>,
+    oncancel: EventHandler<()>,
+) -> Element {
+    let choices: Vec<Choice<VersionKey>> = versions
+        .rows()
+        .iter()
+        .map(|row| Choice::new(row.key.clone(), row.label()))
+        .collect();
+    rsx! {
+        Sheet { label: "Revert To", onclose: move |()| oncancel.call(()),
+            div { class: "viewer-sheet",
+                RadioGroup::<VersionKey> {
+                    label: "Version",
+                    choices,
+                    value: chosen,
+                    onchange: move |key: VersionKey| onpick.call(key),
+                }
+                p { class: "viewer-sheet-note",
+                    "The file as it is now is kept too, so going back can be undone."
+                }
+                div { class: "viewer-sheet-buttons",
+                    Button { label: "Cancel", onclick: move |_| oncancel.call(()) }
+                    Button { label: "Revert", answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
+                }
+            }
+        }
+    }
+}
+
+/// The file has no earlier version: Enter and Esc put this away.
+#[component]
+pub(super) fn NoVersionsSheet(onclose: EventHandler<()>) -> Element {
+    rsx! {
+        Sheet { label: "Revert To", onclose: move |()| onclose.call(()),
+            div { class: "viewer-sheet",
+                p { class: "viewer-sheet-note", "This file has no earlier version." }
+                div { class: "viewer-sheet-buttons",
+                    Button { label: "OK", answers: Answers::Return, onclick: move |_| onclose.call(()) }
                 }
             }
         }

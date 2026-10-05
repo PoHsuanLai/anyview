@@ -108,7 +108,10 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::StepFrameForward
         | StageCommand::StepFrameBack
         | StageCommand::MarkTrimStart
-        | StageCommand::MarkTrimEnd => None,
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater => None,
     }
 }
 
@@ -136,6 +139,9 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         ))),
         StageCommand::ScrollToStart => Some(PdfIn::GoTo(start())),
         StageCommand::ScrollToEnd => Some(PdfIn::GoTo(end(params.pages))),
+        StageCommand::DeletePage => Some(PdfIn::DeletePage),
+        StageCommand::MovePageEarlier => Some(PdfIn::MovePage(StepDirection::Backward)),
+        StageCommand::MovePageLater => Some(PdfIn::MovePage(StepDirection::Forward)),
         StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
@@ -186,7 +192,10 @@ fn media(command: StageCommand) -> Option<MediaIn> {
         | StageCommand::LineUp
         | StageCommand::LineDown
         | StageCommand::ScrollToStart
-        | StageCommand::ScrollToEnd => None,
+        | StageCommand::ScrollToEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater => None,
     }
 }
 
@@ -221,6 +230,9 @@ fn text(command: StageCommand) -> Option<TextIn> {
         | StageCommand::StepFrameForward
         | StageCommand::StepFrameBack
         | StageCommand::MarkTrimStart
-        | StageCommand::MarkTrimEnd => None,
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater => None,
     }
 }
