@@ -68,13 +68,23 @@ cd "$(dirname "$0")/.."
 # and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
 # player, and not anyview-media, anyview-platform, the core or the UI; `cargo tree` for it must show
 # no `ffmpeg-next` and no `rsmpv` (its dev-dependencies, the host's crates for the tests, are not looked at).
+# anyview-heif and anyview-raw are plugins too, over the shared `anyview-tool-kit` (the protocol crate,
+# `image` to read the PNG, TIFF or PPM a tool wrote, `tempfile` and `thiserror`): they run libheif's and
+# LibRaw's programs and name nothing of the viewer's.
 # Forbidden in every crate's tree, whatever its row says: the bindings of libmpv and of libav, and so the
 # libraries themselves (CONVENTIONS section 15). Codec and copyleft code lives in separate-process plugins
 # that use the person's own distro tools.
-FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next)
+# The same for the picture codecs: libheif's bindings, LibRaw's bindings and the raw decoders that are
+# LGPL or link C (`rawloader`, `rawler`). Pure-Rust parsing of a container (the viewer reads a raw
+# file's embedded JPEG itself) is fine; decoding HEIC or developing a raw file is a plugin that runs the
+# person's own libheif or LibRaw tools (anyview-heif, anyview-raw).
+FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next libheif-rs libheif-sys libheif-rs-sys libraw-rs libraw-sys rsraw rsraw-sys rawloader rawler)
 
 RULES=(
   "anyview-ffmpeg: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
+  "anyview-tool-kit: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
+  "anyview-heif: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
+  "anyview-raw: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
   "anyview-plugin-protocol: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-plugin: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
   "anyview-plugin-fake: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
@@ -224,6 +234,9 @@ EDGES=(
   "anyview-plugin-protocol: "
   "anyview-plugin-fake: anyview-plugin-protocol"
   "anyview-ffmpeg: anyview-plugin-protocol"
+  "anyview-heif: anyview-plugin-protocol anyview-tool-kit"
+  "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
+  "anyview-tool-kit: anyview-plugin-protocol"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"

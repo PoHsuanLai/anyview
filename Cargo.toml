@@ -19,6 +19,9 @@ members = [
   "crates/anyview-text",
   "crates/anyview-ui",
   "plugins/anyview-ffmpeg",
+  "plugins/anyview-heif",
+  "plugins/anyview-raw",
+  "plugins/anyview-tool-kit",
 ]
 
 [workspace.package]
@@ -50,6 +53,9 @@ anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 anyview-ffmpeg = { path = "plugins/anyview-ffmpeg" }
+anyview-heif = { path = "plugins/anyview-heif" }
+anyview-raw = { path = "plugins/anyview-raw" }
+anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
 ds-core = { path = "../quire/crates/ds-core" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and

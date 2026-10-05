@@ -3,7 +3,7 @@
 
 use super::codec::{Codec, codec_for};
 use super::colour::ColourInfo;
-use super::{FrameCount, jxl, stills, svg};
+use super::{FrameCount, jxl, raw, stills, svg};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -49,6 +49,10 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
                 Some(colour),
                 ExifFacts::none(),
             ))
+        }
+        Codec::RawPreview => {
+            let picture = raw::decode(bytes)?;
+            Ok(raster(picture, FrameCount(1), None, ExifFacts::read(bytes)))
         }
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;

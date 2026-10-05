@@ -5,7 +5,7 @@
 
 use super::error::OpenError;
 use super::folder::folder_sequence;
-use super::seams::{FirstFrameSource, ResumeSource, VersionSource};
+use super::seams::{FirstFrameSource, ImagePlugins, ResumeSource, VersionSource};
 use crate::families::{
     BookDoc, FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SectionPage, TextDoc, open_for,
     peek_for,
@@ -34,6 +34,8 @@ pub struct OpenLink {
     pub highlighter: Arc<Highlighter>,
     /// The host's small pictures, for a first frame.
     pub first_frames: Arc<dyn FirstFrameSource>,
+    /// The plugins that decode what the viewer cannot.
+    pub image_plugins: Arc<dyn ImagePlugins>,
     /// The host's players, when this open may start one: a file opened ahead of the person never
     /// plays, so a preload carries none.
     pub(crate) media: Option<super::MediaPort>,

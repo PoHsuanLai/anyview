@@ -1,0 +1,23 @@
+# The manifest of the RAW plugin (ARCHITECTURE section 2l). install.sh --with-plugin raw fills in
+# @PREFIX@ and installs the result as <prefix>/share/anyview/plugins/raw.toml; the file name is the id.
+#
+# The plugin runs the person's own LibRaw `dcraw_emu` (or `dcraw`) and links no LibRaw: it looks for
+# them as `--dcraw-emu` and `--dcraw` arguments (add them to `args` to name an absolute path), then
+# the ANYVIEW_DCRAW_EMU and ANYVIEW_DCRAW environment variables, then the search path. It tells the
+# host in `hello` what this machine has. The viewer shows a raw file's embedded preview by itself;
+# this plugin adds the full development, and the embedded preview as a thumbnail.
+id = "raw"
+name = "RAW"
+protocol = 1
+
+[program]
+path = "@PREFIX@/libexec/anyview/anyview-raw"
+args = []
+
+[[provides]]
+capability = "thumbnail"
+mimes = ["image/x-dcraw"]
+
+[[provides]]
+capability = "decode"
+mimes = ["image/x-dcraw"]

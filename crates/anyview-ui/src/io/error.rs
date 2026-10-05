@@ -29,6 +29,9 @@ pub enum OpenError {
     /// The player could not be started.
     #[error("the player could not start: {0}")]
     Media(String),
+    /// A plugin that serves this file could not make its picture.
+    #[error("the plugin could not show the picture: {0}")]
+    Plugin(String),
     /// The probe could not tell what the file is (a zip needs its entries listed).
     #[error("the viewer cannot tell what this file is")]
     Unrecognised,
@@ -47,9 +50,10 @@ impl OpenError {
             OpenError::Text(_) => LoadFailure::Damaged,
             OpenError::Pdf(failure) => pdf_failure(*failure),
             OpenError::Book(error) => book_failure(error),
-            OpenError::Gpu(_) | OpenError::Media(_) | OpenError::Unrecognised => {
-                LoadFailure::Unsupported
-            }
+            OpenError::Gpu(_)
+            | OpenError::Media(_)
+            | OpenError::Plugin(_)
+            | OpenError::Unrecognised => LoadFailure::Unsupported,
         }
     }
 }
@@ -69,6 +73,7 @@ fn image_failure(error: &anyview_image::ImageError) -> LoadFailure {
         E::WrongKind { .. }
         | E::Unsupported { .. }
         | E::NotCompiledIn { .. }
+        | E::NoPreview
         | E::TooLarge { .. }
         | E::NotSavable { .. }
         | E::NotSavableAnimated
