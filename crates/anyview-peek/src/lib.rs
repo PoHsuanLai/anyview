@@ -6,6 +6,7 @@
 
 mod any;
 mod body;
+mod book;
 mod described;
 mod error;
 mod folder;
@@ -20,7 +21,8 @@ mod when;
 
 pub use any::{AnyPeeked, peek, peek_with};
 pub use body::{Body, Light};
-pub use described::{BookKind, BookPeek, Described, Describes, FactsPeek, OtherKind, OtherPeek};
+pub use book::{BookLook, BookPeek};
+pub use described::{Described, Describes, FactsPeek, OtherKind, OtherPeek};
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
 pub use frames::{NoFrames, VideoFrames};

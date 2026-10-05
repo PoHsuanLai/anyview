@@ -11,7 +11,7 @@ use crate::{
     Command, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams,
     Ticket, TypedText,
 };
-use anyview_core::{Facts, LineIndex, Resume, Sniffed, Source};
+use anyview_core::{Facts, LineIndex, Resume, SectionIndex, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::{Point, Size};
@@ -90,6 +90,10 @@ pub struct StageCx {
     pub typing: EventHandler<KeyboardEvent>,
     /// The places the current find found, when one is up.
     pub hits: Option<Held<super::FoundHits>>,
+    /// The section of a book last unpacked.
+    pub section: Option<Held<super::SectionPage>>,
+    /// Ask for a section of a book to be unpacked.
+    pub ask_section: EventHandler<SectionIndex>,
     /// Hand a job to the workers; its answer comes back through the window's mailbox.
     pub work: EventHandler<Job>,
     /// Ask the host to do something the viewer cannot (open a web address).
@@ -189,6 +193,10 @@ pub trait StageView: 'static {
     fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
         None
     }
+    /// The job that unpacks `section` of the document, for a family that shows one section at a time.
+    fn section(_doc: &Arc<Self::Doc>, _ticket: Ticket, _section: SectionIndex) -> Option<Job> {
+        None
+    }
     /// The line to the player, for a family that plays.
     fn line(_doc: &Self::Doc) -> Option<Arc<dyn MediaLine>> {
         None
@@ -215,6 +223,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
+    fn section(&self, ticket: Ticket, section: SectionIndex) -> Option<Job>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
     fn media_offer(&self) -> MediaOffer;
@@ -273,6 +282,10 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {
         S::search(&self.doc, ticket, query)
+    }
+
+    fn section(&self, ticket: Ticket, section: SectionIndex) -> Option<Job> {
+        S::section(&self.doc, ticket, section)
     }
 
     fn leaving(&self) -> Leaving {

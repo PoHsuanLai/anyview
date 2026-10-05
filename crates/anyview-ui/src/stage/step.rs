@@ -1,5 +1,6 @@
 //! The stage region's transitions: each stage steps on its own family's inputs and the clock.
 
+use super::book::BookStage;
 use super::media::MediaStage;
 use super::model::{Stage, StageIn, StageOut, StageParams};
 use super::pdf::PdfStage;
@@ -40,6 +41,7 @@ impl Machine for Stage {
             Stage::Text(stage) => text(stage, input, at, params),
             Stage::Table(stage) => table(stage, input, at, params),
             Stage::Tree(stage) => tree(stage, input, at, params),
+            Stage::Book(stage) => book(stage, input, at, params),
         }
     }
 
@@ -52,6 +54,7 @@ impl Machine for Stage {
             Stage::Text(stage) => stage.wake(),
             Stage::Table(stage) => stage.wake(),
             Stage::Tree(stage) => stage.wake(),
+            Stage::Book(stage) => stage.wake(),
         }
     }
 }
@@ -65,6 +68,7 @@ fn raster(stage: RasterStage, input: StageIn, at: Stamp, params: &StageParams) -
         StageIn::Pdf(_)
         | StageIn::Media(_)
         | StageIn::Text(_)
+        | StageIn::Book(_)
         | StageIn::Table(_)
         | StageIn::Tree(_) => (Stage::Raster(stage), vec![]),
     }
@@ -79,6 +83,7 @@ fn pdf(stage: PdfStage, input: StageIn, at: Stamp, params: &StageParams) -> Step
         StageIn::Raster(_)
         | StageIn::Media(_)
         | StageIn::Text(_)
+        | StageIn::Book(_)
         | StageIn::Table(_)
         | StageIn::Tree(_) => (Stage::Pdf(stage), vec![]),
     }
@@ -93,6 +98,7 @@ fn media(stage: MediaStage, input: StageIn, at: Stamp, params: &StageParams) -> 
         StageIn::Raster(_)
         | StageIn::Pdf(_)
         | StageIn::Text(_)
+        | StageIn::Book(_)
         | StageIn::Table(_)
         | StageIn::Tree(_) => (Stage::Media(stage), vec![]),
     }
@@ -107,6 +113,7 @@ fn text(stage: TextStage, input: StageIn, at: Stamp, params: &StageParams) -> St
         StageIn::Raster(_)
         | StageIn::Pdf(_)
         | StageIn::Media(_)
+        | StageIn::Book(_)
         | StageIn::Table(_)
         | StageIn::Tree(_) => (Stage::Text(stage), vec![]),
     }
@@ -122,6 +129,7 @@ fn table(stage: TableStage, input: StageIn, at: Stamp, params: &StageParams) -> 
         | StageIn::Pdf(_)
         | StageIn::Media(_)
         | StageIn::Text(_)
+        | StageIn::Book(_)
         | StageIn::Tree(_) => (Stage::Table(stage), vec![]),
     }
 }
@@ -136,6 +144,22 @@ fn tree(stage: TreeStage, input: StageIn, at: Stamp, params: &StageParams) -> St
         | StageIn::Pdf(_)
         | StageIn::Media(_)
         | StageIn::Text(_)
+        | StageIn::Book(_)
         | StageIn::Table(_) => (Stage::Tree(stage), vec![]),
+    }
+}
+
+fn book(stage: BookStage, input: StageIn, at: Stamp, params: &StageParams) -> Step {
+    let wrap = Stage::Book;
+    let out = StageOut::Book;
+    match input {
+        StageIn::Book(input) => lifted(stage, input, at, &params.book, wrap, out),
+        StageIn::Elapsed => lifted(stage, Elapsed.into(), at, &params.book, wrap, out),
+        StageIn::Raster(_)
+        | StageIn::Pdf(_)
+        | StageIn::Media(_)
+        | StageIn::Text(_)
+        | StageIn::Table(_)
+        | StageIn::Tree(_) => (Stage::Book(stage), vec![]),
     }
 }

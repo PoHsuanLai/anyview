@@ -14,6 +14,7 @@ fn every_kind_has_a_view_and_the_registry_agrees_with_the_core() {
             | StageFamily::Pdf
             | StageFamily::Media
             | StageFamily::Text
+            | StageFamily::Book
             | StageFamily::Table
             | StageFamily::Tree => StageSupport::Stage,
         };
@@ -40,6 +41,7 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
             FormatKind::Office,
             StageFamily::PeekOnly,
         ),
+        ("a book", FormatKind::Book, StageFamily::Book),
         ("an archive", FormatKind::Archive, StageFamily::PeekOnly),
         ("a folder", FormatKind::Folder, StageFamily::PeekOnly),
         ("something else", FormatKind::Other, StageFamily::PeekOnly),

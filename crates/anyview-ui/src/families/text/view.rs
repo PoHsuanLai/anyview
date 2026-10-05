@@ -27,6 +27,7 @@ fn place_of(stage: &Stage) -> Option<TextPlace> {
         | Stage::Raster(_)
         | Stage::Pdf(_)
         | Stage::Media(_)
+        | Stage::Book(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,
     }
@@ -47,6 +48,7 @@ fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
         | Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)
+        | Stage::Book(_)
         | Stage::Media(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,

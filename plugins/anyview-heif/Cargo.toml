@@ -1,0 +1,28 @@
+[package]
+name = "anyview-heif"
+description = "The HEIF plugin: HEIC and HEIF pictures (and AVIF, when the viewer has no decoder of its own) through the person's own libheif tools, heif-dec or heif-convert and heif-thumbnailer, over plugin protocol v1. It runs them and links no libheif."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "anyview-heif"
+path = "src/main.rs"
+
+[dependencies]
+anyview-plugin-protocol = { workspace = true }
+anyview-tool-kit = { workspace = true }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+anyview-core = { workspace = true }
+anyview-platform = { workspace = true }
+anyview-plugin = { workspace = true }
+image = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

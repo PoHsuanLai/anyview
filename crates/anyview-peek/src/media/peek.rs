@@ -8,7 +8,7 @@ use super::{audio, matroska, mp4};
 use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
-use crate::frames::embedded_picture;
+use crate::frames::cover_picture;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, MediaContainer, Peek,
     PeekBudget, Sniffed, Source,
@@ -94,7 +94,7 @@ fn cover_peek(cover: &CoverArt, budget: &PeekBudget) -> Option<ImagePeek> {
         CoverCodec::Png => "cover.png",
         CoverCodec::Jpeg => "cover.jpg",
     };
-    embedded_picture(&cover.bytes, name, budget)
+    cover_picture(&cover.bytes, name, budget)
 }
 
 /// The kind row, then the rows the header gave.

@@ -65,6 +65,7 @@ pub(super) fn use_work(c: &Carry) {
             StageFamily::Raster | StageFamily::Media => true,
             StageFamily::Pdf
             | StageFamily::Text
+            | StageFamily::Book
             | StageFamily::Table
             | StageFamily::Tree
             | StageFamily::PeekOnly => false,

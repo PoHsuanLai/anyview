@@ -5,7 +5,8 @@
 //! implementation.
 
 use crate::body::Light;
-use crate::described::{BookPeek, OtherPeek};
+use crate::book::BookPeek;
+use crate::described::OtherPeek;
 use crate::folder::FolderPeek;
 use crate::media::{AudioPeek, VideoPeek};
 use crate::office::OfficePeek;

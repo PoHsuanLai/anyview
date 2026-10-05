@@ -3,7 +3,7 @@
 
 use super::codec::{Codec, codec_for};
 use super::colour::ColourInfo;
-use super::{FrameCount, jxl, stills, svg};
+use super::{FrameCount, highrange, jxl, layered, raw, stills, svg};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -41,6 +41,33 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
                 ))
             }
         },
+        Codec::HighRange(format) => {
+            let (picture, colour) = highrange::decode(bytes, format)?;
+            Ok(raster(
+                picture,
+                FrameCount(1),
+                Some(colour),
+                ExifFacts::none(),
+            ))
+        }
+        Codec::Psd => {
+            let (picture, colour) = layered::psd(bytes)?;
+            Ok(raster(
+                picture,
+                FrameCount(1),
+                Some(colour),
+                ExifFacts::none(),
+            ))
+        }
+        Codec::Icns => {
+            let (picture, colour) = layered::icns(bytes)?;
+            Ok(raster(
+                picture,
+                FrameCount(1),
+                Some(colour),
+                ExifFacts::none(),
+            ))
+        }
         Codec::Jxl => {
             let (picture, colour) = jxl::decode(bytes)?;
             Ok(raster(
@@ -49,6 +76,10 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
                 Some(colour),
                 ExifFacts::none(),
             ))
+        }
+        Codec::RawPreview => {
+            let picture = raw::decode(bytes)?;
+            Ok(raster(picture, FrameCount(1), None, ExifFacts::read(bytes)))
         }
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;

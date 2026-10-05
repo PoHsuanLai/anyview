@@ -221,6 +221,7 @@ fn line_of(viewer: &Viewer) -> Option<u32> {
         | Stage::Raster(_)
         | Stage::Pdf(_)
         | Stage::Media(_)
+        | Stage::Book(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,
     }

@@ -58,16 +58,12 @@ pub(crate) fn still_peek(picture: Rgba8, budget: &PeekBudget) -> ImagePeek {
     }
 }
 
-/// A picture a file carries of itself (a cover, a document's thumbnail), decoded and reduced to
-/// the budget. `file_name` is what the bytes would be called, which sniffing reads the type from;
-/// `None` when they do not decode, since the picture is a nicety and the facts still stand.
-pub(crate) fn embedded_picture(
-    bytes: &[u8],
-    file_name: &str,
-    budget: &PeekBudget,
-) -> Option<ImagePeek> {
+/// The still picture in the image file `bytes` (`name` says what format it is, since a cover has
+/// no file of its own), reduced to `budget`. `None` when it will not decode or is an animation:
+/// a cover is a nicety and the facts still stand.
+pub(crate) fn cover_picture(bytes: &[u8], name: &str, budget: &PeekBudget) -> Option<ImagePeek> {
     let head = FileHead::new(&bytes[..bytes.len().min(4096)]);
-    let SniffStep::Done(sniffed) = sniff(&head, &FileName::new(file_name).ok()?) else {
+    let SniffStep::Done(sniffed) = sniff(&head, &FileName::new(name).ok()?) else {
         return None;
     };
     let Decoded::Still(picture) = decode_bytes(bytes, &sniffed).ok()? else {

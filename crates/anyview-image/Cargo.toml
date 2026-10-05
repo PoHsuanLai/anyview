@@ -17,8 +17,10 @@ avif = ["image/avif-native"]
 anyview-core = { workspace = true }
 ds-core = { workspace = true }
 # The pinned block enables png and jpeg; the other formats the viewer opens are added here.
-image = { workspace = true, features = ["gif", "webp", "bmp", "tiff", "ico", "tga", "qoi"] }
+image = { workspace = true, features = ["gif", "webp", "bmp", "tiff", "ico", "tga", "qoi", "exr", "hdr"] }
 img-parts = { workspace = true }
+icns = { workspace = true }
+psd = { workspace = true }
 jxl-oxide = { workspace = true }
 kamadak-exif = { workspace = true }
 ravif = { workspace = true }
@@ -27,6 +29,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+png = { workspace = true }
 
 [lints]
 workspace = true

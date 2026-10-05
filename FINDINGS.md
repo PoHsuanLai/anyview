@@ -24,10 +24,9 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Books and unknown files
+- **The kinds with no back end show only what sniffing says.** Unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
-  lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
-  because opening the zip for its cover is not done yet. Video and audio are read by pure-Rust header parsers (below).
+  lands and the registry's arm names the real peek. Books are read by `BookPeek` (their cover and facts) and office documents by `OfficePeek` (their facts and the document's own thumbnail). Video and audio are read by pure-Rust header parsers (below).
 - **The launcher's media peek is pure Rust, and has gaps a codec library would not.** `anyview-peek`'s `media` feature
   reads headers with `symphonia` (audio), `mp4parse` (MP4, M4V, MOV) and `matroska-demuxer` (MKV, WebM); no
   libav, no libmpv and no `anyview-media` is in its tree. The viewer uses the same parsers for a recording's facts when
@@ -44,7 +43,7 @@ on. It is a reference, not a log: how each was found lives in git history.
     `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
-  - The tree is 587 packages against the budget of 590.
+  - The tree is 605 packages against the budget of 605.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -59,8 +58,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   if the peek reads the table directory and only the tables it needs.
 - **The specimen is unshaped.** Each line is set with advance widths: no kerning, no ligatures, no
   right-to-left, no colour glyphs, and a variable font is drawn at its default location. A collection shows
-  its first face. WOFF and WOFF2 are named, not opened (`face: None`): skrifa reads neither container. Ends
-  with the plan's phase F (WOFF2 needs a Brotli decoder) and, for shaping, when the specimen lines are drawn by
+  its first face. A WOFF is unpacked to its sfnt and read; WOFF2 is named, not opened (`face: None`): it needs a
+  Brotli decoder and the glyf and loca transforms, and no permissive crate for them is in the tree. Ends
+  when one is added to the pinned dependencies and, for shaping, when the specimen lines are drawn by
   parley instead of from outlines.
 - **The specimen is fixed text.** The three sample lines are Latin capitals, lowercase and digits; a font
   with none of them shows the first characters it maps. Ends if the pane should show a script's own sample
@@ -100,8 +100,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   default at all, so the caller reads it from settings. Ends when quire's `22-SETTINGS` has
   `viewer.export.*` and `viewer.peek.*` keys that supply them.
 - **The pinned block has no image codecs beyond png and jpeg, and none of the back-end crates.**
-  `anyview-image` adds `gif webp bmp tiff ico tga qoi` to the pinned `image` line from its own
-  manifest, and `jxl-oxide`, `resvg`, `kamadak-exif`, `img-parts`, `ravif`, `syntect`,
+  `anyview-image` adds `gif webp bmp tiff ico tga qoi exr hdr` to the pinned `image` line from its own
+  manifest, and `jxl-oxide`, `psd`, `icns`, `resvg`, `kamadak-exif`, `img-parts`, `ravif`, `syntect`,
   `pulldown-cmark`, `csv` and `encoding_rs` sit below the pinned block next to `infer`. Ends at the next
   change to quire's `docs/workspace-deps.toml`: add those features to its `image` line and those crates
   to it (CONVENTIONS section 10), then copy the block verbatim here.
@@ -146,10 +146,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   window is asked for. Ends if lines get a byte cap with a marker for the cut.
 - **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
   times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
-- **Animations loop forever and a peek decodes every frame to count them.** The container's loop count is
-  not read, a JPEG XL animation shows its first frame, and the peek's frame count costs a full decode of
-  the animation. Ends if any of those hurts: read the GIF and WebP loop counts, and count frames from the
-  container headers.
+- **A peek decodes every frame to count them, and a JPEG XL animation shows its first frame.** The peek's
+  frame count costs a full decode of the animation. Ends if that hurts: count frames from the container
+  headers. The export sheet exports an animation's first frame, not the one on screen.
 - **`RasterTarget` has no BMP.** `anyview_image::encode_bmp` exists outside it, for callers that need
   the format. Ends if the export sheet offers BMP (the core target and `RasterExportKind` gain it).
 - **The history cap and the pruning rule are not settings yet.** `HistoryCap::DEFAULT` is 200
@@ -251,8 +250,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   edge keeps the hits and maps an index to a place. A document whose hits change while a find is
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
 - **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON,
-  PDF, video and audio have a stage (images, text shown as source, PDF pages as tiles, a recording as the
-  player's picture or an album card); fonts, archives, books, office documents, folders and unknown files
+  PDF, video, audio and books have a stage (images, text shown as source, PDF pages as tiles, a recording as the
+  player's picture or an album card, a chapter or comic page in a sealed frame); fonts, archives, office documents, folders and unknown files
   are `PeekOnly`. The registry (`families/registry.rs`) maps each `PeekOnly` kind to the
   facts-and-Open-With… view, and a test holds the two tables equal. Each row changes with the stage that
   lands, and the registry names the new view in the same change.
@@ -562,7 +561,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  656 packages against a budget of 660, with no libmpv or libav in it. Ends if the header readers move to a crate
+  675 packages against a budget of 675, with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
@@ -573,8 +572,8 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 - **Spreadsheet and office peeks add `calamine` and `quick-xml`, and the budgets moved for them.** `anyview-text` reads
   XLSX, ODS and XLS through `calamine` (MIT) and `anyview-archive` reads office metadata through `quick-xml`; both are
-  outside quire's pinned block. They took `anyview-peek` from 590 to 592 packages and `anyview` from 660 to 662 in
-  `scripts/check-boundary.sh`. A workbook larger than the viewer opens, and a JSON file larger than the peek budget,
+  outside quire's pinned block. On top of the 600 and 670 the other readers left, they take `anyview-peek` to 605 packages and `anyview` to 675 in
+  `scripts/check-boundary.sh`: calamine and quick-xml for XLSX and ODS, with the crates they pull in. A workbook larger than the viewer opens, and a JSON file larger than the peek budget,
   are `Unsupported`, not damaged.
 - **The `[patch]` sections are quire's, copied.** The root `Cargo.toml` carries quire's `[patch.crates-io]` (the
   vello and anyrender forks) and its `[patch."https://github.com/PoHsuanLai/blitz-kit"]` path entry, because a
@@ -598,8 +597,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
-  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 590 distinct packages;
-  `anyview-peek` is 587 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 605 distinct packages (raised from 590 for the PSD,
+  ICNS and OpenEXR/HDR still formats in `anyview-image`, which the peek links: `psd`, `icns`, `exr` and the
+  inflate and SIMD crates `exr` needs, and one more for `roxmltree`, the EPUB package reader, and five more for `calamine` and `quick-xml`, which read XLSX and ODS);
+  `anyview-peek` is 605 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
   `anyview-archive`, `skrifa` and the media parsers the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those
@@ -757,3 +758,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   text, Markdown and PDF, never HTML, tables, audio or video.
 - **`tar` is taken from the pinned block with its default features.** A workspace dependency cannot switch
   them off for one member, so `anyview-archive` now also builds `tar`'s `xattr` support (one more package, `xattr`).
+
+- **Books show one section at a time, in a sealed frame.** An EPUB chapter is rebuilt from an allowlist and
+  drawn like a Markdown page; a comic page is a `data:` image fitted to the room. Not supported: fixed-layout
+  EPUB (it reads as reflowable text), EPUB scripts, audio and video, embedded fonts (`@font-face` is dropped,
+  so the system's faces draw), links between chapters (they are inert), CBR (RAR has no permissive decoder),
+  encrypted books, and in a comic anything but PNG, JPEG, GIF, WebP and BMP pages. A page is decoded by the
+  renderer on the UI thread, so a very large page can hitch a turn. The reading position is the chapter, not
+  the scroll inside it. Ends when a section can be scrolled and zoomed by its own machine.
