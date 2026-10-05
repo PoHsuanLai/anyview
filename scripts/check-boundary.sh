@@ -101,15 +101,15 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 587 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 592 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
-# crates, mp4parse, matroska-demuxer). The viewer (anyview) is 656: the peek's tree and the window, the
+# crates, mp4parse, matroska-demuxer). The viewer (anyview) is 662: the peek's tree and the window, the
 # platform edge and the plugin registry, with no libmpv or libav binding in it. Both ratchet down when a
 # change drops a dependency and are never raised without the reason.
 BUDGETS=(
-  "anyview-peek: 590"
-  "anyview: 660"
+  "anyview-peek: 592"
+  "anyview: 662"
 )
 fail=0
 
@@ -204,7 +204,7 @@ EDGES=(
   "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
+  "anyview-ui: anyview-archive anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"

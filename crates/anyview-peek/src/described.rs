@@ -1,6 +1,6 @@
 //! The peek of a kind whose back end does not exist yet: what the file is, from its sniffed type.
 //!
-//! Books, office documents and files of a type nothing opens are
+//! Books and files of a type nothing opens are
 //! each mapped from day one (ARCHITECTURE section 3, rule 3). Until their back ends land they
 //! show what sniffing established, plus the size and date every pane lists, and nothing is
 //! pretended: no duration, no cover. A back end replaces its marker's `Peek` impl
@@ -85,17 +85,6 @@ impl Describes for BookKind {
 
 /// The facts-only peek of the kind `Book`.
 pub type BookPeek = FactsPeek<BookKind>;
-
-/// The kind `Office`.
-#[derive(Debug, Clone, Copy)]
-pub struct OfficeKind;
-
-impl Describes for OfficeKind {
-    const KIND: FormatKind = FormatKind::Office;
-}
-
-/// The facts-only peek of the kind `Office`.
-pub type OfficePeek = FactsPeek<OfficeKind>;
 
 /// The kind `Other`.
 #[derive(Debug, Clone, Copy)]

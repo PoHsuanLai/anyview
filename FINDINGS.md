@@ -24,7 +24,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Books, office documents and unknown files
+- **The kinds with no back end show only what sniffing says.** Books and unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
   lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
   because opening the zip for its cover is not done yet. Video and audio are read by pure-Rust header parsers (below).
@@ -571,6 +571,11 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Standing facts
 
+- **Spreadsheet and office peeks add `calamine` and `quick-xml`, and the budgets moved for them.** `anyview-text` reads
+  XLSX, ODS and XLS through `calamine` (MIT) and `anyview-archive` reads office metadata through `quick-xml`; both are
+  outside quire's pinned block. They took `anyview-peek` from 590 to 592 packages and `anyview` from 660 to 662 in
+  `scripts/check-boundary.sh`. A workbook larger than the viewer opens, and a JSON file larger than the peek budget,
+  are `Unsupported`, not damaged.
 - **The `[patch]` sections are quire's, copied.** The root `Cargo.toml` carries quire's `[patch.crates-io]` (the
   vello and anyrender forks) and its `[patch."https://github.com/PoHsuanLai/blitz-kit"]` path entry, because a
   patch applies only at a workspace root and `anyview-ui` now names the render stack through `ds-blitz`. A
