@@ -2,7 +2,7 @@
 //! entry's `MimeType` line is built from.
 
 use super::family::Family;
-use super::{Delimiter, FormatKind, MediaContainer, Mime, RasterFormat, TreeFormat};
+use super::{Delimiter, FormatKind, MediaContainer, Mime, OfficeFormat, RasterFormat, TreeFormat};
 use crate::peek::StageSupport;
 use crate::profile::stage_support;
 use ds_core::word::Word;
@@ -25,7 +25,15 @@ fn mimes_of(kind: FormatKind) -> Vec<&'static str> {
         FormatKind::Markdown => vec!["text/markdown"],
         FormatKind::Code => vec!["text/html", "text/css", "application/xml", "text/plain"],
         FormatKind::PlainText => vec!["text/plain"],
-        FormatKind::Table => family::<Delimiter>(),
+        FormatKind::Table => family::<Delimiter>()
+            .into_iter()
+            .chain(
+                OfficeFormat::ALL
+                    .iter()
+                    .filter(|format| format.kind() == FormatKind::Table)
+                    .map(|format| format.mime()),
+            )
+            .collect(),
         FormatKind::Tree => family::<TreeFormat>(),
         FormatKind::Font
         | FormatKind::Archive
@@ -73,6 +81,9 @@ mod tests {
             "text/plain",
             "text/csv",
             "application/json",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.oasis.opendocument.spreadsheet",
+            "application/vnd.ms-excel",
         ] {
             assert!(opened.iter().any(|m| m == want), "{want} is not opened");
         }
@@ -80,6 +91,7 @@ mod tests {
             "application/zip",
             "font/ttf",
             "application/epub+zip",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "inode/directory",
         ] {
             assert!(
