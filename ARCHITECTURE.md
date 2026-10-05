@@ -22,7 +22,7 @@ planned has no directory yet; its row is the rule it will carry.
 | --- | --- | --- | --- |
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
 | L0 | `anyview-plugin-protocol` | exists | the plugin protocol, version 1: its messages and the length-prefixed JSON frames they travel in; the one crate a plugin author depends on |
-| L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API |
+| L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API; and the save pipeline (`Pending` to `BackedUp` to `Written`) with the versions store of kept originals under `<state>/anyview/versions` |
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
 | L1 | `anyview-media` | exists | video and audio: the typestate player session over the person's own mpv, run as a child process, and the driver an actor runs (feature `player`), and the plan, the names and the asks of the exports a plugin writes; links no libmpv and no libav |

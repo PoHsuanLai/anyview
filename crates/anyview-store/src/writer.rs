@@ -63,7 +63,9 @@ impl StoreWriter {
                 (History::default(), Some(error))
             }
             HistoryRead::Unavailable(
-                error @ (StoreError::Io { .. } | StoreError::PathNotUtf8 { .. }),
+                error @ (StoreError::Io { .. }
+                | StoreError::PathNotUtf8 { .. }
+                | StoreError::NoSuchVersion { .. }),
             ) => {
                 return Err(error);
             }
@@ -134,7 +136,11 @@ impl StoreWriter {
                 }
                 Ok(None) => {}
                 Err(StoreError::Corrupt { .. }) => io::remove(&file)?,
-                Err(error @ (StoreError::Io { .. } | StoreError::PathNotUtf8 { .. })) => {
+                Err(
+                    error @ (StoreError::Io { .. }
+                    | StoreError::PathNotUtf8 { .. }
+                    | StoreError::NoSuchVersion { .. }),
+                ) => {
                     return Err(error);
                 }
             }
