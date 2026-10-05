@@ -13,6 +13,8 @@ pub(crate) enum Codec {
     Jxl,
     /// SVG, through `resvg`.
     Svg,
+    /// A camera raw file, shown from the JPEG preview inside it.
+    RawPreview,
 }
 
 /// The decoder for what `sniffed` says the file is, or why there is none.
@@ -37,12 +39,12 @@ fn raster_codec(format: RasterFormat) -> Result<Codec, ImageError> {
         RasterFormat::Qoi => Ok(Codec::Image(ImageFormat::Qoi)),
         RasterFormat::Avif => avif(),
         RasterFormat::Jxl => Ok(Codec::Jxl),
+        RasterFormat::Raw => Ok(Codec::RawPreview),
         RasterFormat::Heic
         | RasterFormat::Psd
         | RasterFormat::Icns
         | RasterFormat::Exr
-        | RasterFormat::Hdr
-        | RasterFormat::Raw => Err(ImageError::Unsupported { format }),
+        | RasterFormat::Hdr => Err(ImageError::Unsupported { format }),
     }
 }
 
@@ -111,7 +113,7 @@ mod tests {
 
     #[test]
     fn formats_without_a_decoder_are_unsupported() {
-        for format in [RasterFormat::Heic, RasterFormat::Psd, RasterFormat::Raw] {
+        for format in [RasterFormat::Heic, RasterFormat::Psd] {
             assert_eq!(
                 raster_codec(format),
                 Err(ImageError::Unsupported { format })
