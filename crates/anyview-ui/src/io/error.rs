@@ -20,6 +20,9 @@ pub enum OpenError {
     /// The PDF reader refused.
     #[error(transparent)]
     Pdf(#[from] PdfFailure),
+    /// The book reader refused.
+    #[error(transparent)]
+    Book(#[from] anyview_book::BookError),
     /// The picture cannot be put on the GPU.
     #[error("the picture cannot be shown: {0}")]
     Gpu(GpuError),
@@ -43,6 +46,7 @@ impl OpenError {
             }
             OpenError::Text(_) => LoadFailure::Damaged,
             OpenError::Pdf(failure) => pdf_failure(*failure),
+            OpenError::Book(error) => book_failure(error),
             OpenError::Gpu(_) | OpenError::Media(_) | OpenError::Unrecognised => {
                 LoadFailure::Unsupported
             }
@@ -75,5 +79,13 @@ fn image_failure(error: &anyview_image::ImageError) -> LoadFailure {
         | E::Encode { .. }
         | E::Container { .. }
         | E::Exif { .. } => LoadFailure::Damaged,
+    }
+}
+
+fn book_failure(error: &anyview_book::BookError) -> LoadFailure {
+    match (error.read_error(), error.is_locked()) {
+        (Some(kind), _) => OpenError::Read(kind).failure(),
+        (None, true) => LoadFailure::Unsupported,
+        (None, false) => LoadFailure::Damaged,
     }
 }

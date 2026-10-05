@@ -36,6 +36,10 @@ cd "$(dirname "$0")/.."
 # from a thumbnail source the host injects. `cargo tree -p` below runs with the default features, so
 # those parsers are in the tree it checks and `ffmpeg-next`, `ffmpeg-sys-next`, `rsmpv` and
 # `rsmpv-sys` must not be. It does not depend on `anyview-media` at all. What it may not name itself is the DIRECT table below.
+# anyview-book reads EPUB and comic zips through anyview-archive (the one crate that names the container
+# codecs) and parses the package with roxmltree: the same blocking, effect-free back end as the archive
+# crate, with no image decoder (a cover is bytes, decoded by the light tier) and no highlighter or Markdown
+# parser.
 # anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
@@ -82,6 +86,7 @@ RULES=(
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
   "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
+  "anyview-book: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
   "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
   "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
@@ -204,13 +209,14 @@ EDGES=(
   "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"
-  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
+  "anyview-book: anyview-archive anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
   "anyview-export: anyview-core anyview-image anyview-pdf anyview-text ds-blitz ds-core"

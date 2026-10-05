@@ -168,7 +168,7 @@ fn profile_of(kind: FormatKind) -> KindProfile {
         FormatKind::Tree => profile("application/json", PLAIN, NO_EDITS, Stage),
         FormatKind::Font => profile("font/ttf", PLAIN, NO_EDITS, PeekOnly),
         FormatKind::Archive => profile("application/zip", PLAIN, NO_EDITS, PeekOnly),
-        FormatKind::Book => profile("application/epub+zip", PLAIN, NO_EDITS, PeekOnly),
+        FormatKind::Book => profile("application/epub+zip", PLAIN, NO_EDITS, Stage),
         FormatKind::Office => profile(
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             PLAIN,

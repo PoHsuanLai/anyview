@@ -215,7 +215,11 @@ fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
             (PdfStage::Reading { view }, vec![PdfOut::ScrollTo(to)])
         }
         PdfIn::Restore(
-            Resume::Raster { .. } | Resume::Media { .. } | Resume::Text { .. } | Resume::Nothing,
+            Resume::Raster { .. }
+            | Resume::Media { .. }
+            | Resume::Text { .. }
+            | Resume::Book { .. }
+            | Resume::Nothing,
         )
         | PdfIn::Results {
             query: _,

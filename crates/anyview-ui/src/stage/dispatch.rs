@@ -1,6 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
+use super::book::BookIn;
 use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
@@ -21,6 +22,7 @@ impl Stage {
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
+            Stage::Book(_) => book(command).map(StageIn::Book),
         }
     }
 
@@ -32,6 +34,7 @@ impl Stage {
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
+            | Stage::Book(_)
             | Stage::Text(TextStage::Reading { .. }) => false,
         }
     }
@@ -59,7 +62,7 @@ impl Stage {
                 | MediaStage::Failed(_),
             ) => None,
             Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::CloseFind)),
-            Stage::Text(TextStage::Reading { .. }) => None,
+            Stage::Text(TextStage::Reading { .. }) | Stage::Book(_) => None,
         }
     }
 }
@@ -225,6 +228,42 @@ fn text(command: StageCommand) -> Option<TextIn> {
         | StageCommand::NormalSpeed
         | StageCommand::NextChapter
         | StageCommand::PreviousChapter
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater => None,
+    }
+}
+
+fn book(command: StageCommand) -> Option<BookIn> {
+    match command {
+        StageCommand::NextPage | StageCommand::NextChapter => Some(BookIn::Next),
+        StageCommand::PreviousPage | StageCommand::PreviousChapter => Some(BookIn::Previous),
+        StageCommand::ScrollToStart => Some(BookIn::First),
+        StageCommand::ScrollToEnd => Some(BookIn::Last),
+        StageCommand::ZoomIn
+        | StageCommand::ZoomOut
+        | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
+        | StageCommand::ZoomToActual
+        | StageCommand::Find
+        | StageCommand::FindNext
+        | StageCommand::FindPrevious
+        | StageCommand::ToggleSource
+        | StageCommand::ToggleWrap
+        | StageCommand::TogglePlayback
+        | StageCommand::SeekBack
+        | StageCommand::SeekForward
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
         | StageCommand::NextAudioTrack
         | StageCommand::NextSubtitles
         | StageCommand::StepFrameForward

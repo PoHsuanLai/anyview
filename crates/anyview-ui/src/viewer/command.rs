@@ -13,11 +13,11 @@ use ds_core::time::stamp::Stamp;
 /// The export format of what the stage shows, or `None` when the file has no export.
 fn export_family(stage: &Stage) -> Option<ExportFamily> {
     match stage {
-        Stage::NoStage => None,
         Stage::Raster(_) => Some(ExportFamily::Raster),
         Stage::Pdf(_) => Some(ExportFamily::Pdf),
         Stage::Media(_) => Some(ExportFamily::Media),
         Stage::Text(_) => Some(ExportFamily::Text),
+        Stage::NoStage | Stage::Book(_) => None,
     }
 }
 
@@ -86,7 +86,7 @@ fn edit(viewer: Viewer, edit: Edit, action: FileAction) -> Step {
     let asked = match &viewer.stage {
         Stage::Raster(_) => Some(EditRequest::of_picture(edit)),
         Stage::Pdf(stage) => Some(EditRequest::on_page(edit, stage.place().page)),
-        Stage::NoStage | Stage::Media(_) | Stage::Text(_) => None,
+        Stage::NoStage | Stage::Media(_) | Stage::Text(_) | Stage::Book(_) => None,
     };
     match asked {
         Some(request) => (viewer, vec![ViewerOut::Edit(request)]),

@@ -5,8 +5,8 @@
 use super::preloads::Preloads;
 use super::session::{Probe, params};
 use crate::families::{
-    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
-    use_pdf_shelf,
+    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, SectionPage,
+    use_media_shelf, use_pdf_shelf,
 };
 use crate::{Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
@@ -31,6 +31,8 @@ pub(super) struct Shelf {
     pub peeked: Signal<Option<(Ticket, LoadedDoc)>>,
     /// The lines of a text last read.
     pub lines: Signal<Option<Held<LineWindow>>>,
+    /// The section of a book last unpacked.
+    pub section: Signal<Option<Held<SectionPage>>>,
     /// The places the current find found.
     pub hits: Signal<Option<Held<FoundHits>>>,
     /// What is held of an open PDF: the tiles, the hits, the thumbnails.
@@ -61,6 +63,7 @@ impl Shelf {
             loaded: use_signal(|| None),
             peeked: use_signal(|| None),
             lines: use_signal(|| None),
+            section: use_signal(|| None),
             hits: use_signal(|| None),
             pdf: use_pdf_shelf(),
             media: use_media_shelf(),
