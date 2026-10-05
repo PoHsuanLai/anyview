@@ -4,7 +4,7 @@
 //! goes out as a `HostRequest`.
 
 use crate::sheet::VersionRow;
-use anyview_core::{FilePath, FileStamp, Resume, Source};
+use anyview_core::{Fact, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;
 
@@ -21,6 +21,27 @@ pub trait FirstFrameSource: Debug + Send + Sync + 'static {
     /// The small picture of `source` as it is now, upright, or `None` when the host has none
     /// for this version of the file. Blocking.
     fn picture(&self, source: &Source) -> Option<Rgba8>;
+}
+
+/// What asking the plugins for a picture of a file came to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PluginPicture {
+    /// A plugin decoded it: straight RGBA, upright, within the area asked for.
+    Pixels(Rgba8),
+    /// No installed plugin serves this kind of file, and the row names the package that would.
+    Missing(Fact),
+    /// No plugin serves it and none is known to: the caller shows what it has.
+    Unserved,
+    /// A plugin serves it and could not make the picture; this says why.
+    Failed(String),
+}
+
+/// The plugins that decode the pictures the viewer has no decoder for (HEIC, and a raw file in full),
+/// each a separate program the person installed (CONVENTIONS section 15).
+pub trait ImagePlugins: Debug + Send + Sync + 'static {
+    /// The picture of `source`, a file of `sniffed`'s type, with at most `max_area` pixels. Blocking:
+    /// it starts a program and waits for it, so a worker calls it, never the UI thread.
+    fn decode(&self, source: &Source, sniffed: &Sniffed, max_area: PixelArea) -> PluginPicture;
 }
 
 /// The kept versions of a file, listed from the store the binary keeps.
@@ -47,6 +68,17 @@ pub(crate) struct NoPictures;
 impl FirstFrameSource for NoPictures {
     fn picture(&self, _source: &Source) -> Option<Rgba8> {
         None
+    }
+}
+
+/// The default `ImagePlugins`: none are installed and none is known, so a file only the plugins can
+/// show is shown as it is.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NoImagePlugins;
+
+impl ImagePlugins for NoImagePlugins {
+    fn decode(&self, _source: &Source, _sniffed: &Sniffed, _max_area: PixelArea) -> PluginPicture {
+        PluginPicture::Unserved
     }
 }
 

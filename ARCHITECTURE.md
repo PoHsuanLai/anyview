@@ -35,6 +35,8 @@ planned has no directory yet; its row is the rule it will carry.
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
 | L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
+| plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
+| plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
 | dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
 | L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows, the players and the desktop's now-playing entry (`media`), and the host that carries out what the windows ask through the platform |
 
@@ -46,6 +48,8 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-plugin-protocol` | nothing in the workspace: `serde`, `serde_json`, `thiserror` |
 | `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol` |
 | `anyview-plugin-fake` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
+| `anyview-tool-kit` | `anyview-plugin-protocol` |
+| `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` |
 | `anyview-ui` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
@@ -86,6 +90,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: serde, serde_json and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
+| `anyview-heif`, `anyview-raw`, `anyview-tool-kit` | the same as `anyview-ffmpeg` below, but `image` is theirs to name (they read the PNG, TIFF or PPM a tool wrote): and `libheif-rs`, `libheif-sys`, `libraw-rs`, `libraw-sys`, `rsraw`, `rawloader` and `rawler` are forbidden in every crate's tree, with the libmpv and libav bindings |
 | `anyview-ffmpeg` | `anyview-core`, `anyview-media`, `anyview-platform`, `anyview-plugin`, `anyview-ui`, `anyview-peek`, `ds-core`, `ds`, `ds-blitz`, `toml`, `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `image`, `blitz-dom`, `anyrender`, `syntect`: a plugin knows the protocol, `serde`, `serde_json` and `thiserror`, and runs programs; it never links the libraries those programs are made of |
 | every crate | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`: no binding of libmpv or libav anywhere in the workspace (the script checks every crate in `crates/` and `plugins/` and `Cargo.lock`), and `dev/no-linked-codecs.sh` reads `ldd` of the built binary for `libmpv` and `libav*` |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/` and `plugins/`) |
@@ -548,7 +553,9 @@ Precedence, applied by `Plugins::resolve` and never dependent on the order the d
 
 `Plugins::route` turns a request into `Route::Served(plugin)`, `Route::Missing(MissingPlugin)` (no plugin
 serves it, and the static table in `missing.rs` names a package: `anyview-ffmpeg` for probing, peeking,
-thumbnails, frames and exports of video and audio, `anyview-mpv` for playing them) or `Route::Unserved`.
+thumbnails, frames and exports of video and audio, `anyview-mpv` for playing them, and by media type
+`anyview-heif` for `image/heic` and `image/avif` and `anyview-raw` for `image/x-dcraw`: a PNG needs no plugin and
+is `Unserved`) or `Route::Unserved`.
 `MissingPlugin::fact` is the `Needs` row a facts card lists. `export_targets` lists what an export sheet
 may offer: each target of each installed plugin that exports the kind, once.
 
@@ -730,6 +737,42 @@ filled in, as `<prefix>/share/anyview/plugins/ffmpeg.toml`; `uninstall.sh` remov
 covers it. The plugin tests spawn the built program through `PluginRunner` against the media crate's fixtures,
 using the shipped template.
 
+### The picture plugins
+
+`plugins/anyview-heif` and `plugins/anyview-raw` (binaries and package names of the same names) make pictures
+of what the viewer has no decoder for, over `plugins/anyview-tool-kit`. Each answers `decode` and `thumbnail`
+with raw RGBA (the protocol's `Image` frame), says in `hello` what this machine has (nothing when its tools
+are absent), and runs the person's own tools: it links no libheif and no LibRaw. Tools are found as a manifest
+argument (`--heif-dec`, `--heif-thumbnailer`, `--dcraw-emu`, `--dcraw`), then an environment variable
+(`ANYVIEW_HEIF_DEC`, `ANYVIEW_HEIF_THUMBNAILER`, `ANYVIEW_DCRAW_EMU`, `ANYVIEW_DCRAW`), then the search path;
+a named tool that is absent is never replaced by another. A tool runs with a deadline and is killed when the
+host sends `Cancel` or closes its pipe (the host also kills the plugin's process group when it gives up).
+
+| Plugin | Tools | Fedora, Debian | What it relies on |
+|---|---|---|---|
+| `anyview-heif` | `heif-dec` (libheif 1.17 and later) or `heif-convert`, and `heif-thumbnailer` | `libheif-tools`, `libheif-examples` | `<tool> <input> <dir>/out.png`; the first of `out.png`, `out-1.png`… is the primary picture. libheif applies `irot` and `imir` by default, so the PNG is upright and nothing more is applied. A thumbnail is `heif-thumbnailer -s <edge>`, else a scaled decode |
+| `anyview-raw` | LibRaw's `dcraw_emu`, else `dcraw` | `LibRaw-samples` (and `dcraw`), `libraw-bin` (and `dcraw`) | `dcraw_emu -w` on a symbolic link in a scratch folder (it writes beside its input), reading the 8-bit PPM it writes; `dcraw -c -w` writes to standard output. The thumbnail is the embedded preview (`-e`), else a scaled development |
+
+Acceptance of both against real tools is still to do: the tests run stand-in scripts for the tools.
+
+**How the viewer routes a decode.** `anyview_ui::ImagePlugins` is the seam (`Edge::with_image_plugins`, carried
+on `OpenLink`); the binary's `host::ImageHost` implements it over the registry: `Plugins::route(Decode, subject)`
+is `Served` (it asks the plugin with `PluginRunner::decode`, on the worker that opens the file, never the UI
+thread), `Missing` (a `Needs` row naming the package) or `Unserved`. A plugin that is installed whose tools are
+not says so in `hello`, and the row names the tools. The raster back end asks it for HEIC (and AVIF in a build
+without its own decoder): pixels become the picture, `Missing` becomes a card of the file's facts and the `Needs`
+row (`RasterDoc::needs`, shown like a recording without a player), and `Unserved` stays the old
+`Unsupported` error.
+
+**A raw file** is shown without any plugin from the JPEG preview inside it: `anyview_image` finds every baseline
+or progressive JPEG stream in the file by its markers (a tag walk would differ by maker), checks each to its end,
+and takes the one with the most pixels, so the sensor data (lossless JPEG) is never taken for a preview. That
+covers the TIFF-based raws (CR2, NEF, ARW, DNG, ORF, RW2, PEF, SRW…) and Canon's CR3 (an ISO media file with the
+preview in a box); a raw whose only preview is not JPEG shows no picture and needs the plugin. Orientation is the
+preview's own EXIF orientation, else the one in the raw file's first IFD. The stage shows that preview as its
+first frame at once; when the RAW plugin is installed and works its full development replaces it, and when it
+is missing the preview stays, with a `Needs: anyview-raw (to show it in full quality)` row.
+
 ## 2m. Processes, and what to install
 
 The viewer links no codec and no copyleft code: video and audio are played and probed by programs the person
@@ -746,6 +789,8 @@ anyview                          the viewer: windows, the media thread, the pool
 |                     into the window's wgpu texture
 |           commands  a Unix socket: load, seek, properties, events, screenshots
 |
++-- anyview-heif, anyview-raw    the picture plugins: one process for each decode or thumbnail; they run
+|     |                          the person's heif-dec / dcraw_emu on a scratch folder and read the PNG or PPM
 +-- anyview-ffmpeg               the FFmpeg plugin: one process for each request (facts, thumbnail, export),
       |                          killed when the call returns or is dropped; protocol v1 over its pipes
       +-- ffprobe, ffmpeg        the person's own, run by the plugin; progress on a pipe
@@ -762,6 +807,11 @@ plugins: `dist/install.sh --with-plugin mpv --with-plugin ffmpeg`, which builds 
 checkout (`MPV_WGPU_DIR`, default `../mpv`) and the FFmpeg plugin, finds `mpv` on the search path when it runs
 (`--mpv PATH` names another) and writes `mpv.toml` and `ffmpeg.toml` under `<prefix>/share/anyview/plugins`.
 Distribution packages are named `anyview-mpv` and `anyview-ffmpeg`.
+
+Pictures the viewer cannot decode work the same way: a HEIC opens as its facts with a `Needs: anyview-heif` row
+until `dist/install.sh --with-plugin heif` and the distribution's libheif tools are there, and a raw file shows
+its embedded preview with a `Needs: anyview-raw` row until `--with-plugin raw` and LibRaw's `dcraw_emu` (or
+`dcraw`) are installed. Distribution packages: `anyview-heif` and `anyview-raw`.
 
 ## 2n. Modules inside `anyview-export`
 
@@ -1281,7 +1331,7 @@ map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands th
 `dist/uninstall.sh` (sharing `dist/lib.sh`) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
 `$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in, and so is each plugin
-(`--with-plugin ffmpeg`, `--with-plugin mpv`; section 2m). The mpv plugin's manifest template is
+(`--with-plugin ffmpeg`, `--with-plugin heif`, `--with-plugin raw`, `--with-plugin mpv`; section 2m). The mpv plugin's manifest template is
 `dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
 C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
 `cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools.

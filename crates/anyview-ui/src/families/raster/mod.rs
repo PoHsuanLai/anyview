@@ -48,6 +48,7 @@ impl StageView for RasterStageView {
             source: src.clone(),
             sniffed: sniffed.clone(),
             texture: link.texture.clone(),
+            plugins: Arc::clone(&link.image_plugins),
         };
         let done = <RasterBackend as crate::io::Backend>::run(
             &target,
@@ -107,6 +108,9 @@ impl StageView for RasterStageView {
     }
 
     fn slots(doc: &RasterDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+        if doc.needs.is_some() {
+            return Vec::new();
+        }
         use crate::StageCommand::{ZoomIn, ZoomOut};
         use anyview_core::FileAction::{RotateLeft, RotateRight};
         let percent = match (&cx.stage, cx.area) {

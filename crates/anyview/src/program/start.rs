@@ -4,8 +4,8 @@ use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::host::{
-    Appearances, CachedPictures, Clock, Hosting, LinuxDesktop, Media, SETTLE, Services, Store,
-    Watcher,
+    Appearances, CachedPictures, Clock, Hosting, ImageHost, LinuxDesktop, Media, SETTLE, Services,
+    Store, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -131,6 +131,7 @@ fn show(
             rejected.error
         );
     }
+    let image_host = ImageHost::new(found.plugins.clone(), PluginRunner::default());
     let plugins = Arc::new(MediaPlugins::new(found.plugins, PluginRunner::default()));
     let hub = MediaHub::start(
         runtime.handle(),
@@ -174,7 +175,8 @@ fn show(
         appearances,
         Arc::new(PlayerHost::new(hub.clone())),
         Arc::new(NoStacking),
-    );
+    )
+    .with_image_plugins(Arc::new(image_host));
     runtime.spawn(open_windows(inbox, app.clone(), factory, hub.clone()));
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
