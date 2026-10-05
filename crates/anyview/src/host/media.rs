@@ -7,9 +7,9 @@ use anyview_core::{
     AudioTarget, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MediaExport,
     RasterTarget, Resume, SniffStep, StreamPick, Subtitles, sniff,
 };
-use anyview_export::free_beside;
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
 use anyview_plugin::Subject;
+use anyview_store::free_beside;
 use anyview_ui::Probed;
 use ds::prelude::Word;
 use std::path::PathBuf;
@@ -93,7 +93,7 @@ async fn transcode(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
             Err(error) => return Outcome::Failed(format!("a task panicked: {error}")),
         }
     };
-    let to = match anyview_media::output_path(source, &job, &hints, |path| !path.exists()) {
+    let to = match anyview_media::output_path(source, &job, &hints, anyview_store::is_free) {
         Ok(to) => to,
         Err(error) => return Outcome::Failed(format!("cannot name the export: {error}")),
     };

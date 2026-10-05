@@ -12,6 +12,7 @@ publish.workspace = true
 anyview-core = { workspace = true }
 anyview-image = { workspace = true }
 anyview-pdf = { workspace = true }
+anyview-store = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
 # `pdf`: a Markdown, code or text document printed to a vector PDF.
