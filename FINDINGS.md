@@ -48,7 +48,12 @@ on. It is a reference, not a log: how each was found lives in git history.
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
   into memory up to the same number of bytes, so a tarball larger than that lists its first entries with a
-  lower-bound count. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
+  lower-bound count. A 7z's header is checked against the file's length, a count limit (500 000 entries) and
+  a byte limit (32 MiB, and 256 MiB of LZMA dictionary) before the 7z crate sees it, an encoded header being
+  unpacked inside that limit for the check; `sevenz-rust2` has the same allocate-then-read sites as the crate it
+  replaced, so the check is ours. An XLS (whose grid the format limits to 65 536 by 256 cells, about 540 MB of
+  cells at the worst) and an ODS are read whole by calamine; XLSX and XLSB are streamed. The bytes of a sheet
+  part that hold no cell are bounded by time only. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
   deadline and a listing can stream a tar without holding it.
 - **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
   zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry

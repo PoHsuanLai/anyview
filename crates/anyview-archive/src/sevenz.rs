@@ -3,8 +3,9 @@
 use crate::entry::{Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep};
 use crate::error::ArchiveError;
 use crate::limit::Limited;
+use crate::sevenz_header::{self, Fault};
 use anyview_core::{ArchiveFormat, ByteLen};
-use sevenz_rust::{Error, Password, SevenZReader};
+use sevenz_rust2::{ArchiveReader, Error, Password};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -17,13 +18,9 @@ pub(crate) fn list(
     limit: EntryLimit,
     budget: ByteLen,
 ) -> Result<Listing, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
-    let len = file
-        .metadata()
-        .map_err(|e| ArchiveError::read(path, &e))?
-        .len();
+    let file = open_checked(path, budget)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
-    let archive = match SevenZReader::new(reader, len, Password::empty()) {
+    let archive = match ArchiveReader::new(reader, Password::empty()) {
         Ok(reader) => reader,
         Err(_) if hit.happened() => return Err(ArchiveError::OverBudget { allowed: budget }),
         Err(error) => return Err(error_of(&error)),
@@ -48,14 +45,26 @@ pub(crate) fn list(
     Ok(tally.finish(FORMAT, Holds::Entries, seen))
 }
 
-/// The bytes of the entry called `name`, at most `allowed` of them.
-pub(crate) fn extract(path: &Path, name: &str, allowed: ByteLen) -> Result<Vec<u8>, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+/// The 7z at `path`, open, once its header has been checked against the file and
+/// `budget`: the crate sizes buffers from what the header says, so a header that lies must not
+/// reach it.
+fn open_checked(path: &Path, budget: ByteLen) -> Result<File, ArchiveError> {
+    let mut file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
     let len = file
         .metadata()
         .map_err(|e| ArchiveError::read(path, &e))?
         .len();
-    let mut archive = SevenZReader::new(BufReader::new(file), len, Password::empty())
+    match sevenz_header::check(&mut file, len, budget.0) {
+        Ok(()) => Ok(file),
+        Err(Fault::Large) => Err(ArchiveError::OverBudget { allowed: budget }),
+        Err(Fault::Broken(reason)) => Err(ArchiveError::malformed(FORMAT, reason)),
+    }
+}
+
+/// The bytes of the entry called `name`, at most `allowed` of them.
+pub(crate) fn extract(path: &Path, name: &str, allowed: ByteLen) -> Result<Vec<u8>, ArchiveError> {
+    let file = open_checked(path, ByteLen(u64::MAX))?;
+    let mut archive = ArchiveReader::new(BufReader::new(file), Password::empty())
         .map_err(|error| error_of(&error))?;
     let mut found: Option<Result<Vec<u8>, ArchiveError>> = None;
     let walked = archive.for_each_entries(|entry, reader| {
