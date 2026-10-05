@@ -26,7 +26,7 @@ ds = { workspace = true }
 # reached only through it.
 ds-blitz = { workspace = true, features = ["pdf"] }
 thiserror = { workspace = true }
-# The `media` feature: pure-Rust readers of a recording's header (never a decoder, never libav).
+# The `media` feature: pure-Rust readers of a recording's header (never a decoder).
 matroska-demuxer = { workspace = true, optional = true }
 mp4parse = { workspace = true, optional = true }
 symphonia = { workspace = true, optional = true }

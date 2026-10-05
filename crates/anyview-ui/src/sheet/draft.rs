@@ -6,6 +6,7 @@
 //! for nothing. The four `ExportChoice` types are a closed set, so they are an enum, and the one
 //! generic function below does for each of them what the trait is for.
 
+use super::offer::MediaOffer;
 use anyview_core::{
     ExportChoice, MediaExport, MediaExportKind, PdfExport, PdfExportKind, RasterExport,
     RasterExportKind, TextExport, TextExportKind,
@@ -53,13 +54,14 @@ pub enum ExportKindPick {
 
 impl ExportDraft {
     /// The draft the sheet opens on for `family`: its first kind with that kind's default
-    /// options. `None` for a family with no kinds.
+    /// options. `None` for a family with no kinds, and for media, whose kinds depend on what is
+    /// installed (`MediaOffer::first`).
     pub fn first_of(family: ExportFamily) -> Option<ExportDraft> {
         match family {
             ExportFamily::Raster => first::<RasterExport>().map(ExportDraft::Raster),
             ExportFamily::Pdf => first::<PdfExport>().map(ExportDraft::Pdf),
             ExportFamily::Text => first::<TextExport>().map(ExportDraft::Text),
-            ExportFamily::Media => first::<MediaExport>().map(ExportDraft::Media),
+            ExportFamily::Media => None,
         }
     }
 
@@ -128,6 +130,22 @@ impl ExportDraft {
             ExportDraft::Text(_) => listed::<TextExport>(ExportKindPick::Text),
             ExportDraft::Media(_) => listed::<MediaExport>(ExportKindPick::Media),
         }
+    }
+}
+
+impl ExportDraft {
+    /// [`ExportDraft::choices`] without the media kinds `offer` does not hold; another format's
+    /// list is whole.
+    pub fn choices_within(self, offer: &MediaOffer) -> Vec<(ExportKindPick, &'static str)> {
+        self.choices()
+            .into_iter()
+            .filter(|(pick, _)| match pick {
+                ExportKindPick::Media(kind) => offer.offers(*kind),
+                ExportKindPick::Raster(_) | ExportKindPick::Pdf(_) | ExportKindPick::Text(_) => {
+                    true
+                }
+            })
+            .collect()
     }
 }
 

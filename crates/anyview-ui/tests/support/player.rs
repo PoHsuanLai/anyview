@@ -2,12 +2,13 @@
 //! the window told it, and a picture it uploads stands for the video.
 #![allow(dead_code, clippy::unwrap_used)]
 
-use anyview_core::{FilePath, MediaTags};
+use anyview_core::{Fact, FactLabel, FactValue, FilePath, MediaExportKind, MediaTags};
 use anyview_ui::{
-    MediaHost, MediaLine, MediaNotice, MediaStart, MediaStarted, MediaWake, OpenError,
-    PlayerCommand, SlotPixels,
+    MediaHost, MediaLine, MediaNotice, MediaOffer, MediaPlayback, MediaStart, MediaStarted,
+    MediaWake, OpenError, PlayerCommand, SlotPixels,
 };
 use ds_blitz::{PixelFormat, Pixels};
+use ds_core::word::Word;
 use std::sync::{Arc, Mutex, Weak};
 
 /// One started player.
@@ -60,6 +61,8 @@ pub enum Answer {
     Plays,
     /// The player cannot be made.
     Refuses,
+    /// No plugin plays recordings: the file opens as its facts and the package that would play it.
+    Missing,
 }
 
 /// Starts [`FakeLine`]s and remembers them, weakly: a player the window let go of is gone.
@@ -68,6 +71,7 @@ pub struct FakePlayer {
     started: Mutex<Vec<Weak<FakeLine>>>,
     answer: Mutex<Answer>,
     tags: Mutex<MediaTags>,
+    offer: Mutex<Option<MediaOffer>>,
 }
 
 impl FakePlayer {
@@ -80,6 +84,12 @@ impl FakePlayer {
     /// What the next player says its file is called.
     pub fn tagged(self: &Arc<Self>, tags: MediaTags) -> Arc<FakePlayer> {
         *self.tags.lock().unwrap() = tags;
+        Arc::clone(self)
+    }
+
+    /// The exports the host offers for what it starts; every media kind when none is set.
+    pub fn offering(self: &Arc<Self>, offer: MediaOffer) -> Arc<FakePlayer> {
+        *self.offer.lock().unwrap() = Some(offer);
         Arc::clone(self)
     }
 
@@ -118,8 +128,28 @@ fn gradient() -> Vec<u8> {
 
 impl MediaHost for FakePlayer {
     fn start(&self, start: MediaStart) -> Result<MediaStarted, OpenError> {
-        if *self.answer.lock().unwrap() == Answer::Refuses {
-            return Err(OpenError::Media("no player".to_owned()));
+        let offer = self
+            .offer
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| MediaOffer::new(MediaExportKind::ALL.to_vec(), None));
+        match *self.answer.lock().unwrap() {
+            Answer::Plays => {}
+            Answer::Refuses => return Err(OpenError::Media("no player".to_owned())),
+            Answer::Missing => {
+                return Ok(MediaStarted {
+                    playback: MediaPlayback::Missing(Fact {
+                        label: FactLabel::Needs,
+                        value: FactValue::text("anyview-mpv (to play it)"),
+                    }),
+                    offer,
+                    tags: self.tags.lock().unwrap().clone(),
+                    facts: anyview_core::Facts::empty()
+                        .with(FactLabel::Codec, FactValue::text("h264")),
+                    length: None,
+                });
+            }
         }
         let bytes = gradient();
         if let Ok(pixels) = Pixels::new(PixelFormat::Rgba8Premultiplied, 64, 36, &bytes) {
@@ -134,7 +164,8 @@ impl MediaHost for FakePlayer {
         });
         self.started.lock().unwrap().push(Arc::downgrade(&line));
         Ok(MediaStarted {
-            line,
+            playback: MediaPlayback::Line(line),
+            offer,
             tags: self.tags.lock().unwrap().clone(),
             facts: anyview_core::Facts::empty(),
             length: None,

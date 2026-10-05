@@ -1,14 +1,15 @@
-//! What the binary lends the window to play recordings with. The player (libmpv, its thread and
+//! What the binary lends the window to play recordings with. The player (mpv, its thread and
 //! its texture) is the binary's: the window asks `MediaHost` to start one for a file, holds the
 //! `MediaLine` it gets back, sends it the stage machine's commands and reads what it reports.
 //! Nothing here names a player, so the views and the machines stay free of it.
 
 use super::workers::Reply;
+use crate::sheet::MediaOffer;
 use crate::stage::{MediaError, PlayerCommand, PlayerEvent};
 use crate::{Done, OpenError, Ticket};
 use anyview_core::{
-    Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Speed,
-    VideoPresence,
+    Fact, Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed,
+    Source, Speed, VideoPresence,
 };
 use ds_blitz::TextureHandle;
 use std::fmt::Debug;
@@ -73,6 +74,11 @@ impl Debug for MediaWake {
 pub struct MediaStart {
     /// The recording.
     pub file: FilePath,
+    /// The file as the load read it: what the host reads the recording's facts from when no
+    /// plugin does.
+    pub source: Source,
+    /// What the load found the file to be.
+    pub sniffed: Sniffed,
     /// Where the picture is shown. The player's thread updates it and asks for a redraw.
     pub texture: TextureHandle,
     /// How the player tells the window it has news.
@@ -89,11 +95,23 @@ pub trait MediaLine: Debug + Send + Sync + 'static {
     fn drain(&self) -> Vec<MediaNotice>;
 }
 
-/// A player that was started.
+/// How a recording plays, or why it does not.
+#[derive(Debug, Clone)]
+pub enum MediaPlayback {
+    /// A player was started; this is the line to it.
+    Line(Arc<dyn MediaLine>),
+    /// No plugin plays recordings: the row names the package that would. The recording is shown
+    /// as its facts.
+    Missing(Fact),
+}
+
+/// What opening a recording came to.
 #[derive(Debug, Clone)]
 pub struct MediaStarted {
-    /// The line to it.
-    pub line: Arc<dyn MediaLine>,
+    /// The player's line, or the package that would play it.
+    pub playback: MediaPlayback,
+    /// The media exports on offer for it.
+    pub offer: MediaOffer,
     /// What the file says of itself.
     pub tags: MediaTags,
     /// The facts the host read: how long it runs, its streams and codecs.
@@ -130,13 +148,16 @@ impl MediaPort {
     pub(crate) fn start(
         &self,
         ticket: Ticket,
-        file: FilePath,
+        source: &Source,
+        sniffed: &Sniffed,
         texture: TextureHandle,
     ) -> Result<MediaStarted, OpenError> {
         let reply = self.reply.clone();
         let wake = MediaWake::new(move || reply.post(Done::Media { ticket }));
         self.host.start(MediaStart {
-            file,
+            file: source.path().clone(),
+            source: source.clone(),
+            sniffed: sniffed.clone(),
             texture,
             wake,
         })

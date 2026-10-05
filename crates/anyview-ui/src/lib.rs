@@ -42,8 +42,8 @@ pub use families::{
 };
 pub use io::{
     Backend, Done, Edge, FirstFrameSource, HostRequest, Job, MediaHost, MediaLine, MediaNotice,
-    MediaStart, MediaStarted, MediaWake, OpenError, OpenLink, Preloaded, Probed, Reply,
-    ResumeSource, SlotPixels, Stop, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink, Preloaded, Probed,
+    Reply, ResumeSource, SlotPixels, Stop, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -56,7 +56,9 @@ pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
 pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
-pub use sheet::{ExportDraft, ExportFamily, ExportKindPick, Sheet, SheetIn, SheetOut};
+pub use sheet::{
+    ExportDraft, ExportFamily, ExportKindPick, MediaOffer, Sheet, SheetIn, SheetOut, SheetParams,
+};
 pub use stage::{
     AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameIndex,
     HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaError, MediaIn, MediaOut, MediaParams,

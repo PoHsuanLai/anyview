@@ -1,10 +1,10 @@
-//! A recording's peek without libav: what sniffing established, plus the size and date every pane
+//! A recording's peek without the header readers: what sniffing established, plus the size and date every pane
 //! lists. No duration, no codec, no cover; nothing is pretended.
 
 use crate::described::{Described, Describes, FactsPeek};
 use anyview_core::FormatKind;
 
-/// What a recording's peek holds without libav: the words for the file's type.
+/// What a recording's peek holds without the header readers: the words for the file's type.
 pub type MediaLook = Described;
 
 /// The kind `Video`.

@@ -91,8 +91,9 @@ pub struct DecodeRequest {
 pub struct MicroRange {
     /// Where it starts.
     pub start: u64,
-    /// Where it ends.
-    pub end: u64,
+    /// Where it ends; the end of the recording when absent.
+    #[serde(default)]
+    pub end: Option<u64>,
 }
 
 /// `Export`: write `input` to `output` as the manifest's target `target`.
@@ -242,6 +243,21 @@ mod tests {
             let back: HostMessage = serde_json::from_str(json).unwrap();
             assert_eq!(back, message, "{name}");
         }
+    }
+
+    #[test]
+    fn a_range_with_no_end_reads_as_to_the_end() {
+        let json = r#"{"kind":"export","v":{"input":"/i","output":"/o","target":"trim","range":{"start":1500000}}}"#;
+        let HostMessage::Export(request) = serde_json::from_str(json).unwrap() else {
+            panic!("an export");
+        };
+        assert_eq!(
+            request.range,
+            Some(MicroRange {
+                start: 1_500_000,
+                end: None
+            })
+        );
     }
 
     #[test]

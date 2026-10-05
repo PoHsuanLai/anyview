@@ -89,7 +89,7 @@ fn an_audio_range_keeps_only_that_span() {
     let mut asked = request(&fixture("tone.flac"), &output, "flac");
     asked.range = Some(MicroRange {
         start: 500_000,
-        end: 1_500_000,
+        end: Some(1_500_000),
     });
     run(&scratch, &asked).0.unwrap();
     let (_, seconds) = codec_and_duration(&output);
@@ -127,7 +127,7 @@ fn a_trim_begins_on_a_keyframe_at_time_zero_and_ends_at_the_end_asked() {
     let mut asked = request(&fixture("clip.mkv"), &output, "trim");
     asked.range = Some(MicroRange {
         start: 1_500_000,
-        end: 2_500_000,
+        end: Some(2_500_000),
     });
     let (done, _) = run(&scratch, &asked);
     done.unwrap();

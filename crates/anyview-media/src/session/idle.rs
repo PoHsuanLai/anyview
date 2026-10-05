@@ -1,6 +1,6 @@
 //! The session before a file is given.
 
-use super::{Idle, Opening, Session, fault, options::AudioDriver};
+use super::{Idle, MpvHost, Opening, Session, fault, options::AudioDriver};
 use crate::error::MediaError;
 use anyview_core::FilePath;
 
@@ -15,19 +15,22 @@ pub struct Refused {
 }
 
 impl Session<Idle> {
-    /// A player on the window's `device` and `queue` that plays its sound on `audio`.
+    /// A player on the window's `device` and `queue` that plays its sound on `audio`, with mpv run
+    /// as `host` says.
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         audio: AudioDriver,
+        host: &MpvHost,
     ) -> Result<Session<Idle>, MediaError> {
         let options = mpv_wgpu_player::PlayerOptions {
             audio_output: audio.output(),
         };
-        let player = mpv_wgpu_player::Player::new(device, queue, options).map_err(fault)?;
+        let player = mpv_wgpu_player::Player::with_host(device, queue, options, host.host())
+            .map_err(fault)?;
         Ok(Session {
             player,
-            state: Idle,
+            _state: Idle,
         })
     }
 

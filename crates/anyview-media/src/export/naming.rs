@@ -2,8 +2,6 @@
 //! which names are taken (a closure), so this reads no directory.
 
 use crate::MediaError;
-use crate::libav::file_path;
-use crate::probe::MediaProbe;
 use anyview_core::{AudioTarget, ExportJob, FilePath, MediaContainer, StreamPick};
 use ds_core::word::Word;
 use std::path::Path;
@@ -11,13 +9,23 @@ use std::path::Path;
 /// How many names are tried before giving up.
 const TRIES: u32 = 10_000;
 
+/// What the name of a written file depends on besides the source's own name: the codec of the
+/// audio a copy keeps (it decides the extension) and the container of a file with no extension.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NameHints {
+    /// The container the file is in, when it is one the viewer lists.
+    pub container: Option<MediaContainer>,
+    /// The codec of the audio track, as FFmpeg names it (`aac`, `flac`, `pcm_s16le`...).
+    pub audio_codec: Option<String>,
+}
+
 /// The path an export of `job` is written to: `<stem> trimmed.<ext>` for a trim, which keeps the
 /// source's extension, and `<stem>.<ext>` for audio, with the extension its codec takes. A taken
 /// name (`free` says `false`) gets ` 2`, ` 3`, … before the extension.
 pub fn output_path(
     source: &FilePath,
     job: &ExportJob,
-    probe: &MediaProbe,
+    hints: &NameHints,
     free: impl Fn(&Path) -> bool,
 ) -> Result<FilePath, MediaError> {
     let ExportJob::Transcode { streams, audio, .. } = job else {
@@ -36,10 +44,10 @@ pub fn output_path(
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .map(str::to_owned)
-                .or_else(|| container_extension(probe.container))
+                .or_else(|| container_extension(hints.container))
                 .unwrap_or_else(|| "mkv".to_owned()),
         ),
-        StreamPick::AudioOnly => (stem.to_owned(), audio_extension(*audio, probe)),
+        StreamPick::AudioOnly => (stem.to_owned(), audio_extension(*audio, hints)),
     };
     let folder = source.parent().ok_or_else(|| MediaError::Io {
         op: "name",
@@ -58,15 +66,21 @@ pub fn output_path(
             path: folder.as_path().to_path_buf(),
             kind: std::io::ErrorKind::AlreadyExists,
         })
-        .and_then(|path| file_path(&path))
+        .and_then(|path| {
+            FilePath::new(&path).map_err(|_| MediaError::Io {
+                op: "name",
+                path,
+                kind: std::io::ErrorKind::InvalidInput,
+            })
+        })
 }
 
 /// The extension of the file audio is written as: fixed for a re-encode, and for a copy the one
 /// the track's codec lives in.
-fn audio_extension(target: AudioTarget, probe: &MediaProbe) -> String {
+fn audio_extension(target: AudioTarget, hints: &NameHints) -> String {
     match target {
         AudioTarget::Copy => {
-            let codec = probe.audio.as_ref().map(|audio| audio.codec.as_str());
+            let codec = hints.audio_codec.as_deref();
             match codec {
                 Some("aac" | "alac") => "m4a".to_owned(),
                 Some("mp3") => "mp3".to_owned(),
@@ -75,7 +89,7 @@ fn audio_extension(target: AudioTarget, probe: &MediaProbe) -> String {
                 Some("opus") => "opus".to_owned(),
                 Some(pcm) if pcm.starts_with("pcm_") => "wav".to_owned(),
                 Some(_) | None => {
-                    container_extension(probe.container).unwrap_or_else(|| "mka".to_owned())
+                    container_extension(hints.container).unwrap_or_else(|| "mka".to_owned())
                 }
             }
         }
@@ -94,24 +108,12 @@ fn container_extension(container: Option<MediaContainer>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::probe::AudioFacts;
-    use anyview_core::{Bitrate, MediaTags, TimeRange};
+    use anyview_core::{Bitrate, TimeRange};
 
-    fn probe(codec: Option<&str>, container: Option<MediaContainer>) -> MediaProbe {
-        MediaProbe {
-            length: None,
+    fn probe(codec: Option<&str>, container: Option<MediaContainer>) -> NameHints {
+        NameHints {
             container,
-            tags: MediaTags::default(),
-            video: None,
-            audio: codec.map(|codec| AudioFacts {
-                codec: codec.to_owned(),
-                channels: 2,
-                sample_rate: 44_100,
-                bitrate: None,
-            }),
-            tracks: Vec::new(),
-            chapters: Vec::new(),
-            cover: None,
+            audio_codec: codec.map(str::to_owned),
         }
     }
 
@@ -127,7 +129,7 @@ mod tests {
     #[test]
     fn an_export_is_named_beside_its_source_by_what_it_holds() {
         let mp3 = AudioTarget::Mp3(Bitrate::from_kbps(128));
-        let cases: Vec<(&str, &str, ExportJob, MediaProbe, &str)> = vec![
+        let cases: Vec<(&str, &str, ExportJob, NameHints, &str)> = vec![
             (
                 "trim",
                 "/v/clip.mkv",

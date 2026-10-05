@@ -281,15 +281,31 @@ remembers.
   with each other, not that the renderer draws them or that a keystroke arrives.
 - **Report honestly.** A failing test reported as passing costs more than the bug did.
 
-## 15. Borrowing from other projects
+## 15. Run, never link
 
-Every repo is `MIT OR Apache-2.0`, and the licence of what you read decides what you may do
-with it (quire's `docs/licensing-references.md` has the verified table):
+Every repo is `MIT OR Apache-2.0`. Copyleft and codec code is never linked into what we ship and never
+pasted into it: it lives in separate-process plugins that use the person's own distro tools. The licence
+of what you read or depend on decides which:
 
-- **Permissive** (MIT, Apache-2.0, BSD, 0BSD): code may be copied, with attribution.
-- **Weak copyleft** (MPL, LGPL): link freely, never paste. MPL's unit is the file: paste one
-  function and that file becomes MPL, and the crate's licence claim becomes false.
-- **Strong copyleft** (GPL, AGPL, EUPL): read for facts, never paste.
+- **Permissive** (MIT, Apache-2.0, BSD, 0BSD): code may be copied, with attribution, and linked.
+- **MPL** (file-level copyleft): a crate may be depended on, unmodified, from the registry; never paste. MPL's
+  unit is the file: paste one function and that file becomes MPL, and the crate's licence claim becomes false.
+- **LGPL, GPL, AGPL, EUPL** and anything whose licence cannot be verified: never link, never paste, read for
+  facts only. "LGPL, so linking is fine" is not a position we hold: upstream libav and libmpv are LGPL, but the
+  builds distributions ship are GPL (Fedora's `libavcodec-free` is GPL-3.0-or-later, `mpv-libs` is
+  GPL-2.0-or-later), and a binding to a codec library also puts the patent-encumbered codecs in our binary.
+
+**A thing we may not link is a plugin.** It is a separate executable the person installs, which uses their
+own distro's mpv and FFmpeg and talks to the viewer over arm's-length IPC: a pipe, or a socket and shared
+memory. Never a `dlopen`ed library of ours or theirs: the C plugin of mpv-wgpu is loaded by the person's `mpv`,
+not by us, and holds no mpv code. A crash, a hang or a lie of a plugin is an event and costs one request; it
+never takes the viewer down. Which package adds a missing plugin is named in the viewer (`Needs: anyview-mpv`),
+never silently absent.
+
+**The boundary is mechanical.** `scripts/check-boundary.sh` forbids `rsmpv`, `rsmpv-sys`, `ffmpeg-next` and
+`ffmpeg-sys-next` in every crate's tree and in the lockfile, and `dev/no-linked-codecs.sh` reads `ldd` of the
+built viewer for `libmpv` and `libav*`. `cargo deny check licenses` holds no exception for a crate that binds a
+codec library: there is none to except.
 
 **Note-and-close.** Read the source, reduce what you learned to a sentence about observable
 behaviour, close the file, implement from the sentence. If it fits in that sentence, it is a
