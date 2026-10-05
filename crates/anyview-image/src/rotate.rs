@@ -7,7 +7,8 @@
 
 use crate::error::ImageError;
 use crate::exif::{ExifFacts, with_orientation};
-use anyview_core::QuarterTurn;
+use crate::orientation::ExifOrientation;
+use anyview_core::{Axis, QuarterTurn};
 use std::ops::Range;
 
 const EXIF_PREFIX: &[u8] = b"Exif\0\0";
@@ -106,7 +107,21 @@ pub fn rotate_jpeg(file: &[u8], turn: QuarterTurn) -> Result<Vec<u8>, ImageError
     if turn == QuarterTurn::None {
         return Ok(file.to_vec());
     }
-    let target = ExifFacts::read(file).orientation.turned(turn);
+    reoriented(file, |now| now.turned(turn))
+}
+
+/// `file`, a JPEG, displayed mirrored across `axis` on top of whatever orientation it already
+/// has, with the same promise as [`rotate_jpeg`]: only the orientation entry changes.
+pub fn flip_jpeg(file: &[u8], axis: Axis) -> Result<Vec<u8>, ImageError> {
+    reoriented(file, |now| now.flipped(axis))
+}
+
+/// `file` with its orientation entry set to what `change` makes of the one it has.
+fn reoriented(
+    file: &[u8],
+    change: impl FnOnce(ExifOrientation) -> ExifOrientation,
+) -> Result<Vec<u8>, ImageError> {
+    let target = change(ExifFacts::read(file).orientation);
     match layout(file)? {
         Layout::Existing { segment, tiff } => {
             let patched = with_orientation(&file[tiff], target)?;
