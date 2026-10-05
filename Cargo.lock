@@ -373,6 +373,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-heif"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "anyview-platform",
+ "anyview-plugin",
+ "anyview-plugin-protocol",
+ "anyview-tool-kit",
+ "image",
+ "tempfile",
+]
+
+[[package]]
 name = "anyview-image"
 version = "0.1.0"
 dependencies = [
@@ -490,6 +503,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-raw"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "anyview-platform",
+ "anyview-plugin",
+ "anyview-plugin-protocol",
+ "anyview-tool-kit",
+ "image",
+ "tempfile",
+]
+
+[[package]]
 name = "anyview-store"
 version = "0.1.0"
 dependencies = [
@@ -512,6 +538,16 @@ dependencies = [
  "serde",
  "serde_json",
  "syntect",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "anyview-tool-kit"
+version = "0.1.0"
+dependencies = [
+ "anyview-plugin-protocol",
+ "image",
  "tempfile",
  "thiserror 2.0.21",
 ]

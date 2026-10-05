@@ -143,6 +143,36 @@ check "uninstall removes the plugin and leaves the staging tree empty" empty "$s
 check "uninstall names the plugin it removed" grep -q "remove $prefix/libexec/anyview/anyview-ffmpeg" "$scratch/plugin-uninstall.out"
 unset ANYVIEW_FFMPEG_PLUGIN_BIN
 
+# 6a. --with-plugin heif and raw: the same shape as ffmpeg's, each with its own manifest, and both together.
+for id in heif raw; do
+  printf '#!/bin/sh\necho fake plugin\n' >"$scratch/anyview-$id"
+  chmod +x "$scratch/anyview-$id"
+done
+export ANYVIEW_HEIF_PLUGIN_BIN="$scratch/anyview-heif" ANYVIEW_RAW_PLUGIN_BIN="$scratch/anyview-raw"
+for id in heif raw; do
+  manifest="$installed/share/anyview/plugins/$id.toml"
+  out="$(install --dry-run --with-plugin $id 2>&1)"
+  check "$id dry run names the program" grep -q "$prefix/libexec/anyview/anyview-$id" <<<"$out"
+  check "$id dry run names the manifest" grep -q "$prefix/share/anyview/plugins/$id.toml" <<<"$out"
+  check "$id dry run installs nothing" empty "$stage"
+  install --with-plugin $id >"$scratch/$id.out" 2>&1
+  check "the $id program is installed and executable" test -x "$installed/libexec/anyview/anyview-$id"
+  check "the $id manifest is the id's file" grep -qx "id = \"$id\"" "$manifest"
+  check "the $id manifest names the installed program, without DESTDIR" grep -qx "path = \"$prefix/libexec/anyview/anyview-$id\"" "$manifest"
+  check "no placeholder is left in the $id manifest" bash -c "! grep -q '@' $manifest"
+  check "the $id manifest provides decode and thumbnail" bash -c "grep -q 'capability = \"decode\"' $manifest && grep -q 'capability = \"thumbnail\"' $manifest"
+  check "$id installs no other plugin" test ! -e "$installed/libexec/anyview/anyview-ffmpeg"
+  check "staging the $id plugin registered nothing" test ! -s "$calls"
+  uninstall >"$scratch/$id-uninstall.out" 2>&1
+  check "uninstall removes the $id plugin and leaves the staging tree empty" empty "$stage"
+  check "uninstall names the $id program it removed" grep -q "remove $prefix/libexec/anyview/anyview-$id" "$scratch/$id-uninstall.out"
+done
+install --with-plugin heif --with-plugin raw >/dev/null 2>&1
+check "both picture plugins install together" bash -c "test -x $installed/libexec/anyview/anyview-heif && test -x $installed/libexec/anyview/anyview-raw"
+uninstall >/dev/null 2>&1
+check "uninstall removes both" empty "$stage"
+unset ANYVIEW_HEIF_PLUGIN_BIN ANYVIEW_RAW_PLUGIN_BIN
+
 # 6b. --with-plugin mpv installs the C plugin and a manifest naming the person's mpv: the one found on the
 # search path at install time, or the one --mpv names. It builds nothing here (ANYVIEW_MPV_CPLUGIN).
 printf '#!/bin/sh\necho fake cplugin\n' >"$scratch/libmpv_wgpu_cplugin.so"
