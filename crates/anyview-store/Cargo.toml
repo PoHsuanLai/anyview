@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+# Safe wrappers of renameat2 (no-replace renames), extended attributes, ownership and `kill(pid, 0)`.
+rustix = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
