@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # System libraries the build links (fontconfig, freetype, harfbuzz, libxml2, libpng, ...)
+      # and the tools the install test and the notices script use.
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libharfbuzz-dev libxml2-dev libpng-dev \
+            zlib1g-dev libbz2-dev liblzma-dev libglib2.0-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libdbus-1-dev \
+            mesa-vulkan-drivers libvulkan1 \
+            desktop-file-utils appstream python3
+
+      # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
+      - name: Toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      # Tests that need a GPU adapter, mpv, ffmpeg or a session bus skip themselves when it is
+      # missing (the suite builds its own scratch dirs and fake buses).
+      - name: Test
+        run: cargo test --workspace --locked --no-fail-fast
+
+      - name: Boundary and budgets
+        run: bash scripts/check-boundary.sh
+
+      - name: No linked codecs
+        run: bash dev/no-linked-codecs.sh
+
+      - name: Dependencies (advisories, bans, licenses, sources)
+        run: bash scripts/check-deny.sh
+
+      - name: Install test
+        run: bash dev/install-test.sh
+
+      - name: Metadata
+        run: |
+          desktop-file-validate dist/org.quire.Anyview.desktop
+          appstreamcli validate --no-net dist/org.quire.Anyview.metainfo.xml
+
+      - name: Notices are current
+        run: |
+          python3 scripts/third-party-notices.py "$RUNNER_TEMP/notices.md"
+          diff -q "$RUNNER_TEMP/notices.md" THIRD-PARTY-NOTICES.md
