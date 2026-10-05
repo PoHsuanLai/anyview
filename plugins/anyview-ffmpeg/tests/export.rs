@@ -384,7 +384,9 @@ fn a_host_that_gives_up_on_a_silent_export_kills_ffmpeg_with_the_plugin() {
     let plugin = scratch.install(&support::with_ffmpeg(&fake));
     let impatient = PluginRunner::new(Timeouts {
         hello: Duration::from_secs(5),
-        silence: Duration::from_millis(600),
+        // The host's silence clock starts when the plugin has said hello, so it also times the
+        // plugin starting ffmpeg: long enough that a machine at load average 50 has got there.
+        silence: Duration::from_secs(3),
         cancel_grace: Duration::from_millis(300),
     });
     let output = scratch.path("never.flac");
@@ -400,12 +402,21 @@ fn a_host_that_gives_up_on_a_silent_export_kills_ffmpeg_with_the_plugin() {
         matches!(error, PlatformError::PluginSilent { .. }),
         "{error:?}"
     );
-    let pid: u32 = std::fs::read_to_string(&pidfile)
-        .unwrap()
-        .trim()
-        .parse()
-        .unwrap();
-    let until = std::time::Instant::now() + Duration::from_secs(2);
+    let until = std::time::Instant::now() + Duration::from_secs(10);
+    let pid: u32 = loop {
+        // The script writes its pid as its first act; wait for it rather than assume it has.
+        match std::fs::read_to_string(&pidfile)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+        {
+            Some(pid) => break pid,
+            None if std::time::Instant::now() < until => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            None => panic!("ffmpeg never wrote {}", pidfile.display()),
+        }
+    };
+    let until = std::time::Instant::now() + Duration::from_secs(10);
     while alive(pid) && std::time::Instant::now() < until {
         std::thread::sleep(Duration::from_millis(20));
     }
