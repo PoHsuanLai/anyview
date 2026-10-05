@@ -119,11 +119,10 @@ mod tests {
 
     #[test]
     fn formats_without_a_decoder_are_unsupported() {
-        for format in [RasterFormat::Heic] {
-            assert_eq!(
-                raster_codec(format),
-                Err(ImageError::Unsupported { format })
-            );
-        }
+        let format = RasterFormat::Heic;
+        assert_eq!(
+            raster_codec(format),
+            Err(ImageError::Unsupported { format })
+        );
     }
 }
