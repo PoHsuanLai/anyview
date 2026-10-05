@@ -20,6 +20,10 @@ pub enum StoreOp {
     List,
     /// Deleting a file.
     Remove,
+    /// Reading a file's size, mode or real location.
+    Stat,
+    /// Giving a file the mode of the one it replaces.
+    Permissions,
 }
 
 /// Why the store could not read or write.
@@ -44,6 +48,12 @@ pub enum StoreError {
         path: PathBuf,
         /// The parser's description.
         reason: String,
+    },
+    /// No kept version has this id: it was pruned, or never kept.
+    #[error("no kept version {id:?}")]
+    NoSuchVersion {
+        /// The id, as it was asked for.
+        id: String,
     },
     /// A path that is not valid UTF-8 cannot be stored in JSON, so the file is not remembered.
     #[error("{path:?} is not valid UTF-8 and cannot be remembered")]
