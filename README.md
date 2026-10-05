@@ -21,3 +21,18 @@ dist/install.sh --with-plugin mpv --with-plugin ffmpeg      # [--mpv /path/to/mp
 The mpv plugin needs mpv-wgpu's C plugin built from a checkout (`MPV_WGPU_DIR`, default `../mpv`). Without the
 plugins a recording opens as its facts with the package that would play it named, and the export sheet says
 which package adds the recording formats. `dist/uninstall.sh` removes everything the installer wrote.
+
+## HEIC and camera raw files
+
+HEIC/HEIF (and AVIF in a build without its own decoder) and the full development of camera raw files go through
+two more plugins that run your own tools: `anyview-heif` (libheif's `heif-dec` or `heif-convert`; Fedora
+`libheif-tools`, Debian `libheif-examples`) and `anyview-raw` (LibRaw's `dcraw_emu` or `dcraw`; Fedora
+`LibRaw-samples`, Debian `libraw-bin`).
+
+```sh
+dist/install.sh --with-plugin heif --with-plugin raw
+```
+
+A camera raw file shows its embedded JPEG preview without any plugin (CR2, NEF, ARW, DNG, ORF, RW2 and the other
+TIFF-based formats, and CR3), with a `Needs: anyview-raw` row offering the full-quality development. A HEIC without
+the plugin opens as its facts with `Needs: anyview-heif`.

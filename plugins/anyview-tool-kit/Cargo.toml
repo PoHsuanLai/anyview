@@ -1,0 +1,19 @@
+[package]
+name = "anyview-tool-kit"
+description = "What the picture plugins (anyview-heif, anyview-raw) share: finding the person's own program, running it with a deadline and a cancel, reading the picture it wrote, and the plugin protocol's request loop. It runs programs and links no codec library."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-plugin-protocol = { workspace = true }
+# Reads the PNG, TIFF or PPM a tool wrote; pure Rust.
+image = { workspace = true, features = ["tiff", "pnm"] }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

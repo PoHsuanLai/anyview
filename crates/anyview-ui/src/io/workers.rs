@@ -7,7 +7,8 @@
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::seams::{
-    FirstFrameSource, Forgetful, NoPictures, NoVersions, ResumeSource, VersionSource,
+    FirstFrameSource, Forgetful, ImagePlugins, NoImagePlugins, NoPictures, NoVersions,
+    ResumeSource, VersionSource,
 };
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
@@ -173,6 +174,7 @@ pub struct Edge {
     versions: Arc<dyn VersionSource>,
     first_frames: Arc<dyn FirstFrameSource>,
     media: Arc<dyn MediaHost>,
+    image_plugins: Arc<dyn ImagePlugins>,
 }
 
 impl std::fmt::Debug for Edge {
@@ -198,6 +200,7 @@ impl Edge {
             versions: Arc::new(NoVersions),
             first_frames: Arc::new(NoPictures),
             media: Arc::new(NoPlayer),
+            image_plugins: Arc::new(NoImagePlugins),
         }
     }
 
@@ -236,6 +239,15 @@ impl Edge {
         }
     }
 
+    /// The same edge decoding pictures the viewer cannot (HEIC, raw files in full) through
+    /// `plugins`: without them a file only a plugin can show is shown as its facts.
+    pub fn with_image_plugins(self, plugins: Arc<dyn ImagePlugins>) -> Edge {
+        Edge {
+            image_plugins: plugins,
+            ..self
+        }
+    }
+
     /// Tell the window that `path` changed on disk. The window looks at the file's stamp and
     /// reloads it only if it differs from the one it opened, so a spurious event costs one stat.
     /// Callable from any thread, and a no-op once the window is gone.
@@ -270,6 +282,7 @@ impl Edge {
             texture,
             highlighter: Arc::clone(&self.highlighter),
             first_frames: Arc::clone(&self.first_frames),
+            image_plugins: Arc::clone(&self.image_plugins),
             media: None,
         }
     }

@@ -7,6 +7,7 @@ mod codec;
 mod colour;
 mod jxl;
 mod look;
+mod raw;
 mod stills;
 mod svg;
 
@@ -83,6 +84,7 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
             None => stills::still(bytes, format).map(|(picture, _)| Decoded::Still(picture)),
         },
         Codec::Jxl => jxl::decode(bytes).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::RawPreview => raw::decode(bytes).map(Decoded::Still),
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;
             let size = svg::view_size(document.intrinsic());
@@ -104,8 +106,9 @@ pub(crate) fn declared_size_of(
     bytes: &[u8],
     sniffed: &Sniffed,
 ) -> Result<Option<PixelSize>, ImageError> {
-    let Codec::Image(format) = codec_for(sniffed)? else {
-        return Ok(None);
+    let format = match codec_for(sniffed)? {
+        Codec::Image(format) => format,
+        Codec::Jxl | Codec::Svg | Codec::RawPreview => return Ok(None),
     };
     let size = stills::declared_size(bytes, format)?;
     if size.area() > MAX_DECODE_AREA {
