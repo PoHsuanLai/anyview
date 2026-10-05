@@ -50,9 +50,23 @@ pub fn apply(doc: &PdfDocument, ops: &[PageOp]) -> Result<Vec<u8>, PdfError> {
     for op in ops {
         let from = written.as_ref().map_or(doc, |(reopened, _)| reopened);
         let bytes = write_one(from, *op)?;
-        written = Some((PdfDocument::from_bytes(bytes.clone())?, bytes));
+        let reopened = PdfDocument::from_bytes(bytes.clone())?;
+        let (want, got) = (expected_pages(from, *op), reopened.page_count().get());
+        if want != got {
+            return Err(PdfError::PagesChanged { want, got });
+        }
+        written = Some((reopened, bytes));
     }
     Ok(written.map_or_else(|| doc.bytes().to_vec(), |(_, bytes)| bytes))
+}
+
+/// How many pages the document has after `op`.
+fn expected_pages(doc: &PdfDocument, op: PageOp) -> u32 {
+    let count = doc.page_count().get();
+    match op {
+        PageOp::Rotate { .. } | PageOp::Move { .. } => count,
+        PageOp::Delete(range) => count - (range.last().0.min(count - 1) - range.first().0 + 1),
+    }
 }
 
 fn write_one(doc: &PdfDocument, op: PageOp) -> Result<Vec<u8>, PdfError> {
