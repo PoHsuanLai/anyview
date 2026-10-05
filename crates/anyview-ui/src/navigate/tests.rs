@@ -127,7 +127,7 @@ const CASES: &[Case] = &[
 #[test]
 fn every_row_of_the_table_steps_as_written() {
     for (name, files, from, input, to, opened, preloaded) in CASES {
-        let (next, outs) = walking_at(files, *from).step(input(), Stamp(0), &());
+        let (next, outs) = walking_at(files, *from).step(input(), Stamp(0), &(), &());
         assert_eq!(position(&next), Some(*to), "{name}: position");
         let want: Vec<NavigateOut> = opened
             .iter()
@@ -149,7 +149,7 @@ fn a_walk_starts_from_the_open_file_and_preloads_around_it() {
     let Navigate::Walking { sequence } = walking_at(FILES, 1) else {
         panic!("walking_at builds a walk");
     };
-    let (state, outs) = Navigate::Idle.step(NavigateIn::Start(sequence), Stamp(0), &());
+    let (state, outs) = Navigate::Idle.step(NavigateIn::Start(sequence), Stamp(0), &(), &());
     assert_eq!(position(&state), Some(1));
     assert_eq!(
         outs,
@@ -162,7 +162,7 @@ fn a_walk_starts_from_the_open_file_and_preloads_around_it() {
 
 #[test]
 fn moves_with_no_list_do_nothing() {
-    let (state, outs) = Navigate::Idle.step(NavigateIn::Next, Stamp(0), &());
+    let (state, outs) = Navigate::Idle.step(NavigateIn::Next, Stamp(0), &(), &());
     assert_eq!((state, outs), (Navigate::Idle, vec![]));
 }
 
@@ -183,15 +183,15 @@ fn arrows_and_home_end_walk() {
 
 #[test]
 fn leaving_ends_the_walk_and_a_new_list_starts_another() {
-    let (state, outs) = walking_at(FILES, 1).step(NavigateIn::Leave, Stamp(0), &());
+    let (state, outs) = walking_at(FILES, 1).step(NavigateIn::Leave, Stamp(0), &(), &());
     assert_eq!((&state, &outs), (&Navigate::Idle, &vec![]), "a walk ends");
-    let (state, outs) = state.step(NavigateIn::Next, Stamp(0), &());
+    let (state, outs) = state.step(NavigateIn::Next, Stamp(0), &(), &());
     assert_eq!(
         (state, outs),
         (Navigate::Idle, vec![]),
         "and arrows go nowhere"
     );
-    let (state, outs) = Navigate::Idle.step(NavigateIn::Leave, Stamp(0), &());
+    let (state, outs) = Navigate::Idle.step(NavigateIn::Leave, Stamp(0), &(), &());
     assert_eq!(
         (state, outs),
         (Navigate::Idle, vec![]),

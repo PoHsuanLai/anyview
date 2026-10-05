@@ -12,8 +12,15 @@ impl Machine for Presentation {
     type In = PresentationIn;
     type Out = PresentationOut;
     type Params = PresentationParams;
+    type Ctx = ();
 
-    fn step(self, input: PresentationIn, _at: Stamp, params: &PresentationParams) -> Step {
+    fn step(
+        self,
+        input: PresentationIn,
+        _at: Stamp,
+        params: &PresentationParams,
+        _cx: &(),
+    ) -> Step {
         match self {
             Presentation::Window => window(input, params),
             Presentation::Peek => peek(input),

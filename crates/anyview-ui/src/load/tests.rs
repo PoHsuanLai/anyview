@@ -219,7 +219,7 @@ const CASES: &[Case] = &[
 #[test]
 fn every_row_of_the_table_steps_as_written() {
     for (name, from, input, state, outs) in CASES {
-        let (next, out) = from.step(*input, Stamp(0), &());
+        let (next, out) = from.step(*input, Stamp(0), &(), &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");
@@ -231,7 +231,7 @@ fn leaving_a_file_mid_load_drops_every_result_of_the_first() {
     let params = ();
     let mut state = Load::default();
     let mut step = |input: LoadIn| {
-        let (next, outs) = state.step(input, Stamp(0), &params);
+        let (next, outs) = state.step(input, Stamp(0), &params, &());
         state = next;
         outs
     };

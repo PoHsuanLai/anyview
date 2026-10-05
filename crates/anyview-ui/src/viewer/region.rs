@@ -7,14 +7,14 @@ use ds_core::time::stamp::Stamp;
 pub(super) type Step = (Viewer, Vec<ViewerOut>);
 
 /// A region stepped on `input`: its next state and its outputs, lifted.
-pub(super) fn stepped<M: Machine>(
+pub(super) fn stepped<M: Machine<Ctx = ()>>(
     machine: M,
     input: M::In,
     at: Stamp,
     params: &M::Params,
     lift: fn(M::Out) -> ViewerOut,
 ) -> (M, Vec<ViewerOut>) {
-    let (next, outs) = machine.step(input, at, params);
+    let (next, outs) = machine.step(input, at, params, &());
     (next, outs.into_iter().map(lift).collect())
 }
 

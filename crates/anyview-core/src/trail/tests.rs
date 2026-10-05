@@ -171,7 +171,7 @@ const CASES: &[Case] = &[
 #[test]
 fn every_row_of_the_trail_table_steps_as_written() {
     for (name, before, input, after, outs) in CASES {
-        let (next, out) = built(*before).step(input.clone(), Stamp(0), &());
+        let (next, out) = built(*before).step(input.clone(), Stamp(0), &(), &());
         assert_eq!(next, built(*after), "{name}: state");
         assert_eq!(&out, outs, "{name}: outputs");
     }
@@ -179,7 +179,7 @@ fn every_row_of_the_trail_table_steps_as_written() {
 
 #[test]
 fn undo_then_redo_then_undo_walk_the_same_versions() {
-    let step = |trail: Trail<u8>, input| trail.step(input, Stamp(0), &()).0;
+    let step = |trail: Trail<u8>, input| trail.step(input, Stamp(0), &(), &()).0;
     let trail = step(step(Trail::default(), Saved), Kept(1));
     let trail = step(step(trail, Undo), Kept(2));
     assert_eq!(trail, Trail::Resting(stacks(&[], &[2])), "undone");

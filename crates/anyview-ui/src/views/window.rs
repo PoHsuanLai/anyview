@@ -12,11 +12,11 @@ use super::keys::{keys_of, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
-use super::session::{Probe, params};
+use super::session::Probe;
 use super::sheet::{
     ExportSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
 };
-use super::shelf::{Dispatch, Shelf, use_area};
+use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
@@ -28,7 +28,7 @@ use anyview_core::FilePath;
 use dioxus::prelude::*;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
-use ds::machine::use_machine;
+use ds::machine::{use_machine_in, use_machine_state};
 use ds::prelude::*;
 use ds_blitz::use_gpu;
 use ds_core::vocab::ShortcutKey;
@@ -53,16 +53,13 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         machine: slot,
     };
     let handler = carry.clone();
-    let machine = use_machine::<Viewer>(
-        params(
-            &crate::Stage::NoStage,
-            None,
-            &Probe::Idle,
-            None,
-            &TypedText::EMPTY,
-            None,
-        ),
-        move |out| carry_out(out, &handler),
+    let presentation = launch.presentation;
+    let held = use_machine_state::<Viewer>(move |_| Viewer::launched(presentation));
+    let machine = use_machine_in(
+        held,
+        (),
+        move || viewer_params(&held.state.peek(), shelf, area),
+        move |out, _| carry_out(out, &handler),
     );
     let dispatch = Dispatch {
         machine,
@@ -78,7 +75,6 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     // The window opens its file once it has drawn.
     let first = launch.clone();
     use_effect(move || {
-        dispatch.send(ViewerIn::StartAs(first.presentation));
         if let Some(sequence) = first.sequence.clone() {
             dispatch.send(ViewerIn::Navigate(NavigateIn::Start(sequence)));
         }
