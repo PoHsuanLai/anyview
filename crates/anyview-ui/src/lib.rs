@@ -43,10 +43,10 @@ pub use families::{
     family_of, flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use io::{
-    Backend, Done, Edge, FirstFrameSource, HostRequest, Job, MediaHost, MediaLine, MediaNotice,
-    MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink, Preloaded, Probed,
-    Reply, ResumeSource, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers,
-    folder_sequence,
+    Backend, Done, Edge, FirstFrameSource, HostRequest, ImagePlugins, Job, MediaHost, MediaLine,
+    MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink,
+    PluginPicture, Preloaded, Probed, Reply, ResumeSource, SlotPixels, Stop, VersionSource, Work,
+    WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{

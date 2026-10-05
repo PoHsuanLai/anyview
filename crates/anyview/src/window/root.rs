@@ -80,7 +80,8 @@ impl Wiring {
         .with_resume_source(resume_of(seed))
         .with_version_source(Arc::clone(&seed.factory.versions))
         .with_first_frames(Arc::clone(&seed.factory.first_frames))
-        .with_media(Arc::clone(&seed.factory.media));
+        .with_media(Arc::clone(&seed.factory.media))
+        .with_image_plugins(Arc::clone(&seed.factory.image_plugins));
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),

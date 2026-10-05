@@ -1,9 +1,11 @@
 //! What every window of the program shares, and what makes one window its own.
 
 use super::opening::Opening;
-use crate::host::{Appearances, HostedResume, HostedVersions, Hosting, Watcher};
+use crate::host::{Appearances, HostedResume, HostedVersions, Hosting, ImageHost, Watcher};
 use anyview_platform::WindowStacking;
-use anyview_ui::{FirstFrameSource, MediaHost, Presentation, ResumeSource, VersionSource, Workers};
+use anyview_ui::{
+    FirstFrameSource, ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers,
+};
 use std::sync::Arc;
 
 /// The wiring all windows share: the workers their jobs run on and the host their requests go
@@ -26,6 +28,8 @@ pub struct Factory {
     pub appearances: Appearances,
     /// Starts a player for a window that shows a recording.
     pub media: Arc<dyn MediaHost>,
+    /// The plugins that decode the pictures the viewer cannot (HEIC, a raw file in full).
+    pub image_plugins: Arc<dyn ImagePlugins>,
     /// Keeping the small window above the others, where the desktop lets a program ask.
     pub stacking: Arc<dyn StackingAsk>,
 }
@@ -64,7 +68,16 @@ impl Factory {
             watcher,
             appearances,
             media,
+            image_plugins: Arc::new(ImageHost::without_plugins()),
             stacking,
+        }
+    }
+
+    /// The same wiring decoding pictures through `plugins`.
+    pub fn with_image_plugins(self, plugins: Arc<dyn ImagePlugins>) -> Factory {
+        Factory {
+            image_plugins: plugins,
+            ..self
         }
     }
 }
