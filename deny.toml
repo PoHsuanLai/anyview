@@ -1,4 +1,4 @@
-# cargo-deny licence gate. Run: cargo deny check licenses
+# cargo-deny gate. Run: scripts/check-deny.sh (all four checks: advisories, bans, licenses, sources).
 #
 # A dependency whose licence is not listed fails the gate rather than being noticed later by
 # someone reading Cargo.lock.
@@ -40,3 +40,44 @@ confidence-threshold = 0.9
 #
 # What stays out of that list is strong copyleft: GPL, AGPL, EUPL. Those would change what this
 # project may be distributed as, and a dependency arriving under one should stop the build.
+
+[advisories]
+# Each ignore says why it is safe to carry and what would end it. A new advisory not listed here
+# fails the gate.
+ignore = [
+    # sevenz-rust: path traversal in decompress_impl, and abandoned. anyview-archive only lists and
+    # reads one entry into memory through SevenZReader and never calls the decompress functions,
+    # so the writing path is not reached. Remove these two entries when the crate is replaced.
+    { id = "RUSTSEC-2026-0245", reason = "decompress_impl is never called: entries are read into memory, never written to disk; the crate is being replaced" },
+    { id = "RUSTSEC-2026-0246", reason = "unmaintained, not a vulnerability; the crate is being replaced" },
+    # bincode 1.3.3: the author ceased development and calls 1.3.3 complete. It comes only through
+    # syntect 5.3.0 (the newest syntect), which uses it to load its built-in syntax dump, our own
+    # build-time data and never untrusted input. Remove when syntect moves off it.
+    { id = "RUSTSEC-2025-0141", reason = "unmaintained but complete; syntect reads only its own built-in dump with it" },
+    # paste: archived proc-macro, run at compile time only. It comes through rav1e (AVIF export) and
+    # pulp (exr). Nothing of it is in the shipped code's input path.
+    { id = "RUSTSEC-2024-0436", reason = "compile-time proc macro only, no runtime or input exposure; arrives through rav1e and pulp" },
+    # ttf-parser: unmaintained. It comes through winit's client-side decorations (sctk-adwaita ->
+    # ab_glyph) which parse only the system's UI font; no upgrade drops it. Remove when winit does.
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known flaw; reached only through the window frame's own font, not through opened files" },
+]
+
+[bans]
+# Two versions of one crate are a size and noise cost, not a fault: they warn and never fail.
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# The pinned git dependencies, all rev-pinned in Cargo.lock: our forks and pdfrum, mpv-wgpu, and
+# taffy (reached through blitz).
+allow-git = [
+    "https://github.com/PoHsuanLai/anyrender",
+    "https://github.com/PoHsuanLai/blitz",
+    "https://github.com/PoHsuanLai/mpv-wgpu",
+    "https://github.com/PoHsuanLai/pdfrum",
+    "https://github.com/PoHsuanLai/vello",
+    "https://github.com/DioxusLabs/taffy",
+]
