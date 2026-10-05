@@ -17,14 +17,14 @@ fn picture(name: &str) -> Rgba8 {
     let file = bytes(name);
     match decode_bytes(&file, &sniffed(&file, name)).unwrap() {
         Decoded::Still(picture) => picture,
-        Decoded::Animated(_) => panic!("{name} is a still"),
+        Decoded::Animated(_) | Decoded::HeldStill { .. } => panic!("{name} is a still"),
     }
 }
 
 fn back(file: &[u8], name: &str) -> Rgba8 {
     match decode_bytes(file, &sniffed(file, name)).unwrap() {
         Decoded::Still(picture) => picture,
-        Decoded::Animated(_) => panic!("{name} is a still"),
+        Decoded::Animated(_) | Decoded::HeldStill { .. } => panic!("{name} is a still"),
     }
 }
 

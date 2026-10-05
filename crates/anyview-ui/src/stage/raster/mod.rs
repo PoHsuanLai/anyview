@@ -6,5 +6,6 @@ mod step;
 mod tests;
 
 pub use model::{
-    Animation, FrameCount, FrameIndex, RasterIn, RasterOut, RasterParams, RasterStage,
+    Animation, FrameCount, FrameDelays, FrameIndex, Motion, RasterIn, RasterOut, RasterParams,
+    RasterStage, Runs,
 };
