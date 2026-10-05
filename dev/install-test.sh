@@ -15,7 +15,7 @@ trap 'rm -rf "$scratch"' EXIT
 export HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/config" XDG_DATA_HOME="$scratch/data" \
   XDG_CACHE_HOME="$scratch/cache" XDG_RUNTIME_DIR="$scratch/run"
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
-unset ANYVIEW_BIN QUIRE_DIR DESTDIR CARGO_TARGET_DIR
+unset ANYVIEW_BIN ICON_DIR DESTDIR CARGO_TARGET_DIR
 
 stage="$scratch/stage"
 prefix=/opt/av
@@ -31,16 +31,16 @@ for tool in update-desktop-database gtk-update-icon-cache xdg-mime sudo; do
 done
 export PATH="$shims:$PATH"
 
-# A binary that is not the real one, and a quire checkout with two icon sizes.
+# A binary that is not the real one, and an icon folder with two sizes.
 fake_bin="$scratch/anyview"
 printf '#!/bin/sh\necho fake viewer\n' >"$fake_bin"
 chmod +x "$fake_bin"
-quire="$scratch/quire"
-mkdir -p "$quire/assets/icons/apps/viewer"
-printf 'png16' >"$quire/assets/icons/apps/viewer/16.png"
-printf 'png256' >"$quire/assets/icons/apps/viewer/256.png"
-printf 'not a size' >"$quire/assets/icons/apps/viewer/README.png"
-export ANYVIEW_BIN="$fake_bin" QUIRE_DIR="$quire"
+icons="$scratch/icons"
+mkdir -p "$icons"
+printf 'png16' >"$icons/16.png"
+printf 'png256' >"$icons/256.png"
+printf 'not a size' >"$icons/README.png"
+export ANYVIEW_BIN="$fake_bin" ICON_DIR="$icons"
 
 failures=0
 check() { # check <what> <command...>
@@ -60,6 +60,8 @@ check "dry run leaves no staging tree" test ! -e "$stage"
 check "dry run says it is a dry run" grep -q "dry run: nothing is changed" <<<"$out"
 check "dry run names the binary" grep -q "$prefix/bin/anyview" <<<"$out"
 check "dry run names the entry" grep -q "$prefix/share/applications/org.quire.Anyview.desktop" <<<"$out"
+check "dry run names the notices" grep -q "$prefix/share/doc/anyview/THIRD-PARTY-NOTICES.md" <<<"$out"
+check "dry run names the metainfo" grep -q "$prefix/share/metainfo/org.quire.Anyview.metainfo.xml" <<<"$out"
 check "dry run names the service" grep -q "$prefix/share/dbus-1/services/org.quire.Anyview1.service" <<<"$out"
 check "dry run names both icons" grep -q "256x256/apps/org.quire.Anyview.png" <<<"$out"
 check "dry run ignores a file that is not a size" bash -c '! grep -q README <<<"$0"' "$out"
@@ -81,12 +83,17 @@ install >"$scratch/install.out" 2>&1
 check "the binary is installed and executable" test -x "$installed/bin/anyview"
 check "the entry is installed" cmp -s "$repo/dist/org.quire.Anyview.desktop" "$installed/share/applications/org.quire.Anyview.desktop"
 service="$installed/share/dbus-1/services/org.quire.Anyview1.service"
+check "the metainfo is installed" cmp -s "$repo/dist/org.quire.Anyview.metainfo.xml" "$installed/share/metainfo/org.quire.Anyview.metainfo.xml"
+check "the notices are installed under doc" cmp -s "$repo/THIRD-PARTY-NOTICES.md" "$installed/share/doc/anyview/THIRD-PARTY-NOTICES.md"
 check "the service names the bus" grep -qx "Name=org.quire.Anyview1" "$service"
 check "the service runs the installed binary, without DESTDIR" grep -qx "Exec=$prefix/bin/anyview" "$service"
-check "the 16 icon is in place" cmp -s "$quire/assets/icons/apps/viewer/16.png" "$installed/share/icons/hicolor/16x16/apps/org.quire.Anyview.png"
-check "the 256 icon is in place" cmp -s "$quire/assets/icons/apps/viewer/256.png" "$installed/share/icons/hicolor/256x256/apps/org.quire.Anyview.png"
+check "the 16 icon is in place" cmp -s "$icons/16.png" "$installed/share/icons/hicolor/16x16/apps/org.quire.Anyview.png"
+check "the 256 icon is in place" cmp -s "$icons/256.png" "$installed/share/icons/hicolor/256x256/apps/org.quire.Anyview.png"
 want="$(printf '%s\n' ./opt ./opt/av ./opt/av/bin ./opt/av/bin/anyview ./opt/av/share ./opt/av/share/applications \
-  ./opt/av/share/applications/org.quire.Anyview.desktop ./opt/av/share/dbus-1 ./opt/av/share/dbus-1/services \
+  ./opt/av/share/applications/org.quire.Anyview.desktop ./opt/av/share/doc ./opt/av/share/doc/anyview \
+  ./opt/av/share/doc/anyview/LICENSE-APACHE ./opt/av/share/doc/anyview/LICENSE-MIT \
+  ./opt/av/share/doc/anyview/THIRD-PARTY-NOTICES.md ./opt/av/share/metainfo \
+  ./opt/av/share/metainfo/org.quire.Anyview.metainfo.xml ./opt/av/share/dbus-1 ./opt/av/share/dbus-1/services \
   ./opt/av/share/dbus-1/services/org.quire.Anyview1.service ./opt/av/share/icons ./opt/av/share/icons/hicolor \
   ./opt/av/share/icons/hicolor/16x16 ./opt/av/share/icons/hicolor/16x16/apps \
   ./opt/av/share/icons/hicolor/16x16/apps/org.quire.Anyview.png ./opt/av/share/icons/hicolor/256x256 \
@@ -106,7 +113,7 @@ check "uninstall leaves the staging tree empty" empty "$stage"
 check "a second uninstall is quiet and succeeds" uninstall
 
 # 5. Without the icons folder install warns and skips only the icons.
-rm -rf "$quire/assets"
+rm -rf "$icons"
 install >"$scratch/noicons.out" 2>&1
 check "missing icons warn" grep -q "skipping the icons" "$scratch/noicons.out"
 check "missing icons still install the binary" test -x "$installed/bin/anyview"

@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "anyview"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-export",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-archive"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "bzip2",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-book"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-archive",
  "anyview-core",
@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-core"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "ds-core",
  "infer",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-export"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-image",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-ffmpeg"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-platform",
@@ -378,7 +378,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-font"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "miniz_oxide 0.8.9",
@@ -389,7 +389,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-heif"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-platform",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-image"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "ds-core",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-media"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "ds-core",
@@ -434,7 +434,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-pdf"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "pdfrum",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-peek"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-archive",
  "anyview-book",
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-platform"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-platform",
@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-plugin"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-plugin-protocol",
@@ -503,7 +503,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-plugin-fake"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-platform",
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-plugin-protocol"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-raw"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-platform",
@@ -536,7 +536,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-store"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "serde",
@@ -547,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-text"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "calamine",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-tool-kit"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-plugin-protocol",
  "image",
@@ -575,7 +575,7 @@ dependencies = [
 
 [[package]]
 name = "anyview-ui"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "anyview-archive",
  "anyview-book",
@@ -1060,6 +1060,7 @@ dependencies = [
 [[package]]
 name = "blitz-kit"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/blitz-kit?rev=953c2ecf277829b5a57b8d3e1227df5b5f50dfd8#953c2ecf277829b5a57b8d3e1227df5b5f50dfd8"
 dependencies = [
  "blitz-dom",
  "blitz-traits",
@@ -2220,6 +2221,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 [[package]]
 name = "ds"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "dioxus",
  "ds-core",
@@ -2234,6 +2236,7 @@ dependencies = [
 [[package]]
 name = "ds-behaviour"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "ds-core",
 ]
@@ -2241,6 +2244,7 @@ dependencies = [
 [[package]]
 name = "ds-blitz"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "anyrender",
  "anyrender_vello_hybrid",
@@ -2276,6 +2280,7 @@ dependencies = [
 [[package]]
 name = "ds-core"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "ds-core-derive",
  "futures-timer",
@@ -2288,6 +2293,7 @@ dependencies = [
 [[package]]
 name = "ds-core-derive"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2298,6 +2304,7 @@ dependencies = [
 [[package]]
 name = "ds-harness"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "anyrender",
  "anyrender_vello_cpu",
@@ -2326,6 +2333,7 @@ dependencies = [
 [[package]]
 name = "ds-intents"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "ds-core",
 ]
@@ -2333,6 +2341,7 @@ dependencies = [
 [[package]]
 name = "ds-lint"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "cssparser",
  "ds-core",
@@ -2342,6 +2351,7 @@ dependencies = [
 [[package]]
 name = "ds-motion"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "dioxus",
  "ds-core",
@@ -2351,6 +2361,7 @@ dependencies = [
 [[package]]
 name = "ds-settings"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "dioxus",
  "ds-behaviour",
@@ -2369,6 +2380,7 @@ dependencies = [
 [[package]]
 name = "ds-settings-derive"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2378,6 +2390,7 @@ dependencies = [
 [[package]]
 name = "ds-style"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=dc9a98c29711e63d2e07e9348d57dea1e19bee25#dc9a98c29711e63d2e07e9348d57dea1e19bee25"
 dependencies = [
  "dioxus",
  "ds-core",

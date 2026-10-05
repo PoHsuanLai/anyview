@@ -27,7 +27,7 @@
 #   ANYVIEW_HEIF_PLUGIN_BIN, ANYVIEW_RAW_PLUGIN_BIN  the same for the HEIF and RAW plugins
 #   MPV_WGPU_DIR   an mpv-wgpu checkout to build the mpv plugin's C plugin from (default: ../mpv)
 #   ANYVIEW_MPV_CPLUGIN  the C plugin (libmpv_wgpu_cplugin.so) to install instead of building it
-#   QUIRE_DIR      a quire checkout with assets/icons/apps/viewer/<px>.png (default: ../quire)
+#   ICON_DIR       a folder of <px>.png icons (default: assets/icons in this repository)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,7 +76,7 @@ HEIF_BIN="${ANYVIEW_HEIF_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/a
 RAW_BIN="${ANYVIEW_RAW_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview-raw}"
 MPV_WGPU="${MPV_WGPU_DIR:-$HERE/../mpv}"
 MPV_CPLUGIN="${ANYVIEW_MPV_CPLUGIN:-${MPV_WGPU_TARGET_DIR:-$MPV_WGPU/target}/release/libmpv_wgpu_cplugin.so}"
-QUIRE="${QUIRE_DIR:-$HERE/../quire}"
+ICONS="${ICON_DIR:-$HERE/assets/icons}"
 say "anyview install to $PREFIX$([[ -n "$DESTDIR" ]] && echo " (staged in $DESTDIR)") ($([[ $DRY_RUN == yes ]] && echo 'dry run: nothing is changed' || echo 'for real'))"
 
 say "1. build"
@@ -171,6 +171,11 @@ install_file() {
 say "2. files"
 install_file 755 "$BIN" "$PREFIX/bin/anyview"
 install_file 644 "$HERE/dist/$APP_ID.desktop" "$PREFIX/share/applications/$APP_ID.desktop"
+install_file 644 "$HERE/dist/$APP_ID.metainfo.xml" "$PREFIX/share/metainfo/$APP_ID.metainfo.xml"
+# The licences: the viewer's own two and the notices for the crates built into it.
+for doc in LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md; do
+  install_file 644 "$HERE/$doc" "$PREFIX/share/doc/anyview/$doc"
+done
 
 # The service file names the binary's path on this machine, so its Exec is rewritten to the
 # installed one (never to a path inside DESTDIR: that is where it lands, not where it will run).
@@ -248,9 +253,9 @@ if [[ "$WITH_MPV" == yes ]]; then
 fi
 
 say "3. icons"
-sizes="$(icon_sizes "$QUIRE")"
+sizes="$(icon_sizes "$ICONS")"
 for px in $sizes; do
-  install_file 644 "$QUIRE/assets/icons/apps/viewer/$px.png" \
+  install_file 644 "$ICONS/$px.png" \
     "$PREFIX/share/icons/hicolor/${px}x${px}/apps/$APP_ID.png"
 done
 
