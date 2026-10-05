@@ -2,9 +2,11 @@
 
 mod draft;
 mod model;
+mod offer;
 mod step;
 #[cfg(test)]
 mod tests;
 
 pub use draft::{ExportDraft, ExportFamily, ExportKindPick};
-pub use model::{Sheet, SheetIn, SheetOut};
+pub use model::{Sheet, SheetIn, SheetOut, SheetParams};
+pub use offer::MediaOffer;

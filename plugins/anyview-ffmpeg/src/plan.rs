@@ -77,10 +77,10 @@ pub fn range_of(request: &ExportRequest) -> Result<(Micros, Option<Micros>), Ffm
     let Some(range) = request.range else {
         return Ok((Micros(0), None));
     };
-    if range.end <= range.start {
+    if range.end.is_some_and(|end| end <= range.start) {
         return Err(FfmpegError::Unsupported("the range is empty".to_owned()));
     }
-    Ok((Micros(range.start), Some(Micros(range.end))))
+    Ok((Micros(range.start), range.end.map(Micros)))
 }
 
 /// The arguments that write `request` as `target` to `temp`, starting at `cut`.
@@ -234,7 +234,7 @@ mod tests {
         let mut asked = request("trim");
         asked.range = Some(MicroRange {
             start: 1_500_000,
-            end: 2_500_000,
+            end: Some(2_500_000),
         });
         let planned = make(&asked, Target::Trim, Cut::on_keyframe(Micros(1_232_000))).unwrap();
         let text = line(&planned);
@@ -330,9 +330,26 @@ mod tests {
     }
 
     #[test]
+    fn a_range_with_no_end_runs_to_the_end_of_the_recording() {
+        let mut asked = request("trim");
+        asked.range = Some(MicroRange {
+            start: 1_500_000,
+            end: None,
+        });
+        let planned = make(&asked, Target::Trim, Cut::at(Micros(1_500_000))).unwrap();
+        let text = line(&planned);
+        assert!(text.contains("-ss 1.500000 -i /in.mkv -map"), "{text}");
+        assert!(!text.contains(" -t "), "{text}");
+        assert_eq!(planned.total, Micros(1_500_000), "3 s file, 1.5 s kept");
+    }
+
+    #[test]
     fn what_cannot_be_done_is_refused_before_ffmpeg_runs() {
         let mut empty = request("trim");
-        empty.range = Some(MicroRange { start: 5, end: 5 });
+        empty.range = Some(MicroRange {
+            start: 5,
+            end: Some(5),
+        });
         assert!(matches!(
             make(&empty, Target::Trim, Cut::at(Micros(5))),
             Err(FfmpegError::Unsupported(_))

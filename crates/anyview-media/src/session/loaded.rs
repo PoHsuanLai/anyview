@@ -25,9 +25,10 @@ impl Session<Loaded> {
         }
     }
 
-    /// How long the recording runs, when it says.
+    /// How long the recording runs, when it says. The child process reports it a moment after the
+    /// file is loaded, so it may be known now and not have been when `Loaded` was said.
     pub fn length(&self) -> Option<MediaLength> {
-        self.state.length
+        self.player.duration().map(convert::length)
     }
 
     /// Where playback is.

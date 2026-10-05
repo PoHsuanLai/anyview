@@ -13,7 +13,7 @@ use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, params};
-use super::sheet::{ExportSheet, RenameSheet, TrashSheet};
+use super::sheet::{ExportSheet, RenameSheet, TrashSheet, UnavailableSheet};
 use super::shelf::{Dispatch, Shelf, use_area};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
@@ -191,7 +191,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let body = current
         .as_ref()
         .and_then(|(_, doc)| doc.view().panel(panel_tab, &cx));
-    let rows = dispatch.params().palette.rows;
+    let machine_params = dispatch.params();
+    let rows = machine_params.palette.rows;
+    let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
     let palette_open = matches!(state.palette, PaletteState::Open { .. });
     let keyed = state.clone();
@@ -302,9 +304,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
+                Sheet::Unavailable { needs } => rsx! {
+                    UnavailableSheet {
+                        needs: needs.clone(),
+                        onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
                 Sheet::Export { draft } => rsx! {
                     ExportSheet {
                         draft: *draft,
+                        offer: offer.clone(),
                         onpick: move |pick| dispatch.send(ViewerIn::Sheet(SheetIn::PickKind(pick))),
                         onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),

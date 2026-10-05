@@ -6,8 +6,8 @@
 //! that polling off that thread and sampling on this one works (FINDINGS, "`Player::poll` works from
 //! a thread that does not present").
 //!
-//! Ignored by default: it needs a wgpu adapter (`cargo test -p anyview --test media_thread --
-//! --ignored --nocapture`). The fixture is the media crate's own.
+//! Ignored by default: it needs a wgpu adapter, an `mpv` and mpv-wgpu's C plugin (`MPV_WGPU_MPV`,
+//! `MPV_WGPU_CPLUGIN`) (`cargo test -p anyview --test media_thread -- --ignored --nocapture`). The fixture is the media crate's own.
 
 use anyview::runtime::{Actor, ActorBody, ActorWake, Flow, Mailbox, Outbox, UiWaker};
 use anyview_core::{FilePath, MediaTime};
@@ -34,6 +34,17 @@ fn fixture(name: &str) -> FilePath {
         .expect("fixture"),
     )
     .expect("absolute")
+}
+
+/// The programs the player runs: `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN` name them.
+fn host() -> anyview_media::MpvHost {
+    let path = |variable: &str| {
+        PathBuf::from(std::env::var_os(variable).unwrap_or_else(|| panic!("{variable} is not set")))
+    };
+    anyview_media::MpvHost {
+        mpv: path("MPV_WGPU_MPV"),
+        cplugin: path("MPV_WGPU_CPLUGIN"),
+    }
 }
 
 /// The window's device, as far as a player is concerned.
@@ -151,6 +162,7 @@ impl Media {
             device,
             queue,
             AudioDriver::Null,
+            &host(),
             &fixture("clip.mkv"),
             Box::new(ToUi {
                 outbox: events,
@@ -363,7 +375,7 @@ fn pump(
 }
 
 #[test]
-#[ignore = "needs a wgpu adapter"]
+#[ignore = "needs a wgpu adapter, mpv and its C plugin"]
 fn a_media_thread_that_never_presents_polls_into_a_texture_another_thread_samples() {
     let (device, queue, adapter) = open_device();
     eprintln!("adapter: {adapter}");

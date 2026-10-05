@@ -28,9 +28,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
   lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
   because opening the zip for its cover is not done yet. Video and audio are read by pure-Rust header parsers (below).
-- **The launcher's media peek is pure Rust, and has gaps libav did not.** `anyview-peek`'s `media` feature
+- **The launcher's media peek is pure Rust, and has gaps a codec library would not.** `anyview-peek`'s `media` feature
   reads headers with `symphonia` (audio), `mp4parse` (MP4, M4V, MOV) and `matroska-demuxer` (MKV, WebM); no
-  libav, no libmpv and no `anyview-media` is in its tree (PLAN phase P4). What it cannot do:
+  libav, no libmpv and no `anyview-media` is in its tree. The viewer uses the same parsers for a recording's facts when
+  the FFmpeg plugin is not installed. What it cannot do:
   - **AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video get facts only** (type, size, date): nothing here parses them.
   - **A video has a frame only from the desktop's thumbnail cache.** The host passes a `VideoFrames` to
     `peek_with`; with none, or no cached thumbnail for this version of the file, the pane shows the facts card.
@@ -43,8 +44,7 @@ on. It is a reference, not a log: how each was found lives in git history.
     `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
-  - The tree is 587 packages (575 with libav's bindings) against the budget of 590. Ends with the plugin
-    phases (P3 replaces the viewer's `ffmpeg-next`; P5 forbids it everywhere).
+  - The tree is 587 packages against the budget of 590.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -355,49 +355,42 @@ on. It is a reference, not a log: how each was found lives in git history.
   shown again. The driver announces the texture to its `FrameSink` once, and again after each slot
   change. A window that is dragged larger makes a texture for each size it passes through. Ends if
   `mpv-wgpu-player` offers a stable texture or a texture-changed event.
-- **`mpv-wgpu-player`, `ffmpeg-next` and `pollster` sit below the pinned block.** They are
-  `anyview-media`'s, the player at mpv-wgpu `8880898` (master), which resolves the one `wgpu` 29.0.4 the
-  tree already has, and none is shared with quire, shell-host or sill, so they stay outside the block like
-  `jxl-oxide` (CONVENTIONS section 10: the block is for what the repos share). Ends if another repo
-  links either: they then move into quire's `docs/workspace-deps.toml` first.
+- **`mpv-wgpu-player` and `pollster` sit below the pinned block.** They are `anyview-media`'s, the player at
+  mpv-wgpu `d017756` (master) with only its `subprocess` feature (the person's `mpv` as a child process: no
+  `rsmpv`, no libmpv), which resolves the one `wgpu` 29.0.4 the tree already has, and neither is shared with quire,
+  shell-host or sill, so they stay outside the block like `jxl-oxide` (CONVENTIONS section 10: the block is for
+  what the repos share). Ends if another repo links either: they then move into quire's `docs/workspace-deps.toml`
+  first.
 - **The media crate carries its own fixtures.** `crates/anyview-media/tests/fixtures/` holds `clip.mkv`
   (3 s, mpeg4 64 by 48, two Vorbis tracks, a subtitle track, chapters), `tone.flac` (2 s) and
   `cover.mp3` (2 s with an attached PNG), each under 20 KB, copied from the sibling `mpv-wgpu` checkout's
   player tests. The peek, UI and binary tests reach them by path.
-- **`ffmpeg-next` is 8.1: the major that matches this machine's FFmpeg 8.1.2 (libavcodec 62).** Checked: 8.1.0
-  and 9.0.0 build here; 6.1.1 and 7.1.0 fail in their build scripts against FFmpeg 8. The crate detects the
-  installed libav at build time and sets `ffmpeg_N_M` cfgs (thresholds from 3.0 to 9.0), so one release
-  is meant to build against the older libavs the distros ship, but only FFmpeg 8 is built and tested here.
-  As far as I know the distros ship Ubuntu 24.04 6.1 (libavcodec 60), Debian 12 5.1 (59), Debian 13 7.1
-  (61) and Fedora 44 8.1 (62); the plan's "Debian and Ubuntu ship 6.x" holds for Ubuntu 24.04 only. A 6.x
-  build needs `libavcodec-dev`, `libavformat-dev`, `libavutil-dev`, `libswresample-dev`, `pkg-config` and
-  libclang (bindgen), and should select the older channel-layout API through the cfgs; the code uses only
-  channel-layout calls present under both. Unverified: no 6.x headers are installed here. Ends when CI has
-  a 6.x image: build and test there, and pin `ffmpeg-next` to the older major if it fails.
-- **cargo-deny sees crates, not the libraries they link.** `ffmpeg-next` and `ffmpeg-sys-next` are WTFPL (no
-  condition; allowed by name in `deny.toml`, not for every crate), and `rsmpv-sys` and the rest pass as MIT.
-  libav and libmpv are LGPL, loaded as shared libraries and never copied here, which no licence check
-  can verify: it holds because `anyview-media` is the one crate that names either library, and the
-  `-sys` crates link with `pkg-config` rather than building their own copy (the `build` features are off).
-- **libav's encoders are detected, not assumed.** `Encoders::detect` asks the loaded libav whether it can write
-  each target: AAC for M4A, libmp3lame for MP3, FLAC, 16-bit PCM for WAV, libopus (else the native Opus)
-  for Opus. Here every one is present (aac, libmp3lame, flac, pcm_s16le, libopus); a libav built without
-  one reports it by name (`MediaError::EncoderMissing`) and `Encoders::missing` lists the absent ones.
-  Copying a track needs no encoder.
-- **libav workarounds.** `ffmpeg-next`'s `Packet::write` refuses an empty packet, which FLAC's final
-  header arrives in, so `flac.rs` patches the total sample count into STREAMINFO after the trailer; a stream
-  copy cannot clear `codec_tag` without `unsafe`, so it keeps tags and relies on the muxers; `format::input`
-  and `output` unwrap a path that is not UTF-8, so the paths are checked first; Ogg keeps comments on the
-  stream, not the container; AAC at 96 kbit/s mono 8 kHz logs "Too many bits … clamping", which is harmless.
+- **cargo-deny sees crates, not programs.** `deny.toml` holds no exception: no crate of the tree binds a codec
+  library. Distribution builds of libav and libmpv are GPL (Fedora: `libavcodec-free` GPL-3.0-or-later, `mpv-libs`
+  GPL-2.0-or-later), which is why nothing links them: `check-boundary.sh` forbids `rsmpv`, `rsmpv-sys`,
+  `ffmpeg-next` and `ffmpeg-sys-next` in every crate and in `Cargo.lock`, and `dev/no-linked-codecs.sh` reads
+  `ldd` of the built binary (CONVENTIONS section 15). What the person runs is theirs: mpv, ffmpeg and ffprobe.
+- **Which encoders this machine has is the plugin's greeting.** The FFmpeg plugin asks its `ffmpeg -encoders`
+  (AAC for M4A, libmp3lame for MP3, FLAC, 16-bit PCM for WAV, libopus or the native Opus for Opus) and lists the
+  targets it can write in `hello`; `MediaPlugins::offer` keeps those of the manifest's targets and of the file's
+  kind, so the sheet never offers MP3 on a machine with no LAME. Copying a track needs no encoder. Each offer
+  starts the plugin once (about 65 ms of `ffmpeg -version` and `-encoders`).
 - **A trim is a copy cut at the keyframe at or before its start.** The part kept begins at that keyframe, not
   at the mark (clip.mkv's keyframes are at 0.03, 1.23 and 2.43 s, so a cut from 1.5 s starts at 1.23 s and
   is about 1.27 s long for a mark at 2.5 s), and ends at the first packet past the end mark. It is written
   beside the source as `<name> trimmed.<ext>`; saving a trim in place waits for the save pipeline
   (PLAN phase E).
 - **The end of a file mpv holds open is read from the position.** With `keep-open` mpv pauses at the last
-  frame and says nothing but `Playback(Paused)`, so the driver calls it ended when it pauses within a
-  quarter second of the length. A pause in the last quarter second is therefore read as the end, and
-  Play from there starts again from the start. Ends if the player reports `eof-reached`.
+  frame and says nothing but `Playback(Paused)`, so the driver calls it ended when the player is paused within a
+  quarter second of the length. The child process reports that last position after the pause, so the driver
+  looks once a poll's events are all in, and again at the next poll. A pause in the last quarter second is
+  therefore read as the end, and Play from there starts again from the start. Ends if the player reports
+  `eof-reached`.
+- **The child process reports the length and the chapters after the file is loaded.** `Loaded` may carry no
+  length; the driver then says `MediaEvent::Length` when mpv does, and the stage takes it (`PlayerEvent::LengthKnown`),
+  so for a moment the seek bar has no length. The chapter list arrives the same way: a `GoToChapter` sent
+  before it is known is refused. Both are mpv's property events arriving after `file-loaded`; a synchronous read
+  would remove the gap and `mpv-wgpu-player` offers none for them. Ends if it does.
 - **No position is reported while a seek is in flight.** The position mpv reports between a seek and its
   `playback-restart` is where it was, so the driver holds its reports until `SeekDone` (or `Ended`). It
   is what lets a restored place be applied without the start of the file being reported, and kept, in
@@ -409,9 +402,10 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A recording left behind is released, and one ahead is never played.** `StageView::LEAVING` is `Release`
   for the media view: the document the window leaves is dropped (so its player ends) rather than stashed
   for a quick return, and a preload carries no player, so a neighbour recording does not open.
-- **The export sheet offers every media export for every recording.** Saving a frame of an audio file
-  without a picture fails with the player's message, and an export of a still frame needs the window
-  that plays the file (a background session has none). Ends when the sheet lists the kinds a file has.
+- **A frame is saved only by the window that plays the file.** The sheet lists a frame only for a video with a
+  player, but a background session has no window to ask, and a video with no picture track still lists one:
+  the player's message is the failure. Ends when a frame is taken from the file without a window (a decode
+  plugin).
 - **A media export shows no progress and the window cannot stop one.** `ExportRequest::progress` and
   `ExportHandle::stop` exist and are tested, but no view shows a progress or offers Stop, so the desktop task
   reports only how it ended. Ends with the export pipeline's progress sheet (PLAN phase E).
@@ -502,22 +496,23 @@ on. It is a reference, not a log: how each was found lives in git history.
   process, to be lowered whenever a run beats them and never raised. Not measured: a one-page PDF (its stage is not
   in the window yet), the thumbnail cache painting first (the item above).
 
-- **Plugins are not wired into the viewer.** `anyview-platform` can discover plugins and run `probe`,
-  `thumbnail`, `decode` and `export` (ARCHITECTURE section 2l), and `PluginRunner::peek_facts` is the seam for
-  a kind with no built-in back end, but nothing calls it: the peek registry (`anyview-peek`), the stages and
-  the export sheet still name their built-in back ends, and `anyview-peek` cannot name `anyview-platform`. Ends
-  with plan phase P5: the binary builds `Plugins` once from `Env`, hands the registry (a pure value, so the
-  light tier can hold it) to the peek and the views, a kind with no back end shows the `Needs` row, and the
-  export sheet offers `Plugins::export_targets`.
+- **Only the viewer asks the plugins, and the launcher never says `Needs`.** The viewer builds `Plugins` once from
+  `Env` and uses them for playing, the facts of a recording and its exports; a recording nothing plays opens as
+  its facts with the `Needs: anyview-mpv` row. The launcher's pane (`anyview-peek`) still names its built-in
+  readers only, so a kind that will need a plugin (HEIC, RAW) shows its type, size and date there without the
+  row. Ends when the peek registry takes the registry and a kind with no back end shows the row.
+- **A recording's facts cost a plugin start each time it opens.** `MediaPlugins::reading` runs the FFmpeg plugin's
+  probe (about 130 ms of its own and then `ffprobe`) before the player starts, and `offer` starts it again for its
+  greeting; opening the same file twice pays both twice. Ends with a cache of the greeting per run, and of the facts
+  per file version, if it is measured to matter (it is not yet). Without the plugin the pure-Rust header
+  reader answers in a few milliseconds.
+- **The viewer's facts for a recording have no length for the seek bar.** `MediaStarted::length` is `None`: the
+  plugin's duration is text, and the player says the length itself a moment after the file loads.
 - **The FFmpeg plugin was built and tested against FFmpeg 8.1 only** (Fedora's `ffmpeg-free` 8.1.x: aac, libmp3lame, flac,
   pcm, libopus and the experimental native opus are present; no libx264). Plan P3 says FFmpeg 5 to 8: the
   options it passes (`-progress`, `-copypriorss`, `-map 0:V`, `-read_intervals`, the JSON `ffprobe`) exist
   from 4, but no other FFmpeg is installed here to prove it, and the plugin refuses a release older than 4.
   Ends when it runs under a 5 and a 6 or 7 image.
-- **The manifest lists every target the plugin knows; the machine's FFmpeg may write fewer.** `hello.targets`
-  says which, but `Plugins::export_targets` reads the manifest and `PluginRunner` does not hand the greeting
-  back, so an export sheet would offer MP3 on a machine with no LAME and get `unsupported`. P5 should have the
-  runner return the greeting's targets (or ask once) and filter the sheet with them.
 - **A plugin that is killed with SIGKILL leaves its children unless the host kills the group.** Measured:
   ffmpeg keeps running after its `-progress` pipe is closed. `PluginProcess` now starts a plugin in its own
   process group and kills the group on drop; a host that spawns plugins some other way has to do the same.
@@ -529,7 +524,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   cheaper first step.
 - **Trim with several video streams, or a recording whose first keyframe is after the start, aligns to the first
   video stream only.** The keyframe is looked up on the first moving picture; other pictures are copied from the
-  same point. A cover or a subtitle that began before the keyframe is dropped, as `anyview-media`'s cut does.
+  same point. A cover or a subtitle that began before the keyframe is dropped.
 - **A plugin is started for each request.** Right for the probe, thumbnail and decode of one file and for an
   export, but a folder of 500 recordings pays 500 process starts for its thumbnails. Ends if P3's measurements
   show it: a session mode (kept alive, with request ids announced in `Hello`) is then protocol version 2, and
@@ -544,14 +539,31 @@ on. It is a reference, not a log: how each was found lives in git history.
   forbid. A distribution's package writes its real path. Ends if packaging wants relative names: `Dirs` gains a
   search path and `discover` resolves against it.
 - **Only `FactLabel` slugs come back from a probe.** A plugin that knows more than the closed labels (an
-  HDR flag, a chapter count) cannot show it; unknown labels are dropped. Ends if P3 needs a row the labels lack:
-  the label is added to `FactLabel` first, and the plugin sends its slug.
+  HDR flag, a chapter count) cannot show it; unknown labels are dropped, which is silent: the slugs are kebab-case
+  (`audio-codec`, `sample-rate`), and the FFmpeg plugin's tests check that every row it sends parses as a label.
+  Ends if a plugin needs a row the labels lack: the label is added to `FactLabel` first, and the plugin sends its slug.
 - **The package table is static and names no distribution.** `suggested_package` maps a capability and kind to
   `anyview-ffmpeg` or `anyview-mpv`; Fedora, Debian and Flathub spell them differently or ship them as extensions.
   Ends when packaging exists to say how each names them: the table then takes a distribution from `Env`.
 - **Plugin export requests carry a range and a stream and nothing else.** Fields for what P3's exports need
   (a target's bitrate or quality, subtitles, metadata) are added to `ExportRequest` as optional fields, which a
   version 1 plugin ignores. `Plugins` keeps no per-target options either: the manifest lists names only.
+- **Playing needs an mpv that loads C plugins, and was tried with Fedora's 0.41 only.** The player starts `mpv
+  --script=<mpv-wgpu-cplugin.so>`; Fedora builds `-Dcplugins=enabled`, and Debian 13 (0.40) and 12 (0.35) export the
+  render API the plugin needs (mpv-wgpu's spike), but none of those was run for this. An mpv without C plugin
+  support fails to start (`PlayerStart`) and the stage says the recording cannot be played; the reason is logged
+  and not shown to the person. Ends when CI has a Debian image, and when the stage shows what was missing.
+- **The installer writes the path of the mpv it found.** `install.sh --with-plugin mpv` puts the `mpv` on the search
+  path (or `--mpv`) into `mpv.toml`, so the viewer never searches the person's `PATH` when it runs; an mpv that
+  moves, or is installed later, needs the manifest edited or the installer run again. A packaged `anyview-mpv`
+  writes its distribution's path.
+- **`dev/media-acceptance.sh` was not run for this change.** It starts the real binary, whose event loop needs
+  a display, and the plugins now have to be installed in the scratch data directory (the script writes the mpv
+  manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
+  `crates/anyview/tests/mpris_bus.rs`.
+- **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
+  656 packages against a budget of 660, with no libmpv or libav in it. Ends if the header readers move to a crate
+  of their own that the binary and the peek both link.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
   silence) and nothing else. Ends if plugins come from outside the distribution: a sandbox (bubblewrap, or
@@ -672,7 +684,8 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`Player::poll` works from a thread that does not present** (PLAN section 4b, "prove early").
   mpv-wgpu's docs say to call it "on the thread that presents"; the contract that matters is that it
   submits to the `Queue` and writes its own texture, and wgpu's `Device` and `Queue` are `Send + Sync`.
-  Checked at mpv-wgpu `8880898` and libmpv 2.5.0 (`pkg-config --modversion mpv`), wgpu 29.0.4, on an
+  Checked at mpv-wgpu `8880898` with libmpv 2.5.0 in the process, and again at `d017756` with the child-process
+  host (Fedora's stock mpv 0.41 and mpv-wgpu's C plugin: the test passes), wgpu 29.0.4, on an
   NVIDIA RTX 5070 Ti (Vulkan): `cargo test -p anyview --test media_thread -- --ignored --nocapture`
   builds the `Device` and `Queue` on the test thread (the window's), builds and polls the `Player`
   only on an `anyview-media` actor thread whose wake is mpv's notify callback, posts each rewritten

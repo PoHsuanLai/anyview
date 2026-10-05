@@ -19,7 +19,8 @@ pub use folder::folder_sequence;
 pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{
-    MediaHost, MediaLine, MediaNotice, MediaStart, MediaStarted, MediaWake, SlotPixels,
+    MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake,
+    SlotPixels,
 };
 pub(crate) use probe::probe;
 pub use seams::{FirstFrameSource, ResumeSource};

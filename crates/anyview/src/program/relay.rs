@@ -4,12 +4,16 @@
 
 use crate::media::MediaHub;
 use crate::window::{Factory, Opening, Seed, open_in_window};
-use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Resume};
+use anyview_core::{
+    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Sniffed, Source, sniff,
+};
+use anyview_media::MediaError;
 use anyview_platform::{Handoff, Primary, Request};
 use anyview_ui::Presentation;
 use ds_blitz::AppHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures_util::StreamExt;
+use std::io::Read;
 
 /// What one file of a request becomes.
 #[derive(Debug, Clone, PartialEq)]
@@ -98,9 +102,14 @@ pub async fn open_windows(
             Arrival::Background(file) => {
                 let (hub, resume) = (hub.clone(), factory.resume.clone());
                 let started = tokio::task::spawn_blocking(move || {
-                    let left = stamp_of(&file)
-                        .map_or(Resume::Nothing, |stamp| resume.recall(&file, stamp));
-                    hub.play_in_background(&file, &left)
+                    let stamp = stamp_of(&file);
+                    let left = stamp.map_or(Resume::Nothing, |stamp| resume.recall(&file, stamp));
+                    match (stamp, sniffed_of(&file)) {
+                        (Some(stamp), Some(sniffed)) => {
+                            hub.play_in_background(&Source::new(file, stamp), &sniffed, &left)
+                        }
+                        (None, _) | (_, None) => Err(MediaError::NotMedia),
+                    }
                 })
                 .await;
                 match started {
@@ -110,6 +119,19 @@ pub async fn open_windows(
                 }
             }
         }
+    }
+}
+
+/// What the file is, from its first bytes: a background player needs its kind to find the program
+/// that plays it.
+fn sniffed_of(file: &FilePath) -> Option<Sniffed> {
+    let mut head = Vec::new();
+    std::fs::File::open(file.as_path())
+        .and_then(|open| open.take(FileHead::MAX.0).read_to_end(&mut head))
+        .ok()?;
+    match sniff(&FileHead::new(&head), &file.file_name()?) {
+        SniffStep::Done(sniffed) => Some(sniffed),
+        SniffStep::LookInside(_) => None,
     }
 }
 

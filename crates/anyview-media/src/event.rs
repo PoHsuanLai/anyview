@@ -30,6 +30,9 @@ pub enum MediaEvent {
         /// How long the recording runs.
         length: Option<MediaLength>,
     },
+    /// The recording's length became known after `Loaded` said it had none: the child process
+    /// reports it a moment after the file is loaded.
+    Length(MediaLength),
     /// The file stopped.
     Ended(EndReason),
     /// Pause state changed, whoever changed it.

@@ -6,3 +6,18 @@ format library as the launcher's preview pane. It is a Rust workspace written in
 pure vocabulary (`anyview-core`: what a file is, how it is sniffed, the units, actions, edits,
 exports and view memory) up to the app, and builds on the design system in the sibling quire
 checkout. `ARCHITECTURE.md` is the map, `CONVENTIONS.md` the rules, `FINDINGS.md` the open items.
+
+## Playing and converting recordings
+
+anyview links no codec. Video and audio are played by your own `mpv` and read and converted by your own
+FFmpeg, through two small plugins that run them as separate programs, so the codecs you get are the ones
+your distribution gives you. Install the runtime packages `mpv` and `ffmpeg` (`ffprobe` comes with it), then
+the plugins:
+
+```sh
+dist/install.sh --with-plugin mpv --with-plugin ffmpeg      # [--mpv /path/to/mpv] [--prefix DIR]
+```
+
+The mpv plugin needs mpv-wgpu's C plugin built from a checkout (`MPV_WGPU_DIR`, default `../mpv`). Without the
+plugins a recording opens as its facts with the package that would play it named, and the export sheet says
+which package adds the recording formats. `dist/uninstall.sh` removes everything the installer wrote.

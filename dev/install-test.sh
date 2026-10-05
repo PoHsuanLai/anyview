@@ -143,6 +143,43 @@ check "uninstall removes the plugin and leaves the staging tree empty" empty "$s
 check "uninstall names the plugin it removed" grep -q "remove $prefix/libexec/anyview/anyview-ffmpeg" "$scratch/plugin-uninstall.out"
 unset ANYVIEW_FFMPEG_PLUGIN_BIN
 
+# 6b. --with-plugin mpv installs the C plugin and a manifest naming the person's mpv: the one found on the
+# search path at install time, or the one --mpv names. It builds nothing here (ANYVIEW_MPV_CPLUGIN).
+printf '#!/bin/sh\necho fake cplugin\n' >"$scratch/libmpv_wgpu_cplugin.so"
+export ANYVIEW_MPV_CPLUGIN="$scratch/libmpv_wgpu_cplugin.so"
+mpv_manifest="$installed/share/anyview/plugins/mpv.toml"
+mkdir -p "$scratch/pathbin"
+printf '#!/bin/sh\necho fake mpv\n' >"$scratch/pathbin/mpv"
+chmod +x "$scratch/pathbin/mpv"
+out="$(PATH="$scratch/pathbin:$PATH" install --dry-run --with-plugin mpv 2>&1)"
+check "dry run names the C plugin" grep -q "$prefix/libexec/anyview/mpv-wgpu-cplugin.so" <<<"$out"
+check "dry run names the mpv it found" grep -q "mpv = $scratch/pathbin/mpv" <<<"$out"
+check "the mpv dry run installs nothing" empty "$stage"
+PATH="$scratch/pathbin:$PATH" install --with-plugin mpv >"$scratch/mpv.out" 2>&1
+check "the C plugin is installed" test -x "$installed/libexec/anyview/mpv-wgpu-cplugin.so"
+check "the mpv manifest is the id's file" grep -qx 'id = "mpv"' "$mpv_manifest"
+check "the manifest names the mpv found on the search path" grep -qx "mpv = \"$scratch/pathbin/mpv\"" "$mpv_manifest"
+check "the manifest names the installed C plugin, without DESTDIR" grep -qx "cplugin = \"$prefix/libexec/anyview/mpv-wgpu-cplugin.so\"" "$mpv_manifest"
+check "the manifest provides playback of video and audio" grep -q 'capability = "play"' "$mpv_manifest"
+check "no placeholder is left in the mpv manifest" bash -c "! grep -q '@' $mpv_manifest"
+check "the mpv plugin installs no program of the viewer's own" test ! -e "$installed/libexec/anyview/anyview-ffmpeg"
+check "staging the mpv plugin registered nothing" test ! -s "$calls"
+uninstall >"$scratch/mpv-uninstall.out" 2>&1
+check "uninstall removes the mpv plugin and leaves the staging tree empty" empty "$stage"
+check "uninstall names the C plugin it removed" grep -q "remove $prefix/libexec/anyview/mpv-wgpu-cplugin.so" "$scratch/mpv-uninstall.out"
+install --with-plugin mpv --mpv "$scratch/pathbin/mpv" >/dev/null 2>&1
+check "--mpv names the mpv the manifest uses" grep -qx "mpv = \"$scratch/pathbin/mpv\"" "$mpv_manifest"
+uninstall >/dev/null 2>&1
+empty_path="$scratch/emptybin"
+mkdir -p "$empty_path"
+for tool in bash env sed cat dirname basename mktemp id install rm rmdir mkdir cmp stat find; do
+  ln -s "$(command -v "$tool")" "$empty_path/$tool" 2>/dev/null
+done
+check "with no mpv on the search path install stops" bash -c "! PATH=$empty_path DESTDIR=$stage bash $repo/dist/install.sh --prefix $prefix --no-build --with-plugin mpv >$scratch/nompv.out 2>&1"
+check "and says what to do" grep -q "no mpv on the search path" "$scratch/nompv.out"
+check "that refusal wrote nothing" empty "$stage"
+unset ANYVIEW_MPV_CPLUGIN
+
 # 7. A relative prefix is refused, and nothing was written for it.
 check "a relative prefix is refused" bash -c "! DESTDIR=$stage bash $repo/dist/install.sh --prefix rel >/dev/null 2>&1"
 check "the refusal wrote nothing" empty "$stage"

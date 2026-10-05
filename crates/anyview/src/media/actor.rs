@@ -11,7 +11,7 @@ use crate::runtime::{ActorBody, ActorWake, Flow, Outbox};
 use anyview_core::FilePath;
 use anyview_media::{
     AudioDriver, Continuation, Device, Driver, EndReason, FrameSink, MediaCommand, MediaEvent,
-    Queue,
+    MpvHost, Queue,
 };
 use anyview_ui::MediaNotice;
 use std::sync::Weak;
@@ -21,6 +21,7 @@ pub(super) struct Plan {
     pub(super) device: Device,
     pub(super) queue: Queue,
     pub(super) audio: AudioDriver,
+    pub(super) host: MpvHost,
     pub(super) file: FilePath,
     pub(super) sink: Box<dyn FrameSink>,
     pub(super) snapshot: Snapshot,
@@ -47,6 +48,7 @@ impl MediaActor {
             device,
             queue,
             audio,
+            host,
             file,
             sink,
             snapshot,
@@ -55,8 +57,10 @@ impl MediaActor {
             home,
         } = plan;
         let mpv_wake = wake.clone();
-        let driver = Driver::open(&device, &queue, audio, &file, sink, move || mpv_wake.wake())
-            .map_err(|error| Some(error.to_string()));
+        let driver = Driver::open(&device, &queue, audio, &host, &file, sink, move || {
+            mpv_wake.wake();
+        })
+        .map_err(|error| Some(error.to_string()));
         if driver.is_err() {
             // Nothing will wake it: ask for the turn that reports the failure.
             wake.wake();
@@ -113,6 +117,7 @@ impl MediaActor {
             }
             (
                 MediaEvent::Loaded { .. }
+                | MediaEvent::Length(_)
                 | MediaEvent::Ended(_)
                 | MediaEvent::Playback(_)
                 | MediaEvent::SeekDone

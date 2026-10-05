@@ -2,12 +2,13 @@
 //! audio or the frame on screen beside a recording.
 
 use super::outcome::Outcome;
-use crate::media::{ExportEnd, Exports, MediaHub};
+use crate::media::{ExportEnd, ExportTool, Exports, MediaHub, WriteRoute};
 use anyview_core::{
-    ExportJob, FileHead, FileName, FilePath, MediaExport, RasterTarget, Resume, SniffStep,
-    Subtitles, sniff,
+    AudioTarget, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MediaExport,
+    RasterTarget, Resume, SniffStep, StreamPick, Subtitles, sniff,
 };
-use anyview_media::{ExportRequest, ShotContent};
+use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
+use anyview_plugin::Subject;
 use anyview_ui::Probed;
 use ds::prelude::Word;
 use std::path::{Path, PathBuf};
@@ -33,7 +34,10 @@ impl std::fmt::Debug for Media {
 /// Start the file playing with no window, from where it was left. Blocking.
 pub(super) fn play_in_background(media: &Media, probed: &Probed) -> Outcome {
     let resume: &Resume = &probed.resume;
-    match media.hub.play_in_background(probed.source.path(), resume) {
+    match media
+        .hub
+        .play_in_background(&probed.source, &probed.sniffed, resume)
+    {
         Ok(()) => Outcome::Handed,
         Err(error) => Outcome::Failed(format!("cannot play the file: {error}")),
     }
@@ -44,7 +48,7 @@ pub(super) async fn export(media: &Media, file: &Probed, choice: MediaExport) ->
     let jobs = anyview_media::plan_export(file.source.path(), choice);
     let mut outcome = Outcome::Nothing("there is nothing to write");
     for job in jobs {
-        outcome = run(media, file.source.path(), job).await;
+        outcome = run(media, file, job).await;
         if matches!(outcome, Outcome::Failed(_)) {
             break;
         }
@@ -52,11 +56,11 @@ pub(super) async fn export(media: &Media, file: &Probed, choice: MediaExport) ->
     outcome
 }
 
-async fn run(media: &Media, source: &FilePath, job: ExportJob) -> Outcome {
+async fn run(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
     match job {
-        ExportJob::Transcode { .. } => transcode(media, source, job).await,
+        ExportJob::Transcode { .. } => transcode(media, file, job).await,
         ExportJob::MpvScreenshot { target, subtitles } => {
-            frame(media, source, target, subtitles).await
+            frame(media, file.source.path(), target, subtitles).await
         }
         ExportJob::EncodeRaster { .. }
         | ExportJob::WritePdf { .. }
@@ -65,16 +69,30 @@ async fn run(media: &Media, source: &FilePath, job: ExportJob) -> Outcome {
     }
 }
 
-/// A cut or a track, written by a pool worker next to the source under a free name.
-async fn transcode(media: &Media, source: &FilePath, job: ExportJob) -> Outcome {
-    let reading = source.clone();
-    let probed = tokio::task::spawn_blocking(move || anyview_media::probe(reading.as_path())).await;
-    let probe = match probed {
-        Ok(Ok(probe)) => probe,
-        Ok(Err(error)) => return Outcome::Failed(format!("cannot read the recording: {error}")),
-        Err(error) => return Outcome::Failed(format!("a task panicked: {error}")),
+/// A cut or a track, written by the FFmpeg plugin on a pool worker, next to the source under a
+/// free name. Without that plugin the answer says which package adds it.
+async fn transcode(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
+    let source = file.source.path();
+    let subject = Subject {
+        kind: file.sniffed.kind(),
+        mime: Some(file.sniffed.mime()),
     };
-    let to = match anyview_media::output_path(source, &job, &probe, |path| !path.exists()) {
+    let tool = match media.hub.plugins().writer(&subject) {
+        WriteRoute::Ready(tool) => tool,
+        WriteRoute::Missing(missing) => {
+            let error = MediaError::WriterMissing(missing.package.name());
+            return Outcome::Failed(format!("cannot write the export: {error}"));
+        }
+        WriteRoute::Unserved => return Outcome::Failed("nothing writes this export".to_owned()),
+    };
+    let hints = {
+        let (tool, file, job) = (Arc::clone(&tool), file.clone(), job.clone());
+        match tokio::task::spawn_blocking(move || hints_of(&tool, &file, &job)).await {
+            Ok(hints) => hints,
+            Err(error) => return Outcome::Failed(format!("a task panicked: {error}")),
+        }
+    };
+    let to = match anyview_media::output_path(source, &job, &hints, |path| !path.exists()) {
         Ok(to) => to,
         Err(error) => return Outcome::Failed(format!("cannot name the export: {error}")),
     };
@@ -83,11 +101,47 @@ async fn transcode(media: &Media, source: &FilePath, job: ExportJob) -> Outcome 
         to,
         progress: Arc::new(|_| {}),
     };
-    match media.exports.submit(request).ended().await {
+    match media.exports.submit(tool, request).ended().await {
         ExportEnd::Written(_) => Outcome::Done,
         ExportEnd::Failed(error) => Outcome::Failed(format!("cannot write the export: {error}")),
         ExportEnd::Panicked(message) => Outcome::Failed(format!("the export panicked: {message}")),
         ExportEnd::Skipped => Outcome::Nothing("the export was stopped before it began"),
+    }
+}
+
+/// What the name of the file depends on: the container the recording is in, and for a copy of
+/// its sound the codec the track has, which the plugin says (a plugin that does not say leaves
+/// the name to the container).
+fn hints_of(tool: &ExportTool, file: &Probed, job: &ExportJob) -> NameHints {
+    let container = if let FormatDetail::Media(container) = file.sniffed.detail() {
+        Some(*container)
+    } else {
+        None
+    };
+    let copies_sound = matches!(
+        job,
+        ExportJob::Transcode {
+            streams: StreamPick::AudioOnly,
+            audio: AudioTarget::Copy,
+            ..
+        }
+    );
+    let audio_codec = copies_sound
+        .then(|| tool.runner.probe(&tool.plugin, file.source.path()).ok())
+        .flatten()
+        .and_then(|rows| {
+            let label = if file.sniffed.kind() == FormatKind::Video {
+                "audio-codec"
+            } else {
+                "codec"
+            };
+            rows.into_iter()
+                .find(|row| row.label == label)
+                .map(|row| row.value)
+        });
+    NameHints {
+        container,
+        audio_codec,
     }
 }
 
