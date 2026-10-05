@@ -7,6 +7,7 @@ mod appearance;
 mod desktop;
 mod documents;
 mod editing;
+mod image_plugins;
 mod media;
 mod outcome;
 mod pictures;
@@ -25,6 +26,7 @@ mod tests;
 
 pub use appearance::{Appearances, look_of};
 pub use desktop::{Desktop, Hosting, LinuxDesktop, Services};
+pub use image_plugins::ImageHost;
 pub use media::Media;
 pub use outcome::{Declined, Outcome, report, report_declined};
 pub use pictures::CachedPictures;

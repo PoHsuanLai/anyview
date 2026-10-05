@@ -8,14 +8,21 @@ use super::geometry::{
     centre_of, fit, frame_of, held_source, place, point_under, pointer_delta, scale_of, turn_of,
 };
 use crate::families::view::{Area, Held, StageCx};
-use crate::{RasterIn, RasterStage, Stage, StageIn};
+use crate::{Command, RasterIn, RasterStage, Stage, StageIn};
+use anyview_core::FileAction;
 use anyview_core::{Permille, QuarterTurn, Zoom};
 use dioxus::prelude::*;
+use ds::components::content::text_runs::TextLine;
+use ds::components::controls::button::Button;
+use ds::components::fields::fact_list::FactList;
+use ds::components::overlays::empty_state::EmptyState;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, use_gestures};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
+use ds::prelude::Icon;
 use ds::prelude::Point;
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
+use ds_core::word::Word;
 
 /// Whether `at`, a point of the window, is over the room.
 fn over(area: Area, at: Point) -> bool {
@@ -37,8 +44,51 @@ fn rotation(turn: QuarterTurn) -> u16 {
     turn.degrees()
 }
 
+/// The stage: the picture, or the card of a file whose plugin is not installed.
 #[component]
 pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
+    match doc.0.needs.clone() {
+        Some(needs) => rsx! { Unshown { doc: doc.clone(), needs, cx: cx.clone() } },
+        None => rsx! { PictureContent { doc: doc.clone(), cx: cx.clone() } },
+    }
+}
+
+/// A file with no picture because the plugin that decodes it is not installed: its facts and the
+/// row that names the package, as a recording without a player shows.
+#[component]
+fn Unshown(doc: Held<RasterDoc>, needs: anyview_core::Fact, cx: StageCx) -> Element {
+    let run = cx.run;
+    let facts: Vec<ds::components::fields::fact_list::Fact> = doc
+        .0
+        .facts
+        .rows()
+        .iter()
+        .map(|row| {
+            ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
+        })
+        .collect();
+    rsx! {
+        div { class: "viewer-peek",
+            div { class: "viewer-peek-body",
+                EmptyState {
+                    icon: Icon::File,
+                    title: "This picture cannot be shown yet".to_owned(),
+                    description: Some(TextLine::from(format!("{}: {}", needs.label.label(), needs.value.as_str()))),
+                    action: rsx! {
+                        Button {
+                            label: "Open With…",
+                            onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                        }
+                    },
+                }
+                div { class: "viewer-peek-facts", FactList { facts } }
+            }
+        }
+    }
+}
+
+#[component]
+fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     let mut last = use_signal(|| None::<(f32, f32)>);
     let mut held = use_signal(|| PointerHold::Local);
     let send = cx.send;

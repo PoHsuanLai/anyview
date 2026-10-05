@@ -156,7 +156,7 @@ impl Plugins {
         if let Some(plugin) = self.serving(capability, subject) {
             return Route::Served(plugin);
         }
-        match suggested_package(capability, subject.kind) {
+        match suggested_package(capability, subject) {
             Some(package) => Route::Missing(MissingPlugin {
                 capability,
                 kind: subject.kind,

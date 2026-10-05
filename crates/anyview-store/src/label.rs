@@ -20,6 +20,11 @@ pub enum ResumeLabel {
         /// Whole seconds from the start.
         secs: u64,
     },
+    /// A chapter or a comic page, counting from one.
+    Section {
+        /// The number a reader sees.
+        number: u32,
+    },
     /// A line, counting from one.
     Line {
         /// The line number an editor shows.
@@ -37,6 +42,9 @@ pub fn resume_label(resume: &Resume) -> ResumeLabel {
         Resume::Media { at, .. } => ResumeLabel::Time {
             secs: at.as_millis() / 1_000,
         },
+        Resume::Book { section } => ResumeLabel::Section {
+            number: section.0.saturating_add(1),
+        },
         Resume::Text { line } => ResumeLabel::Line {
             number: line.0.saturating_add(1),
         },
@@ -50,6 +58,7 @@ impl fmt::Display for ResumeLabel {
             ResumeLabel::Unlabelled => Ok(()),
             ResumeLabel::Page { number } => write!(f, "Page {number}"),
             ResumeLabel::Line { number } => write!(f, "Line {number}"),
+            ResumeLabel::Section { number } => write!(f, "Section {number}"),
             ResumeLabel::Time { secs } => {
                 let (hours, minutes, seconds) = (secs / 3600, secs / 60 % 60, secs % 60);
                 if hours > 0 {
@@ -66,8 +75,8 @@ impl fmt::Display for ResumeLabel {
 mod tests {
     use super::*;
     use anyview_core::{
-        DocPoint, DocUnit, LineIndex, MediaTime, PageIndex, Percent, Permille, TrackChoice, Volume,
-        Zoom,
+        DocPoint, DocUnit, LineIndex, MediaTime, PageIndex, Percent, Permille, SectionIndex,
+        TrackChoice, Volume, Zoom,
     };
 
     fn media(at: MediaTime) -> Resume {
@@ -111,6 +120,13 @@ mod tests {
                 ResumeLabel::Line { number: 1 },
             ),
             (
+                "a book section is one-based",
+                Resume::Book {
+                    section: SectionIndex(2),
+                },
+                ResumeLabel::Section { number: 3 },
+            ),
+            (
                 "raster has none",
                 Resume::Raster {
                     zoom: Zoom::Fit,
@@ -133,6 +149,7 @@ mod tests {
         const CASES: &[(&str, ResumeLabel, &str)] = &[
             ("page", ResumeLabel::Page { number: 143 }, "Page 143"),
             ("line", ResumeLabel::Line { number: 481 }, "Line 481"),
+            ("section", ResumeLabel::Section { number: 3 }, "Section 3"),
             ("minutes", ResumeLabel::Time { secs: 724 }, "12:04"),
             ("under a minute", ResumeLabel::Time { secs: 5 }, "0:05"),
             ("hours", ResumeLabel::Time { secs: 3723 }, "1:02:03"),
@@ -161,6 +178,11 @@ mod tests {
                 "line",
                 ResumeLabel::Line { number: 8 },
                 r#"{"kind":"line","v":{"number":8}}"#,
+            ),
+            (
+                "section",
+                ResumeLabel::Section { number: 5 },
+                r#"{"kind":"section","v":{"number":5}}"#,
             ),
         ];
         for (name, label, json) in CASES {

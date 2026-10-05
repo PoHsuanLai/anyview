@@ -14,7 +14,7 @@ use std::io::Read;
 pub struct FontPeeked {
     /// What the file was sniffed as.
     pub format: FontFormat,
-    /// The first face, `None` for a container this crate cannot open (WOFF, WOFF2).
+    /// The first face, `None` for a container this crate cannot open (WOFF2).
     pub face: Option<Face>,
     /// How many faces the file holds.
     pub faces: u32,
@@ -45,7 +45,16 @@ impl Peek for FontPeek {
                     faces,
                 })
             }
-            FontFormat::Woff | FontFormat::Woff2 => Ok(FontPeeked {
+            FontFormat::Woff => {
+                let bytes = crate::woff::to_sfnt(&read_whole(src, budget.bytes)?)?;
+                let (face, faces) = read(&bytes)?;
+                Ok(FontPeeked {
+                    format: *format,
+                    face: Some(face),
+                    faces,
+                })
+            }
+            FontFormat::Woff2 => Ok(FontPeeked {
                 format: *format,
                 face: None,
                 faces: 1,

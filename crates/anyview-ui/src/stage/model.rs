@@ -1,5 +1,6 @@
 //! The stage region as the viewer's root sees it: one of the four stage machines, or none.
 
+use super::book::{BookIn, BookOut, BookParams, BookStage};
 use super::family::StageFamily;
 use super::find::FindOut;
 use super::media::{MediaIn, MediaOut, MediaParams, MediaStage};
@@ -22,6 +23,8 @@ pub enum Stage {
     Media(MediaStage),
     /// Text, code or Markdown.
     Text(TextStage),
+    /// A book or a comic.
+    Book(BookStage),
 }
 
 impl Stage {
@@ -32,6 +35,7 @@ impl Stage {
             StageFamily::Pdf => Stage::Pdf(PdfStage::default()),
             StageFamily::Media => Stage::Media(MediaStage::default()),
             StageFamily::Text => Stage::Text(TextStage::opened(views)),
+            StageFamily::Book => Stage::Book(BookStage::default()),
             StageFamily::PeekOnly => Stage::NoStage,
         }
     }
@@ -49,6 +53,8 @@ pub enum StageIn {
     Media(MediaIn),
     /// For the text stage.
     Text(TextIn),
+    /// For the book stage.
+    Book(BookIn),
     /// The clock, for every stage.
     Elapsed,
 }
@@ -70,6 +76,8 @@ pub enum StageOut {
     Media(MediaOut),
     /// From the text stage.
     Text(TextOut),
+    /// From the book stage.
+    Book(BookOut),
 }
 
 impl StageOut {
@@ -78,6 +86,7 @@ impl StageOut {
         match self {
             StageOut::Raster(RasterOut::Remember(resume))
             | StageOut::Text(TextOut::Remember(resume))
+            | StageOut::Book(BookOut::Remember(resume))
             | StageOut::Pdf(PdfOut::Remember(resume)) => Some(resume),
             StageOut::Raster(RasterOut::ShowFrame(_))
             | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
@@ -91,6 +100,7 @@ impl StageOut {
         match self {
             StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),
             StageOut::Raster(_)
+            | StageOut::Book(_)
             | StageOut::Text(TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_))
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
@@ -109,4 +119,6 @@ pub struct StageParams {
     pub media: MediaParams,
     /// For the text stage.
     pub text: TextParams,
+    /// For the book stage.
+    pub book: BookParams,
 }

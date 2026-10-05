@@ -13,6 +13,8 @@ pub enum StageFamily {
     Media,
     /// Text, code and Markdown.
     Text,
+    /// Books and comics: one chapter or page at a time.
+    Book,
     /// No stage: the file shows its facts and Open With… (`StageSupport::PeekOnly`).
     PeekOnly,
 }
