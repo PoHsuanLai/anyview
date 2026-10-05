@@ -2,7 +2,7 @@
 //! has one writer (anyview-store), so every window of the process goes through this one lock.
 
 use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
-use anyview_store::{HistoryCap, StoreError, StoreWriter, Viewed};
+use anyview_store::{HistoryCap, SavedAt, StoreError, StoreWriter, Viewed};
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -29,6 +29,11 @@ impl Store {
             writer: Mutex::new(StoreWriter::new(root, HistoryCap::DEFAULT)),
             now,
         }
+    }
+
+    /// The time as the program's clock reads it now, for a version kept.
+    pub fn saved_at(&self) -> SavedAt {
+        SavedAt((self.now)().0)
     }
 
     /// `path` was shown. Blocking.

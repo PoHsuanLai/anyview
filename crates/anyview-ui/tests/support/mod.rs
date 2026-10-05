@@ -10,7 +10,7 @@ pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
     Edge, FirstFrameSource, HostRequest, Launch, LookFeed, MediaHost, Presentation, ResumeSource,
-    ViewerApp, Work, WorkKind, WorkLane, Workers,
+    VersionRow, VersionSource, ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
@@ -196,6 +196,10 @@ impl Memory {
             | HostRequest::Export(_)
             | HostRequest::Trash
             | HostRequest::Rename(_)
+            | HostRequest::Edit(_)
+            | HostRequest::Rewind(_)
+            | HostRequest::RevertTo(_)
+            | HostRequest::SaveCopy(_)
             | HostRequest::Watch(_)
             | HostRequest::Unwatch
             | HostRequest::OpenUri(_)
@@ -229,6 +233,16 @@ impl FirstFrameSource for Pictures {
     }
 }
 
+/// Versions the host keeps of every file, the same list for each.
+#[derive(Debug, Default)]
+pub struct Versions(pub Vec<VersionRow>);
+
+impl VersionSource for Versions {
+    fn list(&self, _path: &FilePath) -> Vec<VersionRow> {
+        self.0.clone()
+    }
+}
+
 /// What a window under test is wired to besides its files.
 #[derive(Default)]
 pub struct Wiring {
@@ -238,6 +252,8 @@ pub struct Wiring {
     pub memory: Option<Arc<Memory>>,
     /// The host's small pictures; none when none.
     pub pictures: Option<Arc<Pictures>>,
+    /// The versions the host keeps; none when none.
+    pub versions: Option<Arc<Versions>>,
     /// The host's players; none when none.
     pub player: Option<Arc<FakePlayer>>,
     /// How the window is on screen.
@@ -283,6 +299,9 @@ pub fn wired(
     });
     if let Some(memory) = wiring.memory {
         edge = edge.with_resume_source(memory);
+    }
+    if let Some(versions) = wiring.versions {
+        edge = edge.with_version_source(versions);
     }
     if let Some(pictures) = wiring.pictures {
         edge = edge.with_first_frames(pictures);

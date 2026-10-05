@@ -5,11 +5,14 @@ use super::media::{self, Media};
 use super::outcome::Outcome;
 use super::remembering::{REMEMBER_EVERY, Remembering};
 use super::route::Task;
+use super::saving;
 use super::store::Store;
 use super::trash::Trash;
 use anyview_core::{FileName, FilePath, Resume, Source};
 use anyview_platform::linux::{DesktopApps, FileManagerReveal, MailShare, PortalPrinter};
 use anyview_platform::{AppsForType, Env, JobTitle, PrintOutcome, Printer, Reveal, Share};
+use anyview_store::Versions;
+use anyview_ui::VersionRow;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -31,6 +34,14 @@ pub trait Hosting: Send + Sync + 'static {
     /// worker.
     fn resume(&self, source: &Source) -> Option<Resume>;
 
+    /// The versions kept of `path`, newest first, as the Revert To sheet lists them. Blocking:
+    /// call it from a worker.
+    fn kept_versions(&self, path: &FilePath) -> Vec<VersionRow>;
+
+    /// Delete the kept versions older than the keep period. Blocking: the program calls it from
+    /// a blocking task once, as it starts.
+    fn prune_versions(&self);
+
     /// Write the places still waiting to be kept. Blocking: the program calls it as it ends.
     fn flush(&self);
 }
@@ -47,6 +58,7 @@ struct Parts<A, R, S, P, T> {
     printer: P,
     trash: T,
     store: Arc<Store>,
+    versions: Versions,
     remembering: Remembering,
     media: Media,
 }
@@ -59,6 +71,8 @@ pub struct Services {
     pub store: Store,
     /// The players, the exports and a scratch folder.
     pub media: Media,
+    /// The originals kept of every file saved in place.
+    pub versions: Versions,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
@@ -85,7 +99,11 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
         trash: T,
         services: Services,
     ) -> Self {
-        let Services { store, media } = services;
+        let Services {
+            store,
+            media,
+            versions,
+        } = services;
         let store = Arc::new(store);
         Desktop {
             runtime: runtime.clone(),
@@ -97,6 +115,7 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
                 trash,
                 remembering: Remembering::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
+                versions,
                 media,
             }),
         }
@@ -137,6 +156,15 @@ where
             .store
             .resume(source.path(), source.stamp())
             .unwrap_or_default()
+    }
+
+    fn kept_versions(&self, path: &FilePath) -> Vec<VersionRow> {
+        saving::rows_of(&self.parts.versions, path)
+    }
+
+    fn prune_versions(&self) {
+        let outcome = saving::prune_versions(&self.parts.versions, self.parts.store.saved_at());
+        super::outcome::report(&outcome);
     }
 
     fn flush(&self) {
@@ -187,6 +215,31 @@ where
             blocking(move || media::play_in_background(&media, &probed)).await
         }
         Task::ExportMedia { file, choice } => media::export(&parts.media, &file, choice).await,
+        Task::Edit { file, request } => {
+            let parts = Arc::clone(parts);
+            blocking_save(move || {
+                let at = parts.store.saved_at();
+                saving::save_edit(&parts.versions, at, &file, request)
+            })
+            .await
+        }
+        Task::Restore { file, version } => {
+            let parts = Arc::clone(parts);
+            blocking_save(move || {
+                let at = parts.store.saved_at();
+                saving::restore(&parts.versions, at, &file, &version)
+            })
+            .await
+        }
+        Task::RevertTo { file, key } => {
+            let parts = Arc::clone(parts);
+            blocking_save(move || {
+                let at = parts.store.saved_at();
+                saving::revert(&parts.versions, at, &file, &key)
+            })
+            .await
+        }
+        Task::SaveCopy { file, to } => blocking(move || saving::save_copy(&file, &to)).await,
     }
 }
 
@@ -195,6 +248,14 @@ async fn blocking(work: impl FnOnce() -> Outcome + Send + 'static) -> Outcome {
     match tokio::task::spawn_blocking(work).await {
         Ok(outcome) => outcome,
         Err(error) => Outcome::Failed(format!("a task panicked: {error}")),
+    }
+}
+
+/// `work`, a save in place, on the blocking pool; a panic in it wrote nothing.
+async fn blocking_save(work: impl FnOnce() -> Outcome + Send + 'static) -> Outcome {
+    match tokio::task::spawn_blocking(work).await {
+        Ok(outcome) => outcome,
+        Err(error) => Outcome::NotWritten(format!("the save panicked: {error}")),
     }
 }
 

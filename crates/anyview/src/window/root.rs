@@ -79,6 +79,7 @@ impl Wiring {
             let _gone = send.unbounded_send(request);
         })
         .with_resume_source(resume_of(seed))
+        .with_version_source(Arc::clone(&seed.factory.versions))
         .with_first_frames(Arc::clone(&seed.factory.first_frames))
         .with_media(Arc::clone(&seed.factory.media));
         let launch = Launch {
@@ -131,6 +132,7 @@ fn Window(seed: Seed) -> Element {
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
         let watching = Rc::clone(&watching);
         let (seed, app) = (seed.clone(), app.clone());
+        let edge = wiring.edge.clone();
         async move {
             let Some(mut requests) = taken else { return };
             while let Some(request) = requests.next().await {
@@ -166,7 +168,10 @@ fn Window(seed: Seed) -> Element {
                     Carry::Desktop(task) => {
                         let (done, shown) = (hosting.carry_out(task), Rc::clone(&shown));
                         let (watching, window) = (Rc::clone(&watching), window.clone());
-                        spawn(async move { ended(done.await, &shown, &watching, window.as_ref()) });
+                        let edge = edge.clone();
+                        spawn(async move {
+                            ended(done.await, &shown, &watching, window.as_ref(), &edge);
+                        });
                     }
                     Carry::Declined(why) => report_declined(why),
                 }
@@ -227,9 +232,16 @@ fn ended(
     shown: &Rc<RefCell<Shown>>,
     watching: &Rc<Option<WindowWatch>>,
     window: Option<&WindowHost>,
+    edge: &Edge,
 ) {
     let outcome =
         outcome.unwrap_or_else(|error| Outcome::Failed(format!("a task was lost: {error}")));
+    let after = shown.take().after(&outcome);
+    *shown.borrow_mut() = after;
+    // The file on disk is not the one the window opened: it looks at its stamp and reloads.
+    if let Outcome::Written { file, kept: _ } = &outcome {
+        edge.changed(file.clone());
+    }
     if let Outcome::Moved(path) = &outcome {
         let now = shown.take().moved_to(path.clone());
         *shown.borrow_mut() = now;

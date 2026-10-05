@@ -34,7 +34,7 @@ fn built(shape: Shape) -> Trail<u8> {
 }
 
 use Shape::{Redoing, Resting, Saving, Undoing};
-use TrailIn::{Edit, Failed, Kept, Redo, Revert, Undo};
+use TrailIn::{Failed, Kept, Redo, Save as Saved, Undo};
 use TrailOut::{Busy, NothingToRedo, NothingToUndo, Restore, Save};
 
 type Case = (
@@ -48,9 +48,9 @@ type Case = (
 const CASES: &[Case] = &[
     // name, trail, input, trail after, outputs
     (
-        "an edit asks for a save",
+        "a save is wanted and goes ahead",
         Resting(&[], &[]),
-        Edit,
+        Saved,
         Saving(&[], &[]),
         &[Save],
     ),
@@ -132,23 +132,9 @@ const CASES: &[Case] = &[
         &[NothingToRedo],
     ),
     (
-        "a revert asks for that version",
-        Resting(&[1], &[2]),
-        Revert(9),
-        Saving(&[1], &[2]),
-        &[Restore(9)],
-    ),
-    (
-        "a revert is undoable and ends the redo branch",
-        Saving(&[1], &[2]),
-        Kept(7),
-        Resting(&[1, 7], &[]),
-        &[],
-    ),
-    (
-        "a save in flight refuses an edit",
+        "a save in flight refuses another",
         Saving(&[], &[]),
-        Edit,
+        Saved,
         Saving(&[], &[]),
         &[Busy],
     ),
@@ -167,9 +153,9 @@ const CASES: &[Case] = &[
         &[Busy],
     ),
     (
-        "a redo in flight refuses a revert",
+        "a redo in flight refuses a save",
         Redoing(&[], &[], 1),
-        Revert(2),
+        Saved,
         Redoing(&[], &[], 1),
         &[Busy],
     ),
@@ -194,7 +180,7 @@ fn every_row_of_the_trail_table_steps_as_written() {
 #[test]
 fn undo_then_redo_then_undo_walk_the_same_versions() {
     let step = |trail: Trail<u8>, input| trail.step(input, Stamp(0), &()).0;
-    let trail = step(step(Trail::default(), Edit), Kept(1));
+    let trail = step(step(Trail::default(), Saved), Kept(1));
     let trail = step(step(trail, Undo), Kept(2));
     assert_eq!(trail, Trail::Resting(stacks(&[], &[2])), "undone");
     let trail = step(step(trail, Redo), Kept(3));

@@ -120,6 +120,7 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
         fakes.printer.clone(),
         fakes.trash.clone(),
         Services {
+            versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&scratch.join("store"), now),
             media,
         },

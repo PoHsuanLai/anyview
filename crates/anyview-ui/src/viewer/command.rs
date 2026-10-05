@@ -3,10 +3,11 @@
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::region::{Step, presentation, sheet, stage};
 use crate::command::Command;
+use crate::edits::EditRequest;
 use crate::presentation::PresentationIn;
 use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
-use crate::stage::{RasterIn, Spin, Stage, StageIn};
-use anyview_core::FileAction;
+use crate::stage::Stage;
+use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
 use ds_core::time::stamp::Stamp;
 
 /// The export format of what the stage shows, or `None` when the file has no export.
@@ -51,16 +52,20 @@ fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     }
 }
 
-/// Export, trash and the mini window are the viewer's own to start; a turn goes to an image
-/// stage; every other action is the edge's.
+/// Export, trash, the mini window, the sheets of Save a Copy and Revert To and the edits are the
+/// viewer's own to start; every other action is the edge's.
 fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let handed_over = |viewer: Viewer| (viewer, vec![ViewerOut::Run(action)]);
     match action {
         FileAction::Export => export(viewer, at, params),
         FileAction::MoveToTrash => sheet(viewer, SheetIn::AskTrash, at, params),
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
-        FileAction::RotateLeft => turn(viewer, Spin::Left, action, at, params),
-        FileAction::RotateRight => turn(viewer, Spin::Right, action, at, params),
+        FileAction::SaveCopy => (viewer, vec![ViewerOut::NameCopy]),
+        FileAction::RevertTo => (viewer, vec![ViewerOut::ListVersions]),
+        FileAction::RotateLeft => edit(viewer, Edit::Rotate(QuarterTurn::ThreeQuarter), action),
+        FileAction::RotateRight => edit(viewer, Edit::Rotate(QuarterTurn::Quarter), action),
+        FileAction::FlipHorizontal => edit(viewer, Edit::Flip(Axis::Horizontal), action),
+        FileAction::FlipVertical => edit(viewer, Edit::Flip(Axis::Vertical), action),
         FileAction::Open
         | FileAction::OpenWith
         | FileAction::RevealInFolder
@@ -70,21 +75,21 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         | FileAction::Rename
         | FileAction::Duplicate
         | FileAction::Print
-        | FileAction::SaveCopy
-        | FileAction::RevertTo
-        | FileAction::FlipHorizontal
-        | FileAction::FlipVertical
         | FileAction::PlayInBackground
         | FileAction::ConvertTo => handed_over(viewer),
     }
 }
 
-/// A turn turns the image on screen; for anything else (a PDF page) it is the edge's.
-fn turn(viewer: Viewer, spin: Spin, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
-    match viewer.stage {
-        Stage::Raster(_) => stage(viewer, StageIn::Raster(RasterIn::Rotate(spin)), at, params),
-        Stage::NoStage | Stage::Pdf(_) | Stage::Media(_) | Stage::Text(_) => {
-            (viewer, vec![ViewerOut::Run(action)])
-        }
+/// An edit of what the stage shows: a picture's, or a PDF's page the person is on. Anything else
+/// has no such edit, and the host says so.
+fn edit(viewer: Viewer, edit: Edit, action: FileAction) -> Step {
+    let asked = match &viewer.stage {
+        Stage::Raster(_) => Some(EditRequest::of_picture(edit)),
+        Stage::Pdf(stage) => Some(EditRequest::on_page(edit, stage.place().page)),
+        Stage::NoStage | Stage::Media(_) | Stage::Text(_) => None,
+    };
+    match asked {
+        Some(request) => (viewer, vec![ViewerOut::Edit(request)]),
+        None => (viewer, vec![ViewerOut::Run(action)]),
     }
 }
