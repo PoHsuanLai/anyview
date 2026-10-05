@@ -353,7 +353,7 @@ const CASES: &[Case] = &[
 fn every_row_of_the_table_steps_as_written() {
     let params = params();
     for (name, from, input, at, state, outs) in CASES {
-        let (next, out) = from().step(input(), Stamp(*at), &params);
+        let (next, out) = from().step(input(), Stamp(*at), &(), &params);
         assert_eq!(next, state(), "{name}: state");
         assert_eq!(out, outs(), "{name}: outputs");
     }

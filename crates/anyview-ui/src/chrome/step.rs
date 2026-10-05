@@ -13,8 +13,9 @@ impl Machine for Chrome {
     type In = ChromeIn;
     type Out = ChromeOut;
     type Params = ChromeParams;
+    type Ctx = ();
 
-    fn step(self, input: ChromeIn, at: Stamp, params: &ChromeParams) -> Step {
+    fn step(self, input: ChromeIn, at: Stamp, params: &ChromeParams, _cx: &()) -> Step {
         match self {
             Chrome::Hidden => hidden(self, input, at, params),
             Chrome::Revealing { since: _, until } => revealing(self, input, at, until, params),

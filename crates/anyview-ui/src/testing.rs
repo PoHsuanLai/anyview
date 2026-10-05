@@ -9,12 +9,13 @@ use ds_core::time::stamp::Stamp;
 pub(crate) fn settle<M: Machine>(
     mut machine: M,
     params: &M::Params,
+    cx: &M::Ctx,
     limit: usize,
 ) -> (M, Vec<(Stamp, M::Out)>) {
     let mut log = Vec::new();
     for _ in 0..limit {
         let Some(at) = machine.wake() else { break };
-        let (next, outs) = machine.step(M::In::from(Elapsed), at, params);
+        let (next, outs) = machine.step(M::In::from(Elapsed), at, params, cx);
         log.extend(outs.into_iter().map(|out| (at, out)));
         machine = next;
     }

@@ -12,8 +12,9 @@ impl Machine for RasterStage {
     type In = RasterIn;
     type Out = RasterOut;
     type Params = RasterParams;
+    type Ctx = ();
 
-    fn step(self, input: RasterIn, _at: Stamp, params: &RasterParams) -> Step {
+    fn step(self, input: RasterIn, _at: Stamp, params: &RasterParams, _cx: &()) -> Step {
         match self {
             RasterStage::Fitted { turn, anim } => fitted(self, turn, anim, input, params),
             RasterStage::Zoomed {

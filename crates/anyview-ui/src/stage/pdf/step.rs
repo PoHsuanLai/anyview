@@ -17,8 +17,9 @@ impl Machine for PdfStage {
     type In = PdfIn;
     type Out = PdfOut;
     type Params = PdfParams;
+    type Ctx = ();
 
-    fn step(self, input: PdfIn, _at: Stamp, params: &PdfParams) -> Step {
+    fn step(self, input: PdfIn, _at: Stamp, params: &PdfParams, _cx: &()) -> Step {
         match self {
             PdfStage::Reading { view } => reading(view, input, params),
             PdfStage::Finding { query, hits, view } => finding(query, hits, view, input, params),

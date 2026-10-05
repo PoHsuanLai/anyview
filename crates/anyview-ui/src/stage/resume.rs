@@ -258,7 +258,7 @@ mod tests {
             let resume = stage.resume();
             let fresh = Stage::for_family(stage.family(), crate::TextViews::SourceOnly);
             let input = fresh.restoring(&resume).unwrap();
-            let (back, _) = fresh.step(input, Stamp(0), &params);
+            let (back, _) = fresh.step(input, Stamp(0), &params, &());
             assert_eq!(back.resume(), resume, "{name}");
         }
     }

@@ -36,7 +36,9 @@ pub struct Viewer {
 }
 
 impl Viewer {
-    /// A viewer launched in `presentation` (a quick look, a window, a background session).
+    /// A viewer launched in `presentation` (a quick look, a window, a background session): it is
+    /// so from the start, and nothing is asked of the host (it made the window that way). The
+    /// window seeds the machine with it.
     pub fn launched(presentation: Presentation) -> Viewer {
         Viewer {
             presentation,
@@ -72,9 +74,6 @@ pub enum ViewerIn {
     Navigate(NavigateIn),
     /// How the viewer is on screen.
     Presentation(PresentationIn),
-    /// The window was opened in this presentation: it is so from the start, and nothing is
-    /// asked of the host (it made the window that way).
-    StartAs(Presentation),
     /// The stage showing the file.
     Stage(StageIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the

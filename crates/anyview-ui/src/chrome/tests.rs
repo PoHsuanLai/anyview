@@ -230,7 +230,7 @@ const CASES: &[Case] = &[
 fn every_row_of_the_table_steps_as_written() {
     let params = ChromeParams::default();
     for (name, from, input, at, state, outs) in CASES {
-        let (next, out) = from.step(*input, stamp(*at), &params);
+        let (next, out) = from.step(*input, stamp(*at), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
     }
@@ -254,9 +254,13 @@ fn wake_is_set_only_while_a_timer_runs() {
 #[test]
 fn the_chrome_hides_exactly_at_idle_from_plus_hide_after() {
     let params = ChromeParams::default();
-    let (revealing, _) =
-        Chrome::Hidden.step(ChromeIn::PointerMoved(Zone::Content), stamp(5000), &params);
-    let (rest, log) = settle(revealing, &params, 10);
+    let (revealing, _) = Chrome::Hidden.step(
+        ChromeIn::PointerMoved(Zone::Content),
+        stamp(5000),
+        &params,
+        &(),
+    );
+    let (rest, log) = settle(revealing, &params, &(), 10);
     assert_eq!(rest, Chrome::Hidden);
     // Revealed at 5150 (the fade), idle from then, hidden at 5150 + 2000, fully gone 150 later.
     assert_eq!(log, vec![(stamp(7150), FADE_OUT)]);
@@ -265,12 +269,22 @@ fn the_chrome_hides_exactly_at_idle_from_plus_hide_after() {
 #[test]
 fn a_move_before_the_deadline_pushes_the_hide_out_by_the_whole_delay() {
     let params = ChromeParams::default();
-    let (state, _) = Chrome::Hidden.step(ChromeIn::PointerMoved(Zone::Content), stamp(0), &params);
-    let (state, _) = state.step(ChromeIn::Elapsed, stamp(150), &params);
+    let (state, _) = Chrome::Hidden.step(
+        ChromeIn::PointerMoved(Zone::Content),
+        stamp(0),
+        &params,
+        &(),
+    );
+    let (state, _) = state.step(ChromeIn::Elapsed, stamp(150), &params, &());
     assert_eq!(state.wake(), Some(stamp(2150)));
-    let (state, _) = state.step(ChromeIn::PointerMoved(Zone::Content), stamp(2100), &params);
+    let (state, _) = state.step(
+        ChromeIn::PointerMoved(Zone::Content),
+        stamp(2100),
+        &params,
+        &(),
+    );
     assert_eq!(state.wake(), Some(stamp(4100)));
-    let (rest, log) = settle(state, &params, 10);
+    let (rest, log) = settle(state, &params, &(), 10);
     assert_eq!(rest, Chrome::Hidden);
     assert_eq!(log, vec![(stamp(4100), FADE_OUT)]);
 }
@@ -281,8 +295,9 @@ fn settings_that_change_apply_from_the_next_step() {
         hide_after: Duration::from_millis(5000),
         ..ChromeParams::default()
     };
-    let (state, _) = Chrome::Hidden.step(ChromeIn::PointerMoved(Zone::Content), stamp(0), &slow);
-    let (state, _) = state.step(ChromeIn::Elapsed, stamp(150), &slow);
+    let (state, _) =
+        Chrome::Hidden.step(ChromeIn::PointerMoved(Zone::Content), stamp(0), &slow, &());
+    let (state, _) = state.step(ChromeIn::Elapsed, stamp(150), &slow, &());
     assert_eq!(state, shown(150, 5150));
 }
 

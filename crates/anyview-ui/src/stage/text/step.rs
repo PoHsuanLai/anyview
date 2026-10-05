@@ -16,8 +16,9 @@ impl Machine for TextStage {
     type In = TextIn;
     type Out = TextOut;
     type Params = TextParams;
+    type Ctx = ();
 
-    fn step(self, input: TextIn, _at: Stamp, params: &TextParams) -> Step {
+    fn step(self, input: TextIn, _at: Stamp, params: &TextParams, _cx: &()) -> Step {
         match self {
             TextStage::Reading { place } => reading(place, input, params),
             TextStage::Finding { query, hits, place } => finding(query, hits, place, input, params),
