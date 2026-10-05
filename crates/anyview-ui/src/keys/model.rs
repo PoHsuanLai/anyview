@@ -1,6 +1,7 @@
 //! The regions a key can go to, and the states that decide it.
 
 use crate::chrome::ChromeIn;
+use crate::edits::Rewind;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn};
@@ -36,6 +37,8 @@ pub enum Route {
     Swallowed,
     /// ⌘K: open the palette.
     OpenPalette,
+    /// ⌘Z and ⇧⌘Z: take back the last edit, or do it again.
+    Rewind(Rewind),
     /// ⌘I opens or closes the Info tab; Esc closes the panel.
     Panel(PanelIn),
     /// ⌘W: close the window.

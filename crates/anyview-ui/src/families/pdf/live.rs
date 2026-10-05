@@ -247,7 +247,7 @@ impl PdfLive {
                 self.wants.search = None;
                 self.wants.show = None;
             }
-            PdfOut::Remember(_) => {}
+            PdfOut::Remember(_) | PdfOut::Edit(_) => {}
         }
     }
 }

@@ -1,7 +1,7 @@
 //! EXIF orientation as what it does to the pixels: a mirror, then a clockwise quarter turn.
 
 use crate::pixels::Rgba8;
-use anyview_core::QuarterTurn;
+use anyview_core::{Axis, QuarterTurn};
 use image::imageops;
 
 /// Whether the stored picture is mirrored left to right before it is turned.
@@ -67,6 +67,24 @@ impl ExifOrientation {
         }
     }
 
+    /// The orientation of the picture after it is also mirrored on screen across `axis`. A
+    /// mirror then a turn, mirrored again, is the opposite mirror and the reverse turn; a flip
+    /// across the horizontal line is that and a half turn more.
+    pub fn flipped(self, axis: Axis) -> Self {
+        let mirror = match self.mirror {
+            Mirror::Unmirrored => Mirror::Mirrored,
+            Mirror::Mirrored => Mirror::Unmirrored,
+        };
+        let across_vertical = ExifOrientation {
+            mirror,
+            turn: self.turn.reversed(),
+        };
+        match axis {
+            Axis::Horizontal => across_vertical,
+            Axis::Vertical => across_vertical.turned(QuarterTurn::Half),
+        }
+    }
+
     /// The pixels placed upright. The size swaps when the turn is a quarter or three quarters.
     pub fn applied(self, picture: &Rgba8) -> Rgba8 {
         let Some(image) = picture.to_image() else {
@@ -112,6 +130,32 @@ mod tests {
             let wanted = ImageOrientation::from_exif(u8::try_from(tag).unwrap()).unwrap();
             theirs.apply_orientation(wanted);
             assert_eq!(ours.bytes(), theirs.to_rgba8().as_raw(), "tag {tag}");
+        }
+    }
+
+    #[test]
+    fn flipping_the_orientation_flips_the_pixels_it_places() {
+        // The flip of what the tag shows, done on pixels, is what the flipped tag shows.
+        let across = |axis| match axis {
+            Axis::Horizontal => ExifOrientation {
+                mirror: Mirror::Mirrored,
+                turn: QuarterTurn::None,
+            },
+            Axis::Vertical => ExifOrientation {
+                mirror: Mirror::Mirrored,
+                turn: QuarterTurn::Half,
+            },
+        };
+        for tag in 1..=8u16 {
+            for axis in [Axis::Horizontal, Axis::Vertical] {
+                let now = ExifOrientation::from_tag(tag).unwrap();
+                let shown = now.applied(&marked());
+                assert_eq!(
+                    now.flipped(axis).applied(&marked()),
+                    across(axis).applied(&shown),
+                    "tag {tag} flipped {axis:?}"
+                );
+            }
         }
     }
 

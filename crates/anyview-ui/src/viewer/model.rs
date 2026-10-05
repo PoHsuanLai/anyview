@@ -2,6 +2,7 @@
 
 use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
 use crate::command::Command;
+use crate::edits::{EditRequest, Rewind};
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
@@ -119,6 +120,14 @@ pub enum ViewerOut {
     Stage(StageOut),
     /// Do this to the open file: an action that has nothing for the viewer to decide.
     Run(FileAction),
+    /// Save the open file in place with this change.
+    Edit(EditRequest),
+    /// Take back the last edit of the open file, or do it again.
+    Rewind(Rewind),
+    /// List the kept versions of the open file: the answer is `Sheet(OpenRevert)`.
+    ListVersions,
+    /// Propose a name for a copy of the open file: the answer is `Sheet(AskSaveCopy)`.
+    NameCopy,
     /// Choose another file to open.
     PickFile,
     /// Close the window.

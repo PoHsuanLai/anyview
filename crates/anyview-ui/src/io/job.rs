@@ -5,10 +5,11 @@
 
 use super::error::OpenError;
 use super::folder::folder_sequence;
-use super::seams::{FirstFrameSource, ResumeSource};
+use super::seams::{FirstFrameSource, ResumeSource, VersionSource};
 use crate::families::{
     FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
+use crate::sheet::VersionRow;
 use crate::{StageFamily, Ticket, TypedText};
 use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_text::Highlighter;
@@ -106,6 +107,8 @@ pub enum Job {
     Folder { path: FilePath },
     /// Draw tiles, a thumbnail or a search of an open PDF.
     Pdf(PdfTask),
+    /// List the versions kept of the file `path`, for the Revert To sheet.
+    Versions { path: FilePath },
 }
 
 /// What a worker made of a job.
@@ -158,6 +161,11 @@ pub enum Done {
     Pdf { ticket: Ticket, answer: PdfAnswer },
     /// The player of the load `ticket` has news: the window drains its line.
     Media { ticket: Ticket },
+    /// The versions kept of `path`, newest first.
+    Versions {
+        path: FilePath,
+        rows: Vec<VersionRow>,
+    },
 }
 
 impl Job {
@@ -170,7 +178,8 @@ impl Job {
             | Job::Lines { .. }
             | Job::Search { .. }
             | Job::Stat { .. }
-            | Job::Folder { .. } => WorkLane::Visible,
+            | Job::Folder { .. }
+            | Job::Versions { .. } => WorkLane::Visible,
             Job::Preload { .. } => WorkLane::Preload,
             Job::Pdf(task) => task.lane(),
         }
@@ -185,12 +194,14 @@ impl Job {
             | Job::Lines { ticket, .. }
             | Job::Search { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
-            Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } => Ticket::default(),
+            Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } | Job::Versions { .. } => {
+                Ticket::default()
+            }
         }
     }
 
     /// Do the work, blocking until it is done. `resume` is where the host keeps view memory.
-    pub(super) fn run(self, resume: &dyn ResumeSource) -> Done {
+    pub(super) fn run(self, resume: &dyn ResumeSource, versions: &dyn VersionSource) -> Done {
         match self {
             Job::Probe { ticket, path } => Done::Probed {
                 ticket,
@@ -241,6 +252,10 @@ impl Job {
             Job::Pdf(task) => Done::Pdf {
                 ticket: task.ticket(),
                 answer: task.run(),
+            },
+            Job::Versions { path } => Done::Versions {
+                rows: versions.list(&path),
+                path,
             },
         }
     }

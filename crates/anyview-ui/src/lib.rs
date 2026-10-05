@@ -11,6 +11,7 @@
 
 mod chrome;
 mod command;
+mod edits;
 mod families;
 mod io;
 mod keys;
@@ -32,6 +33,7 @@ mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
+pub use edits::{EditRequest, Rewind};
 pub use families::{
     Area, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor, Leaving, LineWindow,
     LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, PDF_CSS,
@@ -43,7 +45,8 @@ pub use families::{
 pub use io::{
     Backend, Done, Edge, FirstFrameSource, HostRequest, Job, MediaHost, MediaLine, MediaNotice,
     MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink, Preloaded, Probed,
-    Reply, ResumeSource, SlotPixels, Stop, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    Reply, ResumeSource, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers,
+    folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -58,12 +61,13 @@ pub use presentation::{
 };
 pub use sheet::{
     ExportDraft, ExportFamily, ExportKindPick, MediaOffer, Sheet, SheetIn, SheetOut, SheetParams,
+    VersionKey, VersionList, VersionRow,
 };
 pub use stage::{
     AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameIndex,
     HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaError, MediaIn, MediaOut, MediaParams,
     MediaStage, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand,
-    PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, Spin, Stage, StageFamily, StageIn,
+    PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, Stage, StageFamily, StageIn,
     StageOut, StageParams, StepDirection, TextExtent, TextIn, TextOut, TextParams, TextPlace,
     TextStage, TextStep, TextView, TextViews, TrackKind, TrimEdge, Viewport, Wrap, ZoomDir,
 };
