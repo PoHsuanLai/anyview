@@ -13,6 +13,8 @@ mod io;
 mod label;
 mod reader;
 mod record;
+mod save;
+mod versions;
 mod viewed;
 mod writer;
 
@@ -20,6 +22,8 @@ pub use error::{StoreError, StoreOp};
 pub use history::{History, HistoryCap, HistoryEntry, history_after_view};
 pub use label::{ResumeLabel, resume_label};
 pub use reader::{HistoryRead, read_history};
+pub use save::{BackedUp, Pending, Written};
+pub use versions::{DEFAULT_KEEP, KeepPeriod, SavedAt, Version, VersionId, Versions};
 pub use viewed::Viewed;
 pub use writer::{StoreWriter, ViewRecorded};
 

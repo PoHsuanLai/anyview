@@ -2,7 +2,8 @@
 //! the window shows, never the disk, so every request and every action has a row in the tests.
 
 use super::outcome::Declined;
-use anyview_core::{FileAction, FileName, FilePath, FormatKind, Resume, Source};
+use anyview_core::{FileAction, FileName, FilePath, Resume, Source, actions_for};
+use anyview_export::DocumentExport;
 use anyview_ui::{ExportDraft, HostRequest, Presentation, Probed};
 
 /// The file a window shows, as the host last heard of it.
@@ -70,7 +71,7 @@ pub enum Task {
     Reveal(FilePath),
     /// Send the file by mail.
     Share(FilePath),
-    /// Hand the PDF to the print dialog.
+    /// Hand the file to the print dialog: a PDF as it is, anything else laid out as a PDF first.
     Print(Probed),
     /// Move the file to the trash.
     Trash(FilePath),
@@ -80,6 +81,11 @@ pub enum Task {
     Duplicate(FilePath),
     /// Play the file with no window, from where the person left it.
     PlayInBackground(Probed),
+    /// Write an export of an image, a PDF or a text document beside it.
+    ExportDocument {
+        file: Probed,
+        choice: DocumentExport,
+    },
     /// Write a media export of the file beside it: a cut, the audio, or the frame on screen.
     ExportMedia {
         file: Probed,
@@ -155,14 +161,14 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
             about_file(shown, |probed| Carry::Desktop(Task::Trash(path(probed))))
         }
         FileAction::Print => about_file(shown, |probed| {
-            if probed.sniffed.kind() == FormatKind::Pdf {
+            if actions_for(probed.sniffed.kind()).contains(&FileAction::Print) {
                 Carry::Desktop(Task::Print(probed.clone()))
             } else {
-                Carry::Declined(Declined::PrintNeedsPdf)
+                Carry::Declined(Declined::NotPrintable)
             }
         }),
         // The viewer opens the export sheet for this; the sheet's answer is `HostRequest::Export`.
-        FileAction::Export => declined(shown, Declined::Export),
+        FileAction::Export => declined(shown, Declined::NeedsSheet),
         FileAction::Rename | FileAction::ConvertTo => declined(shown, Declined::NeedsSheet),
         FileAction::CopyFile => declined(shown, Declined::CopyFile),
         FileAction::SaveCopy
@@ -180,9 +186,17 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
     }
 }
 
-/// An export the window's sheet confirmed. Only recordings are written here: the other formats'
-/// exports wait for the export pipeline.
+/// An export the window's sheet confirmed: a recording's is written by a plugin or the player,
+/// every other format's by the export crate.
 fn export(shown: Shown, draft: ExportDraft) -> (Shown, Carry) {
+    let document = |choice| {
+        move |probed: &Probed| {
+            Carry::Desktop(Task::ExportDocument {
+                file: probed.clone(),
+                choice,
+            })
+        }
+    };
     match draft {
         ExportDraft::Media(choice) => about_file(shown, |probed| {
             Carry::Desktop(Task::ExportMedia {
@@ -190,9 +204,9 @@ fn export(shown: Shown, draft: ExportDraft) -> (Shown, Carry) {
                 choice,
             })
         }),
-        ExportDraft::Raster(_) | ExportDraft::Pdf(_) | ExportDraft::Text(_) => {
-            declined(shown, Declined::Export)
-        }
+        ExportDraft::Raster(choice) => about_file(shown, document(DocumentExport::Raster(choice))),
+        ExportDraft::Pdf(choice) => about_file(shown, document(DocumentExport::Pdf(choice))),
+        ExportDraft::Text(choice) => about_file(shown, document(DocumentExport::Text(choice))),
     }
 }
 
