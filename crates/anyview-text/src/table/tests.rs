@@ -58,7 +58,7 @@ fn quoted_cells_keep_commas_quotes_and_line_breaks() {
 fn tab_separated_tables_use_tabs_and_ignore_commas() {
     let table = Table::parse("a,b\tc\n1\t2,3\n", Delimiter::Tab, HeaderMode::Absent).unwrap();
     assert_eq!(cells(&table, 0, 2), [["a,b", "c"], ["1", "2,3"]]);
-    assert_eq!(table.delimiter(), Delimiter::Tab);
+    assert_eq!(table.separator(), Separator::Tab);
 }
 
 #[test]

@@ -4,10 +4,10 @@ use super::head::{PEEK_LINES, expect_kind, read_head};
 use super::tally::{Tally, grouped};
 use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
-use crate::tree::{Tree, TreePath, TreeRow};
+use crate::tree::{Tree, TreeRow};
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
-    TreeFormat,
+    TreeFormat, TreePath,
 };
 
 /// How many top-level keys the facts name before "and N more".
