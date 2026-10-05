@@ -25,6 +25,16 @@ impl LocalFiles for NoFiles {
     }
 }
 
+/// The files of the disk: a document's images are read from where it lies. The edge's reader.
+#[derive(Debug, Clone, Copy)]
+pub struct DiskFiles;
+
+impl LocalFiles for DiskFiles {
+    fn read(&self, path: &FilePath) -> Option<Vec<u8>> {
+        std::fs::read(path.as_path()).ok()
+    }
+}
+
 /// `%20` and its kind decoded, bytes that are not valid percent escapes left as they are.
 fn percent_decode(text: &str) -> String {
     let bytes = text.as_bytes();

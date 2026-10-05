@@ -8,6 +8,7 @@ mod decode;
 mod encode;
 mod error;
 mod exif;
+mod export;
 mod orientation;
 mod peek;
 mod pixels;
@@ -21,6 +22,7 @@ pub use decode::{
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
 pub use exif::{ExifFacts, Exposure, Ratio};
+pub use export::{ImageFile, encode_file, plan_export};
 pub use orientation::{ExifOrientation, Mirror};
 pub use peek::{ImagePeek, PeekedFormat, RasterPeek, VectorPeek};
 pub use pixels::{PremultipliedRgba8, Rgba8};
