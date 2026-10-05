@@ -15,7 +15,7 @@ pub enum FormatDetail {
     Raster(RasterFormat),
     /// The kind `Code`: the highlighter's syntax.
     Code(SyntaxName),
-    /// The kind `Table`.
+    /// The kind `Table`, a delimited file.
     Table(Delimiter),
     /// The kind `Tree`.
     Tree(TreeFormat),
@@ -29,6 +29,6 @@ pub enum FormatDetail {
     Archive(ArchiveFormat),
     /// The kind `Book`.
     Book(BookFormat),
-    /// The kind `Office`.
+    /// The kind `Office`, and the kind `Table` for a spreadsheet (`OfficeFormat::kind`).
     Office(OfficeFormat),
 }

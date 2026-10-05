@@ -66,7 +66,7 @@ fn exact(text: &str) -> Option<FormatKind> {
         .or_else(|| from_mime::<FontFormat>(text).map(|_| FormatKind::Font))
         .or_else(|| from_mime::<ArchiveFormat>(text).map(|_| FormatKind::Archive))
         .or_else(|| from_mime::<BookFormat>(text).map(|_| FormatKind::Book))
-        .or_else(|| from_mime::<OfficeFormat>(text).map(|_| FormatKind::Office))
+        .or_else(|| from_mime::<OfficeFormat>(text).map(OfficeFormat::kind))
 }
 
 #[cfg(test)]
@@ -102,6 +102,15 @@ mod tests {
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 FormatKind::Office,
             ),
+            (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                FormatKind::Table,
+            ),
+            (
+                "application/vnd.oasis.opendocument.spreadsheet",
+                FormatKind::Table,
+            ),
+            ("application/vnd.ms-excel", FormatKind::Table),
             ("inode/directory", FormatKind::Folder),
             ("application/octet-stream", FormatKind::Other),
             ("application/x-unheard-of", FormatKind::Other),

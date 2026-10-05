@@ -132,7 +132,7 @@ fn is_iwork(format: OfficeFormat) -> bool {
 
 fn office(format: OfficeFormat) -> Sniffed {
     Sniffed::new(
-        FormatKind::Office,
+        format.kind(),
         Mime::known(format.mime()),
         FormatDetail::Office(format),
     )
