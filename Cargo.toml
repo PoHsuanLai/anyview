@@ -254,6 +254,10 @@ syntect = { version = "5", default-features = false, features = ["parsing", "def
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Delimited tables: MIT OR Unlicense.
 csv = "1"
+# Spreadsheets (XLSX, ODS, XLS, XLSB) read into cells, pure Rust: MIT.
+calamine = { version = "0.36", default-features = false }
+# `anyview-archive`: the XML parts of an office document that name its title and author: MIT.
+quick-xml = "0.41"
 # `anyview-archive`: listings of zip (central directory only; deflate to extract an entry): MIT.
 zip = { version = "8", default-features = false, features = ["deflate"] }
 # Tar archives, read as a stream: `tar` is in the pinned block (MIT OR Apache-2.0), with its default
