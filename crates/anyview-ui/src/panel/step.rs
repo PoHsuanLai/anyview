@@ -10,8 +10,9 @@ impl Machine for Panel {
     type In = PanelIn;
     type Out = PanelOut;
     type Params = PanelParams;
+    type Ctx = ();
 
-    fn step(self, input: PanelIn, _at: Stamp, params: &PanelParams) -> Step {
+    fn step(self, input: PanelIn, _at: Stamp, params: &PanelParams, _cx: &()) -> Step {
         match self {
             Panel::Hidden => hidden(input, params),
             Panel::Shown { tab } => shown(self, tab, input, params),

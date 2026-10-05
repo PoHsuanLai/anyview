@@ -14,8 +14,9 @@ impl Machine for MediaStage {
     type In = MediaIn;
     type Out = MediaOut;
     type Params = MediaParams;
+    type Ctx = ();
 
-    fn step(self, input: MediaIn, _at: Stamp, params: &MediaParams) -> Step {
+    fn step(self, input: MediaIn, _at: Stamp, params: &MediaParams, _cx: &()) -> Step {
         if let MediaIn::Player(PlayerEvent::LengthKnown(length)) = input {
             return (self.with_length(length), vec![]);
         }

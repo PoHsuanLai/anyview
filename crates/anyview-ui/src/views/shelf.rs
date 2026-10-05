@@ -90,7 +90,7 @@ impl Shelf {
     }
 }
 
-/// Sends an input to the root machine with the parameters its state calls for right now.
+/// Sends an input to the root machine (which reads its context, from the window, at each step).
 #[derive(Clone, Copy)]
 pub(super) struct Dispatch {
     pub machine: MachineRef<Viewer>,
@@ -98,23 +98,32 @@ pub(super) struct Dispatch {
     pub area: Memo<Option<Area>>,
 }
 
+/// Everything the root machine reads besides its inputs, from what the window knows now: its
+/// context, read at every step.
+pub(super) fn viewer_params(
+    state: &Viewer,
+    shelf: Shelf,
+    area: Memo<Option<Area>>,
+) -> ViewerParams {
+    let doc = shelf.shown_now().map(|(_, doc)| doc);
+    let lines = shelf.lines.peek().clone();
+    params(
+        &state.stage,
+        doc.as_ref(),
+        &shelf.probe.peek(),
+        *area.peek(),
+        &shelf.query.peek(),
+        lines.as_ref().map(|held| held.0.as_ref()),
+    )
+}
+
 impl Dispatch {
+    /// What the machine reads right now (the context its next step gets).
     pub(super) fn params(&self) -> ViewerParams {
-        let state = self.machine.state().peek().clone();
-        let doc = self.shelf.shown_now().map(|(_, doc)| doc);
-        let lines = self.shelf.lines.peek().clone();
-        params(
-            &state.stage,
-            doc.as_ref(),
-            &self.shelf.probe.peek(),
-            *self.area.peek(),
-            &self.shelf.query.peek(),
-            lines.as_ref().map(|held| held.0.as_ref()),
-        )
+        viewer_params(&self.machine.state().peek(), self.shelf, self.area)
     }
 
     pub(super) fn send(&self, input: ViewerIn) {
-        self.machine.set_params(self.params());
         self.machine.send(input);
     }
 }

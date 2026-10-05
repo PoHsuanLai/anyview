@@ -70,7 +70,7 @@ const CASES: &[Case] = &[
 fn every_row_of_the_table_steps_as_written() {
     let params = StageParams::default();
     for (name, from, input, state, outs) in CASES {
-        let (next, out) = from.clone().step(input.clone(), Stamp(0), &params);
+        let (next, out) = from.clone().step(input.clone(), Stamp(0), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");

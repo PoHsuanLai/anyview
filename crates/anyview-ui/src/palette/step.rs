@@ -11,8 +11,9 @@ impl Machine for Palette {
     type In = PaletteIn;
     type Out = PaletteOut;
     type Params = PaletteParams;
+    type Ctx = ();
 
-    fn step(self, input: PaletteIn, _at: Stamp, params: &PaletteParams) -> Step {
+    fn step(self, input: PaletteIn, _at: Stamp, params: &PaletteParams, _cx: &()) -> Step {
         match self {
             Palette::Closed => closed(input),
             Palette::Open { query, selection } => open(query, selection, input, params),

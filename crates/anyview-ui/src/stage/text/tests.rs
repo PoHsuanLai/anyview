@@ -300,7 +300,7 @@ fn every_row_of_the_table_steps_as_written() {
             views: *views,
             ..TextParams::default()
         };
-        let (next, out) = from.clone().step(input.clone(), Stamp(0), &params);
+        let (next, out) = from.clone().step(input.clone(), Stamp(0), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");
@@ -375,7 +375,9 @@ fn every_key_step_of_the_table_moves_the_line_as_written() {
         ..TextParams::default()
     };
     for (name, from, step, state, outs) in STEP_CASES {
-        let (next, out) = from.clone().step(TextIn::Step(*step), Stamp(0), &params);
+        let (next, out) = from
+            .clone()
+            .step(TextIn::Step(*step), Stamp(0), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
     }

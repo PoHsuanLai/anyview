@@ -547,7 +547,7 @@ const CASES: &[Case] = &[
 fn every_row_of_the_table_steps_as_written() {
     let params = MediaParams::default();
     for (name, from, input, state, outs) in CASES {
-        let (next, out) = from.step(*input, Stamp(0), &params);
+        let (next, out) = from.step(*input, Stamp(0), &params, &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");
@@ -562,9 +562,9 @@ fn a_scrub_restores_what_the_person_had() {
         ("playing", playing(10), true),
         ("paused", paused(10), false),
     ] {
-        let (grabbed, _) = start.step(MediaIn::ScrubStart, Stamp(0), &params);
-        let (moved, _) = grabbed.step(MediaIn::ScrubTo(secs(40)), Stamp(1), &params);
-        let (released, outs) = moved.step(MediaIn::ScrubEnd, Stamp(2), &params);
+        let (grabbed, _) = start.step(MediaIn::ScrubStart, Stamp(0), &params, &());
+        let (moved, _) = grabbed.step(MediaIn::ScrubTo(secs(40)), Stamp(1), &params, &());
+        let (released, outs) = moved.step(MediaIn::ScrubEnd, Stamp(2), &params, &());
         let resume = outs.contains(&pace(Pace::Playing));
         assert_eq!(resume, resumes, "{name}: resumed");
         assert_eq!(
@@ -633,7 +633,7 @@ fn a_length_that_arrives_after_opening_is_kept_by_every_state_that_shows_a_recor
         ),
     ];
     for (name, before, after) in cases {
-        let (now, outs) = before.step(told, Stamp::default(), &MediaParams::default());
+        let (now, outs) = before.step(told, Stamp::default(), &MediaParams::default(), &());
         assert_eq!(now, after, "{name}");
         assert!(outs.is_empty(), "{name}: {outs:?}");
     }

@@ -10,7 +10,7 @@ impl<V: Clone + PartialEq + 'static> Trail<V> {
     /// The trail after `input`, and what it wants done: a step for a caller that keeps no clock
     /// (the trail has no timer).
     pub fn after(self, input: TrailIn<V>) -> (Self, Vec<TrailOut<V>>) {
-        self.step(input, Stamp(0), &())
+        self.step(input, Stamp(0), &(), &())
     }
 }
 
@@ -18,8 +18,9 @@ impl<V: Clone + PartialEq + 'static> Machine for Trail<V> {
     type In = TrailIn<V>;
     type Out = TrailOut<V>;
     type Params = ();
+    type Ctx = ();
 
-    fn step(self, input: TrailIn<V>, _at: Stamp, _params: &()) -> Step<V> {
+    fn step(self, input: TrailIn<V>, _at: Stamp, _params: &(), _cx: &()) -> Step<V> {
         match self {
             Trail::Resting(stacks) => resting(stacks, input),
             Trail::Saving(stacks) => saving(stacks, input),
