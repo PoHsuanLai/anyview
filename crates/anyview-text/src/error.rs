@@ -20,6 +20,12 @@ pub enum TextError {
         /// What the file was sniffed as.
         kind: FormatKind,
     },
+    /// A file too large to lay out as printed pages.
+    #[error("a text file of {len} bytes is too large to print")]
+    TooLargeToPrint {
+        /// The file's size in bytes.
+        len: u64,
+    },
     /// A peek budget that allows no byte.
     #[error("the peek budget allows no bytes")]
     NoBudget,

@@ -1,0 +1,25 @@
+[package]
+name = "anyview-export"
+description = "Exports and printouts of images, PDFs and text documents: the jobs each format plans, run to files written beside the original or to the PDF a printer takes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+anyview-image = { workspace = true }
+anyview-pdf = { workspace = true }
+anyview-text = { workspace = true }
+ds-core = { workspace = true }
+# `pdf`: a Markdown, code or text document printed to a vector PDF.
+ds-blitz = { workspace = true, features = ["pdf"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
