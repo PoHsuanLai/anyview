@@ -68,7 +68,7 @@ impl PluginRunner {
         let request = HostMessage::Probe(ProbeRequest {
             path: path.as_path().to_path_buf(),
         });
-        let mut process = self.open(plugin, Capability::Probe, &request)?;
+        let mut process = self.open(plugin, Capability::Probe, &request, 0)?;
         match self.reply(&mut process)? {
             Frame {
                 message: PluginMessage::Facts(reply),
@@ -89,7 +89,12 @@ impl PluginRunner {
             path: path.as_path().to_path_buf(),
             max_edge: max_edge.0,
         });
-        let mut process = self.open(plugin, Capability::Thumbnail, &request)?;
+        let mut process = self.open(
+            plugin,
+            Capability::Thumbnail,
+            &request,
+            picture_bytes(u64::from(max_edge.0).pow(2)),
+        )?;
         let (size, pixels) = self.picture(&mut process)?;
         if size.width.0.max(size.height.0) > max_edge.0 {
             return Err(process.broke(format!(
@@ -111,7 +116,12 @@ impl PluginRunner {
             path: path.as_path().to_path_buf(),
             max_area: max_area.0,
         });
-        let mut process = self.open(plugin, Capability::Decode, &request)?;
+        let mut process = self.open(
+            plugin,
+            Capability::Decode,
+            &request,
+            picture_bytes(max_area.0),
+        )?;
         let (size, pixels) = self.picture(&mut process)?;
         if size.area() > max_area {
             return Err(process.broke(format!(
@@ -134,7 +144,7 @@ impl PluginRunner {
         mut on_progress: impl FnMut(Progress),
     ) -> Result<Done, PlatformError> {
         let message = HostMessage::Export(request.clone());
-        let mut process = self.open(plugin, Capability::Export, &message)?;
+        let mut process = self.open(plugin, Capability::Export, &message, 0)?;
         let mut asked_to_cancel: Option<Instant> = None;
         let mut quiet_since = Instant::now();
         loop {
@@ -174,12 +184,14 @@ impl PluginRunner {
         }
     }
 
-    /// Starts `plugin`, takes its `Hello`, checks it and sends `request`.
+    /// Starts `plugin`, takes its `Hello`, checks it and sends `request`. No reply may carry more
+    /// than `payload` bytes after the greeting.
     fn open(
         &self,
         plugin: &Installed,
         capability: Capability,
         request: &HostMessage,
+        payload: u64,
     ) -> Result<PluginProcess, PlatformError> {
         let mut process = PluginProcess::spawn(plugin)?;
         let hello = self.greeting(&mut process)?;
@@ -189,6 +201,7 @@ impl PluginRunner {
                 capability,
             });
         }
+        process.limit_payload(payload);
         process.send(request)?;
         Ok(process)
     }
@@ -257,6 +270,11 @@ impl PluginRunner {
             .ok_or_else(|| process.broke("the picture is empty".to_owned()))?;
         Ok((size, pixels))
     }
+}
+
+/// The bytes of a picture of at most `area` pixels: RGBA8.
+fn picture_bytes(area: u64) -> u64 {
+    area.saturating_mul(4)
 }
 
 fn failed(process: &PluginProcess, failure: anyview_plugin_protocol::Failure) -> PlatformError {
