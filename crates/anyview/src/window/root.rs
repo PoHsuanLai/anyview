@@ -12,7 +12,7 @@ use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{Edge, HostRequest, Launch, Presentation, ResumeSource, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
-use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSpec, clipboard};
+use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSize, WindowSpec, clipboard};
 use futures_channel::mpsc::{UnboundedReceiver, unbounded};
 use futures_util::StreamExt;
 use std::cell::RefCell;
@@ -20,10 +20,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 /// Where a new window is 1000 by 700 logical pixels until the viewer sizes windows to content.
-const WINDOW: (u32, u32) = (1000, 700);
+/// No least: the viewer has no pane with a least width of its own to keep.
+pub(crate) const WINDOW: WindowSize = WindowSize::new(1000, 700);
 
 /// The small window of a recording: 480 by 270, a sixteenth by nine picture.
-const MINI: (u32, u32) = (480, 270);
+const MINI: WindowSize = WindowSize::new(480, 270);
 
 /// The root of a window given its [`Seed`] as a context
 /// (`ds_blitz::AppConfig::with_context`, or a harness's).
@@ -49,11 +50,9 @@ pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
 pub(super) fn spec_for(seed: &Seed) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
-        Presentation::Mini => {
-            WindowSpec::new(title, MINI.0, MINI.1).with_decorations(Decorations::Client)
-        }
+        Presentation::Mini => WindowSpec::new(title, MINI).with_decorations(Decorations::Client),
         Presentation::Window | Presentation::Peek | Presentation::Background => {
-            WindowSpec::new(title, WINDOW.0, WINDOW.1)
+            WindowSpec::new(title, WINDOW)
         }
     }
 }
