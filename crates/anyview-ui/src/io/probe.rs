@@ -1,13 +1,18 @@
-//! Probing: what a file is, read from its first 4 KiB, and which stage shows it.
+//! Probing: what a file is, read from its first 4 KiB (and, for a zip, its entries), and which stage shows it.
 
 use super::error::OpenError;
 use super::job::Probed;
 use crate::families::family_of;
+use anyview_archive::zip_entries;
 use anyview_core::{
-    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, sniff, sniff_folder,
+    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, ZipEntries, sniff,
+    sniff_folder, sniff_zip,
 };
 use std::fs::File;
 use std::io::Read;
+
+/// The most bytes of a zip's central directory that telling what it is may read.
+const ZIP_INDEX: ByteLen = ByteLen(8 * 1024 * 1024);
 
 /// Look at the file `path` names: stat it, read its head, sniff it. Blocking.
 pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
@@ -23,7 +28,12 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
         let name = path.file_name().ok_or(OpenError::Unrecognised)?;
         match sniff(&FileHead::new(&head), &name) {
             SniffStep::Done(sniffed) => sniffed,
-            SniffStep::LookInside(_) => return Err(OpenError::Unrecognised),
+            SniffStep::LookInside(inside) => {
+                // A zip that cannot be listed is a plain archive.
+                let entries = zip_entries(path, ZIP_INDEX)
+                    .unwrap_or_else(|_| ZipEntries::new(Vec::<String>::new(), None));
+                sniff_zip(inside, &entries)
+            }
         }
     };
     Ok(Probed {

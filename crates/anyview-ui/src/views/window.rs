@@ -122,6 +122,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let typing_in = dispatch;
     let worker = carry.edge.clone();
     let requester = carry.edge.clone();
+    let requested = carry.edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
         ticket,
@@ -134,6 +135,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 && let Some(job) = doc.view().lines(held, first, rows)
             {
                 carry.edge.submit(job);
+            }
+        }),
+        section: (shelf.section)(),
+        ask_section: EventHandler::new(move |section: anyview_core::SectionIndex| {
+            if let Some((held, doc)) = shelf.shown_now()
+                && let Some(job) = doc.view().section(held, section)
+            {
+                requested.submit(job);
             }
         }),
         typing: EventHandler::new(move |event: KeyboardEvent| typed(typing_in, &event)),

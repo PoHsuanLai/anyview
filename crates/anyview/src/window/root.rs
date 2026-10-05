@@ -104,7 +104,8 @@ fn resume_of(seed: &Seed) -> Arc<dyn ResumeSource> {
         place @ (Resume::Raster { .. }
         | Resume::Pdf { .. }
         | Resume::Media { .. }
-        | Resume::Text { .. }) => Arc::new(HandedResume::new(
+        | Resume::Text { .. }
+        | Resume::Book { .. }) => Arc::new(HandedResume::new(
             seed.opening.file.clone(),
             place.clone(),
             stored,

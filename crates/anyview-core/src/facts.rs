@@ -70,6 +70,10 @@ pub enum FactLabel {
     Title,
     /// A document's author, or the artist of a recording.
     Author,
+    /// Who published a book.
+    Publisher,
+    /// The language a book is written in.
+    Language,
     /// The album a recording belongs to.
     Album,
     /// Where a recording sits in its album, as the tag gives it.

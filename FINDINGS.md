@@ -24,10 +24,9 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Books, office documents and unknown files
+- **The kinds with no back end show only what sniffing says.** Office documents and unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
-  lands and the registry's arm names the real peek. A book or office file that is a zip is an archive here,
-  because opening the zip for its cover is not done yet. Video and audio are read by pure-Rust header parsers (below).
+  lands and the registry's arm names the real peek. Books are read by `BookPeek` (their cover and facts). Video and audio are read by pure-Rust header parsers (below).
 - **The launcher's media peek is pure Rust, and has gaps a codec library would not.** `anyview-peek`'s `media` feature
   reads headers with `symphonia` (audio), `mp4parse` (MP4, M4V, MOV) and `matroska-demuxer` (MKV, WebM); no
   libav, no libmpv and no `anyview-media` is in its tree. The viewer uses the same parsers for a recording's facts when
@@ -59,8 +58,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   if the peek reads the table directory and only the tables it needs.
 - **The specimen is unshaped.** Each line is set with advance widths: no kerning, no ligatures, no
   right-to-left, no colour glyphs, and a variable font is drawn at its default location. A collection shows
-  its first face. WOFF and WOFF2 are named, not opened (`face: None`): skrifa reads neither container. Ends
-  with the plan's phase F (WOFF2 needs a Brotli decoder) and, for shaping, when the specimen lines are drawn by
+  its first face. A WOFF is unpacked to its sfnt and read; WOFF2 is named, not opened (`face: None`): it needs a
+  Brotli decoder and the glyf and loca transforms, and no permissive crate for them is in the tree. Ends
+  when one is added to the pinned dependencies and, for shaping, when the specimen lines are drawn by
   parley instead of from outlines.
 - **The specimen is fixed text.** The three sample lines are Latin capitals, lowercase and digits; a font
   with none of them shows the first characters it maps. Ends if the pane should show a script's own sample
@@ -251,8 +251,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   edge keeps the hits and maps an index to a place. A document whose hits change while a find is
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
 - **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON,
-  PDF, video and audio have a stage (images, text shown as source, PDF pages as tiles, a recording as the
-  player's picture or an album card); fonts, archives, books, office documents, folders and unknown files
+  PDF, video, audio and books have a stage (images, text shown as source, PDF pages as tiles, a recording as the
+  player's picture or an album card, a chapter or comic page in a sealed frame); fonts, archives, office documents, folders and unknown files
   are `PeekOnly`. The registry (`families/registry.rs`) maps each `PeekOnly` kind to the
   facts-and-Open-With… view, and a test holds the two tables equal. Each row changes with the stage that
   lands, and the registry names the new view in the same change.
@@ -752,3 +752,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   text, Markdown and PDF, never HTML, tables, audio or video.
 - **`tar` is taken from the pinned block with its default features.** A workspace dependency cannot switch
   them off for one member, so `anyview-archive` now also builds `tar`'s `xattr` support (one more package, `xattr`).
+
+- **Books show one section at a time, in a sealed frame.** An EPUB chapter is rebuilt from an allowlist and
+  drawn like a Markdown page; a comic page is a `data:` image fitted to the room. Not supported: fixed-layout
+  EPUB (it reads as reflowable text), EPUB scripts, audio and video, embedded fonts (`@font-face` is dropped,
+  so the system's faces draw), links between chapters (they are inert), CBR (RAR has no permissive decoder),
+  encrypted books, and in a comic anything but PNG, JPEG, GIF, WebP and BMP pages. A page is decoded by the
+  renderer on the UI thread, so a very large page can hitch a turn. The reading position is the chapter, not
+  the scroll inside it. Ends when a section can be scrolled and zoomed by its own machine.
