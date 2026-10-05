@@ -7,11 +7,12 @@ use anyview_core::{
     AudioTarget, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MediaExport,
     RasterTarget, Resume, SniffStep, StreamPick, Subtitles, sniff,
 };
+use anyview_export::free_beside;
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
 use anyview_plugin::Subject;
 use anyview_ui::Probed;
 use ds::prelude::Word;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// What the desktop plays and writes recordings with.
@@ -217,51 +218,9 @@ fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), S
     std::fs::write(to.as_path(), encoded).map_err(|error| error.to_string())
 }
 
-/// `<stem><suffix>.<extension>` beside `file`, or with ` 2`, ` 3`, ... before the extension: the
-/// first that is free.
-fn free_beside(file: &Path, suffix: &str, extension: &str) -> Option<PathBuf> {
-    let folder = file.parent()?;
-    let stem = file.file_stem()?.to_string_lossy().into_owned();
-    (1_u32..)
-        .map(|n| match n {
-            1 => format!("{stem}{suffix}.{extension}"),
-            n => format!("{stem}{suffix} {n}.{extension}"),
-        })
-        .map(|name| folder.join(name))
-        .take(10_000)
-        .find(|candidate| !candidate.exists())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_name_beside_the_file_is_the_first_free_one() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("Holiday.mkv");
-        let name = |text: &str| dir.path().join(text);
-        assert_eq!(
-            free_beside(&file, " frame", "png"),
-            Some(name("Holiday frame.png"))
-        );
-        std::fs::write(name("Holiday frame.png"), "x").unwrap();
-        assert_eq!(
-            free_beside(&file, " frame", "png"),
-            Some(name("Holiday frame 2.png")),
-            "a taken name is never overwritten"
-        );
-        std::fs::write(name("Holiday frame 2.png"), "x").unwrap();
-        assert_eq!(
-            free_beside(&file, " frame", "png"),
-            Some(name("Holiday frame 3.png"))
-        );
-        assert_eq!(
-            free_beside(&file, " frame", "jpg"),
-            Some(name("Holiday frame.jpg")),
-            "another extension is another name"
-        );
-    }
 
     #[test]
     fn a_frame_is_recoded_to_the_format_asked_and_the_png_goes() {

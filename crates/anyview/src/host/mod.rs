@@ -5,6 +5,7 @@
 
 mod appearance;
 mod desktop;
+mod documents;
 mod media;
 mod outcome;
 mod pictures;

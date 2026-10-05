@@ -277,8 +277,10 @@ name = "anyview"
 version = "0.1.0"
 dependencies = [
  "anyview-core",
+ "anyview-export",
  "anyview-image",
  "anyview-media",
+ "anyview-pdf",
  "anyview-peek",
  "anyview-platform",
  "anyview-plugin",
@@ -328,6 +330,20 @@ dependencies = [
  "infer",
  "serde",
  "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "anyview-export"
+version = "0.1.0"
+dependencies = [
+ "anyview-core",
+ "anyview-image",
+ "anyview-pdf",
+ "anyview-text",
+ "ds-blitz",
+ "ds-core",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
@@ -4924,10 +4940,12 @@ dependencies = [
  "pdfrum-page",
  "pdfrum-parser",
  "peniko",
+ "png",
  "sha2 0.11.0",
  "skrifa 0.47.0",
  "subsetter",
  "thiserror 2.0.21",
+ "usvg",
  "zeroize",
 ]
 
