@@ -1,6 +1,7 @@
 //! The desktop, carrying out the tasks the window's requests became. Every platform thing it
 //! touches is a trait with a fake, so a test runs the same code against records.
 
+use super::documents;
 use super::media::{self, Media};
 use super::outcome::Outcome;
 use super::remembering::{REMEMBER_EVERY, Remembering};
@@ -155,7 +156,10 @@ where
     match task {
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),
         Task::Share(file) => share(parts, &file).await,
-        Task::Print(probed) => print(parts, probed.source.path()).await,
+        Task::Print(probed) => print(parts, probed).await,
+        Task::ExportDocument { file, choice } => {
+            blocking(move || documents::export(&file, choice)).await
+        }
         Task::OpenWith(probed) => {
             let parts = Arc::clone(parts);
             blocking(move || open_with(&parts, &probed)).await
@@ -230,20 +234,25 @@ async fn share<A, R, S: Share, P, T>(parts: &Parts<A, R, S, P, T>, file: &FilePa
     }
 }
 
-async fn print<A, R, S, P: Printer, T>(parts: &Parts<A, R, S, P, T>, file: &FilePath) -> Outcome {
-    let path = file.as_path().to_path_buf();
-    let read = tokio::task::spawn_blocking(move || std::fs::read(path)).await;
-    let bytes = match read {
+async fn print<A, R, S, P: Printer, T>(
+    parts: &Parts<A, R, S, P, T>,
+    probed: anyview_ui::Probed,
+) -> Outcome {
+    let title = JobTitle(
+        probed
+            .source
+            .path()
+            .file_name()
+            .map_or_else(String::new, |name| name.as_str().to_owned()),
+    );
+    let made = tokio::task::spawn_blocking(move || documents::printout(&probed)).await;
+    let bytes = match made {
         Ok(Ok(bytes)) => bytes,
         Ok(Err(error)) => {
-            return Outcome::Failed(format!("cannot read the file to print: {error}"));
+            return Outcome::Failed(format!("cannot lay the file out to print: {error}"));
         }
         Err(error) => return Outcome::Failed(format!("a task panicked: {error}")),
     };
-    let title = JobTitle(
-        file.file_name()
-            .map_or_else(String::new, |name| name.as_str().to_owned()),
-    );
     match parts.printer.print(&bytes, &title).await {
         Ok(PrintOutcome::Printed | PrintOutcome::Cancelled) => Outcome::Done,
         Ok(PrintOutcome::NoDialog) => Outcome::Nothing("the desktop has no print dialog"),

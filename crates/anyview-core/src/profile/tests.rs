@@ -74,7 +74,7 @@ const CASES: &[Row] = &[
     ),
     row(
         FormatKind::Vector,
-        &[FileAction::Print],
+        &[FileAction::Print, FileAction::Export],
         &[],
         StageSupport::Stage,
     ),
