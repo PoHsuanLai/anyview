@@ -103,13 +103,26 @@ fn write_job(
     extension: ExportExtension,
 ) -> Result<FilePath, ExportError> {
     let bytes = produce(session, job)?;
-    let to =
-        output_path(source.as_path(), job, extension).ok_or_else(|| ExportError::NoFreeName {
-            path: source.as_path().to_path_buf(),
+    for _ in 0..NAME_TRIES {
+        let to = output_path(source.as_path(), job, extension).ok_or_else(|| {
+            ExportError::NoFreeName {
+                path: source.as_path().to_path_buf(),
+            }
         })?;
-    write_new(&bytes, &to)?;
-    Ok(FilePath::new(&to)?)
+        match write_new(&bytes, &to) {
+            Ok(()) => return Ok(FilePath::new(&to)?),
+            // Another export took the name first: the next free one is ours.
+            Err(ExportError::Exists { .. }) => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Err(ExportError::NoFreeName {
+        path: source.as_path().to_path_buf(),
+    })
 }
+
+/// How many times an export asks again for a name another export took first.
+const NAME_TRIES: u32 = 16;
 
 fn read(path: &Path) -> Result<Vec<u8>, ExportError> {
     std::fs::read(path).map_err(|error| ExportError::Read {
