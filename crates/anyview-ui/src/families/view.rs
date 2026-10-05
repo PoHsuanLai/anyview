@@ -8,8 +8,8 @@ use crate::families::media::MediaShelf;
 use crate::families::pdf::PdfShelf;
 use crate::io::{HostRequest, Job, MediaLine, OpenError, OpenLink};
 use crate::{
-    Command, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn, StageParams,
-    Ticket, TypedText,
+    Command, EditOffer, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn,
+    StageParams, Ticket, TypedText,
 };
 use anyview_core::{Facts, LineIndex, Resume, SectionIndex, Sniffed, Source};
 use dioxus::prelude::*;
@@ -205,6 +205,10 @@ pub trait StageView: 'static {
     fn media_offer(_doc: &Self::Doc) -> MediaOffer {
         MediaOffer::default()
     }
+    /// What an edit of the document costs, for a family whose files are edited in place.
+    fn edit_offer(_doc: &Self::Doc) -> EditOffer {
+        EditOffer::Plain
+    }
 }
 
 /// A loaded document of any family, as the window reads it.
@@ -227,6 +231,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
     fn media_offer(&self) -> MediaOffer;
+    fn edit_offer(&self) -> EditOffer;
 }
 
 /// A document of family `S`, which is how it knows how to draw itself.
@@ -298,5 +303,9 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn media_offer(&self) -> MediaOffer {
         S::media_offer(&self.doc)
+    }
+
+    fn edit_offer(&self) -> EditOffer {
+        S::edit_offer(&self.doc)
     }
 }

@@ -37,3 +37,24 @@ pub enum Rewind {
     /// Do again the edit that was taken back.
     Redo,
 }
+
+/// What saving an edit of the open file in place costs, as the document says when it opens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EditOffer {
+    /// Nothing is lost: the edit goes ahead without a question.
+    #[default]
+    Plain,
+    /// Something is lost: the person is asked before it goes ahead.
+    Asks(EditCaution),
+    /// No valid file can be written: the edit is not offered.
+    Withheld,
+}
+
+/// What an edit that asks would cost, in words for the person.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EditCaution {
+    /// A picture saved this way loses this.
+    Loses(&'static str),
+    /// A signed document loses its signature.
+    Signed,
+}
