@@ -1,6 +1,6 @@
 //! The tree stage's states and inputs.
 
-use crate::stage::row::RowNo;
+use crate::stage::row::{RowNo, RowStep};
 use anyview_core::{OpenNodes, TreePath};
 
 /// What the tree stage is doing. The top level of a document is open when a file opens.
@@ -50,6 +50,8 @@ pub enum TreeIn {
     CollapseAll,
     /// The cursor moved to this row.
     Select(RowNo),
+    /// Move the cursor along the visible rows: the arrow keys, Page Up and Down, Home and End.
+    Move(RowStep),
     /// Put the cursor away.
     Deselect,
     /// The clock; the stage keeps no timer.
@@ -66,6 +68,12 @@ impl From<ds_core::machine::Elapsed> for TreeIn {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeOut {}
 
-/// What the stage needs to know of the open file: nothing it does not hold.
+/// What the stage needs to know of the open file: how many rows are visible, which the open nodes
+/// decide, and how many fit the room.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct TreeParams;
+pub struct TreeParams {
+    /// How many rows the open nodes make visible.
+    pub rows: u32,
+    /// How many rows fit the room: what a page up or down moves by.
+    pub page: u32,
+}

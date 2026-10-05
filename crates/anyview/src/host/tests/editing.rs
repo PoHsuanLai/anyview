@@ -109,7 +109,11 @@ async fn the_window_trail_walks_a_save_an_undo_and_a_redo_through_routing() {
         panic!("not carried: {carry:?}")
     };
     let (_, busy) = route(shown.clone(), HostRequest::Edit(turn()));
-    assert_eq!(busy, Carry::Declined(Declined::Busy), "one save at a time");
+    assert_eq!(
+        busy,
+        Carry::Declined(Declined::Queued),
+        "one save at a time: the second waits"
+    );
     let shown = shown.after(&desktop.carry_out(task).await.unwrap());
     let edited = bytes_of(&file);
     let mut shown = shown;
@@ -380,4 +384,45 @@ fn versions_older_than_the_keep_period_are_pruned_and_newer_ones_stay() {
     let left = versions.list(&file).unwrap();
     assert_eq!(left.len(), 1, "the 41 day old version went");
     assert_eq!(left[0].saved_at, SavedAt(1_000 + 40 * day));
+}
+
+#[tokio::test]
+async fn an_undo_asked_while_a_save_is_written_waits_and_is_asked_again_when_it_ends() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = probed(dir.path(), "a.jpg", JPEG);
+    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (shown, _) = route(Shown::default(), HostRequest::Opened(file.clone()));
+    let (shown, carry) = route(shown, HostRequest::Edit(turn()));
+    let Carry::Desktop(task) = carry else {
+        panic!("not carried: {carry:?}")
+    };
+    // The undo comes while the save is still being written.
+    let (shown, queued) = route(shown, HostRequest::Rewind(Rewind::Undo));
+    assert_eq!(queued, Carry::Declined(Declined::Queued));
+    let outcome = desktop.carry_out(task).await.unwrap();
+    let (shown, again) = shown.after(&outcome).next_queued();
+    assert_eq!(
+        again,
+        Some(HostRequest::Rewind(Rewind::Undo)),
+        "the undo is asked again once the save has ended"
+    );
+    let (_, carry) = route(shown, HostRequest::Rewind(Rewind::Undo));
+    let Carry::Desktop(task) = carry else {
+        panic!("the undo runs now: {carry:?}")
+    };
+    desktop.carry_out(task).await.unwrap();
+    assert_eq!(bytes_of(&file), JPEG, "and takes the edit back");
+}
+
+#[tokio::test]
+async fn a_save_that_wrote_nothing_drops_what_waited_for_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = probed(dir.path(), "a.jpg", JPEG);
+    let (shown, _) = route(Shown::default(), HostRequest::Opened(file));
+    let (shown, _) = route(shown, HostRequest::Edit(turn()));
+    let (shown, _) = route(shown, HostRequest::Rewind(Rewind::Undo));
+    let (_, again) = shown
+        .after(&Outcome::NotWritten("the disk is full".to_owned()))
+        .next_queued();
+    assert_eq!(again, None, "the file is as it was: nothing to undo");
 }

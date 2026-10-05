@@ -23,6 +23,11 @@ pub enum LoadFailure {
     Unreadable,
     /// The viewer has no way to show this kind of file.
     Unsupported,
+    /// The file is valid but over what the viewer opens (a JSON document or a workbook past its
+    /// budget).
+    TooLarge,
+    /// The file needs a password.
+    Locked,
     /// The file is damaged or truncated.
     Damaged,
 }

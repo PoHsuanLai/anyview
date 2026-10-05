@@ -130,7 +130,7 @@ pub(super) fn save_copy(file: &FilePath, to: &FilePath) -> Outcome {
         Err(error) => return Outcome::Failed(format!("cannot read the file to copy: {error}")),
     };
     match anyview_export::write_new(&bytes, to.as_path()) {
-        Ok(()) => Outcome::Done,
+        Ok(()) => Outcome::Wrote(to.clone()),
         Err(error) => Outcome::Failed(format!("cannot save the copy: {error}")),
     }
 }

@@ -7,6 +7,7 @@ mod arrive;
 mod carry;
 mod chrome;
 mod effects;
+mod failed;
 mod keys;
 mod palette;
 mod panel;
@@ -15,9 +16,11 @@ mod scrub;
 mod session;
 mod sheet;
 mod shelf;
+mod welcome;
 mod window;
 
 pub use app::{Launch, ViewerApp, stylesheet};
+pub use welcome::WelcomeApp;
 
 #[cfg(test)]
 mod tests;

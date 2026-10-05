@@ -5,7 +5,7 @@ use super::outcome::{Declined, Outcome};
 use super::route::{Carry, Shown, Task};
 use anyview_core::{FileName, FilePath, Trail, TrailIn, TrailOut, edits_for};
 use anyview_store::VersionId;
-use anyview_ui::{EditRequest, Rewind, TypedText, VersionKey};
+use anyview_ui::{EditRequest, HostRequest, Rewind, TypedText, VersionKey};
 use std::path::Path;
 
 impl Shown {
@@ -14,9 +14,18 @@ impl Shown {
     pub fn after(self, outcome: &Outcome) -> Shown {
         let input = match outcome {
             Outcome::Written { file: _, kept } => TrailIn::Kept(kept.clone()),
-            Outcome::NotWritten(_) => TrailIn::Failed,
+            // What was waiting for the save asked about a file that is as it was: not any more.
+            Outcome::NotWritten(_) => {
+                return Shown {
+                    queued: Vec::new(),
+                    ..self.stepped(TrailIn::Failed).0
+                };
+            }
             Outcome::Done
             | Outcome::Moved(_)
+            | Outcome::Wrote(_)
+            | Outcome::Picked(_)
+            | Outcome::Taken
             | Outcome::Nothing(_)
             | Outcome::Handed
             | Outcome::Failed(_) => return self,
@@ -26,9 +35,45 @@ impl Shown {
 
     /// The trail stepped on `input`, and what it wants done.
     fn stepped(self, input: TrailIn<VersionId>) -> (Shown, Vec<TrailOut<VersionId>>) {
-        let Shown { file, trail } = self;
+        let Shown {
+            file,
+            trail,
+            queued,
+        } = self;
         let (trail, outs) = trail.after(input);
-        (Shown { file, trail }, outs)
+        (
+            Shown {
+                file,
+                trail,
+                queued,
+            },
+            outs,
+        )
+    }
+
+    /// The first request that waited for a save, and the window after it: asked again once the
+    /// save that held it up has ended.
+    pub fn next_queued(self) -> (Shown, Option<HostRequest>) {
+        let Shown {
+            file,
+            trail,
+            mut queued,
+        } = self;
+        let next = (!queued.is_empty()).then(|| queued.remove(0));
+        (
+            Shown {
+                file,
+                trail,
+                queued,
+            },
+            next,
+        )
+    }
+
+    /// `request` waits for the save being written.
+    fn queueing(mut self, request: HostRequest) -> (Shown, Carry) {
+        self.queued.push(request);
+        (self, Carry::Declined(Declined::Queued))
     }
 
     /// The trail as it is now.
@@ -47,6 +92,9 @@ pub(super) fn edit(shown: Shown, request: EditRequest) -> (Shown, Carry) {
         return declined(shown, Declined::Edit);
     }
     let (shown, outs) = shown.stepped(TrailIn::Save);
+    if is_busy(&outs) {
+        return shown.queueing(HostRequest::Edit(request));
+    }
     saves(shown, outs, || Task::Edit {
         file: probed,
         request,
@@ -63,6 +111,9 @@ pub(super) fn rewind(shown: Shown, rewind: Rewind) -> (Shown, Carry) {
         Rewind::Redo => TrailIn::Redo,
     };
     let (shown, outs) = shown.stepped(input);
+    if is_busy(&outs) {
+        return shown.queueing(HostRequest::Rewind(rewind));
+    }
     restores(shown, outs, |version| Task::Restore { file, version })
 }
 
@@ -72,6 +123,9 @@ pub(super) fn revert(shown: Shown, key: VersionKey) -> (Shown, Carry) {
         return declined(shown, Declined::NoFileShown);
     };
     let (shown, outs) = shown.stepped(TrailIn::Save);
+    if is_busy(&outs) {
+        return shown.queueing(HostRequest::RevertTo(key));
+    }
     saves(shown, outs, || Task::RevertTo { file, key })
 }
 
@@ -95,6 +149,11 @@ fn destination(file: &FilePath, typed: &str) -> Option<FilePath> {
     }
     let name = FileName::new(text).ok()?;
     FilePath::new(file.parent()?.as_path().join(name.as_str())).ok()
+}
+
+/// Whether the trail refused for a save in flight.
+fn is_busy(outs: &[TrailOut<VersionId>]) -> bool {
+    matches!(outs.first(), Some(TrailOut::Busy) | None)
 }
 
 /// What the trail allowed.

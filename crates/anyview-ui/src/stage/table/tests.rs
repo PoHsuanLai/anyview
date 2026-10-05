@@ -1,5 +1,5 @@
 use super::*;
-use crate::stage::row::RowNo;
+use crate::stage::row::{RowNo, RowStep};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
@@ -124,6 +124,41 @@ const CASES: &[Case] = &[
         TableIn::Elapsed,
         selected(0, 4),
     ),
+    (
+        "down with no cursor picks the first row",
+        1,
+        browsing(0),
+        TableIn::Move(RowStep::Down),
+        selected(0, 0),
+    ),
+    (
+        "down moves the cursor one row",
+        1,
+        selected(0, 4),
+        TableIn::Move(RowStep::Down),
+        selected(0, 5),
+    ),
+    (
+        "page down moves by the room",
+        1,
+        selected(0, 4),
+        TableIn::Move(RowStep::PageDown),
+        selected(0, 8),
+    ),
+    (
+        "end goes to the last row",
+        1,
+        selected(0, 4),
+        TableIn::Move(RowStep::Bottom),
+        selected(0, 9),
+    ),
+    (
+        "home goes to the first row",
+        1,
+        selected(0, 4),
+        TableIn::Move(RowStep::Top),
+        selected(0, 0),
+    ),
 ];
 
 #[test]
@@ -131,6 +166,8 @@ fn the_table_stage_steps_as_the_table_says() {
     for (name, sheets, before, input, after) in CASES {
         let params = TableParams {
             sheets: SheetTotal(*sheets),
+            rows: 10,
+            page: 4,
         };
         let (next, outs) = before.step(*input, Stamp(0), &params, &());
         assert_eq!(next, *after, "{name}");

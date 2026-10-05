@@ -1,4 +1,4 @@
-use super::support::{NOW, PDF, PNG, desktop, entry, path, probed};
+use super::support::{NOW, PDF, PNG, desktop, desktop_choosing, entry, path, probed};
 use crate::host::{Hosting, Outcome, Task};
 use anyview_core::{
     ExportChoice, FileName, FormatKind, PageSelection, PixelLen, PixelSize, RasterExport,
@@ -139,7 +139,10 @@ async fn an_export_is_written_beside_the_file_and_a_failed_one_leaves_nothing() 
         })
         .await
         .unwrap();
-    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(
+        outcome,
+        Outcome::Wrote(path(dir.path().join("notes.pdf").to_str().unwrap()))
+    );
     let written = std::fs::read(dir.path().join("notes.pdf")).unwrap();
     assert!(anyview_pdf_text(&written).contains("We agreed to ship"));
 
@@ -225,7 +228,7 @@ async fn rename_moves_the_file_and_refuses_to_overwrite() {
         })
         .await
         .unwrap();
-    assert!(matches!(refused, Outcome::Failed(_)), "{refused:?}");
+    assert_eq!(refused, Outcome::Taken);
     assert!(file.as_path().exists(), "the file stayed");
 
     let moved = desktop
@@ -248,13 +251,59 @@ async fn duplicate_writes_the_first_free_copy_name() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", PNG);
     let (desktop, _) = desktop(dir.path(), vec![]);
-    for _ in 0..2 {
+    for copy in ["a copy.png", "a copy 2.png"] {
         let outcome = desktop
             .carry_out(Task::Duplicate(image.source.path().clone()))
             .await
             .unwrap();
-        assert_eq!(outcome, Outcome::Done);
+        assert_eq!(
+            outcome,
+            Outcome::Wrote(path(dir.path().join(copy).to_str().unwrap()))
+        );
     }
     assert_eq!(std::fs::read(dir.path().join("a copy.png")).unwrap(), PNG);
     assert_eq!(std::fs::read(dir.path().join("a copy 2.png")).unwrap(), PNG);
+}
+
+#[tokio::test]
+async fn the_file_dialog_answers_what_was_chosen_and_nothing_when_it_was_closed() {
+    let dir = tempfile::tempdir().unwrap();
+    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    // The fake dialog is closed: no file, and nothing to tell.
+    assert_eq!(
+        desktop.carry_out(Task::PickFile).await.unwrap(),
+        Outcome::Done
+    );
+    assert_eq!(fakes.picker.asked(), 1);
+
+    let chosen = vec![path("/tmp/somewhere/a.png"), path("/tmp/somewhere/b.png")];
+    let (desktop, _) = desktop_choosing(
+        dir.path(),
+        anyview_platform::PickOutcome::Chosen(chosen.clone()),
+    );
+    assert_eq!(
+        desktop.carry_out(Task::PickFile).await.unwrap(),
+        Outcome::Picked(chosen)
+    );
+
+    let (desktop, _) = desktop_choosing(dir.path(), anyview_platform::PickOutcome::NoDialog);
+    assert!(matches!(
+        desktop.carry_out(Task::PickFile).await.unwrap(),
+        Outcome::Nothing(_)
+    ));
+}
+
+#[tokio::test]
+async fn a_link_is_handed_to_the_desktops_handler() {
+    let dir = tempfile::tempdir().unwrap();
+    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let outcome = desktop
+        .carry_out(Task::OpenLink("https://example.org/a".to_owned()))
+        .await
+        .unwrap();
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(
+        fakes.links.opened(),
+        vec!["https://example.org/a".to_owned()]
+    );
 }

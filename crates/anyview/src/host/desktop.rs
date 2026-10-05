@@ -10,8 +10,12 @@ use super::saving;
 use super::store::Store;
 use super::trash::Trash;
 use anyview_core::{FileName, FilePath, Resume, Source};
-use anyview_platform::linux::{DesktopApps, FileManagerReveal, MailShare, PortalPrinter};
-use anyview_platform::{AppsForType, Env, JobTitle, PrintOutcome, Printer, Reveal, Share};
+use anyview_platform::linux::{
+    DesktopApps, FileManagerReveal, MailShare, PortalPicker, PortalPrinter, XdgOpen,
+};
+use anyview_platform::{
+    AppsForType, Env, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
+};
 use anyview_store::Versions;
 use anyview_ui::VersionRow;
 use std::fmt::Display;
@@ -48,16 +52,25 @@ pub trait Hosting: Send + Sync + 'static {
 }
 
 /// The Linux desktop.
-pub type LinuxDesktop =
-    Desktop<DesktopApps, FileManagerReveal, MailShare, PortalPrinter, SystemTrash>;
+pub type LinuxDesktop = Desktop<
+    DesktopApps,
+    FileManagerReveal,
+    MailShare,
+    PortalPrinter,
+    SystemTrash,
+    PortalPicker,
+    XdgOpen,
+>;
 
 /// The platform's parts, shared by every task.
-struct Parts<A, R, S, P, T> {
+struct Parts<A, R, S, P, T, F, L> {
     apps: A,
     reveal: R,
     share: S,
     printer: P,
     trash: T,
+    picker: F,
+    links: L,
     store: Arc<Store>,
     versions: Versions,
     remembering: Remembering,
@@ -77,20 +90,23 @@ pub struct Services {
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
-/// (Open With), `R` (reveal), `S` (share), `P` (print) and `T` (trash).
-pub struct Desktop<A, R, S, P, T> {
+/// (Open With), `R` (reveal), `S` (share), `P` (print), `T` (trash), `F` (choose a file) and `L`
+/// (open a web link).
+pub struct Desktop<A, R, S, P, T, F, L> {
     runtime: Handle,
-    parts: Arc<Parts<A, R, S, P, T>>,
+    parts: Arc<Parts<A, R, S, P, T, F, L>>,
 }
 
-impl<A, R, S, P, T> std::fmt::Debug for Desktop<A, R, S, P, T> {
+impl<A, R, S, P, T, F, L> std::fmt::Debug for Desktop<A, R, S, P, T, F, L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Desktop").finish_non_exhaustive()
     }
 }
 
-impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
-    /// A desktop made of these parts, running its tasks on `runtime`.
+impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
+    /// A desktop made of these parts, running its tasks on `runtime`. One argument for each
+    /// platform trait, which is the point of the type: a bundle would only rename them.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         runtime: Handle,
         apps: A,
@@ -98,6 +114,8 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
         share: S,
         printer: P,
         trash: T,
+        picker: F,
+        links: L,
         services: Services,
     ) -> Self {
         let Services {
@@ -114,6 +132,8 @@ impl<A, R, S, P, T> Desktop<A, R, S, P, T> {
                 share,
                 printer,
                 trash,
+                picker,
+                links,
                 remembering: Remembering::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
                 versions,
@@ -133,18 +153,22 @@ impl LinuxDesktop {
             MailShare::new(env.clone()),
             PortalPrinter::new(env.clone()),
             SystemTrash,
+            PortalPicker::new(env.clone()),
+            XdgOpen::new(env.clone()),
             services,
         )
     }
 }
 
-impl<A, R, S, P, T> Hosting for Desktop<A, R, S, P, T>
+impl<A, R, S, P, T, F, L> Hosting for Desktop<A, R, S, P, T, F, L>
 where
     A: AppsForType + Send + Sync + 'static,
     R: Reveal + Send + Sync + 'static,
     S: Share + Send + Sync + 'static,
     P: Printer + Send + Sync + 'static,
     T: Trash,
+    F: Picker + Send + Sync + 'static,
+    L: OpenLink + Send + Sync + 'static,
 {
     fn carry_out(&self, task: Task) -> JoinHandle<Outcome> {
         let parts = Arc::clone(&self.parts);
@@ -165,7 +189,7 @@ where
 
     fn prune_versions(&self) {
         let outcome = saving::prune_versions(&self.parts.versions, self.parts.store.saved_at());
-        super::outcome::report(&outcome);
+        super::feedback::report(&outcome);
     }
 
     fn flush(&self) {
@@ -173,15 +197,22 @@ where
     }
 }
 
-async fn perform<A, R, S, P, T>(parts: &Arc<Parts<A, R, S, P, T>>, task: Task) -> Outcome
+async fn perform<A, R, S, P, T, F, L>(
+    parts: &Arc<Parts<A, R, S, P, T, F, L>>,
+    task: Task,
+) -> Outcome
 where
     A: AppsForType + Send + Sync + 'static,
     R: Reveal + Send + Sync + 'static,
     S: Share + Send + Sync + 'static,
     P: Printer + Send + Sync + 'static,
     T: Trash,
+    F: Picker + Send + Sync + 'static,
+    L: OpenLink + Send + Sync + 'static,
 {
     match task {
+        Task::PickFile => pick(parts).await,
+        Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),
         Task::Share(file) => share(parts, &file).await,
         Task::Print(probed) => print(parts, probed).await,
@@ -270,8 +301,8 @@ fn failed<E: Display>(what: &str, result: Result<(), E>) -> Outcome {
     }
 }
 
-fn open_with<A: AppsForType, R, S, P, T>(
-    parts: &Parts<A, R, S, P, T>,
+fn open_with<A: AppsForType, R, S, P, T, F, L>(
+    parts: &Parts<A, R, S, P, T, F, L>,
     probed: &anyview_ui::Probed,
 ) -> Outcome {
     let others = parts
@@ -288,15 +319,18 @@ fn open_with<A: AppsForType, R, S, P, T>(
     }
 }
 
-async fn share<A, R, S: Share, P, T>(parts: &Parts<A, R, S, P, T>, file: &FilePath) -> Outcome {
+async fn share<A, R, S: Share, P, T, F, L>(
+    parts: &Parts<A, R, S, P, T, F, L>,
+    file: &FilePath,
+) -> Outcome {
     match parts.share.targets().first() {
         Some(target) => failed("share the file", parts.share.share(file, *target).await),
         None => Outcome::Nothing("no way to share a file"),
     }
 }
 
-async fn print<A, R, S, P: Printer, T>(
-    parts: &Parts<A, R, S, P, T>,
+async fn print<A, R, S, P: Printer, T, F, L>(
+    parts: &Parts<A, R, S, P, T, F, L>,
     probed: anyview_ui::Probed,
 ) -> Outcome {
     let title = JobTitle(
@@ -321,16 +355,23 @@ async fn print<A, R, S, P: Printer, T>(
     }
 }
 
+/// The files the person chooses in the desktop's dialog.
+async fn pick<A, R, S, P, T, F: Picker, L>(parts: &Parts<A, R, S, P, T, F, L>) -> Outcome {
+    match parts.picker.pick().await {
+        Ok(PickOutcome::Chosen(files)) => Outcome::Picked(files),
+        Ok(PickOutcome::Cancelled) => Outcome::Done,
+        Ok(PickOutcome::NoDialog) => Outcome::Nothing("the desktop has no file chooser"),
+        Err(error) => Outcome::Failed(format!("cannot choose a file: {error}")),
+    }
+}
+
 fn rename(file: &FilePath, to: &FileName) -> Outcome {
     let Some(folder) = file.parent() else {
         return Outcome::Failed("cannot rename a root".to_owned());
     };
     let target = folder.as_path().join(to.as_str());
     if target.exists() {
-        return Outcome::Failed(format!(
-            "cannot rename: {} already exists",
-            target.display()
-        ));
+        return Outcome::Taken;
     }
     match std::fs::rename(file.as_path(), &target) {
         Ok(()) => match FilePath::new(&target) {
@@ -345,10 +386,10 @@ fn duplicate(file: &FilePath) -> Outcome {
     let Some(copy) = free_copy_of(file.as_path()) else {
         return Outcome::Failed("cannot find a free name for the copy".to_owned());
     };
-    failed(
-        "copy the file",
-        std::fs::copy(file.as_path(), copy).map(drop),
-    )
+    if let Err(error) = std::fs::copy(file.as_path(), &copy) {
+        return Outcome::Failed(format!("cannot copy the file: {error}"));
+    }
+    FilePath::new(&copy).map_or(Outcome::Done, Outcome::Wrote)
 }
 
 /// `name copy.ext`, `name copy 2.ext`, … beside `file`: the first that is free.

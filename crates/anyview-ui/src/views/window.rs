@@ -8,6 +8,7 @@ use super::arrive::arrived;
 use super::carry::{Carry, carry_out};
 use super::chrome::{Controls, Titlebar};
 use super::effects::{use_announce, use_work};
+use super::failed::{FailedScreen, Offer};
 use super::keys::{keys_of, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
@@ -20,11 +21,11 @@ use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
-    ChromeIn, Command, Launch, Load, NavigateIn, Palette as PaletteState, PaletteIn, Panel,
-    PanelIn, PanelTab, Presentation, Sheet, SheetIn, StageCommand, StageCx, StageIn, TypedText,
-    Viewer, ViewerIn, Zone,
+    ChromeIn, Command, Launch, Load, LoadFailure, NavigateIn, Palette as PaletteState, PaletteIn,
+    Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn, StageCommand, StageCx, StageIn,
+    TypedText, Viewer, ViewerIn, Zone,
 };
-use anyview_core::FilePath;
+use anyview_core::{FileAction, FilePath};
 use dioxus::prelude::*;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
@@ -50,6 +51,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         shelf,
         edge: edge.clone(),
         gpu: gpu.clone(),
+        toasts: ds::prelude::use_toasts(),
         machine: slot,
     };
     let handler = carry.clone();
@@ -123,6 +125,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let worker = carry.edge.clone();
     let requester = carry.edge.clone();
     let requested = carry.edge.clone();
+    let reveal_edge = carry.edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
         ticket,
@@ -171,12 +174,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         .as_ref()
         .map(|(_, doc)| doc.view().slots(&cx))
         .unwrap_or_default();
+    let failure = match state.load {
+        Load::Failed { reason, .. } => Some(reason),
+        Load::Idle { .. }
+        | Load::Probing { .. }
+        | Load::Peeking { .. }
+        | Load::Opening { .. }
+        | Load::Ready { .. } => None,
+    };
     let phase = match state.load {
-        Load::Failed { reason, .. } => Phase::Failed {
-            title: "This file did not open".to_owned(),
-            description: Some(reason.label().into()),
-        },
-        Load::Ready { .. } => Phase::Ready,
+        Load::Failed { .. } | Load::Ready { .. } => Phase::Ready,
         Load::Idle { .. } | Load::Probing { .. } | Load::Peeking { .. } | Load::Opening { .. } => {
             if current.is_some() {
                 Phase::Ready
@@ -186,11 +193,20 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         }
     };
     let title = title_of(&shelf.probe.read()).unwrap_or_else(|| {
-        launch
-            .file
-            .file_name()
+        (shelf.wanted)()
+            .as_ref()
+            .and_then(FilePath::file_name)
             .map_or_else(String::new, |name| name.as_str().to_owned())
     });
+    let failed_offer = if failure == Some(LoadFailure::NotFound) {
+        Offer::Nothing
+    } else if shelf.probe.read().found().is_some() {
+        Offer::OpenWithAndReveal
+    } else if shelf.wanted.read().is_some() {
+        Offer::RevealOnly
+    } else {
+        Offer::Nothing
+    };
     let (panel_shown, panel_tab) = match state.panel {
         Panel::Shown { tab } => (Shown::Visible, tab),
         Panel::Hidden => (Shown::Hidden, PanelTab::Info),
@@ -217,8 +233,18 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 drop.mounted(event);
             },
             onkeydown: move |event: KeyboardEvent| {
-                // A sheet and the palette take their own keys; the rest are the machine's.
-                if sheet_open || palette_open {
+                // The palette takes its own keys. A sheet does too, but when focus is still on
+                // the window Return and Esc reach it here, so the machine's sheet answers them.
+                if palette_open {
+                    return;
+                }
+                if sheet_open {
+                    if let Some(key) = shortcut_of(&event)
+                        && SheetIn::from_key(&key.keys()).is_some()
+                    {
+                        event.prevent_default();
+                        dispatch.send(ViewerIn::Key(key));
+                    }
                     return;
                 }
                 if let Some(key) = shortcut_of(&event) {
@@ -237,9 +263,19 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         window.host().begin_move();
                     }
                 },
-                Loadable { phase,
-                    if let Some((_, doc)) = current.as_ref() {
-                        {doc.view().stage(&cx)}
+                if let Some(reason) = failure {
+                    FailedScreen {
+                        reason,
+                        name: title.clone(),
+                        offer: failed_offer,
+                        onopenwith: move |()| dispatch.send(ViewerIn::Run(Command::File(FileAction::OpenWith))),
+                        onreveal: move |()| reveal(&reveal_edge, &shelf),
+                    }
+                } else {
+                    Loadable { phase,
+                        if let Some((_, doc)) = current.as_ref() {
+                            {doc.view().stage(&cx)}
+                        }
                     }
                 }
                 if !slots.is_empty() {
@@ -386,5 +422,12 @@ fn typed(dispatch: Dispatch, event: &KeyboardEvent) {
         }
         chord if chord.contains(&ShortcutKey::Super) => {}
         _ => event.stop_propagation(),
+    }
+}
+
+/// Show the file the window last asked for in its folder.
+fn reveal(edge: &crate::Edge, shelf: &Shelf) {
+    if let Some(file) = shelf.wanted.peek().clone() {
+        edge.request(HostRequest::Reveal(file));
     }
 }
