@@ -766,3 +766,18 @@ on. It is a reference, not a log: how each was found lives in git history.
   encrypted books, and in a comic anything but PNG, JPEG, GIF, WebP and BMP pages. A page is decoded by the
   renderer on the UI thread, so a very large page can hitch a turn. The reading position is the chapter, not
   the scroll inside it. Ends when a section can be scrolled and zoomed by its own machine.
+
+## Saves, versions and the install receipt
+
+- **Save and store limits that stand.** A save keeps the mode, owner (where the process may chown), extended
+  attributes and ACLs, and writes a file with other hard links in place so the links stay one file; that write is
+  not atomic (the original is kept first). A directory fsync that fails after the rename is
+  `Durability::Unconfirmed`, logged by the host. Version listing skips a damaged sidecar silently. The store is
+  capped at `DEFAULT_CAP` (2 GiB), pruned oldest first and never a file's newest version; no version is
+  pruned by age when the clock is over a year past the newest one. A kept version is not made again when it is
+  identical to the file's latest. A save refused for a read-only file is `Io { op: Permissions, kind:
+  PermissionDenied }`; `anyview_store::is_read_only` is the query a window uses to disable edits. Rename's no-replace
+  falls back to a look-then-rename for a folder on a file system without `RENAME_NOREPLACE` (the one window left).
+- **`dist/install.sh` writes a receipt** (`<prefix>/share/anyview/install-receipt`) naming the files it wrote and
+  the directories it made; `uninstall.sh` removes exactly those, directories only when empty. An install from
+  before the receipt is removed by file names, as it was.
