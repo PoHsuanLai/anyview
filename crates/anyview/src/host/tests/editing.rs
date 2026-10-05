@@ -10,7 +10,7 @@ use anyview_store::{SavedAt, VersionId, Versions};
 use anyview_ui::{EditRequest, HostRequest, Probed, Rewind, TypedText};
 
 #[path = "../../../../anyview-pdf/tests/support/mod.rs"]
-#[allow(dead_code, clippy::unwrap_used)]
+#[allow(clippy::unwrap_used)]
 mod pdf_fixture;
 
 const JPEG: &[u8] = include_bytes!("../../../../anyview-image/tests/fixtures/rotated.jpg");
@@ -25,10 +25,10 @@ fn turn() -> EditRequest {
 }
 
 fn kept_of(outcome: &Outcome) -> VersionId {
-    match outcome {
-        Outcome::Written { kept, .. } => kept.clone(),
-        other => panic!("not written: {other:?}"),
-    }
+    let Outcome::Written { kept, .. } = outcome else {
+        panic!("not written: {outcome:?}")
+    };
+    kept.clone()
 }
 
 fn bytes_of(file: &Probed) -> Vec<u8> {

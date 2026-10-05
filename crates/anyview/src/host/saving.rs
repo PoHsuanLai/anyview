@@ -7,7 +7,6 @@ use anyview_core::{FilePath, FormatKind};
 use anyview_pdf::{PdfDocument, apply, page_op};
 use anyview_store::{DEFAULT_KEEP, Pending, SavedAt, VersionId, Versions};
 use anyview_ui::{EditRequest, Probed, VersionKey, VersionRow};
-use std::path::{Path, PathBuf};
 
 /// Why an edit could not be made into the bytes of a new file.
 #[derive(Debug, thiserror::Error)]
@@ -123,41 +122,18 @@ fn outcome_of(result: Result<VersionId, String>, path: &FilePath) -> Outcome {
     }
 }
 
-/// A copy of `file` at `to`: written beside it under a temporary name and moved into place, so
-/// the destination is whole or absent. A destination that exists is never replaced, and the
-/// source is only read.
+/// A copy of `file` at `to`, written whole or not at all and never over a file that is there:
+/// the source is only read.
 pub(super) fn save_copy(file: &FilePath, to: &FilePath) -> Outcome {
-    let (source, target) = (file.as_path(), to.as_path());
-    if target.exists() {
-        return Outcome::Failed(format!(
-            "cannot save the copy: {} already exists",
-            target.display()
-        ));
-    }
-    let temp = temp_beside(target);
-    let copied = std::fs::copy(source, &temp).and_then(|_| {
-        if target.exists() {
-            return Err(std::io::ErrorKind::AlreadyExists.into());
-        }
-        std::fs::rename(&temp, target)
-    });
-    match copied {
+    let bytes = match std::fs::read(file.as_path()) {
+        Ok(bytes) => bytes,
+        Err(error) => return Outcome::Failed(format!("cannot read the file to copy: {error}")),
+    };
+    match anyview_export::write_new(&bytes, to.as_path()) {
         Ok(()) => Outcome::Done,
-        Err(error) => {
-            let _gone = std::fs::remove_file(&temp);
-            Outcome::Failed(format!("cannot save the copy: {error}"))
-        }
+        Err(error) => Outcome::Failed(format!("cannot save the copy: {error}")),
     }
 }
-
-/// The name the copy has until it is whole.
-fn temp_beside(target: &Path) -> PathBuf {
-    let mut name = std::ffi::OsString::from(".");
-    name.push(target.file_name().unwrap_or_default());
-    name.push(format!(".anyview-{}.tmp", std::process::id()));
-    target.with_file_name(name)
-}
-
 /// The versions kept of `path` as the sheet lists them, newest first. A store that cannot be
 /// read lists none: the sheet then says there is nothing to go back to.
 pub(super) fn rows_of(versions: &Versions, path: &FilePath) -> Vec<VersionRow> {

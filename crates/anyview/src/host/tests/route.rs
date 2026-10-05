@@ -1,16 +1,26 @@
 use super::support::{PDF, PNG, probed};
 use crate::host::{Carry, Declined, Shown, Task, WindowTask, route};
-use anyview_core::{FileAction, FileName, MediaExport, Resume};
-use anyview_ui::{ExportDraft, HostRequest, Presentation, TypedText};
+use anyview_core::{
+    ExportChoice, FileAction, FileName, MediaExport, PdfExport, RasterExport, Resume, TextExport,
+};
+use anyview_export::DocumentExport;
+use anyview_ui::{ExportDraft, ExportFamily, HostRequest, Presentation, TypedText};
 
 /// The export the sheet confirms for a trim of the whole recording.
 fn media_export() -> ExportDraft {
     ExportDraft::Media(MediaExport::Trim(anyview_core::TimeRange::WHOLE))
 }
 
+/// The export a sheet opens on for a format: its first kind with that kind's default options.
+fn first<E: ExportChoice>() -> E {
+    E::default_for(E::kinds()[0])
+}
+
 fn requests_of_a_window(
     image: &anyview_ui::Probed,
     pdf: &anyview_ui::Probed,
+    notes: &anyview_ui::Probed,
+    recording: &anyview_ui::Probed,
 ) -> Vec<(&'static str, Shown, HostRequest, Carry)> {
     let open = |probed: &anyview_ui::Probed| {
         route(Shown::default(), HostRequest::Opened(probed.clone())).0
@@ -68,10 +78,22 @@ fn requests_of_a_window(
             Carry::Desktop(Task::Print(pdf.clone())),
         ),
         (
-            "print of a picture waits for an export to pdf",
+            "print goes through for a picture, which is laid out as a pdf first",
             open(image),
             HostRequest::Run(FileAction::Print),
-            Carry::Declined(Declined::PrintNeedsPdf),
+            Carry::Desktop(Task::Print(image.clone())),
+        ),
+        (
+            "print goes through for a text document",
+            open(notes),
+            HostRequest::Run(FileAction::Print),
+            Carry::Desktop(Task::Print(notes.clone())),
+        ),
+        (
+            "a recording is not laid out on paper",
+            open(recording),
+            HostRequest::Run(FileAction::Print),
+            Carry::Declined(Declined::NotPrintable),
         ),
         (
             "the confirmed trash names the file",
@@ -209,10 +231,43 @@ fn requests_of_a_window(
             }),
         ),
         (
-            "an image's export waits for the export pipeline",
+            "an image's export is written by the export crate",
             open(image),
-            HostRequest::Export(ExportDraft::first_of(anyview_ui::ExportFamily::Raster).unwrap()),
-            Carry::Declined(Declined::Export),
+            HostRequest::Export(ExportDraft::first_of(ExportFamily::Raster).unwrap()),
+            Carry::Desktop(Task::ExportDocument {
+                file: image.clone(),
+                choice: DocumentExport::Raster(first::<RasterExport>()),
+            }),
+        ),
+        (
+            "so is a pdf's",
+            open(pdf),
+            HostRequest::Export(ExportDraft::first_of(ExportFamily::Pdf).unwrap()),
+            Carry::Desktop(Task::ExportDocument {
+                file: pdf.clone(),
+                choice: DocumentExport::Pdf(first::<PdfExport>()),
+            }),
+        ),
+        (
+            "and a text document's",
+            open(notes),
+            HostRequest::Export(ExportDraft::first_of(ExportFamily::Text).unwrap()),
+            Carry::Desktop(Task::ExportDocument {
+                file: notes.clone(),
+                choice: DocumentExport::Text(first::<TextExport>()),
+            }),
+        ),
+        (
+            "an export with no file shown has no file to write",
+            Shown::default(),
+            HostRequest::Export(ExportDraft::first_of(ExportFamily::Raster).unwrap()),
+            Carry::Declined(Declined::NoFileShown),
+        ),
+        (
+            "the export action is the sheet's to answer",
+            open(image),
+            HostRequest::Run(FileAction::Export),
+            Carry::Declined(Declined::NeedsSheet),
         ),
     ]
 }
@@ -222,7 +277,9 @@ fn every_request_becomes_the_task_that_carries_it_out() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", PNG);
     let pdf = probed(dir.path(), "a.pdf", PDF);
-    for (name, shown, request, want) in requests_of_a_window(&image, &pdf) {
+    let notes = probed(dir.path(), "a.md", b"# Notes\n");
+    let recording = probed(dir.path(), "a.mp3", b"ID3\x04\0\0\0\0\0\0");
+    for (name, shown, request, want) in requests_of_a_window(&image, &pdf, &notes, &recording) {
         let (_, carry) = route(shown, request);
         assert_eq!(carry, want, "{name}");
     }

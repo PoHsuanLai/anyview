@@ -51,7 +51,7 @@ pub struct VersionList(Cow<'static, [VersionRow]>);
 impl VersionList {
     /// The list of `rows`, owned; `None` when there are none.
     pub fn new(rows: Vec<VersionRow>) -> Option<Self> {
-        (!rows.is_empty()).then(|| VersionList(Cow::Owned(rows)))
+        (!rows.is_empty()).then_some(VersionList(Cow::Owned(rows)))
     }
 
     /// A list written out as a constant.

@@ -1,13 +1,14 @@
-//! Exports: page ranges as PDFs, text, Markdown and page images, through the planned pieces.
+//! Exports: page ranges as PDFs, text, Markdown and page images, through the planned jobs.
 
 mod support;
 
 use anyview_core::{
-    Dpi, PageIndex, PageRange, PageSelection, PdfExport, RasterTarget, TextFlavour,
+    Dpi, ExportJob, FilePath, PageIndex, PageRange, PageSelection, PdfExport, PdfPages,
+    PixelSource, RasterTarget, TextFlavour, TextSource,
 };
 use anyview_pdf::{
-    ExportPiece, PdfDocument, PdfJob, PdfWorker, SearchQuery, Stop, Ticket, plan_export,
-    search_document, write_pages, write_text,
+    PdfDocument, PdfJob, PdfWorker, SearchQuery, Stop, Ticket, plan_export, search_document,
+    write_pages, write_text,
 };
 use support::{drawn, fixture, page, run, text, written};
 
@@ -45,14 +46,18 @@ fn text_comes_out_plain_or_as_markdown() {
 }
 
 #[test]
-fn every_planned_piece_runs_as_a_job() {
+fn every_planned_job_runs_as_a_pdf_job() {
     let doc = fixture();
     let dpi = Dpi::new(144).expect("a resolution");
     let images = PdfExport::PageImages(PageSelection::All, RasterTarget::Png, dpi);
-    let plan = plan_export(images, doc.page_count());
+    let file = FilePath::new("/docs/fixture.pdf").expect("absolute");
+    let plan = plan_export(&file, images, doc.page_count());
     assert_eq!(plan.len(), 3);
-    let ExportPiece::DrawPage {
-        page: last, dpi, ..
+    let ExportJob::EncodeRaster {
+        pixels: PixelSource::PdfPage {
+            page: last, dpi, ..
+        },
+        ..
     } = plan[2]
     else {
         panic!("a page: {:?}", plan[2])
@@ -68,10 +73,13 @@ fn every_planned_piece_runs_as_a_job() {
     let size = raster.expect("drawn").size();
     assert_eq!((size.width.0, size.height.0), (800, 600));
 
-    let [ExportPiece::WriteText { pages, flavour }] =
-        plan_export(PdfExport::Markdown, doc.page_count())[..]
+    let [
+        ExportJob::WriteText {
+            text: TextSource::Pdf { pages, flavour, .. },
+        },
+    ] = plan_export(&file, PdfExport::Markdown, doc.page_count())[..]
     else {
-        panic!("one text piece")
+        panic!("one text job")
     };
     let job = PdfJob::Text {
         ticket: Ticket(2),
@@ -80,10 +88,13 @@ fn every_planned_piece_runs_as_a_job() {
     };
     assert!(text(run(&doc, job)).expect("text").contains("Chapter Two"));
 
-    let [ExportPiece::WritePdf(pages)] =
-        plan_export(PdfExport::Pdf(range(0, 0)), doc.page_count())[..]
+    let [
+        ExportJob::WritePdf {
+            pages: PdfPages::Pages { pages, .. },
+        },
+    ] = plan_export(&file, PdfExport::Pdf(range(0, 0)), doc.page_count())[..]
     else {
-        panic!("one pdf piece")
+        panic!("one pdf job")
     };
     let file = written(run(
         &doc,
