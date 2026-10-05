@@ -53,6 +53,10 @@ say "1. files"
 remove_file "$PREFIX/bin/anyview"
 remove_file "$PREFIX/share/applications/$APP_ID.desktop"
 remove_file "$PREFIX/share/dbus-1/services/$BUS_NAME.service"
+remove_file "$PREFIX/share/metainfo/$APP_ID.metainfo.xml"
+for doc in LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md; do
+  remove_file "$PREFIX/share/doc/anyview/$doc"
+done
 # The plugins install.sh --with-plugin put in: their programs and manifests, and the folders that
 # held them when nothing else is in them.
 remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
@@ -64,7 +68,7 @@ remove_file "$PREFIX/share/anyview/plugins/raw.toml"
 remove_file "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
 remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
 if [[ "$DRY_RUN" == no ]]; then
-  for folder in libexec/anyview share/anyview/plugins share/anyview; do
+  for folder in libexec/anyview share/anyview/plugins share/anyview share/doc/anyview; do
     [[ -d "$(dest "$PREFIX/$folder")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "$PREFIX/$folder")"
   done
 fi
