@@ -96,6 +96,20 @@ impl ExifFacts {
         }
     }
 
+    /// Whether the EXIF block of an image file says how it is oriented at all (as opposed to
+    /// saying nothing, which reads as upright).
+    pub(crate) fn has_orientation(file: &[u8]) -> bool {
+        Reader::new()
+            .read_from_container(&mut Cursor::new(file))
+            .is_ok_and(|exif| {
+                exif.get_field(Tag::Orientation, In::PRIMARY)
+                    .and_then(|field| field.value.get_uint(0))
+                    .and_then(|tag| u16::try_from(tag).ok())
+                    .and_then(ExifOrientation::from_tag)
+                    .is_some()
+            })
+    }
+
     /// `Canon EOS R5`: the model, with the maker in front unless the model already starts with it.
     pub fn camera(&self) -> Option<String> {
         format::camera(self.make.as_deref(), self.model.as_deref())
