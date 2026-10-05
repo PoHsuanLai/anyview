@@ -1,9 +1,9 @@
 //! What every window of the program shares, and what makes one window its own.
 
 use super::opening::Opening;
-use crate::host::{Appearances, HostedResume, Hosting, Watcher};
+use crate::host::{Appearances, HostedResume, HostedVersions, Hosting, Watcher};
 use anyview_platform::WindowStacking;
-use anyview_ui::{FirstFrameSource, MediaHost, Presentation, ResumeSource, Workers};
+use anyview_ui::{FirstFrameSource, MediaHost, Presentation, ResumeSource, VersionSource, Workers};
 use std::sync::Arc;
 
 /// The wiring all windows share: the workers their jobs run on and the host their requests go
@@ -16,6 +16,8 @@ pub struct Factory {
     pub hosting: Arc<dyn Hosting>,
     /// Where files were left, read for every window's probes.
     pub resume: Arc<dyn ResumeSource>,
+    /// The kept versions of a file, listed for the Revert To sheet.
+    pub versions: Arc<dyn VersionSource>,
     /// The small pictures shown while a file opens.
     pub first_frames: Arc<dyn FirstFrameSource>,
     /// The program's one file watcher, when the system has one.
@@ -56,6 +58,7 @@ impl Factory {
         Factory {
             workers,
             resume: Arc::new(HostedResume(Arc::clone(&hosting))),
+            versions: Arc::new(HostedVersions(Arc::clone(&hosting))),
             hosting,
             first_frames,
             watcher,

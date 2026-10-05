@@ -11,5 +11,6 @@ mod seed;
 mod tests;
 
 pub use opening::{Opening, sequence_around};
+pub(crate) use root::WINDOW;
 pub use root::{open_in_window, seeded_root};
 pub use seed::{Factory, Seed, StackingAsk};

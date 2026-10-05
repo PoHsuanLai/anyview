@@ -65,7 +65,10 @@ fn image_failure(error: &anyview_image::ImageError) -> LoadFailure {
         E::WrongKind { .. }
         | E::Unsupported { .. }
         | E::NotCompiledIn { .. }
-        | E::TooLarge { .. } => LoadFailure::Unsupported,
+        | E::TooLarge { .. }
+        | E::NotSavable { .. }
+        | E::NotSavableAnimated
+        | E::NotAnImageEdit { .. } => LoadFailure::Unsupported,
         E::Decode { .. }
         | E::NoBudget
         | E::PixelsMismatch { .. }

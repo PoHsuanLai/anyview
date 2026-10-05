@@ -1,6 +1,7 @@
 //! How a task ended, and the program's one report of it.
 
 use anyview_core::FilePath;
+use anyview_store::VersionId;
 
 /// A request the program has no way to carry out yet, named so the report says which.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,8 +20,14 @@ pub enum Declined {
     Present,
     /// The clipboard holds text only; the file itself cannot be put on it.
     CopyFile,
-    /// Editing a file in place and keeping its original are not wired.
+    /// The file has no such edit: a recording cannot be turned, a picture has no pages.
     Edit,
+    /// An earlier save is still being written; the file is not changed twice at once.
+    Busy,
+    /// Nothing was edited in this window, so there is nothing to take back.
+    NothingToUndo,
+    /// Nothing was taken back in this window, so there is nothing to do again.
+    NothingToRedo,
     /// Nothing of this kind is laid out on paper (a recording, a table, an archive).
     NotPrintable,
     /// The typed name is not a file name.
@@ -42,14 +49,18 @@ pub enum Outcome {
     Handed,
     /// It failed; the text says what was being done and what refused.
     Failed(String),
+    /// The file was saved in place, and this version holds what it was.
+    Written { file: FilePath, kept: VersionId },
+    /// A save in place wrote nothing, and the file is as it was; the text says what refused.
+    NotWritten(String),
 }
 
 /// The program's one log line for something that did not go as asked. `Done` says nothing.
 pub fn report(outcome: &Outcome) {
     match outcome {
-        Outcome::Done | Outcome::Moved(_) | Outcome::Handed => {}
+        Outcome::Done | Outcome::Moved(_) | Outcome::Handed | Outcome::Written { .. } => {}
         Outcome::Nothing(why) => eprintln!("anyview: nothing to do: {why}"),
-        Outcome::Failed(why) => eprintln!("anyview: {why}"),
+        Outcome::Failed(why) | Outcome::NotWritten(why) => eprintln!("anyview: {why}"),
     }
 }
 

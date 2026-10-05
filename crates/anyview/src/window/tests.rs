@@ -59,7 +59,7 @@ mod remaking {
     use anyview_store::Viewed;
     use anyview_ui::Look;
     use anyview_ui::Presentation;
-    use ds_blitz::{Decorations, WindowSpec};
+    use ds_blitz::{Decorations, WindowSize, WindowSpec};
     use std::sync::Arc;
 
     struct NoTrash;
@@ -99,6 +99,7 @@ mod remaking {
             FakePrinter::answering(PrintOutcome::Printed),
             NoTrash,
             Services {
+                versions: anyview_store::Versions::under_state(&dir.join("state")),
                 store: Store::new(&dir.join("store"), now),
                 media: Media {
                     hub: hub.clone(),
@@ -142,7 +143,8 @@ mod remaking {
         };
         assert_eq!(
             of(Presentation::Mini),
-            WindowSpec::new("clip.mkv", 480, 270).with_decorations(Decorations::Client)
+            WindowSpec::new("clip.mkv", WindowSize::new(480, 270))
+                .with_decorations(Decorations::Client)
         );
         for ordinary in [
             Presentation::Window,
@@ -151,7 +153,7 @@ mod remaking {
         ] {
             assert_eq!(
                 of(ordinary),
-                WindowSpec::new("clip.mkv", 1000, 700),
+                WindowSpec::new("clip.mkv", WindowSize::new(1000, 700)),
                 "{ordinary:?}"
             );
         }

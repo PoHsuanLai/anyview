@@ -1,6 +1,7 @@
 use super::support::*;
 use crate::chrome::*;
 use crate::command::Command;
+use crate::edits::EditRequest;
 use crate::load::*;
 use crate::palette::*;
 use crate::panel::*;
@@ -109,7 +110,7 @@ const CASES: &[Case] = &[
         },
     ),
     (
-        "a command from a control turns the image like the palette's row does",
+        "a command from a control asks the host to save the turn, like the palette's row does",
         || Viewer {
             stage: image(),
             ..Viewer::default()
@@ -117,20 +118,13 @@ const CASES: &[Case] = &[
         || ViewerIn::Run(Command::File(FileAction::RotateRight)),
         0,
         || Viewer {
-            stage: Stage::Raster(RasterStage::Fitted {
-                turn: QuarterTurn::Quarter,
-                anim: Animation::Still,
-            }),
+            stage: image(),
             ..Viewer::default()
         },
         || {
-            vec![
-                ViewerOut::Stage(StageOut::Raster(RasterOut::Turned(QuarterTurn::Quarter))),
-                ViewerOut::Stage(StageOut::Raster(RasterOut::Remember(Resume::Raster {
-                    zoom: Zoom::Fit,
-                    centre: DocPoint::default(),
-                }))),
-            ]
+            vec![ViewerOut::Edit(EditRequest::of_picture(Edit::Rotate(
+                QuarterTurn::Quarter,
+            )))]
         },
     ),
     (
@@ -181,7 +175,7 @@ const CASES: &[Case] = &[
         },
     ),
     (
-        "a palette turn on an image turns the stage, not the edge",
+        "a palette turn on an image asks the host to save the turn",
         || Viewer {
             palette: palette_on(3),
             chrome: menu_pinned(),
@@ -195,21 +189,12 @@ const CASES: &[Case] = &[
                 idle_from: Stamp(1000),
                 hide_at: Stamp(3000),
             },
-            stage: Stage::Raster(RasterStage::Fitted {
-                turn: QuarterTurn::Quarter,
-                anim: Animation::Still,
-            }),
+            stage: image(),
             ..Viewer::default()
         },
         || {
             vec![
-                ViewerOut::Stage(StageOut::Raster(RasterOut::Turned(QuarterTurn::Quarter))),
-                ViewerOut::Stage(StageOut::Raster(RasterOut::Remember(
-                    anyview_core::Resume::Raster {
-                        zoom: anyview_core::Zoom::Fit,
-                        centre: anyview_core::DocPoint::default(),
-                    },
-                ))),
+                ViewerOut::Edit(EditRequest::of_picture(Edit::Rotate(QuarterTurn::Quarter))),
                 ViewerOut::Palette(PaletteOut::Closed),
             ]
         },

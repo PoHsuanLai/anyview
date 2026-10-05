@@ -2,7 +2,7 @@
 //! file is told apart from a file that is not the image its name says, a format this build cannot
 //! open from one nobody can.
 
-use anyview_core::{FormatKind, PixelSize, RasterFormat};
+use anyview_core::{EditKind, FormatKind, PixelSize, RasterFormat};
 use std::path::PathBuf;
 
 /// Why an image could not be read, shown, written or rotated.
@@ -75,5 +75,20 @@ pub enum ImageError {
     Exif {
         /// What is wrong with it.
         reason: &'static str,
+    },
+    /// The format has no writer that keeps it as it is: saving it in place would lose something.
+    #[error("{format:?} images cannot be saved in place: nothing here writes them back unchanged")]
+    NotSavable {
+        /// The format.
+        format: RasterFormat,
+    },
+    /// An animation would lose its frames if its first picture were turned and written back.
+    #[error("an animated image cannot be saved in place: only its first picture would stay")]
+    NotSavableAnimated,
+    /// The edit is of pages, which a picture has none of.
+    #[error("{kind:?} is not an edit of a picture")]
+    NotAnImageEdit {
+        /// The edit.
+        kind: EditKind,
     },
 }

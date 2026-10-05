@@ -21,5 +21,5 @@ pub use media::{
     SlotPixels,
 };
 pub(crate) use probe::probe;
-pub use seams::{FirstFrameSource, ResumeSource};
+pub use seams::{FirstFrameSource, ResumeSource, VersionSource};
 pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, Workers};

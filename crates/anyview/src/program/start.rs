@@ -10,12 +10,12 @@ use crate::host::{
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
 use crate::seam::{NoticeWaker, Workforce};
-use crate::window::Factory;
+use crate::window::{Factory, WINDOW};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
 use anyview_platform::{Env, PluginRunner, Request, discover};
-use anyview_store::{STORE_FOLDER, Viewed};
+use anyview_store::{STORE_FOLDER, Versions, Viewed};
 use ds_blitz::{
     AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
 };
@@ -148,8 +148,15 @@ fn show(
     let hosting = Arc::new(LinuxDesktop::linux(
         runtime.handle().clone(),
         &env,
-        Services { store, media },
+        Services {
+            store,
+            media,
+            versions: Versions::under_state(&env.dirs.state),
+        },
     ));
+    // Old kept versions go once, as the program starts, off the window's threads.
+    let pruning = Arc::clone(&hosting);
+    runtime.spawn_blocking(move || pruning.prune_versions());
     let watcher = Watcher::start(SETTLE)
         .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))
         .ok()
@@ -172,7 +179,7 @@ fn show(
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
     // `WARM_FOR`.
-    let config = AppConfig::new("anyview", 1000, 700)
+    let config = AppConfig::new("anyview", WINDOW)
         .with_app_id(AppId(APP_ID.to_owned()))
         .with_decorations(Decorations::Client)
         .with_last_window(LastWindowClosed::StayFor(WARM_FOR))

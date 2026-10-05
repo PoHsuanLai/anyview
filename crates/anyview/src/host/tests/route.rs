@@ -174,7 +174,7 @@ fn requests_of_a_window(
             Carry::Declined(Declined::CopyFile),
         ),
         (
-            "an edit in place is not wired",
+            "a flip asked of the host, which the viewer does only for a file with no flip, is declined",
             open(image),
             HostRequest::Run(FileAction::FlipHorizontal),
             Carry::Declined(Declined::Edit),

@@ -58,15 +58,6 @@ impl Default for RasterStage {
     }
 }
 
-/// A rotation by one quarter turn.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Spin {
-    /// Counter-clockwise.
-    Left,
-    /// Clockwise.
-    Right,
-}
-
 /// What moves the stage. Points are in the content's own space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RasterIn {
@@ -82,8 +73,6 @@ pub enum RasterIn {
     PanBy(DocPoint),
     /// The drag ended.
     PanEnd,
-    /// Rotate a quarter turn.
-    Rotate(Spin),
     /// Restore where the person left the file.
     Restore { zoom: Zoom, centre: DocPoint },
     /// The file turned out to be animated.
@@ -108,8 +97,6 @@ pub enum RasterOut {
     /// Keep where the person is, for next time. Sent when a gesture settles, not while a drag
     /// moves.
     Remember(Resume),
-    /// The image is now turned this far; the edge may offer to save it as an edit.
-    Turned(QuarterTurn),
     /// Draw this frame.
     ShowFrame(FrameIndex),
 }

@@ -1,4 +1,5 @@
 mod desktop;
+mod editing;
 mod lent;
 mod remembering;
 mod route;

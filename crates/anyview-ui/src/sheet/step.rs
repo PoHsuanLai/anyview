@@ -2,6 +2,7 @@
 
 use super::draft::ExportDraft;
 use super::model::{Sheet, SheetIn, SheetOut};
+use super::versions::{VersionKey, VersionList};
 use crate::typed::TypedText;
 use anyview_core::Fact;
 use ds_core::machine::Machine;
@@ -21,6 +22,9 @@ impl Machine for Sheet {
             Sheet::Unavailable { needs } => unavailable(needs, input),
             Sheet::ConfirmTrash => confirm_trash(input),
             Sheet::Rename { name } => rename(name, input),
+            Sheet::SaveCopy { name } => save_copy(name, input),
+            Sheet::Revert { versions, chosen } => revert(versions, chosen, input),
+            Sheet::NoVersions => no_versions(input),
         }
     }
 
@@ -30,7 +34,13 @@ impl Machine for Sheet {
             | Sheet::Export { draft: _ }
             | Sheet::Unavailable { needs: _ }
             | Sheet::ConfirmTrash
-            | Sheet::Rename { name: _ } => None,
+            | Sheet::Rename { name: _ }
+            | Sheet::SaveCopy { name: _ }
+            | Sheet::Revert {
+                versions: _,
+                chosen: _,
+            }
+            | Sheet::NoVersions => None,
         }
     }
 }
@@ -53,7 +63,14 @@ fn closed(input: SheetIn) -> Step {
         SheetIn::OpenUnavailable(needs) => opened(Sheet::Unavailable { needs }),
         SheetIn::AskTrash => opened(Sheet::ConfirmTrash),
         SheetIn::AskRename(name) => opened(Sheet::Rename { name }),
-        SheetIn::PickKind(_)
+        SheetIn::AskSaveCopy(name) => opened(Sheet::SaveCopy { name }),
+        SheetIn::OpenRevert(Some(versions)) => match versions.newest().cloned() {
+            Some(chosen) => opened(Sheet::Revert { versions, chosen }),
+            None => opened(Sheet::NoVersions),
+        },
+        SheetIn::OpenRevert(None) => opened(Sheet::NoVersions),
+        SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Confirm
@@ -74,6 +91,9 @@ fn export(draft: ExportDraft, input: SheetIn) -> Step {
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
         | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => keep(draft),
     }
@@ -87,6 +107,9 @@ fn unavailable(needs: Fact, input: SheetIn) -> Step {
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
         | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
@@ -102,6 +125,9 @@ fn confirm_trash(input: SheetIn) -> Step {
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
         | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
@@ -119,8 +145,75 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
         | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
         | SheetIn::Change(_)
         | SheetIn::Elapsed => (Sheet::Rename { name }, vec![]),
+    }
+}
+
+fn save_copy(name: TypedText, input: SheetIn) -> Step {
+    match input {
+        SheetIn::Typed(text) => (Sheet::SaveCopy { name: text }, vec![]),
+        SheetIn::Confirm if !name.is_empty() => closing(SheetOut::SaveCopy(name)),
+        SheetIn::Cancel => cancelled(),
+        SheetIn::Confirm
+        | SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_)
+        | SheetIn::AskTrash
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Elapsed => (Sheet::SaveCopy { name }, vec![]),
+    }
+}
+
+/// Choosing a version: only a row of the list can be picked, and Enter goes back to the one
+/// chosen.
+fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
+    match input {
+        SheetIn::PickVersion(key) if versions.holds(&key) => (
+            Sheet::Revert {
+                versions,
+                chosen: key,
+            },
+            vec![],
+        ),
+        SheetIn::Confirm => closing(SheetOut::Revert(chosen)),
+        SheetIn::Cancel => cancelled(),
+        SheetIn::PickVersion(_)
+        | SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_)
+        | SheetIn::AskTrash
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::Revert { versions, chosen }, vec![]),
+    }
+}
+
+/// The sheet that says there is nothing to go back to: Enter and Esc both put it away.
+fn no_versions(input: SheetIn) -> Step {
+    match input {
+        SheetIn::Confirm | SheetIn::Cancel => cancelled(),
+        SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_)
+        | SheetIn::AskTrash
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::NoVersions, vec![]),
     }
 }
