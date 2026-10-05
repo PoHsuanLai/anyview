@@ -10,6 +10,7 @@ mod jxl;
 mod layered;
 mod look;
 mod plays;
+mod raw;
 mod stills;
 mod svg;
 
@@ -111,6 +112,7 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
         Codec::Psd => layered::psd(bytes).map(|(picture, _)| Decoded::Still(picture)),
         Codec::Icns => layered::icns(bytes).map(|(picture, _)| Decoded::Still(picture)),
         Codec::Jxl => jxl::decode(bytes).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::RawPreview => raw::decode(bytes).map(Decoded::Still),
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;
             let size = svg::view_size(document.intrinsic());
@@ -135,7 +137,7 @@ pub(crate) fn declared_size_of(
     let size = match codec_for(sniffed)? {
         Codec::Image(format) | Codec::HighRange(format) => stills::declared_size(bytes, format)?,
         Codec::Psd => layered::psd_size(bytes)?,
-        Codec::Icns | Codec::Jxl | Codec::Svg => return Ok(None),
+        Codec::Icns | Codec::Jxl | Codec::Svg | Codec::RawPreview => return Ok(None),
     };
     if size.area() > MAX_DECODE_AREA {
         return Ok(None);

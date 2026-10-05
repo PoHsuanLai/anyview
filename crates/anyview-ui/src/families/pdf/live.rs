@@ -260,7 +260,9 @@ pub(super) fn page_view(stage: &Stage) -> Option<PageView> {
             | PdfStage::Finding { view, .. }
             | PdfStage::Jumping { view, .. },
         ) => Some(*view),
-        Stage::NoStage | Stage::Raster(_) | Stage::Media(_) | Stage::Text(_) => None,
+        Stage::NoStage | Stage::Raster(_) | Stage::Media(_) | Stage::Book(_) | Stage::Text(_) => {
+            None
+        }
     }
 }
 

@@ -5,13 +5,16 @@
 
 use super::error::OpenError;
 use super::folder::folder_sequence;
-use super::seams::{FirstFrameSource, ResumeSource, VersionSource};
+use super::seams::{FirstFrameSource, ImagePlugins, ResumeSource, VersionSource};
 use crate::families::{
-    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
+    BookDoc, FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SectionPage, TextDoc, open_for,
+    peek_for,
 };
 use crate::sheet::VersionRow;
 use crate::{StageFamily, Ticket, TypedText};
-use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
+use anyview_core::{
+    FilePath, FileStamp, LineIndex, Resume, SectionIndex, Sequence, Sniffed, Source,
+};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
@@ -31,6 +34,8 @@ pub struct OpenLink {
     pub highlighter: Arc<Highlighter>,
     /// The host's small pictures, for a first frame.
     pub first_frames: Arc<dyn FirstFrameSource>,
+    /// The plugins that decode what the viewer cannot.
+    pub image_plugins: Arc<dyn ImagePlugins>,
     /// The host's players, when this open may start one: a file opened ahead of the person never
     /// plays, so a preload carries none.
     pub(crate) media: Option<super::MediaPort>,
@@ -99,6 +104,12 @@ pub enum Job {
         doc: Arc<TextDoc>,
         query: TypedText,
     },
+    /// Unpack and seal one section of an open book.
+    Section {
+        ticket: Ticket,
+        doc: Arc<BookDoc>,
+        section: SectionIndex,
+    },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
     Preload { path: FilePath, link: OpenLink },
     /// Read the stamp `path` has now.
@@ -140,6 +151,11 @@ pub enum Done {
         query: TypedText,
         result: Result<FoundHits, OpenError>,
     },
+    /// A section of the book of `ticket`.
+    Section {
+        ticket: Ticket,
+        result: Result<SectionPage, OpenError>,
+    },
     /// The file `path`, opened ahead; `None` when it could not be or was too large to be worth it.
     Preloaded {
         path: FilePath,
@@ -177,6 +193,7 @@ impl Job {
             | Job::Open { .. }
             | Job::Lines { .. }
             | Job::Search { .. }
+            | Job::Section { .. }
             | Job::Stat { .. }
             | Job::Folder { .. }
             | Job::Versions { .. } => WorkLane::Visible,
@@ -192,7 +209,8 @@ impl Job {
             | Job::Peek { ticket, .. }
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
-            | Job::Search { ticket, .. } => *ticket,
+            | Job::Search { ticket, .. }
+            | Job::Section { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
             Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } | Job::Versions { .. } => {
                 Ticket::default()
@@ -236,6 +254,14 @@ impl Job {
                 ticket,
                 result: doc.find(&query).map_err(OpenError::from),
                 query,
+            },
+            Job::Section {
+                ticket,
+                doc,
+                section,
+            } => Done::Section {
+                ticket,
+                result: doc.section(section).map_err(OpenError::from),
             },
             Job::Preload { path, link } => Done::Preloaded {
                 loaded: preloaded(&path, &link, resume),

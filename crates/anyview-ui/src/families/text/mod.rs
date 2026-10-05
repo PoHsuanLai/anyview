@@ -122,6 +122,7 @@ impl StageView for TextStageView {
             | Stage::Raster(_)
             | Stage::Pdf(_)
             | Stage::Media(_)
+            | Stage::Book(_)
             | Stage::Text(TextStage::Reading { .. }) => Vec::new(),
         }
     }
