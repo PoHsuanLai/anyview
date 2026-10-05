@@ -15,7 +15,7 @@ mod outline;
 mod tests;
 
 pub use events::RenderEnv;
-pub use images::{LocalFiles, NoFiles};
+pub use images::{DiskFiles, LocalFiles, NoFiles};
 pub use outline::{Anchor, Heading, HeadingLevel};
 
 use pulldown_cmark::{Options, Parser, html};

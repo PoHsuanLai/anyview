@@ -3,7 +3,6 @@
 //! A library crate never spawns a thread, so [`Job::run`] only blocks; the binary decides which
 //! thread, and a [`Reply`] carries the result back to the window as a machine input.
 
-mod disk;
 mod error;
 mod folder;
 mod job;
@@ -13,7 +12,6 @@ mod seams;
 mod workers;
 
 pub use anyview_core::work::{Backend, Stop};
-pub(crate) use disk::DiskFiles;
 pub use error::OpenError;
 pub use folder::folder_sequence;
 pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};

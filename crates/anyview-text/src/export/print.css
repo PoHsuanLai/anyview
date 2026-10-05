@@ -1,0 +1,26 @@
+body { font-family: sans-serif; font-size: 11pt; line-height: 1.45; color: #111; background: #fff; }
+h1, h2, h3, h4, h5, h6 { line-height: 1.25; margin: 1.2em 0 0.4em; }
+h1 { font-size: 20pt; }
+h2 { font-size: 16pt; }
+h3 { font-size: 13pt; }
+p, ul, ol, blockquote, table { margin: 0 0 0.8em; }
+blockquote { margin-left: 0; padding-left: 1em; border-left: 3px solid #bbb; color: #444; }
+code, pre { font-family: monospace; }
+code { font-size: 0.92em; }
+pre { font-size: 9pt; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 0.8em; }
+pre.source { margin: 0; }
+img { max-width: 100%; }
+table { border-collapse: collapse; }
+th, td { border: 1px solid #bbb; padding: 3px 8px; text-align: left; }
+hr { border: 0; border-top: 1px solid #bbb; }
+.tok-keyword, .tok-operator { color: #8a2a9c; }
+.tok-string, .tok-escape { color: #1a7f37; }
+.tok-comment { color: #6a737d; font-style: italic; }
+.tok-number, .tok-constant { color: #b35900; }
+.tok-type, .tok-tag { color: #0a5ca8; }
+.tok-function, .tok-attribute { color: #7a3e00; }
+.tok-heading, .tok-strong { font-weight: bold; }
+.tok-emphasis { font-style: italic; }
+.tok-link { color: #0a5ca8; text-decoration: underline; }
+.tok-inserted { color: #1a7f37; }
+.tok-deleted { color: #b3261e; }

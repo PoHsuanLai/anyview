@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+anyview-export = { workspace = true }
 anyview-image = { workspace = true }
 anyview-media = { workspace = true, features = ["player"] }
 anyview-peek = { workspace = true }
@@ -34,6 +35,7 @@ trash = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+anyview-pdf = { workspace = true }
 anyview-platform = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true }
 image = { workspace = true }

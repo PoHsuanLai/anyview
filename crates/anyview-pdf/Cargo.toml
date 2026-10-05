@@ -14,8 +14,8 @@ anyview-core = { workspace = true }
 # extraction are added here.
 pdfrum = { workspace = true, features = ["markdown"] }
 # Page edits and page-range writes go straight to the editor: it has `reorder_pages`, which the
-# facade's `DocEdit` does not.
-pdfrum-edit = { workspace = true }
+# facade's `DocEdit` does not. `svg-import` draws an SVG onto a page as vector paths.
+pdfrum-edit = { workspace = true, features = ["svg-import"] }
 thiserror = { workspace = true }
 
 [lints]

@@ -1,55 +1,49 @@
-//! A PDF export as the pieces of work it is made of, and the writers for the pieces that are not
-//! drawing: a page range as a PDF, text, Markdown. Page images are drawn by a `PdfJob::Page` and
-//! encoded by the caller (`anyview-image` owns every raster encoder).
+//! A PDF export as the jobs it is made of, and the writers for the jobs that are not drawing: a
+//! page range as a PDF, text, Markdown. Page images are drawn by a `PdfJob::Page` and encoded by
+//! the caller (`anyview-image` owns every raster encoder).
 
 use crate::document::PdfDocument;
 use crate::edit::save;
 use crate::error::PdfError;
 use anyview_core::{
-    Dpi, PageCount, PageIndex, PageSelection, PdfExport, RasterTarget, TextFlavour,
+    ExportJob, FilePath, MetadataCarry, PageCount, PageIndex, PageSelection, PdfExport, PdfPages,
+    PixelSource, TextFlavour, TextSource,
 };
 use pdfrum_edit::EditDoc;
 
-/// One piece of an export. The pieces of an export are independent: a pool runs them in parallel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ExportPiece {
-    /// Write these pages as a PDF.
-    WritePdf(PageSelection),
-    /// Draw one page at a resolution; the caller encodes it as `target`.
-    DrawPage {
-        /// The page.
-        page: PageIndex,
-        /// The resolution.
-        dpi: Dpi,
-        /// How the caller encodes it.
-        target: RasterTarget,
-    },
-    /// Write the text of these pages.
-    WriteText {
-        /// The pages.
-        pages: PageSelection,
-        /// Plain text or Markdown.
-        flavour: TextFlavour,
-    },
-}
-
-/// The pieces of `export` for a document of `count` pages: one for a PDF or a text file, one per
-/// page for page images (a range that starts past the end has none).
-pub fn plan_export(export: PdfExport, count: PageCount) -> Vec<ExportPiece> {
+/// The jobs that write `export` for the PDF `file` of `count` pages: one for a PDF or a text
+/// file, one per page for page images (a range that starts past the end has none). The jobs are
+/// independent, so a pool may run them in parallel. Page images carry no metadata: a page has
+/// none to keep.
+pub fn plan_export(file: &FilePath, export: PdfExport, count: PageCount) -> Vec<ExportJob> {
+    let text = |pages, flavour| ExportJob::WriteText {
+        text: TextSource::Pdf {
+            file: file.clone(),
+            pages,
+            flavour,
+        },
+    };
     match export {
-        PdfExport::Pdf(pages) => vec![ExportPiece::WritePdf(pages)],
+        PdfExport::Pdf(pages) => vec![ExportJob::WritePdf {
+            pages: PdfPages::Pages {
+                file: file.clone(),
+                pages,
+            },
+        }],
         PdfExport::PageImages(pages, target, dpi) => selected(pages, count)
             .into_iter()
-            .map(|page| ExportPiece::DrawPage { page, dpi, target })
+            .map(|page| ExportJob::EncodeRaster {
+                pixels: PixelSource::PdfPage {
+                    file: file.clone(),
+                    page,
+                    dpi,
+                },
+                target,
+                keep: MetadataCarry::Drop,
+            })
             .collect(),
-        PdfExport::PlainText => vec![ExportPiece::WriteText {
-            pages: PageSelection::All,
-            flavour: TextFlavour::Plain,
-        }],
-        PdfExport::Markdown => vec![ExportPiece::WriteText {
-            pages: PageSelection::All,
-            flavour: TextFlavour::Markdown,
-        }],
+        PdfExport::PlainText => vec![text(PageSelection::All, TextFlavour::Plain)],
+        PdfExport::Markdown => vec![text(PageSelection::All, TextFlavour::Markdown)],
     }
 }
 
@@ -118,7 +112,7 @@ pub fn write_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyview_core::{PageRange, Percent, Quality};
+    use anyview_core::{Dpi, PageRange, Percent, Quality, RasterTarget};
 
     fn count(pages: u32) -> PageCount {
         PageCount::new(pages).unwrap()
@@ -151,50 +145,64 @@ mod tests {
         }
     }
 
+    fn jobs(export: PdfExport, pages: u32) -> Vec<ExportJob> {
+        let file = FilePath::new("/docs/book.pdf").unwrap();
+        plan_export(&file, export, count(pages))
+    }
+
+    fn page_image(page: u32, dpi: Dpi, target: RasterTarget) -> ExportJob {
+        ExportJob::EncodeRaster {
+            pixels: PixelSource::PdfPage {
+                file: FilePath::new("/docs/book.pdf").unwrap(),
+                page: PageIndex(page),
+                dpi,
+            },
+            target,
+            keep: MetadataCarry::Drop,
+        }
+    }
+
+    fn text_job(pages: PageSelection, flavour: TextFlavour) -> ExportJob {
+        ExportJob::WriteText {
+            text: TextSource::Pdf {
+                file: FilePath::new("/docs/book.pdf").unwrap(),
+                pages,
+                flavour,
+            },
+        }
+    }
+
     #[test]
-    fn each_export_is_planned_as_its_pieces() {
+    fn each_export_is_planned_as_its_jobs() {
         let jpeg = RasterTarget::Jpeg(Quality::clamped(Percent(80)));
-        let pieces = plan_export(
-            PdfExport::PageImages(range(1, 2), jpeg, Dpi::PRINT),
-            count(5),
-        );
         assert_eq!(
-            pieces,
+            jobs(PdfExport::PageImages(range(1, 2), jpeg, Dpi::PRINT), 5),
             [
-                ExportPiece::DrawPage {
-                    page: PageIndex(1),
-                    dpi: Dpi::PRINT,
-                    target: jpeg
-                },
-                ExportPiece::DrawPage {
-                    page: PageIndex(2),
-                    dpi: Dpi::PRINT,
-                    target: jpeg
-                },
+                page_image(1, Dpi::PRINT, jpeg),
+                page_image(2, Dpi::PRINT, jpeg)
             ]
         );
         assert_eq!(
-            plan_export(PdfExport::Pdf(range(0, 0)), count(5)),
-            [ExportPiece::WritePdf(range(0, 0))]
-        );
-        assert_eq!(
-            plan_export(PdfExport::PlainText, count(5)),
-            [ExportPiece::WriteText {
-                pages: PageSelection::All,
-                flavour: TextFlavour::Plain
+            jobs(PdfExport::Pdf(range(0, 0)), 5),
+            [ExportJob::WritePdf {
+                pages: PdfPages::Pages {
+                    file: FilePath::new("/docs/book.pdf").unwrap(),
+                    pages: range(0, 0),
+                }
             }]
         );
         assert_eq!(
-            plan_export(PdfExport::Markdown, count(5)),
-            [ExportPiece::WriteText {
-                pages: PageSelection::All,
-                flavour: TextFlavour::Markdown
-            }]
+            jobs(PdfExport::PlainText, 5),
+            [text_job(PageSelection::All, TextFlavour::Plain)]
+        );
+        assert_eq!(
+            jobs(PdfExport::Markdown, 5),
+            [text_job(PageSelection::All, TextFlavour::Markdown)]
         );
         assert!(
-            plan_export(
+            jobs(
                 PdfExport::PageImages(range(8, 9), RasterTarget::Png, Dpi::SCREEN),
-                count(5)
+                5
             )
             .is_empty()
         );
