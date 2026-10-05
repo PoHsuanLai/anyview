@@ -38,6 +38,8 @@ pub enum WorkKind {
     Lines,
     /// Search a text for a phrase.
     Search,
+    /// Unpack one section of an open book.
+    Section,
     /// Open a neighbour ahead of time.
     Preload,
     /// Read a file's stamp.
@@ -95,6 +97,7 @@ impl Work {
             Job::Open { .. } => WorkKind::Open,
             Job::Lines { .. } => WorkKind::Lines,
             Job::Search { .. } => WorkKind::Search,
+            Job::Section { .. } => WorkKind::Section,
             Job::Preload { .. } => WorkKind::Preload,
             Job::Stat { .. } => WorkKind::Stat,
             Job::Folder { .. } => WorkKind::Folder,

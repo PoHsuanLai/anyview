@@ -28,12 +28,13 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-media` | exists | video and audio: the typestate player session over the person's own mpv, run as a child process, and the driver an actor runs (feature `player`), and the plan, the names and the asks of the exports a plugin writes; links no libmpv and no libav |
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, and the archive peek |
+| L1 | `anyview-book` | exists | books: an EPUB's package (metadata, reading order, contents), a chapter as sealed HTML (allowlisted markup, sealed styles, images inlined as `data:` URLs), a comic zip's pages in natural order, and the covers of both; reads the zip through `anyview-archive` |
 | L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
 | L1 | `anyview-plugin` | exists | plugins as values: the manifest, its validation, the registry of which plugin serves a kind and capability, the package to suggest when none does |
 | L2 | `anyview-export` | exists | the exports and printouts of images, PDFs and text documents: runs the jobs each format plans, writes each file beside the original through a temporary file renamed into place, and makes the PDF a printer takes |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages and the facts view) and the window that draws every region (`views`) |
+| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages, books and the facts view) and the window that draws every region (`views`) |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
@@ -52,7 +53,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` |
-| `anyview-ui` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
+| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -60,8 +61,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-pdf` | `anyview-core` |
 | `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
+| `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
-| `anyview-peek` | `anyview-archive`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
+| `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
 | `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (feature `player`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
@@ -83,6 +85,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf` |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
+| `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
 | `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust`, `flate2`, `bzip2`, `ruzstd`, `lzma-rs`): the one crate that names `skrifa` for reading a face |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
@@ -100,7 +103,7 @@ and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamada
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
-`anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rs`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-font` depends on `skrifa`, `thiserror` and `anyview-core`.
+`anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rs`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
 
 `anyview-peek` depends on the five crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
 `thiserror`. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
@@ -124,7 +127,7 @@ no other public path. A module names only modules above it in this list.
 | Module | Holds |
 | --- | --- |
 | `error` | `CoreError`, the crate's one error |
-| `units` | page, media (time, length, volume, speed, chapter, time range, bitrate), ratio, zoom, turn, content-space and pixel newtypes; all integer |
+| `units` | page, section (`SectionIndex`, `SectionCount`: the chapter or comic page of a book), media (time, length, volume, speed, chapter, time range, bitrate), ratio, zoom, turn, content-space and pixel newtypes; all integer |
 | `media` | what a player says of a recording: `StreamKind`, `MediaTrack`, `TrackPlay`, `MediaChapter`, `VideoPresence`, `MediaTags` |
 | `source` | `FilePath`, `FileName`, `FileStamp`, `Source` |
 | `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
@@ -177,13 +180,13 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
 | `presentation` | `Presentation` |
 | `load` | `Load`, `Ticket`, `freshness` (whether a file on disk is still the one opened: the decision behind a reload) |
-| `stage` | `Stage` and its four machines (`raster`, `pdf`, `media`, `text`; the media one steps on the player's events as `PlayerEvent`s and answers in `PlayerCommand`s, both the machine's own types), the shared `find` and `zoom` parts, `dispatch` (a command or a key becomes an input for the stage that is showing) and `resume` (the place a stage keeps, and the input that puts one back) |
+| `stage` | `Stage` and its five machines (`raster`, `pdf`, `media`, `text`, `book`; the media one steps on the player's events as `PlayerEvent`s and answers in `PlayerCommand`s, both the machine's own types), the shared `find` and `zoom` parts, `dispatch` (a command or a key becomes an input for the stage that is showing) and `resume` (the place a stage keeps, and the input that puts one back) |
 | `keys` | `route`, `Route`, `Regions` |
 | `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
-| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
-| `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `pdf`, `media` and `peek_only`, and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
+| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, unpack a section of a book, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
+| `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `pdf`, `media`, `book` and `peek_only`, and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
 | `views` | the window: `ViewerApp`, `Launch`; `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
@@ -320,7 +323,8 @@ are blocking and run on the caller's worker; only `pane` draws.
 | `any` | `AnyPeeked`, `peek` and `peek_with`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable`; `peek_with` also gives a video that shows only its facts the host's frame |
 | `frames` | `VideoFrames`, `NoFrames`: the seam through which the host lends a video's cached thumbnail (the peek names no platform crate, so the host reads the cache) |
 | `media` | `VideoPeek`, `AudioPeek`, `MediaLook`; with the `media` feature, private `recording` (`Recording`, the header as plain values, and its rows), `audio` (symphonia: MP3, AAC and ALAC in M4A, FLAC, Ogg Vorbis and Opus, WAV, AIFF; tags, track number and the front cover), `mp4` (mp4parse over the `ftyp` and `moov` boxes alone, found by seeking over the rest: MP4, M4V, MOV), `matroska` (matroska-demuxer: MKV, WebM) and `peek` (which parser a container goes to, the cover reduced to the budget); AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video go to no parser; without the feature, `absent` (`FactsPeek`) |
-| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`BookPeek`, `OfficePeek`, `OtherPeek`; `VideoPeek` and `AudioPeek` only without `media`): what sniffing established, nothing pretended |
+| `described` | `FactsPeek<K>` and one marker per kind with no back end yet (`OfficePeek`, `OtherPeek`; `VideoPeek` and `AudioPeek` only without `media`): what sniffing established, nothing pretended |
+| `book` | `BookPeek`, `BookLook`: an EPUB's title, author, publisher, language and chapters, or a comic's page count, over the cover (the package's cover image, else its first image; a comic's first page), reduced to the budget; a book that cannot be opened still shows its type |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
 | `when` | `modified_text`: a modification time as UTC |
@@ -472,12 +476,14 @@ because a font's tables lie all over it.
 | `error` | `FontError` |
 | `face` | `Face`, `Variation`: the family and style names, glyph count and variation axes of a face, read with skrifa |
 | `specimen` | `Specimen`, `SpecimenLine`, `EM`: sample lines set with each glyph's advance (no shaping, no kerning) as SVG path data in 1000 units to the em |
+| `woff` | `to_sfnt`: a WOFF's tables unpacked and laid out again as the plain font it wraps (private) |
 | `peek` | `FontPeek`, `FontPeeked` |
 
 The specimen is outlines, not a font handed to the renderer: the pane needs no font loading, the peek
 stays a small value whatever the font's size, and what is drawn is the face the file holds. A font that
-maps none of the sample letters shows the first characters it does map. WOFF and WOFF2 are named
-(`face: None`) and not opened.
+maps none of the sample letters shows the first characters it does map. A WOFF is unpacked to the
+plain font it wraps (`woff.rs`: each table's zlib stream, the tables laid out again as an sfnt) and read
+like one; WOFF2 is named (`face: None`) and not opened.
 
 ## 2l. Plugins
 
@@ -813,6 +819,29 @@ until `dist/install.sh --with-plugin heif` and the distribution's libheif tools 
 its embedded preview with a `Needs: anyview-raw` row until `--with-plugin raw` and LibRaw's `dcraw_emu` (or
 `dcraw`) are installed. Distribution packages: `anyview-heif` and `anyview-raw`.
 
+## 2o. Modules inside `anyview-book`
+
+Same rules as section 2. Blocking and effect-free except the reads of the one file it is asked about;
+the zip is read through `anyview-archive`, one entry at a time.
+
+| Module | Holds |
+| --- | --- |
+| `error` | `BookError` |
+| `epub` | `Epub` (open: container, package document and spine; `contents`, `chapter`), `EpubMeta`, `TocEntry`; `package` (metadata, manifest, spine, cover), `contents` (the EPUB 3 navigation document, else the EPUB 2 NCX, else the chapters by number) and `chapter` (the zip's files behind a chapter, with what it may take in) are private |
+| `comic` | `Comic`, `ComicPage`: the images of a zip in natural order, one page's bytes |
+| `natural` | `natural_order`: digits by value, text without case |
+| `seal` | `Chapter` (`styles` and `body`), `seal`: a chapter's markup rebuilt from an allowlist (`element`), its styles sealed (`css`), its images inlined through `Assets`; `tokens` (a forgiving HTML tokenizer), `walk`, `entities` are private |
+| `cover` | `Cover`, `epub_cover`, `comic_cover`: one image's bytes, never decoded here |
+| `zip_path` | the references a package makes, resolved to entry names (private) |
+
+A chapter is sealed by writing only what is known: elements and attributes come from allowlists, so a
+script, a frame, a form, an event handler or an unknown element never reaches the page (its text does).
+Stylesheets lose `@import`, `@font-face` and every `url()` that is not a file of the package, which is
+inlined as a `data:` URL, and so do images (an SVG `image` becomes a picture; an image the package does
+not hold becomes its alt text). A link keeps only a fragment or a web or mail address. A chapter takes in
+at most 24 MiB of files. The viewer draws the result in the same sealed frame Markdown uses
+(`families/book`); fixed-layout books, scripts, audio and video, fonts and DRM are not supported.
+
 ## 2n. Modules inside `anyview-export`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. Blocking
@@ -883,6 +912,7 @@ The single place a concept lives. Extend it; never write a second one.
 | The first page of a PDF for a pane | `anyview_peek::PdfPeek`, over `ds_blitz::pdf_thumb_blocking` |
 | An archive's entries, and one entry out | `anyview_archive::list`, `extract` |
 | A zip's entry names for `sniff_zip` | `anyview_archive::zip_entries` |
+| An EPUB's package, a chapter as sealed HTML, a comic's pages in order | `anyview_book::Epub`, `Comic`, `natural_order` |
 | What a path is: stat, head, zip entries, sniffed | `anyview_peek::probe` |
 | Which container an archive format is stored in | `container.rs` in `anyview-archive` |
 | A font's names, glyph count and specimen outlines | `anyview_font::FontPeek`, `Face`, `Specimen` |
@@ -1150,7 +1180,8 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `PdfStage` | `Reading`, `Finding { query, hits }`, `Jumping { target }` | `Scroll`, `SetZoom`, `Find`, `Results`, `NextHit`, `GoTo`, `NextPage`, `Arrived`, `Restore` | `Remember`, `ScrollTo`, `Find(..)` |
 | `MediaStage` | `Opening`, `Playing`, `Paused`, `Scrubbing { resume }`, `Ended`, `Failed` | `Player(PlayerEvent)`, `Position`, `Toggle`, `Seek*`, `Scrub*`, `SetVolume`, `SetSpeed`, `StepSpeed`, `Select`, `CycleTrack`, `StepChapter`, `GoToChapter`, `Mark`, `Restore` | `Command(PlayerCommand)`, `Buffering`, `VolumeChanged`, `TracksChanged`, `Marked` |
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
-| `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text` | one family's input each | each family's output, lifted |
+| `BookStage` | `Reading { section }` | `Next`, `Previous`, `First`, `Last`, `GoTo`, `Restore` | `Remember` |
+| `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Book` | one family's input each | each family's output, lifted |
 | `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens; one's folder or the several are the list), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
 **Why the machines and the views share a crate.** The machines are the part that must stay pure, and

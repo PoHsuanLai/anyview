@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/anyview",
   "crates/anyview-archive",
+  "crates/anyview-book",
   "crates/anyview-core",
   "crates/anyview-export",
   "crates/anyview-font",
@@ -36,6 +37,7 @@ publish = false
 [workspace.dependencies]
 anyview = { path = "crates/anyview" }
 anyview-archive = { path = "crates/anyview-archive" }
+anyview-book = { path = "crates/anyview-book" }
 anyview-core = { path = "crates/anyview-core" }
 anyview-export = { path = "crates/anyview-export" }
 anyview-font = { path = "crates/anyview-font" }
@@ -274,6 +276,13 @@ lzma-rs = "0.3"
 bzip2 = "0.6"
 # 7z archives: Apache-2.0.
 sevenz-rust = { version = "0.6", default-features = false }
+
+# `anyview-book`: the package of an EPUB (container, package document, contents) as a read-only tree; tolerant of
+# a DOCTYPE; MIT OR Apache-2.0 (already in the tree).
+roxmltree = "0.21"
+
+# `anyview-font`: the zlib streams inside a WOFF font, pure Rust: MIT OR Zlib OR Apache-2.0 (already in the tree).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"

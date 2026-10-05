@@ -6,6 +6,7 @@
 
 mod any;
 mod body;
+mod book;
 mod described;
 mod error;
 mod folder;
@@ -19,9 +20,9 @@ mod when;
 
 pub use any::{AnyPeeked, peek, peek_with};
 pub use body::{Body, Light};
+pub use book::{BookLook, BookPeek};
 pub use described::{
-    BookKind, BookPeek, Described, Describes, FactsPeek, OfficeKind, OfficePeek, OtherKind,
-    OtherPeek,
+    Described, Describes, FactsPeek, OfficeKind, OfficePeek, OtherKind, OtherPeek,
 };
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
