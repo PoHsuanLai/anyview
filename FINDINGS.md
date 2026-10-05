@@ -100,8 +100,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   default at all, so the caller reads it from settings. Ends when quire's `22-SETTINGS` has
   `viewer.export.*` and `viewer.peek.*` keys that supply them.
 - **The pinned block has no image codecs beyond png and jpeg, and none of the back-end crates.**
-  `anyview-image` adds `gif webp bmp tiff ico tga qoi` to the pinned `image` line from its own
-  manifest, and `jxl-oxide`, `resvg`, `kamadak-exif`, `img-parts`, `ravif`, `syntect`,
+  `anyview-image` adds `gif webp bmp tiff ico tga qoi exr hdr` to the pinned `image` line from its own
+  manifest, and `jxl-oxide`, `psd`, `icns`, `resvg`, `kamadak-exif`, `img-parts`, `ravif`, `syntect`,
   `pulldown-cmark`, `csv` and `encoding_rs` sit below the pinned block next to `infer`. Ends at the next
   change to quire's `docs/workspace-deps.toml`: add those features to its `image` line and those crates
   to it (CONVENTIONS section 10), then copy the block verbatim here.
@@ -146,10 +146,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   window is asked for. Ends if lines get a byte cap with a marker for the cut.
 - **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
   times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
-- **Animations loop forever and a peek decodes every frame to count them.** The container's loop count is
-  not read, a JPEG XL animation shows its first frame, and the peek's frame count costs a full decode of
-  the animation. Ends if any of those hurts: read the GIF and WebP loop counts, and count frames from the
-  container headers.
+- **A peek decodes every frame to count them, and a JPEG XL animation shows its first frame.** The peek's
+  frame count costs a full decode of the animation. Ends if that hurts: count frames from the container
+  headers. The export sheet exports an animation's first frame, not the one on screen.
 - **`RasterTarget` has no BMP.** `anyview_image::encode_bmp` exists outside it, for callers that need
   the format. Ends if the export sheet offers BMP (the core target and `RasterExportKind` gain it).
 - **The history cap and the pruning rule are not settings yet.** `HistoryCap::DEFAULT` is 200

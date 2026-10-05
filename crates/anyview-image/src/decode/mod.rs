@@ -5,26 +5,34 @@
 
 mod codec;
 mod colour;
+mod highrange;
 mod jxl;
+mod layered;
 mod look;
+mod plays;
 mod stills;
 mod svg;
 
 pub use colour::{ColourInfo, ColourModel};
 pub(crate) use look::{Looked, look};
+pub use plays::Plays;
+pub(crate) use plays::plays_of;
 pub(crate) use svg::Svg;
 
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use anyview_core::{MediaTime, NonEmpty, PixelArea, PixelSize, QuarterTurn, Sniffed, Source};
 use codec::{Codec, codec_for};
+use stills::Collected;
 
 /// The most pixels a file may declare before it is refused instead of decoded: 16384 by 16384, a
 /// gibibyte of RGBA. A header that claims more is a decompression bomb or not a photograph.
 pub(crate) const MAX_DECODE_AREA: PixelArea = PixelArea(268_435_456);
 
-/// The most memory the frames of one animation may take together.
-pub(crate) const MAX_ANIMATION_BYTES: u64 = 512 * 1024 * 1024;
+/// The most memory the frames of one animation may take together: 256 MiB of RGBA8, which the
+/// viewer holds twice, decoded and in one texture per frame. Past it the file opens as its first
+/// frame alone ([`Decoded::HeldStill`]) rather than refusing or growing without bound.
+pub(crate) const MAX_ANIMATION_BYTES: u64 = 256 * 1024 * 1024;
 
 /// An SVG shown in full is drawn with its long edge at least this many pixels.
 pub(crate) const SVG_LONG_EDGE_MIN: u32 = 1024;
@@ -42,12 +50,13 @@ pub struct Frame {
 }
 
 /// The frames of an animated image. A file with a single frame is a [`Decoded::Still`], so an
-/// `Animation` made by this crate always has at least two. It loops forever: the container's loop
-/// count is not read.
+/// `Animation` made by this crate always has at least two.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Animation {
     /// The frames in order.
     pub frames: NonEmpty<Frame>,
+    /// How many times the file asks to run through them.
+    pub plays: Plays,
 }
 
 /// What a file decodes to.
@@ -57,6 +66,14 @@ pub enum Decoded {
     Still(Rgba8),
     /// An animated GIF, WebP or APNG.
     Animated(Animation),
+    /// The first frame of an animation whose frames together would take more than
+    /// [`MAX_ANIMATION_BYTES`]: it is shown as a still and says how many it has.
+    HeldStill {
+        /// The first frame, whole canvas.
+        picture: Rgba8,
+        /// How many frames the file holds.
+        frames: FrameCount,
+    },
 }
 
 /// How many pictures a file holds.
@@ -79,9 +96,20 @@ pub fn decode(src: &Source, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
 pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageError> {
     match codec_for(sniffed)? {
         Codec::Image(format) => match stills::animation(bytes, format)? {
-            Some(frames) => animated(stills::collect(frames)?),
+            Some(frames) => match stills::collect(frames, MAX_ANIMATION_BYTES)? {
+                Collected::All(frames) => animated(frames, plays_of(bytes, format)),
+                Collected::TooMany { first, count } => Ok(Decoded::HeldStill {
+                    picture: first.pixels,
+                    frames: FrameCount(count),
+                }),
+            },
             None => stills::still(bytes, format).map(|(picture, _)| Decoded::Still(picture)),
         },
+        Codec::HighRange(format) => {
+            highrange::decode(bytes, format).map(|(picture, _)| Decoded::Still(picture))
+        }
+        Codec::Psd => layered::psd(bytes).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::Icns => layered::icns(bytes).map(|(picture, _)| Decoded::Still(picture)),
         Codec::Jxl => jxl::decode(bytes).map(|(picture, _)| Decoded::Still(picture)),
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;
@@ -93,7 +121,7 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
 
 /// The size the picture of `src` will have once decoded and turned upright, read from the file's
 /// header and its EXIF orientation without decoding a pixel. `None` when the format's size is not
-/// read that way (JPEG XL and SVG, whose size comes from decoding or drawing them) or the file
+/// read that way (ICNS, JPEG XL and SVG, whose size comes from decoding or drawing them) or the file
 /// declares more pixels than a decode accepts.
 pub fn declared_size(src: &Source, sniffed: &Sniffed) -> Result<Option<PixelSize>, ImageError> {
     declared_size_of(&read(src)?, sniffed)
@@ -104,10 +132,11 @@ pub(crate) fn declared_size_of(
     bytes: &[u8],
     sniffed: &Sniffed,
 ) -> Result<Option<PixelSize>, ImageError> {
-    let Codec::Image(format) = codec_for(sniffed)? else {
-        return Ok(None);
+    let size = match codec_for(sniffed)? {
+        Codec::Image(format) | Codec::HighRange(format) => stills::declared_size(bytes, format)?,
+        Codec::Psd => layered::psd_size(bytes)?,
+        Codec::Icns | Codec::Jxl | Codec::Svg => return Ok(None),
     };
-    let size = stills::declared_size(bytes, format)?;
     if size.area() > MAX_DECODE_AREA {
         return Ok(None);
     }
@@ -122,7 +151,7 @@ pub(crate) fn declared_size_of(
 }
 
 /// The frames as a [`Decoded`]: a single frame is a still.
-fn animated(frames: Vec<Frame>) -> Result<Decoded, ImageError> {
+fn animated(frames: Vec<Frame>, plays: Plays) -> Result<Decoded, ImageError> {
     let Some(frames) = NonEmpty::from_vec(frames) else {
         return Err(ImageError::Decode {
             reason: "the animation has no frames".to_owned(),
@@ -131,7 +160,7 @@ fn animated(frames: Vec<Frame>) -> Result<Decoded, ImageError> {
     if frames.count().get() == 1 {
         Ok(Decoded::Still(frames.first().pixels.clone()))
     } else {
-        Ok(Decoded::Animated(Animation { frames }))
+        Ok(Decoded::Animated(Animation { frames, plays }))
     }
 }
 

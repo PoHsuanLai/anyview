@@ -79,6 +79,8 @@ pub fn size_of(path: &Path) -> (u32, u32) {
             let size = picture.size();
             (size.width.0, size.height.0)
         }
-        anyview_image::Decoded::Animated(_) => panic!("a still"),
+        anyview_image::Decoded::Animated(_) | anyview_image::Decoded::HeldStill { .. } => {
+            panic!("a still")
+        }
     }
 }

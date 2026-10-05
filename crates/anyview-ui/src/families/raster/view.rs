@@ -5,11 +5,10 @@
 
 use super::doc::RasterDoc;
 use super::geometry::{
-    animation_of, centre_of, fit, frame_of, held_source, place, point_under, pointer_delta,
-    scale_of, turn_of,
+    centre_of, fit, frame_of, held_source, place, point_under, pointer_delta, scale_of, turn_of,
 };
 use crate::families::view::{Area, Held, StageCx};
-use crate::{Animation, FrameIndex, RasterIn, RasterStage, Stage, StageIn};
+use crate::{RasterIn, RasterStage, Stage, StageIn};
 use anyview_core::{Permille, QuarterTurn, Zoom};
 use dioxus::prelude::*;
 use ds::host::captured::{CapturedPointer, PointerPhase};
@@ -17,8 +16,6 @@ use ds::host::gesture::{Gesture, use_gestures};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
 use ds::prelude::Point;
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
-use ds_core::time::clock::sleep;
-use std::time::Duration;
 
 /// Whether `at`, a point of the window, is over the room.
 fn over(area: Area, at: Point) -> bool {
@@ -40,32 +37,8 @@ fn rotation(turn: QuarterTurn) -> u16 {
     turn.degrees()
 }
 
-/// The frame clock of an animation: while it plays, the time `frame` stays is waited out and the
-/// machine is told it is up (`FrameTick`). The wait restarts whenever the frame changes, so
-/// pausing, leaving the file or any other frame change ends it without a tick.
-fn use_frame_clock(next: Option<(FrameIndex, Duration)>, send: EventHandler<StageIn>) {
-    let _clock = use_resource(use_reactive!(|next| async move {
-        if let Some((_, stays)) = next {
-            sleep(stays).await;
-            send.call(StageIn::Raster(RasterIn::FrameTick));
-        }
-    }));
-}
-
-/// The frame that is playing and how long it stays, or `None` when nothing is being waited for.
-fn playing(stage: &Stage, doc: &RasterDoc) -> Option<(FrameIndex, Duration)> {
-    let Stage::Raster(raster) = stage else {
-        return None;
-    };
-    match animation_of(raster) {
-        Animation::Playing { frame, .. } => doc.delay_at(frame).map(|stays| (frame, stays)),
-        Animation::Still | Animation::Paused { .. } => None,
-    }
-}
-
 #[component]
 pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
-    use_frame_clock(playing(&cx.stage, &doc.0), cx.send);
     let mut last = use_signal(|| None::<(f32, f32)>);
     let mut held = use_signal(|| PointerHold::Local);
     let send = cx.send;

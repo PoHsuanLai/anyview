@@ -1,7 +1,7 @@
 //! Formats the `image` crate decodes: one picture, or the frames of an animation.
 
 use super::colour::ColourInfo;
-use super::{Frame, MAX_ANIMATION_BYTES, MAX_DECODE_AREA};
+use super::{Frame, MAX_DECODE_AREA};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -17,13 +17,13 @@ use std::io::Cursor;
 const SHORTEST_DELAY_MS: u64 = 10;
 const FALLBACK_DELAY_MS: u64 = 100;
 
-fn limits() -> Limits {
+pub(crate) fn limits() -> Limits {
     let mut limits = Limits::default();
     limits.max_alloc = Some(MAX_DECODE_AREA.0.saturating_mul(8));
     limits
 }
 
-fn decode_error(error: image::ImageError, size: Option<PixelSize>) -> ImageError {
+pub(crate) fn decode_error(error: image::ImageError, size: Option<PixelSize>) -> ImageError {
     match (error, size) {
         (image::ImageError::Limits(_), Some(size)) => ImageError::TooLarge { size },
         (error, _) => ImageError::Decode {
@@ -104,22 +104,42 @@ pub(crate) fn frame_of(frame: image::Frame) -> Frame {
     }
 }
 
-/// All the frames of an animation, refusing one that would take more memory than a viewer should
-/// hold.
-pub(crate) fn collect(frames: Frames<'_>) -> Result<Vec<Frame>, ImageError> {
-    let mut out: Vec<Frame> = Vec::new();
+/// What the frames of an animation came to.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Collected {
+    /// Every frame, in order.
+    All(Vec<Frame>),
+    /// Together the frames would have taken more than the cap: the first alone, and how many
+    /// there are.
+    TooMany { first: Frame, count: u32 },
+}
+
+/// The frames of an animation, keeping them while they take at most `cap` bytes together. Past
+/// it only the first is kept, and the rest are decoded and dropped one at a time to count them.
+pub(crate) fn collect(frames: Frames<'_>, cap: u64) -> Result<Collected, ImageError> {
+    let mut kept: Vec<Frame> = Vec::new();
     let mut spent: u64 = 0;
+    let mut count: u32 = 0;
     for frame in frames {
         let frame = frame_of(frame.map_err(|e| decode_error(e, None))?);
+        count = count.saturating_add(1);
         spent = spent.saturating_add(frame.pixels.bytes().len() as u64);
-        if spent > MAX_ANIMATION_BYTES {
-            return Err(ImageError::TooLarge {
-                size: frame.pixels.size(),
-            });
+        if spent > cap {
+            kept.truncate(1);
+            if kept.is_empty() {
+                kept.push(frame);
+            }
+        } else {
+            kept.push(frame);
         }
-        out.push(frame);
     }
-    Ok(out)
+    if spent <= cap {
+        return Ok(Collected::All(kept));
+    }
+    let first = kept.into_iter().next().ok_or_else(|| ImageError::Decode {
+        reason: "the animation has no frames".to_owned(),
+    })?;
+    Ok(Collected::TooMany { first, count })
 }
 
 #[cfg(test)]
@@ -143,6 +163,44 @@ mod tests {
                 MediaTime::from_millis(*millis),
                 "{name}"
             );
+        }
+    }
+
+    fn three_frame_gif() -> Vec<u8> {
+        let mut out = Vec::new();
+        {
+            let mut encoder = image::codecs::gif::GifEncoder::new(&mut out);
+            for grey in [10, 20, 30] {
+                let picture =
+                    image::RgbaImage::from_pixel(8, 6, image::Rgba([grey, grey, grey, 255]));
+                encoder.encode_frame(image::Frame::new(picture)).unwrap();
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn frames_over_the_cap_fall_back_to_the_first_and_a_count() {
+        // Each frame is 8 x 6 x 4 = 192 bytes.
+        // name, cap, frames kept, count reported
+        const CASES: &[(&str, u64, usize, Option<u32>)] = &[
+            ("room for all three", 576, 3, None),
+            ("one byte short of all three", 575, 1, Some(3)),
+            ("room for the first only", 192, 1, Some(3)),
+            ("not even the first fits", 100, 1, Some(3)),
+        ];
+        let bytes = three_frame_gif();
+        for (name, cap, kept, count) in CASES {
+            let frames = animation(&bytes, ImageFormat::Gif).unwrap().unwrap();
+            match collect(frames, *cap).unwrap() {
+                Collected::All(all) => {
+                    assert_eq!((all.len(), None), (*kept, *count), "{name}");
+                }
+                Collected::TooMany { first, count: seen } => {
+                    assert_eq!(first.pixels.bytes()[0], 10, "{name}: the first frame");
+                    assert_eq!((1, Some(seen)), (*kept, *count), "{name}");
+                }
+            }
         }
     }
 }

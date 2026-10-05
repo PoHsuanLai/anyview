@@ -35,7 +35,7 @@ fn tag(file: &[u8]) -> u16 {
 fn upright_size(file: &[u8]) -> PixelSize {
     match decode_bytes(file, &sniffed(file, "a.jpg")).unwrap() {
         Decoded::Still(picture) => picture.size(),
-        Decoded::Animated(_) => panic!("a jpeg is a still"),
+        Decoded::Animated(_) | Decoded::HeldStill { .. } => panic!("a jpeg is a still"),
     }
 }
 

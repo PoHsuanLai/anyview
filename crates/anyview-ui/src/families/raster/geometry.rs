@@ -42,7 +42,9 @@ pub(crate) fn animation_of(stage: &RasterStage) -> Animation {
 pub(crate) fn frame_of(stage: &RasterStage) -> FrameIndex {
     match animation_of(stage) {
         Animation::Still => FrameIndex(0),
-        Animation::Playing { frame, .. } | Animation::Paused { frame, .. } => frame,
+        Animation::Playing { frame, .. }
+        | Animation::Paused { frame, .. }
+        | Animation::Ended { frame, .. } => frame,
     }
 }
 

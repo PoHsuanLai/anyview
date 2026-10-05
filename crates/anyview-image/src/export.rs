@@ -83,7 +83,7 @@ impl ImageFile {
     /// The upright picture of a still image. An animation is exported as its first frame.
     pub fn picture(&self) -> Result<Rgba8, ImageError> {
         match decode_bytes(&self.bytes, &self.sniffed)? {
-            Decoded::Still(picture) => Ok(picture),
+            Decoded::Still(picture) | Decoded::HeldStill { picture, .. } => Ok(picture),
             Decoded::Animated(animation) => Ok(animation.frames.first().pixels.clone()),
         }
     }
