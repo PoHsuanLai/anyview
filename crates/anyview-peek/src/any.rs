@@ -85,7 +85,21 @@ fn guard(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<(), Pee
     let meta = std::fs::metadata(path).map_err(|e| refused(e.kind()))?;
     let wanted = match sniffed.kind() {
         FormatKind::Folder => meta.is_dir(),
-        _ => is_regular(&meta),
+        FormatKind::Pdf
+        | FormatKind::Raster
+        | FormatKind::Vector
+        | FormatKind::Video
+        | FormatKind::Audio
+        | FormatKind::Markdown
+        | FormatKind::Code
+        | FormatKind::PlainText
+        | FormatKind::Table
+        | FormatKind::Tree
+        | FormatKind::Font
+        | FormatKind::Archive
+        | FormatKind::Book
+        | FormatKind::Office
+        | FormatKind::Other => is_regular(&meta),
     };
     if !wanted {
         return Err(refused(std::io::ErrorKind::InvalidInput));
