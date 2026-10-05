@@ -5,7 +5,7 @@
 use super::outcome::Outcome;
 use anyview_core::{FilePath, FormatKind};
 use anyview_pdf::{PdfDocument, apply, page_op};
-use anyview_store::{DEFAULT_KEEP, Pending, SavedAt, VersionId, Versions};
+use anyview_store::{DEFAULT_KEEP, Durability, Pending, SavedAt, VersionId, Versions, Written};
 use anyview_ui::{EditRequest, Probed, VersionKey, VersionRow};
 
 /// Why an edit could not be made into the bytes of a new file.
@@ -75,8 +75,20 @@ fn written(
         .map_err(|error| format!("cannot keep the original before saving: {error}"))?;
     backed_up
         .write_in_place()
-        .map(|written| written.kept)
+        .map(kept_of)
         .map_err(|error| format!("cannot save the file: {error}"))
+}
+
+/// The version a save kept. A save whose folder could not be synced is still a save: the bytes
+/// are in the file, so it is logged and not reported as a failure.
+fn kept_of(written: Written) -> VersionId {
+    if written.durability == Durability::Unconfirmed {
+        eprintln!(
+            "anyview: saved {}, but its folder could not be synced to disk",
+            written.target.display()
+        );
+    }
+    written.kept
 }
 
 /// `version` put back as `path`; what the file is now is kept first.
@@ -88,7 +100,7 @@ pub(super) fn restore(
 ) -> Outcome {
     let result = versions
         .restore(version, at)
-        .map(|written| written.kept)
+        .map(kept_of)
         .map_err(|error| format!("cannot go back to that version: {error}"));
     outcome_of(result, path)
 }

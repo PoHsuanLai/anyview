@@ -85,7 +85,7 @@ check "the service names the bus" grep -qx "Name=org.quire.Anyview1" "$service"
 check "the service runs the installed binary, without DESTDIR" grep -qx "Exec=$prefix/bin/anyview" "$service"
 check "the 16 icon is in place" cmp -s "$quire/assets/icons/apps/viewer/16.png" "$installed/share/icons/hicolor/16x16/apps/org.quire.Anyview.png"
 check "the 256 icon is in place" cmp -s "$quire/assets/icons/apps/viewer/256.png" "$installed/share/icons/hicolor/256x256/apps/org.quire.Anyview.png"
-want="$(printf '%s\n' ./opt ./opt/av ./opt/av/bin ./opt/av/bin/anyview ./opt/av/share ./opt/av/share/applications \
+want="$(printf '%s\n' ./opt ./opt/av ./opt/av/bin ./opt/av/bin/anyview ./opt/av/share ./opt/av/share/anyview ./opt/av/share/anyview/install-receipt ./opt/av/share/applications \
   ./opt/av/share/applications/org.quire.Anyview.desktop ./opt/av/share/dbus-1 ./opt/av/share/dbus-1/services \
   ./opt/av/share/dbus-1/services/org.quire.Anyview1.service ./opt/av/share/icons ./opt/av/share/icons/hicolor \
   ./opt/av/share/icons/hicolor/16x16 ./opt/av/share/icons/hicolor/16x16/apps \
@@ -104,6 +104,27 @@ check "uninstall dry run removes nothing" test "$(tree_of "$stage")" = "$before"
 uninstall >"$scratch/uninstall.out" 2>&1
 check "uninstall leaves the staging tree empty" empty "$stage"
 check "a second uninstall is quiet and succeeds" uninstall
+
+# 4b. Uninstall removes only what install made: a file of the person's own beside the viewer's, and
+# the folders that hold it, stay, even under a prefix that holds other things.
+mkdir -p "$installed/share/mine" "$installed/bin" "$installed/share/applications"
+printf 'mine' >"$installed/share/mine/note.txt"
+printf 'other' >"$installed/bin/other-program"
+install >/dev/null 2>&1
+uninstall >/dev/null 2>&1
+check "uninstall keeps a stranger's file" test "$(cat "$installed/share/mine/note.txt")" = mine
+check "uninstall keeps another program in bin" test "$(cat "$installed/bin/other-program")" = other
+check "uninstall removes the viewer from bin" test ! -e "$installed/bin/anyview"
+check "uninstall removes the receipt" test ! -e "$installed/share/anyview"
+check "uninstall keeps a folder that was there before, though empty now" test -d "$installed/share/applications"
+rm -rf "$stage"
+# A binary that was there before is not the viewer's to remove: an identical one is not recorded.
+mkdir -p "$installed/bin"
+cp "$fake_bin" "$installed/bin/anyview"
+install >/dev/null 2>&1
+uninstall >/dev/null 2>&1
+check "uninstall keeps an identical file it did not install" test -x "$installed/bin/anyview"
+rm -rf "$stage"
 
 # 5. Without the icons folder install warns and skips only the icons.
 rm -rf "$quire/assets"
