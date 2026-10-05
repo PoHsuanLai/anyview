@@ -4,7 +4,7 @@
 
 use anyview_core::{FilePath, MediaTrack};
 use anyview_media::{
-    AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaEvent, Queue, TextureView,
+    AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaEvent, MpvHost, Queue, TextureView,
     headless_device,
 };
 use std::path::PathBuf;
@@ -26,9 +26,38 @@ pub fn fixture(name: &str) -> FilePath {
     .unwrap()
 }
 
-/// A device and queue, or `None` with a note when the machine has no adapter: the tests of a
-/// player that draws need one and say so rather than fail where there is none.
+/// The programs a test plays with: the stock `mpv` (`MPV_WGPU_MPV`, else the first on the search
+/// path) and the C plugin built from mpv-wgpu (`MPV_WGPU_CPLUGIN`). `None` with a note when
+/// either is missing, so a machine without them skips the player's tests rather than fails them.
+pub fn mpv_host() -> Option<MpvHost> {
+    let cplugin = std::env::var_os("MPV_WGPU_CPLUGIN").map(PathBuf::from);
+    let mpv = std::env::var_os("MPV_WGPU_MPV")
+        .map(PathBuf::from)
+        .or_else(|| {
+            let path = std::env::var_os("PATH")?;
+            std::env::split_paths(&path)
+                .map(|dir| dir.join("mpv"))
+                .find(|candidate| candidate.is_file())
+        });
+    match (mpv, cplugin) {
+        (Some(mpv), Some(cplugin)) if cplugin.is_file() => Some(MpvHost { mpv, cplugin }),
+        (None, _) => {
+            eprintln!("SKIPPED: no mpv (set MPV_WGPU_MPV or put mpv on the search path)");
+            None
+        }
+        (Some(_), _) => {
+            eprintln!(
+                "SKIPPED: no mpv-wgpu C plugin (build mpv-wgpu-cplugin, set MPV_WGPU_CPLUGIN)"
+            );
+            None
+        }
+    }
+}
+
+/// A device and queue, or `None` with a note when the machine has no adapter or no mpv: the
+/// tests of a player that draws need both and say so rather than fail where there are none.
 pub fn device() -> Option<(Device, Queue)> {
+    mpv_host()?;
     match headless_device() {
         Ok(pair) => Some(pair),
         Err(error) => {
@@ -88,12 +117,18 @@ pub struct Rig {
 
 impl Rig {
     pub fn open(device: &Device, queue: &Queue, file: &FilePath) -> Rig {
+        Rig::open_with(device, queue, &mpv_host().unwrap(), file)
+    }
+
+    /// A driver whose mpv is run as `host` says.
+    pub fn open_with(device: &Device, queue: &Queue, host: &MpvHost, file: &FilePath) -> Rig {
         let (tx, wakes) = channel();
         let shown = Recording::default();
         let driver = Driver::open(
             device,
             queue,
             AudioDriver::Null,
+            host,
             file,
             Box::new(shown.clone()),
             move || {
@@ -145,6 +180,7 @@ pub fn last_tracks(events: &[MediaEvent]) -> Option<&[MediaTrack]> {
         | MediaEvent::SeekDone
         | MediaEvent::Buffering(_)
         | MediaEvent::Position(_)
+        | MediaEvent::Length(_)
         | MediaEvent::Chapters(_)
         | MediaEvent::Volume(_)
         | MediaEvent::Speed(_)
@@ -166,7 +202,30 @@ pub fn last_chapters(events: &[MediaEvent]) -> Option<usize> {
         | MediaEvent::SeekDone
         | MediaEvent::Buffering(_)
         | MediaEvent::Position(_)
+        | MediaEvent::Length(_)
         | MediaEvent::Tracks(_)
+        | MediaEvent::Volume(_)
+        | MediaEvent::Speed(_)
+        | MediaEvent::Picture(_)
+        | MediaEvent::ShotSaved(_)
+        | MediaEvent::ShotFailed { .. }
+        | MediaEvent::Failed(_)
+        | MediaEvent::Refused(_) => None,
+    })
+}
+
+/// How long the recording runs, as `Loaded` or, when that had none, `Length` said.
+pub fn length_of(events: &[MediaEvent]) -> Option<anyview_core::MediaLength> {
+    events.iter().find_map(|event| match event {
+        MediaEvent::Loaded { length } => *length,
+        MediaEvent::Length(length) => Some(*length),
+        MediaEvent::Ended(_)
+        | MediaEvent::Playback(_)
+        | MediaEvent::SeekDone
+        | MediaEvent::Buffering(_)
+        | MediaEvent::Position(_)
+        | MediaEvent::Tracks(_)
+        | MediaEvent::Chapters(_)
         | MediaEvent::Volume(_)
         | MediaEvent::Speed(_)
         | MediaEvent::Picture(_)

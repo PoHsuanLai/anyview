@@ -18,7 +18,7 @@ pub type ProgressSink = Arc<dyn Fn(ExportProgress) + Send + Sync>;
 /// One export to run: the job, the file to write and where progress goes.
 #[derive(Clone)]
 pub struct ExportRequest {
-    /// What to do; only `ExportJob::Transcode` is libav's.
+    /// What to do; only `ExportJob::Transcode` is a plugin's.
     pub job: ExportJob,
     /// The file to write. It is made whole or not at all.
     pub to: FilePath,
@@ -40,6 +40,4 @@ impl std::fmt::Debug for ExportRequest {
 pub struct ExportReport {
     /// The file written.
     pub path: FilePath,
-    /// How much of the recording it holds.
-    pub length: MediaLength,
 }

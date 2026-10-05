@@ -147,7 +147,8 @@ impl MediaLive {
             // reported while it opened was the start it is about to leave.
             MediaNotice::Player(PlayerEvent::Loaded { length: _ }) => self.position = None,
             MediaNotice::Player(
-                PlayerEvent::Ended(_)
+                PlayerEvent::LengthKnown(_)
+                | PlayerEvent::Ended(_)
                 | PlayerEvent::Playback(_)
                 | PlayerEvent::SeekDone
                 | PlayerEvent::TracksChanged,

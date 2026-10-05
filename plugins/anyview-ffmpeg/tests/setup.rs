@@ -130,3 +130,21 @@ fn a_program_that_is_not_ffmpeg_is_not_used() {
     assert!(hello.provides.is_empty());
     assert!(log.contains("cannot be used"), "{log}");
 }
+
+#[test]
+fn the_runner_hands_back_the_greeting_so_a_host_offers_only_what_can_be_written() {
+    require_ffmpeg!();
+    let scratch = Scratch::new();
+    let fake = scratch.fake_ffmpeg("exit 0");
+    let plugin = scratch.install(&support::with_ffmpeg(&fake));
+    let hello = PluginRunner::default().hello(&plugin).unwrap();
+    assert_eq!(hello.targets, ["trim", "audio-copy", "flac"]);
+    assert!(hello.provides.contains(&Capability::Export));
+
+    let missing = scratch.install(&["--ffmpeg".to_owned(), "/nonexistent/ffmpeg".to_owned()]);
+    let hello = PluginRunner::default().hello(&missing).unwrap();
+    assert!(
+        hello.targets.is_empty() && !hello.provides.contains(&Capability::Export),
+        "a plugin with no ffmpeg offers nothing: {hello:?}"
+    );
+}

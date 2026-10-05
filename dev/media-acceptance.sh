@@ -6,8 +6,11 @@
 #
 #   dev/media-acceptance.sh [path/to/anyview]     (default: the debug build in $CARGO_TARGET_DIR or target/)
 #
-# Needs: dbus-run-session, busctl, a Wayland or X display is NOT needed for the playing session (it has no
-# window), but the binary starts its event loop, which needs one: run it where the viewer runs.
+# Needs: dbus-run-session, busctl, an mpv (MPV_WGPU_MPV, else the first on the search path) and mpv-wgpu's C plugin
+# (MPV_WGPU_CPLUGIN, from `cargo build -p mpv-wgpu-cplugin --release` in an mpv-wgpu checkout). The viewer plays
+# through them as the `mpv` plugin, installed here in the scratch data directory. A Wayland or X display is NOT
+# needed for the playing session (it has no window), but the binary starts its event loop, which needs one: run
+# it where the viewer runs.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,6 +24,15 @@ trap 'rm -rf "$scratch"' EXIT
 export HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/config" XDG_DATA_HOME="$scratch/data" \
   XDG_CACHE_HOME="$scratch/cache" ANYVIEW_AUDIO_OUTPUT=null
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+
+# The player is a plugin: a manifest naming the person's mpv and the C plugin, in the scratch data directory.
+mpv="${MPV_WGPU_MPV:-$(command -v mpv || true)}"
+cplugin="${MPV_WGPU_CPLUGIN:-}"
+[ -x "$mpv" ] || { echo "no mpv (set MPV_WGPU_MPV or install mpv)"; exit 2; }
+[ -f "$cplugin" ] || { echo "no mpv-wgpu C plugin (set MPV_WGPU_CPLUGIN to libmpv_wgpu_cplugin.so)"; exit 2; }
+mkdir -p "$XDG_DATA_HOME/anyview/plugins"
+sed -e "s|@MPV@|$mpv|" -e "s|@PREFIX@/libexec/anyview/mpv-wgpu-cplugin.so|$cplugin|" \
+  dist/plugins/anyview-mpv.toml.in >"$XDG_DATA_HOME/anyview/plugins/mpv.toml"
 
 session() {
   local name=org.mpris.MediaPlayer2.anyview path=/org/mpris/MediaPlayer2 player=org.mpris.MediaPlayer2.Player

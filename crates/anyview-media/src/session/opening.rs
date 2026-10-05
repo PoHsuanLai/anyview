@@ -23,28 +23,15 @@ impl Session<Opening> {
             Ok(report) => report,
             Err(reason) => return self.give_up(failed(reason)),
         };
-        let length = report.events.iter().find_map(|event| match event {
-            MediaEvent::Loaded { length } => Some(*length),
-            MediaEvent::Ended(_)
-            | MediaEvent::Playback(_)
-            | MediaEvent::SeekDone
-            | MediaEvent::Buffering(_)
-            | MediaEvent::Position(_)
-            | MediaEvent::Tracks(_)
-            | MediaEvent::Chapters(_)
-            | MediaEvent::Volume(_)
-            | MediaEvent::Speed(_)
-            | MediaEvent::Picture(_)
-            | MediaEvent::ShotSaved(_)
-            | MediaEvent::ShotFailed { .. }
-            | MediaEvent::Failed(_)
-            | MediaEvent::Refused(_) => None,
-        });
+        let loaded = report
+            .events
+            .iter()
+            .any(|event| matches!(event, MediaEvent::Loaded { .. }));
         let errored = report.events.contains(&MediaEvent::Ended(EndReason::Error));
-        match (length, errored) {
+        match (loaded, errored) {
             (_, true) => self.give_up(report),
-            (Some(length), false) => Opened::Loaded(self.with_state(Loaded { length }), report),
-            (None, false) => Opened::Waiting(self, report),
+            (true, false) => Opened::Loaded(self.with_state(Loaded), report),
+            (false, false) => Opened::Waiting(self, report),
         }
     }
 

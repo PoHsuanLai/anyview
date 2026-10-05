@@ -1,22 +1,15 @@
-//! Writing recordings with libav: a trim cut at a keyframe, a track lifted out, audio converted to
-//! another format. Each is blocking work for one pool worker, with progress and a `Stop`; this
-//! crate plans and names the work and runs it, and the binary owns the thread.
+//! Writing recordings through a plugin: which choices a recording offers, what each asks of the
+//! plugin that writes it (`ask`), where the file goes (`naming`) and what a request and its
+//! progress are (`request`). Nothing here runs a program: the binary asks the FFmpeg plugin and
+//! owns the thread that waits for it. A trim is a stream copy cut at the keyframe at or before
+//! its start, written beside the file.
 
-mod convert;
-mod copy;
-mod encoders;
-mod fifo;
-mod flac;
-mod gate;
+mod ask;
 mod naming;
 mod plan;
 mod request;
-mod run;
-#[cfg(test)]
-mod tests;
 
-pub use encoders::{AudioFormat, Encoder, Encoders};
-pub use naming::output_path;
+pub use ask::{Ask, ask_of, offered_kinds, target_of};
+pub use naming::{NameHints, output_path};
 pub use plan::plan_export;
 pub use request::{ExportProgress, ExportReport, ExportRequest, ProgressSink};
-pub use run::ExportBackend;

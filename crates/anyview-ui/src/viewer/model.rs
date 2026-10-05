@@ -7,7 +7,7 @@ use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
-use crate::sheet::{Sheet, SheetIn, SheetOut};
+use crate::sheet::{Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Stage, StageIn, StageOut, StageParams};
 use anyview_core::{FileAction, FilePath};
 use ds_core::vocab::Shortcut;
@@ -136,6 +136,8 @@ pub struct ViewerParams {
     pub palette: PaletteParams,
     /// Whether the open file is media.
     pub presentation: PresentationParams,
+    /// What the sheets open on.
+    pub sheet: SheetParams,
     /// What the stages need from the view and settings.
     pub stage: StageParams,
 }

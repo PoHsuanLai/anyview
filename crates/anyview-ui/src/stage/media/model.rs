@@ -58,6 +58,25 @@ impl MediaStage {
             MediaStage::Opening | MediaStage::Failed(_) => None,
         }
     }
+
+    /// The same state with the length the player has now said; a stage that is not showing a
+    /// recording yet has no length to change.
+    pub(super) fn with_length(self, length: MediaLength) -> MediaStage {
+        match self {
+            MediaStage::Playing { at, .. } => MediaStage::Playing { at, length },
+            MediaStage::Paused { at, .. } => MediaStage::Paused { at, length },
+            MediaStage::Scrubbing {
+                from, to, resume, ..
+            } => MediaStage::Scrubbing {
+                from,
+                to,
+                length,
+                resume,
+            },
+            MediaStage::Ended { at, .. } => MediaStage::Ended { at, length },
+            MediaStage::Opening | MediaStage::Failed(_) => self,
+        }
+    }
 }
 
 /// What moves the stage.
