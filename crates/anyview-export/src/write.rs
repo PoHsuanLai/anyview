@@ -1,12 +1,12 @@
-//! Writing a file whole: to a temporary file beside the destination, then renamed into place.
+//! Writing a file whole: to a temporary file beside the destination, then given its name.
 
 use crate::error::ExportError;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// `bytes` as the new file `to`. The bytes go to a hidden file in the same folder first and are
-/// renamed to `to` only when they are all on disk, so `to` never holds part of them. A `to` that
-/// exists is left as it is, whoever made it.
+/// given the name `to` only when they are all on disk, so `to` never holds part of them. A `to`
+/// that exists is left as it is, whoever made it.
 pub(crate) fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
     let write_error = |error: std::io::Error| ExportError::Write {
         path: to.to_path_buf(),
@@ -25,16 +25,23 @@ pub(crate) fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
         let _gone = std::fs::remove_file(&partial);
         return Err(write_error(error));
     }
-    if to.exists() {
-        let _gone = std::fs::remove_file(&partial);
-        return Err(ExportError::Exists {
+    // A hard link claims `to` only if no file has it, in one step; a rename would replace a file
+    // made between a look and the rename. A file system without hard links (FAT on a stick)
+    // falls back to looking first.
+    let placed = match std::fs::hard_link(&partial, to) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            Err(ExportError::Exists {
+                path: to.to_path_buf(),
+            })
+        }
+        Err(_) if to.exists() => Err(ExportError::Exists {
             path: to.to_path_buf(),
-        });
-    }
-    std::fs::rename(&partial, to).map_err(|error| {
-        let _gone = std::fs::remove_file(&partial);
-        write_error(error)
-    })
+        }),
+        Err(_) => std::fs::rename(&partial, to).map_err(write_error),
+    };
+    let _gone = std::fs::remove_file(&partial);
+    placed
 }
 
 /// The hidden name the bytes are written under before `to` has them.
