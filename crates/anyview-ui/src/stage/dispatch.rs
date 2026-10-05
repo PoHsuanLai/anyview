@@ -87,6 +87,8 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
             at,
         }),
         StageCommand::TogglePlayback => Some(RasterIn::TogglePlayback),
+        StageCommand::StepFrameForward => Some(RasterIn::StepFrame(StepDirection::Forward)),
+        StageCommand::StepFrameBack => Some(RasterIn::StepFrame(StepDirection::Backward)),
         StageCommand::ZoomToWidth
         | StageCommand::Find
         | StageCommand::FindNext
@@ -108,8 +110,6 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::PreviousChapter
         | StageCommand::NextAudioTrack
         | StageCommand::NextSubtitles
-        | StageCommand::StepFrameForward
-        | StageCommand::StepFrameBack
         | StageCommand::MarkTrimStart
         | StageCommand::MarkTrimEnd
         | StageCommand::DeletePage

@@ -30,7 +30,7 @@ fn still(name: &str) -> Rgba8 {
     let (src, sniffed) = fixture(name);
     match decode(&src, &sniffed).unwrap() {
         Decoded::Still(picture) => picture,
-        Decoded::Animated(_) => panic!("{name} is not a still"),
+        Decoded::Animated(_) | Decoded::HeldStill { .. } => panic!("{name} is not a still"),
     }
 }
 
@@ -231,6 +231,7 @@ fn the_size_a_header_declares_is_the_size_decoding_gives_upright() {
         let decoded = match decode(&src, &sniffed).unwrap() {
             Decoded::Still(picture) => picture.size(),
             Decoded::Animated(animation) => animation.frames.first().pixels.size(),
+            Decoded::HeldStill { picture, .. } => picture.size(),
         };
         assert_eq!(declared, Some(decoded), "{name}");
     }

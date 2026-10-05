@@ -9,6 +9,12 @@ use image::ImageFormat;
 pub(crate) enum Codec {
     /// A format the `image` crate decodes.
     Image(ImageFormat),
+    /// OpenEXR or Radiance HDR: floating point pictures that are tone mapped to 8 bits.
+    HighRange(ImageFormat),
+    /// A Photoshop document's flattened composite.
+    Psd,
+    /// An Apple icon family's largest picture.
+    Icns,
     /// JPEG XL, through `jxl-oxide`.
     Jxl,
     /// SVG, through `resvg`.
@@ -39,12 +45,12 @@ fn raster_codec(format: RasterFormat) -> Result<Codec, ImageError> {
         RasterFormat::Qoi => Ok(Codec::Image(ImageFormat::Qoi)),
         RasterFormat::Avif => avif(),
         RasterFormat::Jxl => Ok(Codec::Jxl),
+        RasterFormat::Psd => Ok(Codec::Psd),
+        RasterFormat::Icns => Ok(Codec::Icns),
+        RasterFormat::Exr => Ok(Codec::HighRange(ImageFormat::OpenExr)),
+        RasterFormat::Hdr => Ok(Codec::HighRange(ImageFormat::Hdr)),
         RasterFormat::Raw => Ok(Codec::RawPreview),
-        RasterFormat::Heic
-        | RasterFormat::Psd
-        | RasterFormat::Icns
-        | RasterFormat::Exr
-        | RasterFormat::Hdr => Err(ImageError::Unsupported { format }),
+        RasterFormat::Heic => Err(ImageError::Unsupported { format }),
     }
 }
 
@@ -113,11 +119,10 @@ mod tests {
 
     #[test]
     fn formats_without_a_decoder_are_unsupported() {
-        for format in [RasterFormat::Heic, RasterFormat::Psd] {
-            assert_eq!(
-                raster_codec(format),
-                Err(ImageError::Unsupported { format })
-            );
-        }
+        let format = RasterFormat::Heic;
+        assert_eq!(
+            raster_codec(format),
+            Err(ImageError::Unsupported { format })
+        );
     }
 }

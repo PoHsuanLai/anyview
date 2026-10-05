@@ -13,6 +13,7 @@ use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
 use ds::host::measure::use_rect;
 use ds::machine::MachineRef;
+use ds::motion::detail::level::{Level, use_level};
 use ds::motion::detail::operation::Operation;
 use ds::prelude::{Scale, Shown};
 
@@ -49,6 +50,8 @@ pub(super) struct Shelf {
     pub chrome: Signal<Shown>,
     /// What is typed in the palette.
     pub query: Signal<TypedText>,
+    /// The window's motion level: what the desktop asks for, read when a step needs it.
+    pub level: Level,
     /// Where the person last said they were in the open file, kept for the file when it is left.
     pub left_at: Signal<Resume>,
 }
@@ -72,6 +75,7 @@ impl Shelf {
             operation: use_signal(|| Operation::Idle),
             chrome: use_signal(|| Shown::Hidden),
             query: use_signal(TypedText::default),
+            level: use_level(),
             left_at: use_signal(|| Resume::Nothing),
         }
     }
@@ -117,6 +121,7 @@ pub(super) fn viewer_params(
         *area.peek(),
         &shelf.query.peek(),
         lines.as_ref().map(|held| held.0.as_ref()),
+        shelf.level.now(),
     )
 }
 

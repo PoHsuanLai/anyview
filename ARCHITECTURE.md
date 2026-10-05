@@ -98,8 +98,9 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | every crate | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`: no binding of libmpv or libav anywhere in the workspace (the script checks every crate in `crates/` and `plugins/` and `Cargo.lock`), and `dev/no-linked-codecs.sh` reads `ldd` of the built binary for `libmpv` and `libav*` |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/` and `plugins/`) |
 
-`anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga
-and qoi added by its own manifest), `jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
+`anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga,
+qoi, exr and hdr added by its own manifest), `psd` (Photoshop, MIT OR Apache-2.0), `icns` (Apple icons, MIT),
+`jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
@@ -202,7 +203,7 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
 | `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
 | `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
-| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded`, `Animation`, `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`, `stills`, `jxl`, `svg` and `look` are private |
+| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `stills`, `plays` (loop counts from the container), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg` and `look` are private |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
 | `export` | `plan_export` (an image choice as `ExportJob`s: pure), `encode_file` (a file resized and encoded, keeping its metadata or not), `ImageFile` (a file's bytes and what it sniffed as: its upright picture, an SVG's declared size, whether a JPEG is already upright) |
@@ -993,7 +994,7 @@ The single place a concept lives. Extend it; never write a second one.
 | The files opened ahead, and the one just left | `views/preloads.rs` |
 | The folder of a file as the list the arrow keys walk, in name order | `anyview_ui::folder_sequence` (`io/folder.rs`) |
 | Whether a changed file is reloaded | `anyview_ui::freshness` (`load/fresh.rs`); the host says a file changed through `Edge::changed` |
-| The frames of an animation, and the clock that plays them | `RasterDoc` strip (`families/raster/doc.rs`), `use_frame_clock` (`families/raster/view.rs`) |
+| The frames of an animation, and the clock that plays them | `RasterDoc` strip (`families/raster/doc.rs`) for the textures and delays; the clock is `RasterStage::wake` (`stage/raster/step.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
 | One viewer process, and forwarding a launch to it | `anyview_platform::Instance`, `Request` |
@@ -1176,7 +1177,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Leave` | `Open(path)`, `Preload(neighbours)` |
 | `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
 | `Load` | `Idle`, `Probing`, `Peeking { frame }`, `Opening`, `Ready`, `Failed { reason }`, each with its `Ticket` | `Begin`, `Probed`, `Peeked`, `PeekFailed`, `Opened`, `Failed` | `Probe`, `Peek`, `Open`, `Cancel`, `UseStage`, `ShowFirstFrame`, `ShowFull` |
-| `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing`, `Paused`) rides in each | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `FrameTick` | `Remember`, `Turned`, `ShowFrame` |
+| `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing { due }`, `Paused`, `Ended`) rides in each; `wake()` is the playing frame's `due` | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `TogglePlayback`, `StepFrame`, `Elapsed` | `Remember`, `Turned`, `ShowFrame` |
 | `PdfStage` | `Reading`, `Finding { query, hits }`, `Jumping { target }` | `Scroll`, `SetZoom`, `Find`, `Results`, `NextHit`, `GoTo`, `NextPage`, `Arrived`, `Restore` | `Remember`, `ScrollTo`, `Find(..)` |
 | `MediaStage` | `Opening`, `Playing`, `Paused`, `Scrubbing { resume }`, `Ended`, `Failed` | `Player(PlayerEvent)`, `Position`, `Toggle`, `Seek*`, `Scrub*`, `SetVolume`, `SetSpeed`, `StepSpeed`, `Select`, `CycleTrack`, `StepChapter`, `GoToChapter`, `Mark`, `Restore` | `Command(PlayerCommand)`, `Buffering`, `VolumeChanged`, `TracksChanged`, `Marked` |
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
@@ -1223,8 +1224,13 @@ machine input or a worker job, never a decision of a view.
 - *Drop.* The window is a drop target (`ds::file_drop`); `ViewerIn::Dropped` opens the first file, ends the walk,
   and asks for the folder as the new list (`ViewerOut::ListFolder`, answered through `folder_sequence`).
 - *Animation.* An open that finds frames uploads each into a texture of its own; the stage machine's `Animation`
-  says which is on screen and a clock in the view (`use_frame_clock`) sends `FrameTick` when the current
-  frame's delay is up.
+  says which is on screen and when it is due: `wake()` names the due time and the root's `Elapsed` advances
+  the frame, reading the frame delays, the runs the file asks for and the desktop's reduced-motion answer
+  from `RasterParams` (`Motion::Reduced` opens it paused). Space plays or pauses, `,` and `.` step a frame
+  and pause. After the last run the animation holds on its last frame (`Ended`); Space plays it again. Frame
+  delays at or under 10 ms are shown as 100 ms. The frames of one animation are held whole up to 256 MiB of
+  RGBA8; past that the file opens as its first frame with a "too large to play" note in the Info tab. The
+  export sheet and the saved copy of an animation use its first frame, and rotate and flip decline it.
 
 **The PDF stage.** The stage machine holds the page at the top, how far down it and the zoom; the view
 (`families/pdf`) holds what those point at, in a `PdfShelf` the window makes once. Each frame the view works

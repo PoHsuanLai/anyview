@@ -5,10 +5,12 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
-    ChromeParams, Command, MediaOffer, PaletteParams, PanelParams, PresentationParams, SheetParams,
-    Stage, StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
+    ChromeParams, Command, MediaOffer, Motion, PaletteParams, PanelParams, PresentationParams,
+    SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText,
+    ViewerParams,
 };
 use anyview_core::{FormatKind, Reach, actions_for, reach};
+use ds::prelude::MotionLevel;
 use ds_core::word::Word;
 
 /// Where the probe of the load in flight stands. A probe's result is announced to the load machine
@@ -106,9 +108,10 @@ pub(super) fn params(
     area: Option<crate::Area>,
     query: &TypedText,
     lines: Option<&LineWindow>,
+    level: MotionLevel,
 ) -> ViewerParams {
     let kind = probe.found().map(|probed| probed.sniffed.kind());
-    let measured = match doc {
+    let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
             text: TextParams {
@@ -117,6 +120,10 @@ pub(super) fn params(
             },
             ..StageParams::default()
         },
+    };
+    measured.raster.motion = match level {
+        MotionLevel::Reduced => Motion::Reduced,
+        MotionLevel::Standard => Motion::Standard,
     };
     ViewerParams {
         chrome: ChromeParams::default(),

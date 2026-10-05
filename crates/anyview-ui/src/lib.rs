@@ -65,12 +65,12 @@ pub use sheet::{
 };
 pub use stage::{
     AfterScrub, Animation, BookIn, BookOut, BookParams, BookStage, Destination, EndReason,
-    FindHits, FindOut, FrameCount, FrameIndex, HitCount, HitCursor, HitIndex, HitStep, LineTotal,
-    MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Pace, PageLines, PageView, PdfIn,
-    PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, RasterIn, RasterOut, RasterParams,
-    RasterStage, Stage, StageFamily, StageIn, StageOut, StageParams, StepDirection, TextExtent,
-    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind,
-    TrimEdge, Viewport, Wrap, ZoomDir,
+    FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor, HitIndex, HitStep,
+    LineTotal, MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageLines,
+    PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, RasterIn, RasterOut,
+    RasterParams, RasterStage, Runs, Stage, StageFamily, StageIn, StageOut, StageParams,
+    StepDirection, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
+    TextView, TextViews, TrackKind, TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};

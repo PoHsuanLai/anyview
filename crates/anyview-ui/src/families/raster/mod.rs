@@ -68,8 +68,16 @@ impl StageView for RasterStageView {
     }
 
     fn params(doc: &RasterDoc, stage: &Stage, area: Option<Area>) -> StageParams {
+        let timing = crate::RasterParams {
+            delays: doc.delays(),
+            runs: doc.runs,
+            ..crate::RasterParams::default()
+        };
         let (Stage::Raster(raster), Some(area)) = (stage, area) else {
-            return StageParams::default();
+            return StageParams {
+                raster: timing,
+                ..StageParams::default()
+            };
         };
         let turn = geometry::turn_of(raster);
         let fit = geometry::fit(doc.size, turn, area);
@@ -78,7 +86,7 @@ impl StageView for RasterStageView {
             raster: crate::RasterParams {
                 viewport: crate::Viewport { shown, fit },
                 centre: geometry::centre_of(raster, doc.size),
-                ..crate::RasterParams::default()
+                ..timing
             },
             ..StageParams::default()
         }
@@ -99,7 +107,11 @@ impl StageView for RasterStageView {
             (true, Animation::Still, Some(count)) => {
                 vec![StageIn::Raster(RasterIn::Animated(FrameCount(count)))]
             }
-            (true, Animation::Playing { .. } | Animation::Paused { .. }, _)
+            (
+                true,
+                Animation::Playing { .. } | Animation::Paused { .. } | Animation::Ended { .. },
+                _,
+            )
             | (true, Animation::Still, None)
             | (false, _, _) => Vec::new(),
         }
@@ -134,7 +146,9 @@ impl StageView for RasterStageView {
         if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
             let (label, icon) = match geometry::animation_of(raster) {
                 Animation::Playing { .. } => ("Pause", Icon::Pause),
-                Animation::Still | Animation::Paused { .. } => ("Play", Icon::Play),
+                Animation::Still | Animation::Paused { .. } | Animation::Ended { .. } => {
+                    ("Play", Icon::Play)
+                }
             };
             slots.push(CapsuleSlot::Divider);
             slots.push(CapsuleSlot::button(
