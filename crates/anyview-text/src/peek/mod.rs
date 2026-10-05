@@ -3,7 +3,7 @@
 //! [`PEEK_LINES`] lines or rows.
 
 mod code;
-mod head;
+pub(crate) mod head;
 mod markdown;
 mod plain;
 mod table;
@@ -14,6 +14,6 @@ pub use code::{CodePeek, CodePeeked};
 pub use head::PEEK_LINES;
 pub use markdown::{MarkdownPeek, MarkdownPeeked};
 pub use plain::{PlainPeek, PlainPeeked};
-pub use table::{TablePeek, TablePeeked};
+pub use table::{TablePeek, TablePeeked, TableSource};
 pub use tally::Tally;
 pub use tree::{TreePeek, TreePeeked};

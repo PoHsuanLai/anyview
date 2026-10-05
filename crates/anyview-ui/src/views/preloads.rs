@@ -98,6 +98,7 @@ mod tests {
                 name: name.to_owned(),
                 kind: FormatKind::Folder,
                 facts: Facts::empty(),
+                thumbnail: None,
             }),
         }
     }

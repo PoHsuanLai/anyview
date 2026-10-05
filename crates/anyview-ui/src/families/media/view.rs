@@ -46,7 +46,9 @@ fn status(stage: &Stage) -> Option<&'static str> {
         | Stage::Raster(_)
         | Stage::Pdf(_)
         | Stage::Book(_)
-        | Stage::Text(_) => None,
+        | Stage::Text(_)
+        | Stage::Table(_)
+        | Stage::Tree(_) => None,
     }
 }
 

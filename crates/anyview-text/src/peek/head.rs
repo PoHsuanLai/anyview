@@ -3,7 +3,7 @@
 use crate::bytes::{ByteSource, FileBytes};
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{FormatKind, PeekBudget, Sniffed, Source};
+use anyview_core::{ByteLen, FormatKind, PeekBudget, Sniffed, Source};
 
 /// The lines (or rows) a peek shows. Every pane shows about this many, so the limit is the
 /// pane's, not the budget's: the byte budget decides how much is read to find them.
@@ -11,7 +11,7 @@ pub const PEEK_LINES: usize = 40;
 
 /// The start of a text file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Head {
+pub(crate) struct Head {
     /// The decoded text. When the file is longer than the budget it ends at a line break, so no
     /// half line is shown.
     pub text: String,
@@ -22,7 +22,7 @@ pub(super) struct Head {
 }
 
 /// Refuses a file that is not of the `expected` kind.
-pub(super) fn expect_kind(sniffed: &Sniffed, expected: FormatKind) -> Result<(), TextError> {
+pub(crate) fn expect_kind(sniffed: &Sniffed, expected: FormatKind) -> Result<(), TextError> {
     if sniffed.kind() == expected {
         Ok(())
     } else {
@@ -33,12 +33,17 @@ pub(super) fn expect_kind(sniffed: &Sniffed, expected: FormatKind) -> Result<(),
 }
 
 /// The first `budget.bytes` bytes of the file, decoded.
-pub(super) fn read_head(src: &Source, budget: &PeekBudget) -> Result<Head, TextError> {
-    if budget.bytes.0 == 0 {
+pub(crate) fn read_head(src: &Source, budget: &PeekBudget) -> Result<Head, TextError> {
+    read_limited(src, budget.bytes)
+}
+
+/// The first `limit` bytes of the file, decoded.
+pub(crate) fn read_limited(src: &Source, limit: ByteLen) -> Result<Head, TextError> {
+    if limit.0 == 0 {
         return Err(TextError::NoBudget);
     }
     let file = FileBytes::open(src)?;
-    let bytes = file.read(0..budget.bytes.0)?;
+    let bytes = file.read(0..limit.0)?;
     let coverage = if file.byte_len().0 > bytes.len() as u64 {
         Coverage::Prefix
     } else {
@@ -48,7 +53,7 @@ pub(super) fn read_head(src: &Source, budget: &PeekBudget) -> Result<Head, TextE
 }
 
 /// `bytes`, the start of a file, decoded and cut at its last line break when it is only a start.
-pub(super) fn decode_head(bytes: &[u8], coverage: Coverage) -> Head {
+pub(crate) fn decode_head(bytes: &[u8], coverage: Coverage) -> Head {
     let detected = detect(bytes, coverage);
     let body = bytes.get(usize::from(detected.mark)..).unwrap_or_default();
     let decoded = detected.codec.decode(body);

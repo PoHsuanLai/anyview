@@ -24,9 +24,9 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
   zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
   zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
-- **The kinds with no back end show only what sniffing says.** Office documents and unknown files
+- **The kinds with no back end show only what sniffing says.** Unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
-  lands and the registry's arm names the real peek. Books are read by `BookPeek` (their cover and facts). Video and audio are read by pure-Rust header parsers (below).
+  lands and the registry's arm names the real peek. Books are read by `BookPeek` (their cover and facts) and office documents by `OfficePeek` (their facts and the document's own thumbnail). Video and audio are read by pure-Rust header parsers (below).
 - **The launcher's media peek is pure Rust, and has gaps a codec library would not.** `anyview-peek`'s `media` feature
   reads headers with `symphonia` (audio), `mp4parse` (MP4, M4V, MOV) and `matroska-demuxer` (MKV, WebM); no
   libav, no libmpv and no `anyview-media` is in its tree. The viewer uses the same parsers for a recording's facts when
@@ -43,7 +43,7 @@ on. It is a reference, not a log: how each was found lives in git history.
     `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
-  - The tree is 600 packages against the budget of 600.
+  - The tree is 605 packages against the budget of 605.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
@@ -561,7 +561,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  670 packages against a budget of 670, with no libmpv or libav in it. Ends if the header readers move to a crate
+  675 packages against a budget of 675, with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
@@ -570,6 +570,11 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Standing facts
 
+- **Spreadsheet and office peeks add `calamine` and `quick-xml`, and the budgets moved for them.** `anyview-text` reads
+  XLSX, ODS and XLS through `calamine` (MIT) and `anyview-archive` reads office metadata through `quick-xml`; both are
+  outside quire's pinned block. On top of the 600 and 670 the other readers left, they take `anyview-peek` to 605 packages and `anyview` to 675 in
+  `scripts/check-boundary.sh`: calamine and quick-xml for XLSX and ODS, with the crates they pull in. A workbook larger than the viewer opens, and a JSON file larger than the peek budget,
+  are `Unsupported`, not damaged.
 - **The `[patch]` sections are quire's, copied.** The root `Cargo.toml` carries quire's `[patch.crates-io]` (the
   vello and anyrender forks) and its `[patch."https://github.com/PoHsuanLai/blitz-kit"]` path entry, because a
   patch applies only at a workspace root and `anyview-ui` now names the render stack through `ds-blitz`. A
@@ -592,10 +597,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest names none of `wgpu`, pdfrum, `tokio`, `anyrender` or the `blitz-*` and `vello` crates (the
   script's DIRECT table), and the pane gets the device only from `ds_blitz::use_gpu`, calling
   `Gpu::device().is_some()` without naming a `wgpu` type. The launcher is a Blitz window on the hybrid
-  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 600 distinct packages (raised from 590 for the PSD,
+  renderer, so it links all of it already. The dependency budget (`BUDGETS`) is 605 distinct packages (raised from 590 for the PSD,
   ICNS and OpenEXR/HDR still formats in `anyview-image`, which the peek links: `psd`, `icns`, `exr` and the
-  inflate and SIMD crates `exr` needs, and one more for `roxmltree`, the EPUB package reader);
-  `anyview-peek` is 600 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
+  inflate and SIMD crates `exr` needs, and one more for `roxmltree`, the EPUB package reader, and five more for `calamine` and `quick-xml`, which read XLSX and ODS);
+  `anyview-peek` is 605 today, of which `ds` and `ds-blitz` are about 530 and the container codecs of
   `anyview-archive`, `skrifa` and the media parsers the rest.
 - **The `[patch]` sections are copied from quire's and sill's root manifests.** `blitz-kit` points at the
   sibling checkout and the vello and anyrender crates at the `quire-filters` forks, at the revs those

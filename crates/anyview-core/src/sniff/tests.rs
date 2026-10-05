@@ -120,6 +120,7 @@ const CASES: &[Case] = &[
     Case { name: "icns by extension", file: "a.icns", head: ICNS, kind: FormatKind::Raster, mime: "image/x-icns", detail: FormatDetail::Raster(RasterFormat::Icns) },
     Case { name: "qoi by extension", file: "a.qoi", head: QOI, kind: FormatKind::Raster, mime: "image/x-qoi", detail: FormatDetail::Raster(RasterFormat::Qoi) },
     Case { name: "tga by extension", file: "a.tga", head: TGA, kind: FormatKind::Raster, mime: "image/x-tga", detail: FormatDetail::Raster(RasterFormat::Tga) },
+    Case { name: "xls by extension", file: "a.xls", head: b"\0\x01\x02\x03", kind: FormatKind::Table, mime: "application/vnd.ms-excel", detail: FormatDetail::Office(OfficeFormat::Xls) },
     Case { name: "ttc by extension", file: "a.ttc", head: TTC, kind: FormatKind::Font, mime: "font/collection", detail: FormatDetail::Font(FontFormat::Ttc) },
     Case { name: "transport stream by extension", file: "a.ts", head: MPEG_TS, kind: FormatKind::Video, mime: "video/mp2t", detail: FormatDetail::Media(MediaContainer::MpegTs) },
     Case { name: "binary with an unknown extension", file: "blob.bin", head: b"\0\x01\x02\x03", kind: FormatKind::Other, mime: "application/octet-stream", detail: FormatDetail::None },
@@ -246,13 +247,14 @@ const ZIP_CASES: &[ZipCase] = &[
     ZipCase { name: "epub whatever its name", file: "b.zip", entries: &["mimetype"], mimetype: Some(b"application/epub+zip"), kind: FormatKind::Book, detail: FormatDetail::Book(BookFormat::Epub) },
     ZipCase { name: "epub without the mimetype bytes", file: "b.epub", entries: &["mimetype", "META-INF/container.xml"], mimetype: None, kind: FormatKind::Book, detail: FormatDetail::Book(BookFormat::Epub) },
     ZipCase { name: "odt", file: "a.odt", entries: OPEN_DOCUMENT, mimetype: Some(b"application/vnd.oasis.opendocument.text"), kind: FormatKind::Office, detail: office(OfficeFormat::Odt) },
-    ZipCase { name: "ods", file: "a.ods", entries: OPEN_DOCUMENT, mimetype: Some(b"application/vnd.oasis.opendocument.spreadsheet"), kind: FormatKind::Office, detail: office(OfficeFormat::Ods) },
+    ZipCase { name: "ods", file: "a.ods", entries: OPEN_DOCUMENT, mimetype: Some(b"application/vnd.oasis.opendocument.spreadsheet"), kind: FormatKind::Table, detail: office(OfficeFormat::Ods) },
     ZipCase { name: "odp", file: "a.odp", entries: OPEN_DOCUMENT, mimetype: Some(b"application/vnd.oasis.opendocument.presentation"), kind: FormatKind::Office, detail: office(OfficeFormat::Odp) },
     ZipCase { name: "odt with a newline after the mimetype", file: "a.odt", entries: OPEN_DOCUMENT, mimetype: Some(b"application/vnd.oasis.opendocument.text\n"), kind: FormatKind::Office, detail: office(OfficeFormat::Odt) },
     ZipCase { name: "an unknown mimetype falls through", file: "a.zip", entries: &["mimetype", "a.txt"], mimetype: Some(b"application/x-unknown"), kind: FormatKind::Archive, detail: archive(ArchiveFormat::Zip) },
     ZipCase { name: "docx", file: "a.docx", entries: &["[Content_Types].xml", "word/document.xml"], mimetype: None, kind: FormatKind::Office, detail: office(OfficeFormat::Docx) },
     ZipCase { name: "docx renamed zip", file: "a.zip", entries: &["[Content_Types].xml", "word/document.xml"], mimetype: None, kind: FormatKind::Office, detail: office(OfficeFormat::Docx) },
-    ZipCase { name: "xlsx", file: "a.xlsx", entries: &["[Content_Types].xml", "xl/workbook.xml"], mimetype: None, kind: FormatKind::Office, detail: office(OfficeFormat::Xlsx) },
+    ZipCase { name: "xlsx", file: "a.xlsx", entries: &["[Content_Types].xml", "xl/workbook.xml"], mimetype: None, kind: FormatKind::Table, detail: office(OfficeFormat::Xlsx) },
+    ZipCase { name: "xlsx renamed zip", file: "a.zip", entries: &["[Content_Types].xml", "xl/workbook.xml"], mimetype: None, kind: FormatKind::Table, detail: office(OfficeFormat::Xlsx) },
     ZipCase { name: "pptx", file: "a.pptx", entries: &["[Content_Types].xml", "ppt/presentation.xml"], mimetype: None, kind: FormatKind::Office, detail: office(OfficeFormat::Pptx) },
     ZipCase { name: "open packaging with no office part", file: "a.xps", entries: &["[Content_Types].xml", "Documents/1/Pages/1.fpage"], mimetype: None, kind: FormatKind::Archive, detail: archive(ArchiveFormat::Zip) },
     ZipCase { name: "a directory that only starts with word", file: "a.docx", entries: &["[Content_Types].xml", "wordy/document.xml"], mimetype: None, kind: FormatKind::Archive, detail: archive(ArchiveFormat::Zip) },
@@ -348,6 +350,7 @@ fn the_detail_tables_hold_every_fixture_kind() {
             (FormatDetail::Raster(_), FormatKind::Raster)
             | (FormatDetail::Code(_), FormatKind::Code)
             | (FormatDetail::Table(_), FormatKind::Table)
+            | (FormatDetail::Office(_), FormatKind::Table)
             | (FormatDetail::Tree(_), FormatKind::Tree)
             | (FormatDetail::Text(_), FormatKind::PlainText)
             | (FormatDetail::Media(_), FormatKind::Video | FormatKind::Audio)
@@ -361,7 +364,8 @@ fn the_detail_tables_hold_every_fixture_kind() {
                     | FormatKind::Folder
                     | FormatKind::Other
             ),
-            (FormatDetail::Book(_) | FormatDetail::Office(_), _)
+            (FormatDetail::Book(_), _)
+            | (FormatDetail::Office(_), _)
             | (FormatDetail::Raster(_), _)
             | (FormatDetail::Code(_), _)
             | (FormatDetail::Table(_), _)

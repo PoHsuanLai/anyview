@@ -1,5 +1,6 @@
 //! Office and iWork documents: shown as facts and handed to another program.
 
+use super::FormatKind;
 use super::family::Family;
 use ds_core::word::Word;
 
@@ -32,6 +33,26 @@ pub enum OfficeFormat {
     Xls,
     /// PowerPoint, the binary format.
     Ppt,
+}
+
+impl OfficeFormat {
+    /// The kind a file of this format is: a spreadsheet is a table the viewer shows its sheets
+    /// of, every other format is an office document shown as facts.
+    pub fn kind(self) -> FormatKind {
+        match self {
+            OfficeFormat::Xlsx | OfficeFormat::Ods | OfficeFormat::Xls => FormatKind::Table,
+            OfficeFormat::Docx
+            | OfficeFormat::Pptx
+            | OfficeFormat::Odt
+            | OfficeFormat::Odp
+            | OfficeFormat::Odg
+            | OfficeFormat::Pages
+            | OfficeFormat::Numbers
+            | OfficeFormat::Keynote
+            | OfficeFormat::Doc
+            | OfficeFormat::Ppt => FormatKind::Office,
+        }
+    }
 }
 
 impl Family for OfficeFormat {
@@ -85,5 +106,26 @@ mod tests {
     #[test]
     fn the_table_is_well_formed() {
         crate::kind::family::tests::assert_well_formed::<OfficeFormat>();
+    }
+
+    #[test]
+    fn only_the_spreadsheets_are_tables() {
+        // name, format, kind
+        const CASES: &[(&str, OfficeFormat, FormatKind)] = &[
+            ("xlsx", OfficeFormat::Xlsx, FormatKind::Table),
+            ("ods", OfficeFormat::Ods, FormatKind::Table),
+            ("xls", OfficeFormat::Xls, FormatKind::Table),
+            (
+                "numbers is iWork",
+                OfficeFormat::Numbers,
+                FormatKind::Office,
+            ),
+            ("docx", OfficeFormat::Docx, FormatKind::Office),
+            ("pptx", OfficeFormat::Pptx, FormatKind::Office),
+            ("odp", OfficeFormat::Odp, FormatKind::Office),
+        ];
+        for (name, format, kind) in CASES {
+            assert_eq!(format.kind(), *kind, "{name}");
+        }
     }
 }

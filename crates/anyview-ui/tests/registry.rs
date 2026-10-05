@@ -14,7 +14,9 @@ fn every_kind_has_a_view_and_the_registry_agrees_with_the_core() {
             | StageFamily::Pdf
             | StageFamily::Media
             | StageFamily::Text
-            | StageFamily::Book => StageSupport::Stage,
+            | StageFamily::Book
+            | StageFamily::Table
+            | StageFamily::Tree => StageSupport::Stage,
         };
         assert_eq!(shown, stage_support(*kind), "{kind:?}");
     }
@@ -30,10 +32,15 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
         ("markdown", FormatKind::Markdown, StageFamily::Text),
         ("code", FormatKind::Code, StageFamily::Text),
         ("plain text", FormatKind::PlainText, StageFamily::Text),
-        ("a table", FormatKind::Table, StageFamily::Text),
-        ("json", FormatKind::Tree, StageFamily::Text),
+        ("a table", FormatKind::Table, StageFamily::Table),
+        ("json", FormatKind::Tree, StageFamily::Tree),
         ("a video", FormatKind::Video, StageFamily::Media),
         ("a song", FormatKind::Audio, StageFamily::Media),
+        (
+            "an office document",
+            FormatKind::Office,
+            StageFamily::PeekOnly,
+        ),
         ("a book", FormatKind::Book, StageFamily::Book),
         ("an archive", FormatKind::Archive, StageFamily::PeekOnly),
         ("a folder", FormatKind::Folder, StageFamily::PeekOnly),
@@ -41,5 +48,20 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
     ];
     for (name, kind, family) in CASES {
         assert_eq!(family_of(*kind), *family, "{name}");
+    }
+}
+
+#[test]
+fn spreadsheets_are_tables_and_other_office_files_are_facts() {
+    use anyview_core::OfficeFormat;
+    for format in [OfficeFormat::Xlsx, OfficeFormat::Ods, OfficeFormat::Xls] {
+        assert_eq!(family_of(format.kind()), StageFamily::Table, "{format:?}");
+    }
+    for format in [OfficeFormat::Docx, OfficeFormat::Pptx, OfficeFormat::Odt] {
+        assert_eq!(
+            family_of(format.kind()),
+            StageFamily::PeekOnly,
+            "{format:?}"
+        );
     }
 }

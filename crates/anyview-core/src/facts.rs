@@ -18,6 +18,10 @@ pub enum FactLabel {
     Dimensions,
     /// How many pages a document has.
     Pages,
+    /// How many slides a presentation has.
+    Slides,
+    /// How many sheets a workbook has.
+    Sheets,
     /// How long a recording runs.
     Duration,
     /// How many frames an animation has.
