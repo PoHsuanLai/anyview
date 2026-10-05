@@ -5,14 +5,15 @@
 use super::preloads::Preloads;
 use super::session::{Probe, params};
 use crate::families::{
-    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
-    use_pdf_shelf,
+    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, SectionPage,
+    use_media_shelf, use_pdf_shelf,
 };
 use crate::{Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
 use ds::host::measure::use_rect;
 use ds::machine::MachineRef;
+use ds::motion::detail::level::{Level, use_level};
 use ds::motion::detail::operation::Operation;
 use ds::prelude::{Scale, Shown};
 
@@ -31,6 +32,8 @@ pub(super) struct Shelf {
     pub peeked: Signal<Option<(Ticket, LoadedDoc)>>,
     /// The lines of a text last read.
     pub lines: Signal<Option<Held<LineWindow>>>,
+    /// The section of a book last unpacked.
+    pub section: Signal<Option<Held<SectionPage>>>,
     /// The places the current find found.
     pub hits: Signal<Option<Held<FoundHits>>>,
     /// What is held of an open PDF: the tiles, the hits, the thumbnails.
@@ -47,6 +50,8 @@ pub(super) struct Shelf {
     pub chrome: Signal<Shown>,
     /// What is typed in the palette.
     pub query: Signal<TypedText>,
+    /// The window's motion level: what the desktop asks for, read when a step needs it.
+    pub level: Level,
     /// Where the person last said they were in the open file, kept for the file when it is left.
     pub left_at: Signal<Resume>,
 }
@@ -61,6 +66,7 @@ impl Shelf {
             loaded: use_signal(|| None),
             peeked: use_signal(|| None),
             lines: use_signal(|| None),
+            section: use_signal(|| None),
             hits: use_signal(|| None),
             pdf: use_pdf_shelf(),
             media: use_media_shelf(),
@@ -69,6 +75,7 @@ impl Shelf {
             operation: use_signal(|| Operation::Idle),
             chrome: use_signal(|| Shown::Hidden),
             query: use_signal(TypedText::default),
+            level: use_level(),
             left_at: use_signal(|| Resume::Nothing),
         }
     }
@@ -114,6 +121,7 @@ pub(super) fn viewer_params(
         *area.peek(),
         &shelf.query.peek(),
         lines.as_ref().map(|held| held.0.as_ref()),
+        shelf.level.now(),
     )
 }
 

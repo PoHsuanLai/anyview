@@ -4,9 +4,13 @@
 //! framing (a GIF can be zoomed and dragged while it plays), so as a fourth state it would need a
 //! copy of every framing state; here it is an [`Animation`] each framing state carries.
 
+use super::super::media::StepDirection;
 use super::super::zoom::{Viewport, ZoomDir};
 use anyview_core::{DocPoint, Permille, QuarterTurn, Resume, Zoom};
+use ds_core::time::stamp::Stamp;
 use std::num::NonZeroU32;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// A frame of an animated image, from 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -21,11 +25,46 @@ pub struct FrameCount(pub NonZeroU32);
 pub enum Animation {
     /// One picture.
     Still,
-    /// Advancing: the edge sends a tick when the current frame's time is up.
-    Playing { frame: FrameIndex, of: FrameCount },
-    /// Held on a frame.
-    Paused { frame: FrameIndex, of: FrameCount },
+    /// Advancing: `frame` is on screen until `due`, and `run` runs have finished before this one.
+    Playing {
+        frame: FrameIndex,
+        of: FrameCount,
+        due: Stamp,
+        run: u32,
+    },
+    /// Held on a frame, in the run after `run` finished ones.
+    Paused {
+        frame: FrameIndex,
+        of: FrameCount,
+        run: u32,
+    },
+    /// Every run the file asked for is done, and the last frame stays.
+    Ended { frame: FrameIndex, of: FrameCount },
 }
+
+/// How many times an animation runs through its frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Runs {
+    /// Until the person stops it.
+    #[default]
+    Forever,
+    /// This many, then it holds on the last frame.
+    Times(NonZeroU32),
+}
+
+/// Whether the desktop asks for less movement. An animation then waits for the person to play it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Motion {
+    /// Animations play as they open.
+    #[default]
+    Standard,
+    /// Animations open paused on their first frame.
+    Reduced,
+}
+
+/// How long each frame of the open animation stays, in order.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FrameDelays(pub Arc<[Duration]>);
 
 /// How the image is framed. `turn` is how far it has been rotated this session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,11 +116,11 @@ pub enum RasterIn {
     Restore { zoom: Zoom, centre: DocPoint },
     /// The file turned out to be animated.
     Animated(FrameCount),
-    /// The current frame's time is up.
-    FrameTick,
-    /// Play or pause an animation.
+    /// Play or pause an animation; one that has ended starts again.
     TogglePlayback,
-    /// The clock; the stage keeps no timer.
+    /// Pause on the frame before or after the one shown, wrapping round.
+    StepFrame(StepDirection),
+    /// The clock: the shown frame's time may be up.
     Elapsed,
 }
 
@@ -102,7 +141,7 @@ pub enum RasterOut {
 }
 
 /// What the stage needs from the view and from settings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RasterParams {
     /// The scale on screen and the fit scale.
     pub viewport: Viewport,
@@ -110,6 +149,12 @@ pub struct RasterParams {
     pub centre: DocPoint,
     /// A zoom step's factor in thousandths (setting `viewer.zoom.step`, default 1250).
     pub step: Permille,
+    /// How long each frame of an animation stays.
+    pub delays: FrameDelays,
+    /// How many runs the animation asks for.
+    pub runs: Runs,
+    /// Whether the desktop asks for less movement.
+    pub motion: Motion,
 }
 
 impl Default for RasterParams {
@@ -121,6 +166,9 @@ impl Default for RasterParams {
             },
             centre: DocPoint::default(),
             step: Permille(1250),
+            delays: FrameDelays::default(),
+            runs: Runs::default(),
+            motion: Motion::default(),
         }
     }
 }

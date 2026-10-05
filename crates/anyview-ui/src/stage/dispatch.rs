@@ -1,6 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
+use super::book::BookIn;
 use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
@@ -25,6 +26,7 @@ impl Stage {
             Stage::Text(_) => text(command).map(StageIn::Text),
             Stage::Table(_) => table(command).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
+            Stage::Book(_) => book(command).map(StageIn::Book),
         }
     }
 
@@ -36,6 +38,7 @@ impl Stage {
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
+            | Stage::Book(_)
             | Stage::Text(TextStage::Reading { .. })
             | Stage::Table(_)
             | Stage::Tree(_) => false,
@@ -65,7 +68,7 @@ impl Stage {
                 | MediaStage::Failed(_),
             ) => None,
             Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::CloseFind)),
-            Stage::Text(TextStage::Reading { .. }) => None,
+            Stage::Text(TextStage::Reading { .. }) | Stage::Book(_) => None,
             Stage::Table(TableStage::Selected { .. }) => Some(StageIn::Table(TableIn::Deselect)),
             Stage::Tree(TreeStage::Selected { .. }) => Some(StageIn::Tree(TreeIn::Deselect)),
             Stage::Table(TableStage::Browsing { .. }) | Stage::Tree(TreeStage::Browsing { .. }) => {
@@ -95,6 +98,8 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
             at,
         }),
         StageCommand::TogglePlayback => Some(RasterIn::TogglePlayback),
+        StageCommand::StepFrameForward => Some(RasterIn::StepFrame(StepDirection::Forward)),
+        StageCommand::StepFrameBack => Some(RasterIn::StepFrame(StepDirection::Backward)),
         StageCommand::ZoomToWidth
         | StageCommand::Find
         | StageCommand::FindNext
@@ -116,8 +121,6 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
         | StageCommand::PreviousChapter
         | StageCommand::NextAudioTrack
         | StageCommand::NextSubtitles
-        | StageCommand::StepFrameForward
-        | StageCommand::StepFrameBack
         | StageCommand::MarkTrimStart
         | StageCommand::MarkTrimEnd
         | StageCommand::DeletePage
@@ -339,5 +342,44 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet => None,
+    }
+}
+
+fn book(command: StageCommand) -> Option<BookIn> {
+    match command {
+        StageCommand::NextPage | StageCommand::NextChapter => Some(BookIn::Next),
+        StageCommand::PreviousPage | StageCommand::PreviousChapter => Some(BookIn::Previous),
+        StageCommand::ScrollToStart => Some(BookIn::First),
+        StageCommand::ScrollToEnd => Some(BookIn::Last),
+        StageCommand::ZoomIn
+        | StageCommand::ZoomOut
+        | StageCommand::ZoomToFit
+        | StageCommand::ZoomToWidth
+        | StageCommand::ZoomToActual
+        | StageCommand::Find
+        | StageCommand::FindNext
+        | StageCommand::FindPrevious
+        | StageCommand::ToggleSource
+        | StageCommand::ToggleWrap
+        | StageCommand::TogglePlayback
+        | StageCommand::SeekBack
+        | StageCommand::SeekForward
+        | StageCommand::LineUp
+        | StageCommand::LineDown
+        | StageCommand::SlowDown
+        | StageCommand::SpeedUp
+        | StageCommand::NormalSpeed
+        | StageCommand::NextAudioTrack
+        | StageCommand::NextSubtitles
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::MarkTrimStart
+        | StageCommand::MarkTrimEnd
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater
+        | StageCommand::NextSheet
+        | StageCommand::PreviousSheet
+        | StageCommand::CollapseAll => None,
     }
 }

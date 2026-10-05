@@ -17,6 +17,8 @@ pub enum StageFamily {
     Table,
     /// JSON and JSON Lines: a tree that opens node by node.
     Tree,
+    /// Books and comics: one chapter or page at a time.
+    Book,
     /// No stage: the file shows its facts and Open With… (`StageSupport::PeekOnly`).
     PeekOnly,
 }

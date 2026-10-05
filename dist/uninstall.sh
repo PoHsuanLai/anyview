@@ -6,7 +6,7 @@
 #   --dry-run     print every action, change nothing
 #   --prefix DIR  the prefix it was installed under (default: /usr/local as root, else ~/.local)
 #
-# It removes the plugins too (the FFmpeg plugin's program and manifest, the mpv plugin's C plugin and
+# It removes the plugins too (the FFmpeg, HEIF and RAW plugins' programs and manifests, the mpv plugin's C plugin and
 # manifest), whether or not install.sh was asked for them.
 #
 # DESTDIR names the staging root it was installed into. A default set with install.sh
@@ -57,6 +57,10 @@ remove_file "$PREFIX/share/dbus-1/services/$BUS_NAME.service"
 # held them when nothing else is in them.
 remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
 remove_file "$PREFIX/share/anyview/plugins/ffmpeg.toml"
+remove_file "$PREFIX/libexec/anyview/anyview-heif"
+remove_file "$PREFIX/share/anyview/plugins/heif.toml"
+remove_file "$PREFIX/libexec/anyview/anyview-raw"
+remove_file "$PREFIX/share/anyview/plugins/raw.toml"
 remove_file "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
 remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
 if [[ "$DRY_RUN" == no ]]; then

@@ -16,6 +16,7 @@ media = ["dep:symphonia", "dep:mp4parse", "dep:matroska-demuxer"]
 
 [dependencies]
 anyview-archive = { workspace = true }
+anyview-book = { workspace = true }
 anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }

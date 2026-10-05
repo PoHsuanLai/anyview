@@ -78,9 +78,11 @@ impl MediaPlace {
                 audio: *audio,
                 subtitles: *subtitles,
             }),
-            Resume::Raster { .. } | Resume::Pdf { .. } | Resume::Text { .. } | Resume::Nothing => {
-                None
-            }
+            Resume::Raster { .. }
+            | Resume::Pdf { .. }
+            | Resume::Text { .. }
+            | Resume::Book { .. }
+            | Resume::Nothing => None,
         }
     }
 

@@ -27,6 +27,14 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 lines.set(Some(Held(Arc::new(window))));
             }
         }
+        Done::Section { ticket, result } => {
+            let mut section = c.shelf.section;
+            if let (Some((held, _)), Ok(page)) = (c.shelf.shown_now(), result)
+                && held == ticket
+            {
+                section.set(Some(Held(Arc::new(page))));
+            }
+        }
         Done::Found {
             ticket,
             query,
@@ -204,8 +212,13 @@ fn peeked(c: &Carry, ticket: Ticket, result: Result<Option<crate::LoadedDoc>, cr
 }
 
 fn opened(c: &Carry, ticket: Ticket, result: Result<crate::LoadedDoc, crate::OpenError>) {
-    let (mut loaded, mut peeked, mut lines, mut hits) =
-        (c.shelf.loaded, c.shelf.peeked, c.shelf.lines, c.shelf.hits);
+    let (mut loaded, mut peeked, mut lines, mut hits, mut section) = (
+        c.shelf.loaded,
+        c.shelf.peeked,
+        c.shelf.lines,
+        c.shelf.hits,
+        c.shelf.section,
+    );
     if c.shelf.probe.peek().ticket() != Some(ticket) {
         return;
     }
@@ -214,6 +227,7 @@ fn opened(c: &Carry, ticket: Ticket, result: Result<crate::LoadedDoc, crate::Ope
             loaded.set(Some((ticket, doc.clone())));
             peeked.set(None);
             lines.set(None);
+            section.set(None);
             hits.set(None);
             landed(c, ticket, &doc);
         }

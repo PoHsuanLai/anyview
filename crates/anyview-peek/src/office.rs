@@ -4,7 +4,7 @@
 use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
-use crate::frames::embedded_picture;
+use crate::frames::cover_picture;
 use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
@@ -51,7 +51,7 @@ impl Peek for OfficePeek {
                 ThumbnailCodec::Png => "thumbnail.png",
                 ThumbnailCodec::Jpeg => "thumbnail.jpg",
             };
-            embedded_picture(&thumbnail.bytes, name, budget)
+            cover_picture(&thumbnail.bytes, name, budget)
         });
         Ok(OfficeLooked {
             described,

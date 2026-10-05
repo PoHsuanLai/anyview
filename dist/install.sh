@@ -16,12 +16,15 @@
 #                  plugin loaded into it: the plugin is built from an mpv-wgpu checkout and installed as
 #                  DIR/libexec/anyview/mpv-wgpu-cplugin.so, and the manifest names the mpv found on the
 #                  search path.) Without these plugins the viewer shows recordings as facts only.
+#                  (heif: HEIC, HEIF and AVIF pictures, through the person's own libheif tools; raw: camera
+#                  raw files developed in full, through the person's own LibRaw dcraw_emu or dcraw.)
 #   --mpv PATH     the mpv the mpv plugin's manifest names (default: the first `mpv` on the search path)
 #
 # Environment:
 #   DESTDIR        stage under this directory instead of the real root (nothing is registered)
 #   ANYVIEW_BIN    the binary to install (default: release build under $CARGO_TARGET_DIR or target/)
 #   ANYVIEW_FFMPEG_PLUGIN_BIN  the FFmpeg plugin's program to install (same default place, anyview-ffmpeg)
+#   ANYVIEW_HEIF_PLUGIN_BIN, ANYVIEW_RAW_PLUGIN_BIN  the same for the HEIF and RAW plugins
 #   MPV_WGPU_DIR   an mpv-wgpu checkout to build the mpv plugin's C plugin from (default: ../mpv)
 #   ANYVIEW_MPV_CPLUGIN  the C plugin (libmpv_wgpu_cplugin.so) to install instead of building it
 #   QUIRE_DIR      a quire checkout with assets/icons/apps/viewer/<px>.png (default: ../quire)
@@ -36,6 +39,8 @@ BUILD=yes
 SET_DEFAULT=no
 WITH_FFMPEG=no
 WITH_MPV=no
+WITH_HEIF=no
+WITH_RAW=no
 MPV_PATH=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -48,11 +53,13 @@ while [[ $# -gt 0 ]]; do
       case "$plugin" in
         ffmpeg) WITH_FFMPEG=yes ;;
         mpv) WITH_MPV=yes ;;
-        *) say "install.sh: unknown plugin $plugin (the plugins are: ffmpeg, mpv)"; exit 2 ;;
+        heif) WITH_HEIF=yes ;;
+        raw) WITH_RAW=yes ;;
+        *) say "install.sh: unknown plugin $plugin (the plugins are: ffmpeg, heif, mpv, raw)"; exit 2 ;;
       esac ;;
     --mpv) MPV_PATH="${2:?--mpv needs a path}"; shift ;;
     --mpv=*) MPV_PATH="${1#--mpv=}" ;;
-    -h|--help) sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) say "install.sh: unknown argument $1 (try --help)"; exit 2 ;;
   esac
   shift
@@ -65,6 +72,8 @@ choose_sudo "$PREFIX"
 
 BIN="${ANYVIEW_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview}"
 FFMPEG_BIN="${ANYVIEW_FFMPEG_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview-ffmpeg}"
+HEIF_BIN="${ANYVIEW_HEIF_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview-heif}"
+RAW_BIN="${ANYVIEW_RAW_PLUGIN_BIN:-${CARGO_TARGET_DIR:-$HERE/target}/release/anyview-raw}"
 MPV_WGPU="${MPV_WGPU_DIR:-$HERE/../mpv}"
 MPV_CPLUGIN="${ANYVIEW_MPV_CPLUGIN:-${MPV_WGPU_TARGET_DIR:-$MPV_WGPU/target}/release/libmpv_wgpu_cplugin.so}"
 QUIRE="${QUIRE_DIR:-$HERE/../quire}"
@@ -95,6 +104,24 @@ if [[ "$WITH_FFMPEG" == yes ]]; then
     exit 1
   fi
 fi
+
+# build_plugin FLAG ENVVAR PACKAGE BIN LABEL: build a plugin's program unless it was named or --no-build.
+build_plugin() {
+  local named="$1" package="$2" bin="$3" label="$4" envvar="$5"
+  if [[ "$BUILD" == no || -n "$named" ]]; then
+    say "  skipped: using $bin for the $label plugin"
+  elif [[ "$DRY_RUN" == yes ]]; then
+    say "  would run: cargo build --release -p $package (in $HERE)"
+  else
+    (cd "$HERE" && cargo build --release -p "$package")
+  fi
+  if [[ "$DRY_RUN" == no && ! -x "$bin" ]]; then
+    say "install.sh: no $label plugin at $bin (build it, or set $envvar)"
+    exit 1
+  fi
+}
+[[ "$WITH_HEIF" == no ]] || build_plugin "${ANYVIEW_HEIF_PLUGIN_BIN:-}" anyview-heif "$HEIF_BIN" HEIF ANYVIEW_HEIF_PLUGIN_BIN
+[[ "$WITH_RAW" == no ]] || build_plugin "${ANYVIEW_RAW_PLUGIN_BIN:-}" anyview-raw "$RAW_BIN" RAW ANYVIEW_RAW_PLUGIN_BIN
 
 if [[ "$WITH_MPV" == yes ]]; then
   # The mpv the manifest names is looked up now, on the search path, so the viewer never searches
@@ -177,6 +204,31 @@ if [[ "$WITH_FFMPEG" == yes ]]; then
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 \
     || warn "ffmpeg and ffprobe are not on the search path: the plugin offers nothing until they are installed"
 fi
+
+# The picture plugins, like the FFmpeg one: a program under libexec and a manifest. Each finds its
+# own tools when it runs; a warning says when they are not there yet.
+# install_picture_plugin ID LABEL BIN TOOLS...: TOOLS are alternatives, one of which should exist.
+install_picture_plugin() {
+  local id="$1" label="$2" bin="$3"; shift 3
+  say "2d. the $label plugin"
+  install_file 755 "$bin" "$PREFIX/libexec/anyview/anyview-$id"
+  local manifest="$PREFIX/share/anyview/plugins/$id.toml"
+  if [[ "$DRY_RUN" == yes ]]; then
+    say "  install $manifest"
+    say "      (path = $PREFIX/libexec/anyview/anyview-$id, from dist/plugins/anyview-$id.toml.in)"
+  else
+    local rendered_pic
+    rendered_pic="$(mktemp)"
+    sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-$id.toml.in" >"$rendered_pic"
+    install_file 644 "$rendered_pic" "$manifest"
+    rm -f "$rendered_pic"
+  fi
+  local tool
+  for tool in "$@"; do command -v "$tool" >/dev/null 2>&1 && return 0; done
+  warn "none of $* is on the search path: the $label plugin offers nothing until one is installed"
+}
+[[ "$WITH_HEIF" == no ]] || install_picture_plugin heif HEIF "$HEIF_BIN" heif-dec heif-convert
+[[ "$WITH_RAW" == no ]] || install_picture_plugin raw RAW "$RAW_BIN" dcraw_emu dcraw
 
 # The mpv plugin has no program of its own: its manifest names the person's mpv and the C plugin
 # installed beside the other plugin programs.

@@ -25,6 +25,7 @@ fn sheets(doc: &Arc<TableDoc>, cx: &StageCx) -> Element {
         | Stage::Pdf(_)
         | Stage::Media(_)
         | Stage::Text(_)
+        | Stage::Book(_)
         | Stage::Tree(_) => SheetNo(0),
     };
     let send = cx.send;

@@ -35,6 +35,9 @@ pub enum ImageError {
         /// The format.
         format: RasterFormat,
     },
+    /// A camera raw file with no JPEG preview in it that the viewer can read.
+    #[error("the raw file holds no preview the viewer can read")]
+    NoPreview,
     /// The bytes are not a valid image of the format they claim.
     #[error("cannot decode the image: {reason}")]
     Decode {

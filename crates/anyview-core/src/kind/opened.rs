@@ -2,7 +2,9 @@
 //! entry's `MimeType` line is built from.
 
 use super::family::Family;
-use super::{Delimiter, FormatKind, MediaContainer, Mime, OfficeFormat, RasterFormat, TreeFormat};
+use super::{
+    BookFormat, Delimiter, FormatKind, MediaContainer, Mime, OfficeFormat, RasterFormat, TreeFormat,
+};
 use crate::peek::StageSupport;
 use crate::profile::stage_support;
 use ds_core::word::Word;
@@ -35,9 +37,9 @@ fn mimes_of(kind: FormatKind) -> Vec<&'static str> {
             )
             .collect(),
         FormatKind::Tree => family::<TreeFormat>(),
+        FormatKind::Book => family::<BookFormat>(),
         FormatKind::Font
         | FormatKind::Archive
-        | FormatKind::Book
         | FormatKind::Office
         | FormatKind::Folder
         | FormatKind::Other => Vec::new(),
@@ -84,13 +86,14 @@ mod tests {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.oasis.opendocument.spreadsheet",
             "application/vnd.ms-excel",
+            "application/epub+zip",
+            "application/vnd.comicbook+zip",
         ] {
             assert!(opened.iter().any(|m| m == want), "{want} is not opened");
         }
         for peeked in [
             "application/zip",
             "font/ttf",
-            "application/epub+zip",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "inode/directory",
         ] {

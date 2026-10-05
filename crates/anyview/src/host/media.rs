@@ -209,7 +209,7 @@ fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), S
     };
     let picture = match anyview_image::decode_bytes(&bytes, &sniffed) {
         Ok(anyview_image::Decoded::Still(picture)) => picture,
-        Ok(anyview_image::Decoded::Animated(_)) => {
+        Ok(anyview_image::Decoded::Animated(_) | anyview_image::Decoded::HeldStill { .. }) => {
             return Err("the frame is an animation".to_owned());
         }
         Err(error) => return Err(error.to_string()),

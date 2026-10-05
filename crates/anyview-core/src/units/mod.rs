@@ -7,6 +7,7 @@ mod orientation;
 mod page;
 mod pixels;
 mod ratio;
+mod section;
 mod zoom;
 
 pub use content_space::{DocPoint, DocUnit, LineIndex};
@@ -16,4 +17,5 @@ pub use orientation::{Axis, QuarterTurn};
 pub use page::{PageCount, PageIndex, PageRange, PageSelection};
 pub use pixels::{PixelArea, PixelLen, PixelSize};
 pub use ratio::{Percent, Permille, Quality};
+pub use section::{SectionCount, SectionIndex};
 pub use zoom::Zoom;

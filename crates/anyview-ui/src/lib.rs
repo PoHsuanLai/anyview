@@ -35,19 +35,19 @@ pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReason
 pub use command::{Command, StageCommand};
 pub use edits::{EditRequest, Rewind};
 pub use families::{
-    Area, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor, Leaving, LineWindow,
-    LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, PDF_CSS,
-    PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
-    PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
-    RasterTarget, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
-    TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, family_of, flow_of, use_media_shelf,
-    use_pdf_shelf, visit,
+    Area, BookDoc, BookStageView, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor,
+    Layout, Leaving, LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf,
+    MediaStageView, PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView,
+    PdfTask, PeekOnlyDoc, PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob,
+    RasterStageView, RasterTarget, ReadyTile, SectionPage, SheetDoc, StageCx, StageView, TOKEN_CSS,
+    TableDoc, TableStageView, TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, family_of,
+    flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use io::{
-    Backend, Done, Edge, FirstFrameSource, HostRequest, Job, MediaHost, MediaLine, MediaNotice,
-    MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink, Preloaded, Probed,
-    Reply, ResumeSource, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers,
-    folder_sequence,
+    Backend, Done, Edge, FirstFrameSource, HostRequest, ImagePlugins, Job, MediaHost, MediaLine,
+    MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError, OpenLink,
+    PluginPicture, Preloaded, Probed, Reply, ResumeSource, SlotPixels, Stop, VersionSource, Work,
+    WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -65,14 +65,14 @@ pub use sheet::{
     VersionKey, VersionList, VersionRow,
 };
 pub use stage::{
-    AfterScrub, Animation, Destination, EndReason, FindHits, FindOut, FrameCount, FrameIndex,
-    HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaError, MediaIn, MediaOut, MediaParams,
-    MediaStage, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand,
-    PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, RowNo, SheetNo, SheetTotal, Stage,
-    StageFamily, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams,
-    TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView,
-    TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap,
-    ZoomDir,
+    AfterScrub, Animation, BookIn, BookOut, BookParams, BookStage, Destination, EndReason,
+    FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor, HitIndex, HitStep,
+    LineTotal, MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageLines,
+    PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, RasterIn, RasterOut,
+    RasterParams, RasterStage, RowNo, Runs, SheetNo, SheetTotal, Stage, StageFamily, StageIn,
+    StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent,
+    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind,
+    TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};

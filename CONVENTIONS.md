@@ -299,12 +299,15 @@ of what you read or depend on decides which:
 own distro's mpv and FFmpeg and talks to the viewer over arm's-length IPC: a pipe, or a socket and shared
 memory. Never a `dlopen`ed library of ours or theirs: the C plugin of mpv-wgpu is loaded by the person's `mpv`,
 not by us, and holds no mpv code. A crash, a hang or a lie of a plugin is an event and costs one request; it
-never takes the viewer down. Which package adds a missing plugin is named in the viewer (`Needs: anyview-mpv`),
+never takes the viewer down. Which package adds a missing plugin is named in the viewer (`Needs: anyview-mpv`, `anyview-heif`, `anyview-raw`),
 never silently absent.
 
-**The boundary is mechanical.** `scripts/check-boundary.sh` forbids `rsmpv`, `rsmpv-sys`, `ffmpeg-next` and
-`ffmpeg-sys-next` in every crate's tree and in the lockfile, and `dev/no-linked-codecs.sh` reads `ldd` of the
-built viewer for `libmpv` and `libav*`. `cargo deny check licenses` holds no exception for a crate that binds a
+**The boundary is mechanical.** `scripts/check-boundary.sh` forbids `rsmpv`, `rsmpv-sys`, `ffmpeg-next`,
+`ffmpeg-sys-next`, `libheif-rs`, `libheif-sys`, `libraw-rs`, `libraw-sys`, `rsraw`, `rawloader` and `rawler` in
+every crate's tree and in the lockfile, and `dev/no-linked-codecs.sh` reads `ldd` of the built viewer for
+`libmpv`, `libav*`, `libheif` and `libraw`. Pure-Rust parsing of a container is not linking a codec (the viewer
+reads the JPEG preview of a raw file itself); HEIC is decoded by the `anyview-heif` plugin and a raw file
+developed by the `anyview-raw` plugin, which run the person's own libheif and LibRaw tools. `cargo deny check licenses` holds no exception for a crate that binds a
 codec library: there is none to except.
 
 **Note-and-close.** Read the source, reduce what you learned to a sentence about observable

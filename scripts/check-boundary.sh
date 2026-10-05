@@ -36,6 +36,10 @@ cd "$(dirname "$0")/.."
 # from a thumbnail source the host injects. `cargo tree -p` below runs with the default features, so
 # those parsers are in the tree it checks and `ffmpeg-next`, `ffmpeg-sys-next`, `rsmpv` and
 # `rsmpv-sys` must not be. It does not depend on `anyview-media` at all. What it may not name itself is the DIRECT table below.
+# anyview-book reads EPUB and comic zips through anyview-archive (the one crate that names the container
+# codecs) and parses the package with roxmltree: the same blocking, effect-free back end as the archive
+# crate, with no image decoder (a cover is bytes, decoded by the light tier) and no highlighter or Markdown
+# parser.
 # anyview-pdf is the same kind of blocking back end, and the one crate that may name pdfrum. It draws
 # to CPU pixels and never encodes them: page images are encoded by anyview-image, so `image` and the
 # other codecs stay out (as does the GPU rasterizer, which would bring wgpu), and `rayon` stays out
@@ -64,13 +68,23 @@ cd "$(dirname "$0")/.."
 # and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
 # player, and not anyview-media, anyview-platform, the core or the UI; `cargo tree` for it must show
 # no `ffmpeg-next` and no `rsmpv` (its dev-dependencies, the host's crates for the tests, are not looked at).
+# anyview-heif and anyview-raw are plugins too, over the shared `anyview-tool-kit` (the protocol crate,
+# `image` to read the PNG, TIFF or PPM a tool wrote, `tempfile` and `thiserror`): they run libheif's and
+# LibRaw's programs and name nothing of the viewer's.
 # Forbidden in every crate's tree, whatever its row says: the bindings of libmpv and of libav, and so the
 # libraries themselves (CONVENTIONS section 15). Codec and copyleft code lives in separate-process plugins
 # that use the person's own distro tools.
-FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next)
+# The same for the picture codecs: libheif's bindings, LibRaw's bindings and the raw decoders that are
+# LGPL or link C (`rawloader`, `rawler`). Pure-Rust parsing of a container (the viewer reads a raw
+# file's embedded JPEG itself) is fine; decoding HEIC or developing a raw file is a plugin that runs the
+# person's own libheif or LibRaw tools (anyview-heif, anyview-raw).
+FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next libheif-rs libheif-sys libheif-rs-sys libraw-rs libraw-sys rsraw rsraw-sys rawloader rawler)
 
 RULES=(
   "anyview-ffmpeg: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
+  "anyview-tool-kit: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
+  "anyview-heif: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
+  "anyview-raw: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
   "anyview-plugin-protocol: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-plugin: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
   "anyview-plugin-fake: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
@@ -82,6 +96,7 @@ RULES=(
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
   "anyview-text: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide"
   "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
+  "anyview-book: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
   "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust flate2 bzip2 ruzstd lzma-rs"
   "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
@@ -101,15 +116,19 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 592 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 605 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
-# crates, mp4parse, matroska-demuxer). The viewer (anyview) is 662: the peek's tree and the window, the
-# platform edge and the plugin registry, with no libmpv or libav binding in it. Both ratchet down when a
-# change drops a dependency and are never raised without the reason.
+# crates, mp4parse, matroska-demuxer) and the Photoshop, ICNS and OpenEXR readers of anyview-image
+# (psd, icns, exr and its inflate and SIMD helpers; the budgets rose by nine for them), and the
+# EPUB package reader of anyview-book (roxmltree, one more), and the spreadsheet and
+# office readers of anyview-text and anyview-archive (calamine and quick-xml for XLSX and ODS, with what
+# they pull in, five more). The viewer (anyview) is 675: the peek's
+# tree and the window, the platform edge and the plugin registry, with no libmpv or libav binding in
+# it. Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
-  "anyview-peek: 592"
-  "anyview: 662"
+  "anyview-peek: 605"
+  "anyview: 675"
 )
 fail=0
 
@@ -204,13 +223,14 @@ EDGES=(
   "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-archive anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"
-  "anyview-peek: anyview-archive anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
+  "anyview-book: anyview-archive anyview-core ds-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
   "anyview-export: anyview-core anyview-image anyview-pdf anyview-text ds-blitz ds-core"
@@ -218,6 +238,9 @@ EDGES=(
   "anyview-plugin-protocol: "
   "anyview-plugin-fake: anyview-plugin-protocol"
   "anyview-ffmpeg: anyview-plugin-protocol"
+  "anyview-heif: anyview-plugin-protocol anyview-tool-kit"
+  "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
+  "anyview-tool-kit: anyview-plugin-protocol"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"

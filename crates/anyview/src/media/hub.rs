@@ -380,9 +380,11 @@ pub(super) fn restoring(resume: &Resume) -> Vec<MediaCommand> {
                 ])
                 .collect()
         }
-        Resume::Raster { .. } | Resume::Pdf { .. } | Resume::Text { .. } | Resume::Nothing => {
-            Vec::new()
-        }
+        Resume::Raster { .. }
+        | Resume::Pdf { .. }
+        | Resume::Text { .. }
+        | Resume::Book { .. }
+        | Resume::Nothing => Vec::new(),
     }
 }
 

@@ -15,6 +15,7 @@ const BMP: &[u8] = b"BM\x1E\0\0\0\0\0\0\0\x1A\0\0\0\x0C\0\0\0\x01\0\x01\0\x01\0\
 const TIFF: &[u8] = b"II*\0\x08\0\0\0\0\0\0\0";
 const ICO: &[u8] = b"\0\0\x01\0\x01\0\x10\x10\0\0\x01\0\x20\0";
 const HEIC: &[u8] = b"\0\0\0\x18ftypheic\0\0\0\0mif1heic";
+const CR3: &[u8] = b"\0\0\0\x18ftypcrx \0\0\0\x01crx isom";
 const PSD: &[u8] = b"8BPS\0\x01\0\0\0\0\0\0";
 const ICNS: &[u8] = b"icns\0\0\x10\0ic07\0\0\0\0";
 const QOI: &[u8] = b"qoif\0\0\x02\0\0\0\x01\xE0\x03\0";
@@ -84,6 +85,9 @@ const CASES: &[Case] = &[
     Case { name: "bmp", file: "a.bmp", head: BMP, kind: FormatKind::Raster, mime: "image/bmp", detail: FormatDetail::Raster(RasterFormat::Bmp) },
     Case { name: "tiff", file: "a.tif", head: TIFF, kind: FormatKind::Raster, mime: "image/tiff", detail: FormatDetail::Raster(RasterFormat::Tiff) },
     Case { name: "ico", file: "a.ico", head: ICO, kind: FormatKind::Raster, mime: "image/vnd.microsoft.icon", detail: FormatDetail::Raster(RasterFormat::Ico) },
+    Case { name: "a nef is a tiff underneath", file: "a.nef", head: TIFF, kind: FormatKind::Raster, mime: "image/x-dcraw", detail: FormatDetail::Raster(RasterFormat::Raw) },
+    Case { name: "a dng is a tiff underneath", file: "A.DNG", head: TIFF, kind: FormatKind::Raster, mime: "image/x-dcraw", detail: FormatDetail::Raster(RasterFormat::Raw) },
+    Case { name: "a cr3 is an iso media file", file: "a.cr3", head: CR3, kind: FormatKind::Raster, mime: "image/x-dcraw", detail: FormatDetail::Raster(RasterFormat::Raw) },
     Case { name: "heic", file: "a.heic", head: HEIC, kind: FormatKind::Raster, mime: "image/heic", detail: FormatDetail::Raster(RasterFormat::Heic) },
     Case { name: "psd", file: "a.psd", head: PSD, kind: FormatKind::Raster, mime: "image/vnd.adobe.photoshop", detail: FormatDetail::Raster(RasterFormat::Psd) },
     Case { name: "pdf", file: "a.pdf", head: PDF, kind: FormatKind::Pdf, mime: "application/pdf", detail: FormatDetail::None },

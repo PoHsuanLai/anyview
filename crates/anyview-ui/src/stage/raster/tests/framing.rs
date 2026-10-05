@@ -1,9 +1,8 @@
-use super::super::zoom::{Viewport, ZoomDir};
-use super::*;
+use super::super::*;
+use crate::stage::zoom::{Viewport, ZoomDir};
 use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Resume, Zoom};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
-use std::num::NonZeroU32;
 
 const fn pt(x: i32, y: i32) -> DocPoint {
     DocPoint {
@@ -12,20 +11,22 @@ const fn pt(x: i32, y: i32) -> DocPoint {
     }
 }
 /// The view as drawn: scale shown, scale that fits, content point at the middle.
-const fn view(shown: u32, fit: u32, centre: DocPoint) -> RasterParams {
+const fn view(shown: u32, fit: u32, centre: DocPoint) -> Scene {
+    (shown, fit, centre)
+}
+
+/// The scale shown, the scale that fits and the centre, which `params` makes into what a step
+/// reads.
+type Scene = (u32, u32, DocPoint);
+
+fn params((shown, fit, centre): Scene) -> RasterParams {
     RasterParams {
         viewport: Viewport {
             shown: Permille(shown),
             fit: Permille(fit),
         },
         centre,
-        step: Permille(1250),
-    }
-}
-const fn frames(count: u32) -> FrameCount {
-    match NonZeroU32::new(count) {
-        Some(count) => FrameCount(count),
-        None => panic!("a frame count is at least one"),
+        ..RasterParams::default()
     }
 }
 const fn scale(permille: u32) -> Zoom {
@@ -53,35 +54,17 @@ const fn panning(centre: DocPoint) -> RasterStage {
         anim: Animation::Still,
     }
 }
-const fn fitted_playing(frame: u32, of: u32) -> RasterStage {
-    RasterStage::Fitted {
-        turn: QuarterTurn::None,
-        anim: Animation::Playing {
-            frame: FrameIndex(frame),
-            of: frames(of),
-        },
-    }
-}
-const fn fitted_paused(frame: u32, of: u32) -> RasterStage {
-    RasterStage::Fitted {
-        turn: QuarterTurn::None,
-        anim: Animation::Paused {
-            frame: FrameIndex(frame),
-            of: frames(of),
-        },
-    }
-}
 const fn remember(zoom: Zoom, centre: DocPoint) -> RasterOut {
     RasterOut::Remember(Resume::Raster { zoom, centre })
 }
 
-const HALF: RasterParams = view(500, 500, pt(0, 0));
-const ACTUAL: RasterParams = view(1000, 500, pt(3200, 0));
+const HALF: Scene = view(500, 500, pt(0, 0));
+const ACTUAL: Scene = view(1000, 500, pt(3200, 0));
 
 /// Name, what the view shows, state before, input, state after, outputs.
 type Case = (
     &'static str,
-    RasterParams,
+    Scene,
     RasterStage,
     RasterIn,
     RasterStage,
@@ -247,100 +230,14 @@ const CASES: &[Case] = &[
         fitted(QuarterTurn::None),
         &[],
     ),
-    (
-        "an animated file starts playing on frame zero",
-        HALF,
-        fitted(QuarterTurn::None),
-        RasterIn::Animated(frames(3)),
-        fitted_playing(0, 3),
-        &[RasterOut::ShowFrame(FrameIndex(0))],
-    ),
-    (
-        "a tick shows the next frame",
-        HALF,
-        fitted_playing(0, 3),
-        RasterIn::FrameTick,
-        fitted_playing(1, 3),
-        &[RasterOut::ShowFrame(FrameIndex(1))],
-    ),
-    (
-        "a tick on the last frame wraps",
-        HALF,
-        fitted_playing(2, 3),
-        RasterIn::FrameTick,
-        fitted_playing(0, 3),
-        &[RasterOut::ShowFrame(FrameIndex(0))],
-    ),
-    (
-        "toggling pauses on the frame",
-        HALF,
-        fitted_playing(1, 3),
-        RasterIn::TogglePlayback,
-        fitted_paused(1, 3),
-        &[],
-    ),
-    (
-        "a paused animation ignores ticks",
-        HALF,
-        fitted_paused(1, 3),
-        RasterIn::FrameTick,
-        fitted_paused(1, 3),
-        &[],
-    ),
-    (
-        "toggling resumes",
-        HALF,
-        fitted_paused(1, 3),
-        RasterIn::TogglePlayback,
-        fitted_playing(1, 3),
-        &[],
-    ),
-    (
-        "a still image has nothing to toggle",
-        HALF,
-        fitted(QuarterTurn::None),
-        RasterIn::TogglePlayback,
-        fitted(QuarterTurn::None),
-        &[],
-    ),
 ];
 
 #[test]
 fn every_row_of_the_table_steps_as_written() {
-    for (name, params, from, input, state, outs) in CASES {
-        let (next, out) = from.step(*input, Stamp(0), params, &());
+    for (name, scene, from, input, state, outs) in CASES {
+        let (next, out) = from.step(*input, Stamp(0), &params(*scene), &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
-        assert_eq!(next.wake(), None, "{name}: no timer");
+        assert_eq!(next.wake(), None, "{name}: a still image keeps no timer");
     }
-}
-
-#[test]
-fn zooming_keeps_the_animation_it_found() {
-    let playing = RasterStage::Fitted {
-        turn: QuarterTurn::None,
-        anim: Animation::Playing {
-            frame: FrameIndex(2),
-            of: frames(5),
-        },
-    };
-    let (next, _) = playing.step(
-        RasterIn::ZoomStep {
-            dir: ZoomDir::In,
-            at: pt(0, 0),
-        },
-        Stamp(0),
-        &HALF,
-        &(),
-    );
-    let RasterStage::Zoomed { anim, .. } = next else {
-        panic!("a zoom step from fit zooms");
-    };
-    assert_eq!(
-        anim,
-        Animation::Playing {
-            frame: FrameIndex(2),
-            of: frames(5)
-        }
-    );
 }

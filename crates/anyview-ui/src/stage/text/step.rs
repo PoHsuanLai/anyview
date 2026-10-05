@@ -128,7 +128,11 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             vec![TextOut::ScrollTo(line)],
         ),
         TextIn::Restore(
-            Resume::Raster { .. } | Resume::Pdf { .. } | Resume::Media { .. } | Resume::Nothing,
+            Resume::Raster { .. }
+            | Resume::Pdf { .. }
+            | Resume::Media { .. }
+            | Resume::Book { .. }
+            | Resume::Nothing,
         )
         | TextIn::Results {
             query: _,
