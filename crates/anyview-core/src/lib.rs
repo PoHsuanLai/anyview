@@ -53,5 +53,5 @@ pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use units::{
     Axis, Bitrate, ChapterIndex, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime,
     PageCount, PageIndex, PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen,
-    PixelSize, Quality, QuarterTurn, Speed, TimeRange, Volume, Zoom,
+    PixelSize, Quality, QuarterTurn, SectionCount, SectionIndex, Speed, TimeRange, Volume, Zoom,
 };

@@ -8,12 +8,12 @@ use super::{audio, matroska, mp4};
 use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
-use crate::frames::reduced;
+use crate::frames::cover_picture;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FileHead, FileName, FormatDetail, FormatKind,
-    MediaContainer, Peek, PeekBudget, SniffStep, Sniffed, Source, sniff,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, MediaContainer, Peek,
+    PeekBudget, Sniffed, Source,
 };
-use anyview_image::{Decoded, ExifFacts, FrameCount, ImagePeek, PeekedFormat, decode_bytes};
+use anyview_image::ImagePeek;
 use std::sync::Arc;
 
 /// What a peek of a recording holds: how the file is described, what its header says, and the
@@ -94,26 +94,7 @@ fn cover_peek(cover: &CoverArt, budget: &PeekBudget) -> Option<ImagePeek> {
         CoverCodec::Png => "cover.png",
         CoverCodec::Jpeg => "cover.jpg",
     };
-    let head = FileHead::new(&cover.bytes[..cover.bytes.len().min(4096)]);
-    let SniffStep::Done(sniffed) = sniff(&head, &FileName::new(name).ok()?) else {
-        return None;
-    };
-    let Decoded::Still(picture) = decode_bytes(&cover.bytes, &sniffed).ok()? else {
-        return None;
-    };
-    let source_size = picture.size();
-    let picture = reduced(picture, budget);
-    let FormatDetail::Raster(format) = sniffed.detail() else {
-        return None;
-    };
-    Some(ImagePeek {
-        picture,
-        source_size,
-        frames: FrameCount(1),
-        colour: None,
-        exif: ExifFacts::none(),
-        format: PeekedFormat::Raster(*format),
-    })
+    cover_picture(&cover.bytes, name, budget)
 }
 
 /// The kind row, then the rows the header gave.

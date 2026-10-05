@@ -1,6 +1,7 @@
 //! The stage and the file's view memory: what to remember of where the person is, and which input
 //! puts a remembered place back.
 
+use super::book::{BookIn, BookStage};
 use super::family::StageFamily;
 use super::model::{Stage, StageIn};
 use super::pdf::{PdfIn, PdfStage};
@@ -17,6 +18,7 @@ impl Stage {
             Stage::Pdf(_) => StageFamily::Pdf,
             Stage::Media(_) => StageFamily::Media,
             Stage::Text(_) => StageFamily::Text,
+            Stage::Book(_) => StageFamily::Book,
         }
     }
 
@@ -48,6 +50,7 @@ impl Stage {
             Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) => {
                 Resume::Text { line: place.line }
             }
+            Stage::Book(BookStage::Reading { section }) => Resume::Book { section: *section },
         }
     }
 
@@ -67,28 +70,49 @@ impl Stage {
             (Stage::Text(_), Resume::Text { .. }) => {
                 Some(StageIn::Text(TextIn::Restore(resume.clone())))
             }
+            (Stage::Book(_), Resume::Book { .. }) => {
+                Some(StageIn::Book(BookIn::Restore(resume.clone())))
+            }
             (
                 Stage::NoStage | Stage::Media(_),
                 Resume::Raster { .. }
                 | Resume::Pdf { .. }
                 | Resume::Media { .. }
                 | Resume::Text { .. }
+                | Resume::Book { .. }
                 | Resume::Nothing,
             )
             | (
                 Stage::Raster(_),
-                Resume::Pdf { .. } | Resume::Media { .. } | Resume::Text { .. } | Resume::Nothing,
+                Resume::Pdf { .. }
+                | Resume::Media { .. }
+                | Resume::Text { .. }
+                | Resume::Book { .. }
+                | Resume::Nothing,
             )
             | (
                 Stage::Pdf(_),
                 Resume::Raster { .. }
                 | Resume::Media { .. }
                 | Resume::Text { .. }
+                | Resume::Book { .. }
                 | Resume::Nothing,
             )
             | (
                 Stage::Text(_),
-                Resume::Raster { .. } | Resume::Pdf { .. } | Resume::Media { .. } | Resume::Nothing,
+                Resume::Raster { .. }
+                | Resume::Pdf { .. }
+                | Resume::Media { .. }
+                | Resume::Book { .. }
+                | Resume::Nothing,
+            )
+            | (
+                Stage::Book(_),
+                Resume::Raster { .. }
+                | Resume::Pdf { .. }
+                | Resume::Media { .. }
+                | Resume::Text { .. }
+                | Resume::Nothing,
             ) => None,
         }
     }
@@ -101,7 +125,7 @@ mod tests {
     use crate::stage::pdf::PageView;
     use crate::stage::raster::Animation;
     use crate::stage::text::{TextPlace, TextView, Wrap};
-    use anyview_core::{DocUnit, LineIndex, PageIndex, Permille, QuarterTurn};
+    use anyview_core::{DocUnit, LineIndex, PageIndex, Permille, QuarterTurn, SectionIndex};
     use ds_core::machine::Machine;
     use ds_core::time::stamp::Stamp;
 
@@ -126,6 +150,12 @@ mod tests {
                 wrap: Wrap::On,
                 view: TextView::Source,
             },
+        })
+    }
+
+    const fn book_at(section: u32) -> Stage {
+        Stage::Book(crate::stage::BookStage::Reading {
+            section: SectionIndex(section),
         })
     }
 
@@ -176,6 +206,13 @@ mod tests {
                 },
             ),
             (
+                "a book keeps its section",
+                book_at(6),
+                Resume::Book {
+                    section: SectionIndex(6),
+                },
+            ),
+            (
                 "a recording's place is its player's",
                 Stage::Media(MediaStage::Opening),
                 Resume::Nothing,
@@ -193,6 +230,9 @@ mod tests {
             centre: CENTRE,
         };
         let text = Resume::Text { line: LineIndex(7) };
+        let book = Resume::Book {
+            section: SectionIndex(2),
+        };
         let page = Resume::Pdf {
             page: PageIndex(1),
             offset: Permille(0),
@@ -228,6 +268,14 @@ mod tests {
             ),
             ("a text refuses a zoom", text_at(0), raster.clone(), None),
             ("a page refuses nothing", pdf(), Resume::Nothing, None),
+            (
+                "a book takes a section",
+                book_at(0),
+                book.clone(),
+                Some(StageIn::Book(BookIn::Restore(book.clone()))),
+            ),
+            ("a book refuses a line", book_at(0), text.clone(), None),
+            ("a text refuses a section", text_at(0), book, None),
             ("no stage takes anything", Stage::NoStage, raster, None),
             (
                 "a recording's is not the stage's",
@@ -244,6 +292,9 @@ mod tests {
     #[test]
     fn what_a_stage_remembers_is_what_it_comes_back_to() {
         let params = crate::StageParams {
+            book: crate::BookParams {
+                sections: anyview_core::SectionCount::new(5).unwrap(),
+            },
             pdf: crate::PdfParams {
                 pages: anyview_core::PageCount::new(10).unwrap(),
                 ..crate::PdfParams::default()
@@ -254,6 +305,7 @@ mod tests {
             ("a zoomed picture", zoomed(Zoom::Scale(Permille(2500)))),
             ("a text", text_at(311)),
             ("a page", pdf()),
+            ("a book", book_at(2)),
         ] {
             let resume = stage.resume();
             let fresh = Stage::for_family(stage.family(), crate::TextViews::SourceOnly);

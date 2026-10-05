@@ -2,7 +2,7 @@
 //! entry's `MimeType` line is built from.
 
 use super::family::Family;
-use super::{Delimiter, FormatKind, MediaContainer, Mime, RasterFormat, TreeFormat};
+use super::{BookFormat, Delimiter, FormatKind, MediaContainer, Mime, RasterFormat, TreeFormat};
 use crate::peek::StageSupport;
 use crate::profile::stage_support;
 use ds_core::word::Word;
@@ -27,9 +27,9 @@ fn mimes_of(kind: FormatKind) -> Vec<&'static str> {
         FormatKind::PlainText => vec!["text/plain"],
         FormatKind::Table => family::<Delimiter>(),
         FormatKind::Tree => family::<TreeFormat>(),
+        FormatKind::Book => family::<BookFormat>(),
         FormatKind::Font
         | FormatKind::Archive
-        | FormatKind::Book
         | FormatKind::Office
         | FormatKind::Folder
         | FormatKind::Other => Vec::new(),
@@ -73,15 +73,12 @@ mod tests {
             "text/plain",
             "text/csv",
             "application/json",
+            "application/epub+zip",
+            "application/vnd.comicbook+zip",
         ] {
             assert!(opened.iter().any(|m| m == want), "{want} is not opened");
         }
-        for peeked in [
-            "application/zip",
-            "font/ttf",
-            "application/epub+zip",
-            "inode/directory",
-        ] {
+        for peeked in ["application/zip", "font/ttf", "inode/directory"] {
             assert!(
                 !opened.iter().any(|m| m == peeked),
                 "{peeked} is only peeked at"

@@ -10,9 +10,11 @@ fn every_kind_has_a_view_and_the_registry_agrees_with_the_core() {
     for kind in FormatKind::ALL {
         let shown = match family_of(*kind) {
             StageFamily::PeekOnly => StageSupport::PeekOnly,
-            StageFamily::Raster | StageFamily::Pdf | StageFamily::Media | StageFamily::Text => {
-                StageSupport::Stage
-            }
+            StageFamily::Raster
+            | StageFamily::Pdf
+            | StageFamily::Media
+            | StageFamily::Text
+            | StageFamily::Book => StageSupport::Stage,
         };
         assert_eq!(shown, stage_support(*kind), "{kind:?}");
     }
@@ -32,6 +34,7 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
         ("json", FormatKind::Tree, StageFamily::Text),
         ("a video", FormatKind::Video, StageFamily::Media),
         ("a song", FormatKind::Audio, StageFamily::Media),
+        ("a book", FormatKind::Book, StageFamily::Book),
         ("an archive", FormatKind::Archive, StageFamily::PeekOnly),
         ("a folder", FormatKind::Folder, StageFamily::PeekOnly),
         ("something else", FormatKind::Other, StageFamily::PeekOnly),
