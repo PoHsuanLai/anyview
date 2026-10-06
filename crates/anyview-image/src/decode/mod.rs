@@ -11,6 +11,7 @@ mod highrange;
 mod jxl;
 mod layered;
 mod look;
+mod natural;
 mod plays;
 mod raw;
 mod stills;
@@ -19,6 +20,7 @@ mod svg_limits;
 
 pub use colour::{ColourInfo, ColourModel};
 pub(crate) use look::{Looked, look};
+pub use natural::natural_size;
 pub use plays::Plays;
 pub(crate) use plays::plays_of;
 pub(crate) use svg::Svg;

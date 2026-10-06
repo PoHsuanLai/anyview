@@ -6,6 +6,15 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **A window opens no larger than a fixed cap, and image pixels are taken as logical pixels.** `window::fit`
+  sizes a window to its picture or video, scaled down to `fit_cap()`: 1600 by 1000 logical pixels, or
+  `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT`. A picture is meant to show at one image pixel to one physical pixel, as
+  Preview shows it, and the cap to be 85% of the work area of the window's monitor. Neither is known:
+  quire has no `screen_extent()`, no monitor scale factor and no open-window `request_size()`. Ends when
+  ds-blitz reports the monitor: `fit_cap()` becomes 85% of its work area and the natural size divides
+  by its scale factor (the TODO beside `fit_cap`). A PDF, HEIC, camera raw, ICNS, JPEG XL and PSD file
+  open at the default window: their size is not in a header read cheaply (a PDF's `/MediaBox` may sit
+  in a compressed object or be inherited).
 - **quire's `PdfPage::Ready` carries a PNG `data:` URL.** The PDF peek goes through `ds_blitz::pdf_thumb_blocking`
   (the cache the launcher already uses), whose page is `ImageSource`, so a PDF's first page is the one
   picture here that is not a `TextureLayer`. Ends when quire's `PdfPage::Ready` can hold pixels for a

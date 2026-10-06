@@ -5,6 +5,13 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Windows
+
+- A window opens sized to its content, as Preview and QuickTime do: a picture at its own size, a video at
+  its resolution, scaled down to fit when it is larger than 1600 by 1000 and never smaller than 480 by 320
+  (a small picture stays centred). Everything else opens at the usual size, and moving to the next file
+  keeps the window as it is.
+
 ### Install
 
 - `dist/install.sh` installs the `ffmpeg`, `heif` and `raw` plugins with the viewer, and builds the `mpv`

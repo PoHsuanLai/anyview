@@ -155,10 +155,86 @@ mod remaking {
         ] {
             assert_eq!(
                 of(ordinary),
-                WindowSpec::new("clip.mkv", WindowSize::new(1000, 700)),
+                WindowSpec::new("clip.mkv", WindowSize::new(1000, 700).with_least(480, 320)),
                 "{ordinary:?}"
             );
         }
+    }
+
+    /// A PNG of `width` by `height`, blank: the header is what a size is read from.
+    fn png_file(dir: &std::path::Path, name: &str, width: u32, height: u32) -> FilePath {
+        let path = dir.join(name);
+        image::GrayImage::new(width, height).save(&path).unwrap();
+        FilePath::new(path).unwrap()
+    }
+
+    #[test]
+    fn a_window_opens_at_its_pictures_size_within_the_cap_and_the_least() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let stacking = FakeStacking::with(StackingSupport::Supported);
+        for (width, height, want) in [
+            (800, 600, (800, 600)),
+            (64, 48, (480, 320)),
+            (3200, 1000, (1600, 500)),
+        ] {
+            let file = png_file(dir.path(), &format!("{width}.png"), width, height);
+            let spec = spec_for(&seed(
+                &runtime,
+                dir.path(),
+                &file,
+                Presentation::Window,
+                stacking.clone(),
+            ));
+            assert_eq!(
+                spec,
+                WindowSpec::new(
+                    format!("{width}.png"),
+                    WindowSize::new(want.0, want.1).with_least(480, 320)
+                ),
+                "{width}x{height}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_file_opened_into_a_new_window_gets_its_own_fitted_size() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let wide = png_file(dir.path(), "a.png", 900, 500);
+        let tall = png_file(dir.path(), "b.png", 500, 900);
+        let old = seed(
+            &runtime,
+            dir.path(),
+            &wide,
+            Presentation::Window,
+            FakeStacking::with(StackingSupport::Supported),
+        );
+        let size_of = |seed: &Seed| spec_for(seed).size();
+        assert_eq!(
+            size_of(&old),
+            WindowSize::new(900, 500).with_least(480, 320)
+        );
+        // The same wiring, another file: its own size, not the first window's.
+        assert_eq!(
+            size_of(&remade(&old, &tall, Presentation::Window)),
+            WindowSize::new(500, 900).with_least(480, 320)
+        );
+    }
+
+    #[test]
+    fn the_small_window_keeps_its_own_size_whatever_its_file_is() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file = png_file(dir.path(), "a.png", 900, 500);
+        let spec = spec_for(&seed(
+            &runtime,
+            dir.path(),
+            &file,
+            Presentation::Mini,
+            FakeStacking::with(StackingSupport::Supported),
+        ));
+        assert_eq!(spec.size(), WindowSize::new(480, 270));
     }
 
     #[test]
