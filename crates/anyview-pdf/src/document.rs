@@ -89,6 +89,11 @@ impl PdfDocument {
             })
     }
 
+    /// Whether the file carries a digital signature, which a rewrite of the file would break.
+    pub fn is_signed(&self) -> bool {
+        signed(self.bytes())
+    }
+
     /// The file's bytes as opened.
     pub fn bytes(&self) -> &[u8] {
         self.doc.bytes()
@@ -110,4 +115,12 @@ impl PdfDocument {
         self.page_size(page)?;
         Ok(self.doc.page_owned(page.0)?)
     }
+}
+
+/// Whether `bytes` holds a signature: a signature dictionary names the bytes it covers with
+/// `/ByteRange`, and a signature field has the field type `/Sig`. Signature dictionaries are never
+/// packed into object streams, so a scan of the file finds them.
+fn signed(bytes: &[u8]) -> bool {
+    let has = |needle: &[u8]| bytes.windows(needle.len()).any(|window| window == needle);
+    has(b"/ByteRange") || has(b"/FT/Sig") || has(b"/FT /Sig")
 }

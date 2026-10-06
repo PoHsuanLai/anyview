@@ -3,6 +3,7 @@
 use super::draft::{ExportDraft, ExportKindPick};
 use super::offer::MediaOffer;
 use super::versions::{VersionKey, VersionList};
+use crate::edits::{EditCaution, EditOffer, EditRequest};
 use crate::typed::TypedText;
 use anyview_core::Fact;
 use ds_core::vocab::ShortcutKey;
@@ -12,6 +13,8 @@ use ds_core::vocab::ShortcutKey;
 pub struct SheetParams {
     /// The media exports on offer for the open recording.
     pub media: MediaOffer,
+    /// What an edit of the open file costs.
+    pub edit: EditOffer,
 }
 
 /// Which sheet is up, with what it holds.
@@ -26,6 +29,11 @@ pub enum Sheet {
     Unavailable { needs: Fact },
     /// Asking before the file goes to the trash.
     ConfirmTrash,
+    /// Asking before an edit that loses something is saved.
+    ConfirmEdit {
+        request: EditRequest,
+        caution: EditCaution,
+    },
     /// Typing a new name.
     Rename { name: TypedText },
     /// Typing the name of a copy to save beside the file, or a path to save it at.
@@ -48,6 +56,8 @@ pub enum SheetIn {
     OpenUnavailable(Fact),
     /// Ask whether to trash the file.
     AskTrash,
+    /// Ask whether to go ahead with an edit that loses this.
+    AskEdit(EditRequest, EditCaution),
     /// Ask for a new name, starting from the current one.
     AskRename(TypedText),
     /// Ask for the name of a copy, starting from this one.
@@ -100,6 +110,8 @@ pub enum SheetOut {
     Export(ExportDraft),
     /// Move the file to the trash.
     Trash,
+    /// Save this edit in place.
+    Edit(EditRequest),
     /// Rename the file to this.
     Rename(TypedText),
     /// Write a copy of the file under this name.

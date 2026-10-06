@@ -3,7 +3,7 @@
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::region::{Step, presentation, sheet, stage};
 use crate::command::Command;
-use crate::edits::EditRequest;
+use crate::edits::{EditOffer, EditRequest};
 use crate::presentation::PresentationIn;
 use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
 use crate::stage::Stage;
@@ -62,10 +62,24 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
         FileAction::SaveCopy => (viewer, vec![ViewerOut::NameCopy]),
         FileAction::RevertTo => (viewer, vec![ViewerOut::ListVersions]),
-        FileAction::RotateLeft => edit(viewer, Edit::Rotate(QuarterTurn::ThreeQuarter), action),
-        FileAction::RotateRight => edit(viewer, Edit::Rotate(QuarterTurn::Quarter), action),
-        FileAction::FlipHorizontal => edit(viewer, Edit::Flip(Axis::Horizontal), action),
-        FileAction::FlipVertical => edit(viewer, Edit::Flip(Axis::Vertical), action),
+        FileAction::RotateLeft => edit(
+            viewer,
+            Edit::Rotate(QuarterTurn::ThreeQuarter),
+            action,
+            at,
+            params,
+        ),
+        FileAction::RotateRight => edit(
+            viewer,
+            Edit::Rotate(QuarterTurn::Quarter),
+            action,
+            at,
+            params,
+        ),
+        FileAction::FlipHorizontal => {
+            edit(viewer, Edit::Flip(Axis::Horizontal), action, at, params)
+        }
+        FileAction::FlipVertical => edit(viewer, Edit::Flip(Axis::Vertical), action, at, params),
         FileAction::Open
         | FileAction::OpenWith
         | FileAction::RevealInFolder
@@ -81,8 +95,9 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
 }
 
 /// An edit of what the stage shows: a picture's, or a PDF's page the person is on. Anything else
-/// has no such edit, and the host says so.
-fn edit(viewer: Viewer, edit: Edit, action: FileAction) -> Step {
+/// has no such edit, and the host says so. An edit that loses something is asked about first, and
+/// one the file cannot take at all does nothing.
+fn edit(viewer: Viewer, edit: Edit, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let asked = match &viewer.stage {
         Stage::Raster(_) => Some(EditRequest::of_picture(edit)),
         Stage::Pdf(stage) => Some(EditRequest::on_page(edit, stage.place().page)),
@@ -93,8 +108,12 @@ fn edit(viewer: Viewer, edit: Edit, action: FileAction) -> Step {
         | Stage::Table(_)
         | Stage::Tree(_) => None,
     };
-    match asked {
-        Some(request) => (viewer, vec![ViewerOut::Edit(request)]),
-        None => (viewer, vec![ViewerOut::Run(action)]),
+    match (asked, params.sheet.edit) {
+        (Some(_), EditOffer::Withheld) => (viewer, vec![]),
+        (Some(request), EditOffer::Asks(caution)) => {
+            sheet(viewer, SheetIn::AskEdit(request, caution), at, params)
+        }
+        (Some(request), EditOffer::Plain) => (viewer, vec![ViewerOut::Edit(request)]),
+        (None, _) => (viewer, vec![ViewerOut::Run(action)]),
     }
 }

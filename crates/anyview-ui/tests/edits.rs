@@ -250,3 +250,39 @@ fn deleting_and_moving_the_page_on_screen_ask_the_host_for_the_page_edit() {
         "the first page moves later and is deleted; it cannot move earlier than the start"
     );
 }
+
+#[test]
+fn an_edit_that_loses_something_asks_first_and_cancel_leaves_the_file_alone() {
+    let (_dir, paths) = folder(&[("anyview-image", "anim.webp", "anim.webp")]);
+    let (mut harness, requests, _) = wired(&paths, 0, Appearance::default(), Wiring::default());
+    settle(&mut harness);
+    from_the_palette(&mut harness, "rotate right");
+    assert!(harness.centre(".ds-alert").is_some(), "the alert is up");
+    assert!(
+        asked(&requests).is_empty(),
+        "nothing is written before the answer"
+    );
+    harness.send(Input::key(ShortcutKey::Escape));
+    settle(&mut harness);
+    assert!(harness.centre(".ds-alert").is_none(), "Cancel puts it away");
+    assert!(
+        asked(&requests).is_empty(),
+        "Cancel leaves the file untouched"
+    );
+    harness.send(Input::pointer_move(support::middle()));
+    harness.advance(std::time::Duration::from_millis(300));
+    let rotate = harness
+        .centre("[aria-label=\"Rotate right\"]")
+        .expect("the rotate button");
+    harness.send(Input::click(rotate));
+    settle(&mut harness);
+    assert!(harness.centre(".ds-alert").is_some(), "it asks again");
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(&mut harness);
+    assert_eq!(
+        asked(&requests),
+        [HostRequest::Edit(EditRequest::of_picture(Edit::Rotate(
+            QuarterTurn::Quarter
+        )))]
+    );
+}

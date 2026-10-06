@@ -22,7 +22,10 @@ fn needs() -> Fact {
 /// The sheet after Export is asked of `stage` with `offer` on offer.
 fn after_export(stage: Stage, offer: MediaOffer) -> Sheet {
     let params = ViewerParams {
-        sheet: SheetParams { media: offer },
+        sheet: SheetParams {
+            media: offer,
+            ..SheetParams::default()
+        },
         ..params()
     };
     let viewer = Viewer {

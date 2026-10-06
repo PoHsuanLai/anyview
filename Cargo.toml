@@ -307,6 +307,8 @@ md-5 = "0.10"
 percent-encoding = "2"
 # Reads and writes the PNG text chunks a thumbnail carries (Thumb::URI, Thumb::MTime): MIT OR Apache-2.0.
 png = "0.18"
+# TIFF read and write for edits that keep every page and tag; `image` already pulls it in with these defaults.
+tiff = "0.11"
 # `anyview-media` (feature `player`): playback into a caller-owned wgpu texture, MIT OR Apache-2.0; the
 # rev is mpv-wgpu master. Only its `subprocess` feature is taken: the person's own `mpv` runs as a child
 # process with mpv-wgpu's C plugin loaded into it, so no libmpv and no `rsmpv` is linked, and the

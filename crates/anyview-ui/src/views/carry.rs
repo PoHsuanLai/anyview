@@ -62,6 +62,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
             let marks = c.shelf.media.peek().marks;
             c.edge.request(HostRequest::Export(marks.applied_to(draft)));
         }
+        ViewerOut::Sheet(SheetOut::Edit(request)) => c.edge.request(HostRequest::Edit(request)),
         ViewerOut::Sheet(SheetOut::Trash) => c.edge.request(HostRequest::Trash),
         ViewerOut::Sheet(SheetOut::Rename(name)) => c.edge.request(HostRequest::Rename(name)),
         ViewerOut::Sheet(SheetOut::SaveCopy(name)) => c.edge.request(HostRequest::SaveCopy(name)),
