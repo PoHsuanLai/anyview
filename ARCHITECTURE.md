@@ -203,7 +203,7 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
 | `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
 | `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
-| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `stills`, `plays` (loop counts from the container), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg` and `look` are private |
+| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `ceiling` (the peak memory a decode may hold, checked from the header before any pixel is decoded), `stills`, `plays` (loop counts from the container), `frame_count` (frame counts from the container, without decoding), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg`, `svg_limits` (a drawing's filter work and nested pictures, checked from its tree before it is drawn) and `look` are private |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
 | `export` | `plan_export` (an image choice as `ExportJob`s: pure), `encode_file` (a file resized and encoded, keeping its metadata or not), `ImageFile` (a file's bytes and what it sniffed as: its upright picture, an SVG's declared size, whether a JPEG is already upright) |
@@ -484,7 +484,8 @@ because a font's tables lie all over it.
 The specimen is outlines, not a font handed to the renderer: the pane needs no font loading, the peek
 stays a small value whatever the font's size, and what is drawn is the face the file holds. A font that
 maps none of the sample letters shows the first characters it does map. A WOFF is unpacked to the
-plain font it wraps (`woff.rs`: each table's zlib stream, the tables laid out again as an sfnt) and read
+plain font it wraps (`woff.rs`: each table's zlib stream, the tables laid out again as an sfnt; the
+tables together may unpack to 64 MiB and may not share stored bytes) and read
 like one; WOFF2 is named (`face: None`) and not opened.
 
 ## 2l. Plugins
