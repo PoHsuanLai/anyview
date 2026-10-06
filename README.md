@@ -105,4 +105,5 @@ output of `anyview --version` and the file type involved to an issue at
 ## Licence
 
 MIT OR Apache-2.0, at your option: `LICENSE-MIT` and `LICENSE-APACHE`. Third-party licences are in
-`THIRD-PARTY-NOTICES.md`.
+`THIRD-PARTY-NOTICES.md`. The viewer links your system's libasound (ALSA) dynamically, to reach the sound
+card: it is LGPL-2.1, loaded from your distribution and not bundled, and it is not a codec library.
