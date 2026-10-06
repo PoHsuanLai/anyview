@@ -18,7 +18,7 @@ mod scale;
 
 pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, declared_size, decode,
-    decode_bytes,
+    decode_bytes, natural_size,
 };
 pub use edit::{Fidelity, Loss, edited, fidelity};
 pub use encode::{encode, encode_bmp, encode_with_metadata};
