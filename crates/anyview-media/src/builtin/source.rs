@@ -61,9 +61,10 @@ impl std::fmt::Debug for Source {
 
 /// The error of a symphonia call, as this crate reports it.
 fn fault(error: &SymphoniaError) -> MediaError {
-    match error {
-        SymphoniaError::Unsupported(what) => MediaError::NoDecoder((*what).to_owned()),
-        other => MediaError::Decode(other.to_string()),
+    if let SymphoniaError::Unsupported(what) = error {
+        MediaError::NoDecoder((*what).to_owned())
+    } else {
+        MediaError::Decode(error.to_string())
     }
 }
 
@@ -105,11 +106,12 @@ impl Source {
         }
         let decoder = symphonia::default::get_codecs()
             .make_audio_decoder(params, &AudioDecoderOptions::default())
-            .map_err(|error| match error {
-                SymphoniaError::Unsupported(_) => {
+            .map_err(|error| {
+                if matches!(error, SymphoniaError::Unsupported(_)) {
                     MediaError::NoDecoder(codec_name(path, params.codec))
+                } else {
+                    MediaError::Decode(error.to_string())
                 }
-                other => MediaError::Decode(other.to_string()),
             })?;
         let (id, base) = (track.id, track.time_base);
         let codec = codec_name(path, params.codec);

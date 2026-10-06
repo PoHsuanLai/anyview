@@ -104,7 +104,7 @@ impl Rig {
     fn try_open(path: &Path, card: Card) -> Result<Rig, MediaError> {
         let wakes = Arc::new(AtomicU32::new(0));
         let counted = Arc::clone(&wakes);
-        let file = FilePath::new(path.to_path_buf()).unwrap();
+        let file = FilePath::new(path).unwrap();
         let driver = BuiltinDriver::open(Box::new(card.clone()), &file, move || {
             counted.fetch_add(1, Ordering::Relaxed);
         })?;
@@ -163,16 +163,22 @@ impl Rig {
     }
 
     fn length(&self) -> Option<u64> {
-        self.events.iter().find_map(|event| match event {
-            MediaEvent::Loaded { length } => length.map(|length| length.0.0),
-            _ => None,
+        self.events.iter().find_map(|event| {
+            if let MediaEvent::Loaded { length } = event {
+                length.map(|length| length.0.0)
+            } else {
+                None
+            }
         })
     }
 
     fn last_position(&self) -> Option<u64> {
-        self.events.iter().rev().find_map(|event| match event {
-            MediaEvent::Position(at) => Some(at.0),
-            _ => None,
+        self.events.iter().rev().find_map(|event| {
+            if let MediaEvent::Position(at) = event {
+                Some(at.0)
+            } else {
+                None
+            }
         })
     }
 
@@ -300,9 +306,12 @@ fn a_recording_says_it_is_loaded_before_anything_else_and_lists_its_track() {
         "{:?}",
         rig.events
     );
-    let track = rig.events.iter().find_map(|event| match event {
-        MediaEvent::Tracks(tracks) => Some(tracks.clone()),
-        _ => None,
+    let track = rig.events.iter().find_map(|event| {
+        if let MediaEvent::Tracks(tracks) = event {
+            Some(tracks.clone())
+        } else {
+            None
+        }
     });
     let tracks = track.unwrap();
     assert_eq!(tracks.len(), 1);
@@ -417,9 +426,12 @@ fn the_position_is_reported_ten_times_a_second_at_most_and_only_as_it_moves() {
     let positions: Vec<u64> = rig
         .events
         .iter()
-        .filter_map(|event| match event {
-            MediaEvent::Position(at) => Some(at.0),
-            _ => None,
+        .filter_map(|event| {
+            if let MediaEvent::Position(at) = event {
+                Some(at.0)
+            } else {
+                None
+            }
         })
         .collect();
     assert!(
@@ -513,11 +525,16 @@ fn what_is_sent_before_the_file_is_loaded_waits_for_it_and_runs_in_order() {
     let order: Vec<&str> = rig
         .events
         .iter()
-        .filter_map(|event| match event {
-            MediaEvent::Loaded { .. } => Some("loaded"),
-            MediaEvent::SeekDone => Some("seek"),
-            MediaEvent::Volume(volume) if volume.percent().0 == 50 => Some("volume"),
-            _ => None,
+        .filter_map(|event| {
+            if matches!(event, MediaEvent::Loaded { .. }) {
+                Some("loaded")
+            } else if *event == MediaEvent::SeekDone {
+                Some("seek")
+            } else if *event == MediaEvent::Volume(Volume::clamped(Percent(50))) {
+                Some("volume")
+            } else {
+                None
+            }
         })
         .collect();
     assert_eq!(order, ["loaded", "seek", "volume"]);
@@ -613,9 +630,12 @@ fn a_card_that_fails_while_playing_stops_the_recording_with_a_failure() {
     rig.play_for(100);
     rig.card.pipe().fail("the device was unplugged".to_owned());
     rig.turn();
-    let failure = rig.events.iter().find_map(|event| match event {
-        MediaEvent::Failed(reason) => Some(reason.clone()),
-        _ => None,
+    let failure = rig.events.iter().find_map(|event| {
+        if let MediaEvent::Failed(reason) = event {
+            Some(reason.clone())
+        } else {
+            None
+        }
     });
     assert!(failure.unwrap().contains("unplugged"));
     assert_eq!(rig.card.running(), Some(false));

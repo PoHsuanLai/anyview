@@ -30,14 +30,15 @@ impl std::fmt::Debug for CardOutput {
 
 /// How well a sample format suits: the card's own is converted from floats, so the order is how
 /// little a conversion costs. `None` is a format the player cannot write.
-fn rank(format: SampleFormat) -> Option<u8> {
-    match format {
-        SampleFormat::F32 => Some(0),
-        SampleFormat::I32 => Some(1),
-        SampleFormat::I16 => Some(2),
-        SampleFormat::U16 => Some(3),
-        _ => None,
-    }
+fn rank(format: SampleFormat) -> Option<usize> {
+    [
+        SampleFormat::F32,
+        SampleFormat::I32,
+        SampleFormat::I16,
+        SampleFormat::U16,
+    ]
+    .iter()
+    .position(|suits| *suits == format)
 }
 
 /// The configuration to open: the recording's own rate and channels when the card has them, which
@@ -109,16 +110,19 @@ impl SoundOutput for CardOutput {
             return Err(MediaError::NoSoundOutput);
         };
         let config = chosen.config();
-        let stream = match chosen.sample_format() {
-            SampleFormat::F32 => build::<f32>(device, &config, pipe)?,
-            SampleFormat::I32 => build::<i32>(device, &config, pipe)?,
-            SampleFormat::I16 => build::<i16>(device, &config, pipe)?,
-            SampleFormat::U16 => build::<u16>(device, &config, pipe)?,
-            _ => {
-                return Err(MediaError::SoundOutput(
-                    "an unsupported sample format".to_owned(),
-                ));
-            }
+        let format = chosen.sample_format();
+        let stream = if format == SampleFormat::F32 {
+            build::<f32>(device, &config, pipe)?
+        } else if format == SampleFormat::I32 {
+            build::<i32>(device, &config, pipe)?
+        } else if format == SampleFormat::I16 {
+            build::<i16>(device, &config, pipe)?
+        } else if format == SampleFormat::U16 {
+            build::<u16>(device, &config, pipe)?
+        } else {
+            return Err(MediaError::SoundOutput(
+                "an unsupported sample format".to_owned(),
+            ));
         };
         stream
             .play()
