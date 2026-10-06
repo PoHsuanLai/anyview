@@ -11,7 +11,7 @@ use crate::error::PeekError;
 use crate::frames::cover_picture;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, MediaContainer, Peek,
-    PeekBudget, Sniffed, Source,
+    PeekBudget, PixelArea, PixelSize, Sniffed, Source,
 };
 use anyview_image::ImagePeek;
 use std::sync::Arc;
@@ -95,6 +95,26 @@ fn cover_peek(cover: &CoverArt, budget: &PeekBudget) -> Option<ImagePeek> {
         CoverCodec::Jpeg => "cover.jpg",
     };
     cover_picture(&cover.bytes, name, budget)
+}
+
+/// The most of a movie's header read for the size of its picture: past it the movie opens at the
+/// default window rather than waiting on a header.
+const SIZE_HEADER: ByteLen = ByteLen(8 * 1024 * 1024);
+
+/// The size of the first video track's picture, from the header alone: `None` when the container
+/// has no reader here, the header is damaged or over [`SIZE_HEADER`], or the file has no video.
+pub fn video_size(src: &Source, sniffed: &Sniffed) -> Option<PixelSize> {
+    let budget = PeekBudget {
+        bytes: SIZE_HEADER,
+        pixels: PixelArea(0),
+        time: std::time::Duration::ZERO,
+    };
+    let recording = match reader_for(sniffed) {
+        Reader::Mp4 => mp4::read(src, &budget),
+        Reader::Matroska => matroska::read(src),
+        Reader::Symphonia | Reader::Nothing => return None,
+    };
+    recording.ok()?.video.map(|video| video.size)
 }
 
 /// The kind row, then the rows the header gave.
