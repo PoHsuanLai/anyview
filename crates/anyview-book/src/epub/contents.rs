@@ -5,6 +5,7 @@ use super::package::{Package, text_of, xml};
 use crate::zip_path::{directory_of, resolve};
 use anyview_core::{ByteLen, FilePath, SectionIndex};
 use roxmltree::Node;
+use std::collections::HashMap;
 
 const PART_LIMIT: ByteLen = ByteLen(8 * 1024 * 1024);
 
@@ -44,9 +45,20 @@ pub(super) fn read(path: &FilePath, package: &Package) -> Vec<TocEntry> {
     }
 }
 
-fn section_of(package: &Package, base: &str, href: &str) -> Option<SectionIndex> {
+/// The chapter of each spine entry; the first of two with the same entry wins.
+type Spine<'a> = HashMap<&'a str, usize>;
+
+fn spine_index(package: &Package) -> Spine<'_> {
+    let mut map = HashMap::with_capacity(package.spine.len());
+    for (at, item) in package.spine.iter().enumerate() {
+        map.entry(item.entry.as_str()).or_insert(at);
+    }
+    map
+}
+
+fn section_of(spine: &Spine<'_>, base: &str, href: &str) -> Option<SectionIndex> {
     let entry = resolve(base, href)?;
-    let at = package.spine.iter().position(|item| item.entry == entry)?;
+    let at = *spine.get(entry.as_str())?;
     u32::try_from(at).ok().map(SectionIndex)
 }
 
@@ -76,11 +88,17 @@ fn nav(path: &FilePath, package: &Package, entry: &str) -> Option<Vec<TocEntry>>
         .or_else(|| navs.first())?;
     let list = toc.children().find(|node| node.has_tag_name("ol"))?;
     let mut entries = Vec::new();
-    nav_list(list, 0, package, directory_of(entry), &mut entries);
+    nav_list(
+        list,
+        0,
+        &spine_index(package),
+        directory_of(entry),
+        &mut entries,
+    );
     Some(entries)
 }
 
-fn nav_list(list: Node<'_, '_>, depth: u8, package: &Package, base: &str, out: &mut Vec<TocEntry>) {
+fn nav_list(list: Node<'_, '_>, depth: u8, spine: &Spine<'_>, base: &str, out: &mut Vec<TocEntry>) {
     for item in list.children().filter(|node| node.has_tag_name("li")) {
         let label = item
             .children()
@@ -89,7 +107,7 @@ fn nav_list(list: Node<'_, '_>, depth: u8, package: &Package, base: &str, out: &
             let title = words(label);
             let section = label
                 .attribute("href")
-                .and_then(|href| section_of(package, base, href));
+                .and_then(|href| section_of(spine, base, href));
             if !title.is_empty() {
                 out.push(TocEntry {
                     title,
@@ -99,7 +117,7 @@ fn nav_list(list: Node<'_, '_>, depth: u8, package: &Package, base: &str, out: &
             }
         }
         if let Some(nested) = item.children().find(|node| node.has_tag_name("ol")) {
-            nav_list(nested, depth.saturating_add(1), package, base, out);
+            nav_list(nested, depth.saturating_add(1), spine, base, out);
         }
     }
 }
@@ -111,14 +129,20 @@ fn ncx(path: &FilePath, package: &Package, entry: &str) -> Option<Vec<TocEntry>>
         .descendants()
         .find(|node| node.has_tag_name("navMap"))?;
     let mut entries = Vec::new();
-    ncx_points(map, 0, package, directory_of(entry), &mut entries);
+    ncx_points(
+        map,
+        0,
+        &spine_index(package),
+        directory_of(entry),
+        &mut entries,
+    );
     Some(entries)
 }
 
 fn ncx_points(
     parent: Node<'_, '_>,
     depth: u8,
-    package: &Package,
+    spine: &Spine<'_>,
     base: &str,
     out: &mut Vec<TocEntry>,
 ) {
@@ -135,7 +159,7 @@ fn ncx_points(
             .children()
             .find(|node| node.has_tag_name("content"))
             .and_then(|content| content.attribute("src"))
-            .and_then(|src| section_of(package, base, src));
+            .and_then(|src| section_of(spine, base, src));
         if !title.is_empty() {
             out.push(TocEntry {
                 title,
@@ -143,7 +167,7 @@ fn ncx_points(
                 section,
             });
         }
-        ncx_points(point, depth.saturating_add(1), package, base, out);
+        ncx_points(point, depth.saturating_add(1), spine, base, out);
     }
 }
 

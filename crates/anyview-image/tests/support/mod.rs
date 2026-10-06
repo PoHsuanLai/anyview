@@ -41,6 +41,15 @@ pub fn fixture(name: &str) -> (Source, Sniffed) {
     (source, sniffed(&bytes, name))
 }
 
+/// The file at `path`, of `len` bytes, as the viewer would be handed it.
+pub fn source_of(path: &std::path::Path, len: usize) -> Source {
+    let stamp = FileStamp {
+        len: ByteLen(len as u64),
+        modified: ModTime(0),
+    };
+    Source::new(FilePath::new(path).unwrap(), stamp)
+}
+
 /// A budget of `pixels` pixels and room for as many as that at four bytes each.
 pub fn budget(pixels: u64) -> PeekBudget {
     PeekBudget {

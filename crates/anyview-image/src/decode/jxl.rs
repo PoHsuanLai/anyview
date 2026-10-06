@@ -1,6 +1,6 @@
 //! JPEG XL through `jxl-oxide`: the first frame, converted to sRGB.
 
-use super::MAX_DECODE_AREA;
+use super::ceiling::Ceiling;
 use super::colour::ColourInfo;
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
@@ -14,9 +14,13 @@ fn decode_error(error: impl std::fmt::Display) -> ImageError {
     }
 }
 
+/// What a render costs per pixel at its peak: the decoder's f32 RGBA channels, the f32 buffer
+/// they are gathered into and the RGBA8 written from it.
+const COST: u64 = 16 + 16 + 4;
+
 /// The first frame of a JPEG XL file as straight RGBA8 in sRGB, with the file's orientation
 /// already applied by the decoder, and the colour the file stored.
-pub(crate) fn decode(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
+pub(crate) fn decode(bytes: &[u8], ceiling: Ceiling) -> Result<(Rgba8, ColourInfo), ImageError> {
     let mut image = JxlImage::builder()
         .read(Cursor::new(bytes))
         .map_err(decode_error)?;
@@ -24,9 +28,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<(Rgba8, ColourInfo), ImageError> {
         width: PixelLen(image.width()),
         height: PixelLen(image.height()),
     };
-    if declared.area() > MAX_DECODE_AREA {
-        return Err(ImageError::TooLarge { size: declared });
-    }
+    ceiling.admit(declared, COST)?;
     let bits = image.image_header().metadata.bit_depth.bits_per_sample();
     image.request_color_encoding(EnumColourEncoding::srgb(RenderingIntent::Relative));
     let render = image.render_frame(0).map_err(decode_error)?;
