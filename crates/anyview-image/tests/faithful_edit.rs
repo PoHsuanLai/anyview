@@ -97,7 +97,6 @@ fn a_sixteen_bit_grey_png_stays_sixteen_bit_grey_with_its_chunks() {
     let phys = named(&chunks, "pHYs").unwrap();
     assert_eq!(u32::from_be_bytes(phys[0..4].try_into().unwrap()), 5906);
     assert_eq!(u32::from_be_bytes(phys[4..8].try_into().unwrap()), 11811);
-    assert_eq!(four_turns(&before, "a.png").len() > 0, true);
     assert_eq!(png_raw(&four_turns(&before, "a.png")).1, png_raw(&before).1);
 }
 
@@ -120,7 +119,7 @@ fn palette_png(depth: png::BitDepth) -> Vec<u8> {
         png::BitDepth::One => 1,
         png::BitDepth::Two => 2,
         png::BitDepth::Four => 4,
-        _ => 8,
+        png::BitDepth::Eight | png::BitDepth::Sixteen => 8,
     };
     let line = (w as usize * bits).div_ceil(8);
     let mut data = vec![0u8; line * h as usize];
@@ -191,7 +190,7 @@ fn tiff_pages(white_is_zero: bool) -> Vec<u8> {
             image.write_data(&data).unwrap();
         }
     }
-    drop(encoder);
+    let _ = encoder;
     out.into_inner()
 }
 

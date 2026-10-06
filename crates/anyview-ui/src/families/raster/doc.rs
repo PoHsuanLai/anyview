@@ -10,7 +10,7 @@ use anyview_core::{
 };
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
-    declared_size, decode,
+    declared_size, decode, fidelity,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
