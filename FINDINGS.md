@@ -53,12 +53,17 @@ on. It is a reference, not a log: how each was found lives in git history.
     `Bitrate` clamps to 32..512 kbit/s, so a lossless file shows 512 at most.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
-  - The tree is 605 packages against the budget of 605.
+  - The tree is 590 packages against the budget of 590.
 - **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
   into memory up to the same number of bytes, so a tarball larger than that lists its first entries with a
-  lower-bound count. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
+  lower-bound count. A 7z's header is checked against the file's length, a count limit (500 000 entries) and
+  a byte limit (32 MiB, and 256 MiB of LZMA dictionary) before the 7z crate sees it, an encoded header being
+  unpacked inside that limit for the check; `sevenz-rust2` has the same allocate-then-read sites as the crate it
+  replaced, so the check is ours. An XLS (whose grid the format limits to 65 536 by 256 cells, about 540 MB of
+  cells at the worst) and an ODS are read whole by calamine; XLSX and XLSB are streamed. The bytes of a sheet
+  part that hold no cell are bounded by time only. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
   deadline and a listing can stream a tar without holding it.
 - **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
   zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry
@@ -571,7 +576,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  675 packages against a budget of 675, with no libmpv or libav in it. Ends if the header readers move to a crate
+  660 packages against a budget of 660, with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on

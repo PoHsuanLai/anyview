@@ -18,6 +18,9 @@ use parts::{Metadata, parts_of};
 /// The largest metadata part that is read.
 const METADATA_BYTES: ByteLen = ByteLen(1024 * 1024);
 
+/// The longest title or author name kept, in characters: a pane shows one line of it.
+const NAME_CHARS: usize = 200;
+
 /// The largest embedded picture that is read.
 const THUMBNAIL_BYTES: ByteLen = ByteLen(4 * 1024 * 1024);
 
@@ -91,6 +94,15 @@ impl OfficeLook {
     }
 }
 
+/// `text` as one line of at most [`NAME_CHARS`] characters, an ellipsis marking what was cut.
+fn one_line(text: String) -> String {
+    let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    match line.char_indices().nth(NAME_CHARS) {
+        Some((end, _)) => format!("{}…", line[..end].trim_end()),
+        None => line,
+    }
+}
+
 fn part(path: &FilePath, name: &str, allowed: ByteLen) -> Option<Vec<u8>> {
     let limits = ExtractLimits {
         entry: allowed,
@@ -116,8 +128,8 @@ pub fn office_look(path: &FilePath, format: OfficeFormat) -> Result<OfficeLook, 
             author,
             count,
         } = source.read(&bytes);
-        look.title = look.title.or(title);
-        look.author = look.author.or(author);
+        look.title = look.title.or(title.map(one_line));
+        look.author = look.author.or(author.map(one_line));
         look.count = look.count.or(count);
     }
     look.thumbnail = parts.thumbnails.iter().find_map(|(name, codec)| {

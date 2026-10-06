@@ -120,7 +120,7 @@ wgpu_context = "0.9"
 # Per-device image cache for the shared hybrid renderer (SPIKE.md S1 finding 5).
 rustc-hash = "2"
 vello_common = "0.1"
-parley = { version = "0.11.1", default-features = false, features = ["std"] }
+parley = { version = "0.11.1", default-features = false, features = ["std", "xz"] }
 image = { version = "0.25.6", default-features = false, features = ["png", "jpeg"] }
 
 # Wayland client (shell-host and sill share one sctk major: cosmic-client-toolkit uses 0.20).
@@ -280,12 +280,15 @@ zip = { version = "8", default-features = false, features = ["deflate"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 # Zstandard streams, pure Rust: MIT.
 ruzstd = "0.9"
-# xz streams, pure Rust: MIT.
+# xz fixtures for tests, pure Rust: MIT.
 lzma-rs = "0.3"
 # bzip2 streams, the pure-Rust libbz2-rs-sys back end: MIT OR Apache-2.0.
 bzip2 = "0.6"
+# xz streams, and the LZMA and LZMA2 decoders a 7z's packed header is checked through, pure Rust: Apache-2.0 (the 7z crate
+# uses it). It streams a block, which `lzma-rs` below (the test fixtures' encoder) does not.
+lzma-rust2 = { version = "0.16", default-features = false, features = ["std", "xz"] }
 # 7z archives: Apache-2.0.
-sevenz-rust = { version = "0.6", default-features = false }
+sevenz-rust2 = { version = "0.20", default-features = false }
 
 # `anyview-book`: the package of an EPUB (container, package document, contents) as a read-only tree; tolerant of
 # a DOCTYPE; MIT OR Apache-2.0 (already in the tree).

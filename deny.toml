@@ -45,11 +45,6 @@ confidence-threshold = 0.9
 # Each ignore says why it is safe to carry and what would end it. A new advisory not listed here
 # fails the gate.
 ignore = [
-    # sevenz-rust: path traversal in decompress_impl, and abandoned. anyview-archive only lists and
-    # reads one entry into memory through SevenZReader and never calls the decompress functions,
-    # so the writing path is not reached. Remove these two entries when the crate is replaced.
-    { id = "RUSTSEC-2026-0245", reason = "decompress_impl is never called: entries are read into memory, never written to disk; the crate is being replaced" },
-    { id = "RUSTSEC-2026-0246", reason = "unmaintained, not a vulnerability; the crate is being replaced" },
     # bincode 1.3.3: the author ceased development and calls 1.3.3 complete. It comes only through
     # syntect 5.3.0 (the newest syntect), which uses it to load its built-in syntax dump, our own
     # build-time data and never untrusted input. Remove when syntect moves off it.

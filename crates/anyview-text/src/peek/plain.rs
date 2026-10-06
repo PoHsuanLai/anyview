@@ -4,7 +4,7 @@ use super::head::{PEEK_LINES, expect_kind, read_head};
 use super::tally::Tally;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
-use crate::lines::split;
+use crate::lines::split_start;
 use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Peek, PeekBudget, Sniffed, Source};
 
 /// What a peek of a plain text file holds.
@@ -34,9 +34,8 @@ impl Peek for PlainPeek {
     ) -> Result<PlainPeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         let head = read_head(src, budget)?;
-        let mut lines = split(&head.text);
-        let total = Tally::of(lines.len(), head.coverage);
-        lines.truncate(PEEK_LINES);
+        let (lines, count) = split_start(&head.text, PEEK_LINES);
+        let total = Tally::of(count, head.coverage);
         Ok(PlainPeeked {
             lines,
             total,
