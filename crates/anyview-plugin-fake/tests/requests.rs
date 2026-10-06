@@ -192,6 +192,34 @@ fn a_picture_of_the_wrong_size_is_a_protocol_error() {
 }
 
 #[test]
+fn a_header_announcing_more_pixels_than_asked_for_is_refused_before_they_arrive() {
+    let scratch = Scratch::new();
+    scratch.install(Where::User, "fake", 1, &["--fault", "huge-payload"]);
+    let path = scratch.book("a.book", "x");
+    let started = Instant::now();
+    let error = quick()
+        .thumbnail(&scratch.plugin("fake"), &path, PixelLen(8))
+        .unwrap_err();
+    // A protocol error, not the silence a wait for the payload would end in.
+    assert!(
+        matches!(error, PlatformError::PluginProtocol { .. }),
+        "{error:?}"
+    );
+    assert!(started.elapsed() < Duration::from_millis(350));
+}
+
+#[test]
+fn a_plugin_that_floods_stderr_without_a_newline_still_answers() {
+    let scratch = Scratch::new();
+    scratch.install(Where::User, "fake", 1, &["--fault", "stderr-flood"]);
+    let path = scratch.book("a.book", "x");
+    let got = PluginRunner::default()
+        .thumbnail(&scratch.plugin("fake"), &path, PixelLen(8))
+        .unwrap();
+    assert_eq!(got.size().width.0, 8);
+}
+
+#[test]
 fn a_program_that_cannot_be_started_is_a_spawn_error() {
     let scratch = Scratch::new();
     scratch.install(Where::User, "fake", 1, &[]);

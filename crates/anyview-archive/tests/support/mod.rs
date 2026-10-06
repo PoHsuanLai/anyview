@@ -88,16 +88,13 @@ pub fn zstd(bytes: &[u8]) -> Vec<u8> {
 /// A 7z of `entries`, written through a file because the writer wants a path.
 pub fn sevenz_of(dir: &Path, entries: &[(&str, &str)]) -> Vec<u8> {
     let path = dir.join("built.7z");
-    let mut writer = sevenz_rust::SevenZWriter::create(&path).unwrap();
+    let mut writer = sevenz_rust2::ArchiveWriter::create(&path).unwrap();
     for (name, body) in entries {
-        let mut entry = sevenz_rust::SevenZArchiveEntry::new();
         if name.ends_with('/') {
-            entry.name = name.trim_end_matches('/').to_owned();
-            entry.is_directory = true;
+            let entry = sevenz_rust2::ArchiveEntry::new_directory(name.trim_end_matches('/'));
             writer.push_archive_entry::<&[u8]>(entry, None).unwrap();
         } else {
-            entry.name = (*name).to_owned();
-            entry.has_stream = true;
+            let entry = sevenz_rust2::ArchiveEntry::new_file(name);
             writer
                 .push_archive_entry(entry, Some(body.as_bytes()))
                 .unwrap();
