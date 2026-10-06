@@ -57,13 +57,12 @@ pub(crate) fn decode_head(bytes: &[u8], coverage: Coverage) -> Head {
     let detected = detect(bytes, coverage);
     let body = bytes.get(usize::from(detected.mark)..).unwrap_or_default();
     let decoded = detected.codec.decode(body);
-    let text = match coverage {
-        Coverage::Whole => decoded.into_owned(),
-        Coverage::Prefix => match decoded.rfind('\n') {
-            Some(end) => decoded[..=end].to_owned(),
-            None => decoded.into_owned(),
-        },
-    };
+    let mut text = decoded.into_owned();
+    if coverage == Coverage::Prefix
+        && let Some(end) = text.rfind('\n')
+    {
+        text.truncate(end + 1);
+    }
     Head {
         text,
         codec: detected.codec,

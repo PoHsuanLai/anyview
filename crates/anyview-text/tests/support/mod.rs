@@ -63,12 +63,13 @@ pub fn expected(rows: &[(&'static str, &str)]) -> Vec<(&'static str, String)> {
     rows.iter().map(|(l, v)| (*l, (*v).to_owned())).collect()
 }
 
-/// A workbook of `sheets` (a name and its rows of text cells; a cell that parses as a number is
-/// stored as one) written into `dir` as `name`, and the viewer's view of it.
-pub fn workbook(
+/// A workbook whose sheets are named `sheets` and whose `<sheetData>` contents are `sheet_data`,
+/// written into `dir` as `name`, and the viewer's view of it.
+pub fn workbook_of_xml(
     dir: &std::path::Path,
     name: &str,
-    sheets: &[(&str, &[&[&str]])],
+    sheets: &[&str],
+    sheet_data: &[String],
 ) -> (Source, Sniffed) {
     use std::io::Write;
     let path = dir.join(name);
@@ -91,7 +92,7 @@ pub fn workbook(
     let listed: String = sheets
         .iter()
         .enumerate()
-        .map(|(at, (sheet, _))| {
+        .map(|(at, sheet)| {
             format!(
                 r#"<sheet name="{sheet}" sheetId="{}" r:id="rId{}"/>"#,
                 at + 1,
@@ -114,31 +115,11 @@ pub fn workbook(
             r#"<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rels}</Relationships>"#
         ),
     );
-    for (at, (_, rows)) in sheets.iter().enumerate() {
-        let body: String = rows
-            .iter()
-            .enumerate()
-            .map(|(r, row)| {
-                let cells: String = row
-                    .iter()
-                    .enumerate()
-                    .map(|(c, text)| {
-                        let at = format!("{}{}", (b'A' + c as u8) as char, r + 1);
-                        match text.parse::<f64>() {
-                            Ok(_) => format!(r#"<c r="{at}"><v>{text}</v></c>"#),
-                            Err(_) => {
-                                format!(r#"<c r="{at}" t="inlineStr"><is><t>{text}</t></is></c>"#)
-                            }
-                        }
-                    })
-                    .collect();
-                format!(r#"<row r="{}">{cells}</row>"#, r + 1)
-            })
-            .collect();
+    for (at, data) in sheet_data.iter().enumerate() {
         put(
             &format!("xl/worksheets/sheet{}.xml", at + 1),
             format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{body}</sheetData></worksheet>"#
+                r#"<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{data}</sheetData></worksheet>"#
             ),
         );
     }
@@ -158,6 +139,43 @@ pub fn workbook(
         &anyview_core::ZipEntries::new(["[Content_Types].xml", "xl/workbook.xml"], None),
     );
     (Source::new(FilePath::new(&path).unwrap(), stamp), sniffed)
+}
+
+/// A workbook of `sheets` (a name and its rows of text cells; a cell that parses as a number is
+/// stored as one) written into `dir` as `name`, and the viewer's view of it.
+pub fn workbook(
+    dir: &std::path::Path,
+    name: &str,
+    sheets: &[(&str, &[&[&str]])],
+) -> (Source, Sniffed) {
+    let names: Vec<&str> = sheets.iter().map(|(sheet, _)| *sheet).collect();
+    let data: Vec<String> = sheets
+        .iter()
+        .map(|(_, rows)| {
+            rows.iter()
+                .enumerate()
+                .map(|(r, row)| {
+                    let cells: String = row
+                        .iter()
+                        .enumerate()
+                        .map(|(c, text)| {
+                            let at = format!("{}{}", (b'A' + c as u8) as char, r + 1);
+                            match text.parse::<f64>() {
+                                Ok(_) => format!(r#"<c r="{at}"><v>{text}</v></c>"#),
+                                Err(_) => {
+                                    format!(
+                                        r#"<c r="{at}" t="inlineStr"><is><t>{text}</t></is></c>"#
+                                    )
+                                }
+                            }
+                        })
+                        .collect();
+                    format!(r#"<row r="{}">{cells}</row>"#, r + 1)
+                })
+                .collect()
+        })
+        .collect();
+    workbook_of_xml(dir, name, &names, &data)
 }
 
 /// A file of `bytes` in `dir`, as the viewer would be handed it.
