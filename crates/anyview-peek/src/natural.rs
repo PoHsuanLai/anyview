@@ -37,7 +37,19 @@ pub fn natural_size(path: &FilePath) -> Option<PixelSize> {
             };
             video_size(&Source::new(path.clone(), stamp), &sniffed)
         }
-        _ => None,
+        FormatKind::Pdf
+        | FormatKind::Audio
+        | FormatKind::Markdown
+        | FormatKind::Code
+        | FormatKind::PlainText
+        | FormatKind::Table
+        | FormatKind::Tree
+        | FormatKind::Font
+        | FormatKind::Archive
+        | FormatKind::Book
+        | FormatKind::Office
+        | FormatKind::Folder
+        | FormatKind::Other => None,
     }))
     .ok()
     .flatten()
