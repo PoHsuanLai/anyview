@@ -237,6 +237,17 @@ fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> S
     match input {
         SheetIn::Confirm => closing(SheetOut::Edit(request)),
         SheetIn::Cancel => cancelled(),
-        _ => (Sheet::ConfirmEdit { request, caution }, vec![]),
+        SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_)
+        | SheetIn::AskTrash
+        | SheetIn::AskEdit(..)
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::ConfirmEdit { request, caution }, vec![]),
     }
 }
