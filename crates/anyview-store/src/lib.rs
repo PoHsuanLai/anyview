@@ -7,23 +7,36 @@
 //!
 //! Every public item is reached from this root, once.
 
+mod attrs;
 mod error;
+mod guard;
 mod history;
 mod io;
 mod label;
+mod original;
+mod place;
+mod prune;
 mod reader;
 mod record;
+mod rekey;
 mod save;
+mod sweep;
 mod versions;
 mod viewed;
 mod writer;
 
+pub use attrs::is_read_only;
+
 pub use error::{StoreError, StoreOp};
 pub use history::{History, HistoryCap, HistoryEntry, history_after_view};
 pub use label::{ResumeLabel, resume_label};
+pub use place::{
+    copy_new, free_beside, is_free, is_taken, link_new, partial_beside, rename_noreplace,
+};
 pub use reader::{HistoryRead, read_history};
-pub use save::{BackedUp, Pending, Written};
-pub use versions::{DEFAULT_KEEP, KeepPeriod, SavedAt, Version, VersionId, Versions};
+pub use save::{BackedUp, Durability, Pending, Written};
+pub use sweep::sweep_leftovers;
+pub use versions::{DEFAULT_CAP, DEFAULT_KEEP, KeepPeriod, SavedAt, Version, VersionId, Versions};
 pub use viewed::Viewed;
 pub use writer::{StoreWriter, ViewRecorded};
 

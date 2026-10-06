@@ -55,4 +55,4 @@
 .viewer-failed{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; overflow:auto; }
 .viewer-failed-actions{ display:flex; gap:var(--s-8); }
 .viewer-peek-listing{ align-self:stretch; margin:0; padding:var(--s-8) var(--s-12); list-style:none; max-height:240px; overflow-y:auto; font-family:var(--font-code); font-size:var(--fs-mono); border:var(--hair) solid var(--line); border-radius:var(--r-small); }
-.viewer-peek-listing li{ white-space:pre; overflow:hidden; text-overflow:ellipsis; }
+.viewer-peek-listing li{ white-space:pre; overflow:hidden; }

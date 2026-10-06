@@ -300,7 +300,7 @@ async fn save_a_copy_writes_beside_the_source_and_leaves_it_untouched() {
     };
     assert_eq!(
         desktop.carry_out(task.clone()).await.unwrap(),
-        Outcome::Done
+        Outcome::Wrote(path(dir.path().join("b.png").to_str().unwrap()))
     );
     assert_eq!(std::fs::read(dir.path().join("b.png")).unwrap(), QUADRANTS);
     assert_eq!(bytes_of(&file), QUADRANTS, "the source is as it was");

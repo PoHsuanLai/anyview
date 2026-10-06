@@ -227,7 +227,12 @@ fn a_notice_with_no_file_offers_no_button() {
 fn a_file_the_host_renamed_is_shown_under_its_new_name() {
     let dir = tempfile::tempdir().unwrap();
     let old = text_file(dir.path(), "before.txt", "line", 3);
-    let (mut harness, _, edge) = wired(&[old.clone()], 0, Appearance::default(), Wiring::default());
+    let (mut harness, _, edge) = wired(
+        std::slice::from_ref(&old),
+        0,
+        Appearance::default(),
+        Wiring::default(),
+    );
     settle(&mut harness);
     assert_eq!(support::title(&harness).as_deref(), Some("before.txt"));
     let new = dir.path().join("after.txt");

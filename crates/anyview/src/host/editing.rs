@@ -91,6 +91,9 @@ pub(super) fn edit(shown: Shown, request: EditRequest) -> (Shown, Carry) {
     if !edits_for(probed.sniffed.kind()).contains(&request.edit.kind()) {
         return declined(shown, Declined::Edit);
     }
+    if anyview_store::is_read_only(probed.source.path().as_path()) {
+        return declined(shown, Declined::Locked);
+    }
     let (shown, outs) = shown.stepped(TrailIn::Save);
     if is_busy(&outs) {
         return shown.queueing(HostRequest::Edit(request));
@@ -106,6 +109,9 @@ pub(super) fn rewind(shown: Shown, rewind: Rewind) -> (Shown, Carry) {
     let Some(file) = shown.file().map(|probed| probed.source.path().clone()) else {
         return declined(shown, Declined::NoFileShown);
     };
+    if anyview_store::is_read_only(file.as_path()) {
+        return declined(shown, Declined::Locked);
+    }
     let input = match rewind {
         Rewind::Undo => TrailIn::Undo,
         Rewind::Redo => TrailIn::Redo,
@@ -122,6 +128,9 @@ pub(super) fn revert(shown: Shown, key: VersionKey) -> (Shown, Carry) {
     let Some(file) = shown.file().map(|probed| probed.source.path().clone()) else {
         return declined(shown, Declined::NoFileShown);
     };
+    if anyview_store::is_read_only(file.as_path()) {
+        return declined(shown, Declined::Locked);
+    }
     let (shown, outs) = shown.stepped(TrailIn::Save);
     if is_busy(&outs) {
         return shown.queueing(HostRequest::RevertTo(key));

@@ -85,6 +85,8 @@ fn command_k_lists_every_viewer_action_of_the_file() {
     let shared: Vec<FileAction> = actions_for(anyview_core::FormatKind::PlainText)
         .iter()
         .copied()
+        // Copy File waits for a clipboard that holds a file, so the palette does not list it.
+        .filter(|action| *action != FileAction::CopyFile)
         .filter(|action| match reach(*action) {
             Reach::Viewer | Reach::Both => true,
             Reach::Launcher => false,

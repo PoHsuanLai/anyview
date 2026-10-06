@@ -181,6 +181,9 @@ pub fn notice_of(doing: Doing, subject: Option<&FilePath>, outcome: &Outcome) ->
 pub fn notice_of_declined(why: Declined) -> Option<Notice> {
     match why {
         Declined::NotAFileName => Some(Notice::say("That is not a valid file name")),
+        Declined::Locked => Some(Notice::say(
+            "This file is locked. Make it writable to change it.",
+        )),
         Declined::NothingToUndo => Some(Notice::say("Nothing to undo")),
         Declined::NothingToRedo => Some(Notice::say("Nothing to redo")),
         Declined::NoFileShown

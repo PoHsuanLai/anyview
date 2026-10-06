@@ -22,6 +22,8 @@ pub enum Declined {
     Edit,
     /// An earlier save is still being written; the file is not changed twice at once.
     Busy,
+    /// The file is read-only: it is not changed, and the person is told it is locked.
+    Locked,
     /// The request waits for the save being written, and is asked again when it ends.
     Queued,
     /// Nothing was edited in this window, so there is nothing to take back.
