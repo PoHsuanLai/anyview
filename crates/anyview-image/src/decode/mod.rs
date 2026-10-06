@@ -3,8 +3,10 @@
 //!
 //! Everything here is blocking and runs on the caller's worker. Nothing reads a clock or spawns.
 
+mod ceiling;
 mod codec;
 mod colour;
+mod frame_count;
 mod highrange;
 mod jxl;
 mod layered;
@@ -13,6 +15,7 @@ mod plays;
 mod raw;
 mod stills;
 mod svg;
+mod svg_limits;
 
 pub use colour::{ColourInfo, ColourModel};
 pub(crate) use look::{Looked, look};
@@ -23,11 +26,12 @@ pub(crate) use svg::Svg;
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use anyview_core::{MediaTime, NonEmpty, PixelArea, PixelSize, QuarterTurn, Sniffed, Source};
+use ceiling::Ceiling;
 use codec::{Codec, codec_for};
 use stills::Collected;
 
-/// The most pixels a file may declare before it is refused instead of decoded: 16384 by 16384, a
-/// gibibyte of RGBA. A header that claims more is a decompression bomb or not a photograph.
+/// The most pixels an SVG is drawn at: 16384 by 16384, a gibibyte of RGBA. Raster files are held
+/// to [`Ceiling`] instead, which counts what their decode costs at its peak.
 pub(crate) const MAX_DECODE_AREA: PixelArea = PixelArea(268_435_456);
 
 /// The most memory the frames of one animation may take together: 256 MiB of RGBA8, which the
@@ -95,24 +99,30 @@ pub fn decode(src: &Source, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
 /// pixels as given and never needs the EXIF tag. SVG is drawn at its own size, enlarged or reduced
 /// into the 1024 to 4096 pixel range of its long edge.
 pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageError> {
+    let ceiling = Ceiling::VIEW;
     match codec_for(sniffed)? {
-        Codec::Image(format) => match stills::animation(bytes, format)? {
-            Some(frames) => match stills::collect(frames, MAX_ANIMATION_BYTES)? {
-                Collected::All(frames) => animated(frames, plays_of(bytes, format)),
-                Collected::TooMany { first, count } => Ok(Decoded::HeldStill {
-                    picture: first.pixels,
-                    frames: FrameCount(count),
-                }),
-            },
-            None => stills::still(bytes, format).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::Image(format) => match stills::animation(bytes, format, ceiling)? {
+            Some(frames) => {
+                match stills::collect(frames, MAX_ANIMATION_BYTES, frame_count::of(bytes, format))?
+                {
+                    Collected::All(frames) => animated(frames, plays_of(bytes, format)),
+                    Collected::TooMany { first, count } => Ok(Decoded::HeldStill {
+                        picture: first.pixels,
+                        frames: FrameCount(count),
+                    }),
+                }
+            }
+            None => {
+                stills::still(bytes, format, ceiling).map(|(picture, _)| Decoded::Still(picture))
+            }
         },
         Codec::HighRange(format) => {
-            highrange::decode(bytes, format).map(|(picture, _)| Decoded::Still(picture))
+            highrange::decode(bytes, format, ceiling).map(|(picture, _)| Decoded::Still(picture))
         }
-        Codec::Psd => layered::psd(bytes).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::Psd => layered::psd(bytes, ceiling).map(|(picture, _)| Decoded::Still(picture)),
         Codec::Icns => layered::icns(bytes).map(|(picture, _)| Decoded::Still(picture)),
-        Codec::Jxl => jxl::decode(bytes).map(|(picture, _)| Decoded::Still(picture)),
-        Codec::RawPreview => raw::decode(bytes).map(Decoded::Still),
+        Codec::Jxl => jxl::decode(bytes, ceiling).map(|(picture, _)| Decoded::Still(picture)),
+        Codec::RawPreview => raw::decode(bytes, ceiling).map(Decoded::Still),
         Codec::Svg => {
             let document = svg::Svg::parse(bytes)?;
             let size = svg::view_size(document.intrinsic());
@@ -134,12 +144,13 @@ pub(crate) fn declared_size_of(
     bytes: &[u8],
     sniffed: &Sniffed,
 ) -> Result<Option<PixelSize>, ImageError> {
-    let size = match codec_for(sniffed)? {
-        Codec::Image(format) | Codec::HighRange(format) => stills::declared_size(bytes, format)?,
-        Codec::Psd => layered::psd_size(bytes)?,
+    let (size, per_pixel) = match codec_for(sniffed)? {
+        Codec::Image(format) => stills::header(bytes, format)?.cost(stills::STILL_COPIES),
+        Codec::HighRange(format) => stills::header(bytes, format)?.cost(highrange::COPIES),
+        Codec::Psd => layered::psd_cost(bytes)?,
         Codec::Icns | Codec::Jxl | Codec::Svg | Codec::RawPreview => return Ok(None),
     };
-    if size.area() > MAX_DECODE_AREA {
+    if !Ceiling::VIEW.allows(size, per_pixel) {
         return Ok(None);
     }
     let turn = crate::exif::ExifFacts::read(bytes).orientation.turn;
