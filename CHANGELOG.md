@@ -3,6 +3,21 @@
 All notable changes to anyview. The format follows Keep a Changelog; versions follow semantic
 versioning, with pre-releases while the program is in beta.
 
+## Unreleased
+
+### Added
+
+- Audio plays without mpv. MP3, AAC (ADTS and M4A), ALAC, FLAC, WAV, AIFF and Ogg Vorbis are decoded in the
+  viewer (pure Rust) and played through the sound card, with play and pause, seeking, volume, the resume
+  position, the desktop's now-playing entry and media keys, and background playback. With the `mpv` plugin
+  installed mpv still plays everything. Video and Opus audio still need mpv, and a machine with no sound
+  output says so instead of playing.
+
+### Changed
+
+- The package budget of the viewer is 664 (the sound card library adds four packages; the launcher is
+  unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
+
 ## 0.1.0-beta.1 (2026-10-06)
 
 The first beta.
@@ -28,7 +43,7 @@ The first beta.
 - Follows the desktop's light and dark appearance, accent colour and reduced motion live.
 - Opens files given as paths or `file://` URIs, forwards later opens to the running window through D-Bus,
   and stays warm for ten minutes after the last window closes.
-- No codec is linked: playback, conversion, HEIC and raw development run your own tools as separate programs.
+- No codec library is linked: playback of video, conversion, HEIC and raw development run your own tools as separate programs.
 
 ### Release basics
 
