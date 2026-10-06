@@ -16,6 +16,7 @@ pub use sink::FrameSink;
 use crate::command::{MediaCommand, Pace, PictureSlot};
 use crate::error::MediaError;
 use crate::event::{EndReason, MediaEvent};
+use crate::playing::{Continuation, Handled, MediaDriver};
 use crate::session::{AudioDriver, Frame, Idle, MpvHost, Report, Session};
 use anyview_core::{FilePath, MediaTime};
 use held::{Held, Moved};
@@ -26,24 +27,6 @@ const POSITION_STEP: u64 = 100_000;
 /// How near the end a paused player counts as having ended: mpv holds a finished file open
 /// paused, a frame or so before its length.
 const END_SLACK: u64 = 250_000;
-
-/// Whether the driver goes on after an instruction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Continuation {
-    /// Wait for the next instruction or wake.
-    Keep,
-    /// End the session: the actor's thread quits.
-    Close,
-}
-
-/// What an instruction caused.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Handled {
-    /// Events, in order.
-    pub events: Vec<MediaEvent>,
-    /// Whether the session goes on.
-    pub then: Continuation,
-}
 
 /// Whether a seek has been asked for and the player has not yet said it landed. The position
 /// the player reports in between is where it was, not where it is going, so none is reported.
@@ -135,31 +118,6 @@ impl Driver {
             ending: Ending::Unreported,
             length: Told::Not,
         })
-    }
-
-    /// Carry out one instruction.
-    pub fn command(&mut self, command: MediaCommand) -> Handled {
-        let mut events = Vec::new();
-        let then = self.apply(command, &mut events);
-        Handled { events, then }
-    }
-
-    /// The player asked for attention: drain it and say what changed.
-    pub fn woken(&mut self) -> Vec<MediaEvent> {
-        let Some(held) = self.held.take() else {
-            return Vec::new();
-        };
-        let (held, report, moved) = held.poll();
-        self.held = Some(held);
-        let mut events = Vec::new();
-        self.present(report.frame);
-        self.absorb(report, &mut events);
-        if moved == Moved::ToLoaded {
-            self.loaded(&mut events);
-        }
-        self.watch_length(&mut events);
-        self.watch_position(&mut events);
-        events
     }
 
     fn apply(&mut self, command: MediaCommand, events: &mut Vec<MediaEvent>) -> Continuation {
@@ -365,5 +323,30 @@ impl Driver {
             self.reported = Some(now);
             events.push(MediaEvent::Position(now));
         }
+    }
+}
+
+impl MediaDriver for Driver {
+    fn command(&mut self, command: MediaCommand) -> Handled {
+        let mut events = Vec::new();
+        let then = self.apply(command, &mut events);
+        Handled { events, then }
+    }
+
+    fn woken(&mut self) -> Vec<MediaEvent> {
+        let Some(held) = self.held.take() else {
+            return Vec::new();
+        };
+        let (held, report, moved) = held.poll();
+        self.held = Some(held);
+        let mut events = Vec::new();
+        self.present(report.frame);
+        self.absorb(report, &mut events);
+        if moved == Moved::ToLoaded {
+            self.loaded(&mut events);
+        }
+        self.watch_length(&mut events);
+        self.watch_position(&mut events);
+        events
     }
 }

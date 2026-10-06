@@ -4,8 +4,8 @@
 
 use anyview_core::{FilePath, MediaTrack};
 use anyview_media::{
-    AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaEvent, MpvHost, Queue, TextureView,
-    headless_device,
+    AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaDriver, MediaEvent, MpvHost, Queue,
+    TextureView, headless_device,
 };
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};

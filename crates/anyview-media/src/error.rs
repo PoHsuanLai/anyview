@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-/// Why the player, an export could not do what was asked.
+/// Why the player or an export could not do what was asked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum MediaError {
     /// mpv refused a call, or the player could not be made.
@@ -26,6 +26,18 @@ pub enum MediaError {
     /// No graphics adapter opened, so the player has nothing to draw on.
     #[error("no graphics adapter for the player")]
     NoDevice,
+    /// The built-in player cannot decode the recording: a damaged stream, or one it cannot read.
+    #[error("cannot decode the recording: {0}")]
+    Decode(String),
+    /// The recording is in a codec the built-in player does not have (Opus, a video's picture).
+    #[error("the built-in player has no decoder for {0}")]
+    NoDecoder(String),
+    /// The machine has no sound output to play on.
+    #[error("no sound output")]
+    NoSoundOutput,
+    /// The sound output refused the stream, or failed while it played.
+    #[error("the sound output failed: {0}")]
+    SoundOutput(String),
     /// The file named could not be opened or written.
     #[error("cannot {op} {path}: {kind}")]
     Io {
