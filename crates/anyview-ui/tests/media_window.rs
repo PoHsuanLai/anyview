@@ -428,7 +428,7 @@ fn a_player_that_cannot_start_is_an_open_that_failed() {
         },
     );
     let text = harness.text_of(".viewer").unwrap_or_default();
-    assert!(text.contains("This file did not open"), "{text}");
+    assert!(text.contains("can\u{2019}t be shown here"), "{text}");
     assert!(player.alive().is_empty());
 }
 

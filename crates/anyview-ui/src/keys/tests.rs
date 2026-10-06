@@ -29,6 +29,14 @@ const IMAGE: Stage = Stage::Raster(RasterStage::Fitted {
     turn: anyview_core::QuarterTurn::None,
     anim: crate::stage::Animation::Still,
 });
+const ANIMATION: Stage = Stage::Raster(RasterStage::Fitted {
+    turn: anyview_core::QuarterTurn::None,
+    anim: crate::stage::Animation::Paused {
+        frame: crate::stage::FrameIndex(0),
+        of: crate::stage::FrameCount(std::num::NonZeroU32::MIN),
+        run: 0,
+    },
+});
 const CENTRE: DocPoint = DocPoint {
     x: DocUnit(0),
     y: DocUnit(0),
@@ -308,12 +316,21 @@ const CASES: &[Case] = &[
         Route::Stage(StageIn::Text(TextIn::Find(TypedText::EMPTY))),
     ),
     (
-        "space on an image is for its animation",
+        "space on a still image has nothing to play",
         &[Space],
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
         IMAGE,
+        Route::Ignored,
+    ),
+    (
+        "space on an animation plays it",
+        &[Space],
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        ANIMATION,
         Route::Stage(StageIn::Raster(RasterIn::TogglePlayback)),
     ),
     (

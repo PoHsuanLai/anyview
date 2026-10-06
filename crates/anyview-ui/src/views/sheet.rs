@@ -13,6 +13,16 @@ use ds::prelude::{
 };
 use ds_core::word::Word;
 
+/// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
+/// alone. A button that answers Escape leaves Return to this.
+fn confirms(event: &KeyboardEvent, onconfirm: EventHandler<()>) {
+    if event.key() == Key::Enter && !event.is_auto_repeating() {
+        event.stop_propagation();
+        event.prevent_default();
+        onconfirm.call(());
+    }
+}
+
 /// "Move to Trash?": Esc cancels, the destructive button is never the default.
 #[component]
 pub(super) fn TrashSheet(
@@ -79,7 +89,7 @@ pub(super) fn NameSheet(
 ) -> Element {
     rsx! {
         Sheet { label, onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet",
+            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
                 TextField {
                     label: "Name",
                     value: name.as_str().to_owned(),
@@ -87,7 +97,7 @@ pub(super) fn NameSheet(
                     oninput: move |text: String| ontyped.call(TypedText::new(text)),
                 }
                 div { class: "viewer-sheet-buttons",
-                    Button { label: "Cancel", onclick: move |_| oncancel.call(()) }
+                    Button { label: "Cancel", answers: Answers::Escape, onclick: move |_| oncancel.call(()) }
                     Button { label: confirm, answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
                 }
             }
@@ -111,7 +121,7 @@ pub(super) fn RevertSheet(
         .collect();
     rsx! {
         Sheet { label: "Revert To", onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet",
+            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
                 RadioGroup::<VersionKey> {
                     label: "Version",
                     choices,
@@ -122,7 +132,7 @@ pub(super) fn RevertSheet(
                     "The file as it is now is kept too, so going back can be undone."
                 }
                 div { class: "viewer-sheet-buttons",
-                    Button { label: "Cancel", onclick: move |_| oncancel.call(()) }
+                    Button { label: "Cancel", answers: Answers::Escape, onclick: move |_| oncancel.call(()) }
                     Button { label: "Revert", answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
                 }
             }
@@ -135,7 +145,7 @@ pub(super) fn RevertSheet(
 pub(super) fn NoVersionsSheet(onclose: EventHandler<()>) -> Element {
     rsx! {
         Sheet { label: "Revert To", onclose: move |()| onclose.call(()),
-            div { class: "viewer-sheet",
+            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
                 p { class: "viewer-sheet-note", "This file has no earlier version." }
                 div { class: "viewer-sheet-buttons",
                     Button { label: "OK", answers: Answers::Return, onclick: move |_| onclose.call(()) }
@@ -162,7 +172,7 @@ pub(super) fn ExportSheet(
         .collect();
     rsx! {
         Sheet { label: "Export", onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet",
+            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
                 SegmentedControl::<ExportKindPick> {
                     label: "Format",
                     choices,
@@ -175,7 +185,7 @@ pub(super) fn ExportSheet(
                     }
                 }
                 div { class: "viewer-sheet-buttons",
-                    Button { label: "Cancel", onclick: move |_| oncancel.call(()) }
+                    Button { label: "Cancel", answers: Answers::Escape, onclick: move |_| oncancel.call(()) }
                     Button { label: "Export", answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
                 }
             }
@@ -188,7 +198,7 @@ pub(super) fn ExportSheet(
 pub(super) fn UnavailableSheet(needs: Fact, onclose: EventHandler<()>) -> Element {
     rsx! {
         Sheet { label: "Export", onclose: move |()| onclose.call(()),
-            div { class: "viewer-sheet",
+            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
                 p { class: "viewer-sheet-note", "There is nothing to export yet." }
                 p { class: "viewer-sheet-note",
                     "{needs.label.label()}: {needs.value.as_str()}"

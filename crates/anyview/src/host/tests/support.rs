@@ -8,8 +8,10 @@ use anyview_core::{
     ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, sniff,
 };
 use anyview_media::AudioDriver;
-use anyview_platform::testing::{FakeApps, FakeMediaSession, FakePrinter, FakeReveal, FakeShare};
-use anyview_platform::{AppEntry, Association, DesktopId, PrintOutcome};
+use anyview_platform::testing::{
+    FakeApps, FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
+};
+use anyview_platform::{AppEntry, Association, DesktopId, PickOutcome, PrintOutcome};
 use anyview_store::Viewed;
 use anyview_ui::{Probed, StageFamily, family_of};
 use std::path::Path;
@@ -75,11 +77,14 @@ pub struct Fakes {
     pub share: FakeShare,
     pub printer: FakePrinter,
     pub trash: FakeTrash,
+    pub picker: FakePicker,
+    pub links: FakeLinks,
     /// The pool the exports run on, kept alive for the desktop's life.
     pub pool: Pool,
 }
 
-pub type TestDesktop = Desktop<FakeApps, FakeReveal, FakeShare, FakePrinter, FakeTrash>;
+pub type TestDesktop =
+    Desktop<FakeApps, FakeReveal, FakeShare, FakePrinter, FakeTrash, FakePicker, FakeLinks>;
 
 pub fn entry(id: &str) -> AppEntry {
     AppEntry {
@@ -91,12 +96,23 @@ pub fn entry(id: &str) -> AppEntry {
 
 /// A desktop over fakes on the current runtime, its store under `scratch`.
 pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
+    desktop_with(scratch, apps, PickOutcome::Cancelled)
+}
+
+/// The same, whose file dialog ends every request in `pick`.
+pub fn desktop_choosing(scratch: &Path, pick: PickOutcome) -> (TestDesktop, Fakes) {
+    desktop_with(scratch, vec![], pick)
+}
+
+fn desktop_with(scratch: &Path, apps: Vec<AppEntry>, pick: PickOutcome) -> (TestDesktop, Fakes) {
     let fakes = Fakes {
         apps: FakeApps::offering(apps),
         reveal: FakeReveal::default(),
         share: FakeShare::default(),
         printer: FakePrinter::answering(PrintOutcome::Printed),
         trash: FakeTrash::default(),
+        picker: FakePicker::answering(pick),
+        links: FakeLinks::default(),
         pool: Pool::new(PoolSize::exactly(std::num::NonZeroUsize::MIN)).unwrap(),
     };
     let now: Clock = Arc::new(|| NOW);
@@ -119,6 +135,8 @@ pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
         fakes.share.clone(),
         fakes.printer.clone(),
         fakes.trash.clone(),
+        fakes.picker.clone(),
+        fakes.links.clone(),
         Services {
             versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&scratch.join("store"), now),

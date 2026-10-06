@@ -7,6 +7,7 @@ mod error;
 mod folder;
 mod job;
 mod media;
+mod notice;
 mod probe;
 mod seams;
 mod workers;
@@ -20,6 +21,10 @@ pub use media::{
     MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake,
     SlotPixels,
 };
+pub use notice::Notice;
 pub(crate) use probe::probe;
-pub use seams::{FirstFrameSource, ImagePlugins, PluginPicture, ResumeSource, VersionSource};
+pub use seams::{
+    FileCard, FileCards, FirstFrameSource, ImagePlugins, PluginPicture, Readable, ResumeSource,
+    VersionSource,
+};
 pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, Workers};

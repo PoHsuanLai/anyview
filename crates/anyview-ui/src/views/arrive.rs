@@ -4,13 +4,14 @@
 use super::carry::Carry;
 use super::session::Probe;
 use crate::families::{FoundHits, Held};
-use crate::io::{Done, Job};
+use crate::io::{Done, HostRequest, Job, Notice};
 use crate::{
     Freshness, LoadIn, NavigateIn, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
     VersionList, ViewerIn, freshness,
 };
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
+use ds::stack::toast_hub::ToastAction;
 use std::sync::Arc;
 
 /// Feed the result `done` to the window's machines.
@@ -56,11 +57,30 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 );
             }
         }
+        Done::Notice(notice) => noticed(c, notice),
+        Done::Chosen { files } => send(c, ViewerIn::Dropped(files)),
+        Done::Moved { to } => send(c, ViewerIn::Reload(to)),
         Done::Changed { path } => {
             if shown_path(c).as_ref() == Some(&path) {
                 c.edge.submit(Job::Stat { path });
             }
         }
+    }
+}
+
+/// The host says how a task ended: a toast, with "Show in Folder" when it names a file.
+fn noticed(c: &Carry, notice: Notice) {
+    let Notice { text, reveal } = notice;
+    match reveal {
+        Some(file) => {
+            let edge = c.edge.clone();
+            c.toasts.push_action(
+                text,
+                ToastAction::new("Show in Folder"),
+                EventHandler::new(move |()| edge.request(HostRequest::Reveal(file.clone()))),
+            );
+        }
+        None => c.toasts.push(text, None),
     }
 }
 

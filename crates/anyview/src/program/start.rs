@@ -1,6 +1,6 @@
 //! Assembling the program and running its event loop.
 
-use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
+use super::relay::{Arrival, WelcomeWhen, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
@@ -33,6 +33,10 @@ use tokio::runtime::{Builder, Runtime};
 /// default), so the next open finds the device, the fonts and the instance warm. A constant until
 /// quire's settings have the key (FINDINGS).
 pub const WARM_FOR: Duration = Duration::from_secs(10 * 60);
+
+/// How long a launch with no file waits for the request the bus may be about to deliver before it
+/// shows the welcome window.
+const WELCOME_AFTER: Duration = Duration::from_millis(400);
 
 /// The desktop application id the windows carry.
 const APP_ID: &str = "org.quire.Anyview";
@@ -75,10 +79,6 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     };
     let role = runtime.block_on(claim_role(&DbusInstance::new(env.clone()), &request));
     let (arrivals, inbox) = unbounded();
-    // A process the bus started has no file of its own: the call that started it arrives once
-    // the name is owned. Without the bus nothing else will ever ask, so a launch with no file is
-    // a usage error.
-    let may_wait = matches!(role, Role::Primary(_));
     match role {
         Role::Forwarded => return ExitCode::SUCCESS,
         Role::Primary(primary) => {
@@ -89,12 +89,18 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
         }
     }
     let first = wants_of(request);
-    if first.is_empty() && !may_wait {
-        eprintln!("{USAGE}");
-        return ExitCode::from(2);
-    }
     let own = arrivals.clone();
-    runtime.spawn(async move { open_each(first, &own).await });
+    if first.is_empty() {
+        // A launch with no file shows a window to choose one in. A process the bus started has no
+        // file of its own either, and the call that started it arrives just after the name is
+        // owned: the welcome window waits a moment for it.
+        runtime.spawn(async move {
+            tokio::time::sleep(WELCOME_AFTER).await;
+            let _gone = own.unbounded_send(Arrival::Welcome(WelcomeWhen::IfNoWindow));
+        });
+    } else {
+        runtime.spawn(async move { open_each(first, &own).await });
+    }
     // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
     drop(arrivals);
     show(runtime, env, inbox)

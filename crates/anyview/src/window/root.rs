@@ -4,16 +4,18 @@
 
 use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
+use super::welcome::open_each;
 use crate::host::{
-    Carry, HandedResume, Outcome, Shown, WindowTask, WindowWatch, report, report_declined, route,
+    Carry, Doing, HandedResume, Outcome, PeekCards, Shown, WindowTask, WindowWatch, route,
+    subject_of, tell, tell_declined, tell_problem,
 };
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
-use anyview_ui::{Edge, HostRequest, Launch, Presentation, ResumeSource, ViewerApp};
+use anyview_ui::{Edge, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSize, WindowSpec, clipboard};
-use futures_channel::mpsc::{UnboundedReceiver, unbounded};
+use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -68,11 +70,14 @@ struct Wiring {
     edge: Edge,
     launch: Launch,
     requests: Rc<RefCell<Option<UnboundedReceiver<HostRequest>>>>,
+    /// The way back into the request queue: what waited for a save is asked again through it.
+    again: UnboundedSender<HostRequest>,
 }
 
 impl Wiring {
     fn new(seed: &Seed) -> Wiring {
         let (send, receive) = unbounded();
+        let again = send.clone();
         let edge = Edge::new(Arc::clone(&seed.factory.workers), move |request| {
             // A window that closed has no receiver, and nobody is left to ask.
             let _gone = send.unbounded_send(request);
@@ -81,7 +86,8 @@ impl Wiring {
         .with_version_source(Arc::clone(&seed.factory.versions))
         .with_first_frames(Arc::clone(&seed.factory.first_frames))
         .with_media(Arc::clone(&seed.factory.media))
-        .with_image_plugins(Arc::clone(&seed.factory.image_plugins));
+        .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
+        .with_cards(Arc::new(PeekCards));
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
@@ -92,6 +98,7 @@ impl Wiring {
             edge,
             launch,
             requests: Rc::new(RefCell::new(Some(receive))),
+            again,
         }
     }
 }
@@ -133,7 +140,7 @@ fn Window(seed: Seed) -> Element {
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
         let watching = Rc::clone(&watching);
         let (seed, app) = (seed.clone(), app.clone());
-        let edge = wiring.edge.clone();
+        let (edge, again) = (wiring.edge.clone(), wiring.again.clone());
         async move {
             let Some(mut requests) = taken else { return };
             while let Some(request) = requests.next().await {
@@ -146,13 +153,22 @@ fn Window(seed: Seed) -> Element {
                         }
                     }
                     Carry::Window(WindowTask::CopyText(text)) => {
-                        if let Err(error) = clipboard::write_text(&text) {
-                            eprintln!("anyview: cannot copy: {error}");
+                        match clipboard::write_text(&text) {
+                            Ok(()) => edge.notify(Notice::say("Path copied")),
+                            Err(error) => tell_problem(
+                                &edge,
+                                &format!("cannot copy: {error}"),
+                                Some(Notice::say("Couldn\u{2019}t copy to the clipboard")),
+                            ),
                         }
+                    }
+                    Carry::Window(WindowTask::OpenFiles(files)) => {
+                        // Only the welcome window asks; a viewer window opens them all the same.
+                        open_each(&seed.factory, app.as_ref(), files);
                     }
                     Carry::Window(WindowTask::Watch(file)) => {
                         if let Some(watching) = watching.as_ref() {
-                            follow(watching, &file);
+                            follow(watching, &file, &edge);
                         }
                     }
                     Carry::Window(WindowTask::Unwatch) => {
@@ -161,20 +177,35 @@ fn Window(seed: Seed) -> Element {
                         }
                     }
                     Carry::Window(WindowTask::Reopen(presentation)) => {
-                        reopen(&seed, shown.borrow().file(), app.as_ref(), presentation);
+                        reopen(
+                            &seed,
+                            shown.borrow().file(),
+                            app.as_ref(),
+                            presentation,
+                            &edge,
+                        );
                         if let Some(window) = &window {
                             window.host().close();
                         }
                     }
                     Carry::Desktop(task) => {
+                        let (doing, subject) = (Doing::of(&task), subject_of(&task));
                         let (done, shown) = (hosting.carry_out(task), Rc::clone(&shown));
                         let (watching, window) = (Rc::clone(&watching), window.clone());
-                        let edge = edge.clone();
+                        let (edge, again) = (edge.clone(), again.clone());
                         spawn(async move {
-                            ended(done.await, &shown, &watching, window.as_ref(), &edge);
+                            let note = TaskNote { doing, subject };
+                            ended(
+                                done.await,
+                                &shown,
+                                &watching,
+                                window.as_ref(),
+                                (&edge, &again),
+                                &note,
+                            );
                         });
                     }
-                    Carry::Declined(why) => report_declined(why),
+                    Carry::Declined(why) => tell_declined(&edge, why),
                 }
             }
         }
@@ -211,6 +242,7 @@ fn reopen(
     shown: Option<&anyview_ui::Probed>,
     app: Option<&AppHandle>,
     presentation: Presentation,
+    edge: &Edge,
 ) {
     let (Some(probed), Some(app)) = (shown, app) else {
         return;
@@ -223,32 +255,55 @@ fn reopen(
     if let Some(StackingOutcome::Unsupported) =
         stacking_for(presentation, seed.factory.stacking.as_ref())
     {
-        eprintln!("anyview: the desktop does not let a window keep itself above the others");
+        tell_problem(
+            edge,
+            "the desktop does not let a window keep itself above the others",
+            None,
+        );
     }
 }
 
-/// A task ended: say so if it went wrong, and follow the file if it was moved.
+/// What a task was doing and to which file, kept to word how it ended.
+struct TaskNote {
+    doing: Option<Doing>,
+    subject: Option<FilePath>,
+}
+
+/// A task ended: say so, and follow the file if it was moved.
 fn ended(
     outcome: Result<Outcome, tokio::task::JoinError>,
     shown: &Rc<RefCell<Shown>>,
     watching: &Rc<Option<WindowWatch>>,
     window: Option<&WindowHost>,
-    edge: &Edge,
+    (edge, again): (&Edge, &UnboundedSender<HostRequest>),
+    note: &TaskNote,
 ) {
     let outcome =
         outcome.unwrap_or_else(|error| Outcome::Failed(format!("a task was lost: {error}")));
     let after = shown.take().after(&outcome);
     *shown.borrow_mut() = after;
+    // What waited for this save is asked again, now that the file is free.
+    if matches!(outcome, Outcome::Written { .. } | Outcome::NotWritten(_)) {
+        let (after, queued) = shown.take().next_queued();
+        *shown.borrow_mut() = after;
+        if let Some(request) = queued {
+            let _gone = again.unbounded_send(request);
+        }
+    }
     // The file on disk is not the one the window opened: it looks at its stamp and reloads.
     if let Outcome::Written { file, kept: _ } = &outcome {
         edge.changed(file.clone());
     }
     if let Outcome::Moved(path) = &outcome {
+        edge.moved(path.clone());
         let now = shown.take().moved_to(path.clone());
         *shown.borrow_mut() = now;
         if let Some(watching) = watching.as_ref() {
-            follow(watching, path);
+            follow(watching, path, edge);
         }
+    }
+    if let Outcome::Picked(files) = &outcome {
+        edge.chosen(files.clone());
     }
     // The file plays with no window now: this window's part is done.
     if outcome == Outcome::Handed
@@ -256,7 +311,7 @@ fn ended(
     {
         window.host().close();
     }
-    report(&outcome);
+    tell(edge, note.doing, note.subject.as_ref(), &outcome);
 }
 
 /// The window's end of the program's file watcher, when there is a watcher: a change of the file
@@ -268,8 +323,12 @@ fn watch_for(seed: &Seed, edge: &Edge) -> Option<WindowWatch> {
 }
 
 /// Watch `file` for this window, and say so if the system refuses.
-fn follow(watching: &WindowWatch, file: &FilePath) {
+fn follow(watching: &WindowWatch, file: &FilePath, edge: &Edge) {
     if let Err(error) = watching.watch(file) {
-        eprintln!("anyview: cannot watch the file for changes: {error}");
+        tell_problem(
+            edge,
+            &format!("cannot watch the file for changes: {error}"),
+            None,
+        );
     }
 }

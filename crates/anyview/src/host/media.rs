@@ -103,7 +103,7 @@ async fn transcode(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
         progress: Arc::new(|_| {}),
     };
     match media.exports.submit(tool, request).ended().await {
-        ExportEnd::Written(_) => Outcome::Done,
+        ExportEnd::Written(report) => Outcome::Wrote(report.path),
         ExportEnd::Failed(error) => Outcome::Failed(format!("cannot write the export: {error}")),
         ExportEnd::Panicked(message) => Outcome::Failed(format!("the export panicked: {message}")),
         ExportEnd::Skipped => Outcome::Nothing("the export was stopped before it began"),
@@ -182,7 +182,7 @@ async fn frame(
         return Outcome::Failed(format!("cannot save the frame: {reason}"));
     }
     match target {
-        RasterTarget::Png => Outcome::Done,
+        RasterTarget::Png => Outcome::Wrote(to),
         RasterTarget::Jpeg(_) | RasterTarget::Webp | RasterTarget::Avif(_) | RasterTarget::Tiff => {
             let outcome = tokio::task::spawn_blocking(move || recode(&shot, &to, target)).await;
             outcome.unwrap_or_else(|error| Outcome::Failed(format!("a task panicked: {error}")))
@@ -195,7 +195,7 @@ fn recode(from: &FilePath, to: &FilePath, target: RasterTarget) -> Outcome {
     let result = recoded(from, to, target);
     let _gone = std::fs::remove_file(from.as_path());
     match result {
-        Ok(()) => Outcome::Done,
+        Ok(()) => Outcome::Wrote(to.clone()),
         Err(reason) => Outcome::Failed(format!("cannot encode the frame: {reason}")),
     }
 }
@@ -241,7 +241,10 @@ mod tests {
             FilePath::new(&shot).unwrap(),
             FilePath::new(dir.path().join("out.tiff")).unwrap(),
         );
-        assert_eq!(recode(&from, &to, RasterTarget::Tiff), Outcome::Done);
+        assert_eq!(
+            recode(&from, &to, RasterTarget::Tiff),
+            Outcome::Wrote(to.clone())
+        );
         let bytes = std::fs::read(to.as_path()).unwrap();
         assert!(
             bytes.starts_with(b"II*\0") || bytes.starts_with(b"MM\0*"),

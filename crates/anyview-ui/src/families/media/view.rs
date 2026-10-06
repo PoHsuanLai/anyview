@@ -124,6 +124,8 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
         .facts
         .rows()
         .iter()
+        // The package that plays it is the line under the title; it is not listed twice.
+        .filter(|row| row.label != needs.label)
         .map(|row| {
             ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
         })
@@ -136,9 +138,15 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
                     title: doc.0.title().to_owned(),
                     description: Some(TextLine::from(format!("{}: {}", needs.label.label(), needs.value.as_str()))),
                     action: rsx! {
-                        Button {
-                            label: "Open With…",
-                            onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                        div { class: "viewer-failed-actions",
+                            Button {
+                                label: "Open With…",
+                                onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                            }
+                            Button {
+                                label: "Show in Folder",
+                                onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
+                            }
                         }
                     },
                 }

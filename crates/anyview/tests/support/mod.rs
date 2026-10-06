@@ -13,10 +13,10 @@ use anyview::window::{Factory, Opening, Seed, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
-    FakeApps, FakeMediaHandle, FakeMediaSession, FakePrinter, FakeReveal, FakeShare, FakeStacking,
-    FakeThumbnails, PluginSet, StackingSupport, plugins_with,
+    FakeApps, FakeLinks, FakeMediaHandle, FakeMediaSession, FakePicker, FakePrinter, FakeReveal,
+    FakeShare, FakeStacking, FakeThumbnails, PluginSet, StackingSupport, plugins_with,
 };
-use anyview_platform::{PluginRunner, PrintOutcome};
+use anyview_platform::{PickOutcome, PluginRunner, PrintOutcome};
 use anyview_store::Viewed;
 use anyview_ui::Look;
 use ds_harness::{Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, Viewport};
@@ -117,6 +117,8 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
+        FakePicker::answering(PickOutcome::Cancelled),
+        FakeLinks::default(),
         Services {
             versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&store, now),
@@ -344,6 +346,8 @@ pub fn desktop(
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),
         NoTrash,
+        FakePicker::answering(PickOutcome::Cancelled),
+        FakeLinks::default(),
         Services {
             versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&scratch.join("store"), now),

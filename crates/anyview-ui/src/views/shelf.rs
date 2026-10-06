@@ -42,6 +42,9 @@ pub(super) struct Shelf {
     pub media: MediaShelf,
     /// The files opened ahead.
     pub preloads: Signal<Preloads>,
+    /// The file the window last asked to open: what a failure screen is about when the probe did
+    /// not find it.
+    pub wanted: Signal<Option<FilePath>>,
     /// The file whose folder was asked for after a drop.
     pub folder: Signal<Option<FilePath>>,
     /// What the spinner shows while loading.
@@ -71,6 +74,7 @@ impl Shelf {
             pdf: use_pdf_shelf(),
             media: use_media_shelf(),
             preloads: use_signal(Preloads::default),
+            wanted: use_signal(|| None),
             folder: use_signal(|| None),
             operation: use_signal(|| Operation::Idle),
             chrome: use_signal(|| Shown::Hidden),

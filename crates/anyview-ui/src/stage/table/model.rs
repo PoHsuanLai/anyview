@@ -1,6 +1,6 @@
 //! The table stage's states, inputs and parameters.
 
-use crate::stage::row::RowNo;
+use crate::stage::row::{RowNo, RowStep};
 
 /// A sheet of the open file, zero-based. A delimited file has one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -53,6 +53,8 @@ pub enum TableIn {
     ChooseSheet(SheetNo),
     /// The cursor moved to this row.
     Select(RowNo),
+    /// Move the cursor along the rows: the arrow keys, Page Up and Down, Home and End.
+    Move(RowStep),
     /// Put the cursor away.
     Deselect,
     /// The clock; the stage keeps no timer.
@@ -75,4 +77,8 @@ pub enum TableOut {}
 pub struct TableParams {
     /// How many sheets the file has.
     pub sheets: SheetTotal,
+    /// How many rows the sheet being read has.
+    pub rows: u32,
+    /// How many rows fit the room: what a page up or down moves by.
+    pub page: u32,
 }

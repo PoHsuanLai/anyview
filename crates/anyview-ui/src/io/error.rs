@@ -53,7 +53,7 @@ impl OpenError {
             OpenError::Text(
                 anyview_text::TextError::WorkbookTooLarge { .. }
                 | anyview_text::TextError::JsonOverBudget,
-            ) => LoadFailure::Unsupported,
+            ) => LoadFailure::TooLarge,
             OpenError::Text(_) => LoadFailure::Damaged,
             OpenError::Pdf(failure) => pdf_failure(*failure),
             OpenError::Book(error) => book_failure(error),
@@ -69,7 +69,7 @@ impl OpenError {
 fn pdf_failure(failure: PdfFailure) -> LoadFailure {
     match failure {
         PdfFailure::Unreadable(kind) => OpenError::Read(kind).failure(),
-        PdfFailure::Locked => LoadFailure::Unsupported,
+        PdfFailure::Locked => LoadFailure::Locked,
         PdfFailure::Empty | PdfFailure::Damaged => LoadFailure::Damaged,
     }
 }
@@ -78,11 +78,11 @@ fn image_failure(error: &anyview_image::ImageError) -> LoadFailure {
     use anyview_image::ImageError as E;
     match error {
         E::Read { kind, .. } => OpenError::Read(*kind).failure(),
+        E::TooLarge { .. } => LoadFailure::TooLarge,
         E::WrongKind { .. }
         | E::Unsupported { .. }
         | E::NotCompiledIn { .. }
         | E::NoPreview
-        | E::TooLarge { .. }
         | E::NotSavable { .. }
         | E::NotSavableAnimated
         | E::NotAnImageEdit { .. } => LoadFailure::Unsupported,
@@ -98,7 +98,7 @@ fn image_failure(error: &anyview_image::ImageError) -> LoadFailure {
 fn book_failure(error: &anyview_book::BookError) -> LoadFailure {
     match (error.read_error(), error.is_locked()) {
         (Some(kind), _) => OpenError::Read(kind).failure(),
-        (None, true) => LoadFailure::Unsupported,
+        (None, true) => LoadFailure::Locked,
         (None, false) => LoadFailure::Damaged,
     }
 }
@@ -110,20 +110,20 @@ mod tests {
     use anyview_text::TextError;
 
     #[test]
-    fn a_json_or_workbook_over_budget_is_unsupported_not_damaged() {
+    fn a_json_or_workbook_over_budget_is_too_large_not_unsupported_or_damaged() {
         // name, error, what the load machine is told
         let cases = [
             (
                 "json over the budget",
                 OpenError::Text(TextError::JsonOverBudget),
-                LoadFailure::Unsupported,
+                LoadFailure::TooLarge,
             ),
             (
                 "a workbook over the budget",
                 OpenError::Text(TextError::WorkbookTooLarge {
                     allowed: ByteLen(1),
                 }),
-                LoadFailure::Unsupported,
+                LoadFailure::TooLarge,
             ),
             (
                 "a table that does not parse",

@@ -5,7 +5,8 @@
 
 use super::error::OpenError;
 use super::folder::folder_sequence;
-use super::seams::{FirstFrameSource, ImagePlugins, ResumeSource, VersionSource};
+use super::notice::Notice;
+use super::seams::{FileCards, FirstFrameSource, ImagePlugins, ResumeSource, VersionSource};
 use crate::families::{
     BookDoc, FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SectionPage, TextDoc, open_for,
     peek_for,
@@ -37,6 +38,8 @@ pub struct OpenLink {
     pub first_frames: Arc<dyn FirstFrameSource>,
     /// The plugins that decode what the viewer cannot.
     pub image_plugins: Arc<dyn ImagePlugins>,
+    /// The host's cards for the files no stage shows.
+    pub cards: Arc<dyn FileCards>,
     /// The host's players, when this open may start one: a file opened ahead of the person never
     /// plays, so a preload carries none.
     pub(crate) media: Option<super::MediaPort>,
@@ -183,6 +186,12 @@ pub enum Done {
         path: FilePath,
         rows: Vec<VersionRow>,
     },
+    /// The person chose these files in the host's file dialog.
+    Chosen { files: Vec<FilePath> },
+    /// The host renamed the open file: it is `to` now.
+    Moved { to: FilePath },
+    /// The host tells the person how a task ended (`Edge::notify`).
+    Notice(Notice),
 }
 
 impl Job {

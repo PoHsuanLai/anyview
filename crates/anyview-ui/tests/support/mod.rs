@@ -203,6 +203,8 @@ impl Memory {
             | HostRequest::Watch(_)
             | HostRequest::Unwatch
             | HostRequest::OpenUri(_)
+            | HostRequest::OpenFiles(_)
+            | HostRequest::Reveal(_)
             | HostRequest::Present(_) => {}
         }
     }

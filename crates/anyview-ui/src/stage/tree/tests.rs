@@ -1,5 +1,5 @@
 use super::*;
-use crate::stage::row::RowNo;
+use crate::stage::row::{RowNo, RowStep};
 use anyview_core::{OpenNodes, TreePath};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -20,12 +20,33 @@ fn top() -> OpenNodes {
     OpenNodes::top_level()
 }
 
+/// Ten visible rows, four to a page.
+const PARAMS: TreeParams = TreeParams { rows: 10, page: 4 };
+
 /// Name, state before, input, state after.
 type Case = (&'static str, TreeStage, TreeIn, TreeStage);
 
 #[test]
 fn the_tree_stage_steps_as_the_table_says() {
     let cases: Vec<Case> = vec![
+        (
+            "down with no cursor picks the first row",
+            browsing(top()),
+            TreeIn::Move(RowStep::Down),
+            selected(top(), 0),
+        ),
+        (
+            "page down moves by the room",
+            selected(top(), 1),
+            TreeIn::Move(RowStep::PageDown),
+            selected(top(), 5),
+        ),
+        (
+            "end goes to the last visible row",
+            selected(top(), 1),
+            TreeIn::Move(RowStep::Bottom),
+            selected(top(), 9),
+        ),
         (
             "a file opens with its top level open",
             TreeStage::default(),
@@ -100,7 +121,7 @@ fn the_tree_stage_steps_as_the_table_says() {
         ),
     ];
     for (name, before, input, after) in cases {
-        let (next, outs) = before.step(input, Stamp(0), &TreeParams, &());
+        let (next, outs) = before.step(input, Stamp(0), &PARAMS, &());
         assert_eq!(next, after, "{name}");
         assert!(outs.is_empty(), "{name}");
         assert_eq!(next.wake(), None, "{name}: no timer");
