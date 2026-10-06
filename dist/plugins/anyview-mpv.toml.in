@@ -1,4 +1,4 @@
-# The manifest of the playback plugin (ARCHITECTURE section 2l). install.sh --with-plugin mpv fills in
+# The manifest of the playback plugin (ARCHITECTURE section 2l). install.sh fills in
 # @MPV@ (the person's own mpv, found on the search path at install time or named with --mpv) and
 # @PREFIX@, and installs the result as <prefix>/share/anyview/plugins/mpv.toml; the file name is the id.
 #
