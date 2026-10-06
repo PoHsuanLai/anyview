@@ -147,10 +147,26 @@ impl FrameDecoder {
     /// The next whole frame, or `None` until more bytes arrive. A header over the limits or JSON
     /// that is not a `T` is an error, and the decoder is then spent.
     pub fn next_frame<T: DeserializeOwned>(&mut self) -> Result<Option<Frame<T>>, ProtocolError> {
+        self.next_frame_within(u64::from(MAX_PAYLOAD_BYTES))
+    }
+
+    /// [`next_frame`](Self::next_frame) for a reply that may carry at most `max_payload` bytes of
+    /// payload: a header that announces more is refused as soon as it is parsed, before any of the
+    /// payload is buffered, so a plugin cannot make the host hold what it will then reject.
+    pub fn next_frame_within<T: DeserializeOwned>(
+        &mut self,
+        max_payload: u64,
+    ) -> Result<Option<Frame<T>>, ProtocolError> {
         let Some(header) = self.buffer.first_chunk::<HEADER>() else {
             return Ok(None);
         };
         let (json_len, payload_len) = lengths(header)?;
+        if payload_len as u64 > max_payload {
+            return Err(ProtocolError::PayloadTooLarge {
+                len: payload_len as u64,
+                limit: max_payload,
+            });
+        }
         let total = HEADER + json_len + payload_len;
         if self.buffer.len() < total {
             return Ok(None);
@@ -223,6 +239,23 @@ mod tests {
             decoder.push(&header);
             assert!(decoder.next_frame::<HostMessage>().is_err(), "{name}");
         }
+    }
+
+    #[test]
+    fn a_header_over_the_replys_own_limit_is_refused_with_no_payload_buffered() {
+        let mut header = Vec::new();
+        header.extend_from_slice(&2u32.to_le_bytes());
+        header.extend_from_slice(&(64u32 << 20).to_le_bytes());
+        let mut decoder = FrameDecoder::new();
+        decoder.push(&header);
+        assert_eq!(
+            decoder.next_frame_within::<HostMessage>(4).unwrap_err(),
+            ProtocolError::PayloadTooLarge {
+                len: 64 << 20,
+                limit: 4
+            }
+        );
+        assert!(decoder.next_frame::<HostMessage>().unwrap().is_none());
     }
 
     #[test]

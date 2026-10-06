@@ -4,10 +4,9 @@
 use crate::error::PeekError;
 use anyview_archive::zip_entries;
 use anyview_core::{
-    ByteLen, FileHead, FilePath, FileStamp, ModTime, SniffStep, Sniffed, Source, ZipEntries, sniff,
-    sniff_folder, sniff_zip,
+    ByteLen, FileHead, FilePath, FileStamp, ModTime, SniffStep, Sniffed, Source, ZipEntries,
+    open_regular, sniff, sniff_folder, sniff_zip,
 };
-use std::fs::File;
 use std::io::Read;
 
 /// The most of a zip's central directory sniffing reads to tell a document from an archive; a
@@ -51,8 +50,9 @@ pub fn probe(path: &FilePath) -> Result<Probed, PeekError> {
         sniff_folder()
     } else {
         let mut head = Vec::new();
-        File::open(as_path)
-            .and_then(|file| file.take(FileHead::MAX.0).read_to_end(&mut head))
+        // A FIFO, device or socket is refused here, so no later read of the file can hang on it.
+        open_regular(as_path)
+            .and_then(|(file, _)| file.take(FileHead::MAX.0).read_to_end(&mut head))
             .map_err(|e| fault(&e))?;
         let name = path.file_name().ok_or(PeekError::Unreadable {
             path: as_path.to_path_buf(),
