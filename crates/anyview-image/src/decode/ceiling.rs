@@ -59,7 +59,8 @@ mod tests {
     #[test]
     fn the_peak_decides_not_the_area_alone() {
         // name, ceiling, size, bytes per pixel, fits
-        const CASES: &[(&str, Ceiling, (u32, u32), u64, bool)] = &[
+        type Case = (&'static str, Ceiling, (u32, u32), u64, bool);
+        const CASES: &[Case] = &[
             (
                 "a photo in the viewer",
                 Ceiling::VIEW,
