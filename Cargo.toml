@@ -60,15 +60,15 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e3a5830ea68aa098d2d5eadbaf9e9fb7734b1f79" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
