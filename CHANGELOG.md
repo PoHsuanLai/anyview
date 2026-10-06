@@ -5,6 +5,15 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Install
+
+- `dist/install.sh` installs the `ffmpeg`, `heif` and `raw` plugins with the viewer, and builds the `mpv`
+  plugin too: from `--with-mpv-from DIR`, `MPV_WGPU_DIR` or `../mpv`, else from mpv-wgpu's pinned revision,
+  fetched with git into the cache. A plugin whose tool is not installed yet still installs and starts working
+  once the package is there. If there is no mpv, git, network or build for mpv, only that plugin is skipped,
+  with a one-line warning.
+- `--without-plugin NAME` and `--no-plugins` replace `--with-plugin NAME`, which is accepted and ignored.
+
 ### Added
 
 - Audio plays without mpv. MP3, AAC (ADTS and M4A), ALAC, FLAC, WAV, AIFF and Ogg Vorbis are decoded in the

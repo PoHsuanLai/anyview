@@ -1,4 +1,4 @@
-# The manifest of the FFmpeg plugin (ARCHITECTURE section 2l). install.sh --with-plugin ffmpeg fills in
+# The manifest of the FFmpeg plugin (ARCHITECTURE section 2l). install.sh fills in
 # @PREFIX@ and installs the result as <prefix>/share/anyview/plugins/ffmpeg.toml; the file name is the id.
 #
 # The plugin runs the person's own ffprobe and ffmpeg: it looks for them as `--ffmpeg` and `--ffprobe`

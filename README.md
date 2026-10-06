@@ -39,14 +39,16 @@ Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all
 ## Install and uninstall
 
 ```sh
-dist/install.sh                      # builds, then installs under ~/.local (or /usr/local as root)
+dist/install.sh                      # builds, then installs the viewer and its plugins under ~/.local (or /usr/local as root)
 dist/install.sh --prefix /usr        # elsewhere; uses sudo when the prefix is not yours
 dist/install.sh --dry-run            # print what it would do
+dist/install.sh --without-plugin mpv # leave a plugin out (--no-plugins leaves them all out)
 dist/install.sh --set-default        # also make it the default for images, text, Markdown and PDF
 dist/uninstall.sh                    # removes what install.sh wrote, the plugins included
 ```
 
-It installs the binary, the desktop entry, the AppStream metainfo, the D-Bus service file, the icons
+One command installs everything: the viewer and the four plugins (see Plugins), with nothing to remember. It
+installs the binary, the desktop entry, the AppStream metainfo, the D-Bus service file, the icons
 (`assets/icons`) and the licences, with the notices for the crates built in
 (`share/doc/anyview/THIRD-PARTY-NOTICES.md`). `DESTDIR` stages a tree for packaging. Nothing takes a file
 type from another program unless you pass `--set-default`. `scripts/third-party-notices.py` regenerates the
@@ -54,30 +56,28 @@ notices from `cargo metadata`; run it when `Cargo.lock` changes.
 
 ## Plugins
 
-Each plugin is a separate program that runs your own tool; install the tool, then the plugin:
+Each plugin is a small separate program that runs your own distribution's tool; `dist/install.sh` installs all
+four with the viewer. A plugin whose tool is not on the machine yet is installed anyway: it tells the viewer
+it has nothing to offer, the file opens as its facts with a line naming what to install, and the plugin
+starts working as soon as you install the package, with no second install.
 
-| Plugin | Gives you | Your tools (Fedora / Debian and Ubuntu) |
-|---|---|---|
-| `mpv` | playing video and Opus audio, and everything else with mpv's own controls (the common audio formats play without it) | `mpv` |
-| `ffmpeg` | facts, pictures and conversion of recordings | `ffmpeg` (`ffprobe` comes with it; Fedora's `ffmpeg-free` has fewer codecs than RPM Fusion's `ffmpeg`) |
-| `heif` | HEIC, HEIF and AVIF pictures | `libheif-tools` / `libheif-examples` |
-| `raw` | camera raw files developed in full | `LibRaw-samples` / `libraw-bin` |
+| Plugin | Gives you | Fedora | Debian and Ubuntu | Arch |
+|---|---|---|---|---|
+| `mpv` | playing video and Opus audio, and everything else with mpv's own controls (the common audio formats play without it) | `mpv` | `mpv` | `mpv` |
+| `ffmpeg` | facts, pictures and conversion of recordings (`ffprobe` comes with it) | `ffmpeg-free`, or RPM Fusion's `ffmpeg` for more codecs | `ffmpeg` | `ffmpeg` |
+| `heif` | HEIC, HEIF and AVIF pictures | `libheif-tools` | `libheif-examples` | `libheif` (check) |
+| `raw` | camera raw files developed in full | `LibRaw-samples` | `libraw-bin` | `libraw` (check) |
 
-```sh
-dist/install.sh --with-plugin ffmpeg --with-plugin heif --with-plugin raw
-```
+The `mpv` plugin loads [mpv-wgpu](https://github.com/PoHsuanLai/mpv-wgpu)'s C plugin into your mpv, so the
+installer builds that too: from `--with-mpv-from DIR`, `MPV_WGPU_DIR` or a checkout at `../mpv` if there is
+one, and otherwise from the revision pinned at the top of `dist/install.sh`, fetched with `git` into
+`~/.cache/anyview/build` (it needs git, the network and a Rust toolchain, like the viewer's own build). If
+there is no `mpv` on the search path, or the fetch or the build fails, the installer says so in one line,
+skips only the mpv plugin and finishes the rest; run it again once the cause is fixed. `--mpv PATH` names
+another mpv, and `--without-plugin NAME` (`ffmpeg`, `heif`, `mpv` or `raw`) leaves one out.
+`--with-plugin NAME`, from earlier releases, is accepted and ignored.
 
-The mpv plugin is optional and is the one that needs a second repository: it loads mpv-wgpu's C plugin
-into your mpv, so it is built from a checkout of
-[mpv-wgpu](https://github.com/PoHsuanLai/mpv-wgpu) (the revision in `Cargo.lock` is the one tested):
-
-```sh
-git clone https://github.com/PoHsuanLai/mpv-wgpu.git ../mpv
-dist/install.sh --with-plugin mpv    # MPV_WGPU_DIR names another checkout, --mpv PATH another mpv
-```
-
-Without a plugin the file still opens, as its facts with the package that would handle it named. A camera
-raw file shows its embedded preview with no plugin at all. `dist/install.sh --help` lists every option.
+A camera raw file shows its embedded preview with no plugin at all. `dist/install.sh --help` lists every option.
 
 ## Known limitations
 
