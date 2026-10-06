@@ -20,7 +20,7 @@ pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, declared_size, decode,
     decode_bytes,
 };
-pub use edit::edited;
+pub use edit::{Fidelity, Loss, edited, fidelity};
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
 pub use exif::{ExifFacts, Exposure, Ratio};

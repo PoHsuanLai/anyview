@@ -5,10 +5,9 @@ use super::job::Probed;
 use crate::families::family_of;
 use anyview_archive::zip_entries;
 use anyview_core::{
-    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, ZipEntries, sniff,
-    sniff_folder, sniff_zip,
+    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, ZipEntries,
+    open_regular, sniff, sniff_folder, sniff_zip,
 };
-use std::fs::File;
 use std::io::Read;
 
 /// The most bytes of a zip's central directory that telling what it is may read.
@@ -22,8 +21,9 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
         sniff_folder()
     } else {
         let mut head = Vec::new();
-        File::open(path.as_path())
-            .and_then(|file| file.take(FileHead::MAX.0).read_to_end(&mut head))
+        // A FIFO, device or socket is refused here, so no later read of the file can hang on it.
+        open_regular(path.as_path())
+            .and_then(|(file, _)| file.take(FileHead::MAX.0).read_to_end(&mut head))
             .map_err(|e| OpenError::Read(e.kind()))?;
         let name = path.file_name().ok_or(OpenError::Unrecognised)?;
         match sniff(&FileHead::new(&head), &name) {

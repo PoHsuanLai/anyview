@@ -22,7 +22,7 @@ mod session;
 
 pub use command::{Direction, MediaCommand, Pace, PictureSlot, ShotContent};
 #[cfg(feature = "player")]
-pub use device::headless_device;
+pub use device::{GPU_OPENING, headless_device};
 #[cfg(feature = "player")]
 pub use driver::{Continuation, Driver, FrameSink, Handled};
 pub use error::MediaError;

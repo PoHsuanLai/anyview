@@ -13,16 +13,18 @@ anyview-core = { workspace = true }
 bzip2 = { workspace = true }
 ds-core = { workspace = true }
 flate2 = { workspace = true }
-lzma-rs = { workspace = true }
+lzma-rust2 = { workspace = true }
 quick-xml = { workspace = true }
 ruzstd = { workspace = true }
-sevenz-rust = { workspace = true }
+sevenz-rust2 = { workspace = true }
 tar = { workspace = true }
 thiserror = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]
-sevenz-rust = { workspace = true, features = ["compress"] }
+# Builds the .xz fixtures the tests read.
+lzma-rs = { workspace = true }
+sevenz-rust2 = { workspace = true, features = ["compress"] }
 tempfile = { workspace = true }
 
 [lints]

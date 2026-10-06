@@ -2,8 +2,9 @@
 
 use crate::error::FontError;
 
-/// The most a table may unpack to.
-const TABLE_LIMIT: usize = 64 * 1024 * 1024;
+/// The most all the tables of one font may unpack to together. A directory may name tens of
+/// thousands of tables, so the sum is bounded, not each table.
+const UNPACKED_LIMIT: usize = 64 * 1024 * 1024;
 
 const HEADER: usize = 44;
 const ENTRY: usize = 20;
@@ -24,14 +25,23 @@ fn be16(bytes: &[u8], at: usize) -> Option<u16> {
     Some(u16::from_be_bytes([raw[0], raw[1]]))
 }
 
-/// One entry of the WOFF table directory.
+/// One entry of the WOFF table directory, before its data is unpacked.
+struct Entry<'a> {
+    tag: &'a [u8],
+    checksum: u32,
+    stored: &'a [u8],
+    offset: usize,
+    original: usize,
+}
+
+/// One unpacked table.
 struct Table<'a> {
     tag: &'a [u8],
     checksum: u32,
     data: Vec<u8>,
 }
 
-fn table<'a>(bytes: &'a [u8], at: usize) -> Result<Table<'a>, FontError> {
+fn entry<'a>(bytes: &'a [u8], at: usize) -> Result<Entry<'a>, FontError> {
     let short = || malformed("the WOFF table directory is cut short");
     let tag = bytes.get(at..at + 4).ok_or_else(short)?;
     let offset = be32(bytes, at + 4).ok_or_else(short)? as usize;
@@ -41,21 +51,55 @@ fn table<'a>(bytes: &'a [u8], at: usize) -> Result<Table<'a>, FontError> {
     let stored = bytes
         .get(offset..offset.checked_add(compressed).ok_or_else(short)?)
         .ok_or_else(|| malformed("a WOFF table lies outside the file"))?;
-    if original > TABLE_LIMIT || compressed > original {
+    if compressed > original {
         return Err(malformed("a WOFF table has an impossible size"));
     }
-    let data = if compressed == original {
-        stored.to_vec()
+    Ok(Entry {
+        tag,
+        checksum,
+        stored,
+        offset,
+        original,
+    })
+}
+
+/// The directory of a WOFF file, refused when the tables would unpack to more than
+/// [`UNPACKED_LIMIT`] together or when two of them share stored bytes: every table has its own.
+fn directory(bytes: &[u8], count: usize) -> Result<Vec<Entry<'_>>, FontError> {
+    let entries = (0..count)
+        .map(|index| entry(bytes, HEADER + index * ENTRY))
+        .collect::<Result<Vec<_>, _>>()?;
+    let unpacked = entries
+        .iter()
+        .try_fold(0_usize, |sum, e| sum.checked_add(e.original));
+    if unpacked.is_none_or(|sum| sum > UNPACKED_LIMIT) {
+        return Err(malformed("the WOFF tables unpack to too much"));
+    }
+    let mut spans: Vec<(usize, usize)> = entries
+        .iter()
+        .filter(|e| !e.stored.is_empty())
+        .map(|e| (e.offset, e.offset + e.stored.len()))
+        .collect();
+    spans.sort_unstable();
+    if spans.windows(2).any(|pair| pair[1].0 < pair[0].1) {
+        return Err(malformed("WOFF tables share data"));
+    }
+    Ok(entries)
+}
+
+fn unpack<'a>(entry: &Entry<'a>) -> Result<Table<'a>, FontError> {
+    let data = if entry.stored.len() == entry.original {
+        entry.stored.to_vec()
     } else {
-        miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(stored, TABLE_LIMIT)
+        miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(entry.stored, entry.original)
             .map_err(|_| malformed("a WOFF table does not unpack"))?
     };
-    if data.len() != original {
+    if data.len() != entry.original {
         return Err(malformed("a WOFF table unpacked to the wrong length"));
     }
     Ok(Table {
-        tag,
-        checksum,
+        tag: entry.tag,
+        checksum: entry.checksum,
         data,
     })
 }
@@ -68,8 +112,9 @@ pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
     let flavor = be32(bytes, 4).ok_or_else(|| malformed("the WOFF header is cut short"))?;
     let count =
         usize::from(be16(bytes, 12).ok_or_else(|| malformed("the WOFF header is cut short"))?);
-    let tables = (0..count)
-        .map(|index| table(bytes, HEADER + index * ENTRY))
+    let tables = directory(bytes, count)?
+        .iter()
+        .map(unpack)
         .collect::<Result<Vec<_>, _>>()?;
     let entry_selector = count.checked_ilog2().unwrap_or(0);
     let search_range = 16 * (1_usize << entry_selector);

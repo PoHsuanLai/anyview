@@ -13,6 +13,7 @@ use crate::families::{
 };
 use crate::sheet::VersionRow;
 use crate::{StageFamily, Ticket, TypedText};
+use anyview_core::work::Stop;
 use anyview_core::{
     FilePath, FileStamp, LineIndex, Resume, SectionIndex, Sequence, Sniffed, Source,
 };
@@ -227,8 +228,65 @@ impl Job {
         }
     }
 
+    /// What a job that panicked answers, so the window that waits for it hears of the failure: the
+    /// same message its own error would have been.
+    pub(super) fn crashed(&self) -> Done {
+        match self {
+            Job::Probe { ticket, .. } => Done::Probed {
+                ticket: *ticket,
+                result: Err(OpenError::Crashed),
+            },
+            Job::Peek { ticket, .. } => Done::Peeked {
+                ticket: *ticket,
+                result: Err(OpenError::Crashed),
+            },
+            Job::Open { ticket, .. } => Done::Opened {
+                ticket: *ticket,
+                result: Err(OpenError::Crashed),
+            },
+            Job::Lines { ticket, .. } => Done::Lines {
+                ticket: *ticket,
+                result: Err(OpenError::Crashed),
+            },
+            Job::Search { ticket, query, .. } => Done::Found {
+                ticket: *ticket,
+                query: query.clone(),
+                result: Err(OpenError::Crashed),
+            },
+            Job::Section { ticket, .. } => Done::Section {
+                ticket: *ticket,
+                result: Err(OpenError::Crashed),
+            },
+            Job::Preload { path, .. } => Done::Preloaded {
+                path: path.clone(),
+                loaded: None,
+            },
+            Job::Stat { path } => Done::Stamped {
+                path: path.clone(),
+                stamp: None,
+            },
+            Job::Folder { path } => Done::Folder {
+                path: path.clone(),
+                result: Err(OpenError::Crashed),
+            },
+            Job::Pdf(task) => Done::Pdf {
+                ticket: task.ticket(),
+                answer: task.crashed(),
+            },
+            Job::Versions { path } => Done::Versions {
+                path: path.clone(),
+                rows: Vec::new(),
+            },
+        }
+    }
+
     /// Do the work, blocking until it is done. `resume` is where the host keeps view memory.
-    pub(super) fn run(self, resume: &dyn ResumeSource, versions: &dyn VersionSource) -> Done {
+    pub(super) fn run(
+        self,
+        resume: &dyn ResumeSource,
+        versions: &dyn VersionSource,
+        stop: &Stop,
+    ) -> Done {
         match self {
             Job::Probe { ticket, path } => Done::Probed {
                 ticket,
@@ -261,7 +319,7 @@ impl Job {
             },
             Job::Search { ticket, doc, query } => Done::Found {
                 ticket,
-                result: doc.find(&query).map_err(OpenError::from),
+                result: doc.find(&query, stop).map_err(OpenError::from),
                 query,
             },
             Job::Section {

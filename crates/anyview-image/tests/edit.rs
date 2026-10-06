@@ -126,12 +126,6 @@ fn what_would_lose_something_is_refused() {
             },
         ),
         (
-            "an animated webp",
-            "anim.webp",
-            turn,
-            ImageError::NotSavableAnimated,
-        ),
-        (
             "a jpeg xl picture",
             "photo.jxl",
             turn,

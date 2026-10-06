@@ -105,6 +105,51 @@ impl Table {
         Ok(Table::of_records(separator, records, mode, coverage))
     }
 
+    /// The start of the table in `text`: its first `keep` data rows (the header, when there is
+    /// one, comes besides them), and how many data rows the text has in all. Counting the rest
+    /// holds none of them, so a file of ten million rows costs `keep`. The column count is the
+    /// widest row's of all of them.
+    pub(crate) fn parse_start(
+        text: &str,
+        delimiter: Delimiter,
+        mode: HeaderMode,
+        keep: usize,
+    ) -> Result<(Self, RowCount), TextError> {
+        let separator = separator::sniff(text, delimiter);
+        let mut reader = csv::ReaderBuilder::new()
+            .delimiter(separator.byte())
+            .has_headers(false)
+            .flexible(true)
+            .from_reader(text.as_bytes());
+        let mut record = csv::StringRecord::new();
+        let mut records: Vec<Vec<String>> = Vec::new();
+        let (mut total, mut widest) = (0_usize, 0_usize);
+        while reader
+            .read_record(&mut record)
+            .map_err(|e| TextError::Table {
+                reason: e.to_string(),
+            })?
+        {
+            total += 1;
+            widest = widest.max(record.len());
+            // One more than `keep`: the first record may turn out to be the header.
+            if records.len() <= keep {
+                records.push(record.iter().map(str::to_owned).collect());
+            }
+        }
+        let table = Table::of_records(separator, records, mode, Coverage::Whole);
+        let header = usize::from(table.header.is_some());
+        let table = Table {
+            columns: ColumnCount(u32::try_from(widest).unwrap_or(u32::MAX)),
+            ..table
+        };
+        let data_rows = total - header;
+        Ok((
+            table,
+            RowCount(u32::try_from(data_rows).unwrap_or(u32::MAX)),
+        ))
+    }
+
     /// The table of `rows` read from a spreadsheet, `coverage` saying whether they are all of
     /// the sheet.
     pub fn from_rows(rows: Vec<Vec<String>>, mode: HeaderMode, coverage: Coverage) -> Self {

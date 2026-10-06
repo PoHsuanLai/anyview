@@ -1,8 +1,9 @@
 //! The modal sheets: export, rename, save a copy, revert to a version and the trash question. The sheet machine says which is open
 //! and what it holds; these draw them and report the person's choices as sheet inputs.
 
+use crate::EditCaution;
 use crate::{ExportDraft, ExportKindPick, MediaOffer, TypedText, VersionKey, VersionList};
-use anyview_core::Fact;
+use anyview_core::{Edit, Fact};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
 use ds::components::controls::segmented::Tracking;
@@ -36,6 +37,40 @@ pub(super) fn TrashSheet(
             buttons: vec![
                 AlertButton::new("Cancel", AlertRole::Cancel, oncancel),
                 AlertButton::new("Move to Trash", AlertRole::Destructive, onconfirm),
+            ],
+        }
+    }
+}
+
+/// Asking before an edit that loses something is saved: one short sentence of what is lost, the
+/// edit's own button as the default and Cancel.
+#[component]
+pub(super) fn EditSheet(
+    edit: Edit,
+    caution: EditCaution,
+    onconfirm: EventHandler<()>,
+    oncancel: EventHandler<()>,
+) -> Element {
+    let (title, verb) = match (edit, caution) {
+        (_, EditCaution::Signed) => ("Change this document?", "Change Pages"),
+        (Edit::Flip(_), EditCaution::Loses(_)) => ("Flip this picture?", "Flip"),
+        (_, EditCaution::Loses(_)) => ("Rotate this picture?", "Rotate"),
+    };
+    let message = match caution {
+        EditCaution::Signed => {
+            "This document is signed. Changing its pages will remove the signature.".to_owned()
+        }
+        EditCaution::Loses(lost) => format!(
+            "Saving it this way may lose some details from the original. {lost} You can go back to the original with Revert To."
+        ),
+    };
+    rsx! {
+        Alert {
+            title,
+            message: Some(message.into()),
+            buttons: vec![
+                AlertButton::new(verb, AlertRole::Normal, onconfirm),
+                AlertButton::new("Cancel", AlertRole::Cancel, oncancel),
             ],
         }
     }

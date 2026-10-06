@@ -5,9 +5,9 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
-    ChromeParams, Command, MediaOffer, Motion, PaletteParams, PanelParams, PresentationParams,
-    SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText,
-    ViewerParams,
+    ChromeParams, Command, EditOffer, MediaOffer, Motion, PaletteParams, PanelParams,
+    PresentationParams, SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews,
+    Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
 use ds::prelude::MotionLevel;
@@ -99,11 +99,13 @@ pub(super) fn commands(
     stage: &Stage,
     params: &StageParams,
     playback: Playback,
+    offer: EditOffer,
 ) -> Vec<Command> {
     let files = kind
         .map(actions_for)
         .unwrap_or_default()
         .iter()
+        .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
         .filter(|action| match reach(**action) {
             Reach::Viewer | Reach::Both => offered(**action, playback),
             Reach::Launcher => false,
@@ -115,6 +117,17 @@ pub(super) fn commands(
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     files.chain(stages).collect()
+}
+
+/// Whether `action` turns or flips the picture.
+fn is_picture_edit(action: FileAction) -> bool {
+    matches!(
+        action,
+        FileAction::RotateLeft
+            | FileAction::RotateRight
+            | FileAction::FlipHorizontal
+            | FileAction::FlipVertical
+    )
 }
 
 /// Whether `query` names `label`: every letter of the query, in order, ignoring case.
@@ -155,6 +168,7 @@ pub(super) fn params(
         (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
         _ => Playback::Playable,
     });
+    let offer = doc.map_or(EditOffer::Plain, |doc| doc.view().edit_offer());
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
@@ -169,7 +183,7 @@ pub(super) fn params(
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
     };
-    let files = commands(kind, stage, &measured, playback)
+    let files = commands(kind, stage, &measured, playback, offer)
         .into_iter()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
@@ -181,11 +195,12 @@ pub(super) fn params(
         chrome: ChromeParams::default(),
         panel: doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params()),
         palette: PaletteParams {
-            rows: ranked(commands(kind, stage, &measured, playback), query),
+            rows: ranked(commands(kind, stage, &measured, playback, offer), query),
         },
         presentation: PresentationParams::default(),
         sheet: SheetParams {
             media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
+            edit: offer,
         },
         stage: measured,
     }

@@ -6,13 +6,15 @@ use percent_encoding::percent_decode_str;
 use std::ffi::OsString;
 
 /// How the program is used, for `--help` and for a usage error.
-pub const USAGE: &str = "usage: anyview [FILE...]\n       anyview --peek FILE\n       anyview --play FILE\n       anyview --help";
+pub const USAGE: &str = "usage: anyview [FILE...]\n       anyview --peek FILE\n       anyview --play FILE\n       anyview --help\n       anyview --version";
 
 /// What the command line asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Invocation {
     /// Say how the program is used and stop.
     Help,
+    /// Say which version this is and stop.
+    Version,
     /// Do what a launch does: open files, peek at one or play one. No file at all is what the bus
     /// activation starts the program with: it serves until a request arrives.
     Launch(Request),
@@ -79,6 +81,7 @@ pub fn parse(args: &[OsString], cwd: &FilePath) -> Result<Invocation, CliError> 
         match text {
             "--" => flags_over = true,
             "-h" | "--help" => return Ok(Invocation::Help),
+            "-V" | "--version" => return Ok(Invocation::Version),
             "--peek" => mode = chosen(mode, Mode::Peek)?,
             "--play" => mode = chosen(mode, Mode::Play)?,
             other => return Err(CliError::UnknownFlag(other.to_owned())),

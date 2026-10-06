@@ -31,6 +31,14 @@ pub enum PdfError {
         /// How many pages the document has.
         count: u32,
     },
+    /// The written file does not have the pages the edit should leave, so it is not used.
+    #[error("the edit left {got} pages where {want} were expected")]
+    PagesChanged {
+        /// The pages the edit should leave.
+        want: u32,
+        /// The pages the written file has.
+        got: u32,
+    },
     /// An edit that would leave the document without pages.
     #[error("that would delete every page")]
     WouldDeleteAll,
