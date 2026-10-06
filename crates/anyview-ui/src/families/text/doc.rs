@@ -4,7 +4,7 @@
 
 use super::find::FoundHits;
 use crate::TypedText;
-use crate::io::{OpenError, OpenLink};
+use crate::io::{OpenError, OpenLink, Stop};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
 };
@@ -88,10 +88,15 @@ impl TextDoc {
         Ok(LineWindow { first, lines })
     }
 
-    /// Every place `query` occurs, ignoring case; none for an empty query. Blocking.
-    pub fn find(&self, query: &TypedText) -> Result<FoundHits, anyview_text::TextError> {
+    /// Every place `query` occurs, ignoring case; none for an empty query. Blocking; the hits
+    /// found so far when `stop` is raised.
+    pub fn find(
+        &self,
+        query: &TypedText,
+        stop: &Stop,
+    ) -> Result<FoundHits, anyview_text::TextError> {
         match Needle::new(query.as_str()) {
-            Some(needle) => self.text.find(&needle).map(FoundHits::new),
+            Some(needle) => self.text.find(&needle, stop).map(FoundHits::new),
             None => Ok(FoundHits::default()),
         }
     }

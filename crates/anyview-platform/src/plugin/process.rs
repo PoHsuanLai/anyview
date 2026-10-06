@@ -6,7 +6,8 @@
 use crate::error::PlatformError;
 use anyview_plugin::Installed;
 use anyview_plugin_protocol::{
-    Frame, FrameDecoder, HostMessage, PROTOCOL_VERSION, PluginMessage, ProtocolError, encode_frame,
+    Frame, FrameDecoder, HostMessage, MAX_PAYLOAD_BYTES, PROTOCOL_VERSION, PluginMessage,
+    ProtocolError, encode_frame,
 };
 use rustix::event::{PollFd, PollFlags, poll};
 use rustix::time::Timespec;
@@ -17,6 +18,10 @@ use std::time::{Duration, Instant};
 
 /// How many of a plugin's last stderr lines an error carries.
 const TAIL_LINES: usize = 4;
+
+/// The longest stderr line kept: a plugin that writes without a newline cannot grow the host. The
+/// rest of a long line is dropped, and the line is logged with an ellipsis.
+const STDERR_LINE: usize = 4096;
 
 /// The most one read takes from a pipe (a pipe holds 64 KiB unless the plugin raised it).
 const CHUNK: usize = 256 << 10;
@@ -41,6 +46,8 @@ pub(crate) struct PluginProcess {
     decoder: FrameDecoder,
     scratch: Box<[u8]>,
     stderr_line: Vec<u8>,
+    stderr_cut: bool,
+    payload_limit: u64,
     tail: Vec<String>,
 }
 
@@ -89,6 +96,8 @@ impl PluginProcess {
             decoder: FrameDecoder::new(),
             scratch: vec![0u8; CHUNK].into_boxed_slice(),
             stderr_line: Vec::new(),
+            stderr_cut: false,
+            payload_limit: u64::from(MAX_PAYLOAD_BYTES),
             tail: Vec::new(),
         })
     }
@@ -98,8 +107,16 @@ impl PluginProcess {
         &self.id
     }
 
-    /// Sends one request.
+    /// Limits the payload any later message may carry to `bytes`; a header announcing more is
+    /// refused before the payload is buffered.
+    pub(crate) fn limit_payload(&mut self, bytes: u64) {
+        self.payload_limit = bytes;
+    }
+
+    /// Sends one request. Stderr is drained first, so a plugin that logged while the host was not
+    /// receiving is not blocked on a full pipe.
     pub(crate) fn send(&mut self, message: &HostMessage) -> Result<(), PlatformError> {
+        self.drain_stderr();
         let bytes = encode_frame(message, &[]).map_err(|error| self.protocol(&error))?;
         let written = match self.stdin.as_mut() {
             Some(stdin) => stdin.write_all(&bytes).and_then(|()| stdin.flush()),
@@ -112,7 +129,10 @@ impl PluginProcess {
     pub(crate) fn receive(&mut self, wait: Duration) -> Result<Arrival, PlatformError> {
         let end = Instant::now() + wait;
         loop {
-            match self.decoder.next_frame::<PluginMessage>() {
+            match self
+                .decoder
+                .next_frame_within::<PluginMessage>(self.payload_limit)
+            {
                 Ok(Some(frame)) => return Ok(Arrival::Message(frame)),
                 Ok(None) => {}
                 Err(error) => return Err(self.protocol(&error)),
@@ -122,6 +142,21 @@ impl PluginProcess {
                 return Ok(Arrival::Quiet);
             }
             self.pump(left)?;
+        }
+    }
+
+    /// Reads what stderr holds now, without waiting.
+    fn drain_stderr(&mut self) {
+        while let Some(stderr) = &self.stderr {
+            let mut fds = [PollFd::new(stderr, PollFlags::IN)];
+            let none = Timespec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            };
+            match poll(&mut fds, Some(&none)) {
+                Ok(0) | Err(_) => return,
+                Ok(_) => self.read_stderr(),
+            }
         }
     }
 
@@ -187,8 +222,10 @@ impl PluginProcess {
                 for byte in &chunk[..n] {
                     if *byte == b'\n' {
                         self.finish_line();
-                    } else {
+                    } else if self.stderr_line.len() < STDERR_LINE {
                         self.stderr_line.push(*byte);
+                    } else {
+                        self.stderr_cut = true;
                     }
                 }
             }
@@ -199,7 +236,10 @@ impl PluginProcess {
         if self.stderr_line.is_empty() {
             return;
         }
-        let line = String::from_utf8_lossy(&self.stderr_line).into_owned();
+        let mut line = String::from_utf8_lossy(&self.stderr_line).into_owned();
+        if std::mem::take(&mut self.stderr_cut) {
+            line.push('…');
+        }
         self.stderr_line.clear();
         eprintln!("anyview: plugin {}: {line}", self.id);
         self.tail.push(line);

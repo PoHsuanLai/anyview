@@ -150,6 +150,32 @@ impl PdfTask {
         self.ticket
     }
 
+    /// The answer for a task whose back end panicked: nothing drawn, every tile failed, a search
+    /// cut short, so the window stops waiting for it.
+    pub fn crashed(&self) -> PdfAnswer {
+        match &self.ask {
+            PdfAsk::Tiles { flight, batch, .. } => PdfAnswer::Tiles {
+                flight: *flight,
+                ready: Vec::new(),
+                unfinished: Vec::new(),
+                failed: keys_of(batch),
+            },
+            PdfAsk::Search { query, .. } => PdfAnswer::Searched {
+                query: query.clone(),
+                hits: Hits::default(),
+                end: Finish::Cut,
+            },
+            PdfAsk::Thumb { page } => PdfAnswer::Thumb {
+                page: *page,
+                texture: None,
+            },
+            PdfAsk::Links { page } => PdfAnswer::Links {
+                page: *page,
+                links: Vec::new(),
+            },
+        }
+    }
+
     /// Do the task, blocking.
     pub fn run(self) -> PdfAnswer {
         let PdfTask {
@@ -203,15 +229,9 @@ fn upload(gpu: &Gpu, raster: &Raster) -> Upload {
     }
 }
 
-fn tiles(
-    ticket: Ticket,
-    doc: &PdfDoc,
-    gpu: &Gpu,
-    flight: FlightId,
-    batch: TileBatch,
-    stop: &Stop,
-) -> PdfAnswer {
-    let keys: Vec<TileKey> = batch
+/// The key of each tile `batch` asks for.
+fn keys_of(batch: &TileBatch) -> Vec<TileKey> {
+    batch
         .tiles
         .iter()
         .map(|at| TileKey {
@@ -220,7 +240,18 @@ fn tiles(
             x: at.x,
             y: at.y,
         })
-        .collect();
+        .collect()
+}
+
+fn tiles(
+    ticket: Ticket,
+    doc: &PdfDoc,
+    gpu: &Gpu,
+    flight: FlightId,
+    batch: TileBatch,
+    stop: &Stop,
+) -> PdfAnswer {
+    let keys = keys_of(&batch);
     let job = PdfJob::Tiles { ticket, batch };
     let done = doc.with_scratch(|worker| PdfBackend::run(&doc.document, worker, job, stop));
     let (drawn, end) = match done {
