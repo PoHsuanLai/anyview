@@ -66,11 +66,23 @@ impl<B: ByteSource> TextLines<B> {
 /// Text cut into lines at `\n`, each with a trailing `\r` removed. A final line break ends the last
 /// line instead of starting an empty one.
 pub(crate) fn split(text: &str) -> Vec<String> {
-    let body = text.strip_suffix('\n').unwrap_or(text);
+    split_start(text, usize::MAX).0
+}
+
+/// The first `keep` lines of `text`, cut as [`split`] cuts them, and how many lines `text` has in
+/// all: a count made without holding the lines, so a file of a million of them costs `keep`.
+pub(crate) fn split_start(text: &str, keep: usize) -> (Vec<String>, usize) {
     if text.is_empty() {
-        return Vec::new();
+        return (Vec::new(), 0);
     }
-    body.split('\n')
-        .map(|line| line.strip_suffix('\r').unwrap_or(line).to_owned())
-        .collect()
+    let body = text.strip_suffix('\n').unwrap_or(text);
+    let mut start = Vec::new();
+    let mut total = 0_usize;
+    for line in body.split('\n') {
+        if start.len() < keep {
+            start.push(line.strip_suffix('\r').unwrap_or(line).to_owned());
+        }
+        total += 1;
+    }
+    (start, total)
 }

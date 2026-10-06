@@ -169,3 +169,18 @@ fn the_facts_list_what_the_document_has_in_order() {
     );
     assert!(OfficeLook::default().facts().rows().is_empty());
 }
+
+#[test]
+fn a_long_title_and_author_are_cut_to_one_line() {
+    let long = "w ".repeat(400_000);
+    let core = format!(
+        "<cp:coreProperties xmlns:cp=\"c\" xmlns:dc=\"d\"><dc:title>{long}</dc:title><dc:creator>Ann\n  Author</dc:creator></cp:coreProperties>"
+    );
+    let (_dir, path) = package(&[("docProps/core.xml", core.as_bytes())]);
+    let look = office_look(&path, OfficeFormat::Docx).unwrap();
+    let title = look.title.unwrap();
+    // The cut text, without a trailing space, and its ellipsis.
+    assert!((NAME_CHARS - 1..=NAME_CHARS + 1).contains(&title.chars().count()));
+    assert!(title.ends_with('…'));
+    assert_eq!(look.author.as_deref(), Some("Ann Author"));
+}

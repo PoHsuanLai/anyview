@@ -3,6 +3,7 @@
 //! ask, the windows themselves and the program that joins them.
 
 pub mod cli;
+pub mod crash;
 pub mod host;
 pub mod media;
 pub mod program;

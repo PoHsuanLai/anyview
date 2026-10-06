@@ -15,6 +15,7 @@ mod list;
 mod office;
 mod peek;
 mod sevenz;
+mod sevenz_header;
 mod stream;
 mod tar;
 mod zip_archive;

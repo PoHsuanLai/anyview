@@ -60,6 +60,45 @@ impl Tree {
         Ok(Tree { format, root })
     }
 
+    /// The start of the document in `text`: for JSON Lines the first `keep` values, with how many
+    /// non-blank lines the text has in all, counted without parsing the rest; for JSON the whole
+    /// document, which cannot be had in part, and its top-level count.
+    pub(crate) fn parse_start(
+        text: &str,
+        format: TreeFormat,
+        keep: usize,
+    ) -> Result<(Self, ChildCount), TextError> {
+        match format {
+            TreeFormat::Json => {
+                let tree = Tree::parse(text, format)?;
+                let count = rows::row(RowLabel::Root, &tree.root).children;
+                Ok((tree, count))
+            }
+            TreeFormat::JsonLines => {
+                let mut items = Vec::new();
+                let mut total = 0_usize;
+                for (number, line) in text.lines().enumerate() {
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    total += 1;
+                    if items.len() < keep {
+                        let line_number = u32::try_from(number).unwrap_or(u32::MAX);
+                        items.push(
+                            serde_json::from_str::<Node>(line)
+                                .map_err(|e| json_error(&e, line_number))?,
+                        );
+                    }
+                }
+                let tree = Tree {
+                    format,
+                    root: Node::Array(items),
+                };
+                Ok((tree, ChildCount(u32::try_from(total).unwrap_or(u32::MAX))))
+            }
+        }
+    }
+
     /// The document in the file `src` names, reading at most `limit` bytes. A JSON document is one
     /// value and cannot be read in part, so a larger one is [`TextError::JsonOverBudget`]; a JSON
     /// Lines file is read as far as `limit` reaches, and says so in the coverage it returns.

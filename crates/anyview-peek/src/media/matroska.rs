@@ -7,7 +7,43 @@ use crate::error::PeekError;
 use anyview_core::{PixelLen, PixelSize, Source};
 use matroska_demuxer::{MatroskaFile, TrackEntry, TrackType};
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
+
+/// The most reads and seeks the demuxer may make of one header. It walks the top-level elements
+/// of the segment by position, and a header whose elements point back at themselves walks forever;
+/// a real header takes a few hundred, and a file of many thousands of clusters well under this.
+const MOST_OPERATIONS: u32 = 400_000;
+
+/// A reader that fails once it has been asked for too much, so a loop in the demuxer ends in an
+/// error the demuxer already handles.
+struct Bounded<R> {
+    inner: R,
+    left: u32,
+}
+
+impl<R> Bounded<R> {
+    fn spend(&mut self) -> io::Result<()> {
+        self.left = self
+            .left
+            .checked_sub(1)
+            .ok_or_else(|| io::Error::other("the header asks for too much reading"))?;
+        Ok(())
+    }
+}
+
+impl<R: Read> Read for Bounded<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.spend()?;
+        self.inner.read(buf)
+    }
+}
+
+impl<R: Seek> Seek for Bounded<R> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        self.spend()?;
+        self.inner.seek(pos)
+    }
+}
 
 /// What the header of the Matroska file at `src` says.
 pub fn read(src: &Source) -> Result<Recording, PeekError> {
@@ -16,8 +52,12 @@ pub fn read(src: &Source) -> Result<Recording, PeekError> {
         path: path.to_path_buf(),
         kind: error.kind(),
     })?;
-    let matroska = MatroskaFile::open(BufReader::new(file))
-        .map_err(|error| PeekError::media(error.to_string()))?;
+    let reader = Bounded {
+        inner: BufReader::new(file),
+        left: MOST_OPERATIONS,
+    };
+    let matroska =
+        MatroskaFile::open(reader).map_err(|error| PeekError::media(error.to_string()))?;
     let info = matroska.info();
     let micros = info.duration().map(|ticks| {
         // The duration is in units of the timestamp scale, which is nanoseconds a tick by default.

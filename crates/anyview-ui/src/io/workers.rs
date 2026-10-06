@@ -13,10 +13,12 @@ use super::seams::{
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
+use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Resume};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// The binary's pool. Implemented over its threads; a test implements it to run work inline.
@@ -58,6 +60,7 @@ pub struct Work {
     reply: Reply,
     resume: Arc<dyn ResumeSource>,
     versions: Arc<dyn VersionSource>,
+    stop: Stop,
 }
 
 impl std::fmt::Debug for Work {
@@ -78,15 +81,26 @@ impl Work {
         self.job.ticket()
     }
 
-    /// Do the job, blocking, and post what it made to the window that asked.
+    /// Do the job, blocking, and post what it made to the window that asked. Work for a load the
+    /// person has since left is not started, and is told to end early when it is running; a job
+    /// that panics (a decoder fed a hostile file) is answered as a failure, so the window never
+    /// waits on a result that cannot come.
     pub fn run(self) {
         let Work {
             job,
             reply,
             resume,
             versions,
+            stop,
         } = self;
-        reply.post(job.run(resume.as_ref(), versions.as_ref()));
+        if stop.stopped() == StopState::Stopped {
+            return;
+        }
+        let failure = job.crashed();
+        let ran = catch_unwind(AssertUnwindSafe(|| {
+            job.run(resume.as_ref(), versions.as_ref(), &stop)
+        }));
+        reply.post(ran.unwrap_or(failure));
     }
 
     /// What the work does.
@@ -175,6 +189,16 @@ pub struct Edge {
     first_frames: Arc<dyn FirstFrameSource>,
     media: Arc<dyn MediaHost>,
     image_plugins: Arc<dyn ImagePlugins>,
+    held: Arc<Mutex<Held>>,
+}
+
+/// The newest load that submitted work, and the stop its work shares. A job of a newer load
+/// raises it, so what the person left behind (a search of the last query, an open of the last
+/// file) ends early instead of running to its end.
+#[derive(Debug, Default)]
+struct Held {
+    ticket: Ticket,
+    stop: Stop,
 }
 
 impl std::fmt::Debug for Edge {
@@ -201,6 +225,7 @@ impl Edge {
             first_frames: Arc::new(NoPictures),
             media: Arc::new(NoPlayer),
             image_plugins: Arc::new(NoImagePlugins),
+            held: Arc::default(),
         }
     }
 
@@ -257,12 +282,36 @@ impl Edge {
 
     /// Ask a worker to do `job`; its result arrives in the mailbox.
     pub(crate) fn submit(&self, job: Job) {
+        let job_ticket = job.ticket();
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
             resume: Arc::clone(&self.resume),
             versions: Arc::clone(&self.versions),
+            stop: self.stop_for(job_ticket),
         });
+    }
+
+    /// The stop of the load `ticket` names: its jobs share one, a newer load raises it, and a
+    /// job of a load already left starts stopped. Work that belongs to no load is never stopped.
+    fn stop_for(&self, ticket: Ticket) -> Stop {
+        if ticket == Ticket::default() {
+            return Stop::new();
+        }
+        let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
+        if ticket < held.ticket {
+            let late = Stop::new();
+            late.request();
+            return late;
+        }
+        if ticket > held.ticket {
+            held.stop.request();
+            *held = Held {
+                ticket,
+                stop: Stop::new(),
+            };
+        }
+        held.stop.clone()
     }
 
     /// What an open of a file into `texture` needs.
@@ -298,5 +347,45 @@ impl Edge {
     /// Hand a request to the binary.
     pub(crate) fn request(&self, request: HostRequest) {
         (self.requests)(request);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn edge() -> Edge {
+        struct Nowhere;
+        impl Workers for Nowhere {
+            fn submit(&self, _work: Work) {}
+        }
+        Edge::new(Arc::new(Nowhere), |_| {})
+    }
+
+    #[test]
+    fn a_newer_load_stops_the_work_of_the_one_it_replaced() {
+        let edge = edge();
+        let first = edge.stop_for(Ticket(1));
+        let same = edge.stop_for(Ticket(1));
+        assert_eq!(first.stopped(), StopState::Running);
+        assert_eq!(same.stopped(), StopState::Running, "one load shares a stop");
+        let second = edge.stop_for(Ticket(2));
+        assert_eq!(first.stopped(), StopState::Stopped);
+        assert_eq!(same.stopped(), StopState::Stopped);
+        assert_eq!(second.stopped(), StopState::Running);
+    }
+
+    #[test]
+    fn work_of_a_load_already_left_starts_stopped_and_loadless_work_never_is() {
+        let edge = edge();
+        let current = edge.stop_for(Ticket(5));
+        assert_eq!(edge.stop_for(Ticket(4)).stopped(), StopState::Stopped);
+        let ahead = edge.stop_for(Ticket::default());
+        assert_eq!(ahead.stopped(), StopState::Running);
+        assert_eq!(
+            current.stopped(),
+            StopState::Running,
+            "loadless work stops no load"
+        );
     }
 }

@@ -3,7 +3,6 @@
 
 use crate::container::Codec;
 use crate::error::ArchiveError;
-use crate::limit::Capped;
 use anyview_core::ArchiveFormat;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -36,22 +35,9 @@ pub(crate) fn unpack(
                 ruzstd::decoding::StreamingDecoder::new(source).map_err(|e| broken(&e))?;
             read_capped(decoder, cap, format)
         }
-        Codec::Xz => {
-            let room = usize::try_from(cap).unwrap_or(usize::MAX);
-            let (mut out, hit) = Capped::new(room);
-            let mut source = source;
-            match lzma_rs::xz_decompress(&mut source, &mut out) {
-                Ok(()) => Ok(Unpacked {
-                    bytes: out.into_bytes(),
-                    whole: true,
-                }),
-                Err(_) if hit.happened() => Ok(Unpacked {
-                    bytes: out.into_bytes(),
-                    whole: false,
-                }),
-                Err(error) => Err(broken(&error)),
-            }
-        }
+        // Streamed block by block, so a block of a hundred gigabytes of zeros costs the window
+        // the decoder keeps, not the block.
+        Codec::Xz => read_capped(lzma_rust2::XzReader::new(source, false), cap, format),
     }
 }
 
