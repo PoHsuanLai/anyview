@@ -14,7 +14,7 @@ use super::pipe::{Gate, Pipe};
 use super::source::{Read, Source};
 use crate::command::{MediaCommand, Pace};
 use crate::error::MediaError;
-use crate::event::{EndReason, MediaEvent};
+use crate::event::{Abilities, Ability, EndReason, MediaEvent};
 use crate::playing::{Continuation, Handled, MediaDriver};
 use anyview_core::{
     FilePath, MediaLength, MediaTime, MediaTrack, Speed, StreamKind, TrackId, TrackPlay,
@@ -188,6 +188,12 @@ impl BuiltinDriver {
             codec: Some(self.source.codec().to_owned()),
             play: TrackPlay::Playing,
         }]));
+        events.push(MediaEvent::Abilities(Abilities {
+            speed: Ability::Cannot,
+            tracks: Ability::Cannot,
+            chapters: Ability::Cannot,
+            frame_step: Ability::Cannot,
+        }));
         events.push(MediaEvent::Chapters(Vec::new()));
         events.push(MediaEvent::Volume(self.volume));
         events.push(MediaEvent::Speed(Speed::NORMAL));

@@ -2,11 +2,25 @@
 //! news is applied here, and the stage, the capsule and the panel read it. It is data; the
 //! machine decides what the position means.
 
-use crate::{MediaNotice, PlayerEvent};
+use crate::{MediaAbilities, MediaNotice, PlayerEvent};
 use anyview_core::{
     MediaChapter, MediaTime, MediaTrack, Percent, Resume, Speed, StreamKind, TimeRange,
     TrackChoice, TrackPlay, VideoPresence, Volume,
 };
+
+/// The panel's tabs once what the player cannot do is taken out: the tracks tab holds the tracks
+/// and the speed, the contents tab the chapters.
+pub(crate) fn tabs_offered(tabs: crate::PanelTabs, abilities: MediaAbilities) -> crate::PanelTabs {
+    use crate::{ControlOffer, PanelTab};
+    let tabs = match (abilities.tracks, abilities.speed) {
+        (ControlOffer::Withheld, ControlOffer::Withheld) => tabs.without(PanelTab::Tracks),
+        (ControlOffer::Offered, _) | (_, ControlOffer::Offered) => tabs,
+    };
+    match abilities.chapters {
+        ControlOffer::Withheld => tabs.without(PanelTab::Contents),
+        ControlOffer::Offered => tabs,
+    }
+}
 
 /// Where a trim begins and ends, as the person marked them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -117,6 +131,8 @@ pub struct MediaLive {
     pub buffered: Percent,
     /// The trim marks.
     pub marks: TrimMarks,
+    /// What the player can do.
+    pub abilities: MediaAbilities,
 }
 
 impl Default for MediaLive {
@@ -130,6 +146,7 @@ impl Default for MediaLive {
             picture: VideoPresence::Absent,
             buffered: Percent(100),
             marks: TrimMarks::default(),
+            abilities: MediaAbilities::default(),
         }
     }
 }
@@ -142,6 +159,7 @@ impl MediaLive {
             MediaNotice::Tracks(tracks) => self.tracks.clone_from(tracks),
             MediaNotice::Chapters(chapters) => self.chapters.clone_from(chapters),
             MediaNotice::Speed(speed) => self.speed = *speed,
+            MediaNotice::Abilities(abilities) => self.abilities = *abilities,
             MediaNotice::Picture(presence) => self.picture = *presence,
             MediaNotice::Player(PlayerEvent::VolumeChanged(volume)) => self.volume = *volume,
             MediaNotice::Player(PlayerEvent::Buffering(level)) => self.buffered = *level,

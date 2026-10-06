@@ -126,6 +126,7 @@ pub(super) fn viewer_params(
         &shelf.query.peek(),
         lines.as_ref().map(|held| held.0.as_ref()),
         shelf.level.now(),
+        shelf.media.peek().abilities,
     )
 }
 

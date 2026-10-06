@@ -13,6 +13,7 @@ mod view;
 
 pub(crate) use capsule::{level_to_volume, place_to_time};
 pub use doc::MediaDoc;
+pub(crate) use live::tabs_offered;
 pub use live::{MediaLive, MediaPlace, TrimMarks};
 pub use shelf::{MediaShelf, use_media_shelf};
 

@@ -51,6 +51,11 @@ impl PanelTabs {
         self.0 & tab.bit() != 0
     }
 
+    /// The set without `tab`.
+    pub const fn without(self, tab: PanelTab) -> Self {
+        PanelTabs(self.0 & !tab.bit())
+    }
+
     /// The first tab of the set, or `None` when the format has no panel.
     pub fn first(self) -> Option<PanelTab> {
         PanelTab::ALL

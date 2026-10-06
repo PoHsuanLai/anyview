@@ -17,7 +17,7 @@ pub use book::{BookDoc, BookStageView, Layout, SectionPage};
 pub use media::{
     MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, use_media_shelf,
 };
-pub(crate) use media::{level_to_volume, place_to_time};
+pub(crate) use media::{level_to_volume, place_to_time, tabs_offered as media_tabs};
 pub use pdf::{
     Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask,
     ReadyTile, use_pdf_shelf,
