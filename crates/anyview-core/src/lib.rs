@@ -22,6 +22,7 @@ mod trail;
 mod tree_path;
 mod units;
 pub mod work;
+mod xml_depth;
 
 pub use action::{FileAction, Reach, reach, shortcut};
 pub use edit::{Edit, EditKind};
@@ -57,3 +58,4 @@ pub use units::{
     PageCount, PageIndex, PageRange, PageSelection, Percent, Permille, PixelArea, PixelLen,
     PixelSize, Quality, QuarterTurn, SectionCount, SectionIndex, Speed, TimeRange, Volume, Zoom,
 };
+pub use xml_depth::{MAX_XML_DEPTH, nests_deeper_than};
