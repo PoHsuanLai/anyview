@@ -7,6 +7,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::io::{self, Write};
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 pub(crate) fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreError {
@@ -37,6 +38,27 @@ pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, S
 /// opens either the old file or the new one. One writer at a time: two would share the temporary
 /// name. The directory is created when missing.
 pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
+    write_json_as(path, value, 0o666)
+}
+
+/// [`write_json`] for a file only its owner may read (a kept version's sidecar).
+pub(crate) fn write_private_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
+    write_json_as(path, value, 0o600)
+}
+
+/// The folder `path` and every missing one above it, readable by its owner alone.
+pub(crate) fn create_private_dir(path: &Path) -> Result<(), StoreError> {
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(path)
+        .map_err(|e| io_error(StoreOp::CreateDir, path, &e))?;
+    // A folder an older version made with the default mode is closed now.
+    let _kept = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
+    Ok(())
+}
+
+fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), StoreError> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(dir).map_err(|e| io_error(StoreOp::CreateDir, dir, &e))?;
     let mut bytes = serde_json::to_vec(value).map_err(|error| StoreError::Corrupt {
@@ -49,7 +71,13 @@ pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Sto
     temp_name.push(".tmp");
     let temp = dir.join(temp_name);
 
-    let mut file = fs::File::create(&temp).map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(mode)
+        .open(&temp)
+        .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
     file.write_all(&bytes)
         .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
     file.sync_all()
