@@ -189,7 +189,7 @@ mod tests {
             (
                 "a blur over a region of ten thousand pages",
                 filtered("<feGaussianBlur stdDeviation=\"5000\"/>", wide),
-                0.25,
+                1.0,
                 false,
             ),
             (
