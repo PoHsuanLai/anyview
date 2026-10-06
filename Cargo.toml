@@ -60,15 +60,15 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "5d28c73cb83715a7176a497b7c0b3e64daca84c0" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -351,6 +351,16 @@ anyrender_vello_cpu = { git = "https://github.com/PoHsuanLai/anyrender", rev = "
 anyrender_vello_hybrid = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
 wgpu_context = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
 pixels_window_renderer = { git = "https://github.com/PoHsuanLai/anyrender", rev = "a0825ebfc0443f3ef0830c0e09f2d85df3da632b" }
+# dioxus-core 0.7.10 can spin forever in VirtualDom::wait_for_work: a task woken and then cancelled
+# before it is polled (a use_resource restart) leaves an empty entry in the dirty-task queue that
+# pop_task never removes. Fixed upstream in DioxusLabs/dioxus#5554 (0.8-alpha only); this fork
+# (github.com/PoHsuanLai/dioxus, branch quire-0.7) backports it onto 0.7.10. Remove when quire
+# moves to dioxus 0.8.
+dioxus-core = { git = "https://github.com/PoHsuanLai/dioxus", rev = "a615fd9f09e272c688a45e366161c576cecf0439" }
+dioxus-core-types = { git = "https://github.com/PoHsuanLai/dioxus", rev = "a615fd9f09e272c688a45e366161c576cecf0439" }
+generational-box = { git = "https://github.com/PoHsuanLai/dioxus", rev = "a615fd9f09e272c688a45e366161c576cecf0439" }
+subsecond = { git = "https://github.com/PoHsuanLai/dioxus", rev = "a615fd9f09e272c688a45e366161c576cecf0439" }
+subsecond-types = { git = "https://github.com/PoHsuanLai/dioxus", rev = "a615fd9f09e272c688a45e366161c576cecf0439" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
