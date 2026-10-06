@@ -281,9 +281,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   for `SETTLE` before it calls `Edge::changed`; a file renamed in the viewer is followed, but a folder that is
   removed or unmounted ends the watch without a word. The interval is a constant until the viewer has settings
   (a `viewer.*` key).
-- **A PDF link's web address is declined.** `HostRequest::OpenUri` reaches the host, which answers
-  `Declined::OpenUri`: `anyview-platform` has no trait for opening an address (the portal's `OpenURI`, or
-  `xdg-open`) to carry it out. Ends when it has one.
 - **A PDF scrolls by a thousandth of a page.** `PageView::offset` is `Permille` of the page's height, so at a
   high zoom one step is several pixels. The view keeps the exact position itself (`steer.rs`'s `Cursor`) and
   tells the machine only when the page or its offset changes. Ends if the machine takes a finer offset.
@@ -447,17 +444,15 @@ on. It is a reference, not a log: how each was found lives in git history.
   starts. The windows carry the desktop
   application id `org.quire.Anyview`, for which no `.desktop` file is shipped yet: add a `org.quire.Anyview.desktop` entry
   (with `MimeType=` for the families and `Exec=anyview %F`) with the package.
-- **Requests the host does not carry out.** `HostRequest` variants and file actions with no effect, each logged as
-  "not carried out" (`host::Declined`): `PickFile` (the platform edge has no file chooser), `Export` and the actions
-  that open the export sheet (the export pipeline is not wired to the window), `Present` (the mini window and
-  background play need window stacking and the player), `Run(CopyFile)` (the clipboard holds text only),
-  `Run(Rename)` and `Run(ConvertTo)` (a sheet asks first), `Run(Print)` of anything but a PDF (it prints through an
-  export to PDF), `SaveCopy`, `RevertTo`, the flips and a PDF's turns (edits are not wired), `Run(PlayInBackground)` and
-  `Peek` and `Play` requests, which open the file like any other until the quick-look window and the player exist.
-  Each ends with the feature it waits for.
-- **A window is not re-pointed after the host moves its file.** `Rename` moves the file and the host follows it for
-  the requests that come after, but the window still shows the old name, and after `Trash` it still shows the
-  file. Ends when the views can be told a file moved or went (an input for the load machine and the sequence).
+- **Requests the host does not carry out.** The few `HostRequest`s and file actions with no effect are logged as
+  "not carried out" (`host::Declined`) and, where a person should hear of it, told too (`feedback`): `Present` of a
+  quick look or a background session (a window becomes a window or the mini window, nothing offers the others),
+  `Run(CopyFile)` (the clipboard of `ds-blitz` holds text only, so the palette hides Copy File until it can hold a
+  `text/uri-list`; a patch for quire's `Clipboard` is the way), `Run(Print)` of anything that does not print and the
+  edits of a kind that has none. Each ends with the feature it waits for.
+- **A renamed file keeps its window and its place.** The host tells the window (`Edge::moved`) and the window opens
+  the file again under its new name, where the person is; the folder's list the arrows walk still holds the old
+  name until the next listing. After `Trash` the window still shows the file.
 - **Open With opens the default other program.** There is no list to pick from, so `Task::OpenWith` takes the first
   application that handles the type and is not `org.quire.Anyview*`. Ends when the Open With sheet lists
   `AppsForType::apps_for`.
@@ -783,6 +778,17 @@ on. It is a reference, not a log: how each was found lives in git history.
   renderer on the UI thread, so a very large page can hitch a turn. The reading position is the chapter, not
   the scroll inside it. Ends when a section can be scrolled and zoomed by its own machine.
 
+- **Feedback is a toast and a log line, from one seam.** `host/feedback.rs` words every outcome from the task that
+  ran (`Doing`) and how it ended (`Outcome`); the window's end of the task asks it. The wording is the host's, the
+  drawing the window's (`Done::Notice` to quire's `Toast`), and what the system said stays in the log. An export, a
+  duplicate and a copy say the name they took and offer Show in Folder.
+- **A launch with no file waits 400 ms for the bus.** A process the bus starts has no file of its own and the
+  request that started it arrives just after, so the welcome window opens after `WELCOME_AFTER` unless another window
+  has by then; a second launch with no file opens the welcome window at once. Ends when the bus says which kind of
+  start it was (`DBUS_STARTER_ADDRESS`, read through `Env`).
+- **A row picked in a table or a tree keeps Left and Right.** The arrow keys, Page Up and Down, Home and End move
+  the cursor (`RowStep`); while a row is picked Left and Right walk nothing, and Esc puts the cursor away so they
+  walk the folder again.
 ## Saves, versions and the install receipt
 
 - **Save and store limits that stand.** A save keeps the mode, owner (where the process may chown), extended

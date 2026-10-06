@@ -125,6 +125,9 @@ pub enum ViewerOut {
     Rewind(Rewind),
     /// List the kept versions of the open file: the answer is `Sheet(OpenRevert)`.
     ListVersions,
+    /// Ask for a new name for the open file: the answer is `Sheet(AskRename)`, starting from the
+    /// current name.
+    NameRename,
     /// Propose a name for a copy of the open file: the answer is `Sheet(AskSaveCopy)`.
     NameCopy,
     /// Choose another file to open.
@@ -148,4 +151,7 @@ pub struct ViewerParams {
     pub sheet: SheetParams,
     /// What the stages need from the view and settings.
     pub stage: StageParams,
+    /// The file actions the open file offers, whatever the palette's query: the ones a key may
+    /// run.
+    pub files: Vec<FileAction>,
 }

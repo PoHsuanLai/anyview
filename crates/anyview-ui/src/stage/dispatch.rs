@@ -6,6 +6,7 @@ use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
+use super::row::RowStep;
 use super::table::{TableIn, TableStage};
 use super::text::{TextIn, TextStage, TextStep};
 use super::tree::{TreeIn, TreeStage};
@@ -20,13 +21,31 @@ impl Stage {
     pub fn input_for(&self, command: StageCommand, params: &StageParams) -> Option<StageIn> {
         match self {
             Stage::NoStage => None,
-            Stage::Raster(_) => raster(command, &params.raster).map(StageIn::Raster),
+            Stage::Raster(stage) => raster(command, stage, &params.raster).map(StageIn::Raster),
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
             Stage::Table(_) => table(command).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
             Stage::Book(_) => book(command).map(StageIn::Book),
+        }
+    }
+
+    /// Whether the person has a row picked in a table or a tree: Esc puts it away, and until then
+    /// the keys that would walk the folder are the reader's.
+    pub fn has_cursor(&self) -> bool {
+        match self {
+            Stage::Table(TableStage::Selected { .. }) | Stage::Tree(TreeStage::Selected { .. }) => {
+                true
+            }
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Book(_)
+            | Stage::Table(TableStage::Browsing { .. })
+            | Stage::Tree(TreeStage::Browsing { .. }) => false,
         }
     }
 
@@ -78,7 +97,7 @@ impl Stage {
     }
 }
 
-fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
+fn raster(command: StageCommand, stage: &RasterStage, params: &RasterParams) -> Option<RasterIn> {
     let at = params.centre;
     match command {
         StageCommand::ZoomIn => Some(RasterIn::ZoomStep {
@@ -97,10 +116,17 @@ fn raster(command: StageCommand, params: &RasterParams) -> Option<RasterIn> {
             zoom: Zoom::Actual,
             at,
         }),
-        StageCommand::TogglePlayback => Some(RasterIn::TogglePlayback),
-        StageCommand::StepFrameForward => Some(RasterIn::StepFrame(StepDirection::Forward)),
-        StageCommand::StepFrameBack => Some(RasterIn::StepFrame(StepDirection::Backward)),
-        StageCommand::ZoomToWidth
+        StageCommand::TogglePlayback if stage.is_animated() => Some(RasterIn::TogglePlayback),
+        StageCommand::StepFrameForward if stage.is_animated() => {
+            Some(RasterIn::StepFrame(StepDirection::Forward))
+        }
+        StageCommand::StepFrameBack if stage.is_animated() => {
+            Some(RasterIn::StepFrame(StepDirection::Backward))
+        }
+        StageCommand::TogglePlayback
+        | StageCommand::StepFrameForward
+        | StageCommand::StepFrameBack
+        | StageCommand::ZoomToWidth
         | StageCommand::Find
         | StageCommand::FindNext
         | StageCommand::FindPrevious
@@ -267,6 +293,12 @@ fn table(command: StageCommand) -> Option<TableIn> {
     match command {
         StageCommand::NextSheet => Some(TableIn::NextSheet),
         StageCommand::PreviousSheet => Some(TableIn::PreviousSheet),
+        StageCommand::LineUp => Some(TableIn::Move(RowStep::Up)),
+        StageCommand::LineDown => Some(TableIn::Move(RowStep::Down)),
+        StageCommand::PreviousPage => Some(TableIn::Move(RowStep::PageUp)),
+        StageCommand::NextPage => Some(TableIn::Move(RowStep::PageDown)),
+        StageCommand::ScrollToStart => Some(TableIn::Move(RowStep::Top)),
+        StageCommand::ScrollToEnd => Some(TableIn::Move(RowStep::Bottom)),
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
@@ -280,12 +312,6 @@ fn table(command: StageCommand) -> Option<TableIn> {
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
         | StageCommand::SeekForward
-        | StageCommand::NextPage
-        | StageCommand::PreviousPage
-        | StageCommand::LineUp
-        | StageCommand::LineDown
-        | StageCommand::ScrollToStart
-        | StageCommand::ScrollToEnd
         | StageCommand::SlowDown
         | StageCommand::SpeedUp
         | StageCommand::NormalSpeed
@@ -307,6 +333,12 @@ fn table(command: StageCommand) -> Option<TableIn> {
 fn tree(command: StageCommand) -> Option<TreeIn> {
     match command {
         StageCommand::CollapseAll => Some(TreeIn::CollapseAll),
+        StageCommand::LineUp => Some(TreeIn::Move(RowStep::Up)),
+        StageCommand::LineDown => Some(TreeIn::Move(RowStep::Down)),
+        StageCommand::PreviousPage => Some(TreeIn::Move(RowStep::PageUp)),
+        StageCommand::NextPage => Some(TreeIn::Move(RowStep::PageDown)),
+        StageCommand::ScrollToStart => Some(TreeIn::Move(RowStep::Top)),
+        StageCommand::ScrollToEnd => Some(TreeIn::Move(RowStep::Bottom)),
         StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
@@ -320,12 +352,6 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
         | StageCommand::SeekForward
-        | StageCommand::NextPage
-        | StageCommand::PreviousPage
-        | StageCommand::LineUp
-        | StageCommand::LineDown
-        | StageCommand::ScrollToStart
-        | StageCommand::ScrollToEnd
         | StageCommand::SlowDown
         | StageCommand::SpeedUp
         | StageCommand::NormalSpeed

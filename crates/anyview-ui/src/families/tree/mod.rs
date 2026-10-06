@@ -8,7 +8,9 @@ pub use doc::TreeDoc;
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{OpenError, OpenLink};
-use crate::{Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, Ticket};
+use crate::{
+    Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, Ticket, TreeParams,
+};
 use anyview_core::{Facts, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -40,8 +42,24 @@ impl StageView for TreeStageView {
         PanelTabs::of(&[PanelTab::Info])
     }
 
-    fn params(_doc: &TreeDoc, _stage: &Stage, _area: Option<Area>) -> StageParams {
-        StageParams::default()
+    fn params(doc: &TreeDoc, stage: &Stage, area: Option<Area>) -> StageParams {
+        let rows = match stage {
+            Stage::Tree(stage) => doc.tree.visible_count(stage.open()),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Book(_)
+            | Stage::Table(_) => 0,
+        };
+        StageParams {
+            tree: TreeParams {
+                rows,
+                page: view::page_of(area),
+            },
+            ..StageParams::default()
+        }
     }
 
     fn stage(doc: &Arc<TreeDoc>, cx: &StageCx) -> Element {

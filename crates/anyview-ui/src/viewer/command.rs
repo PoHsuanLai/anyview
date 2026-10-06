@@ -52,12 +52,14 @@ fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     }
 }
 
-/// Export, trash, the mini window, the sheets of Save a Copy and Revert To and the edits are the
+/// Export and Convert To, trash, the mini window, the sheets of Rename, Save a Copy and Revert To and the edits are the
 /// viewer's own to start; every other action is the edge's.
 fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let handed_over = |viewer: Viewer| (viewer, vec![ViewerOut::Run(action)]);
     match action {
-        FileAction::Export => export(viewer, at, params),
+        // Converting is exporting: the sheet's pop-up is where the format is chosen.
+        FileAction::Export | FileAction::ConvertTo => export(viewer, at, params),
+        FileAction::Rename => (viewer, vec![ViewerOut::NameRename]),
         FileAction::MoveToTrash => sheet(viewer, SheetIn::AskTrash, at, params),
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
         FileAction::SaveCopy => (viewer, vec![ViewerOut::NameCopy]),
@@ -86,11 +88,9 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         | FileAction::CopyFile
         | FileAction::CopyPath
         | FileAction::Share
-        | FileAction::Rename
         | FileAction::Duplicate
         | FileAction::Print
-        | FileAction::PlayInBackground
-        | FileAction::ConvertTo => handed_over(viewer),
+        | FileAction::PlayInBackground => handed_over(viewer),
     }
 }
 

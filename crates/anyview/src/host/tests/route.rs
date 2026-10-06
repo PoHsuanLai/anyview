@@ -144,10 +144,10 @@ fn requests_of_a_window(
             Carry::Window(WindowTask::Unwatch),
         ),
         (
-            "a link's web address waits for the edge to have a way to open it",
+            "a link's web address is opened by the desktop",
             open(pdf),
             HostRequest::OpenUri("https://example.com/".to_owned()),
-            Carry::Declined(Declined::OpenUri),
+            Carry::Desktop(Task::OpenLink("https://example.com/".to_owned())),
         ),
         (
             "a request about the file before there is one",
@@ -162,10 +162,28 @@ fn requests_of_a_window(
             Carry::Declined(Declined::AlreadyOpen),
         ),
         (
-            "choosing a file needs a chooser",
+            "choosing a file asks the desktop's dialog, with or without a file shown",
             open(image),
             HostRequest::PickFile,
-            Carry::Declined(Declined::PickFile),
+            Carry::Desktop(Task::PickFile),
+        ),
+        (
+            "so does the welcome window, which shows none",
+            Shown::default(),
+            HostRequest::PickFile,
+            Carry::Desktop(Task::PickFile),
+        ),
+        (
+            "a notice's Show in Folder reveals the file it names, not the one shown",
+            open(image),
+            HostRequest::Reveal(path(pdf)),
+            Carry::Desktop(Task::Reveal(path(pdf))),
+        ),
+        (
+            "what the welcome window is given opens in windows of their own",
+            Shown::default(),
+            HostRequest::OpenFiles(vec![path(image), path(pdf)]),
+            Carry::Window(WindowTask::OpenFiles(vec![path(image), path(pdf)])),
         ),
         (
             "copying the file itself needs more than text",

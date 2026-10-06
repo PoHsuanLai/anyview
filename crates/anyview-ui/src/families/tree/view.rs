@@ -16,6 +16,16 @@ use std::sync::Arc;
 
 /// The height of a compact row.
 const ROW_PX: f32 = 24.0;
+/// How many rows a page up or down moves by: the room's height in rows, less two, so the row the
+/// cursor left stays in view.
+pub(super) fn page_of(area: Option<crate::Area>) -> u32 {
+    area.map_or(1, |area| {
+        let rows = (area.size.height.0 / ROW_PX).floor();
+        // a count of rows on screen is far below u32's range, and a negative one is none
+        (rows as u32).saturating_sub(2).max(1)
+    })
+}
+
 /// How far each level of depth indents a row.
 const INDENT_PX: f32 = 16.0;
 

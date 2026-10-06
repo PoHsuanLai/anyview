@@ -9,7 +9,10 @@ use anyview_ui::Probed;
 /// every page runs here, on a worker.
 pub(super) fn export(file: &Probed, choice: DocumentExport) -> Outcome {
     match anyview_export::export(&file.source, &file.sniffed, choice) {
-        Ok(_) => Outcome::Done,
+        Ok(written) => written
+            .into_iter()
+            .next()
+            .map_or(Outcome::Done, Outcome::Wrote),
         Err(error) => Outcome::Failed(format!("cannot write the export: {error}")),
     }
 }

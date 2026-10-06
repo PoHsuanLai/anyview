@@ -73,7 +73,7 @@ mod tests {
     use super::*;
     use crate::StageFamily;
     use crate::families::{LoadedDoc, PeekOnlyDoc, PeekOnlyStageView};
-    use crate::io::Probed;
+    use crate::io::{Probed, Readable};
     use anyview_core::{
         ByteLen, Facts, FileStamp, FormatKind, ModTime, Resume, Source, sniff_folder,
     };
@@ -99,6 +99,8 @@ mod tests {
                 kind: FormatKind::Folder,
                 facts: Facts::empty(),
                 thumbnail: None,
+                listing: Vec::new(),
+                readable: Readable::Yes,
             }),
         }
     }

@@ -13,6 +13,7 @@ use crate::{
 use anyview_core::{FilePath, Neighbours, Resume};
 use dioxus::prelude::*;
 use ds::motion::detail::operation::{Operation, PendingToken};
+use ds::stack::toast_hub::ToastHub;
 use ds_blitz::Gpu;
 
 /// What carrying out an output needs: the shelf it writes to, the edge, the GPU a picture is
@@ -22,6 +23,7 @@ pub(super) struct Carry {
     pub shelf: Shelf,
     pub edge: Edge,
     pub gpu: Gpu,
+    pub toasts: ToastHub,
     pub machine: CopyValue<Option<Dispatch>>,
 }
 
@@ -76,6 +78,14 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
                 c.edge.submit(Job::Versions { path });
             }
         }
+        ViewerOut::NameRename => {
+            if let (Some(path), Some(dispatch)) = (shown_path(c), c.dispatch()) {
+                let current = path
+                    .file_name()
+                    .map_or_else(String::new, |name| name.as_str().to_owned());
+                dispatch.send(ViewerIn::Sheet(SheetIn::AskRename(TypedText::new(current))));
+            }
+        }
         ViewerOut::NameCopy => {
             if let (Some(path), Some(dispatch)) = (shown_path(c), c.dispatch()) {
                 dispatch.send(ViewerIn::Sheet(SheetIn::AskSaveCopy(copy_name(&path))));
@@ -101,6 +111,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     let mut shelf = c.shelf;
     remember_on_leaving(c);
     keep_the_one_left(c);
+    shelf.wanted.set(Some(path.clone()));
     shelf.loaded.set(None);
     shelf.peeked.set(None);
     shelf.lines.set(None);
@@ -176,6 +187,7 @@ fn keep_the_one_left(c: &Carry) {
 /// The same file is probed again: what is on screen stays until the new copy lands.
 fn reload(c: &Carry, ticket: Ticket, path: FilePath) {
     let mut shelf = c.shelf;
+    shelf.wanted.set(Some(path.clone()));
     let was = shelf.probe.peek().found().cloned();
     shelf.probe.set(match was {
         Some(was) => super::session::Probe::Reprobing(ticket, was),

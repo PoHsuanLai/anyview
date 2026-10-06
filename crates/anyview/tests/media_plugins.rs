@@ -110,7 +110,10 @@ fn a_cut_a_track_and_a_conversion_are_written_beside_the_recording() {
         )
         .unwrap(),
     );
-    assert_eq!(export(&rig, dir.path(), &clip, trim), Outcome::Done);
+    assert!(matches!(
+        export(&rig, dir.path(), &clip, trim),
+        Outcome::Wrote(_)
+    ));
     let cut = dir.path().join("clip trimmed.mkv");
     assert!(cut.exists(), "{:?}", listing(dir.path()));
     let length = millis(&cut);
@@ -126,7 +129,10 @@ fn a_cut_a_track_and_a_conversion_are_written_beside_the_recording() {
 
     // The track as it is, named by its codec (vorbis lives in Ogg).
     let track = MediaExport::AudioOnly(AudioTarget::Copy);
-    assert_eq!(export(&rig, dir.path(), &clip, track), Outcome::Done);
+    assert!(matches!(
+        export(&rig, dir.path(), &clip, track),
+        Outcome::Wrote(_)
+    ));
     assert!(
         dir.path().join("clip.ogg").exists(),
         "{:?}",
@@ -135,13 +141,19 @@ fn a_cut_a_track_and_a_conversion_are_written_beside_the_recording() {
 
     let tone = copy_into(dir.path(), "tone.flac");
     let wav = MediaExport::AudioOnly(AudioTarget::Wav);
-    assert_eq!(export(&rig, dir.path(), &tone, wav), Outcome::Done);
+    assert!(matches!(
+        export(&rig, dir.path(), &tone, wav),
+        Outcome::Wrote(_)
+    ));
     assert!(dir.path().join("tone.wav").exists());
     let wav_length = millis(&dir.path().join("tone.wav"));
     assert!((1900..=2100).contains(&wav_length), "{wav_length} ms");
 
     // A name that is taken is never overwritten.
-    assert_eq!(export(&rig, dir.path(), &tone, wav), Outcome::Done);
+    assert!(matches!(
+        export(&rig, dir.path(), &tone, wav),
+        Outcome::Wrote(_)
+    ));
     assert!(dir.path().join("tone 2.wav").exists());
 }
 
@@ -155,10 +167,10 @@ fn a_trim_marked_only_at_its_start_runs_to_the_end_of_the_recording() {
     let clip = copy_into(dir.path(), "clip.mkv");
     let from_one_and_a_half =
         MediaExport::Trim(TimeRange::new(MediaTime::from_millis(1500), None).unwrap());
-    assert_eq!(
+    assert!(matches!(
         export(&rig, dir.path(), &clip, from_one_and_a_half),
-        Outcome::Done
-    );
+        Outcome::Wrote(_)
+    ));
     let length = millis(&dir.path().join("clip trimmed.mkv"));
     assert!(
         (1500..=2000).contains(&length),

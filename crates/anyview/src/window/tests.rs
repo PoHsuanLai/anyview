@@ -52,10 +52,10 @@ mod remaking {
     use crate::window::root::{remade, spec_for, stacking_for};
     use anyview_media::AudioDriver;
     use anyview_platform::testing::{
-        FakeApps, FakeMediaSession, FakePrinter, FakeReveal, FakeShare, FakeStacking,
-        StackingSupport,
+        FakeApps, FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
+        FakeStacking, StackingSupport,
     };
-    use anyview_platform::{PrintOutcome, Stacking, StackingOutcome};
+    use anyview_platform::{PickOutcome, PrintOutcome, Stacking, StackingOutcome};
     use anyview_store::Viewed;
     use anyview_ui::Look;
     use anyview_ui::Presentation;
@@ -98,6 +98,8 @@ mod remaking {
             FakeShare::default(),
             FakePrinter::answering(PrintOutcome::Printed),
             NoTrash,
+            FakePicker::answering(PickOutcome::Cancelled),
+            FakeLinks::default(),
             Services {
                 versions: anyview_store::Versions::under_state(&dir.join("state")),
                 store: Store::new(&dir.join("store"), now),

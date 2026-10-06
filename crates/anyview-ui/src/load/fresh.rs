@@ -12,13 +12,13 @@ pub enum Freshness {
 }
 
 /// What `seen`, the stamp the file has now, says about the file opened with stamp `open`. A file
-/// that cannot be read at the moment (`None`: an editor saving through a rename leaves none for
-/// an instant) is no change: what shows is still the last good copy, and the next event of the
-/// watcher looks again.
+/// that cannot be read now (`None`: it was deleted or moved, or an editor saving through a rename
+/// left none for an instant) is a change too: opening it again says which, and a file that is gone
+/// shows as gone rather than as the stale copy.
 pub fn freshness(open: FileStamp, seen: Option<FileStamp>) -> Freshness {
     match seen {
-        Some(seen) if seen != open => Freshness::Changed,
-        Some(_) | None => Freshness::Current,
+        Some(seen) if seen == open => Freshness::Current,
+        Some(_) | None => Freshness::Changed,
     }
 }
 
@@ -63,10 +63,10 @@ mod tests {
                 Freshness::Changed,
             ),
             (
-                "not readable for the moment",
+                "gone, or not readable for the moment",
                 stamp(10, 5),
                 None,
-                Freshness::Current,
+                Freshness::Changed,
             ),
         ];
         for (name, open, seen, want) in CASES {

@@ -54,12 +54,51 @@ impl Probe {
     }
 }
 
+/// Whether the open recording can be played: without the player (or the plugin that reads it) it
+/// shows its facts, and nothing that plays is on offer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Playback {
+    /// There is a player, or the file is not a recording.
+    Playable,
+    /// A recording nothing here plays.
+    Unplayable,
+}
+
+/// What the viewer offers of the file actions: Copy File waits until the desktop's clipboard can
+/// hold a file (the host's clipboard carries text only), and what plays waits for a player.
+fn offered(action: FileAction, playback: Playback) -> bool {
+    match action {
+        FileAction::CopyFile => false,
+        FileAction::PlayInMiniWindow | FileAction::PlayInBackground => {
+            playback == Playback::Playable
+        }
+        FileAction::Open
+        | FileAction::OpenWith
+        | FileAction::RevealInFolder
+        | FileAction::CopyPath
+        | FileAction::Share
+        | FileAction::Rename
+        | FileAction::Duplicate
+        | FileAction::MoveToTrash
+        | FileAction::Print
+        | FileAction::Export
+        | FileAction::SaveCopy
+        | FileAction::RevertTo
+        | FileAction::RotateLeft
+        | FileAction::RotateRight
+        | FileAction::FlipHorizontal
+        | FileAction::FlipVertical
+        | FileAction::ConvertTo => true,
+    }
+}
+
 /// The commands the palette lists for a file of `kind` showing `stage`: the file actions the
 /// viewer offers for the kind, then the stage's commands it has, in the shared order.
 pub(super) fn commands(
     kind: Option<FormatKind>,
     stage: &Stage,
     params: &StageParams,
+    playback: Playback,
     offer: EditOffer,
 ) -> Vec<Command> {
     let files = kind
@@ -68,12 +107,13 @@ pub(super) fn commands(
         .iter()
         .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
         .filter(|action| match reach(**action) {
-            Reach::Viewer | Reach::Both => true,
+            Reach::Viewer | Reach::Both => offered(**action, playback),
             Reach::Launcher => false,
         })
         .map(|action| Command::File(*action));
     let stages = StageCommand::ALL
         .iter()
+        .filter(|_| playback == Playback::Playable)
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     files.chain(stages).collect()
@@ -124,6 +164,10 @@ pub(super) fn params(
     level: MotionLevel,
 ) -> ViewerParams {
     let kind = probe.found().map(|probed| probed.sniffed.kind());
+    let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
+        (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
+        _ => Playback::Playable,
+    });
     let offer = doc.map_or(EditOffer::Plain, |doc| doc.view().edit_offer());
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
@@ -139,11 +183,19 @@ pub(super) fn params(
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
     };
+    let files = commands(kind, stage, &measured, playback, offer)
+        .into_iter()
+        .filter_map(|command| match command {
+            Command::File(action) => Some(action),
+            Command::Stage(_) => None,
+        })
+        .collect();
     ViewerParams {
+        files,
         chrome: ChromeParams::default(),
         panel: doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params()),
         palette: PaletteParams {
-            rows: ranked(commands(kind, stage, &measured, offer), query),
+            rows: ranked(commands(kind, stage, &measured, playback, offer), query),
         },
         presentation: PresentationParams::default(),
         sheet: SheetParams {

@@ -10,8 +10,6 @@ pub enum Declined {
     NoFileShown,
     /// The file is already open in this window.
     AlreadyOpen,
-    /// Choosing another file needs a file chooser the platform edge does not have.
-    PickFile,
     /// The window must ask a question first (a new name, a format); it does so through a sheet,
     /// and the answer comes back as its own request.
     NeedsSheet,
@@ -24,6 +22,10 @@ pub enum Declined {
     Edit,
     /// An earlier save is still being written; the file is not changed twice at once.
     Busy,
+    /// The file is read-only: it is not changed, and the person is told it is locked.
+    Locked,
+    /// The request waits for the save being written, and is asked again when it ends.
+    Queued,
     /// Nothing was edited in this window, so there is nothing to take back.
     NothingToUndo,
     /// Nothing was taken back in this window, so there is nothing to do again.
@@ -32,8 +34,6 @@ pub enum Declined {
     NotPrintable,
     /// The typed name is not a file name.
     NotAFileName,
-    /// Opening a web address a link names needs a platform edge trait for it, which does not exist.
-    OpenUri,
 }
 
 /// What became of a task.
@@ -43,6 +43,12 @@ pub enum Outcome {
     Done,
     /// It was carried out and the file is now at this path.
     Moved(FilePath),
+    /// It wrote this new file (an export, a copy), beside the original or where the person said.
+    Wrote(FilePath),
+    /// The person chose these files in the file dialog.
+    Picked(Vec<FilePath>),
+    /// The name asked for is taken: nothing was renamed.
+    Taken,
     /// There was nothing for it to do (no app to open the file with, no way to share it).
     Nothing(&'static str),
     /// The file plays elsewhere now (with no window): this window's part is done, and it closes.
@@ -53,18 +59,4 @@ pub enum Outcome {
     Written { file: FilePath, kept: VersionId },
     /// A save in place wrote nothing, and the file is as it was; the text says what refused.
     NotWritten(String),
-}
-
-/// The program's one log line for something that did not go as asked. `Done` says nothing.
-pub fn report(outcome: &Outcome) {
-    match outcome {
-        Outcome::Done | Outcome::Moved(_) | Outcome::Handed | Outcome::Written { .. } => {}
-        Outcome::Nothing(why) => eprintln!("anyview: nothing to do: {why}"),
-        Outcome::Failed(why) | Outcome::NotWritten(why) => eprintln!("anyview: {why}"),
-    }
-}
-
-/// The log line for a request nobody carries out.
-pub fn report_declined(why: Declined) {
-    eprintln!("anyview: not carried out: {why:?}");
 }
