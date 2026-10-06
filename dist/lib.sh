@@ -46,12 +46,12 @@ choose_sudo() {
   fi
 }
 
-# The icon sizes the repo ships, from the quire checkout: <QUIRE_DIR>/assets/icons/apps/viewer/<px>.png.
+# The icon sizes the repo ships: <ICON_DIR>/<px>.png (assets/icons, copied from quire's viewer icons).
 # Prints one pixel size per line; prints nothing (and warns) when the directory is absent.
 icon_sizes() {
-  local dir="$1/assets/icons/apps/viewer" file
+  local dir="$1" file
   if [[ ! -d "$dir" ]]; then
-    warn "no icons at $dir (set QUIRE_DIR to a quire checkout that has them): skipping the icons"
+    warn "no icons at $dir (set ICON_DIR to a folder of <px>.png files): skipping the icons"
     return 0
   fi
   for file in "$dir"/*.png; do

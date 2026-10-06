@@ -3,10 +3,12 @@
 
 mod file_name;
 mod file_path;
+mod regular;
 mod stamp;
 
 pub use file_name::FileName;
 pub use file_path::FilePath;
+pub use regular::{is_regular, open_regular};
 pub use stamp::{ByteLen, FileStamp, ModTime};
 
 /// A file the viewer was given (CLI, D-Bus, drop, launcher), parsed once at the boundary.
