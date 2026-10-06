@@ -1,7 +1,7 @@
 //! Reading inside a budget: a reader that stops at a byte count and remembers that it did.
 
 use std::cell::Cell;
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::rc::Rc;
 
 /// Whether a [`Limited`] reader stopped at its limit; shared with whoever handed the reader to a
@@ -61,49 +61,5 @@ impl<R: Read> Read for Limited<R> {
 impl<R: Seek> Seek for Limited<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.inner.seek(pos)
-    }
-}
-
-/// A buffer that takes at most `room` more bytes and then fails, setting its [`Hit`]: where a
-/// decoder that writes (xz) puts a prefix.
-#[derive(Debug)]
-pub(crate) struct Capped {
-    bytes: Vec<u8>,
-    room: usize,
-    hit: Hit,
-}
-
-impl Capped {
-    pub(crate) fn new(room: usize) -> (Self, Hit) {
-        let hit = Hit::default();
-        (
-            Capped {
-                bytes: Vec::new(),
-                room,
-                hit: hit.clone(),
-            },
-            hit,
-        )
-    }
-
-    pub(crate) fn into_bytes(self) -> Vec<u8> {
-        self.bytes
-    }
-}
-
-impl Write for Capped {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let free = self.room - self.bytes.len();
-        if free == 0 && !buf.is_empty() {
-            self.hit.0.set(true);
-            return Err(io::Error::other("the byte budget is spent"));
-        }
-        let take = free.min(buf.len());
-        self.bytes.extend_from_slice(&buf[..take]);
-        Ok(take)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
     }
 }

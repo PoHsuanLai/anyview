@@ -98,7 +98,7 @@ fn a_file_with_only_sensor_data_or_truncated_jpegs_has_no_preview() {
         assert_eq!(largest_preview(&file), None, "{name}");
     }
     assert_eq!(
-        decode(b"II*\0\x08\0\0\0\0\0\0\0\0"),
+        decode(b"II*\0\x08\0\0\0\0\0\0\0\0", Ceiling::VIEW),
         Err(ImageError::NoPreview)
     );
 }
@@ -116,7 +116,7 @@ fn a_preview_without_its_own_orientation_takes_the_one_in_the_raw_files_first_if
     ];
     for (name, tag, size, top_left) in cases {
         let file = tiff(*tag, &[&jpeg(64, 32)]);
-        let picture = decode(&file).unwrap();
+        let picture = decode(&file, Ceiling::VIEW).unwrap();
         assert_eq!(
             (picture.size().width.0, picture.size().height.0),
             *size,
@@ -152,6 +152,39 @@ fn a_preview_in_an_iso_media_file_is_found_too() {
     file.extend(((preview.len() + 8) as u32).to_be_bytes());
     file.extend(b"PRVW");
     file.extend(&preview);
-    let picture = decode(&file).unwrap();
+    let picture = decode(&file, Ceiling::VIEW).unwrap();
     assert_eq!((picture.size().width.0, picture.size().height.0), (48, 32));
+}
+
+#[test]
+fn a_file_of_nothing_but_start_markers_is_read_once_not_once_per_marker() {
+    // A walk from each of these starts would reach the end of the file: 31 s at this size when
+    // each start walked it again. Resuming past the walked bytes makes it a blink.
+    for (name, pattern) in [
+        ("bare starts", &[0xFF, 0xD8][..]),
+        (
+            "starts with tiny segments",
+            &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x02][..],
+        ),
+    ] {
+        let mut file = b"II*\0\x08\0\0\0".to_vec();
+        file.extend(pattern.repeat(400_000));
+        let started = std::time::Instant::now();
+        assert_eq!(largest_preview(&file), None, "{name}");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(5),
+            "{name}: took {:?}",
+            started.elapsed()
+        );
+    }
+}
+
+#[test]
+fn a_preview_after_a_walk_that_failed_is_still_found() {
+    let preview = jpeg(64, 32);
+    let mut junk = [0xFF, 0xD8].repeat(1000);
+    junk.extend([0xFF, 0xC3]);
+    let file = tiff(None, &[&junk, &preview]);
+    let found = largest_preview(&file).unwrap();
+    assert_eq!(&file[found.at], preview.as_slice());
 }

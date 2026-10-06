@@ -119,10 +119,11 @@ fn delimited(
 ) -> Result<TablePeeked, TextError> {
     {
         let head = read_head(src, budget)?;
-        let table = Table::parse(&head.text, delimiter, HeaderMode::Detect)?;
+        let (table, rows) =
+            Table::parse_start(&head.text, delimiter, HeaderMode::Detect, PEEK_LINES)?;
         Ok(of_table(
             &table,
-            Tally::of(table.row_count().0 as usize, head.coverage), // a u32 fits a usize
+            Tally::of(rows.0 as usize, head.coverage), // a u32 fits a usize
             TableSource::Delimited {
                 delimiter,
                 encoding: head.codec,
@@ -141,8 +142,8 @@ fn sheet(
             allowed: budget.bytes,
         });
     }
-    let workbook = Workbook::open(src)?;
-    let sheets = u32::try_from(workbook.sheets().len()).unwrap_or(u32::MAX);
+    let workbook = Workbook::open_start(src)?;
+    let sheets = workbook.sheet_count();
     let first = workbook
         .sheets()
         .first()

@@ -286,3 +286,24 @@ fn a_damaged_recording_says_why_whichever_parser_reads_it() {
         assert_eq!(result.body.slug(), "unavailable", "{name}");
     }
 }
+
+/// A header whose elements loop sends the demuxer round forever; the peek must give up and say the
+/// file is unavailable instead of holding its worker.
+#[test]
+fn a_matroska_header_that_loops_is_given_up_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut mkv = std::fs::read(support::path(Home::Media, "clip.mkv")).unwrap();
+    mkv[51..58].fill(0);
+    let path = dir.path().join("loop.mkv");
+    std::fs::write(&path, mkv).unwrap();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let (src, sniffed) = support::on_disk(&path, 0);
+        let result = peek(&src, &sniffed, &pane_budget());
+        let _ = sender.send(result.body.slug());
+    });
+    let slug = receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("the peek ends");
+    assert_eq!(slug, "unavailable");
+}

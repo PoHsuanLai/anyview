@@ -16,7 +16,8 @@ const CHAPTER_LIMIT: ByteLen = ByteLen(16 * 1024 * 1024);
 /// The largest single image or stylesheet a chapter takes in.
 const ASSET_LIMIT: ByteLen = ByteLen(8 * 1024 * 1024);
 
-/// How much a chapter may take in altogether: each image becomes a `data:` URL in the page.
+/// How much a chapter may take in altogether: each image becomes a `data:` URL in the page, and
+/// each stylesheet is sealed into it.
 const TOTAL_LIMIT: u64 = 24 * 1024 * 1024;
 
 pub(super) fn read_chapter(
@@ -57,9 +58,12 @@ impl Assets for ZipAssets<'_> {
     }
 
     fn text(&self, entry: &str) -> Option<String> {
-        read(self.path, entry, ASSET_LIMIT)
-            .ok()
-            .map(|bytes| text_of(&bytes))
+        if self.taken.get() >= TOTAL_LIMIT {
+            return None;
+        }
+        let bytes = read(self.path, entry, ASSET_LIMIT).ok()?;
+        self.taken.set(self.taken.get() + bytes.len() as u64);
+        Some(text_of(&bytes))
     }
 }
 

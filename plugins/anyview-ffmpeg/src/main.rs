@@ -21,6 +21,10 @@ use std::process::ExitCode;
 use tools::Lookup;
 
 fn main() -> ExitCode {
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!("anyview-ffmpeg {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
     let lookup = Lookup::from_process(
         std::env::args().skip(1),
         std::env::var_os("ANYVIEW_FFMPEG"),
