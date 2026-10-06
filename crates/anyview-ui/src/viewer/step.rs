@@ -6,12 +6,15 @@ use super::model::{Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
+use crate::context::{ContextIn, ContextOut, ContextPick};
 use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
-use crate::load::{LoadIn, LoadOut};
+use crate::load::{Load, LoadIn, LoadOut};
 use crate::navigate::{NavigateIn, NavigateOut};
-use crate::palette::{PaletteIn, PaletteOut};
+use crate::palette::{Palette, PaletteIn, PaletteOut};
+use crate::panel::{PanelIn, PanelTab};
 use crate::presentation::Presentation;
+use crate::sheet::Sheet;
 use crate::stage::{Stage, StageFamily, StageIn};
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
@@ -41,6 +44,7 @@ impl Machine for Viewer {
             self.chrome.wake(),
             self.panel.wake(),
             self.palette.wake(),
+            self.context.wake(),
             self.sheet.wake(),
             self.navigate.wake(),
             self.presentation.wake(),
@@ -61,6 +65,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Chrome(input) => chrome(viewer, input, at, params),
         ViewerIn::Panel(input) => panel(viewer, input, at, params),
         ViewerIn::Palette(input) => palette(viewer, input, at, params),
+        ViewerIn::Context(input) => context(viewer, input, at, params),
         ViewerIn::Sheet(input) => sheet(viewer, input, at, params),
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
@@ -208,6 +213,35 @@ fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -
         })
 }
 
+/// The context menu's own transitions, then what the row picked did. It opens over a file that is
+/// showing and nothing else: a sheet or the palette has the person's attention already.
+fn context(viewer: Viewer, input: ContextIn, at: Stamp, params: &ViewerParams) -> Step {
+    let opening = matches!(input, ContextIn::Open(_) | ContextIn::OpenAtCentre);
+    if opening && !can_open_context(&viewer) {
+        return (viewer, vec![]);
+    }
+    let (context, outs) = viewer.context.step(input, at, &params.context, &());
+    let viewer = Viewer { context, ..viewer };
+    outs.into_iter()
+        .fold((viewer, vec![]), |(viewer, mut outs), out| {
+            let (viewer, more) = match out {
+                ContextOut::Run(ContextPick::Run(command)) => run(viewer, command, at, params),
+                ContextOut::Run(ContextPick::GetInfo) => {
+                    panel(viewer, PanelIn::Choose(PanelTab::Info), at, params)
+                }
+            };
+            outs.extend(more);
+            (viewer, outs)
+        })
+}
+
+/// Whether a context menu may open now: a file is on screen, and no sheet or palette is up.
+fn can_open_context(viewer: &Viewer) -> bool {
+    let showing = matches!(viewer.load, Load::Ready { .. });
+    let free = matches!(viewer.sheet, Sheet::Closed) && matches!(viewer.palette, Palette::Closed);
+    showing && free
+}
+
 /// A move along the sequence; landing on a file begins loading it.
 fn navigate(viewer: Viewer, input: NavigateIn, at: Stamp, params: &ViewerParams) -> Step {
     let (navigate, outs) = viewer.navigate.clone().step(input, at, &(), &());
@@ -232,6 +266,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Regions {
             sheet: &viewer.sheet,
             palette: &viewer.palette,
+            context: &viewer.context,
             panel: &viewer.panel,
             stage: &viewer.stage,
             stage_params: &params.stage,
@@ -241,6 +276,8 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Sheet(input) => sheet(viewer, input, at, params),
         Route::Palette(input) => palette(viewer, input, at, params),
         Route::OpenPalette => palette(viewer, PaletteIn::Open, at, params),
+        Route::Context(input) => context(viewer, input, at, params),
+        Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),
         Route::CloseWindow => (viewer, vec![ViewerOut::CloseWindow]),
         Route::OpenFile => (viewer, vec![ViewerOut::PickFile]),
@@ -287,6 +324,8 @@ fn elapsed(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     let (viewer, more) = panel(viewer, Elapsed.into(), at, params);
     outs.extend(more);
     let (viewer, more) = palette(viewer, Elapsed.into(), at, params);
+    outs.extend(more);
+    let (viewer, more) = context(viewer, Elapsed.into(), at, params);
     outs.extend(more);
     let (viewer, more) = sheet(viewer, Elapsed.into(), at, params);
     outs.extend(more);

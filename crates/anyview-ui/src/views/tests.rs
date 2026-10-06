@@ -3,13 +3,16 @@
 //! `DS_BLESS=1 cargo test -p anyview-ui views::` rewrites the goldens.
 
 use super::chrome::{Controls, Titlebar};
+use super::context::items_of;
 use super::panel::InfoPanel;
+use crate::context::entries;
 use crate::testing::golden;
-use crate::{Command, PanelTab, PanelTabs, StageCommand};
+use crate::{Command, ContextPick, PanelTab, PanelTabs, StageCommand};
 use anyview_core::{FactLabel, FactValue, Facts, FileAction};
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::host::measure::Anchor;
 use ds::prelude::*;
 use ds_lint::{LintConfig, markup};
 
@@ -48,6 +51,27 @@ fn slots() -> Vec<CapsuleSlot<Command>> {
     ]
 }
 
+/// What a picture's palette lists, as the menu draws it. The golden draws the menu inline: a
+/// floating menu is laid out on the window's overlay layer, which a markup render has none of.
+fn picture_menu() -> Vec<crate::ContextEntry> {
+    let listed: Vec<Command> = [
+        FileAction::RotateLeft,
+        FileAction::RotateRight,
+        FileAction::CopyPath,
+        FileAction::OpenWith,
+        FileAction::RevealInFolder,
+        FileAction::Export,
+        FileAction::Share,
+        FileAction::Rename,
+        FileAction::Duplicate,
+        FileAction::MoveToTrash,
+    ]
+    .into_iter()
+    .map(Command::File)
+    .collect();
+    entries(&listed, PanelTabs::of(&[PanelTab::Info]))
+}
+
 fn facts() -> Facts {
     Facts::empty()
         .with(FactLabel::Kind, FactValue::text("image/png"))
@@ -77,6 +101,21 @@ const CASES: &[Case] = &[
             root(rsx! {
                 div { style: "position:relative; width:480px; height:200px",
                     Controls { slots: slots(), shown: Shown::Visible, onpick: |_| {}, onscrub: |_| {}, onlevel: |_| {}, onpointerenter: |()| {}, onpointerleave: |()| {} }
+                }
+            })
+        },
+    },
+    Case {
+        name: "context-menu-picture",
+        make: || {
+            root(rsx! {
+                Menu::<ContextPick> {
+                    placement: MenuPlacement::Context,
+                    anchor: Anchor::Point(Point { x: Px(40.0), y: Px(30.0) }),
+                    items: items_of(&picture_menu()),
+                    flow: Flow::Inline,
+                    onpick: |_| {},
+                    onclose: |()| {},
                 }
             })
         },

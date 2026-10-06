@@ -2,6 +2,7 @@
 
 use super::error::OpenError;
 use super::job::Probed;
+use super::seams::FileAccess;
 use crate::families::family_of;
 use anyview_archive::zip_entries;
 use anyview_core::{
@@ -38,6 +39,7 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
     };
     Ok(Probed {
         resume: Resume::Nothing,
+        access: FileAccess::Writable,
         family: family_of(sniffed.kind()),
         source: Source::new(path.clone(), stamp),
         sniffed,

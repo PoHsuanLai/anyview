@@ -116,7 +116,6 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     let keys: Vec<u32> = (0..rows).collect();
     let note = (sheet.table.coverage() == anyview_text::Coverage::Prefix)
         .then(|| format!("Showing the first {rows} rows"));
-    let sheet_key = stage.sheet().0;
     rsx! {
         div { class: "viewer-data", "data-body": "table",
             div { class: "viewer-data-scroll",
@@ -138,7 +137,6 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                         }
                     }
                     VirtualList::<u32> {
-                        key: "{sheet_key}",
                         label: "Rows",
                         keys,
                         row,

@@ -34,7 +34,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-export` | exists | the exports and printouts of images, PDFs and text documents: runs the jobs each format plans, writes each file beside the original through a temporary file renamed into place, and makes the PDF a printer takes |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages, books and the facts view) and the window that draws every region (`views`) |
+| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages, books and the facts view) and the window that draws every region (`views`) |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
@@ -157,7 +157,7 @@ named below.
 | `label` | `ResumeLabel` and `resume_label`, the row subtitle derived from a `Resume` |
 | `history` | `HistoryCap`, `HistoryEntry`, `History` and the pure `history_after_view` |
 | `record` | the per-file record, its hashed file name, `applicable` and `prune_decision` (private) |
-| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `ResumeSource` and `FirstFrameSource` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
+| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `ResumeSource`, `FirstFrameSource` and `FileLocks` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
 | `reader` | `read_history`, `HistoryRead`: the API the launcher links |
 | `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
 | `save` | the save pipeline: `Pending`, `BackedUp` (consumed by `write_in_place`), `Written`, `Durability` |
@@ -190,6 +190,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `chrome` | `Chrome`, `PinReasons` (a never-empty set), `ChromeParams` |
 | `panel` | `Panel`, `PanelTab`, `PanelTabs` |
 | `palette` | `Palette`, `PaletteParams` (the ranked rows) |
+| `context` | `ContextMenu` (closed, or open with its corner), `ContextParams` (the rows and where a key opens it), `ContextPick`, `ContextEntry`, `Spot`, and `entries`: which of the palette's commands a Mac's context menu shows, in what order, under what titles, with its rules |
 | `sheet` | `Sheet`, `ExportDraft` (one format's export choice) |
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
 | `presentation` | `Presentation` |
@@ -201,7 +202,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
 | `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, unpack a section of a book, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
 | `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf`, `media`, `book` and `peek_only` (office facts and the document's thumbnail), and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
-| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, Open With and Show in Folder); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, the panel, the sheets, key events as shortcuts, `stylesheet` |
+| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, Open With and Show in Folder); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
 
@@ -409,7 +410,7 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows`, `wants_of`, `Want` and `Arrival` (what the viewer's name receives: each file, or a handoff that brings its own results and place, becomes a window through ds-blitz's `AppHandle`, or, for a `Play`, a player with no window); `WARM_FOR` |
 | `media` | the program's players: `MediaHub` (the sessions, the desktop's one now-playing entry and the controls that come back, the sessions with no window), `PlayerHost` (the `MediaHost` a window is lent: a player on a thread of its own per window), `NowPlaying` (MPRIS, or absent without a bus), `MediaPlugins` (the registry and the runner: `player`, `reading`, `writer`, `offer`; section 2i), `Exports`, `ExportHandle`, `ExportEnd`, `PluginExport` (the pool's runner for transcodes through the FFmpeg plugin, with progress and stop). Private: `actor` (the `ActorBody` over an `anyview_media::Driver`), `line` (what a window holds of a player), `map` (the player's events and commands to the machine's, both ways), `snapshot` (the entry's state from the events, and how often a moving position is published), `orders` (what each desktop control means to a player), `sink` (the window's texture as the player's picture) |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
-| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
 | `window` | `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
@@ -1008,6 +1009,8 @@ The single place a concept lives. Extend it; never write a second one.
 | How many lines fit a page when long lines wrap | `families/text/wrap.rs` |
 | Where a key step through a text lands | `stage/text/steps.rs` |
 | What a stage remembers of where the person is, and puts back | `Stage::resume`, `Stage::restoring` (`stage/resume.rs`) |
+| Which files refuse a save in place (their edits are not offered) | `anyview_ui::FileLocks` and `Probed::access` (the binary implements it over `anyview_store::is_read_only`: `host/locks.rs`) |
+| Which rows the right-click menu has, in what order | `context/entries.rs` (`entries`), over the palette's `commands` (`views/session.rs`) |
 | Where a file was left, read by the window | `anyview_ui::ResumeSource` (the binary implements it over `anyview_store`) |
 | Where a file is left, kept | `HostRequest::Remember` (the binary writes it through `anyview_store`) |
 | The cheap first frame of a file | `StageView::first_frame` (`families/view.rs`); a picture's from `anyview_ui::FirstFrameSource` (the host's thumbnail cache), an animation's or a vector's from `anyview_image`'s peeks, a text's the first bytes of the file (`families/text/doc.rs`) |
@@ -1194,6 +1197,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `Chrome` | `Hidden`, `Revealing`, `Shown`, `Pinned { by: PinReasons }`, `Hiding` | `PointerMoved(Zone)`, `PointerLeft`, `Pin`, `Unpin`, `Elapsed` | `Fade { to, over }` |
 | `Panel` | `Hidden`, `Shown { tab }` | `Toggle`, `Choose`, `Close`, `TabsChanged` | `Show(tab)`, `Hide` |
 | `Palette` | `Closed`, `Open { query, selection }` | `Open`, `Typed`, `Move`, `Pick`, `Enter`, `Close` | `Opened`, `Closed`, `Run(Command)` |
+| `ContextMenu` | `Closed`, `Open { at }` | `Open(Spot)`, `OpenAtCentre`, `Pick`, `Close` | `Run(ContextPick)` |
 | `Sheet` | `Closed`, `Export { draft }`, `ConfirmTrash`, `Rename { name }` | `OpenExport`, `AskTrash`, `AskRename`, `PickKind`, `Change`, `Typed`, `Confirm`, `Cancel` | `Opened`, `Closed`, `Export`, `Trash`, `Rename` |
 | `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Leave` | `Open(path)`, `Preload(neighbours)` |
 | `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
@@ -1239,6 +1243,9 @@ machine input or a worker job, never a decision of a view.
 - *Resume.* `Job::Probe` asks the host's `ResumeSource` for where the file was left (`Probed::resume`); after the
   load machine installs the stage, `Stage::restoring` turns it into the stage's own `Restore` input. Every
   settled gesture says `HostRequest::Remember`, which is how the host keeps it.
+- *Access.* `Job::Probe` also asks the host's `FileLocks` whether the file takes a save in place
+  (`Probed::access`); a file that refuses one has its picture edits, Revert To and page edits left out of
+  the palette's commands, so the palette, the context menu and the keys all stop offering them.
 - *Reload.* The host says a file changed (`Edge::changed`); the window reads its stamp and, if `freshness` says it
   differs from the one opened, sends `ViewerIn::Reload`. The root probes again with the stage left in place, a
   probe of the same family keeps it, and what is on screen stays until the new copy lands. The window asks the
@@ -1280,15 +1287,28 @@ it. A place left (`Resume::Media`) is put back by `MediaIn::Restore`, which the 
 document lands, and a place the person is at is kept by the window as it moves.
 
 Key routing is `route(key, Regions) -> Route`, not a machine: a sheet, then the palette, then the
-global chords (⌘K, ⌘I, ⌘W, ⌘O, Esc), then the stage, then navigation, then the chrome. A sheet
-and the palette take every key, so a key that means nothing to one is `Swallowed`. Esc undoes the
-innermost thing: what the stage has open, then the panel, then a quick look.
+context menu, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, the Menu key and ⇧F10, Esc), then the stage,
+then navigation, then the chrome. A sheet, the palette and an open context menu take every key, so
+a key that means nothing to one is `Swallowed` (the menu's own arrows, Enter and letters are quire's
+`Menu`, which has the keyboard while it is up; the window leaves those keys to it, and Esc closes it).
+Esc undoes the innermost thing: what the stage has open, then the panel, then a quick look. The Menu
+key and ⇧F10 (read as `ShortcutKey::ContextMenu` by `views/keys.rs`) open the context menu at the
+middle of the content.
+
+The right-click menu is the palette's command list under a Mac's grouping, so the menu, the palette
+and the shortcuts cannot drift: `views/session.rs` builds the one `commands` list (with what the
+file allows: playback, the edit offer, `FileAccess`), `context::entries` picks the rows a context
+menu shows from it, and a row is run by the same `run` a palette row is. A secondary click on the
+content (not on the capsule or the titlebar) sends `ContextIn::Open` with the pointer; the menu
+opens only over a file that is showing and no sheet or palette. A pick runs at once, but the menu
+stays in the state until quire's fade ends and it sends `Close`. The window with no file has no
+context menu.
 
 Hits of a find live with whoever searched (a document can have thousands): the stages hold the
 hit count and a cursor, and ask for a hit to be shown by index. The root couples regions in three
 places only: a file starting to load (the stage goes, a new ticket is issued), a palette command
-(which region it belongs to), and the chrome's derived pins (a sheet or palette open, media
-paused).
+(which region it belongs to), and the chrome's derived pins (a sheet, the palette or the
+context menu open, media paused).
 
 ## 6. Recipes
 

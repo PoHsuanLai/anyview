@@ -320,6 +320,7 @@ pub fn probed(file: &FilePath) -> anyview_ui::Probed {
         family: anyview_ui::family_of(sniffed.kind()),
         sniffed,
         resume: anyview_core::Resume::Nothing,
+        access: anyview_ui::FileAccess::Writable,
     }
 }
 
