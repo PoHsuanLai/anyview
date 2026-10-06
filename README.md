@@ -6,14 +6,15 @@ preview pane. It is a Rust workspace written in layers, from the pure vocabulary
 app, and builds on the quire design system. `ARCHITECTURE.md` is the map, `CONVENTIONS.md` the rules,
 `FINDINGS.md` the open items, `CHANGELOG.md` what changed. This is a beta: version 0.1.0-beta.1.
 
-anyview links no codec. Video, audio, HEIC and camera raw files are handled by your own tools through
-small plugins (see Plugins), so the formats you get are the ones your distribution gives you.
+anyview links no codec library. Video, HEIC and camera raw files are handled by your own tools through
+small plugins (see Plugins), so the formats you get are the ones your distribution gives you; the common
+audio formats are decoded in pure Rust and play with nothing installed.
 
 ## Build from source
 
 You need `rustup` (the toolchain in `rust-toolchain.toml` is installed on first use), `git`, `pkg-config`
 and the development packages of the system libraries the build links: fontconfig, FreeType, HarfBuzz,
-libxml2, libpng, zlib, bzip2, xz and GLib.
+libxml2, libpng, zlib, bzip2, xz, GLib and ALSA (`libasound2-dev`, `alsa-lib-devel`: the sound card).
 
 ```sh
 git clone https://github.com/PoHsuanLai/anyview.git
@@ -57,7 +58,7 @@ Each plugin is a separate program that runs your own tool; install the tool, the
 
 | Plugin | Gives you | Your tools (Fedora / Debian and Ubuntu) |
 |---|---|---|
-| `mpv` | playing video and audio | `mpv` |
+| `mpv` | playing video and Opus audio, and everything else with mpv's own controls (the common audio formats play without it) | `mpv` |
 | `ffmpeg` | facts, pictures and conversion of recordings | `ffmpeg` (`ffprobe` comes with it; Fedora's `ffmpeg-free` has fewer codecs than RPM Fusion's `ffmpeg`) |
 | `heif` | HEIC, HEIF and AVIF pictures | `libheif-tools` / `libheif-examples` |
 | `raw` | camera raw files developed in full | `LibRaw-samples` / `libraw-bin` |
@@ -80,7 +81,8 @@ raw file shows its embedded preview with no plugin at all. `dist/install.sh --he
 
 ## Known limitations
 
-- Video and audio need your own `mpv` and the `mpv` plugin; HEIC, HEIF and AVIF need the `heif` plugin.
+- Audio (MP3, AAC, M4A, FLAC, WAV, AIFF and Ogg Vorbis) plays with nothing installed. Video and Opus audio need your own `mpv` and the `mpv` plugin, and the viewer says so; HEIC, HEIF and AVIF need the `heif` plugin.
+- Audio played without mpv has no speed control, cover picture or chapters; with the `mpv` plugin installed, mpv plays everything.
 - HTML opens as source, not rendered. Office documents show their facts and can be opened in another
   program; spreadsheets (XLSX, ODS) open as tables. RAR archives are not supported.
 - Tables show the first 200,000 rows; JSON over 64 MB does not open; Markdown over 2 MB shows as source.
