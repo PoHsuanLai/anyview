@@ -6,22 +6,28 @@
 //! 1 is compressed so the brightest value lands on white. The result is encoded with the sRGB
 //! transfer curve. Alpha is clamped to 0..=1 and scaled, not curved.
 
-use super::MAX_DECODE_AREA;
+use super::ceiling::Ceiling;
 use super::colour::ColourInfo;
-use super::stills::{declared_size, decode_error, limits};
+use super::stills::{decode_error, header, limits};
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 
+/// What a picture costs per pixel beyond the codec's own buffer at its peak: the f32 RGBA copy the
+/// tone mapping reads and the RGBA8 it writes.
+pub(crate) const COPIES: u64 = 16 + 4;
+
 /// The picture of an EXR or HDR file, tone mapped to straight RGBA8.
-pub(crate) fn decode(bytes: &[u8], format: ImageFormat) -> Result<(Rgba8, ColourInfo), ImageError> {
-    let size = declared_size(bytes, format)?;
-    if size.area() > MAX_DECODE_AREA {
-        return Err(ImageError::TooLarge { size });
-    }
+pub(crate) fn decode(
+    bytes: &[u8],
+    format: ImageFormat,
+    ceiling: Ceiling,
+) -> Result<(Rgba8, ColourInfo), ImageError> {
+    let (size, per_pixel) = header(bytes, format)?.cost(COPIES);
+    ceiling.admit(size, per_pixel)?;
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
-    reader.limits(limits());
+    reader.limits(limits(ceiling));
     let decoded = reader.decode().map_err(|e| decode_error(e, Some(size)))?;
     let colour = ColourInfo::of_color_type(decoded.color());
     let linear = decoded.into_rgba32f();

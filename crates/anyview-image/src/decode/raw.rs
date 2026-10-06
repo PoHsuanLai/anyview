@@ -17,6 +17,7 @@
 //! Orientation: the preview's own EXIF orientation when it has one, else the orientation in the
 //! raw file's first IFD, which describes the sensor picture the preview was made from.
 
+use super::ceiling::Ceiling;
 use super::stills;
 use crate::error::ImageError;
 use crate::orientation::ExifOrientation;
@@ -40,20 +41,22 @@ impl Preview {
     }
 }
 
-/// The largest decodable JPEG stream in `bytes`, or `None` when there is none.
+/// The largest decodable JPEG stream in `bytes`, or `None` when there is none. Linear in the
+/// file: a candidate that fails to walk is not tried again from inside the bytes it walked, so a
+/// file of nothing but start markers is read once.
 pub(crate) fn largest_preview(bytes: &[u8]) -> Option<Preview> {
     let mut best: Option<Preview> = None;
     let mut at = 0;
     while let Some(found) = next_start(bytes, at) {
         match stream_at(bytes, found) {
-            Some(preview) => {
+            Ok(preview) => {
                 at = preview.at.end;
                 // The first of two equal streams wins, so the result does not depend on later bytes.
                 if best.as_ref().is_none_or(|b| preview.area() > b.area()) {
                     best = Some(preview);
                 }
             }
-            None => at = found + 3,
+            Err(walked_to) => at = walked_to.max(found + 3),
         }
     }
     best
@@ -73,35 +76,46 @@ fn next_start(bytes: &[u8], from: usize) -> Option<usize> {
 }
 
 /// Walks the JPEG stream that starts at `start`: its segments, then its entropy-coded data, to the
-/// end-of-image marker. `None` when it is cut short, has no frame header, or is a frame type the
-/// decoder does not read (lossless, arithmetic-coded, hierarchical, or not 8 bits deep).
-fn stream_at(bytes: &[u8], start: usize) -> Option<Preview> {
-    let data = bytes.get(start..)?;
-    let mut at = 2;
+/// end-of-image marker. When it is cut short, has no frame header, or is a frame type the decoder
+/// does not read (lossless, arithmetic-coded, hierarchical, or not 8 bits deep), the error is the
+/// offset the walk reached.
+fn stream_at(bytes: &[u8], start: usize) -> Result<Preview, usize> {
+    let data = bytes.get(start..).unwrap_or_default();
+    let mut reached = 2;
+    match walk(data, &mut reached) {
+        Some(size) => Ok(Preview {
+            at: start..start + reached,
+            size,
+        }),
+        None => Err(start + reached),
+    }
+}
+
+/// The size a stream declares, with `reached` left at the end of the stream or where the walk
+/// stopped.
+fn walk(data: &[u8], reached: &mut usize) -> Option<PixelSize> {
     let mut size: Option<PixelSize> = None;
     loop {
         // Fill bytes may precede a marker.
-        while *data.get(at)? == 0xFF && *data.get(at + 1)? == 0xFF {
-            at += 1;
+        while *data.get(*reached)? == 0xFF && *data.get(*reached + 1)? == 0xFF {
+            *reached += 1;
         }
-        if *data.get(at)? != 0xFF {
+        if *data.get(*reached)? != 0xFF {
             return None;
         }
-        let marker = *data.get(at + 1)?;
-        at += 2;
+        let marker = *data.get(*reached + 1)?;
+        *reached += 2;
         match marker {
-            0xD9 => {
-                return size.map(|size| Preview {
-                    at: start..start + at,
-                    size,
-                });
-            }
+            0xD9 => return size,
             // Markers with no length: a restart, the temporary marker, a stray start of image.
             0x01 | 0xD0..=0xD8 => continue,
             _ => {}
         }
-        let length = usize::from(u16::from_be_bytes([*data.get(at)?, *data.get(at + 1)?]));
-        let segment = data.get(at..at + length)?;
+        let length = usize::from(u16::from_be_bytes([
+            *data.get(*reached)?,
+            *data.get(*reached + 1)?,
+        ]));
+        let segment = data.get(*reached..*reached + length)?;
         match marker {
             // Baseline, extended sequential and progressive Huffman frames.
             0xC0..=0xC2 => {
@@ -120,9 +134,15 @@ fn stream_at(bytes: &[u8], start: usize) -> Option<Preview> {
             0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF => return None,
             _ => {}
         }
-        at += length;
+        *reached += length;
         if marker == 0xDA {
-            at = end_of_scan(data, at)?;
+            match end_of_scan(data, *reached) {
+                Some(end) => *reached = end,
+                None => {
+                    *reached = data.len();
+                    return None;
+                }
+            }
         }
     }
 }
@@ -184,10 +204,10 @@ pub(crate) fn file_orientation(bytes: &[u8]) -> Option<ExifOrientation> {
 }
 
 /// The preview of a raw file as an upright picture.
-pub(crate) fn decode(bytes: &[u8]) -> Result<Rgba8, ImageError> {
+pub(crate) fn decode(bytes: &[u8], ceiling: Ceiling) -> Result<Rgba8, ImageError> {
     let preview = largest_preview(bytes).ok_or(ImageError::NoPreview)?;
     let jpeg = &bytes[preview.at];
-    let (picture, _) = stills::still(jpeg, ImageFormat::Jpeg)?;
+    let (picture, _) = stills::still(jpeg, ImageFormat::Jpeg, ceiling)?;
     // `still` has turned the picture by the preview's own orientation, when it has one.
     let own = crate::exif::ExifFacts::has_orientation(jpeg);
     Ok(match (own, file_orientation(bytes)) {

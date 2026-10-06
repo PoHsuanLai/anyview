@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="4096"><filter id="f" x="-1000%" y="-1000%" width="2000%" height="2000%"><feGaussianBlur stdDeviation="5000 5000"/></filter><rect width="4096" height="4096" filter="url(#f)"/></svg>

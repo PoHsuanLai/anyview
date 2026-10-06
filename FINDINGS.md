@@ -112,7 +112,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   `ImageError::NotCompiledIn`. AVIF encoding (`ravif`) is always built and tested. Ends when the image
   or CI has `libdav1d-dev` and `pkg-config`: run the gate with `--all-features`.
 - **SVG text is not drawn.** `resvg` is built without its `text` feature and with no font database, and
-  external files an SVG names are not read, so only what the SVG itself holds appears. Ends when
+  an `href` that is not a `data:` URL resolves to nothing (`Svg::parse` sets the resolver; usvg's default
+  reads any path), so only what the SVG itself holds appears. Ends when
   `anyview-platform` can hand the decoder a font database (the `text` feature and `fontdb`).
 - **A legacy-encoded text file is not text to the sniffer.** `anyview_core::sniff` calls a head that is
   not valid UTF-8 and has no byte-order mark `Other`, so a Windows-1252 or Shift_JIS `.txt` never reaches
@@ -146,9 +147,9 @@ on. It is a reference, not a log: how each was found lives in git history.
   window is asked for. Ends if lines get a byte cap with a marker for the cut.
 - **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
   times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
-- **A peek decodes every frame to count them, and a JPEG XL animation shows its first frame.** The peek's
-  frame count costs a full decode of the animation. Ends if that hurts: count frames from the container
-  headers. The export sheet exports an animation's first frame, not the one on screen.
+- **A JPEG XL animation shows its first frame.** The export sheet exports an animation's first frame, not
+  the one on screen. A peek decodes the first frame only and takes the frame count from the container
+  (`frame_count.rs`), so a GIF, APNG or WebP whose container lies about its count shows the lie.
 - **`RasterTarget` has no BMP.** `anyview_image::encode_bmp` exists outside it, for callers that need
   the format. Ends if the export sheet offers BMP (the core target and `RasterExportKind` gain it).
 - **The history cap and the pruning rule are not settings yet.** `HistoryCap::DEFAULT` is 200
