@@ -1,55 +1,49 @@
 //! Writing a file whole: to a temporary file beside the destination, then given its name.
 
 use crate::error::ExportError;
+use anyview_store::{StoreError, is_taken, link_new, partial_beside, sweep_leftovers};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// `bytes` as the new file `to`. The bytes go to a hidden file in the same folder first and are
 /// given the name `to` only when they are all on disk, so `to` never holds part of them. A `to`
-/// that exists is left as it is, whoever made it.
+/// that exists is left as it is, whoever made it, and so is a hidden file this call did not make.
+/// The hidden files of an export that died are removed first.
 pub fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
     let write_error = |error: std::io::Error| ExportError::Write {
         path: to.to_path_buf(),
         kind: error.kind(),
     };
+    sweep_leftovers(to.parent().unwrap_or_else(|| Path::new(".")));
     let partial = partial_beside(to);
-    let written = (|| {
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&partial)?;
-        file.write_all(bytes)?;
-        file.sync_all()
-    })();
-    if let Err(error) = written {
-        let _gone = std::fs::remove_file(&partial);
-        return Err(write_error(error));
-    }
-    // A hard link claims `to` only if no file has it, in one step; a rename would replace a file
-    // made between a look and the rename. A file system without hard links (FAT on a stick)
-    // falls back to looking first.
-    let placed = match std::fs::hard_link(&partial, to) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            Err(ExportError::Exists {
+    // Only a file this call made is this call's to remove.
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&partial)
+        .map_err(write_error)?;
+    let written = file.write_all(bytes).and_then(|()| file.sync_all());
+    drop(file);
+    let placed = match written {
+        Ok(()) => link_new(&partial, to).map_err(|error| match error {
+            error if is_taken(&error) => ExportError::Exists {
                 path: to.to_path_buf(),
-            })
-        }
-        Err(_) if to.exists() => Err(ExportError::Exists {
-            path: to.to_path_buf(),
+            },
+            StoreError::Io { kind, .. } => ExportError::Write {
+                path: to.to_path_buf(),
+                kind,
+            },
+            StoreError::Corrupt { .. }
+            | StoreError::NoSuchVersion { .. }
+            | StoreError::PathNotUtf8 { .. } => ExportError::Write {
+                path: to.to_path_buf(),
+                kind: std::io::ErrorKind::Other,
+            },
         }),
-        Err(_) => std::fs::rename(&partial, to).map_err(write_error),
+        Err(error) => Err(write_error(error)),
     };
     let _gone = std::fs::remove_file(&partial);
     placed
-}
-
-/// The hidden name the bytes are written under before `to` has them.
-fn partial_beside(to: &Path) -> PathBuf {
-    let name = to
-        .file_name()
-        .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-    to.with_file_name(format!(".{name}.{}.part", std::process::id()))
 }
 
 #[cfg(test)]
@@ -83,6 +77,32 @@ mod tests {
         assert!(matches!(error, ExportError::Exists { .. }), "{error}");
         assert_eq!(std::fs::read(&to).unwrap(), b"mine");
         assert_eq!(names(dir.path()), ["out.txt"], "the temporary file is gone");
+    }
+
+    #[test]
+    fn a_dangling_symlink_is_a_taken_name_and_makes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let to = dir.path().join("out.txt");
+        let elsewhere = dir.path().join("elsewhere");
+        std::os::unix::fs::symlink(&elsewhere, &to).unwrap();
+        let error = write_new(b"x", &to).unwrap_err();
+        assert!(matches!(error, ExportError::Exists { .. }), "{error}");
+        assert!(!elsewhere.exists(), "the link's target was created");
+    }
+
+    #[test]
+    fn a_hidden_file_of_a_dead_export_is_swept_and_a_live_one_is_not() {
+        let dir = tempfile::tempdir().unwrap();
+        // 4194304 is above the kernel's largest pid, so no process has it.
+        let dead = dir.path().join(".out.txt.4194304-1.part");
+        let live = dir
+            .path()
+            .join(format!(".other.txt.{}-99.part", std::process::id()));
+        std::fs::write(&dead, "x").unwrap();
+        std::fs::write(&live, "y").unwrap();
+        write_new(b"all", &dir.path().join("out.txt")).unwrap();
+        assert!(!dead.exists());
+        assert!(live.exists());
     }
 
     #[test]
