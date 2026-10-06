@@ -24,7 +24,7 @@ pub use media::{
 pub use notice::Notice;
 pub(crate) use probe::probe;
 pub use seams::{
-    FileCard, FileCards, FirstFrameSource, ImagePlugins, PluginPicture, Readable, ResumeSource,
-    VersionSource,
+    FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource, ImagePlugins, PluginPicture,
+    Readable, ResumeSource, VersionSource,
 };
 pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, Workers};

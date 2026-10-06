@@ -11,6 +11,7 @@
 
 mod chrome;
 mod command;
+mod context;
 mod edits;
 mod families;
 mod io;
@@ -33,6 +34,9 @@ mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
+pub use context::{
+    ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams, ContextPick, Spot,
+};
 pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
     Area, BookDoc, BookStageView, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor,
@@ -44,10 +48,11 @@ pub use families::{
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use io::{
-    Backend, Done, Edge, FileCard, FileCards, FirstFrameSource, HostRequest, ImagePlugins, Job,
-    MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake, Notice,
-    OpenError, OpenLink, PluginPicture, Preloaded, Probed, Readable, Reply, ResumeSource,
-    SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    Backend, Done, Edge, FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource, HostRequest,
+    ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted,
+    MediaWake, Notice, OpenError, OpenLink, PluginPicture, Preloaded, Probed, Readable, Reply,
+    ResumeSource, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers,
+    folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{

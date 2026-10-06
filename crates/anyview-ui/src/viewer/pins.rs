@@ -1,9 +1,11 @@
-//! The chrome's pins that follow from the other regions: a menu or sheet open, media paused.
+//! The chrome's pins that follow from the other regions: a menu, the palette or a sheet open, media
+//! paused.
 //! The pointer and keyboard-focus pins come from the view directly.
 
 use super::model::{Viewer, ViewerParams};
 use super::region::{Step, chrome};
 use crate::chrome::{ChromeIn, PinReason};
+use crate::context::ContextMenu;
 use crate::palette::Palette;
 use crate::sheet::Sheet;
 use crate::stage::{MediaStage, Stage};
@@ -29,7 +31,11 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 | Sheet::NoVersions => true,
                 Sheet::Closed => false,
             };
-            palette || sheet
+            let context = match viewer.context {
+                ContextMenu::Open { .. } => true,
+                ContextMenu::Closed => false,
+            };
+            palette || sheet || context
         }
         PinReason::MediaPaused => matches!(viewer.stage, Stage::Media(MediaStage::Paused { .. })),
         PinReason::PointerOverCapsule | PinReason::KeyboardFocus => false,

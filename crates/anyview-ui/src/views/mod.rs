@@ -6,6 +6,7 @@ mod app;
 mod arrive;
 mod carry;
 mod chrome;
+mod context;
 mod effects;
 mod failed;
 mod keys;

@@ -22,10 +22,11 @@ const NAMED: &[(Key, ShortcutKey)] = &[
     (Key::PageUp, ShortcutKey::PageUp),
     (Key::PageDown, ShortcutKey::PageDown),
     (Key::Insert, ShortcutKey::Insert),
+    (Key::ContextMenu, ShortcutKey::ContextMenu),
 ];
 
 /// The key a named or typed `key` stands for, or `None` for a modifier on its own and for keys
-/// the viewer has no use for (function keys, media keys).
+/// the viewer has no use for (media keys, the function keys but F10).
 fn key_of(key: &Key) -> Option<ShortcutKey> {
     if let Key::Character(text) = key {
         return match text.as_str() {
@@ -59,6 +60,10 @@ fn modifiers_of(held: Modifiers) -> Vec<ShortcutKey> {
 
 /// What `event` is, as a shortcut; `None` when it is a modifier alone or a key nothing uses.
 pub(crate) fn shortcut_of(event: &KeyboardEvent) -> Option<Shortcut> {
+    // ⇧F10 is the context-menu key on a keyboard without one.
+    if event.key() == Key::F10 && event.modifiers() == Modifiers::SHIFT {
+        return Some(Shortcut(vec![ShortcutKey::ContextMenu]));
+    }
     let key = key_of(&event.key())?;
     let mut keys = modifiers_of(event.modifiers());
     keys.push(key);

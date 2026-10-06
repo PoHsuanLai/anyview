@@ -93,6 +93,7 @@ mod tests {
                 sniffed: sniff_folder(),
                 family: StageFamily::PeekOnly,
                 resume: Resume::Nothing,
+                access: crate::FileAccess::Writable,
             },
             doc: LoadedDoc::of::<PeekOnlyStageView>(PeekOnlyDoc {
                 name: name.to_owned(),
