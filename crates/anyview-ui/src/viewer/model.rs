@@ -2,6 +2,7 @@
 
 use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
 use crate::command::Command;
+use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
@@ -25,6 +26,8 @@ pub struct Viewer {
     pub panel: Panel,
     /// The ⌘K palette.
     pub palette: Palette,
+    /// The right-click menu.
+    pub context: ContextMenu,
     /// The modal sheet.
     pub sheet: Sheet,
     /// Walking the sequence.
@@ -68,6 +71,8 @@ pub enum ViewerIn {
     Panel(PanelIn),
     /// The palette.
     Palette(PaletteIn),
+    /// The context menu.
+    Context(ContextIn),
     /// The sheet.
     Sheet(SheetIn),
     /// Walking the sequence.
@@ -145,6 +150,8 @@ pub struct ViewerParams {
     pub panel: PanelParams,
     /// The palette's ranked rows for its query.
     pub palette: PaletteParams,
+    /// The rows of the context menu.
+    pub context: ContextParams,
     /// Whether the open file is media.
     pub presentation: PresentationParams,
     /// What the sheets open on.

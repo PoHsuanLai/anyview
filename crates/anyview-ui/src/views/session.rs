@@ -2,12 +2,13 @@
 //! document the load opened, the window of lines last read. These are the results of effects,
 //! kept so the views can draw them and so a late result for a file the person left is dropped.
 
+use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
-    ChromeParams, Command, EditOffer, MediaOffer, Motion, PaletteParams, PanelParams,
-    PresentationParams, SheetParams, Stage, StageCommand, StageParams, TextParams, TextViews,
-    Ticket, TypedText, ViewerParams,
+    ChromeParams, Command, ContextParams, EditOffer, FileAccess, MediaOffer, Motion, PaletteParams,
+    PanelParams, PresentationParams, SheetParams, Spot, Stage, StageCommand, StageParams,
+    TextParams, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
 use ds::prelude::MotionLevel;
@@ -92,20 +93,37 @@ fn offered(action: FileAction, playback: Playback) -> bool {
     }
 }
 
+/// What the open file allows and offers, as the commands' filters read it.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Offers {
+    /// Whether the file can be played.
+    pub playback: Playback,
+    /// What a picture edit costs, or that none is possible.
+    pub edit: EditOffer,
+    /// Whether the file takes a save in place.
+    pub access: FileAccess,
+}
+
 /// The commands the palette lists for a file of `kind` showing `stage`: the file actions the
-/// viewer offers for the kind, then the stage's commands it has, in the shared order.
+/// viewer offers for the kind, then the stage's commands it has, in the shared order. What
+/// changes the file in place is left out of a file that refuses a save.
 pub(super) fn commands(
     kind: Option<FormatKind>,
     stage: &Stage,
     params: &StageParams,
-    playback: Playback,
-    offer: EditOffer,
+    offers: Offers,
 ) -> Vec<Command> {
+    let Offers {
+        playback,
+        edit: offer,
+        access,
+    } = offers;
     let files = kind
         .map(actions_for)
         .unwrap_or_default()
         .iter()
         .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
+        .filter(|action| access == FileAccess::Writable || !saves_in_place(**action))
         .filter(|action| match reach(**action) {
             Reach::Viewer | Reach::Both => offered(**action, playback),
             Reach::Launcher => false,
@@ -114,6 +132,7 @@ pub(super) fn commands(
     let stages = StageCommand::ALL
         .iter()
         .filter(|_| playback == Playback::Playable)
+        .filter(|command| access == FileAccess::Writable || !edits_pages(**command))
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     files.chain(stages).collect()
@@ -127,6 +146,19 @@ fn is_picture_edit(action: FileAction) -> bool {
             | FileAction::RotateRight
             | FileAction::FlipHorizontal
             | FileAction::FlipVertical
+    )
+}
+
+/// Whether `action` writes the open file itself.
+fn saves_in_place(action: FileAction) -> bool {
+    is_picture_edit(action) || action == FileAction::RevertTo
+}
+
+/// Whether `command` changes the pages of the PDF it is run on.
+fn edits_pages(command: StageCommand) -> bool {
+    matches!(
+        command,
+        StageCommand::DeletePage | StageCommand::MovePageEarlier | StageCommand::MovePageLater
     )
 }
 
@@ -169,6 +201,9 @@ pub(super) fn params(
         _ => Playback::Playable,
     });
     let offer = doc.map_or(EditOffer::Plain, |doc| doc.view().edit_offer());
+    let access = probe
+        .found()
+        .map_or(FileAccess::Writable, |probed| probed.access);
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
@@ -183,8 +218,16 @@ pub(super) fn params(
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
     };
-    let files = commands(kind, stage, &measured, playback, offer)
-        .into_iter()
+    let offers = Offers {
+        playback,
+        edit: offer,
+        access,
+    };
+    let listed = commands(kind, stage, &measured, offers);
+    let panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    let files = listed
+        .iter()
+        .copied()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
             Command::Stage(_) => None,
@@ -193,10 +236,14 @@ pub(super) fn params(
     ViewerParams {
         files,
         chrome: ChromeParams::default(),
-        panel: doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params()),
-        palette: PaletteParams {
-            rows: ranked(commands(kind, stage, &measured, playback, offer), query),
+        context: ContextParams {
+            entries: entries(&listed, panel.tabs),
+            centre: centre_of(area),
         },
+        palette: PaletteParams {
+            rows: ranked(listed, query),
+        },
+        panel,
         presentation: PresentationParams::default(),
         sheet: SheetParams {
             media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
@@ -204,6 +251,15 @@ pub(super) fn params(
         },
         stage: measured,
     }
+}
+
+/// The middle of the content, where a menu opened by a key goes: the window's own middle until
+/// the content has been measured.
+fn centre_of(area: Option<crate::Area>) -> Spot {
+    area.map_or_else(Spot::default, |area| Spot {
+        x: (area.origin.x.0 + area.size.width.0 / 2.0).round() as i32,
+        y: (area.origin.y.0 + area.size.height.0 / 2.0).round() as i32,
+    })
 }
 
 /// The family of stage a probed file gets.

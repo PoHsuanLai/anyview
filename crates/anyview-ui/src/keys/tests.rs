@@ -1,5 +1,6 @@
 use super::*;
 use crate::chrome::{ChromeIn, PinReason};
+use crate::context::{ContextIn, ContextMenu, Spot};
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn, PaletteMove, RowIndex};
 use crate::panel::{Panel, PanelIn, PanelTab};
@@ -405,11 +406,59 @@ fn every_row_of_the_table_routes_as_written() {
         let regions = Regions {
             sheet,
             palette,
+            context: &ContextMenu::Closed,
             panel,
             stage,
             stage_params: &params,
         };
         let got = route(&Shortcut(keys.to_vec()), regions);
         assert_eq!(&got, want, "{name}");
+    }
+}
+
+#[test]
+fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escape() {
+    let params = StageParams::default();
+    let regions = |context: &'static ContextMenu| Regions {
+        sheet: &Sheet::Closed,
+        palette: &Palette::Closed,
+        context,
+        panel: &Panel::Hidden,
+        stage: &IMAGE,
+        stage_params: &params,
+    };
+    const OPEN: ContextMenu = ContextMenu::Open {
+        at: Spot { x: 1, y: 2 },
+    };
+    // name, the menu, the keys, where they go
+    let cases: Vec<(&str, &'static ContextMenu, Vec<ShortcutKey>, Route)> = vec![
+        (
+            "the menu key opens it",
+            &ContextMenu::Closed,
+            vec![ShortcutKey::ContextMenu],
+            Route::OpenContextMenu,
+        ),
+        (
+            "Escape closes it",
+            &OPEN,
+            vec![Escape],
+            Route::Context(ContextIn::Close),
+        ),
+        (
+            "the global chords wait while it is open",
+            &OPEN,
+            vec![Super, Char('k')],
+            Route::Swallowed,
+        ),
+        (
+            "so do the arrows, which are the menu's own",
+            &OPEN,
+            vec![Down],
+            Route::Swallowed,
+        ),
+    ];
+    for (name, context, keys, want) in cases {
+        let got = route(&Shortcut(keys), regions(context));
+        assert_eq!(got, want, "{name}");
     }
 }

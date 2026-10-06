@@ -3,6 +3,7 @@
 use super::model::{Regions, Route};
 use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
+use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
@@ -13,8 +14,8 @@ use ds_core::standard_action::StandardAction;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
 /// Which region gets `key`, given the states of the regions that can claim it: a sheet, then the
-/// palette, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, Esc), then the stage, then navigation, then
-/// the chrome.
+/// palette, then the context menu, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, the Menu key, Esc),
+/// then the stage, then navigation, then the chrome.
 ///
 /// Esc undoes the innermost thing: what the stage has open (a find bar, a scrub), then the
 /// panel, then the quick look itself.
@@ -47,6 +48,15 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         } => return PaletteIn::from_key(keys).map_or(Route::Swallowed, Route::Palette),
         Palette::Closed => {}
     }
+    match regions.context {
+        ContextMenu::Open { at: _ } => {
+            return match keys {
+                [ShortcutKey::Escape] => Route::Context(ContextIn::Close),
+                _ => Route::Swallowed,
+            };
+        }
+        ContextMenu::Closed => {}
+    }
     match global(keys, &regions) {
         Some(route) => route,
         None => unclaimed(keys, &regions),
@@ -62,6 +72,7 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
         }
         [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
         [ShortcutKey::Super, ShortcutKey::Char('o')] => Some(Route::OpenFile),
+        [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
         [ShortcutKey::Escape] => Some(escape(regions)),
         keys => rewind(keys, regions.stage).map(Route::Rewind),
     }

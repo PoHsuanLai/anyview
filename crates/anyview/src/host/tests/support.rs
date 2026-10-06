@@ -44,6 +44,7 @@ pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Probed {
         sniffed,
         family,
         resume: Resume::Nothing,
+        access: anyview_ui::FileAccess::Writable,
     }
 }
 

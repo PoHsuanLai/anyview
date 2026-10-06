@@ -75,6 +75,8 @@ fn Welcome() -> Element {
             class: "viewer-welcome",
             tabindex: "0",
             "data-drop": drop.drop_attr(),
+            // A Mac's empty viewer window has no context menu: a secondary click does nothing.
+            oncontextmenu: move |event: MouseEvent| event.prevent_default(),
             onmounted: move |event| {
                 focus_soon(event.data());
                 drop.mounted(event);
