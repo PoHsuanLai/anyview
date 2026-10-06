@@ -121,12 +121,17 @@ fn without_ffmpeg_it_lists_nothing_logs_why_and_the_host_is_told_it_lacks_the_ca
 #[test]
 fn a_program_that_is_not_ffmpeg_is_not_used() {
     let scratch = Scratch::new();
-    let imposter = scratch.path("ffmpeg");
-    std::fs::write(&imposter, "#!/bin/sh\necho 'not what you think'\n").unwrap();
-    let mut perms = std::fs::metadata(&imposter).unwrap().permissions();
-    std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
-    std::fs::set_permissions(&imposter, perms).unwrap();
-    let (hello, log) = greeting(&support::with_ffmpeg(&imposter));
+    // Both tools are imposters, so the test does not depend on what this machine has installed.
+    let mut args = Vec::new();
+    for (flag, name) in [("--ffmpeg", "ffmpeg"), ("--ffprobe", "ffprobe")] {
+        let imposter = scratch.path(name);
+        std::fs::write(&imposter, "#!/bin/sh\necho 'not what you think'\n").unwrap();
+        let mut perms = std::fs::metadata(&imposter).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
+        std::fs::set_permissions(&imposter, perms).unwrap();
+        args.extend([flag.to_owned(), imposter.display().to_string()]);
+    }
+    let (hello, log) = greeting(&args);
     assert!(hello.provides.is_empty());
     assert!(log.contains("cannot be used"), "{log}");
 }

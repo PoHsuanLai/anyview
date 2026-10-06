@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.quire.Anyview</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Viewer</name>
+  <developer id="io.github.pohsuanlai">
+    <name>Po Hsuan Lai</name>
+  </developer>
+  <summary>View images, documents, recordings, text and data</summary>
+  <description>
+    <p>
+      One window for the files you open every day: pictures, PDF documents, text and source code,
+      Markdown, tables, JSON, fonts, archives, books and comics, audio and video.
+    </p>
+    <p>
+      Press Space on a file in your file manager for a quick look, or open it for the full viewer
+      with zoom, search, page turning and playback. Recordings and camera raw or HEIC pictures are
+      handled by your own mpv, FFmpeg and libheif tools through optional plugins; the viewer itself
+      contains no codec.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.quire.Anyview.desktop</launchable>
+  <url type="homepage">https://github.com/PoHsuanLai/anyview</url>
+  <url type="bugtracker">https://github.com/PoHsuanLai/anyview/issues</url>
+  <provides>
+    <binary>anyview</binary>
+  </provides>
+  <categories>
+    <category>Graphics</category>
+    <category>Viewer</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <releases>
+    <release version="0.1.0-beta.1" date="2026-10-06">
+      <description>
+        <p>The first beta.</p>
+      </description>
+    </release>
+  </releases>
+</component>

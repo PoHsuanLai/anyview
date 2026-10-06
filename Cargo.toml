@@ -25,7 +25,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-beta.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 # What pdfrum's crates declare (quire CONSUMING.md section 1); the toolchain itself is pinned in
@@ -56,16 +56,19 @@ anyview-ffmpeg = { path = "plugins/anyview-ffmpeg" }
 anyview-heif = { path = "plugins/anyview-heif" }
 anyview-raw = { path = "plugins/anyview-raw" }
 anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
-# Sibling repo, checked out next to this one (quire CONSUMING.md section 1).
-ds-core = { path = "../quire/crates/ds-core" }
+# quire, the design system, pinned by git rev: this is the one place to bump it (all six lines, and
+# the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
+# A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
+# parent workspace, never here.
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { path = "../quire/crates/ds" }
-ds-blitz = { path = "../quire/crates/ds-blitz" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { path = "../quire/crates/ds-settings" }
-ds-harness = { path = "../quire/crates/ds-harness" }
-ds-lint = { path = "../quire/crates/ds-lint" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c8b0abd314ca4f68b4fe13d75a0201325659469e" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -323,14 +326,10 @@ pollster = "0.4"
 # `anyview`: moving a file to the freedesktop trash, in one call. Pure Rust on Linux (no bus): MIT.
 trash = "5"
 
-# The local checkouts the sibling repos build against (quire/CONSUMING.md section 1): blitz-kit from
-# its sibling directory, so every path-linked repo builds one copy, and the vello and anyrender
-# forks (branch quire-filters) that make every CSS `filter` function paint on both backends.
-# Copied from quire's and sill's root manifests; they apply only at a workspace root, and
-# `anyview-peek` is the first crate here that names the renderer.
-[patch."https://github.com/PoHsuanLai/blitz-kit"]
-blitz-kit = { path = "../blitz-kit/crates/blitz-kit" }
-
+# The vello and anyrender forks (branch quire-filters) that make every CSS `filter` function paint
+# on both backends. Copied from quire's root manifest at the rev pinned above; a dependency's
+# [patch] is ignored by its consumers, so this workspace root has to repeat it. `anyview-peek` is
+# the first crate here that names the renderer.
 # vello and anyrender come from our forks (github.com/PoHsuanLai/vello and /anyrender, branch
 # quire-filters): the colour matrix filter, multi-threaded filter layers and CSS filter lists, so
 # every CSS `filter` function paints on both backends. Move back to crates.io once upstream has

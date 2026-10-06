@@ -3,6 +3,7 @@
 use super::relay::{Arrival, open_each, open_windows, relay, wants_of};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
+use crate::crash;
 use crate::host::{
     Appearances, CachedPictures, Clock, Hosting, ImageHost, LinuxDesktop, Media, SETTLE, Services,
     Store, Watcher,
@@ -43,7 +44,18 @@ pub fn run(args: &[OsString], cwd: &FilePath, env: Env) -> ExitCode {
             println!("{USAGE}");
             ExitCode::SUCCESS
         }
-        Ok(Invocation::Launch(request)) => launch_viewer(request, env),
+        Ok(Invocation::Version) => {
+            println!("anyview {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        Ok(Invocation::Launch(request)) => {
+            crash::install(
+                crash::crash_dir(&env.dirs.state),
+                env!("CARGO_PKG_VERSION"),
+                || clock()().0,
+            );
+            launch_viewer(request, env)
+        }
         Err(error) => usage_error(&error),
     }
 }
