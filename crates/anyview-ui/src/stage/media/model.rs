@@ -158,17 +158,44 @@ pub enum MediaOut {
     Marked { edge: TrimEdge, at: MediaTime },
 }
 
-/// What the stage needs from settings.
+/// Whether the player does a thing, so the window offers its control or leaves it out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ControlOffer {
+    /// The player does it: its control is offered.
+    #[default]
+    Offered,
+    /// The player cannot: no control, command or key for it is offered.
+    Withheld,
+}
+
+/// What the player behind a window can do beyond play, pause, seek and volume, as the player
+/// said. Everything is offered until it says otherwise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct MediaAbilities {
+    /// Playing at another speed.
+    pub speed: ControlOffer,
+    /// Choosing among audio and subtitle tracks.
+    pub tracks: ControlOffer,
+    /// Chapters.
+    pub chapters: ControlOffer,
+    /// Stepping frame by frame.
+    pub frame_step: ControlOffer,
+}
+
+/// What the stage needs from settings, and from the player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MediaParams {
     /// How far a seek key jumps (setting `viewer.media.seek_step`, default 5 s).
     pub seek_step: MediaTime,
+    /// What the player can do.
+    pub abilities: MediaAbilities,
 }
 
 impl Default for MediaParams {
     fn default() -> Self {
         MediaParams {
             seek_step: MediaTime::from_secs(5),
+            abilities: MediaAbilities::default(),
         }
     }
 }

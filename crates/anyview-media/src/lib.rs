@@ -37,7 +37,7 @@ pub use device::{GPU_OPENING, headless_device};
 #[cfg(feature = "player")]
 pub use driver::{Driver, FrameSink};
 pub use error::MediaError;
-pub use event::{EndReason, MediaEvent};
+pub use event::{Abilities, Ability, EndReason, MediaEvent};
 pub use export::{
     Ask, ExportProgress, ExportReport, ExportRequest, NameHints, ProgressSink, ask_of,
     offered_kinds, output_path, plan_export, target_of,

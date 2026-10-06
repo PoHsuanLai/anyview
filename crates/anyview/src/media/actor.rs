@@ -116,6 +116,7 @@ impl MediaActor {
                 | MediaEvent::Chapters(_)
                 | MediaEvent::Volume(_)
                 | MediaEvent::Speed(_)
+                | MediaEvent::Abilities(_)
                 | MediaEvent::Picture(_)
                 | MediaEvent::ShotSaved(_)
                 | MediaEvent::ShotFailed { .. }

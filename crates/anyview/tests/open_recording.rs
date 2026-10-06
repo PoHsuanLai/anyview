@@ -97,6 +97,10 @@ fn an_audio_file_with_no_mpv_plays_in_the_built_in_player_and_the_desktops_keys_
     let text = rig.harness.text_of(".ds-capsule").unwrap_or_default();
     assert!(text.contains("0:02"), "the length: {text}");
     assert_eq!(rig.harness.count(".ds-capsule .ds-slider"), 1, "the volume");
+    assert!(
+        !text.contains('×') && !rig.harness.html().contains("Faster"),
+        "the built-in player has no speed control: {text}"
+    );
     assert_eq!(
         rig.harness.count(".viewer-media-status"),
         0,

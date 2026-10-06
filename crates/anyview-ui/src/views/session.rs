@@ -194,6 +194,7 @@ pub(super) fn params(
     query: &TypedText,
     lines: Option<&LineWindow>,
     level: MotionLevel,
+    abilities: crate::MediaAbilities,
 ) -> ViewerParams {
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
@@ -214,6 +215,7 @@ pub(super) fn params(
             ..StageParams::default()
         },
     };
+    measured.media.abilities = abilities;
     measured.raster.motion = match level {
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
@@ -224,7 +226,10 @@ pub(super) fn params(
         access,
     };
     let listed = commands(kind, stage, &measured, offers);
-    let panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    if matches!(stage, Stage::Media(_)) {
+        panel.tabs = crate::families::media_tabs(panel.tabs, abilities);
+    }
     let files = listed
         .iter()
         .copied()

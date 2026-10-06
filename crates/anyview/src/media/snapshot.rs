@@ -95,6 +95,7 @@ impl Snapshot {
             | MediaEvent::Tracks(_)
             | MediaEvent::Chapters(_)
             | MediaEvent::Speed(_)
+            | MediaEvent::Abilities(_)
             | MediaEvent::Picture(_)
             | MediaEvent::ShotSaved(_)
             | MediaEvent::ShotFailed { .. }

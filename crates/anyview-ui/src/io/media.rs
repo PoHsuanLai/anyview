@@ -5,7 +5,7 @@
 
 use super::workers::Reply;
 use crate::sheet::MediaOffer;
-use crate::stage::{MediaError, PlayerCommand, PlayerEvent};
+use crate::stage::{MediaAbilities, MediaError, PlayerCommand, PlayerEvent};
 use crate::{Done, OpenError, Ticket};
 use anyview_core::{
     Fact, Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed,
@@ -39,6 +39,8 @@ pub enum MediaNotice {
     Chapters(Vec<MediaChapter>),
     /// The speed.
     Speed(Speed),
+    /// What the player can do: the window offers controls for those things only.
+    Abilities(MediaAbilities),
     /// Whether a picture shows.
     Picture(VideoPresence),
     /// The player could not play the recording.

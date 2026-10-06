@@ -168,9 +168,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         .as_ref()
         .map(|(_, doc)| doc.view().facts())
         .unwrap_or_default();
-    let tabs = current
-        .as_ref()
-        .map_or_else(Default::default, |(_, doc)| doc.view().panel_params().tabs);
+    let tabs = current.as_ref().map_or_else(Default::default, |(_, doc)| {
+        let tabs = doc.view().panel_params().tabs;
+        match state.stage {
+            crate::Stage::Media(_) => {
+                crate::families::media_tabs(tabs, shelf.media.read().abilities)
+            }
+            _ => tabs,
+        }
+    });
     let slots = current
         .as_ref()
         .map(|(_, doc)| doc.view().slots(&cx))
