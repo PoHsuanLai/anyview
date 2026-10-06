@@ -563,7 +563,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   render API the plugin needs (mpv-wgpu's spike), but none of those was run for this. An mpv without C plugin
   support fails to start (`PlayerStart`) and the stage says the recording cannot be played; the reason is logged
   and not shown to the person. Ends when CI has a Debian image, and when the stage shows what was missing.
-- **The installer writes the path of the mpv it found.** `install.sh --with-plugin mpv` puts the `mpv` on the search
+- **The installer writes the path of the mpv it found.** `install.sh` puts the `mpv` on the search
   path (or `--mpv`) into `mpv.toml`, so the viewer never searches the person's `PATH` when it runs; an mpv that
   moves, or is installed later, needs the manifest edited or the installer run again. A packaged `anyview-mpv`
   writes its distribution's path.
