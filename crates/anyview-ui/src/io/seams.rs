@@ -85,6 +85,34 @@ impl FileCards for NoCards {
     }
 }
 
+/// Whether the window may write a file in place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum FileAccess {
+    /// Edits are saved in place.
+    #[default]
+    Writable,
+    /// The file refuses a save in place (no write bit, another owner, a read-only mount): its
+    /// edits are not offered.
+    ReadOnly,
+}
+
+/// Which files the person may change, read from the permissions the system keeps.
+pub trait FileLocks: Debug + Send + Sync + 'static {
+    /// How `path` can be written now. A file that cannot be looked at is `Writable`: opening it
+    /// fails with its own error. Blocking.
+    fn access(&self, path: &FilePath) -> FileAccess;
+}
+
+/// The default `FileLocks`: the host reads no permissions, so every file offers its edits.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NoLocks;
+
+impl FileLocks for NoLocks {
+    fn access(&self, _path: &FilePath) -> FileAccess {
+        FileAccess::Writable
+    }
+}
+
 /// The kept versions of a file, listed from the store the binary keeps.
 pub trait VersionSource: Debug + Send + Sync + 'static {
     /// The versions kept of `path`, newest first; none when there are none or the store cannot

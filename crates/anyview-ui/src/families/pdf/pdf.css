@@ -3,7 +3,9 @@
 
 .viewer-pdf{ position:absolute; inset:0; overflow:hidden; background:var(--surface-2); cursor:grab; }
 .viewer-pdf-page{ position:absolute; overflow:hidden; background:var(--raise); box-shadow:var(--shadow-1); }
-.viewer-pdf-tile{ position:absolute; }
+/* A tile is a texture widget: Blitz hands what lands on one to the widget and never raises a click or a
+   context menu for it, so the page under it takes the pointer. */
+.viewer-pdf-tile{ position:absolute; pointer-events:none; }
 .viewer-pdf-hit{ position:absolute; background:var(--accent); opacity:.28; border-radius:var(--s-2); pointer-events:none; }
 .viewer-pdf-hit[*|data-hit=current]{ opacity:.55; }
 .viewer-pdf-link{ position:absolute; cursor:pointer; }

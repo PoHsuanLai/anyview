@@ -6,7 +6,9 @@
 use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::notice::Notice;
-use super::seams::{FileCards, FirstFrameSource, ImagePlugins, ResumeSource, VersionSource};
+use super::seams::{
+    FileAccess, FileCards, FileLocks, FirstFrameSource, ImagePlugins, ResumeSource, VersionSource,
+};
 use crate::families::{
     BookDoc, FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SectionPage, TextDoc, open_for,
     peek_for,
@@ -57,6 +59,8 @@ pub struct Probed {
     pub family: StageFamily,
     /// Where it was left, as the host's store remembered it for this version of the file.
     pub resume: Resume,
+    /// Whether the file takes a save in place.
+    pub access: FileAccess,
 }
 
 /// A file opened ahead of the person asking for it.
@@ -284,13 +288,14 @@ impl Job {
     pub(super) fn run(
         self,
         resume: &dyn ResumeSource,
+        locks: &dyn FileLocks,
         versions: &dyn VersionSource,
         stop: &Stop,
     ) -> Done {
         match self {
             Job::Probe { ticket, path } => Done::Probed {
                 ticket,
-                result: probed(&path, resume),
+                result: probed(&path, resume, locks),
             },
             Job::Peek {
                 ticket,
@@ -331,7 +336,7 @@ impl Job {
                 result: doc.section(section).map_err(OpenError::from),
             },
             Job::Preload { path, link } => Done::Preloaded {
-                loaded: preloaded(&path, &link, resume),
+                loaded: preloaded(&path, &link, resume, locks),
                 path,
             },
             Job::Stat { path } => Done::Stamped {
@@ -354,20 +359,30 @@ impl Job {
     }
 }
 
-/// The probe of `path`, with what the host remembers of it.
-fn probed(path: &FilePath, resume: &dyn ResumeSource) -> Result<Probed, OpenError> {
+/// The probe of `path`, with what the host remembers of it and whether it can be written.
+fn probed(
+    path: &FilePath,
+    resume: &dyn ResumeSource,
+    locks: &dyn FileLocks,
+) -> Result<Probed, OpenError> {
     let probed = super::probe(path)?;
     let remembered = resume.recall(path, probed.source.stamp());
     Ok(Probed {
         resume: remembered,
+        access: locks.access(path),
         ..probed
     })
 }
 
 /// `path` opened, or `None` when it is too large, cannot be opened or opens to nothing the
 /// person will not meet again by asking: a failed preload is silent, the open when asked reports.
-fn preloaded(path: &FilePath, link: &OpenLink, resume: &dyn ResumeSource) -> Option<Preloaded> {
-    let probed = probed(path, resume).ok()?;
+fn preloaded(
+    path: &FilePath,
+    link: &OpenLink,
+    resume: &dyn ResumeSource,
+    locks: &dyn FileLocks,
+) -> Option<Preloaded> {
+    let probed = probed(path, resume, locks).ok()?;
     if probed.source.stamp().len.0 > PRELOAD_LIMIT {
         return None;
     }

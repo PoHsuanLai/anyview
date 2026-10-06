@@ -9,8 +9,9 @@ use anyview_image::Rgba8;
 pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
-    Edge, FirstFrameSource, HostRequest, Launch, LookFeed, MediaHost, Presentation, ResumeSource,
-    VersionRow, VersionSource, ViewerApp, Work, WorkKind, WorkLane, Workers,
+    Edge, FileAccess, FileLocks, FirstFrameSource, HostRequest, Launch, LookFeed, MediaHost,
+    Presentation, ResumeSource, VersionRow, VersionSource, ViewerApp, Work, WorkKind, WorkLane,
+    Workers,
 };
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
@@ -245,6 +246,20 @@ impl VersionSource for Versions {
     }
 }
 
+/// Files the host reports as refusing a save in place, by path.
+#[derive(Debug, Default)]
+pub struct Locks(pub Vec<PathBuf>);
+
+impl FileLocks for Locks {
+    fn access(&self, path: &FilePath) -> FileAccess {
+        if self.0.iter().any(|locked| locked == path.as_path()) {
+            FileAccess::ReadOnly
+        } else {
+            FileAccess::Writable
+        }
+    }
+}
+
 /// What a window under test is wired to besides its files.
 #[derive(Default)]
 pub struct Wiring {
@@ -258,6 +273,8 @@ pub struct Wiring {
     pub versions: Option<Arc<Versions>>,
     /// The host's players; none when none.
     pub player: Option<Arc<FakePlayer>>,
+    /// The files that refuse a save in place; every file takes one when none.
+    pub locks: Option<Arc<Locks>>,
     /// How the window is on screen.
     pub presentation: Presentation,
     /// The desktop's look as it changes; the launch look for good when none.
@@ -307,6 +324,9 @@ pub fn wired(
     }
     if let Some(pictures) = wiring.pictures {
         edge = edge.with_first_frames(pictures);
+    }
+    if let Some(locks) = wiring.locks {
+        edge = edge.with_locks(locks);
     }
     if let Some(player) = wiring.player {
         edge = edge.with_media(player as Arc<dyn MediaHost>);

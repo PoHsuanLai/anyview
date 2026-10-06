@@ -10,6 +10,7 @@ mod documents;
 mod editing;
 mod feedback;
 mod image_plugins;
+mod locks;
 mod media;
 mod outcome;
 mod pictures;
@@ -34,6 +35,7 @@ pub use feedback::{
     tell_problem,
 };
 pub use image_plugins::ImageHost;
+pub use locks::StoreLocks;
 pub use media::Media;
 pub use outcome::{Declined, Outcome};
 pub use pictures::CachedPictures;

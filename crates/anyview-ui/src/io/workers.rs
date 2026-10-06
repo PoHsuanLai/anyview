@@ -8,8 +8,8 @@ use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::notice::Notice;
 use super::seams::{
-    FileCards, FirstFrameSource, Forgetful, ImagePlugins, NoCards, NoImagePlugins, NoPictures,
-    NoVersions, ResumeSource, VersionSource,
+    FileCards, FileLocks, FirstFrameSource, Forgetful, ImagePlugins, NoCards, NoImagePlugins,
+    NoLocks, NoPictures, NoVersions, ResumeSource, VersionSource,
 };
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
@@ -60,6 +60,7 @@ pub struct Work {
     job: Job,
     reply: Reply,
     resume: Arc<dyn ResumeSource>,
+    locks: Arc<dyn FileLocks>,
     versions: Arc<dyn VersionSource>,
     stop: Stop,
 }
@@ -91,6 +92,7 @@ impl Work {
             job,
             reply,
             resume,
+            locks,
             versions,
             stop,
         } = self;
@@ -99,7 +101,7 @@ impl Work {
         }
         let failure = job.crashed();
         let ran = catch_unwind(AssertUnwindSafe(|| {
-            job.run(resume.as_ref(), versions.as_ref(), &stop)
+            job.run(resume.as_ref(), locks.as_ref(), versions.as_ref(), &stop)
         }));
         reply.post(ran.unwrap_or(failure));
     }
@@ -191,6 +193,7 @@ pub struct Edge {
     requests: Arc<dyn Fn(HostRequest) + Send + Sync>,
     highlighter: Arc<Highlighter>,
     resume: Arc<dyn ResumeSource>,
+    locks: Arc<dyn FileLocks>,
     versions: Arc<dyn VersionSource>,
     first_frames: Arc<dyn FirstFrameSource>,
     media: Arc<dyn MediaHost>,
@@ -228,6 +231,7 @@ impl Edge {
             requests: Arc::new(requests),
             highlighter: Arc::new(Highlighter::new()),
             resume: Arc::new(Forgetful),
+            locks: Arc::new(NoLocks),
             versions: Arc::new(NoVersions),
             first_frames: Arc::new(NoPictures),
             media: Arc::new(NoPlayer),
@@ -244,6 +248,12 @@ impl Edge {
             resume: source,
             ..self
         }
+    }
+
+    /// The same edge asking `locks` which files refuse a save in place: without it every file
+    /// offers its edits.
+    pub fn with_locks(self, locks: Arc<dyn FileLocks>) -> Edge {
+        Edge { locks, ..self }
     }
 
     /// The same edge listing a file's kept versions from `source`: without one a file has none to
@@ -319,6 +329,7 @@ impl Edge {
             job,
             reply: self.reply.clone(),
             resume: Arc::clone(&self.resume),
+            locks: Arc::clone(&self.locks),
             versions: Arc::clone(&self.versions),
             stop: self.stop_for(job_ticket),
         });

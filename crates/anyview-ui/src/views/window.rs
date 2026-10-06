@@ -7,6 +7,7 @@
 use super::arrive::arrived;
 use super::carry::{Carry, carry_out};
 use super::chrome::{Controls, Titlebar};
+use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
 use super::failed::{FailedScreen, Offer};
 use super::keys::{keys_of, shortcut_of};
@@ -21,9 +22,9 @@ use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
-    ChromeIn, Command, Launch, Load, LoadFailure, NavigateIn, Palette as PaletteState, PaletteIn,
-    Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn, StageCommand, StageCx, StageIn,
-    TypedText, Viewer, ViewerIn, Zone,
+    ChromeIn, Command, ContextIn, ContextMenu, Launch, Load, LoadFailure, NavigateIn,
+    Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn,
+    Spot, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
 };
 use anyview_core::{FileAction, FilePath};
 use dioxus::prelude::*;
@@ -219,6 +220,8 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
     let palette_open = matches!(state.palette, PaletteState::Open { .. });
+    let context_rows = machine_params.context.entries;
+    let context_open = matches!(state.context, ContextMenu::Open { .. });
     let keyed = state.clone();
     let chrome = (shelf.chrome)();
 
@@ -233,9 +236,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 drop.mounted(event);
             },
             onkeydown: move |event: KeyboardEvent| {
-                // The palette takes its own keys. A sheet does too, but when focus is still on
-                // the window Return and Esc reach it here, so the machine's sheet answers them.
-                if palette_open {
+                // The palette and the context menu take their own keys. A sheet does too, but when
+                // focus is still on the window Return and Esc reach it here, so the machine's sheet
+                // answers them.
+                if palette_open || context_open {
                     return;
                 }
                 if sheet_open {
@@ -257,6 +261,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             div {
                 class: "viewer-stage",
                 onmounted: move |event| measured.on_mounted(event),
+                // A secondary click on the content opens the context menu at the pointer; over the
+                // capsule or the titlebar it is theirs.
+                oncontextmenu: move |event: MouseEvent| {
+                    event.prevent_default();
+                    if zone() == Zone::Content {
+                        let at = event.client_coordinates();
+                        let spot = Spot { x: at.x.round() as i32, y: at.y.round() as i32 };
+                        dispatch.send(ViewerIn::Context(ContextIn::Open(spot)));
+                    }
+                },
                 // The small window has no frame to take hold of: a press on the picture moves it.
                 onpointerdown: move |_| {
                     if let (Presentation::Mini, Some(window)) = (presentation, window.as_ref()) {
@@ -328,6 +342,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         }
                     },
                     onclose: move |()| dispatch.send(ViewerIn::Palette(PaletteIn::Close)),
+                }
+            }
+            if let ContextMenu::Open { at } = keyed.context {
+                ContextPopup {
+                    entries: context_rows.clone(),
+                    at,
+                    onpick: move |pick| dispatch.send(ViewerIn::Context(ContextIn::Pick(pick))),
+                    onclose: move |()| dispatch.send(ViewerIn::Context(ContextIn::Close)),
                 }
             }
             match &keyed.sheet {
