@@ -12,7 +12,8 @@
 use anyview::runtime::{Actor, ActorBody, ActorWake, Flow, Mailbox, Outbox, UiWaker};
 use anyview_core::{FilePath, MediaTime};
 use anyview_media::{
-    AudioDriver, Continuation, Driver, FrameSink, MediaCommand, MediaEvent, PictureSlot,
+    AudioDriver, Continuation, Driver, FrameSink, MediaCommand, MediaDriver, MediaEvent,
+    PictureSlot,
 };
 use std::num::NonZeroU32;
 use std::path::PathBuf;

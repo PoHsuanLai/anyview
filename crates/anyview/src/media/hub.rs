@@ -6,12 +6,13 @@
 //! has one entry, so it shows the session that last played; its controls are carried out on
 //! that one.
 
+use super::engine::{BuiltinAbility, Chosen, Engine, builtin_ability, choose};
 use super::line::LiveLine;
 use super::orders::{Home, Order, orders_for};
 use super::plugins::{MediaPlugins, PlayRoute};
 use crate::runtime::{Actor, Mailbox, RuntimeError, UiWaker};
 use anyview_core::{FilePath, Resume, Sniffed, Source};
-use anyview_media::{AudioDriver, MediaCommand, MediaError, MpvHost, PictureSlot, ShotContent};
+use anyview_media::{AudioDriver, MediaCommand, MediaError, PictureSlot, ShotContent};
 use anyview_platform::{MediaControl, MediaSession, MediaState, PlaybackStatus};
 use anyview_plugin::Subject;
 use ds_blitz::{AppHandle, AppHold};
@@ -112,16 +113,24 @@ impl Inner {
         &self.plugins
     }
 
-    /// The programs that play `sniffed`'s file, or why there are none.
-    pub(super) fn player(&self, sniffed: &Sniffed) -> Result<MpvHost, MediaError> {
+    /// The player for `file`, a recording of `sniffed`'s kind, or why there is none.
+    pub(super) fn player(&self, file: &FilePath, sniffed: &Sniffed) -> Result<Chosen, MediaError> {
         let subject = Subject {
             kind: sniffed.kind(),
             mime: Some(sniffed.mime()),
         };
-        match self.plugins.player(&subject) {
-            PlayRoute::Ready(host) => Ok(host),
-            PlayRoute::Missing(missing) => Err(MediaError::PlayerMissing(missing.package.name())),
-            PlayRoute::Unserved => Err(MediaError::NotMedia),
+        let route = self.plugins.player(&subject);
+        let ability = match &route {
+            PlayRoute::Ready(_) => BuiltinAbility::CannotDecode,
+            PlayRoute::Missing(_) | PlayRoute::Unserved => {
+                builtin_ability(sniffed.kind(), file.as_path(), self.audio)
+            }
+        };
+        match choose(route, ability) {
+            Chosen::Missing(missing) => Err(MediaError::PlayerMissing(missing.package.name())),
+            Chosen::Unserved => Err(MediaError::NotMedia),
+            Chosen::NoSound => Err(MediaError::NoSoundOutput),
+            chosen @ (Chosen::Mpv(_) | Chosen::Builtin) => Ok(chosen),
         }
     }
 
@@ -255,19 +264,31 @@ impl MediaHub {
         resume: &Resume,
     ) -> Result<(), MediaError> {
         let file = source.path();
-        let host = self.inner.player(sniffed)?;
-        let (device, queue) = anyview_media::headless_device()?;
+        let engine = match self.inner.player(file, sniffed)? {
+            Chosen::Mpv(host) => {
+                let (device, queue) = anyview_media::headless_device()?;
+                Engine::Mpv {
+                    device,
+                    queue,
+                    audio: self.inner.audio(),
+                    host,
+                    sink: Box::new(super::sink::NoSink),
+                }
+            }
+            Chosen::Builtin => Engine::Builtin {
+                audio: self.inner.audio(),
+            },
+            Chosen::NoSound | Chosen::Missing(_) | Chosen::Unserved => {
+                return Err(MediaError::NotMedia);
+            }
+        };
         let tags = self.inner.plugins().reading(source, sniffed).tags;
         let id = self.inner.next_id();
         let snapshot =
             super::snapshot::Snapshot::new(file, &tags, anyview_platform::TrackSerial(id.0));
         let plan = super::actor::Plan {
-            device,
-            queue,
-            audio: self.inner.audio(),
-            host,
+            engine,
             file: file.clone(),
-            sink: Box::new(super::sink::NoSink),
             snapshot,
             hub: Arc::downgrade(&self.inner),
             id,
