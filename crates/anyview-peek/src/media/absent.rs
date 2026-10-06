@@ -2,7 +2,7 @@
 //! lists. No duration, no codec, no cover; nothing is pretended.
 
 use crate::described::{Described, Describes, FactsPeek};
-use anyview_core::FormatKind;
+use anyview_core::{FormatKind, PixelSize, Sniffed, Source};
 
 /// What a recording's peek holds without the header readers: the words for the file's type.
 pub type MediaLook = Described;
@@ -28,3 +28,8 @@ impl Describes for AudioKind {
 
 /// The facts-only peek of an audio file.
 pub type AudioPeek = FactsPeek<AudioKind>;
+
+/// Without the header readers a recording has no size to give.
+pub fn video_size(_src: &Source, _sniffed: &Sniffed) -> Option<PixelSize> {
+    None
+}

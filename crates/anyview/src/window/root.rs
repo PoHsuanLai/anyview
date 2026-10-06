@@ -2,6 +2,7 @@
 //! `AppHandle` with its [`Seed`] as props ([`window_root`]), and a harness test gives the
 //! [`Seed`] as a context ([`seeded_root`]).
 
+use super::fit::window_for;
 use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
@@ -20,10 +21,6 @@ use futures_util::StreamExt;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-
-/// Where a new window is 1000 by 700 logical pixels until the viewer sizes windows to content.
-/// No least: the viewer has no pane with a least width of its own to keep.
-pub(crate) const WINDOW: WindowSize = WindowSize::new(1000, 700);
 
 /// The small window of a recording: 480 by 270, a sixteenth by nine picture.
 const MINI: WindowSize = WindowSize::new(480, 270);
@@ -47,14 +44,15 @@ pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
     app.open_window_with(spec, window_root, seed)
 }
 
-/// The window a seed asks for: a normal one, or the small borderless one whose capsule is its
-/// only frame (the window draws nothing of its own on it).
+/// The window a seed asks for: a normal one, sized to its file's content (see [`window_for`]), or
+/// the small borderless one whose capsule is its only frame (the window draws nothing of its own
+/// on it).
 pub(super) fn spec_for(seed: &Seed) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
         Presentation::Mini => WindowSpec::new(title, MINI).with_decorations(Decorations::Client),
         Presentation::Window | Presentation::Peek | Presentation::Background => {
-            WindowSpec::new(title, WINDOW)
+            WindowSpec::new(title, window_for(&seed.opening.file))
         }
     }
 }
