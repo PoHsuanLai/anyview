@@ -93,6 +93,10 @@ impl StageView for PdfStageView {
         rsx! { view::PdfContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
+    fn edit_offer(doc: &PdfDoc) -> crate::EditOffer {
+        doc.offer
+    }
+
     fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<CapsuleSlot<crate::Command>> {
         capsule::slots(doc, cx)
     }

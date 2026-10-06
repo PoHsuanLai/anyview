@@ -4,6 +4,7 @@
 
 use crate::families::view::Area;
 use crate::io::OpenError;
+use crate::{EditCaution, EditOffer};
 use anyview_core::{ByteLen, FactLabel, FactValue, Facts, PageCount, PageIndex, Source};
 use anyview_pdf::{OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
 use std::io::ErrorKind;
@@ -50,6 +51,7 @@ impl PdfFailure {
             | PdfError::Core(_)
             | PdfError::PageOutOfRange { .. }
             | PdfError::WouldDeleteAll
+            | PdfError::PagesChanged { .. }
             | PdfError::EditUnsupported { .. }
             | PdfError::Stopped => PdfFailure::Damaged,
         }
@@ -65,6 +67,8 @@ pub struct PdfDoc {
     pub outline: Vec<OutlineEntry>,
     /// The rows of the Info tab.
     pub facts: Facts,
+    /// A signed document asks before a page edit rewrites it.
+    pub offer: EditOffer,
     scratch: Mutex<Vec<PdfWorker>>,
 }
 
@@ -75,7 +79,13 @@ impl PdfDoc {
             .with(FactLabel::Kind, FactValue::text("application/pdf"))
             .with(FactLabel::Pages, FactValue::pages(document.page_count()))
             .with(FactLabel::Size, FactValue::size(size));
+        let offer = if document.is_signed() {
+            EditOffer::Asks(EditCaution::Signed)
+        } else {
+            EditOffer::Plain
+        };
         PdfDoc {
+            offer,
             outline: outline(&document),
             document,
             facts,

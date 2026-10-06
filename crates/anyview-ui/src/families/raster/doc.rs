@@ -3,14 +3,14 @@
 //! touching the UI thread, and the document the UI receives is only the picture's size.
 
 use crate::io::{Backend, ImagePlugins, OpenError, OpenLink, PluginPicture, Stop};
-use crate::{FrameDelays, FrameIndex, Runs, Ticket};
+use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
     ByteLen, Fact, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget,
     PixelArea, PixelLen, PixelSize, RasterFormat, Sniffed, Source,
 };
 use anyview_image::{
-    Animation, Decoded, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek, declared_size,
-    decode,
+    Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
+    declared_size, decode, fidelity,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -58,6 +58,8 @@ pub struct RasterDoc {
     /// Set when there is no picture to show because the plugin that decodes this kind of file is
     /// not installed: the stage shows the facts and this row instead of the texture.
     pub needs: Option<Fact>,
+    /// What saving a turn or flip of the file costs.
+    pub offer: EditOffer,
     pub(crate) strip: Option<Arc<FrameStrip>>,
     /// How many runs the animation asks for.
     pub(crate) runs: Runs,
@@ -136,6 +138,29 @@ impl Backend for RasterBackend {
 }
 
 fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
+    let mut doc = decoded(target)?;
+    doc.offer = offer_of(&target.source, &target.sniffed);
+    Ok(doc)
+}
+
+/// What saving a turn or flip of the file costs, read from its headers. A file too large to read
+/// whole for this is asked about nothing: the edit's own limits answer.
+fn offer_of(source: &Source, sniffed: &Sniffed) -> EditOffer {
+    const LIMIT: u64 = 512 * 1024 * 1024;
+    if source.stamp().len.0 > LIMIT {
+        return EditOffer::Plain;
+    }
+    let Ok(bytes) = std::fs::read(source.path().as_path()) else {
+        return EditOffer::Plain;
+    };
+    match fidelity(&bytes, sniffed) {
+        Fidelity::Intact => EditOffer::Plain,
+        Fidelity::Loses(loss) => EditOffer::Asks(EditCaution::Loses(loss.sentence())),
+        Fidelity::Impossible => EditOffer::Withheld,
+    }
+}
+
+fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
     if matches!(
         target.sniffed.detail(),
         FormatDetail::Raster(RasterFormat::Raw)
@@ -268,6 +293,7 @@ fn doc_of(
         frames,
         facts: facts(&target.source, &target.sniffed, size, frames),
         needs: None,
+        offer: EditOffer::Plain,
         strip,
         runs,
     }
@@ -312,6 +338,7 @@ pub(crate) fn first_frame(
         frames,
         facts,
         needs: None,
+        offer: EditOffer::Plain,
         strip: None,
         runs: Runs::Forever,
     }))
