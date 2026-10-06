@@ -355,6 +355,7 @@ dependencies = [
  "anyview-core",
  "anyview-image",
  "anyview-pdf",
+ "anyview-store",
  "anyview-text",
  "ds-blitz",
  "ds-core",
@@ -540,6 +541,7 @@ name = "anyview-store"
 version = "0.1.0"
 dependencies = [
  "anyview-core",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",
