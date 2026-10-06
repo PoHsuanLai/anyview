@@ -39,7 +39,7 @@ pub use kind::{
     opened_mimes,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
-pub use peek::{Peek, PeekBudget, StageSupport};
+pub use peek::{Deadline, Peek, PeekBudget, StageSupport};
 pub use profile::{actions_for, edits_for, mime_for, stage_support};
 pub use resume::{Resume, TrackChoice, TrackId};
 pub use sequence::{
@@ -49,7 +49,9 @@ pub use sequence::{
 pub use sniff::{
     FileHead, SniffStep, Sniffed, ZipEntries, ZipProbe, sniff, sniff_folder, sniff_zip,
 };
-pub use source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
+pub use source::{
+    ByteLen, FileName, FilePath, FileStamp, ModTime, Source, is_regular, open_regular,
+};
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use tree_path::{OpenNodes, TreePath};
 pub use units::{

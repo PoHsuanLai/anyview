@@ -21,6 +21,11 @@ pub enum Fault {
     ShortPicture,
     /// It exits in the middle of an export, after the first progress message.
     CrashInExport,
+    /// It writes a megabyte to stderr with no newline, then answers as usual.
+    StderrFlood,
+    /// It answers a picture request with a header that announces 100 MiB of pixels, then sends
+    /// none of them.
+    HugePayload,
     /// It ignores `Cancel` and carries on.
     IgnoreCancel,
 }
@@ -50,6 +55,8 @@ impl Behaviour {
             Some("garbage") => Fault::Garbage,
             Some("short-picture") => Fault::ShortPicture,
             Some("crash-in-export") => Fault::CrashInExport,
+            Some("stderr-flood") => Fault::StderrFlood,
+            Some("huge-payload") => Fault::HugePayload,
             Some("ignore-cancel") => Fault::IgnoreCancel,
             Some(_) | None => Fault::None,
         };
