@@ -4,7 +4,7 @@ use super::head::{expect_kind, read_head};
 use super::tally::Tally;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
-use crate::lines::split;
+use crate::lines::split_start;
 use crate::markdown::{Heading, NoFiles, RenderEnv, render};
 use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Peek, PeekBudget, Sniffed, Source};
 
@@ -20,6 +20,25 @@ pub struct MarkdownPeeked {
     pub total: Tally,
     /// How the bytes were decoded.
     pub encoding: TextCodec,
+}
+
+/// The most of a document a peek renders: a document is parsed into events, each larger than the
+/// text it came from, and a pane shows its first screens.
+const RENDERED_BYTES: usize = 512 * 1024;
+
+/// `text` up to [`RENDERED_BYTES`], ending at a line break.
+fn start_of(text: &str) -> &str {
+    if text.len() <= RENDERED_BYTES {
+        return text;
+    }
+    let cut = (0..=RENDERED_BYTES)
+        .rev()
+        .find(|at| text.is_char_boundary(*at))
+        .unwrap_or(0);
+    match text[..cut].rfind('\n') {
+        Some(end) => &text[..=end],
+        None => &text[..cut],
+    }
 }
 
 /// The peek of the kind `Markdown`.
@@ -38,8 +57,9 @@ impl Peek for MarkdownPeek {
     ) -> Result<MarkdownPeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         let head = read_head(src, budget)?;
+        let (_, lines) = split_start(&head.text, 0);
         let rendered = render(
-            &head.text,
+            start_of(&head.text),
             &RenderEnv {
                 base: None,
                 files: &NoFiles,
@@ -49,7 +69,7 @@ impl Peek for MarkdownPeek {
         Ok(MarkdownPeeked {
             html: rendered.html,
             outline: rendered.outline,
-            total: Tally::of(split(&head.text).len(), head.coverage),
+            total: Tally::of(lines, head.coverage),
             encoding: head.codec,
         })
     }

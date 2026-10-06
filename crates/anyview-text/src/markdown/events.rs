@@ -2,7 +2,7 @@
 //! raw HTML becomes text, link targets are vetted, local images are inlined, code blocks are
 //! highlighted and headings get their anchors.
 
-use super::images::{LocalFiles, data_url};
+use super::images::{Inliner, LocalFiles};
 use super::links::safe_link;
 use super::outline::{Anchors, Heading, HeadingLevel};
 use crate::code::{Highlighter, tokens_html};
@@ -125,6 +125,7 @@ pub(super) fn prepare<'a>(
     let mut outline = Vec::new();
     let mut anchors = Anchors::default();
     let mut images: Vec<ImageEnd> = Vec::new();
+    let mut inliner = Inliner::new(env.base, env.files);
     let mut i = 0;
     while i < events.len() {
         i += 1;
@@ -163,7 +164,7 @@ pub(super) fn prepare<'a>(
                 dest_url,
                 title,
                 id,
-            }) => match data_url(dest_url, env.base, env.files) {
+            }) => match inliner.data_url(dest_url) {
                 Some(url) => {
                     images.push(ImageEnd::Kept);
                     out.push(Event::Start(Tag::Image {

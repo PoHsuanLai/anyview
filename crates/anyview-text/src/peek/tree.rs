@@ -1,17 +1,20 @@
 //! The peek of JSON and JSON Lines: the top level of the tree.
 
-use super::head::{PEEK_LINES, expect_kind, read_head};
+use super::head::{PEEK_LINES, expect_kind, read_head, read_limited};
 use super::tally::{Tally, grouped};
 use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
 use crate::tree::{Tree, TreeRow};
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
-    TreeFormat, TreePath,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed,
+    Source, TreeFormat, TreePath,
 };
 
 /// How many top-level keys the facts name before "and N more".
 const KEYS_NAMED: usize = 8;
+
+/// The largest JSON document a peek parses: a parsed document costs about thirty times its text.
+const JSON_BYTES: ByteLen = ByteLen(8 * 1024 * 1024);
 
 /// What a peek of a JSON file holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,14 +52,19 @@ impl Peek for TreePeek {
                 kind: sniffed.kind(),
             });
         };
-        let head = read_head(src, budget)?;
+        let head = match format {
+            // A parsed document is many times its text, and cannot be had in part.
+            TreeFormat::Json => read_limited(src, ByteLen(budget.bytes.0.min(JSON_BYTES.0)))?,
+            TreeFormat::JsonLines => read_head(src, budget)?,
+        };
         if *format == TreeFormat::Json && head.coverage == Coverage::Prefix {
             return Err(TextError::JsonOverBudget);
         }
-        let tree = Tree::parse(&head.text, *format)?;
-        let root = tree.row(&TreePath::root())?;
+        let (tree, count) = Tree::parse_start(&head.text, *format, PEEK_LINES)?;
+        let mut root = tree.row(&TreePath::root())?;
+        root.children = count;
         let values = match format {
-            TreeFormat::JsonLines => Some(Tally::of(root.children.0 as usize, head.coverage)), // a u32 fits a usize
+            TreeFormat::JsonLines => Some(Tally::of(count.0 as usize, head.coverage)), // a u32 fits a usize
             TreeFormat::Json => None,
         };
         Ok(TreePeeked {
