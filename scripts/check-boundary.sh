@@ -8,6 +8,9 @@
 # Each rule is "<crate>: <forbidden deps...>". Forbidden names are exact package names; a
 # family such as blitz-* is spelled out member by member.
 set -uo pipefail
+# Plain text from cargo whatever the caller asks for: a coloured `(*)` slips past the dedup below and
+# CI (CARGO_TERM_COLOR=always) counted 800 packages where there are 590.
+export CARGO_TERM_COLOR=never
 cd "$(dirname "$0")/.."
 
 # anyview-core is the pure vocabulary: no UI, no runtime, no bus, no GPU, no decoder, no media
