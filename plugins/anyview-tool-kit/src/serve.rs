@@ -29,6 +29,10 @@ pub trait Backend {
 
 /// Serves the one request that arrives.
 pub fn serve(backend: &impl Backend) -> ExitCode {
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!("anyview-{} {}", backend.name(), env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
     let mut out = std::io::stdout();
     let provides = backend.provides();
     if provides.is_empty() {
