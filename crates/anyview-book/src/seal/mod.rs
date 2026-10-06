@@ -7,6 +7,7 @@ mod assets;
 mod css;
 mod element;
 mod entities;
+mod escapes;
 mod tokens;
 mod walk;
 

@@ -3,7 +3,9 @@
 use super::EpubMeta;
 use crate::error::BookError;
 use crate::zip_path::{directory_of, resolve};
+use anyview_core::{MAX_XML_DEPTH, nests_deeper_than};
 use roxmltree::{Document, Node, ParsingOptions};
+use std::collections::HashMap;
 
 /// One chapter of the reading order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,8 +26,15 @@ pub(super) struct Package {
     pub ncx: Option<String>,
 }
 
-/// Parses `bytes` as XML; a byte order mark and a DOCTYPE are tolerated.
+/// Parses `text` as XML; a byte order mark and a DOCTYPE are tolerated. A document nested deeper
+/// than [`MAX_XML_DEPTH`] is refused first: the parser recurses once per open element.
 pub(super) fn xml<'a>(part: &'static str, text: &'a str) -> Result<Document<'a>, BookError> {
+    if nests_deeper_than(text, MAX_XML_DEPTH) {
+        return Err(BookError::Xml {
+            part,
+            reason: "its elements nest too deeply".to_owned(),
+        });
+    }
     let options = ParsingOptions {
         allow_dtd: true,
         ..ParsingOptions::default()
@@ -118,12 +127,12 @@ fn manifest<'a>(root: Node<'a, 'a>, directory: &str) -> Vec<Item<'a>> {
 
 /// The cover: the item the metadata names, the item flagged as the cover image, or the first
 /// image in the manifest.
-fn cover(root: Node<'_, '_>, items: &[Item<'_>]) -> Option<String> {
+fn cover(root: Node<'_, '_>, items: &[Item<'_>], by_id: &ById<'_, '_>) -> Option<String> {
     let named = root
         .descendants()
         .filter(|node| node.has_tag_name("meta") && node.attribute("name") == Some("cover"))
         .find_map(|node| node.attribute("content"))
-        .and_then(|id| items.iter().find(|item| item.id == id));
+        .and_then(|id| by_id.get(id).copied());
     let flagged = items.iter().find(|item| {
         item.properties
             .split_whitespace()
@@ -136,18 +145,30 @@ fn cover(root: Node<'_, '_>, items: &[Item<'_>]) -> Option<String> {
         .and_then(|item| item.entry.clone())
 }
 
+/// The manifest items by id; the first of two with the same id wins.
+type ById<'a, 'b> = HashMap<&'a str, &'b Item<'a>>;
+
+fn by_id<'a, 'b>(items: &'b [Item<'a>]) -> ById<'a, 'b> {
+    let mut map = HashMap::with_capacity(items.len());
+    for item in items {
+        map.entry(item.id).or_insert(item);
+    }
+    map
+}
+
 pub(super) fn parse(package_path: &str, bytes: &[u8]) -> Result<Package, BookError> {
     let text = text_of(bytes);
     let document = xml("the package document", &text)?;
     let root = document.root_element();
     let directory = directory_of(package_path);
     let items = manifest(root, directory);
+    let by_id = by_id(&items);
     let spine_node = root.children().find(|node| node.has_tag_name("spine"));
     let spine = spine_node
         .into_iter()
         .flat_map(|spine| children(spine, "itemref"))
         .filter_map(|itemref| itemref.attribute("idref"))
-        .filter_map(|id| items.iter().find(|item| item.id == id))
+        .filter_map(|id| by_id.get(id).copied())
         .filter(|item| item.media.contains("html"))
         .filter_map(|item| item.entry.clone())
         .map(|entry| SpineItem { entry })
@@ -160,7 +181,7 @@ pub(super) fn parse(package_path: &str, bytes: &[u8]) -> Result<Package, BookErr
     };
     let ncx = spine_node
         .and_then(|spine| spine.attribute("toc"))
-        .and_then(|id| items.iter().find(|item| item.id == id))
+        .and_then(|id| by_id.get(id).copied())
         .and_then(|item| item.entry.clone())
         .or_else(|| {
             items
@@ -171,7 +192,7 @@ pub(super) fn parse(package_path: &str, bytes: &[u8]) -> Result<Package, BookErr
     Ok(Package {
         meta: metadata(root),
         spine,
-        cover: cover(root, &items),
+        cover: cover(root, &items, &by_id),
         nav: by_property("nav"),
         ncx,
     })

@@ -1,7 +1,7 @@
 //! Tiny books built in memory with the zip crate, written into a scratch directory.
 
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
-#![allow(clippy::unwrap_used)]
+#![allow(dead_code, clippy::unwrap_used)]
 
 use anyview_core::FilePath;
 use std::io::Write;
