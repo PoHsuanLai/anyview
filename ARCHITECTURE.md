@@ -765,8 +765,8 @@ processes are removed at the next export. `cancel` (or the host closing
 its pipe) kills ffmpeg, removes the partial file and answers `cancelled`; ffmpeg's last stderr lines ride in
 the message when it fails.
 
-**Install.** `dist/plugins/anyview-ffmpeg.toml.in` is the manifest template; `dist/install.sh --with-plugin
-ffmpeg` installs the program as `<prefix>/libexec/anyview/anyview-ffmpeg` and the template, with `@PREFIX@`
+**Install.** `dist/plugins/anyview-ffmpeg.toml.in` is the manifest template; `dist/install.sh`
+installs the program as `<prefix>/libexec/anyview/anyview-ffmpeg` and the template, with `@PREFIX@`
 filled in, as `<prefix>/share/anyview/plugins/ffmpeg.toml`; `uninstall.sh` removes both. `dev/install-test.sh`
 covers it. The plugin tests spawn the built program through `PluginRunner` against the media crate's fixtures,
 using the shipped template.
@@ -837,15 +837,15 @@ stopped; a plugin that dies, hangs or lies costs one request.
 its facts with a `Needs: anyview-mpv` row, and the export sheet offers no recording formats and says which
 package adds them. To play and convert, install the distribution's `mpv` and `ffmpeg` (the patent-encumbered
 codecs come from there: Fedora's `ffmpeg-free` plus RPM Fusion's `ffmpeg`, Debian's `ffmpeg`), and the two
-plugins: `dist/install.sh --with-plugin mpv --with-plugin ffmpeg`, which builds mpv-wgpu's C plugin from a
-checkout (`MPV_WGPU_DIR`, default `../mpv`) and the FFmpeg plugin, finds `mpv` on the search path when it runs
+plugins, which a plain `dist/install.sh` installs: it builds mpv-wgpu's C plugin (from `--with-mpv-from`,
+`MPV_WGPU_DIR` or `../mpv`, else a shallow fetch of the revision pinned in `install.sh` into
+`$XDG_CACHE_HOME/anyview/build`) and the FFmpeg plugin, finds `mpv` on the search path at install time
 (`--mpv PATH` names another) and writes `mpv.toml` and `ffmpeg.toml` under `<prefix>/share/anyview/plugins`.
 Distribution packages are named `anyview-mpv` and `anyview-ffmpeg`.
 
 Pictures the viewer cannot decode work the same way: a HEIC opens as its facts with a `Needs: anyview-heif` row
-until `dist/install.sh --with-plugin heif` and the distribution's libheif tools are there, and a raw file shows
-its embedded preview with a `Needs: anyview-raw` row until `--with-plugin raw` and LibRaw's `dcraw_emu` (or
-`dcraw`) are installed. Distribution packages: `anyview-heif` and `anyview-raw`.
+until the distribution's libheif tools are there (the plugin itself installs with the viewer), and a raw file shows
+its embedded preview with a `Needs: anyview-raw` row until LibRaw's `dcraw_emu` (or `dcraw`) is installed. Distribution packages: `anyview-heif` and `anyview-raw`.
 
 ## 2o. Modules inside `anyview-book`
 
@@ -1419,11 +1419,12 @@ map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands th
 `cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
 `dist/uninstall.sh` (sharing `dist/lib.sh`; install records a receipt, uninstall removes only what it names) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
-`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in, and so is each plugin
-(`--with-plugin ffmpeg`, `--with-plugin heif`, `--with-plugin raw`, `--with-plugin mpv`; section 2m). The mpv plugin's manifest template is
+`$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in; every plugin installs by default (`--without-plugin NAME` and `--no-plugins` leave them out; `--with-plugin` is an ignored
+leftover; section 2m). A plugin whose tool is missing is still installed, since it greets the viewer with nothing on offer
+until the tool is there. The mpv plugin is skipped with one warning, and the rest installs, when there is no `mpv`, git, network or build. The mpv plugin's manifest template is
 `dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
 C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
-`cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools.
+`cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools and a shim `cargo`, and fetches mpv-wgpu only from a local repository.
 
 ## 8. Repo rules
 
