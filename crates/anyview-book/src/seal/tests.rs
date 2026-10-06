@@ -69,6 +69,61 @@ fn what_would_run_or_load_does_not_survive() {
             "alert",
         ),
         ("base", "<base href=\"https://e.com/\"><p>a</p>", "e.com"),
+        (
+            "escaped url in a style element",
+            "<style>p{background:u\\72l(https://e.com/a.png)}</style>",
+            "e.com",
+        ),
+        (
+            "escaped url with a closing space in a style attribute",
+            "<p style=\"background:\\75\\72\\6c (https://e.com/a.png)\">a</p>",
+            "e.com",
+        ),
+        (
+            "upper-case escaped url",
+            "<style>p{background:\\55\\52\\4C(https://e.com/a.png)}</style>",
+            "e.com",
+        ),
+        (
+            "escaped import",
+            "<style>@\\69mport 'https://e.com/x.css'; p{}</style>",
+            "e.com",
+        ),
+        (
+            "escaped upper-case import",
+            "<style>@\\49MPORT url(https://e.com/x.css);</style>",
+            "e.com",
+        ),
+        (
+            "image-set",
+            "<style>p{background:image-set('https://e.com/a.png' 1x)}</style>",
+            "e.com",
+        ),
+        (
+            "webkit image-set with a url",
+            "<style>p{background:-webkit-image-set(url(https://e.com/a.png) 1x)}</style>",
+            "e.com",
+        ),
+        (
+            "escaped image-set in an attribute",
+            "<p style=\"background:\\69mage-set('https://e.com/a.png' 1x)\">a</p>",
+            "e.com",
+        ),
+        (
+            "image function",
+            "<style>p{background:image('https://e.com/a.png')}</style>",
+            "e.com",
+        ),
+        (
+            "cross-fade",
+            "<style>p{background:cross-fade(url(https://e.com/a.png), url(https://e.com/b.png))}</style>",
+            "e.com",
+        ),
+        (
+            "an escaped font face",
+            "<style>@\\66ont-face{src:url(https://e.com/a.woff)}</style>",
+            "e.com",
+        ),
     ];
     for (name, html, absent) in CASES {
         let chapter = sealed(html);

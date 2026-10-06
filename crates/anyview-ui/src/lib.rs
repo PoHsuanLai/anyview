@@ -33,7 +33,7 @@ mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
 pub use command::{Command, StageCommand};
-pub use edits::{EditRequest, Rewind};
+pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
     Area, BookDoc, BookStageView, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor,
     Layout, Leaving, LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf,

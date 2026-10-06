@@ -15,7 +15,7 @@ use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
 use super::session::Probe;
 use super::sheet::{
-    ExportSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
+    EditSheet, ExportSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
@@ -335,6 +335,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 Sheet::ConfirmTrash => rsx! {
                     TrashSheet {
                         name: title_of(&shelf.probe.read()).unwrap_or_default(),
+                        onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
+                Sheet::ConfirmEdit { request, caution } => rsx! {
+                    EditSheet {
+                        edit: request.edit,
+                        caution: *caution,
                         onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }

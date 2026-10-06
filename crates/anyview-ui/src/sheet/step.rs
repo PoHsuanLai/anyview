@@ -3,6 +3,7 @@
 use super::draft::ExportDraft;
 use super::model::{Sheet, SheetIn, SheetOut};
 use super::versions::{VersionKey, VersionList};
+use crate::edits::{EditCaution, EditRequest};
 use crate::typed::TypedText;
 use anyview_core::Fact;
 use ds_core::machine::Machine;
@@ -22,6 +23,7 @@ impl Machine for Sheet {
             Sheet::Export { draft } => export(draft, input),
             Sheet::Unavailable { needs } => unavailable(needs, input),
             Sheet::ConfirmTrash => confirm_trash(input),
+            Sheet::ConfirmEdit { request, caution } => confirm_edit(request, caution, input),
             Sheet::Rename { name } => rename(name, input),
             Sheet::SaveCopy { name } => save_copy(name, input),
             Sheet::Revert { versions, chosen } => revert(versions, chosen, input),
@@ -35,6 +37,10 @@ impl Machine for Sheet {
             | Sheet::Export { draft: _ }
             | Sheet::Unavailable { needs: _ }
             | Sheet::ConfirmTrash
+            | Sheet::ConfirmEdit {
+                request: _,
+                caution: _,
+            }
             | Sheet::Rename { name: _ }
             | Sheet::SaveCopy { name: _ }
             | Sheet::Revert {
@@ -63,6 +69,7 @@ fn closed(input: SheetIn) -> Step {
         SheetIn::OpenExport(draft) => opened(Sheet::Export { draft }),
         SheetIn::OpenUnavailable(needs) => opened(Sheet::Unavailable { needs }),
         SheetIn::AskTrash => opened(Sheet::ConfirmTrash),
+        SheetIn::AskEdit(request, caution) => opened(Sheet::ConfirmEdit { request, caution }),
         SheetIn::AskRename(name) => opened(Sheet::Rename { name }),
         SheetIn::AskSaveCopy(name) => opened(Sheet::SaveCopy { name }),
         SheetIn::OpenRevert(Some(versions)) => match versions.newest().cloned() {
@@ -91,6 +98,7 @@ fn export(draft: ExportDraft, input: SheetIn) -> Step {
         | SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -107,6 +115,7 @@ fn unavailable(needs: Fact, input: SheetIn) -> Step {
         SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -125,6 +134,7 @@ fn confirm_trash(input: SheetIn) -> Step {
         SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -145,6 +155,7 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -164,6 +175,7 @@ fn save_copy(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -191,6 +203,7 @@ fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
         | SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -208,6 +221,7 @@ fn no_versions(input: SheetIn) -> Step {
         SheetIn::OpenExport(_)
         | SheetIn::OpenUnavailable(_)
         | SheetIn::AskTrash
+        | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
@@ -216,5 +230,24 @@ fn no_versions(input: SheetIn) -> Step {
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::NoVersions, vec![]),
+    }
+}
+
+fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> Step {
+    match input {
+        SheetIn::Confirm => closing(SheetOut::Edit(request)),
+        SheetIn::Cancel => cancelled(),
+        SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_)
+        | SheetIn::AskTrash
+        | SheetIn::AskEdit(..)
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::ConfirmEdit { request, caution }, vec![]),
     }
 }

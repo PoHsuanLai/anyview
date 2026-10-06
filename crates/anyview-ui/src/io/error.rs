@@ -32,6 +32,9 @@ pub enum OpenError {
     /// A plugin that serves this file could not make its picture.
     #[error("the plugin could not show the picture: {0}")]
     Plugin(String),
+    /// A decoder panicked on this file; the work was abandoned and the viewer went on.
+    #[error("the file could not be read")]
+    Crashed,
     /// The probe could not tell what the file is (a zip needs its entries listed).
     #[error("the viewer cannot tell what this file is")]
     Unrecognised,
@@ -58,6 +61,7 @@ impl OpenError {
             | OpenError::Media(_)
             | OpenError::Plugin(_)
             | OpenError::Unrecognised => LoadFailure::Unsupported,
+            OpenError::Crashed => LoadFailure::Damaged,
         }
     }
 }

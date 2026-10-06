@@ -256,3 +256,80 @@ fn a_woff_with_a_table_that_does_not_unpack_is_malformed() {
     let error = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap_err();
     assert!(matches!(error, FontError::Malformed { .. }), "{error:?}");
 }
+
+/// A WOFF whose directory has `tables` entries, each claiming `original` bytes unpacked from the
+/// zlib stream of `stream_of` zeros that every entry points at, or at its own copy when `shared`
+/// is `Sharing::Apart`.
+fn woff_directory(tables: usize, original: u32, stream_of: usize, sharing: Sharing) -> Vec<u8> {
+    let stream = miniz_oxide::deflate::compress_to_vec_zlib(&vec![0; stream_of], 6);
+    let head = 44 + 20 * tables;
+    let mut out = b"wOFF".to_vec();
+    out.extend(0x0001_0000_u32.to_be_bytes());
+    out.extend([0; 4]);
+    out.extend(u16::try_from(tables).unwrap().to_be_bytes());
+    out.resize(44, 0);
+    for index in 0..tables {
+        let at = match sharing {
+            Sharing::Shared => head,
+            Sharing::Apart => head + index * stream.len(),
+        };
+        out.extend(format!("t{index:03}").as_bytes()[..4].iter());
+        out.extend(u32::try_from(at).unwrap().to_be_bytes());
+        out.extend(u32::try_from(stream.len()).unwrap().to_be_bytes());
+        out.extend(original.to_be_bytes());
+        out.extend([0; 4]);
+    }
+    match sharing {
+        Sharing::Shared => out.extend(&stream),
+        Sharing::Apart => (0..tables).for_each(|_| out.extend(&stream)),
+    }
+    out
+}
+
+#[derive(Clone, Copy)]
+enum Sharing {
+    Shared,
+    Apart,
+}
+
+#[test]
+fn a_web_font_that_unpacks_to_too_much_or_shares_table_data_is_malformed() {
+    let dir = tempfile::tempdir().unwrap();
+    // name, file, why it must be refused
+    let cases = [
+        (
+            "many tables sharing one stream, 3 GiB claimed",
+            woff_directory(3000, 1 << 20, 1 << 20, Sharing::Shared),
+        ),
+        (
+            "many tables of their own, 3 GiB claimed",
+            woff_directory(3000, 1 << 20, 1 << 20, Sharing::Apart),
+        ),
+        (
+            "two small tables over the same bytes",
+            woff_directory(2, 1024, 1024, Sharing::Shared),
+        ),
+    ];
+    for (name, bytes) in cases {
+        let path = dir.path().join("bomb.woff");
+        std::fs::write(&path, bytes).unwrap();
+        let (src, sniffed) = opened(&path, "bomb.woff");
+        let started = std::time::Instant::now();
+        let got = FontPeek::peek(&src, &sniffed, &budget(1 << 30));
+        assert!(
+            matches!(got, Err(FontError::Malformed { .. })),
+            "{name}: {got:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "{name}: refused at once"
+        );
+    }
+}
+
+#[test]
+fn a_font_that_breaks_the_glyph_reader_is_malformed_not_a_panic() {
+    let (src, sniffed) = opened(&fixture("damaged-glyf.ttf"), "damaged-glyf.ttf");
+    let got = FontPeek::peek(&src, &sniffed, &budget(1 << 20));
+    assert!(matches!(got, Err(FontError::Malformed { .. })), "{got:?}");
+}

@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="4096"><filter id="f"><feMorphology operator="dilate" radius="2000"/></filter><rect width="4096" height="4096" filter="url(#f)"/></svg>

@@ -5,14 +5,15 @@
 
 use crate::error::PeekError;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FileHead, FileName, FormatKind, Peek, PeekBudget,
-    SniffStep, Sniffed, Source, ZipEntries, sniff, sniff_zip,
+    ByteLen, Deadline, FactLabel, FactValue, Facts, FileHead, FileName, FormatKind, Peek,
+    PeekBudget, SniffStep, Sniffed, Source, ZipEntries, open_regular, sniff, sniff_zip,
 };
 use anyview_text::Tally;
 use ds::prelude::Word;
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::Path;
+use std::time::Instant;
 
 /// The most entries a peek counts; a folder with more is reported as "at least" this many.
 pub const FOLDER_ENTRIES: usize = 10_000;
@@ -69,7 +70,10 @@ impl Peek for FolderPeek {
             });
         }
         let path = src.path().as_path();
-        let mut entries = visible(path)?;
+        // The listing and the sniffing are the loops that grow with the folder; both stop at the
+        // budget's time and report what they had counted.
+        let deadline = Deadline::of(budget, Instant::now());
+        let mut entries = visible(path, deadline)?;
         let capped = entries.len() > FOLDER_ENTRIES;
         entries.truncate(FOLDER_ENTRIES);
         entries.sort_by_key(DirEntry::file_name);
@@ -83,6 +87,9 @@ impl Peek for FolderPeek {
             if file_type.is_dir() {
                 folders += 1;
                 continue;
+            }
+            if deadline.passed(Instant::now()) {
+                reads_left = 0;
             }
             files += 1;
             size = size.saturating_add(entry.metadata().map_or(0, |meta| meta.len()));
@@ -117,7 +124,7 @@ impl Peek for FolderPeek {
 }
 
 /// The folder's entries that a file manager would list.
-fn visible(path: &Path) -> Result<Vec<DirEntry>, PeekError> {
+fn visible(path: &Path, deadline: Deadline) -> Result<Vec<DirEntry>, PeekError> {
     let folder_error = |error: std::io::Error| PeekError::Folder {
         path: path.to_path_buf(),
         kind: error.kind(),
@@ -129,7 +136,7 @@ fn visible(path: &Path) -> Result<Vec<DirEntry>, PeekError> {
             entries.push(entry);
         }
         // One more than the cap is enough to know the folder has more.
-        if entries.len() > FOLDER_ENTRIES {
+        if entries.len() > FOLDER_ENTRIES || deadline.passed(Instant::now()) {
             break;
         }
     }
@@ -141,8 +148,9 @@ fn visible(path: &Path) -> Result<Vec<DirEntry>, PeekError> {
 fn kind_of(path: &Path, name: &std::ffi::OsStr) -> Option<FormatKind> {
     let name = FileName::new(name.to_str()?).ok()?;
     let mut head = Vec::new();
-    fs::File::open(path)
+    open_regular(path)
         .ok()?
+        .0
         .take(HEAD_BYTES)
         .read_to_end(&mut head)
         .ok()?;

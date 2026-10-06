@@ -86,7 +86,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
-| `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust`, `flate2`, `bzip2`, `ruzstd`, `lzma-rs`): the one crate that names `skrifa` for reading a face |
+| `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust2`, `flate2`, `bzip2`, `ruzstd`, `lzma-rust2`): the one crate that names `skrifa` for reading a face |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
 | `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `mpv-wgpu-player` (with its `player` feature), built with the `subprocess` host only, so no libmpv and no `rsmpv`. It spawns no thread, reads no clock, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
@@ -104,7 +104,7 @@ qoi, exr and hdr added by its own manifest), `psd` (Photoshop, MIT OR Apache-2.0
 `ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
-`anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rs`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
+`anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rust2`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust2` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
 
 `anyview-peek` depends on the five crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
 `thiserror`. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
@@ -140,7 +140,7 @@ no other public path. A module names only modules above it in this list.
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
 | `facts` | `FactLabel`, `FactValue`, `Facts` |
-| `peek` | `Peek`, `PeekBudget`, `StageSupport` |
+| `peek` | `Peek`, `PeekBudget`, `Deadline` (the budget's time as an instant a long loop asks about; cooperative), `StageSupport` |
 | `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
 | `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `mime_for`, `stage_support` |
 
@@ -216,7 +216,7 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
 | `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
 | `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
-| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `stills`, `plays` (loop counts from the container), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg` and `look` are private |
+| `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `ceiling` (the peak memory a decode may hold, checked from the header before any pixel is decoded), `stills`, `plays` (loop counts from the container), `frame_count` (frame counts from the container, without decoding), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg`, `svg_limits` (a drawing's filter work and nested pictures, checked from its tree before it is drawn) and `look` are private |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
 | `export` | `plan_export` (an image choice as `ExportJob`s: pure), `encode_file` (a file resized and encoded, keeping its metadata or not), `ImageFile` (a file's bytes and what it sniffed as: its upright picture, an SVG's declared size, whether a JPEG is already upright) |
@@ -249,7 +249,7 @@ one file.
 | `find` | `Needle` (a phrase, lower-cased, never empty), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
 | `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
 | `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `DiskFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
-| `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`, `Separator` (comma, tab, semicolon or pipe, chosen by the rows), `CharWidth` and the read caps (`TABLE_BYTES`, `TABLE_ROWS`); `Workbook` and `Sheet` (calamine: XLSX, ODS, XLS, one `Table` per sheet, capped by `SHEET_ROWS` and `WORKBOOK_CELLS`); `header` (the guess) is private |
+| `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`, `Separator` (comma, tab, semicolon or pipe, chosen by the rows), `CharWidth` and the read caps (`TABLE_BYTES`, `TABLE_ROWS`); `Workbook` and `Sheet` (calamine: XLSX, ODS, XLS, one `Table` per sheet, capped by `SHEET_ROWS` and `WORKBOOK_CELLS`; XLSX and XLSB are streamed cell by cell, so a sheet that claims a grid it does not hold costs the cells it has; `open_start` reads the first sheet's start for a peek); `header` (the guess) is private |
 | `tree` | `Tree` (`read`, `children`, and `visible` / `visible_count`, the document flattened under an `OpenNodes` set and cut to a window), `TreeRow`, `VisibleRow`, `Openness`, `RowLabel`, `NodeKind`, `ChildCount`; `TreePath` and `OpenNodes` live in `anyview-core`; `node` and `rows` are private |
 | `peek` | `PlainPeek`, `CodePeek`, `MarkdownPeek`, `TablePeek`, `TreePeek` and their `*Peeked` types, `Tally`, `PEEK_LINES` |
 | `export` | `plan_export` and `plan_print` (a text choice, or a printout, as `ExportJob`s: pure) and `printable_html` (a Markdown, code or plain-text file as the whole page `ds_blitz::pdf` prints: Markdown rendered with its local images inlined, code highlighted, text as it is; `print.css` is its stylesheet, with fixed colours since paper is white) |
@@ -473,10 +473,10 @@ its count is a lower bound (`EntryCount::AtLeast`).
 | `error` | `ArchiveError` |
 | `container` | `container`, the one match on `ArchiveFormat`: `Container` (`Zip`, `Tar`, `Compressed(Codec)`, `SevenZip`) and `Codec`; `format_name` and `kind_name`, the words for a format (private) |
 | `entry` | `Entry`, `EntryKind`, `EntryCount`, `EntryLimit`, `Holds`, `Listing`; `Tally`, which keeps the first entries and counts the rest (private) |
-| `limit` | `Limited` (a reader that stops at the budget and says so) and `Capped` (the writer an xz decoder fills) (private) |
+| `limit` | `Limited` (a reader that stops at the budget and says so) (private) |
 | `list` | `list`: the one entry point, and the compressed-stream case (a tar inside, or one file) |
 | `extract` | `extract`, `ExtractLimits`: one entry's bytes, bounded by the entry and by how much of a stream is unpacked |
-| `zip_archive`, `tar`, `sevenz`, `stream` | one container each: the central directory (and `zip_entries`, the names and `mimetype` sniffing wants), tar headers (also over a decompressed prefix), the 7z header, and gzip, bzip2, xz and Zstandard unpacked up to a cap (private except `zip_entries`) |
+| `zip_archive`, `tar`, `sevenz`, `stream` | one container each: the central directory (and `zip_entries`, the names and `mimetype` sniffing wants), tar headers (also over a decompressed prefix), the 7z header (`sevenz_header` checks every size it states against the file, a count limit and a byte limit before the 7z crate allocates from it), and gzip, bzip2, xz and Zstandard unpacked up to a cap through readers that stream (private except `zip_entries`) |
 | `peek` | `ArchivePeek`, `ArchivePeeked`, `PEEK_ENTRIES` |
 
 A compressed stream is a tar when what it unpacks to parses as one (the header checksum decides), else
@@ -499,7 +499,8 @@ because a font's tables lie all over it.
 The specimen is outlines, not a font handed to the renderer: the pane needs no font loading, the peek
 stays a small value whatever the font's size, and what is drawn is the face the file holds. A font that
 maps none of the sample letters shows the first characters it does map. A WOFF is unpacked to the
-plain font it wraps (`woff.rs`: each table's zlib stream, the tables laid out again as an sfnt) and read
+plain font it wraps (`woff.rs`: each table's zlib stream, the tables laid out again as an sfnt; the
+tables together may unpack to 64 MiB and may not share stored bytes) and read
 like one; WOFF2 is named (`face: None`) and not opened.
 
 ## 2l. Plugins
@@ -593,7 +594,8 @@ request is ever open.
 
 **Streams.** The plugin's stdin carries host messages, its stdout carries plugin messages and nothing
 else, and each line it writes to stderr goes to the viewer's log, prefixed `anyview: plugin <id>:`. The
-last lines also ride in the error when a plugin dies.
+last lines also ride in the error when a plugin dies. A line is kept to 4 KiB (the rest is dropped), and stderr
+is drained when a request is sent as well as while the host waits, so a chatty plugin never blocks on a full pipe.
 
 **Frame.** Every message is one frame:
 
@@ -648,7 +650,8 @@ which a pipe moves in tens of milliseconds, against about a second to encode and
 no side socket, no file descriptor passing and no `unsafe` on either side, and a plugin in any language can
 write it. The host checks the payload against the header and the header against the budget it asked for
 (a plugin that sends more than `max_edge` or `max_area` is `PluginProtocol`), and no payload may exceed
-512 MiB.
+512 MiB. A reply that may carry a picture is held to the bytes of the pixels asked for: a header that
+announces more is refused before any of the payload is buffered.
 
 **Timeouts, cancel and drop.** Waiting is by `poll` on the pipe, so no thread is needed. A plugin may be
 silent for at most `Timeouts::silence` (30 s) while a request is open; each message starts the wait again,

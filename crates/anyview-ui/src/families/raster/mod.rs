@@ -125,6 +125,10 @@ impl StageView for RasterStageView {
         rsx! { view::RasterContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
+    fn edit_offer(doc: &RasterDoc) -> crate::EditOffer {
+        doc.offer
+    }
+
     fn slots(doc: &RasterDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         if doc.needs.is_some() {
             return Vec::new();
@@ -143,10 +147,20 @@ impl StageView for RasterStageView {
             CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus),
             CapsuleSlot::Readout(format!("{}%", percent.0 / 10)),
             CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus),
-            CapsuleSlot::Divider,
-            CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo),
-            CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh),
         ];
+        if doc.offer != crate::EditOffer::Withheld {
+            slots.push(CapsuleSlot::Divider);
+            slots.push(CapsuleSlot::button(
+                Command::File(RotateLeft),
+                "Rotate left",
+                Icon::Undo,
+            ));
+            slots.push(CapsuleSlot::button(
+                Command::File(RotateRight),
+                "Rotate right",
+                Icon::Refresh,
+            ));
+        }
         if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
             let (label, icon) = match geometry::animation_of(raster) {
                 Animation::Playing { .. } => ("Pause", Icon::Pause),

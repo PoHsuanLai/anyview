@@ -1,7 +1,8 @@
 //! Formats the `image` crate decodes: one picture, or the frames of an animation.
 
+use super::Frame;
+use super::ceiling::Ceiling;
 use super::colour::ColourInfo;
-use super::{Frame, MAX_DECODE_AREA};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -9,18 +10,54 @@ use anyview_core::{MediaTime, PixelLen, PixelSize};
 use image::codecs::gif::GifDecoder;
 use image::codecs::png::PngDecoder;
 use image::codecs::webp::WebPDecoder;
-use image::{AnimationDecoder, Frames, ImageFormat, ImageReader, Limits};
+use image::{AnimationDecoder, Frames, ImageDecoder, ImageFormat, ImageReader, Limits};
 use std::io::Cursor;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 /// Frame delays at or under this many milliseconds are shown as [`FALLBACK_DELAY_MS`]: files that
 /// ask for no delay are meant to play at a readable speed, as browsers show them.
 const SHORTEST_DELAY_MS: u64 = 10;
 const FALLBACK_DELAY_MS: u64 = 100;
 
-pub(crate) fn limits() -> Limits {
+/// What a still costs per pixel beyond the codec's own buffer at its peak: the RGBA8 copy and the
+/// copy that turns it upright.
+pub(crate) const STILL_COPIES: u64 = 8;
+
+/// What each frame of an animation costs per pixel at its peak: the decoder's canvas, the frame it
+/// composites and the copy handed out, all RGBA8.
+const ANIMATION_COPIES: u64 = 12;
+
+pub(crate) fn limits(ceiling: Ceiling) -> Limits {
     let mut limits = Limits::default();
-    limits.max_alloc = Some(MAX_DECODE_AREA.0.saturating_mul(8));
+    limits.max_alloc = Some(ceiling.bytes());
     limits
+}
+
+/// What a file's header says about its picture.
+pub(crate) struct Header {
+    /// The size it declares.
+    pub size: PixelSize,
+    /// The bytes per pixel of the codec's own buffer, in the colour depth the file stores.
+    pub source_bytes: u64,
+}
+
+impl Header {
+    /// The size and the bytes per pixel a decode costs at its peak, `copies` being what it holds
+    /// besides the codec's own buffer.
+    pub(crate) fn cost(&self, copies: u64) -> (PixelSize, u64) {
+        (self.size, self.source_bytes + copies)
+    }
+}
+
+/// A decoder's guard against a panic in a codec: the `image` crate's formats index into bytes
+/// they have not checked, so a file that breaks one is reported as undecodable instead of taking
+/// the worker down.
+pub(crate) fn guarded<T>(work: impl FnOnce() -> Result<T, ImageError>) -> Result<T, ImageError> {
+    catch_unwind(AssertUnwindSafe(work)).unwrap_or_else(|_| {
+        Err(ImageError::Decode {
+            reason: "the image is damaged".to_owned(),
+        })
+    })
 }
 
 pub(crate) fn decode_error(error: image::ImageError, size: Option<PixelSize>) -> ImageError {
@@ -43,26 +80,32 @@ pub(crate) fn frame_delay(numerator: u32, denominator: u32) -> MediaTime {
     }
 }
 
-/// The size an image file declares, read from its header only.
-pub(crate) fn declared_size(bytes: &[u8], format: ImageFormat) -> Result<PixelSize, ImageError> {
-    let (width, height) = ImageReader::with_format(Cursor::new(bytes), format)
-        .into_dimensions()
+/// The size an image file declares and its colour depth, read from its header only.
+pub(crate) fn header(bytes: &[u8], format: ImageFormat) -> Result<Header, ImageError> {
+    let decoder = ImageReader::with_format(Cursor::new(bytes), format)
+        .into_decoder()
         .map_err(|e| decode_error(e, None))?;
-    Ok(PixelSize {
-        width: PixelLen(width),
-        height: PixelLen(height),
+    let (width, height) = decoder.dimensions();
+    Ok(Header {
+        size: PixelSize {
+            width: PixelLen(width),
+            height: PixelLen(height),
+        },
+        source_bytes: u64::from(decoder.color_type().bytes_per_pixel()),
     })
 }
 
 /// The picture of a still image file, upright, with the colour it was stored in.
-pub(crate) fn still(bytes: &[u8], format: ImageFormat) -> Result<(Rgba8, ColourInfo), ImageError> {
-    let size = declared_size(bytes, format)?;
-    if size.area() > MAX_DECODE_AREA {
-        return Err(ImageError::TooLarge { size });
-    }
+pub(crate) fn still(
+    bytes: &[u8],
+    format: ImageFormat,
+    ceiling: Ceiling,
+) -> Result<(Rgba8, ColourInfo), ImageError> {
+    let (size, per_pixel) = header(bytes, format)?.cost(STILL_COPIES);
+    ceiling.admit(size, per_pixel)?;
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
-    reader.limits(limits());
-    let decoded = reader.decode().map_err(|e| decode_error(e, Some(size)))?;
+    reader.limits(limits(ceiling));
+    let decoded = guarded(|| reader.decode().map_err(|e| decode_error(e, Some(size))))?;
     let colour = ColourInfo::of_color_type(decoded.color());
     let picture = Rgba8::from_image(decoded.into_rgba8());
     let orientation = ExifFacts::read(bytes).orientation;
@@ -75,21 +118,45 @@ pub(crate) fn still(bytes: &[u8], format: ImageFormat) -> Result<(Rgba8, ColourI
 pub(crate) fn animation(
     bytes: &[u8],
     format: ImageFormat,
+    ceiling: Ceiling,
+) -> Result<Option<Frames<'_>>, ImageError> {
+    guarded(|| open_animation(bytes, format, ceiling))
+}
+
+fn open_animation(
+    bytes: &[u8],
+    format: ImageFormat,
+    ceiling: Ceiling,
 ) -> Result<Option<Frames<'_>>, ImageError> {
     let wrap = |e| decode_error(e, None);
+    let admit = |decoder: &dyn ImageDecoder| {
+        let (width, height) = decoder.dimensions();
+        let size = PixelSize {
+            width: PixelLen(width),
+            height: PixelLen(height),
+        };
+        ceiling.admit(size, ANIMATION_COPIES)
+    };
     if format == ImageFormat::Gif {
         let decoder = GifDecoder::new(Cursor::new(bytes)).map_err(wrap)?;
+        admit(&decoder)?;
         Ok(Some(decoder.into_frames()))
     } else if format == ImageFormat::Png {
         let decoder = PngDecoder::new(Cursor::new(bytes)).map_err(wrap)?;
         if decoder.is_apng().map_err(wrap)? {
+            admit(&decoder)?;
             Ok(Some(decoder.apng().map_err(wrap)?.into_frames()))
         } else {
             Ok(None)
         }
     } else if format == ImageFormat::WebP {
         let decoder = WebPDecoder::new(Cursor::new(bytes)).map_err(wrap)?;
-        Ok(decoder.has_animation().then(|| decoder.into_frames()))
+        if decoder.has_animation() {
+            admit(&decoder)?;
+            Ok(Some(decoder.into_frames()))
+        } else {
+            Ok(None)
+        }
     } else {
         Ok(None)
     }
@@ -115,35 +182,40 @@ pub(crate) enum Collected {
 }
 
 /// The frames of an animation, keeping them while they take at most `cap` bytes together. Past
-/// it only the first is kept, and the rest are decoded and dropped one at a time to count them.
-pub(crate) fn collect(frames: Frames<'_>, cap: u64) -> Result<Collected, ImageError> {
-    let mut kept: Vec<Frame> = Vec::new();
-    let mut spent: u64 = 0;
-    let mut count: u32 = 0;
-    for frame in frames {
-        let frame = frame_of(frame.map_err(|e| decode_error(e, None))?);
-        count = count.saturating_add(1);
-        spent = spent.saturating_add(frame.pixels.bytes().len() as u64);
-        if spent > cap {
-            kept.truncate(1);
-            if kept.is_empty() {
-                kept.push(frame);
+/// it decoding stops: the first frame alone is kept, and `total`, what the container says the
+/// count is, tells how many there are. A frame decoded is a canvas of memory and time, so a file
+/// of thousands is never decoded to the end to be counted.
+pub(crate) fn collect(
+    frames: Frames<'_>,
+    cap: u64,
+    total: Option<u32>,
+) -> Result<Collected, ImageError> {
+    guarded(|| {
+        let mut kept: Vec<Frame> = Vec::new();
+        let mut spent: u64 = 0;
+        let mut seen: u32 = 0;
+        for frame in frames {
+            let frame = frame_of(frame.map_err(|e| decode_error(e, None))?);
+            seen = seen.saturating_add(1);
+            spent = spent.saturating_add(frame.pixels.bytes().len() as u64);
+            if spent > cap {
+                kept.truncate(1);
+                if kept.is_empty() {
+                    kept.push(frame);
+                }
+                let first = kept.remove(0);
+                let count = total.unwrap_or(seen).max(seen);
+                return Ok(Collected::TooMany { first, count });
             }
-        } else {
             kept.push(frame);
         }
-    }
-    if spent <= cap {
-        return Ok(Collected::All(kept));
-    }
-    let first = kept.into_iter().next().ok_or_else(|| ImageError::Decode {
-        reason: "the animation has no frames".to_owned(),
-    })?;
-    Ok(Collected::TooMany { first, count })
+        Ok(Collected::All(kept))
+    })
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::frame_count;
     use super::*;
 
     #[test]
@@ -191,8 +263,10 @@ mod tests {
         ];
         let bytes = three_frame_gif();
         for (name, cap, kept, count) in CASES {
-            let frames = animation(&bytes, ImageFormat::Gif).unwrap().unwrap();
-            match collect(frames, *cap).unwrap() {
+            let frames = animation(&bytes, ImageFormat::Gif, Ceiling::VIEW)
+                .unwrap()
+                .unwrap();
+            match collect(frames, *cap, frame_count::of(&bytes, ImageFormat::Gif)).unwrap() {
                 Collected::All(all) => {
                     assert_eq!((all.len(), None), (*kept, *count), "{name}");
                 }

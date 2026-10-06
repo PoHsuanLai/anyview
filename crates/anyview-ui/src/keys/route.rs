@@ -25,6 +25,10 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         Sheet::Export { draft: _ }
         | Sheet::Unavailable { needs: _ }
         | Sheet::ConfirmTrash
+        | Sheet::ConfirmEdit {
+            request: _,
+            caution: _,
+        }
         | Sheet::Rename { name: _ }
         | Sheet::SaveCopy { name: _ }
         | Sheet::Revert {

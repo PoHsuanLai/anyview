@@ -1,9 +1,10 @@
 //! A first look at an image file for a peek: its first picture, how many there are, and how it
 //! stores its colour. Decodes as little as the format allows.
 
+use super::ceiling::Ceiling;
 use super::codec::{Codec, codec_for};
 use super::colour::ColourInfo;
-use super::{FrameCount, highrange, jxl, layered, raw, stills, svg};
+use super::{FrameCount, frame_count, highrange, jxl, layered, raw, stills, svg};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -28,11 +29,12 @@ pub(crate) struct Looked {
 /// The first picture of `bytes` and what the file says about itself. `area` is how many pixels the
 /// caller can use: a vector image is drawn at that size and no larger.
 pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<Looked, ImageError> {
+    let ceiling = Ceiling::PEEK;
     match codec_for(sniffed)? {
-        Codec::Image(format) => match stills::animation(bytes, format)? {
-            Some(frames) => look_at_frames(frames, bytes),
+        Codec::Image(format) => match stills::animation(bytes, format, ceiling)? {
+            Some(frames) => look_at_frames(frames, bytes, format),
             None => {
-                let (picture, colour) = stills::still(bytes, format)?;
+                let (picture, colour) = stills::still(bytes, format, ceiling)?;
                 Ok(raster(
                     picture,
                     FrameCount(1),
@@ -42,7 +44,7 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
             }
         },
         Codec::HighRange(format) => {
-            let (picture, colour) = highrange::decode(bytes, format)?;
+            let (picture, colour) = highrange::decode(bytes, format, ceiling)?;
             Ok(raster(
                 picture,
                 FrameCount(1),
@@ -51,7 +53,7 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
             ))
         }
         Codec::Psd => {
-            let (picture, colour) = layered::psd(bytes)?;
+            let (picture, colour) = layered::psd(bytes, ceiling)?;
             Ok(raster(
                 picture,
                 FrameCount(1),
@@ -69,7 +71,7 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
             ))
         }
         Codec::Jxl => {
-            let (picture, colour) = jxl::decode(bytes)?;
+            let (picture, colour) = jxl::decode(bytes, ceiling)?;
             Ok(raster(
                 picture,
                 FrameCount(1),
@@ -78,7 +80,7 @@ pub(crate) fn look(bytes: &[u8], sniffed: &Sniffed, area: PixelArea) -> Result<L
             ))
         }
         Codec::RawPreview => {
-            let picture = raw::decode(bytes)?;
+            let picture = raw::decode(bytes, ceiling)?;
             Ok(raster(picture, FrameCount(1), None, ExifFacts::read(bytes)))
         }
         Codec::Svg => {
@@ -111,25 +113,27 @@ fn raster(
     }
 }
 
-/// The first frame in full and the number of frames, dropping each frame once it is counted.
-fn look_at_frames(frames: image::Frames<'_>, bytes: &[u8]) -> Result<Looked, ImageError> {
-    let mut first = None;
-    let mut count: u32 = 0;
-    for frame in frames {
-        let frame = frame.map_err(|e| ImageError::Decode {
-            reason: e.to_string(),
-        })?;
-        count = count.saturating_add(1);
-        if first.is_none() {
-            first = Some(stills::frame_of(frame).pixels);
-        }
-    }
-    let picture = first.ok_or(ImageError::Decode {
-        reason: "the animation has no frames".to_owned(),
+/// The first frame in full and the number of frames the container states. Only the first frame is
+/// decoded: counting by decoding the rest is minutes of work for a few kilobytes of file.
+fn look_at_frames(
+    frames: image::Frames<'_>,
+    bytes: &[u8],
+    format: image::ImageFormat,
+) -> Result<Looked, ImageError> {
+    let first = stills::guarded(|| {
+        frames
+            .into_iter()
+            .next()
+            .ok_or(ImageError::Decode {
+                reason: "the animation has no frames".to_owned(),
+            })?
+            .map(|frame| stills::frame_of(frame).pixels)
+            .map_err(|e| stills::decode_error(e, None))
     })?;
+    let count = frame_count::of(bytes, format).map_or(1, |count| count.max(1));
     let colour = ColourInfo::of_channels(4, 8);
     Ok(raster(
-        picture,
+        first,
         FrameCount(count),
         Some(colour),
         ExifFacts::read(bytes),

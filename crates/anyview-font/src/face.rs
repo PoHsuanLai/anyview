@@ -5,6 +5,7 @@ use crate::specimen::{Specimen, specimen};
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::string::StringId;
 use skrifa::{FontRef, MetadataProvider};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 /// What a face says about itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,7 +47,13 @@ pub(crate) fn read(bytes: &[u8]) -> Result<(Face, u32), FontError> {
             reason: "the font has no head or maxp table".to_owned(),
         });
     }
-    Ok((face_of(&font), faces))
+    // skrifa indexes into glyph data it has not fully checked, so a font that breaks it is
+    // reported as damaged instead of taking the worker down.
+    let face =
+        catch_unwind(AssertUnwindSafe(|| face_of(&font))).map_err(|_| FontError::Malformed {
+            reason: "the font is damaged".to_owned(),
+        })?;
+    Ok((face, faces))
 }
 
 fn face_of(font: &FontRef<'_>) -> Face {

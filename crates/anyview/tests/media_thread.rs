@@ -49,6 +49,10 @@ fn host() -> anyview_media::MpvHost {
 
 /// The window's device, as far as a player is concerned.
 fn open_device() -> (wgpu::Device, wgpu::Queue, String) {
+    // One opening at a time in this process: the Vulkan loader crashes on two at once.
+    let _one_at_a_time = anyview_media::GPU_OPENING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     for fallback in [false, true] {
