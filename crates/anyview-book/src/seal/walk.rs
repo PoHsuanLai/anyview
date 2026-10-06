@@ -9,6 +9,7 @@ use super::element::{
 use super::entities::{decode, escape};
 use super::tokens::{Token, tokens};
 use crate::zip_path::{directory_of, resolve};
+use std::collections::HashSet;
 
 /// What a walk keeps while it writes.
 struct Sealer<'a> {
@@ -22,6 +23,8 @@ struct Sealer<'a> {
     dropped: u32,
     /// How deep inside SVG or MathML.
     foreign: u32,
+    /// The stylesheets already sealed into `styles`, so a sheet linked again adds nothing.
+    sheets: HashSet<String>,
 }
 
 pub(super) fn seal(html: &str, directory: &str, assets: &dyn Assets) -> Chapter {
@@ -33,6 +36,7 @@ pub(super) fn seal(html: &str, directory: &str, assets: &dyn Assets) -> Chapter 
         open: Vec::new(),
         dropped: 0,
         foreign: 0,
+        sheets: HashSet::new(),
     };
     for token in tokens(html.trim_start_matches('\u{feff}')) {
         sealer.token(token);
@@ -201,6 +205,9 @@ impl Sealer<'_> {
         let (true, Some(entry)) = (is_sheet, entry) else {
             return;
         };
+        if !self.sheets.insert(entry.clone()) {
+            return;
+        }
         if let Some(text) = self.assets.text(&entry) {
             self.styles
                 .push_str(&seal_css(&text, directory_of(&entry), self.assets));
