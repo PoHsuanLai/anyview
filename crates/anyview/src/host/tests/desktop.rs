@@ -258,3 +258,73 @@ async fn duplicate_writes_the_first_free_copy_name() {
     assert_eq!(std::fs::read(dir.path().join("a copy.png")).unwrap(), PNG);
     assert_eq!(std::fs::read(dir.path().join("a copy 2.png")).unwrap(), PNG);
 }
+
+#[tokio::test]
+async fn rename_never_replaces_a_dangling_symlink_and_its_versions_follow() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = probed(dir.path(), "a.png", PNG);
+    let file = image.source.path().clone();
+    std::os::unix::fs::symlink(dir.path().join("nowhere"), dir.path().join("link.png")).unwrap();
+    let versions = anyview_store::Versions::under_state(&dir.path().join("state"));
+    versions
+        .back_up(
+            anyview_store::Pending::new(file.as_path(), b"edited".to_vec()),
+            anyview_store::SavedAt(7),
+        )
+        .unwrap()
+        .write_in_place()
+        .unwrap();
+    let (desktop, _) = desktop(dir.path(), vec![]);
+
+    let refused = desktop
+        .carry_out(Task::Rename {
+            file: file.clone(),
+            to: FileName::new("link.png").unwrap(),
+        })
+        .await
+        .unwrap();
+    assert!(matches!(refused, Outcome::Failed(_)), "{refused:?}");
+    assert!(file.as_path().exists());
+
+    desktop
+        .carry_out(Task::Rename {
+            file: file.clone(),
+            to: FileName::new("b.png").unwrap(),
+        })
+        .await
+        .unwrap();
+    let moved = path(dir.path().join("b.png").to_str().unwrap());
+    assert_eq!(
+        desktop.kept_versions(&moved).len(),
+        1,
+        "Revert To still lists it"
+    );
+    assert_eq!(desktop.kept_versions(&file), vec![]);
+}
+
+#[tokio::test]
+async fn duplicate_skips_a_dangling_symlink_and_leaves_no_hidden_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = probed(dir.path(), "a.png", PNG);
+    let elsewhere = dir.path().join("elsewhere");
+    std::os::unix::fs::symlink(&elsewhere, dir.path().join("a copy.png")).unwrap();
+    let (desktop, _) = desktop(dir.path(), vec![]);
+    let outcome = desktop
+        .carry_out(Task::Duplicate(image.source.path().clone()))
+        .await
+        .unwrap();
+    assert_eq!(outcome, Outcome::Done);
+    assert!(!elsewhere.exists(), "the link's target was not created");
+    assert_eq!(std::fs::read(dir.path().join("a copy 2.png")).unwrap(), PNG);
+    let hidden = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter(|e| {
+            e.as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with('.')
+        })
+        .count();
+    assert_eq!(hidden, 0);
+}

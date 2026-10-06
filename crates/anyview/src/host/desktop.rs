@@ -15,7 +15,7 @@ use anyview_platform::{AppsForType, Env, JobTitle, PrintOutcome, Printer, Reveal
 use anyview_store::Versions;
 use anyview_ui::VersionRow;
 use std::fmt::Display;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -212,7 +212,10 @@ where
             let parts = Arc::clone(parts);
             blocking(move || failed("trash the file", parts.trash.trash(&file))).await
         }
-        Task::Rename { file, to } => blocking(move || rename(&file, &to)).await,
+        Task::Rename { file, to } => {
+            let parts = Arc::clone(parts);
+            blocking(move || rename(&parts.versions, &file, &to)).await
+        }
         Task::Duplicate(file) => blocking(move || duplicate(&file)).await,
         Task::PlayInBackground(probed) => {
             let media = parts.media.clone();
@@ -321,50 +324,66 @@ async fn print<A, R, S, P: Printer, T>(
     }
 }
 
-fn rename(file: &FilePath, to: &FileName) -> Outcome {
+/// `file` renamed to `to` beside it, never over a file that is there, and its kept versions
+/// follow it.
+fn rename(versions: &Versions, file: &FilePath, to: &FileName) -> Outcome {
     let Some(folder) = file.parent() else {
         return Outcome::Failed("cannot rename a root".to_owned());
     };
     let target = folder.as_path().join(to.as_str());
-    if target.exists() {
-        return Outcome::Failed(format!(
+    // A symlink is renamed alone: its target, and so its versions, stay where they are.
+    let real = std::fs::canonicalize(file.as_path()).ok();
+    match anyview_store::rename_noreplace(file.as_path(), &target) {
+        Ok(()) => {
+            follow(versions, real.as_deref(), &target);
+            match FilePath::new(&target) {
+                Ok(moved) => Outcome::Moved(moved),
+                Err(error) => Outcome::Failed(format!("cannot name the renamed file: {error}")),
+            }
+        }
+        Err(error) if anyview_store::is_taken(&error) => Outcome::Failed(format!(
             "cannot rename: {} already exists",
             target.display()
-        ));
-    }
-    match std::fs::rename(file.as_path(), &target) {
-        Ok(()) => match FilePath::new(&target) {
-            Ok(moved) => Outcome::Moved(moved),
-            Err(error) => Outcome::Failed(format!("cannot name the renamed file: {error}")),
-        },
+        )),
         Err(error) => Outcome::Failed(format!("cannot rename the file: {error}")),
     }
 }
 
-fn duplicate(file: &FilePath) -> Outcome {
-    let Some(copy) = free_copy_of(file.as_path()) else {
-        return Outcome::Failed("cannot find a free name for the copy".to_owned());
+/// The versions of the file that was at `from`, now at `to`, re-keyed to its new path.
+fn follow(versions: &Versions, from: Option<&Path>, to: &Path) {
+    let (Some(from), Ok(now)) = (from, std::fs::canonicalize(to)) else {
+        return;
     };
-    failed(
-        "copy the file",
-        std::fs::copy(file.as_path(), copy).map(drop),
-    )
+    if from == now {
+        return;
+    }
+    if let Err(error) = versions.rekey(from, &now) {
+        eprintln!("anyview: the kept versions did not follow the rename: {error}");
+    }
 }
 
-/// `name copy.ext`, `name copy 2.ext`, … beside `file`: the first that is free.
-fn free_copy_of(file: &Path) -> Option<PathBuf> {
-    let folder = file.parent()?;
-    let stem = file.file_stem()?.to_string_lossy().into_owned();
+/// A copy of `file` beside it under the first free name, whole or not at all: the copy is made
+/// under a hidden name and claims its own only if no file has it, so a failure leaves no
+/// truncated copy and a file made meanwhile is never overwritten.
+fn duplicate(file: &FilePath) -> Outcome {
     let extension = file
+        .as_path()
         .extension()
-        .map(|extension| format!(".{}", extension.to_string_lossy()))
+        .map(|extension| extension.to_string_lossy().into_owned())
         .unwrap_or_default();
-    (1_u32..)
-        .map(|n| match n {
-            1 => format!("{stem} copy{extension}"),
-            n => format!("{stem} copy {n}{extension}"),
-        })
-        .map(|name| folder.join(name))
-        .take(10_000)
-        .find(|candidate| !candidate.exists())
+    for _ in 0..DUPLICATE_TRIES {
+        let Some(copy) = anyview_store::free_beside(file.as_path(), " copy", &extension) else {
+            return Outcome::Failed("cannot find a free name for the copy".to_owned());
+        };
+        match anyview_store::copy_new(file.as_path(), &copy) {
+            Ok(()) => return Outcome::Done,
+            // Someone took the name a moment ago: ask for the next one.
+            Err(error) if anyview_store::is_taken(&error) => {}
+            Err(error) => return Outcome::Failed(format!("cannot copy the file: {error}")),
+        }
+    }
+    Outcome::Failed("cannot find a free name for the copy".to_owned())
 }
+
+/// How many times a copy asks again for a name another program took first.
+const DUPLICATE_TRIES: u32 = 16;
