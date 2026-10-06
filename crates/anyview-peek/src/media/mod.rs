@@ -15,9 +15,9 @@ mod peek;
 #[cfg(feature = "media")]
 mod recording;
 #[cfg(feature = "media")]
-pub use peek::{AudioPeek, MediaLook, VideoPeek};
+pub use peek::{AudioPeek, MediaLook, VideoPeek, video_size};
 
 #[cfg(not(feature = "media"))]
 mod absent;
 #[cfg(not(feature = "media"))]
-pub use absent::{AudioPeek, MediaLook, VideoPeek};
+pub use absent::{AudioPeek, MediaLook, VideoPeek, video_size};
