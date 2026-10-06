@@ -1,4 +1,4 @@
-# The manifest of the HEIF plugin (ARCHITECTURE section 2l). install.sh --with-plugin heif fills in
+# The manifest of the HEIF plugin (ARCHITECTURE section 2l). install.sh fills in
 # @PREFIX@ and installs the result as <prefix>/share/anyview/plugins/heif.toml; the file name is the id.
 #
 # The plugin runs the person's own libheif tools and links no libheif: it looks for the decoder as a
