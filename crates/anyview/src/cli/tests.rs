@@ -58,6 +58,8 @@ fn arguments_become_the_request_a_launch_makes() {
             )]))),
         ),
         ("help", vec!["x", "--help"], Ok(Invocation::Help)),
+        ("version", vec!["--version"], Ok(Invocation::Version)),
+        ("version, short", vec!["-V", "x"], Ok(Invocation::Version)),
         (
             "peek without a file",
             vec!["--peek"],

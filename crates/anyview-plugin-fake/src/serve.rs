@@ -4,7 +4,7 @@ use crate::behaviour::{Behaviour, Fault};
 use anyview_plugin_protocol::{
     Capability, DecodeRequest, Done, ErrorCode, ExportRequest, FactRow, FactsReply, Failure, Hello,
     HostMessage, ImageHeader, PROTOCOL_VERSION, PluginMessage, ProbeRequest, Progress,
-    ThumbnailRequest, read_frame, write_frame,
+    ThumbnailRequest, encode_frame, read_frame, write_frame,
 };
 use std::fs;
 use std::io::{Stdout, Write};
@@ -56,6 +56,24 @@ pub fn run(behaviour: &Behaviour) -> ExitCode {
             let _ = out.flush();
             return ExitCode::SUCCESS;
         }
+        Fault::StderrFlood => {
+            let _ = std::io::stderr().write_all(&vec![b'x'; 1 << 20]);
+        }
+        Fault::HugePayload => {
+            let header = ImageHeader {
+                width: 1,
+                height: 1,
+            };
+            let Ok(mut frame) = encode_frame(&PluginMessage::Image(header), &[]) else {
+                return ExitCode::FAILURE;
+            };
+            // The frame's second length word is the payload's: claim 100 MiB and send none.
+            frame[4..8].copy_from_slice(&(100u32 << 20).to_le_bytes());
+            let _ = out.write_all(&frame);
+            let _ = out.flush();
+            std::thread::sleep(Duration::from_secs(60));
+            return ExitCode::SUCCESS;
+        }
         Fault::None
         | Fault::OtherVersion
         | Fault::ProvidesNothing
@@ -90,6 +108,8 @@ fn hello(behaviour: &Behaviour) -> PluginMessage {
         | Fault::Garbage
         | Fault::ShortPicture
         | Fault::CrashInExport
+        | Fault::StderrFlood
+        | Fault::HugePayload
         | Fault::IgnoreCancel => (
             PROTOCOL_VERSION,
             vec![

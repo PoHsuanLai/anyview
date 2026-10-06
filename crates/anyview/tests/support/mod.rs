@@ -183,6 +183,10 @@ pub fn media_fixture(name: &str) -> FilePath {
 /// A window's GPU as far as a player is concerned, made on a device with no window, or `None`
 /// with a note where the machine has no adapter.
 pub fn gpu() -> Option<ds_blitz::Gpu> {
+    // One opening at a time in this process: the Vulkan loader crashes on two at once.
+    let _one_at_a_time = anyview_media::GPU_OPENING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     for fallback in [false, true] {
