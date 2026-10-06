@@ -15,6 +15,16 @@ on. It is a reference, not a log: how each was found lives in git history.
   class no stylesheet rule defines (it styles itself inline), so `ds_lint::markup` reports
   `UnstyledClass` for any page that shows one. `tests/pane.rs` skips exactly that selector. Ends when quire
   gives the class a rule or the lint an allowance for it.
+- **A peek's time budget stops only the loops that look at it, and a viewer job stops only between its steps.**
+  `PeekBudget::time` is a `Deadline` the folder peek asks about; a decoder that does not return is not
+  stopped by it, so the launcher's worker runs each peek on a thread it can abandon (the sill change that
+  lands this is `h3`'s `sill.patch`). In the viewer, a load that is left raises its jobs' `Stop` (`Edge`),
+  which a queued job honours before it starts and a search honours between batches of lines; an open, an
+  unpack of a section and a window of highlighted lines run to their end, and a hung decoder there still
+  holds its pool thread. Ends when the decoders take a `Stop` (or run in a plugin process).
+- **A peek refuses a picture, font, book or office file over the budget's bytes.** The check is in
+  `anyview_peek::peek_with`, ahead of the peeks that read the file whole; a very large camera RAW file shows
+  its facts card in the launcher until the image peek reads only the preview it needs.
 - **A PDF's page count and title are not known to a peek.** pdfrum is reached only through `ds-blitz`, whose
   thumbnail answers the first page's raster and size; the facts list the page size in points, and the
   Pages and Title rows wait for `anyview-pdf`. A PDF is read whole by `ds-blitz`, so `PdfPeek` refuses one

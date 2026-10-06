@@ -63,7 +63,7 @@ fn a_file_is_searched_line_by_line_in_order() {
     let lines = TextLines::open(text).unwrap();
     let needle = Needle::new("alpha").unwrap();
     assert_eq!(
-        lines.find(&needle).unwrap(),
+        lines.find(&needle, &Stop::new()).unwrap(),
         vec![hit(0, 0, 5), hit(1, 5, 10), hit(3, 6, 11), hit(3, 12, 17)]
     );
 }
@@ -72,10 +72,22 @@ fn a_file_is_searched_line_by_line_in_order() {
 fn a_search_keeps_no_more_than_the_most_it_may() {
     let many = "a\n".repeat(MAX_HITS + 50);
     let lines = TextLines::open(HeldBytes::new(many.into_bytes())).unwrap();
-    let hits = lines.find(&Needle::new("a").unwrap()).unwrap();
+    let hits = lines
+        .find(&Needle::new("a").unwrap(), &Stop::new())
+        .unwrap();
     assert_eq!(hits.len(), MAX_HITS);
     assert_eq!(
         hits.last().map(|h| h.line),
         Some(LineIndex(MAX_HITS as u32 - 1))
     );
+}
+
+#[test]
+fn a_search_that_was_stopped_reads_nothing_more() {
+    let text = HeldBytes::new(b"alpha\nalpha\n".to_vec());
+    let lines = TextLines::open(text).unwrap();
+    let stop = Stop::new();
+    stop.request();
+    let hits = lines.find(&Needle::new("alpha").unwrap(), &stop).unwrap();
+    assert_eq!(hits, vec![]);
 }
