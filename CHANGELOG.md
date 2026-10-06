@@ -3,6 +3,13 @@
 All notable changes to anyview. The format follows Keep a Changelog; versions follow semantic
 versioning, with pre-releases while the program is in beta.
 
+## Unreleased
+
+- A window opens sized to its content, as Preview and QuickTime do: a picture at its own size, a video at
+  its resolution, scaled down to fit when it is larger than 1600 by 1000 and never smaller than 480 by 320
+  (a small picture stays centred). Everything else opens at the usual size, and moving to the next file
+  keeps the window as it is.
+
 ## 0.1.0-beta.1 (2026-10-06)
 
 The first beta.
