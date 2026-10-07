@@ -126,15 +126,17 @@ DIRECT=(
 # (psd, icns, exr and its inflate and SIMD helpers; the budgets rose by nine for them), and the
 # EPUB package reader of anyview-book (roxmltree, one more), and the spreadsheet and
 # office readers of anyview-text and anyview-archive (calamine and quick-xml for XLSX and ODS, with what
-# they pull in, five more). The viewer (anyview) is 664: the peek's
+# they pull in, five more). The viewer (anyview) is 667: the peek's
 # tree and the window, the platform edge and the plugin registry, with no libmpv or libav binding in
 # it, and the built-in audio player's sound card: cpal, with alsa and alsa-sys under it and dasp_sample
 # (four packages; the decoders are the symphonia crates the peek already links, and libasound is an audio
-# device library, not a codec). anyview-peek stays at 590: it never reaches cpal (its rule above).
+# device library, not a codec), and single instance without D-Bus: latchkey, interprocess (its Unix
+# socket and named pipe transport) and doctest-file (interprocess's proc macro), three more, which the
+# portable build needs and the Linux desktop build links as well. anyview-peek stays at 590: it never reaches cpal (its rule above).
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 590"
-  "anyview: 664"
+  "anyview: 667"
 )
 fail=0
 

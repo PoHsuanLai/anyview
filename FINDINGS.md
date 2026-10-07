@@ -16,13 +16,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   `families/{raster,peek_only,media}`). Left for after the window-sizing lane, which edits the same crate. Ends
   when the set exists. There is also no portable file chooser, so Open... is unavailable there until one is
   written (a launch with files, drag and drop and the command line still open files).
-- **The portable build has not been run on macOS or Windows.** `portable` compiles for Unix targets and its
-  opener command lines are table-tested for all three platforms, but `anyview-platform` still names
-  `std::os::unix` in the thumbnail cache, `uri` and plugin discovery and `rustix` in the plugin pipe, so a
-  Windows build needs those behind a platform module. quire still pulls `zbus` (`ds-settings`) and
-  `wayland-client` (`ds-blitz`) into every build; `--no-default-features` checks anyview's own code and
-  anyview-platform's own tree (no `zbus`), not the final graph. Ends when quire's portable lane lands and the
-  viewer is built on a Mac.
+- **The portable build has not been run on macOS or Windows.** `anyview-platform` (with or without
+  `quire-desktop`) passes `cargo check` for `x86_64-apple-darwin`, and `portable`'s opener command lines are
+  table-tested for all three platforms, but nothing has run there, and the crate does not compile for Windows:
+  `std::os::unix` in the thumbnail cache, `uri` and plugin discovery, and `rustix` in the plugin pipe, need a
+  platform module. quire still pulls `zbus` (`ds-settings`) and `wayland-client` (`ds-blitz`) into every build;
+  `--no-default-features` checks anyview's own code and anyview-platform's own tree (no `zbus`), not the final
+  graph. Ends when quire's portable lane lands and the viewer is built and run on a Mac.
 - **Single instance without the bus starts nothing.** The bus starts the viewer for a call to its name
   (`dist/org.quire.Anyview1.service`); the per-user socket (latchkey) does not, so a launcher cannot call a
   viewer that is not running. Linux with `quire-desktop` keeps the bus for that, and `forward_over` stays the
@@ -602,7 +602,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  664 packages against a budget of 664 (660 before the built-in audio player: see below), with no libmpv or libav in it. Ends if the header readers move to a crate
+  667 packages against a budget of 667 (660 before the built-in audio player and 664 before single instance over a socket: latchkey, interprocess and its proc macro doctest-file), with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **Audio plays with no mpv, in a built-in player; video and Opus still need mpv.** `anyview-media`'s `audio`
   feature (on for the binary through its own `audio` feature) decodes with symphonia 0.6 and plays through cpal,
