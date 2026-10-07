@@ -1610,5 +1610,5 @@ only with `quire-desktop` (design/36): `scripts/check-portable.sh` still builds 
 - **Context.** The window is reported as private: the viewer holds no entities, and what is open is the person's.
 - **Skill.** `dist/skills/files-viewer/` (`SKILL.md`, `skill.toml`) teaches the planner to open files with the
   action. It names only `anyview.file.open`, so it grants nothing.
-- **Dependency.** docket is taken by path (`../docket`, with `../porter`, `../almanac` and `../stoker` beside it),
-  because its own manifest names those by sibling path and so cannot be taken by git yet (FINDINGS).
+- **Dependency.** docket is a git dependency at a pinned rev, and porter's `prov` and `porter-core` at the rev
+  docket pins, with the same URL spelling (FINDINGS).

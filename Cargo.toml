@@ -63,22 +63,22 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c2375087b86204fbcda00da77b181f8103980972" }
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "1363c83e63f8f79dd40187a41f02819000c6c07e" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -213,13 +213,13 @@ clap = { version = "4", features = ["derive"] }
 # Single instance without D-Bus: one agent per user over a Unix socket or a named pipe, found by an
 # advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as the pdfrum
 # crates are; `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
-# docket (private repo, by path like quire: its own manifest names porter, almanac and stoker by sibling
-# path, so it cannot be taken by git yet; FINDINGS). `docket-client`'s `dbus` feature serves
+# docket, at the desktop manifest's rev; porter at the rev docket itself pins, with the same URL
+# spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.
-docket-client = { path = "../docket/crates/docket-client", default-features = false, features = ["dbus"] }
-docket-core = { path = "../docket/crates/docket-core" }
-prov = { path = "../porter/crates/prov" }
-porter-core = { path = "../porter/crates/porter-core" }
+docket-client = { git = "https://github.com/PoHsuanLai/docket", rev = "5c8709fed4d8c36359439468857ba2924d9386e2", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket", rev = "5c8709fed4d8c36359439468857ba2924d9386e2" }
+prov = { git = "https://github.com/PoHsuanLai/porter", rev = "b1a7affce8812d99c5cacc7a56dc797d5e8a4a06" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "b1a7affce8812d99c5cacc7a56dc797d5e8a4a06" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "335d7a7c65bc7d196d5f19dfb305896ff3a55958" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

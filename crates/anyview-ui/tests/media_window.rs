@@ -1112,7 +1112,11 @@ fn a_capsule_in_a_narrow_window_keeps_play_and_the_bar_and_fits_the_stage() {
         "back, play, forward"
     );
     assert_eq!(harness.count(".ds-scrubber"), 1, "the bar stays");
-    assert_eq!(harness.count(".ds-capsule .ds-slider"), 0, "the level went");
+    assert_eq!(
+        harness.count(".ds-capsule .ds-slider"),
+        1,
+        "the level stays: the 120 bar leaves it room"
+    );
     let text = readouts(&harness);
     assert!(text.contains("0:25"), "the clock stays: {text}");
     assert!(
@@ -1121,7 +1125,7 @@ fn a_capsule_in_a_narrow_window_keeps_play_and_the_bar_and_fits_the_stage() {
     );
     let bar = harness.rect(".ds-capsule-scrub").expect("the bar");
     assert!(
-        bar.size.width.0 >= 160.0,
+        bar.size.width.0 >= 120.0,
         "the bar is no narrower than its least: {bar:?}"
     );
 }
@@ -1136,8 +1140,8 @@ fn a_capsule_in_a_wide_window_shows_all_it_has_room_for() {
     );
     assert_eq!(
         harness.count(".ds-capsule .ds-button"),
-        5,
-        "back, play, forward, slower, faster: the export is the one the 640 capsule has no room for"
+        6,
+        "back, play, forward, slower, faster, export: the whole 640 capsule fits a 900 stage"
     );
     assert_eq!(harness.count(".ds-scrubber"), 1);
     assert_eq!(harness.count(".ds-capsule .ds-slider"), 1, "the level");
@@ -1152,5 +1156,5 @@ fn a_capsule_in_a_wide_window_shows_all_it_has_room_for() {
         level.origin.x.0 + level.size.width.0 <= capsule.origin.x.0 + capsule.size.width.0,
         "{level:?} in {capsule:?}"
     );
-    assert!(bar.size.width.0 >= 160.0, "{bar:?}");
+    assert!(bar.size.width.0 >= 120.0, "{bar:?}");
 }

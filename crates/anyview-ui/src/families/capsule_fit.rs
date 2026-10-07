@@ -7,7 +7,7 @@
 //! The widths are quire's capsule (`capsule.css`) read through its tokens: a button is a Large
 //! control square, a gap is `--s-4`, the capsule pads `--s-8` each side and floats `--s-16` from
 //! the stage's edges, a readout is at least `--s-36` wide, a divider is a hairline between
-//! `--s-4` margins, the progress bar is at least 160 and the level is 96, and a capsule that
+//! `--s-4` margins, the progress bar is at least 120 and the level is 96, and a capsule that
 //! holds a progress bar is at most 640 wide.
 
 use super::view::Area;
@@ -25,7 +25,7 @@ const READOUT_LEAST: u32 = 36;
 /// A hairline, `--hair`.
 const HAIR: u32 = 1;
 /// The progress bar's least width, quire's `.ds-capsule-scrub` `min-width`.
-const SCRUB_LEAST: u32 = 160;
+const SCRUB_LEAST: u32 = 120;
 /// The level's width, quire's `.ds-capsule-level` `width`.
 const LEVEL: u32 = 96;
 /// The widest a capsule that holds a progress bar grows, quire's `.ds-capsule[data-span=wide]`.
@@ -239,39 +239,50 @@ mod tests {
     fn a_narrower_stage_drops_the_least_important_first() {
         const CASES: &[(&str, u32, &[&str])] = &[
             (
-                "a wide window: all but the export, which the widest capsule has no room for",
+                "a wide window: all of it",
                 900,
                 &[
                     "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
-                    "slower", "[1×]", "faster",
+                    "slower", "[1×]", "faster", "|", "export",
                 ],
             ),
             (
-                "the widest the capsule goes",
+                "the widest the capsule goes: all of it",
                 720,
+                &[
+                    "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
+                    "slower", "[1×]", "faster", "|", "export",
+                ],
+            ),
+            (
+                "the export goes first, the stage a pixel short of the whole capsule's 640 and its 32 of margin",
+                671,
                 &[
                     "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
                     "slower", "[1×]", "faster",
                 ],
             ),
             (
-                "the speed goes after the export",
+                "the speed stays a while after the export",
                 640,
                 &[
-                    "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level",
+                    "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
+                    "slower", "[1×]", "faster",
                 ],
             ),
             (
-                "still those at 560",
+                "the speed is gone at 560",
                 560,
                 &[
                     "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level",
                 ],
             ),
             (
-                "the least a window is: the length and the level are gone too",
+                "the least a window is: the length is gone too",
                 480,
-                &["back", "play", "forward", "|", "[0:25]", "bar"],
+                &[
+                    "back", "play", "forward", "|", "[0:25]", "bar", "|", "level",
+                ],
             ),
         ];
         for (name, stage, want) in CASES {
