@@ -691,13 +691,12 @@ on. It is a reference, not a log: how each was found lives in git history.
 ## Standing facts
 
 - **A capsule thins itself to the stage's width, and quire's capsule has no overflow of its own.** quire's capsule is as
-  wide as its slots (the media one is `calc(100% - 32px)` up to 640, its progress bar at least 160), so each family ranks
+  wide as its slots (the media one is `calc(100% - 32px)` up to 640, its progress bar at least 120), so each family ranks
   its slots and `families/capsule_fit.rs` drops the least important rank at a time until the rest fits
   `StageCx::area` (the widths are quire's tokens: a Large button 32, a gap 4, padding 8, a readout 36 at least, a divider
   9, a level 96). The media capsule loses the export, the speed, the length, the level and then the clock, in that
-  order; the PDF's, the find, the fits and the zoom; a picture's, the rotate buttons and the zoom. The whole video capsule is 664 with quire's 160 px bar and the widest a capsule goes is 640, so the export
-  goes first at any width (a patch to lower the bar's `min-width` to 120, `quire.patch` in the lane layout, lets all of it
-  show at 696 and up; `SCRUB_LEAST` follows it). There is no mute button, so a stage
+  order; the PDF's, the find, the fits and the zoom; a picture's, the rotate buttons and the zoom. The whole video capsule is 640 with quire's 120 px bar (v0.2.21) and the widest a capsule goes is 640, so the export
+  comes back on a stage of 672 and up and goes first below that; `SCRUB_LEAST` follows quire's bar. There is no mute button, so a stage
   under about 490 px (a window at its least width, or a wider one with a panel open) has no volume control in the
   capsule; the system's volume is still there.
 - **The missing-tool sheet is quire's, and its pieces are not where the guide says.** `HelperSheet` and `HelperBody` are
