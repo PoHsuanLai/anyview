@@ -46,7 +46,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let gpu = use_gpu();
     let scope = use_scope();
     let scale = try_consume_context::<HostSignals>().map_or(Scale::ONE, |host| (host.scale)());
-    let shelf = Shelf::empty();
+    let shelf = Shelf::empty(edge.platform());
     let (area, measured) = use_area(scale);
     let slot = use_hook(|| CopyValue::new(None));
     let carry = Carry {
@@ -165,6 +165,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 scope.resolved.motion.slug(),
             ),
         },
+        platform: shelf.platform,
     };
     let facts = current
         .as_ref()
@@ -208,12 +209,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     });
     let failed_offer = if failure == Some(LoadFailure::NotFound) {
         Offer::Nothing
-    } else if shelf.probe.read().found().is_some() {
-        Offer::OpenWithAndReveal
-    } else if shelf.wanted.read().is_some() {
-        Offer::RevealOnly
     } else {
-        Offer::Nothing
+        Offer::of(
+            shelf.probe.read().found().is_some(),
+            shelf.wanted.read().is_some(),
+            shelf.platform,
+        )
     };
     let (panel_shown, panel_tab) = match state.panel {
         Panel::Shown { tab } => (Shown::Visible, tab),

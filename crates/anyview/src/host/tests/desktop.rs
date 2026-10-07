@@ -1,12 +1,17 @@
-use super::support::{NOW, PDF, PNG, desktop, desktop_choosing, entry, path, probed};
-use crate::host::{Hosting, Outcome, Task};
+use super::support::{
+    FakeTrash, NOW, PDF, PNG, desktop, desktop_choosing, entry, path, probed, services,
+};
+use crate::host::{Desktop, Hosting, Outcome, Task};
 use anyview_core::{
     ExportChoice, FileName, FormatKind, PageSelection, PixelLen, PixelSize, RasterExport,
     RasterTarget, Resize, Resume, TextExport, TextExportKind, TextFlavour,
 };
 use anyview_export::DocumentExport;
+use anyview_platform::portable::{NoApps, NoPicker, NoPrinter, NoShare};
+use anyview_platform::testing::FakeReveal;
 use anyview_platform::{DesktopId, ShareTarget};
 use anyview_store::{HistoryRead, read_history};
+use anyview_ui::PlatformAbilities;
 
 #[tokio::test]
 async fn open_with_skips_the_viewer_itself_and_opens_in_the_next_program() {
@@ -379,4 +384,33 @@ async fn duplicate_skips_a_dangling_symlink_and_leaves_no_hidden_file() {
         })
         .count();
     assert_eq!(hidden, 0);
+}
+
+#[tokio::test]
+async fn a_desktop_says_which_of_its_services_there_are() {
+    let dir = tempfile::tempdir().unwrap();
+    let (full, _fakes) = desktop(dir.path(), vec![]);
+    assert_eq!(full.abilities(), PlatformAbilities::ALL);
+
+    // The portable parts answer "not available" to the dialogs, the applications and sharing; the
+    // opener still shows a file in its folder.
+    let (_, fakes) = desktop(dir.path(), vec![]);
+    let portable = Desktop::new(
+        tokio::runtime::Handle::current(),
+        NoApps,
+        FakeReveal::default(),
+        NoShare,
+        NoPrinter,
+        FakeTrash::default(),
+        NoPicker,
+        fakes.links.clone(),
+        services(&dir.path().join("portable"), &fakes, None),
+    );
+    assert_eq!(
+        portable.abilities(),
+        PlatformAbilities {
+            reveal: true,
+            ..PlatformAbilities::NONE
+        }
+    );
 }

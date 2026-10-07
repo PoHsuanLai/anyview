@@ -7,8 +7,8 @@ use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, MediaOffer, Motion, PaletteParams,
-    PanelParams, PresentationParams, SheetParams, Spot, Stage, StageCommand, StageParams,
-    TextParams, TextViews, Ticket, TypedText, ViewerParams,
+    PanelParams, PlatformAbilities, PresentationParams, SheetParams, Spot, Stage, StageCommand,
+    StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
 use ds::prelude::MotionLevel;
@@ -66,8 +66,12 @@ pub(super) enum Playback {
 }
 
 /// What the viewer offers of the file actions: Copy File waits until the desktop's clipboard can
-/// hold a file (the host's clipboard carries text only), and what plays waits for a player.
-fn offered(action: FileAction, playback: Playback) -> bool {
+/// hold a file (the host's clipboard carries text only), what plays waits for a player, and what
+/// needs a desktop service waits for the platform to have it.
+fn offered(action: FileAction, playback: Playback, platform: PlatformAbilities) -> bool {
+    if !platform.offers(action) {
+        return false;
+    }
     match action {
         FileAction::CopyFile => false,
         FileAction::PlayInMiniWindow | FileAction::PlayInBackground => {
@@ -100,6 +104,8 @@ pub(super) struct Live {
     pub level: MotionLevel,
     /// What the player can do.
     pub abilities: crate::MediaAbilities,
+    /// What the platform can do.
+    pub platform: PlatformAbilities,
 }
 
 /// What the open file allows and offers, as the commands' filters read it.
@@ -111,6 +117,8 @@ pub(super) struct Offers {
     pub edit: EditOffer,
     /// Whether the file takes a save in place.
     pub access: FileAccess,
+    /// The desktop services there are for the file actions that need one.
+    pub platform: PlatformAbilities,
 }
 
 /// The commands the palette lists for a file of `kind` showing `stage`: the file actions the
@@ -126,6 +134,7 @@ pub(super) fn commands(
         playback,
         edit: offer,
         access,
+        platform,
     } = offers;
     let files = kind
         .map(actions_for)
@@ -134,7 +143,7 @@ pub(super) fn commands(
         .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
         .filter(|action| access == FileAccess::Writable || !saves_in_place(**action))
         .filter(|action| match reach(**action) {
-            Reach::Viewer | Reach::Both => offered(**action, playback),
+            Reach::Viewer | Reach::Both => offered(**action, playback, platform),
             Reach::Launcher => false,
         })
         .map(|action| Command::File(*action));
@@ -204,7 +213,11 @@ pub(super) fn params(
     lines: Option<&LineWindow>,
     live: Live,
 ) -> ViewerParams {
-    let Live { level, abilities } = live;
+    let Live {
+        level,
+        abilities,
+        platform,
+    } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
         (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
@@ -233,6 +246,7 @@ pub(super) fn params(
         playback,
         edit: offer,
         access,
+        platform,
     };
     let listed = commands(kind, stage, &measured, offers);
     let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
@@ -258,6 +272,7 @@ pub(super) fn params(
             rows: ranked(listed, query),
         },
         panel,
+        platform,
         presentation: PresentationParams::default(),
         sheet: SheetParams {
             media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),

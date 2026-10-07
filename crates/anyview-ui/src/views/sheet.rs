@@ -15,6 +15,7 @@ use ds::prelude::{
     Alert, Button, Choice, FieldFocus, RadioGroup, SegmentedControl, Sheet, TextField,
 };
 use ds_core::word::Word;
+use ds_shell::helpers::{HelperPhase as Sheeted, HelperSheet};
 
 /// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
 /// alone. A button that answers Escape leaves Return to this.
@@ -231,22 +232,16 @@ pub(super) fn InstallSheet(
     oninstall: EventHandler<()>,
     ondismiss: EventHandler<()>,
 ) -> Element {
-    let HelperWords {
-        app,
-        tool,
-        purpose,
-        package,
-        program,
-    } = words;
+    let HelperWords { app, tool, purpose } = words;
     let phase = match phase {
-        HelperPhase::Ask => ds_shell::helpers::model::HelperPhase::Ask,
-        HelperPhase::Installing => ds_shell::helpers::model::HelperPhase::Installing,
-        HelperPhase::Failed(reason) => ds_shell::helpers::model::HelperPhase::Failed { reason },
-        HelperPhase::NotFound => ds_shell::helpers::model::HelperPhase::NotFound { package },
-        HelperPhase::Unsupported => ds_shell::helpers::model::HelperPhase::Unsupported { program },
+        HelperPhase::Ask => Sheeted::Ask,
+        HelperPhase::Installing => Sheeted::Installing,
+        HelperPhase::Failed(reason) => Sheeted::Failed { reason },
+        HelperPhase::NotFound(package) => Sheeted::NotFound { package },
+        HelperPhase::Unsupported(program) => Sheeted::Unsupported { program },
     };
     rsx! {
-        ds_shell::prelude::HelperSheet {
+        HelperSheet {
             app,
             tool,
             purpose,

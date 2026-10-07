@@ -162,6 +162,7 @@ impl StageView for PeekOnlyStageView {
 
     fn stage(doc: &Arc<PeekOnlyDoc>, cx: &StageCx) -> Element {
         let run = cx.run;
+        let platform = cx.platform;
         let facts: Vec<Fact> = doc
             .facts
             .rows()
@@ -181,13 +182,17 @@ impl StageView for PeekOnlyStageView {
                         description: Some(TextLine::from(description)),
                         action: rsx! {
                             div { class: "viewer-failed-actions",
-                                Button {
-                                    label: "Open With\u{2026}",
-                                    onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                                if platform.offers(FileAction::OpenWith) {
+                                    Button {
+                                        label: "Open With\u{2026}",
+                                        onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                                    }
                                 }
-                                Button {
-                                    label: "Show in Folder",
-                                    onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
+                                if platform.offers(FileAction::RevealInFolder) {
+                                    Button {
+                                        label: "Show in Folder",
+                                        onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
+                                    }
                                 }
                             }
                         },

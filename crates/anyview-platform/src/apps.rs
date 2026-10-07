@@ -54,6 +54,12 @@ pub trait AppsForType {
 
     /// Start `app` on `file`, and do not wait for it.
     fn open_with(&self, app: &DesktopId, file: &FilePath) -> Result<(), PlatformError>;
+
+    /// Whether this implementation has the service behind it. An implementation that answers
+    /// "not available" to every request says `false`, so the views never offer what it cannot do.
+    fn present(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]

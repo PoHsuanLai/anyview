@@ -8,6 +8,7 @@ mod pdf;
 mod peek_only;
 mod raster;
 mod registry;
+mod rows;
 mod table;
 mod text;
 mod tree;

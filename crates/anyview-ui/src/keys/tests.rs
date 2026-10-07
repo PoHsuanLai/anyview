@@ -410,6 +410,7 @@ fn every_row_of_the_table_routes_as_written() {
             panel,
             stage,
             stage_params: &params,
+            pick_files: true,
         };
         let got = route(&Shortcut(keys.to_vec()), regions);
         assert_eq!(&got, want, "{name}");
@@ -426,6 +427,7 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
         panel: &Panel::Hidden,
         stage: &IMAGE,
         stage_params: &params,
+        pick_files: true,
     };
     const OPEN: ContextMenu = ContextMenu::Open {
         at: Spot { x: 1, y: 2 },
@@ -461,4 +463,25 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
         let got = route(&Shortcut(keys), regions(context));
         assert_eq!(got, want, "{name}");
     }
+}
+
+#[test]
+fn command_o_is_a_chord_only_where_the_platform_has_a_file_chooser() {
+    let params = StageParams::default();
+    let routed = |pick_files| {
+        route(
+            &Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')]),
+            Regions {
+                sheet: &Sheet::Closed,
+                palette: &Palette::Closed,
+                context: &ContextMenu::Closed,
+                panel: &Panel::Hidden,
+                stage: &IMAGE,
+                stage_params: &params,
+                pick_files,
+            },
+        )
+    };
+    assert_eq!(routed(true), Route::OpenFile);
+    assert_ne!(routed(false), Route::OpenFile, "unbound without a chooser");
 }

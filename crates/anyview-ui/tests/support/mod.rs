@@ -10,8 +10,8 @@ pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
     Edge, FileAccess, FileLocks, FirstFrameSource, HelperSource, HostRequest, ImagePlugins, Launch,
-    LookFeed, MediaHost, Presentation, ResumeSource, VersionRow, VersionSource, ViewerApp, Work,
-    WorkKind, WorkLane, Workers,
+    LookFeed, MediaHost, PlatformAbilities, Presentation, ResumeSource, VersionRow, VersionSource,
+    ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
@@ -32,7 +32,7 @@ pub const VIEW: Viewport = Viewport {
 /// Runs each job on the thread that submitted it, so a result is in the mailbox by the time the
 /// harness looks.
 #[derive(Debug)]
-struct Inline;
+pub struct Inline;
 
 impl Workers for Inline {
     fn submit(&self, work: Work) {
@@ -281,6 +281,8 @@ pub struct Wiring {
     pub image_plugins: Option<Arc<dyn ImagePlugins>>,
     /// What the install sheet says of each tool; nothing is offered when none.
     pub helpers: Option<Arc<dyn HelperSource>>,
+    /// What the platform can do; every ability when none.
+    pub platform: Option<PlatformAbilities>,
     /// How the window is on screen.
     pub presentation: Presentation,
     /// The desktop's look as it changes; the launch look for good when none.
@@ -339,6 +341,9 @@ pub fn wired(
     }
     if let Some(helpers) = wiring.helpers {
         edge = edge.with_helpers(helpers);
+    }
+    if let Some(platform) = wiring.platform {
+        edge = edge.with_platform(platform);
     }
     if let Some(player) = wiring.player {
         edge = edge.with_media(player as Arc<dyn MediaHost>);

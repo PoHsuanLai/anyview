@@ -2,6 +2,7 @@
 //! viewport exist as elements, so a sheet of a hundred thousand rows costs a screenful.
 
 use super::doc::{SheetDoc, TableDoc};
+use crate::families::rows::compact_px;
 use crate::families::view::{Held, StageCx};
 use crate::{RowNo, Stage, StageIn, TableIn};
 use anyview_text::RowIndex;
@@ -20,14 +21,12 @@ const CHAR_PX: f32 = 8.0;
 const CELL_PAD_PX: f32 = 16.0;
 /// The row-number column's width.
 const NUMBER_PX: f32 = 56.0;
-/// The height of a compact row (`RowSize::Compact`).
-const ROW_PX: f32 = 24.0;
 
 /// How many rows a page up or down moves by: the room's height in rows, less one for the header,
 /// so the row the cursor left stays in view.
 pub(super) fn page_of(area: Option<crate::Area>) -> u32 {
     area.map_or(1, |area| {
-        let rows = (area.size.height.0 / ROW_PX).floor();
+        let rows = (area.size.height.0 / compact_px()).floor();
         // a count of rows on screen is far below u32's range, and a negative one is none
         (rows as u32).saturating_sub(2).max(1)
     })
@@ -140,7 +139,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                         label: "Rows",
                         keys,
                         row,
-                        height: RowHeight::Fixed(Px(ROW_PX)),
+                        height: RowHeight::Fixed(Px(compact_px())),
                         cursor,
                         onselect: move |index: u32| send.call(StageIn::Table(TableIn::Select(RowNo(index)))),
                     }

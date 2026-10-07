@@ -4,6 +4,7 @@ use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
 use crate::command::Command;
 use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
+use crate::io::PlatformAbilities;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
@@ -161,4 +162,6 @@ pub struct ViewerParams {
     /// The file actions the open file offers, whatever the palette's query: the ones a key may
     /// run.
     pub files: Vec<FileAction>,
+    /// What the platform can do: ⌘O is bound only when it has a file chooser.
+    pub platform: PlatformAbilities,
 }

@@ -22,7 +22,8 @@ use anyview_platform::{
     AppsForType, Env, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
 use anyview_store::Versions;
-use anyview_ui::{HelperEnd, VersionRow};
+use anyview_ui::{HelperEnd, PlatformAbilities, VersionRow};
+use ds::prelude::Word;
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
@@ -51,6 +52,9 @@ pub trait Hosting: Send + Sync + 'static {
     /// Delete the kept versions older than the keep period. Blocking: the program calls it from
     /// a blocking task once, as it starts.
     fn prune_versions(&self);
+
+    /// The desktop services this platform has, for the windows to offer only what works.
+    fn abilities(&self) -> PlatformAbilities;
 
     /// Write the places still waiting to be kept. Blocking: the program calls it as it ends.
     fn flush(&self);
@@ -230,6 +234,16 @@ where
         super::feedback::report(&outcome);
     }
 
+    fn abilities(&self) -> PlatformAbilities {
+        PlatformAbilities {
+            pick_files: self.parts.picker.present(),
+            print: self.parts.printer.present(),
+            share: !self.parts.share.targets().is_empty(),
+            open_with: self.parts.apps.present(),
+            reveal: self.parts.reveal.present(),
+        }
+    }
+
     fn flush(&self) {
         self.parts.remembering.flush();
     }
@@ -252,7 +266,7 @@ where
         Task::PickFile => pick(parts).await,
         Task::Provide(helper) => match &parts.helpers {
             Some(helpers) => Outcome::Helped(helper, helpers.provide(helper).await),
-            None => Outcome::Helped(helper, HelperEnd::Unsupported),
+            None => Outcome::Helped(helper, HelperEnd::Unsupported(helper.slug().to_owned())),
         },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),

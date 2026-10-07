@@ -38,6 +38,15 @@ pub fn WelcomeApp() -> Element {
     }
 }
 
+/// The line under the welcome title: choosing is offered only with a file chooser to ask.
+fn welcome_words(can_pick: bool) -> &'static str {
+    if can_pick {
+        "Choose a picture, a document or a recording, or drop one on this window."
+    } else {
+        "Drop a picture, a document or a recording on this window."
+    }
+}
+
 #[component]
 fn Welcome() -> Element {
     let edge = use_hook(consume_context::<Edge>);
@@ -69,6 +78,8 @@ fn Welcome() -> Element {
             dropped.request(HostRequest::OpenFiles(paths));
         }
     });
+    // Without a file chooser Open… and ⌘O are not there; dropping a file still opens it.
+    let can_pick = edge.platform().pick_files;
     let (pick, key) = (edge.clone(), edge);
     rsx! {
         div {
@@ -87,7 +98,7 @@ fn Welcome() -> Element {
                     .map(|key| key.keys())
                     .unwrap_or_default();
                 match keys.as_slice() {
-                    [ShortcutKey::Super, ShortcutKey::Char('o')] => {
+                    [ShortcutKey::Super, ShortcutKey::Char('o')] if can_pick => {
                         event.prevent_default();
                         key.request(HostRequest::PickFile);
                     }
@@ -106,15 +117,15 @@ fn Welcome() -> Element {
             div { class: "viewer-welcome-body",
                 EmptyState {
                     title: "Open a file to view it",
-                    description: Some("Choose a picture, a document or a recording, or drop one on this window.".into()),
+                    description: Some(welcome_words(can_pick).into()),
                     icon: Some(Icon::Image),
-                    action: rsx! {
+                    action: can_pick.then(|| rsx! {
                         Button {
                             label: "Open\u{2026}",
                             answers: Answers::Return,
                             onclick: move |_| pick.request(HostRequest::PickFile),
                         }
-                    },
+                    }),
                 }
             }
         }

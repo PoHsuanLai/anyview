@@ -19,4 +19,10 @@ pub enum PickOutcome {
 pub trait Picker {
     /// Show the dialog and answer what the person chose.
     fn pick(&self) -> impl Future<Output = Result<PickOutcome, PlatformError>> + Send;
+
+    /// Whether this implementation has the service behind it. An implementation that answers
+    /// "not available" to every request says `false`, so the views never offer what it cannot do.
+    fn present(&self) -> bool {
+        true
+    }
 }

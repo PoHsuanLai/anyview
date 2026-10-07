@@ -104,6 +104,8 @@ pub struct StageCx {
     pub media: MediaShelf,
     /// The scheme the content is drawn in, for a sealed frame that cannot inherit it.
     pub frame: FrameLook,
+    /// What the platform can do: a control of a service it lacks is not drawn.
+    pub platform: crate::PlatformAbilities,
 }
 
 /// What a sealed frame needs to wear the window's look: the root's attributes, written into the
