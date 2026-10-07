@@ -4,6 +4,7 @@
 
 use super::doc::MediaDoc;
 use super::panel::{clock_text, speed_text};
+use crate::families::capsule_fit::{Ranked, fit_slots, stage_width};
 use crate::families::view::StageCx;
 use crate::stage::AfterScrub;
 use crate::{Command, ControlOffer, MediaStage, Stage, StageCommand};
@@ -77,7 +78,17 @@ pub(crate) fn level_to_volume(at: Fraction) -> Volume {
     ))
 }
 
-/// The controls, left to right.
+/// How soon each control goes when the capsule is too wide for the stage: the export first (it
+/// stays in the palette and the context menu, and it is the one control the widest capsule has no
+/// room for beside the speed), then the speed, the length, the level (the volume is the system's
+/// still) and the clock.
+const RANK_EXPORT: u8 = 5;
+const RANK_SPEED: u8 = 4;
+const RANK_LENGTH: u8 = 3;
+const RANK_LEVEL: u8 = 2;
+const RANK_CLOCK: u8 = 1;
+
+/// The controls, left to right, as many as the stage has room for.
 pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
     // A recording nothing plays has no controls of a player; what can still be done is the export.
     if doc.needs().is_some() {
@@ -103,56 +114,66 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         from: Fraction(0),
         to: Fraction(live.buffered.0.min(100) * 10),
     };
+    // What goes when the stage is narrow, soonest first (`capsule_fit`): the export, the speed, the
+    // length, the level, then the clock. Play, the seek buttons and the bar stay.
     let mut slots = vec![
-        CapsuleSlot::button(
+        Ranked::stays(CapsuleSlot::button(
             stage_command(StageCommand::SeekBack),
             "Back",
             Icon::SkipBack,
-        ),
-        CapsuleSlot::button(
+        )),
+        Ranked::stays(CapsuleSlot::button(
             stage_command(StageCommand::TogglePlayback),
             play_label,
             play_icon,
-        ),
-        CapsuleSlot::button(
+        )),
+        Ranked::stays(CapsuleSlot::button(
             stage_command(StageCommand::SeekForward),
             "Forward",
             Icon::SkipForward,
-        ),
-        CapsuleSlot::Divider,
-        CapsuleSlot::Readout(clock_text(at)),
-        CapsuleSlot::Scrub(ScrubSlot {
+        )),
+        Ranked::stays(CapsuleSlot::Divider),
+        Ranked::drops(RANK_CLOCK, CapsuleSlot::Readout(clock_text(at))),
+        Ranked::stays(CapsuleSlot::Scrub(ScrubSlot {
             label: "Position".to_owned(),
             position: fraction_of(at, length),
             length: Millis(u32::try_from(length.0.as_millis()).unwrap_or(u32::MAX)),
             buffered: vec![buffered],
             availability: Availability::Enabled,
-        }),
-        CapsuleSlot::Readout(clock_text(length.0)),
-        CapsuleSlot::Divider,
-        CapsuleSlot::Level(LevelSlot {
-            label: "Volume".to_owned(),
-            value: level_of(live.volume),
-            availability: Availability::Enabled,
-        }),
+        })),
+        Ranked::drops(RANK_LENGTH, CapsuleSlot::Readout(clock_text(length.0))),
+        Ranked::stays(CapsuleSlot::Divider),
+        Ranked::drops(
+            RANK_LEVEL,
+            CapsuleSlot::Level(LevelSlot {
+                label: "Volume".to_owned(),
+                value: level_of(live.volume),
+                availability: Availability::Enabled,
+            }),
+        ),
     ];
     // What the player cannot do has no control.
     match live.abilities.speed {
         ControlOffer::Offered => slots.extend([
-            CapsuleSlot::Divider,
-            CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus),
-            CapsuleSlot::Readout(speed_text(live.speed)),
-            CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus),
+            Ranked::stays(CapsuleSlot::Divider),
+            Ranked::drops(
+                RANK_SPEED,
+                CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus),
+            ),
+            Ranked::drops(RANK_SPEED, CapsuleSlot::Readout(speed_text(live.speed))),
+            Ranked::drops(
+                RANK_SPEED,
+                CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus),
+            ),
         ]),
         ControlOffer::Withheld => {}
     }
     match doc.kind {
         FormatKind::Video => {
-            slots.push(CapsuleSlot::Divider);
-            slots.push(CapsuleSlot::button(
-                Command::File(FileAction::Export),
-                "Export",
-                Icon::Camera,
+            slots.push(Ranked::stays(CapsuleSlot::Divider));
+            slots.push(Ranked::drops(
+                RANK_EXPORT,
+                CapsuleSlot::button(Command::File(FileAction::Export), "Export", Icon::Camera),
             ));
         }
         FormatKind::Audio
@@ -171,7 +192,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         | FormatKind::Folder
         | FormatKind::Other => {}
     }
-    slots
+    fit_slots(slots, stage_width(cx.area))
 }
 
 #[cfg(test)]
