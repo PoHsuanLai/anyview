@@ -42,8 +42,8 @@ versioning, with pre-releases while the program is in beta.
 
 ### Changed
 
-- The package budget of the viewer is 664 (the sound card library adds four packages; the launcher is
-  unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
+- The package budget of the viewer is 666 (the sound card library adds four packages and the missing-tool
+  prompt two, ds-shell and ds-helpers; the launcher is unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
 
 ## 0.1.0-beta.1 (2026-10-06)
 
