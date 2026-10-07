@@ -10,9 +10,13 @@ use super::saving;
 use super::store::Store;
 use super::trash::Trash;
 use anyview_core::{FileName, FilePath, Resume, Source};
+#[cfg(feature = "quire-desktop")]
 use anyview_platform::linux::{
-    DesktopApps, FileManagerReveal, MailShare, PortalPicker, PortalPrinter, XdgOpen,
+    DesktopApps, FileManagerReveal, MailShare, PortalPicker, PortalPrinter,
 };
+use anyview_platform::portable::SystemOpen;
+#[cfg(not(feature = "quire-desktop"))]
+use anyview_platform::portable::{NoApps, NoPicker, NoPrinter, NoShare, SystemReveal};
 use anyview_platform::{
     AppsForType, Env, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
@@ -51,16 +55,25 @@ pub trait Hosting: Send + Sync + 'static {
     fn flush(&self);
 }
 
-/// The Linux desktop.
-pub type LinuxDesktop = Desktop<
+/// The desktop this build runs on: the Linux desktop's services (`quire-desktop`), each over D-Bus or
+/// the freedesktop files.
+#[cfg(feature = "quire-desktop")]
+pub type PlatformDesktop = Desktop<
     DesktopApps,
     FileManagerReveal,
     MailShare,
     PortalPrinter,
     SystemTrash,
     PortalPicker,
-    XdgOpen,
+    SystemOpen,
 >;
+
+/// The desktop this build runs on: the portable one. Links and Show in Folder go through the
+/// platform's opener and the trash is the system's; Open With, sharing, printing and the file
+/// chooser are absent, and each answers "not available".
+#[cfg(not(feature = "quire-desktop"))]
+pub type PlatformDesktop =
+    Desktop<NoApps, SystemReveal, NoShare, NoPrinter, SystemTrash, NoPicker, SystemOpen>;
 
 /// The platform's parts, shared by every task.
 struct Parts<A, R, S, P, T, F, L> {
@@ -143,9 +156,10 @@ impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
     }
 }
 
-impl LinuxDesktop {
+#[cfg(feature = "quire-desktop")]
+impl PlatformDesktop {
     /// The Linux desktop of `env`, its store under `store`.
-    pub fn linux(runtime: Handle, env: &Env, services: Services) -> LinuxDesktop {
+    pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
         Desktop::new(
             runtime,
             DesktopApps::new(env.clone()),
@@ -154,7 +168,25 @@ impl LinuxDesktop {
             PortalPrinter::new(env.clone()),
             SystemTrash,
             PortalPicker::new(env.clone()),
-            XdgOpen::new(env.clone()),
+            SystemOpen::new(env.clone()),
+            services,
+        )
+    }
+}
+
+#[cfg(not(feature = "quire-desktop"))]
+impl PlatformDesktop {
+    /// The portable desktop of `env`, its store under `store`.
+    pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
+        Desktop::new(
+            runtime,
+            NoApps,
+            SystemReveal::new(env.clone()),
+            NoShare,
+            NoPrinter,
+            SystemTrash,
+            NoPicker,
+            SystemOpen::new(env.clone()),
             services,
         )
     }

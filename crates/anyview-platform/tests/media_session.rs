@@ -1,6 +1,7 @@
 //! `MediaSession` against a private session bus, read the way the control center reads an MPRIS
 //! player: through the properties interface and its methods.
 
+#![cfg(feature = "quire-desktop")]
 #![allow(clippy::unwrap_used)]
 
 mod support;

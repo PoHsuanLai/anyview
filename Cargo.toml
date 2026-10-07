@@ -43,7 +43,10 @@ anyview-export = { path = "crates/anyview-export" }
 anyview-font = { path = "crates/anyview-font" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
-anyview-platform = { path = "crates/anyview-platform" }
+# No default features: the viewer binary asks for the Linux desktop's services through its own
+# `quire-desktop` feature, and a crate that needs only the portable half (plugin discovery) does not
+# bring zbus along. `sill` takes the path directly and so gets the crate's own default.
+anyview-platform = { path = "crates/anyview-platform", default-features = false }
 anyview-plugin-fake = { path = "crates/anyview-plugin-fake" }
 anyview-plugin = { path = "crates/anyview-plugin" }
 anyview-plugin-protocol = { path = "crates/anyview-plugin-protocol" }
@@ -200,8 +203,10 @@ freedesktop-icons = "0.4"
 nucleo-matcher = "0.3.1"
 fend-core = "1.5.8"
 clap = { version = "4", features = ["derive"] }
-# latchkey lives in mailo until it is split into its own repo; cargo finds crates/latchkey itself.
-latchkey = { git = "https://github.com/PoHsuanLai/mailo", rev = "43ebf45f244a23c1e79c84b5d859b6fa1ba5bc7a" }
+# Single instance without D-Bus: one agent per user over a Unix socket or a named pipe, found by an
+# advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as the pdfrum
+# crates are; `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
+latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "7b250b9e3b17bccd2a20126c6106461bc2050313" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
 cedar-policy = "4.13"

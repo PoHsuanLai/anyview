@@ -5,8 +5,8 @@ use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
 use crate::host::{
-    Appearances, CachedPictures, Clock, Hosting, ImageHost, LinuxDesktop, Media, SETTLE, Services,
-    Store, Watcher,
+    Appearances, CachedPictures, Clock, Hosting, ImageHost, Media, PlatformDesktop, SETTLE,
+    Services, Store, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -14,8 +14,8 @@ use crate::seam::{NoticeWaker, Workforce};
 use crate::window::{Factory, WINDOW};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
-use anyview_platform::linux::{DbusInstance, FreedesktopThumbnails, NoStacking};
-use anyview_platform::{Env, PluginRunner, Request, discover};
+use anyview_platform::portable::{FreedesktopThumbnails, NoStacking};
+use anyview_platform::{Env, Instance, PluginRunner, Request, discover};
 use anyview_store::{STORE_FOLDER, Versions, Viewed};
 use ds_blitz::{
     AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
@@ -77,7 +77,7 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let role = runtime.block_on(claim_role(&DbusInstance::new(env.clone()), &request));
+    let role = runtime.block_on(claim_role(&instance_of(&env), &request));
     let (arrivals, inbox) = unbounded();
     match role {
         Role::Forwarded => return ExitCode::SUCCESS,
@@ -104,6 +104,19 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
     drop(arrivals);
     show(runtime, env, inbox)
+}
+
+/// The single-instance claim of this build: the session bus (with bus activation) on the Linux
+/// desktop, the per-user socket everywhere else.
+#[cfg(feature = "quire-desktop")]
+fn instance_of(env: &Env) -> impl Instance {
+    anyview_platform::linux::DbusInstance::new(env.clone())
+}
+
+/// The single-instance claim of this build: the per-user socket.
+#[cfg(not(feature = "quire-desktop"))]
+fn instance_of(_env: &Env) -> impl Instance {
+    anyview_platform::portable::LatchkeyInstance::new()
 }
 
 /// The tokio runtime the platform's async calls run on: one worker, owned here.
@@ -164,7 +177,7 @@ fn show(
         scratch: env.dirs.cache.join(STORE_FOLDER),
     };
     let store = Store::new(&env.dirs.data.join(STORE_FOLDER), clock());
-    let hosting = Arc::new(LinuxDesktop::linux(
+    let hosting = Arc::new(PlatformDesktop::platform(
         runtime.handle().clone(),
         &env,
         Services {
