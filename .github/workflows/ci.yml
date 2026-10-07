@@ -53,6 +53,10 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked --no-fail-fast
 
+      # The viewer's own code builds with the Linux desktop's services off (quire design/36).
+      - name: Portable build (no quire-desktop)
+        run: bash scripts/check-portable.sh
+
       - name: Boundary and budgets
         run: bash scripts/check-boundary.sh
 
