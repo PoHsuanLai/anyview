@@ -22,6 +22,7 @@ use crate::{
 use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::prelude::Icon;
 use std::sync::Arc;
 
@@ -133,7 +134,7 @@ impl StageView for TextStageView {
         rsx! { view::TextContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &TextDoc, _cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(doc: &TextDoc, _cx: &StageCx) -> Vec<RankedSlot<Command>> {
         let mut slots = vec![CapsuleSlot::button(
             Command::Stage(StageCommand::ToggleWrap),
             "Wrap lines",
@@ -146,7 +147,7 @@ impl StageView for TextStageView {
                 Icon::Code,
             ));
         }
-        slots
+        essentials(slots)
     }
 
     fn panel(_doc: &Arc<TextDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {

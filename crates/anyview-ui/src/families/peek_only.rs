@@ -213,7 +213,7 @@ impl StageView for PeekOnlyStageView {
     fn slots(
         _doc: &PeekOnlyDoc,
         _cx: &StageCx,
-    ) -> Vec<ds::components::chrome::capsule::model::CapsuleSlot<Command>> {
+    ) -> Vec<ds::components::chrome::capsule::priority::RankedSlot<Command>> {
         Vec::new()
     }
 

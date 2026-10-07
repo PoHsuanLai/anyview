@@ -14,6 +14,7 @@ use crate::{
 use anyview_core::{Facts, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::prelude::Icon;
 use std::sync::Arc;
 
@@ -66,12 +67,12 @@ impl StageView for TreeStageView {
         rsx! { view::TreeContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(_doc: &TreeDoc, _cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
-        vec![CapsuleSlot::button(
+    fn slots(_doc: &TreeDoc, _cx: &StageCx) -> Vec<RankedSlot<Command>> {
+        essentials(vec![CapsuleSlot::button(
             Command::Stage(StageCommand::CollapseAll),
             "Collapse all",
             Icon::ChevronUp,
-        )]
+        )])
     }
 
     fn panel(_doc: &Arc<TreeDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {

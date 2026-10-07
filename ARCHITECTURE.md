@@ -1198,7 +1198,7 @@ The single place a concept lives. Extend it; never write a second one.
 | Playing with no window | `MediaHub::play_in_background`: it holds the event loop open (`ds_blitz::AppHandle::hold`) while it plays |
 | The small window of a recording | `Presentation::Mini`; `WindowTask::Reopen` makes the window again; `WindowStacking` asks the desktop to keep it above |
 | The media capsule's controls | `families/media/capsule.rs`, over quire's `CapsuleSlot::Scrub` and `Level` and its `Scrubber` |
-| Which capsule slots fit the stage's width | `families/capsule_fit.rs`: a family ranks its slots (`Ranked`) and `fit_slots` drops the least important rank at a time until the rest fits; the media, PDF and picture capsules use it |
+| Which capsule slots fit the stage's width | quire's capsule (`ds::components::chrome::capsule`): a family hands it `RankedSlot`s (`.essential()` or `.droppable(rank)`) and the capsule drops the highest rank still showing, a rank at a time, until the rest fits the stage it has measured; the media, PDF and picture capsules rank their slots, the rest are `essentials` |
 | The tracks, speed and chapters panel | `families/media/panel.rs` |
 | The trim marks an export is cut by | `TrimMarks` (`families/media/live.rs`), set by `MediaOut::Marked` |
 | Where a recording is left | `Resume::Media`, put back by `MediaIn::Restore` (told at once, applied by the driver when the file opens) and kept by `views/arrive.rs` |

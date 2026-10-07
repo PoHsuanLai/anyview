@@ -1158,3 +1158,92 @@ fn a_capsule_in_a_wide_window_shows_all_it_has_room_for() {
     );
     assert!(bar.size.width.0 >= 120.0, "{bar:?}");
 }
+
+#[test]
+fn the_capsule_thins_out_at_quires_thresholds_as_the_window_narrows() {
+    // Buttons (back, play, forward, then slower, faster, export), the level, and the readouts.
+    /// A width, the buttons and the level the capsule shows there, and the readouts it shows and drops.
+    type Case = (
+        &'static str,
+        u32,
+        usize,
+        bool,
+        &'static [&'static str],
+        &'static [&'static str],
+    );
+    const CASES: &[Case] = &[
+        (
+            "everything fits",
+            672,
+            6,
+            true,
+            &["0:25", "1:40", "1×"],
+            &[],
+        ),
+        (
+            "the export goes first",
+            671,
+            5,
+            true,
+            &["0:25", "1:40", "1×"],
+            &[],
+        ),
+        (
+            "the speed still fits",
+            623,
+            5,
+            true,
+            &["0:25", "1:40", "1×"],
+            &[],
+        ),
+        ("the speed goes", 622, 3, true, &["0:25", "1:40"], &["1×"]),
+        (
+            "the length still fits",
+            498,
+            3,
+            true,
+            &["0:25", "1:40"],
+            &["1×"],
+        ),
+        ("the length goes", 497, 3, true, &["0:25"], &["1:40", "1×"]),
+        ("the level still fits", 450, 3, true, &["0:25"], &["1:40"]),
+        ("the level goes", 449, 3, false, &["0:25"], &["1:40"]),
+        ("the clock still fits", 337, 3, false, &["0:25"], &["1:40"]),
+        (
+            "the clock goes",
+            336,
+            3,
+            false,
+            &[],
+            &["0:25", "1:40", "1×"],
+        ),
+    ];
+    for (name, width, buttons, level, shown, gone) in CASES {
+        let (harness, _dir) = narrow(*width);
+        assert_eq!(
+            harness.count(".ds-capsule .ds-button"),
+            *buttons,
+            "{name} at {width}"
+        );
+        assert_eq!(
+            harness.count(".ds-capsule .ds-slider") == 1,
+            *level,
+            "{name} at {width}"
+        );
+        assert_eq!(
+            harness.count(".ds-scrubber"),
+            1,
+            "the bar stays {name} at {width}"
+        );
+        let text = readouts(&harness);
+        for one in *shown {
+            assert!(text.contains(one), "{name} at {width}: {one} in {text}");
+        }
+        for one in *gone {
+            assert!(
+                !text.contains(one),
+                "{name} at {width}: {one} gone from {text}"
+            );
+        }
+    }
+}

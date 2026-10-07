@@ -33,7 +33,7 @@ use crate::{
 };
 use anyview_core::{Facts, PixelLen, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use std::sync::Arc;
 
 /// PDF documents.
@@ -109,7 +109,7 @@ impl StageView for PdfStageView {
         doc.offer
     }
 
-    fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<CapsuleSlot<crate::Command>> {
+    fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<RankedSlot<crate::Command>> {
         capsule::slots(doc, cx)
     }
 

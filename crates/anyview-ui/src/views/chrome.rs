@@ -5,7 +5,8 @@
 
 use crate::Command;
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::model::{CapsuleSlot, ScrubEvent};
+use ds::components::chrome::capsule::model::ScrubEvent;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::capsule::view::Capsule;
 use ds::components::chrome::titlebar_parts::TitleParts;
 use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
@@ -42,7 +43,7 @@ pub(super) fn Titlebar(
 /// The capsule of the open file's controls.
 #[component]
 pub(super) fn Controls(
-    slots: Vec<CapsuleSlot<Command>>,
+    slots: Vec<RankedSlot<Command>>,
     shown: Shown,
     onpick: EventHandler<Command>,
     onscrub: EventHandler<ScrubEvent>,

@@ -18,6 +18,7 @@ use crate::{
 use anyview_core::{Facts, Resume, SectionIndex, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::prelude::Icon;
 use std::sync::Arc;
 
@@ -66,11 +67,11 @@ impl StageView for BookStageView {
         rsx! { view::BookContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &BookDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(doc: &BookDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         let here = view::section_of(&cx.stage).map_or(0, |section| section.0);
         let place = format!("{} / {}", here + 1, doc.sections().get());
         let stage = |command| Command::Stage(command);
-        vec![
+        essentials(vec![
             CapsuleSlot::button(
                 stage(StageCommand::PreviousPage),
                 "Previous",
@@ -78,7 +79,7 @@ impl StageView for BookStageView {
             ),
             CapsuleSlot::Readout(place),
             CapsuleSlot::button(stage(StageCommand::NextPage), "Next", Icon::ChevronRight),
-        ]
+        ])
     }
 
     fn panel(doc: &Arc<BookDoc>, tab: PanelTab, cx: &StageCx) -> Option<Element> {
