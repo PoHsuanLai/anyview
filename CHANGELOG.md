@@ -5,6 +5,10 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Naming
+
+- The program is called Viewer everywhere you see it: the welcome window, the helper sheet ("Viewer needs mpv to play videos."), the now-playing entry and the desktop entry. One constant, `anyview_core::APP_NAME`, holds the name; the binary, the app id and the bus names stay `anyview`, `org.quire.Anyview` and `org.quire.Anyview1`.
+
 ### Windows
 
 - A window opens sized to its content, as Preview and QuickTime do: a picture with one image pixel to one
@@ -56,9 +60,9 @@ versioning, with pre-releases while the program is in beta.
 
 ### Added
 
-- Anyview offers to install a missing tool, as Totem offers a codec. A recording with no mpv, a HEIC with no
+- Viewer offers to install a missing tool, as Totem offers a codec. A recording with no mpv, a HEIC with no
   libheif tools and a camera raw file with no LibRaw tools keep the "Needs" line and gain an Install… button
-  on it; it asks "Anyview needs libheif tools to open HEIC photos.", and on Install the system's package
+  on it; it asks "Viewer needs libheif tools to open HEIC photos.", and on Install the system's package
   service (PackageKit) installs the package and asks for the password itself. When it is done the file opens
   again in the same window with no restart, and a tool installed in a terminal is noticed the same way. Not
   Now closes the question and asks nothing more until the button is pressed again; where the system cannot
