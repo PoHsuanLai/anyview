@@ -2,7 +2,7 @@
 //! `AppHandle` with its [`Seed`] as props ([`window_root`]), and a harness test gives the
 //! [`Seed`] as a context ([`seeded_root`]).
 
-use super::fit::window_for;
+use super::fit::{Sizer, SizerContext, WindowFit, window_for};
 use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
@@ -15,7 +15,10 @@ use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{Edge, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
-use ds_blitz::{AppEnded, AppHandle, Decorations, WindowSize, WindowSpec, clipboard};
+use ds_blitz::{
+    AppEnded, AppHandle, Decorations, Extent, WindowSize, WindowSizer, WindowSpec, clipboard,
+    use_window_sizer,
+};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use std::cell::RefCell;
@@ -40,19 +43,19 @@ fn window_root(seed: Seed) -> Element {
 /// Open a window on `seed`'s file, from any thread: the way a request that arrives on the
 /// program's runtime reaches the event loop. It fails once the app has ended.
 pub fn open_in_window(app: &AppHandle, seed: Seed) -> Result<(), AppEnded> {
-    let spec = spec_for(&seed);
+    let spec = spec_for(&seed, app.screen_extent());
     app.open_window_with(spec, window_root, seed)
 }
 
-/// The window a seed asks for: a normal one, sized to its file's content (see [`window_for`]), or
-/// the small borderless one whose capsule is its only frame (the window draws nothing of its own
-/// on it).
-pub(super) fn spec_for(seed: &Seed) -> WindowSpec {
+/// The window a seed asks for on a `screen`: a normal one, sized to its file's content (see
+/// [`window_for`]), or the small borderless one whose capsule is its only frame (the window draws
+/// nothing of its own on it).
+pub(super) fn spec_for(seed: &Seed, screen: Option<Extent>) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
         Presentation::Mini => WindowSpec::new(title, MINI).with_decorations(Decorations::Client),
         Presentation::Window | Presentation::Peek | Presentation::Background => {
-            WindowSpec::new(title, window_for(&seed.opening.file))
+            WindowSpec::new(title, window_for(&seed.opening.file, screen))
         }
     }
 }
@@ -131,6 +134,10 @@ fn Window(seed: Seed) -> Element {
     use_context_provider(|| looks);
     let window = use_hook(try_consume_context::<WindowHost>);
     let app = ds_blitz::use_app_handle();
+    // The sizer of a real window, or a test's stand-in given as a context; the small window keeps
+    // its size.
+    let real_sizer = use_window_sizer();
+    let fit = use_hook(|| fit_of(seed.presentation, real_sizer));
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
     let hosting = Arc::clone(&seed.factory.hosting);
     let watching = use_hook(|| Rc::new(watch_for(&seed, &wiring.edge)));
@@ -139,6 +146,7 @@ fn Window(seed: Seed) -> Element {
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
         let watching = Rc::clone(&watching);
         let (seed, app) = (seed.clone(), app.clone());
+        let fit = Rc::clone(&fit);
         let (edge, again) = (wiring.edge.clone(), wiring.again.clone());
         async move {
             let Some(mut requests) = taken else { return };
@@ -173,6 +181,11 @@ fn Window(seed: Seed) -> Element {
                     Carry::Window(WindowTask::Unwatch) => {
                         if let Some(watching) = watching.as_ref() {
                             watching.unwatch();
+                        }
+                    }
+                    Carry::Window(WindowTask::Size(natural)) => {
+                        if let Some(fit) = fit.as_ref() {
+                            fit.loaded(natural, app.as_ref().and_then(AppHandle::screen_extent));
                         }
                     }
                     Carry::Window(WindowTask::Reopen(presentation)) => {
@@ -210,6 +223,20 @@ fn Window(seed: Seed) -> Element {
         }
     });
     rsx! { ViewerApp {} }
+}
+
+/// The window's resize after load: through quire's sizer, or a [`Sizer`] a test gave as a context
+/// (a harness window has no sizer of its own). The small window is never resized.
+fn fit_of(presentation: Presentation, real: Option<WindowSizer>) -> Rc<Option<WindowFit>> {
+    let sizer: Option<Rc<dyn Sizer>> = match presentation {
+        Presentation::Mini => None,
+        Presentation::Window | Presentation::Peek | Presentation::Background => {
+            try_consume_context::<SizerContext>()
+                .map(|stand_in| stand_in.make())
+                .or_else(|| real.map(|sizer| Rc::new(sizer) as Rc<dyn Sizer>))
+        }
+    };
+    Rc::new(sizer.map(WindowFit::new))
 }
 
 /// The seed of the window made again for `file` in `presentation`.

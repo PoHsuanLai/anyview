@@ -11,7 +11,7 @@ use crate::{FindHits, Stage, StageIn, TextIn, TextPlace, TextStage, TextView as 
 use anyview_core::LineIndex;
 use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
 use dioxus::prelude::*;
-use ds::host::gesture::{Gesture, use_gestures};
+use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::prelude::Word;
 
 /// The height of one line in logical pixels: the `--s-18` step of the stylesheet.
@@ -114,7 +114,8 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     let send = cx.send;
     let count = doc.0.line_count().0;
     let scrolled = cx.clone();
-    use_gestures(move |gesture| {
+    // A wheel's detents arrive eased, one share a frame; `carry` keeps what is below a line.
+    use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let (Some(area), Some(place)) = (scrolled.area, place_of(&scrolled.stage)) else {
             return;
         };
