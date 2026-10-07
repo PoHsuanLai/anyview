@@ -1,0 +1,65 @@
+# The distro tools anyview's plugins run, for quire's missing-helpers prompt (quire CONSUMING.md,
+# "Missing helpers"). install.sh puts this at <prefix>/share/quire/helpers/anyview.toml. When a
+# tool is missing the viewer offers to install it through PackageKit ("Anyview needs mpv to play
+# videos."); the person is asked first and the system asks for the password. The table names are
+# `anyview_core::Helper`'s slugs and a test holds the two together.
+#
+# Package names, per distribution family, in preference order (the first that exists in the
+# repositories is installed).
+#   verified    `dnf repoquery --whatprovides /usr/bin/<tool>` on Fedora 44
+#   unverified  written from memory of the distribution's package lists, not looked up: PackageKit
+#               answers "not found" for a wrong name and the sheet says so, nothing wrong is installed
+
+# Playback of video, and of audio the built-in player does not decode (it plays most audio without mpv).
+[video-playback]
+tool = "mpv"
+purpose = "play videos"
+probe = ["mpv"]
+[video-playback.packages]
+# dnf, apt and pacman: verified for Fedora (mpv); the Debian, Ubuntu and Arch names are the packages' own names.
+dnf = ["mpv"]
+apt = ["mpv"]
+pacman = ["mpv"]
+# unverified
+zypper = ["mpv"]
+
+# Facts, thumbnails and exports of recordings. ffmpeg-free provides both ffmpeg and ffprobe (verified
+# on Fedora 44); RPM Fusion's `ffmpeg` has more codecs and is preferred where it is enabled.
+[media-probe]
+tool = "FFmpeg"
+purpose = "read and convert audio and video"
+probe = ["ffprobe", "ffmpeg"]
+[media-probe.packages]
+dnf = ["ffmpeg", "ffmpeg-free"]
+apt = ["ffmpeg"]
+pacman = ["ffmpeg"]
+# unverified: openSUSE's own repositories carry versioned names, `ffmpeg` is Packman's
+zypper = ["ffmpeg-7", "ffmpeg"]
+
+# HEIC and HEIF pictures. libheif-tools provides heif-dec and heif-convert (verified on Fedora 44).
+[heic-decode]
+tool = "libheif tools"
+purpose = "open HEIC photos"
+probe = ["heif-dec", "heif-convert"]
+[heic-decode.packages]
+dnf = ["libheif-tools"]
+apt = ["libheif-examples"]
+# unverified: Arch's libheif package is believed to ship heif-dec and heif-convert in the main package
+pacman = ["libheif"]
+# unverified
+zypper = ["libheif-tools"]
+
+# Camera raw files developed in full. LibRaw-samples provides dcraw_emu and dcraw provides dcraw
+# (both verified on Fedora 44); the viewer shows a raw file's embedded preview without either.
+[raw-decode]
+tool = "LibRaw tools"
+purpose = "open camera RAW photos in full quality"
+probe = ["dcraw_emu", "dcraw"]
+[raw-decode.packages]
+dnf = ["LibRaw-samples", "dcraw"]
+# unverified: libraw-bin is believed to ship dcraw_emu; dcraw is the alternative
+apt = ["libraw-bin", "dcraw"]
+# unverified: Arch's libraw package is believed to ship dcraw_emu
+pacman = ["libraw", "dcraw"]
+# unverified
+zypper = ["libraw-tools", "dcraw"]

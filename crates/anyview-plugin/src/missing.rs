@@ -1,36 +1,64 @@
 //! The package that would serve a kind when no installed plugin does.
 
 use crate::handles::Subject;
-use anyview_core::{Fact, FactLabel, FactValue, FormatKind};
+use anyview_core::{Fact, FactLabel, FactValue, FormatKind, Helper};
 use anyview_plugin_protocol::Capability;
 
 /// The name of a package a person installs with their system's package manager.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Package(&'static str);
+pub struct Package {
+    name: &'static str,
+    helper: Helper,
+    /// The file name of the program the plugin's manifest names, when it names one the system
+    /// provides (mpv's), which is then visible in the manifest as a missing file.
+    tool: Option<&'static str>,
+}
 
 impl Package {
-    /// A package by name, for a test to compare against.
-    #[cfg(test)]
-    pub(crate) const fn from_static(name: &'static str) -> Package {
-        Package(name)
-    }
-
     /// The package's name, as every distribution that ships it spells it.
     pub fn name(self) -> &'static str {
-        self.0
+        self.name
+    }
+
+    /// The distro tool the package's plugin runs: what the viewer offers to install when the
+    /// plugin is there and its tool is not.
+    pub fn helper(self) -> Helper {
+        self.helper
+    }
+
+    /// The file name of the program of the system's that the plugin's manifest names, if it names
+    /// one: when that file is absent the plugin is installed and the tool is what is missing.
+    pub fn tool(self) -> Option<&'static str> {
+        self.tool
     }
 }
 
 /// Playback, through the user's own mpv.
-const MPV: Package = Package("anyview-mpv");
+const MPV: Package = Package {
+    name: "anyview-mpv",
+    helper: Helper::VideoPlayback,
+    tool: Some("mpv"),
+};
 /// Facts, pictures and conversions, through the user's own FFmpeg.
-const FFMPEG: Package = Package("anyview-ffmpeg");
+const FFMPEG: Package = Package {
+    name: "anyview-ffmpeg",
+    helper: Helper::MediaProbe,
+    tool: None,
+};
 
 /// HEIC and HEIF pictures (and AVIF when the viewer has no decoder of its own), through the
 /// person's own libheif tools.
-const HEIF: Package = Package("anyview-heif");
+const HEIF: Package = Package {
+    name: "anyview-heif",
+    helper: Helper::HeicDecode,
+    tool: None,
+};
 /// Camera raw files developed in full, through the person's own LibRaw tools.
-const RAW: Package = Package("anyview-raw");
+const RAW: Package = Package {
+    name: "anyview-raw",
+    helper: Helper::RawDecode,
+    tool: None,
+};
 
 /// Which package provides a capability for a kind. A row matches when its capability and its kind
 /// are the ones asked about and, when the row names a media type, the file's media type is that
@@ -250,6 +278,20 @@ mod tests {
             };
             let got = suggested_package(*capability, &subject).map(Package::name);
             assert_eq!(got, *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn each_package_names_the_tool_its_plugin_runs() {
+        // package, helper
+        const CASES: &[(Package, Helper)] = &[
+            (MPV, Helper::VideoPlayback),
+            (FFMPEG, Helper::MediaProbe),
+            (HEIF, Helper::HeicDecode),
+            (RAW, Helper::RawDecode),
+        ];
+        for (package, helper) in CASES {
+            assert_eq!(package.helper(), *helper, "{}", package.name());
         }
     }
 
