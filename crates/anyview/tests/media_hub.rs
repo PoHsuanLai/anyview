@@ -151,6 +151,7 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
             | MediaNotice::Tracks(_)
             | MediaNotice::Chapters(_)
             | MediaNotice::Speed(_)
+            | MediaNotice::Abilities(_)
             | MediaNotice::Picture(_)
             | MediaNotice::Failed(_) => None,
         })
