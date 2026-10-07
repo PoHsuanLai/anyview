@@ -78,13 +78,14 @@ pub(crate) fn level_to_volume(at: Fraction) -> Volume {
     ))
 }
 
-/// How soon each control goes when the capsule is too wide for the stage: the speed first, then the
-/// length, the level (the volume is the system's still), the export (it stays in the palette and
-/// the context menu) and the clock.
-const RANK_SPEED: u8 = 5;
-const RANK_LENGTH: u8 = 4;
-const RANK_LEVEL: u8 = 3;
-const RANK_EXPORT: u8 = 2;
+/// How soon each control goes when the capsule is too wide for the stage: the export first (it
+/// stays in the palette and the context menu, and it is the one control the widest capsule has no
+/// room for beside the speed), then the speed, the length, the level (the volume is the system's
+/// still) and the clock.
+const RANK_EXPORT: u8 = 5;
+const RANK_SPEED: u8 = 4;
+const RANK_LENGTH: u8 = 3;
+const RANK_LEVEL: u8 = 2;
 const RANK_CLOCK: u8 = 1;
 
 /// The controls, left to right, as many as the stage has room for.
@@ -113,8 +114,8 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         from: Fraction(0),
         to: Fraction(live.buffered.0.min(100) * 10),
     };
-    // What goes when the stage is narrow, soonest first (`capsule_fit`): the speed, the length, the
-    // level, the export, then the clock. Play, the seek buttons and the bar stay.
+    // What goes when the stage is narrow, soonest first (`capsule_fit`): the export, the speed, the
+    // length, the level, then the clock. Play, the seek buttons and the bar stay.
     let mut slots = vec![
         Ranked::stays(CapsuleSlot::button(
             stage_command(StageCommand::SeekBack),

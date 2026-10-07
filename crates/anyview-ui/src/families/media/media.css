@@ -14,7 +14,3 @@
 .viewer-tracks{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8); }
 .viewer-tracks-heading{ margin:0; color:var(--ink-faint); font-size:var(--fs-small); }
 .viewer-chapters{ display:flex; flex-direction:column; padding:var(--s-8); }
-
-/* The capsule's progress bar may shrink below quire's 160 so a full capsule fits the widest 640 and a narrow window keeps the bar and
-   drops other controls instead (`capsule_fit.rs` reads the same 120). */
-.ds-capsule-scrub{ min-width:120px; }

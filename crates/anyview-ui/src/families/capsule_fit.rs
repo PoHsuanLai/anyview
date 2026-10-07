@@ -7,7 +7,7 @@
 //! The widths are quire's capsule (`capsule.css`) read through its tokens: a button is a Large
 //! control square, a gap is `--s-4`, the capsule pads `--s-8` each side and floats `--s-16` from
 //! the stage's edges, a readout is at least `--s-36` wide, a divider is a hairline between
-//! `--s-4` margins, the progress bar is at least 120 here (160 in quire) and the level is 96, and a capsule that
+//! `--s-4` margins, the progress bar is at least 160 and the level is 96, and a capsule that
 //! holds a progress bar is at most 640 wide.
 
 use super::view::Area;
@@ -24,8 +24,8 @@ const S16: u32 = 16;
 const READOUT_LEAST: u32 = 36;
 /// A hairline, `--hair`.
 const HAIR: u32 = 1;
-/// The progress bar's least width: quire's is 160, which `media.css` lowers to this.
-const SCRUB_LEAST: u32 = 120;
+/// The progress bar's least width, quire's `.ds-capsule-scrub` `min-width`.
+const SCRUB_LEAST: u32 = 160;
 /// The level's width, quire's `.ds-capsule-level` `width`.
 const LEVEL: u32 = 96;
 /// The widest a capsule that holds a progress bar grows, quire's `.ds-capsule[data-span=wide]`.
@@ -203,10 +203,10 @@ mod tests {
                 buffered: Vec::new(),
                 availability: Availability::Enabled,
             })),
-            readout(4, "1:40"),
+            readout(3, "1:40"),
             divider(),
             Ranked::drops(
-                3,
+                2,
                 CapsuleSlot::Level(LevelSlot {
                     label: "Volume".to_owned(),
                     value: Fraction(500),
@@ -214,11 +214,11 @@ mod tests {
                 }),
             ),
             divider(),
-            button(Some(5), "slower"),
-            readout(5, "1×"),
-            button(Some(5), "faster"),
+            button(Some(4), "slower"),
+            readout(4, "1×"),
+            button(Some(4), "faster"),
             divider(),
-            button(Some(2), "export"),
+            button(Some(5), "export"),
         ]
     }
 
@@ -237,41 +237,60 @@ mod tests {
 
     #[test]
     fn a_narrower_stage_drops_the_least_important_first() {
-        const ALL: &[&str] = &[
-            "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|", "slower",
-            "[1×]", "faster", "|", "export",
-        ];
         const CASES: &[(&str, u32, &[&str])] = &[
-            ("a wide window: all of it", 900, ALL),
-            ("the widest the capsule goes: all of it", 720, ALL),
             (
-                "the speed goes first",
-                640,
+                "a wide window: all but the export, which the widest capsule has no room for",
+                900,
                 &[
                     "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
-                    "export",
+                    "slower", "[1×]", "faster",
                 ],
             ),
             (
-                "still only the speed",
-                560,
+                "the widest the capsule goes",
+                720,
                 &[
                     "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level", "|",
-                    "export",
+                    "slower", "[1×]", "faster",
+                ],
+            ),
+            (
+                "the speed goes after the export",
+                640,
+                &[
+                    "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level",
+                ],
+            ),
+            (
+                "still those at 560",
+                560,
+                &[
+                    "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level",
                 ],
             ),
             (
                 "the least a window is: the length and the level are gone too",
                 480,
-                &[
-                    "back", "play", "forward", "|", "[0:25]", "bar", "|", "export",
-                ],
+                &["back", "play", "forward", "|", "[0:25]", "bar"],
             ),
         ];
         for (name, stage, want) in CASES {
             let slots = fit_slots(player(), Some(*stage));
             assert_eq!(names(&slots), *want, "{name} at {stage}");
         }
+    }
+
+    #[test]
+    fn a_player_without_a_speed_or_an_export_fits_whole_when_the_stage_is_wide() {
+        let mut slots = player();
+        slots.retain(|one| !matches!(one.rank, Rank::Drops(4 | 5)));
+        let slots = fit_slots(slots, Some(900));
+        assert_eq!(
+            names(&slots),
+            [
+                "back", "play", "forward", "|", "[0:25]", "bar", "[1:40]", "|", "level"
+            ]
+        );
     }
 
     #[test]
@@ -284,13 +303,13 @@ mod tests {
                     .any(|shown| shown == name)
             })
         };
-        let order: Vec<Option<u32>> = ["slower", "[1:40]", "level", "export", "[0:25]"]
+        let order: Vec<Option<u32>> = ["export", "slower", "[1:40]", "level", "[0:25]"]
             .iter()
             .map(|name| gone(name))
             .collect();
         assert!(
             order.windows(2).all(|pair| pair[0] >= pair[1]),
-            "speed, length, level, export, clock: {order:?}"
+            "export, speed, length, level, clock: {order:?}"
         );
     }
 

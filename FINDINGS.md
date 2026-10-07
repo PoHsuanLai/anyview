@@ -689,11 +689,12 @@ on. It is a reference, not a log: how each was found lives in git history.
   wide as its slots (the media one is `calc(100% - 32px)` up to 640, its progress bar at least 160), so each family ranks
   its slots and `families/capsule_fit.rs` drops the least important rank at a time until the rest fits
   `StageCx::area` (the widths are quire's tokens: a Large button 32, a gap 4, padding 8, a readout 36 at least, a divider
-  9, a level 96). The media capsule loses the speed, the length, the level, the export and then the clock, in that
-  order; the PDF's, the find, the fits and the zoom; a picture's, the rotate buttons and the zoom. `media.css` lowers
-  the progress bar's least to 120 (`SCRUB_LEAST` in `capsule_fit.rs` is the same 120), because the whole video capsule is 664 with
-  quire's 160 and the widest a capsule goes is 640. There is no mute button, so a stage under about 490 px (a window at its least width,
-  or a wider one with a panel open) has no volume control in the capsule; the system's volume is still there.
+  9, a level 96). The media capsule loses the export, the speed, the length, the level and then the clock, in that
+  order; the PDF's, the find, the fits and the zoom; a picture's, the rotate buttons and the zoom. The whole video capsule is 664 with quire's 160 px bar and the widest a capsule goes is 640, so the export
+  goes first at any width (a patch to lower the bar's `min-width` to 120, `quire.patch` in the lane layout, lets all of it
+  show at 696 and up; `SCRUB_LEAST` follows it). There is no mute button, so a stage
+  under about 490 px (a window at its least width, or a wider one with a panel open) has no volume control in the
+  capsule; the system's volume is still there.
 - **The missing-tool sheet is quire's, and its pieces are not where the guide says.** `HelperSheet` and `HelperBody` are
   exported by `ds_shell::prelude`, not by `ds_shell::helpers` (which holds `model::HelperPhase`). The sheet's one rule,
   `.ds-helper-progress`, is in the shell's stylesheet, so the viewer's `Ds` root is given `ds_shell::stylesheet()` as
