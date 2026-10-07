@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
 /// What the sheet calls the program.
-const APP: &str = "Anyview";
+const APP: &str = anyview_core::APP_NAME;
 
 /// What a window wants to hear when a tool appears.
 type Told = Arc<dyn Fn(Helper) + Send + Sync>;

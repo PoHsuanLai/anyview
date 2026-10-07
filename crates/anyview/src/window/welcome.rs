@@ -37,7 +37,7 @@ fn welcome_root(seed: WelcomeSeed) -> Element {
 
 /// Open the welcome window, from any thread. It fails once the app has ended.
 pub fn open_welcome(app: &AppHandle, factory: Factory) -> Result<(), AppEnded> {
-    let spec = WindowSpec::new("Anyview".to_owned(), WELCOME);
+    let spec = WindowSpec::new(anyview_core::APP_NAME.to_owned(), WELCOME);
     app.open_window_with(spec, welcome_root, WelcomeSeed { factory })
 }
 

@@ -75,7 +75,7 @@ async fn the_player_registers_and_shows_what_was_published() {
     let client = client(&bus).await;
 
     let identity: String = get(&client, ROOT, "Identity").await.try_into().unwrap();
-    assert_eq!(identity, "Anyview");
+    assert_eq!(identity, "Viewer");
     let before: String = get(&client, PLAYER, "PlaybackStatus")
         .await
         .try_into()

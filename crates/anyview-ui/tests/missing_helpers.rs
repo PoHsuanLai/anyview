@@ -66,7 +66,7 @@ impl HelperSource for Words {
             Helper::RawDecode => return None,
         };
         Some(HelperWords {
-            app: "Anyview".to_owned(),
+            app: "Viewer".to_owned(),
             tool: tool.to_owned(),
             purpose: purpose.to_owned(),
         })
@@ -174,7 +174,7 @@ fn install_asks_then_installs_then_the_file_opens_with_the_plugin() {
     assert_eq!(phase(&harness).as_deref(), Some("ask"));
     assert_eq!(
         harness.text_of(".ds-alert-title").unwrap_or_default(),
-        "Anyview needs libheif tools to open HEIC photos."
+        "Viewer needs libheif tools to open HEIC photos."
     );
     assert_eq!(provided(&requests), 0, "asking installs nothing");
 
@@ -299,7 +299,7 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
             "no way to install",
             HelperEnd::Unsupported("heif-dec".to_owned()),
             "unsupported",
-            "Anyview cannot install libheif tools here",
+            "Viewer cannot install libheif tools here",
             "heif-dec",
         ),
         (
@@ -422,7 +422,7 @@ fn a_recording_without_its_player_offers_the_same_install() {
     click(&mut harness, INSTALL_ON_CARD);
     assert_eq!(
         harness.text_of(".ds-alert-title").unwrap_or_default(),
-        "Anyview needs mpv to play videos."
+        "Viewer needs mpv to play videos."
     );
     press(&mut harness, ShortcutKey::Enter);
     assert_eq!(provided(&requests), 1);
@@ -512,7 +512,7 @@ fn the_sheet_that_says_nothing_can_be_exported_offers_to_install_what_adds_it() 
     assert_eq!(phase(&harness).as_deref(), Some("ask"));
     assert_eq!(
         harness.text_of(".ds-alert-title").unwrap_or_default(),
-        "Anyview needs FFmpeg to read and convert audio and video."
+        "Viewer needs FFmpeg to read and convert audio and video."
     );
     assert_eq!(
         harness.count(".viewer-sheet"),

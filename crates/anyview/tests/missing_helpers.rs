@@ -143,7 +143,7 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
     });
     assert_eq!(
         rig.harness.text_of(".ds-alert-title").unwrap_or_default(),
-        "Anyview needs libheif tools to open HEIC photos."
+        "Viewer needs libheif tools to open HEIC photos."
     );
     assert!(fake.asked().is_empty(), "asking installs nothing");
 

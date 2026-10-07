@@ -172,7 +172,7 @@ impl Root {
 
     #[zbus(property)]
     fn identity(&self) -> String {
-        "Anyview".to_owned()
+        anyview_core::APP_NAME.to_owned()
     }
 
     #[zbus(property)]

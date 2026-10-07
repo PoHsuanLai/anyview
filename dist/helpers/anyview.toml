@@ -1,6 +1,6 @@
 # The distro tools anyview's plugins run, for quire's missing-helpers prompt (quire CONSUMING.md,
 # "Missing helpers"). install.sh puts this at <prefix>/share/quire/helpers/anyview.toml. When a
-# tool is missing the viewer offers to install it through PackageKit ("Anyview needs mpv to play
+# tool is missing the viewer offers to install it through PackageKit ("Viewer needs mpv to play
 # videos."); the person is asked first and the system asks for the password. The table names are
 # `anyview_core::Helper`'s slugs and a test holds the two together.
 #
