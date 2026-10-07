@@ -9,11 +9,14 @@ mod desktop;
 mod documents;
 mod editing;
 mod feedback;
+mod helpers;
 mod image_plugins;
 mod locks;
 mod media;
 mod outcome;
+mod path_watch;
 mod pictures;
+mod plugin_registry;
 mod remembering;
 mod resume;
 mod resume_handed;
@@ -34,11 +37,14 @@ pub use feedback::{
     Doing, log, notice_of, notice_of_declined, report, subject_of, tell, tell_declined,
     tell_problem,
 };
+pub use helpers::{HelperHost, Listening};
 pub use image_plugins::ImageHost;
 pub use locks::StoreLocks;
 pub use media::Media;
 pub use outcome::{Declined, Outcome};
+pub use path_watch::{PATH_SETTLE, PathWatch};
 pub use pictures::CachedPictures;
+pub use plugin_registry::PluginRegistry;
 pub use remembering::{REMEMBER_EVERY, Remembering};
 pub use resume::HostedResume;
 pub use resume_handed::HandedResume;

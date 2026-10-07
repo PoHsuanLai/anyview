@@ -28,6 +28,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
             None => (viewer, vec![]),
         },
         Command::File(action) => file_action(viewer, action, at, params),
+        Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }
 }
 
@@ -40,7 +41,9 @@ fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
             let offer = &params.sheet.media;
             match (offer.first(), offer.needs()) {
                 (Some(choice), _) => Some(SheetIn::OpenExport(ExportDraft::Media(choice))),
-                (None, Some(needs)) => Some(SheetIn::OpenUnavailable(needs.clone())),
+                (None, Some(needs)) => {
+                    Some(SheetIn::OpenUnavailable(needs.clone(), offer.helper()))
+                }
                 (None, None) => None,
             }
         }

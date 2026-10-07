@@ -1,6 +1,6 @@
 //! Files, fakes and a desktop made of them.
 
-use crate::host::{Clock, Desktop, Media, Services, Store, Trash, TrashError};
+use crate::host::{Clock, Desktop, HelperHost, Media, Services, Store, Trash, TrashError};
 use crate::media::{Exports, MediaHub};
 use crate::runtime::{Mailbox, Pool, PoolSize};
 use crate::seam::NoticeWaker;
@@ -97,15 +97,25 @@ pub fn entry(id: &str) -> AppEntry {
 
 /// A desktop over fakes on the current runtime, its store under `scratch`.
 pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
-    desktop_with(scratch, apps, PickOutcome::Cancelled)
+    desktop_with(scratch, apps, PickOutcome::Cancelled, None)
+}
+
+/// The same, whose missing tools `helpers` installs.
+pub fn desktop_installing(scratch: &Path, helpers: Arc<HelperHost>) -> (TestDesktop, Fakes) {
+    desktop_with(scratch, vec![], PickOutcome::Cancelled, Some(helpers))
 }
 
 /// The same, whose file dialog ends every request in `pick`.
 pub fn desktop_choosing(scratch: &Path, pick: PickOutcome) -> (TestDesktop, Fakes) {
-    desktop_with(scratch, vec![], pick)
+    desktop_with(scratch, vec![], pick, None)
 }
 
-fn desktop_with(scratch: &Path, apps: Vec<AppEntry>, pick: PickOutcome) -> (TestDesktop, Fakes) {
+fn desktop_with(
+    scratch: &Path,
+    apps: Vec<AppEntry>,
+    pick: PickOutcome,
+    helpers: Option<Arc<HelperHost>>,
+) -> (TestDesktop, Fakes) {
     let fakes = Fakes {
         apps: FakeApps::offering(apps),
         reveal: FakeReveal::default(),
@@ -142,6 +152,7 @@ fn desktop_with(scratch: &Path, apps: Vec<AppEntry>, pick: PickOutcome) -> (Test
             versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&scratch.join("store"), now),
             media,
+            helpers,
         },
     );
     (desktop, fakes)

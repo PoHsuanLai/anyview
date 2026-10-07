@@ -2,10 +2,10 @@
 //! on a worker: the picture goes from the decoder into the window's `TextureHandle` without
 //! touching the UI thread, and the document the UI receives is only the picture's size.
 
-use crate::io::{Backend, ImagePlugins, OpenError, OpenLink, PluginPicture, Stop};
+use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenLink, PluginPicture, Stop};
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
-    ByteLen, Fact, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
     PixelArea, PixelLen, PixelSize, RasterFormat, Sniffed, Source,
 };
 use anyview_image::{
@@ -57,7 +57,10 @@ pub struct RasterDoc {
     pub facts: Facts,
     /// Set when there is no picture to show because the plugin that decodes this kind of file is
     /// not installed: the stage shows the facts and this row instead of the texture.
-    pub needs: Option<Fact>,
+    pub needs: Option<Need>,
+    /// The tool the system lacks that would show this file fully (a raw file shown from its
+    /// preview, or a card with no picture): installing it opens the file again.
+    pub lacking: Option<Helper>,
     /// What saving a turn or flip of the file costs.
     pub offer: EditOffer,
     pub(crate) strip: Option<Arc<FrameStrip>>,
@@ -248,7 +251,8 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
             upload(&target.texture, &picture)?;
             let mut doc = doc_of(target, picture.size(), 1, None, Runs::Forever);
             if let Some(needs) = needs {
-                doc.facts = doc.facts.with(needs.label, needs.value);
+                doc.facts = doc.facts.with(needs.fact.label, needs.fact.value);
+                doc.lacking = needs.helper;
             }
             Ok(doc)
         }
@@ -262,7 +266,7 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
 }
 
 /// A document with no picture: the facts of the file and the row naming what would show it.
-fn blank_doc(target: &RasterTarget, needs: Fact) -> RasterDoc {
+fn blank_doc(target: &RasterTarget, needs: Need) -> RasterDoc {
     let one = PixelSize {
         width: PixelLen(1),
         height: PixelLen(1),
@@ -274,7 +278,8 @@ fn blank_doc(target: &RasterTarget, needs: Fact) -> RasterDoc {
             FactValue::text(kind_words(&target.sniffed)),
         )
         .with(FactLabel::Size, FactValue::size(target.source.stamp().len))
-        .with(needs.label, needs.value.clone());
+        .with(needs.fact.label, needs.fact.value.clone());
+    doc.lacking = needs.helper;
     doc.needs = Some(needs);
     doc
 }
@@ -293,6 +298,7 @@ fn doc_of(
         frames,
         facts: facts(&target.source, &target.sniffed, size, frames),
         needs: None,
+        lacking: None,
         offer: EditOffer::Plain,
         strip,
         runs,
@@ -338,6 +344,7 @@ pub(crate) fn first_frame(
         frames,
         facts,
         needs: None,
+        lacking: None,
         offer: EditOffer::Plain,
         strip: None,
         runs: Runs::Forever,

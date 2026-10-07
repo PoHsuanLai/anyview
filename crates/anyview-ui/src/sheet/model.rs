@@ -1,11 +1,12 @@
 //! The sheet's states, inputs and outputs.
 
 use super::draft::{ExportDraft, ExportKindPick};
+use super::helper::{HelperEnd, HelperPhase};
 use super::offer::MediaOffer;
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditOffer, EditRequest};
 use crate::typed::TypedText;
-use anyview_core::Fact;
+use anyview_core::{Fact, Helper};
 use ds_core::vocab::ShortcutKey;
 
 /// What opening a sheet reads besides its input: what the host can write.
@@ -26,7 +27,11 @@ pub enum Sheet {
     /// Choosing an export.
     Export { draft: ExportDraft },
     /// An export the viewer cannot offer: the row says which package adds it.
-    Unavailable { needs: Fact },
+    Unavailable {
+        needs: Fact,
+        /// The tool to offer to install for it, when the host can.
+        helper: Option<Helper>,
+    },
     /// Asking before the file goes to the trash.
     ConfirmTrash,
     /// Asking before an edit that loses something is saved.
@@ -45,6 +50,8 @@ pub enum Sheet {
     },
     /// The file has no kept version to go back to.
     NoVersions,
+    /// Asking to install a tool the open file needs, and then following the install.
+    Helper { helper: Helper, phase: HelperPhase },
 }
 
 /// What moves the sheet.
@@ -53,7 +60,7 @@ pub enum SheetIn {
     /// Open the export sheet on this draft (the default of the file's format).
     OpenExport(ExportDraft),
     /// Open the sheet that says nothing can be exported yet and which package adds it.
-    OpenUnavailable(Fact),
+    OpenUnavailable(Fact, Option<Helper>),
     /// Ask whether to trash the file.
     AskTrash,
     /// Ask whether to go ahead with an edit that loses this.
@@ -65,6 +72,10 @@ pub enum SheetIn {
     /// Open the sheet that lists the kept versions of the file; none opens the sheet that says
     /// there are none.
     OpenRevert(Option<VersionList>),
+    /// Ask whether to install this tool, which the open file needs.
+    OfferHelper(Helper),
+    /// Asking the system to install this tool ended like this.
+    HelperEnded(Helper, HelperEnd),
     /// The list chose a version.
     PickVersion(VersionKey),
     /// The format pop-up chose a kind.
@@ -118,4 +129,8 @@ pub enum SheetOut {
     SaveCopy(TypedText),
     /// Put this kept version back as the file.
     Revert(VersionKey),
+    /// Install this tool; the answer is `HelperEnded`.
+    Provide(Helper),
+    /// Open the file again: a tool it needed is installed.
+    Reopen,
 }

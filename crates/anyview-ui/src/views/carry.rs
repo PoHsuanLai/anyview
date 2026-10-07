@@ -71,6 +71,14 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         ViewerOut::Sheet(SheetOut::Revert(version)) => {
             c.edge.request(HostRequest::RevertTo(version));
         }
+        ViewerOut::Sheet(SheetOut::Provide(helper)) => {
+            c.edge.request(HostRequest::Provide(helper));
+        }
+        ViewerOut::Sheet(SheetOut::Reopen) => {
+            if let (Some(path), Some(dispatch)) = (shown_path(c), c.dispatch()) {
+                dispatch.send(ViewerIn::Reload(path));
+            }
+        }
         ViewerOut::Edit(request) => c.edge.request(HostRequest::Edit(request)),
         ViewerOut::Rewind(rewind) => c.edge.request(HostRequest::Rewind(rewind)),
         ViewerOut::ListVersions => {

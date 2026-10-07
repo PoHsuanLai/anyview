@@ -48,6 +48,8 @@ pub fn ViewerApp() -> Element {
             typeface: now.typeface,
             stack: now.stack,
             material: Material::Window,
+            // The install sheet is the shell's, so its rules come with the shell's stylesheet.
+            sheet: Some(ds_shell::stylesheet()),
             AppStyle { css: stylesheet() }
             ViewerWindow { launch: launch.clone() }
         }

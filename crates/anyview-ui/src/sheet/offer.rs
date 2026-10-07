@@ -2,19 +2,38 @@
 //! the person has installed, which the host knows and the machines do not: it hands the window
 //! this value with the recording, and the sheet lists only what it holds.
 
-use anyview_core::{ExportChoice, Fact, MediaExport, MediaExportKind};
+use anyview_core::{ExportChoice, Fact, Helper, MediaExport, MediaExportKind};
 
 /// The kinds of media export on offer for one recording, and what is missing for the rest.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MediaOffer {
     kinds: Vec<MediaExportKind>,
     needs: Option<Fact>,
+    helper: Option<Helper>,
 }
 
 impl MediaOffer {
     /// `kinds` on offer; `needs` is the package that would add the exports that are not.
     pub fn new(kinds: Vec<MediaExportKind>, needs: Option<Fact>) -> MediaOffer {
-        MediaOffer { kinds, needs }
+        MediaOffer {
+            kinds,
+            needs,
+            helper: None,
+        }
+    }
+
+    /// The same offer, whose missing exports `helper` would add: the sheet that names what is
+    /// missing then offers to install it.
+    pub fn installable(self, helper: Helper) -> MediaOffer {
+        MediaOffer {
+            helper: Some(helper),
+            ..self
+        }
+    }
+
+    /// The tool to offer to install for the exports that are not on offer, when the host can.
+    pub fn helper(&self) -> Option<Helper> {
+        self.helper
     }
 
     /// The kinds on offer, in the order the pop-up lists them.

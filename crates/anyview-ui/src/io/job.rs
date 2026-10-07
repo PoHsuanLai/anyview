@@ -133,6 +133,10 @@ pub enum Job {
 /// What a worker made of a job.
 #[derive(Debug)]
 pub enum Done {
+    /// A tool a plugin runs is on the machine: the open file is opened again if it lacked it.
+    Available(anyview_core::Helper),
+    /// Asking the system to install this tool ended like this.
+    Helped(anyview_core::Helper, crate::HelperEnd),
     /// The probe of `ticket`.
     Probed {
         ticket: Ticket,

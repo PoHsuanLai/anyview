@@ -1,7 +1,9 @@
 //! What every window of the program shares, and what makes one window its own.
 
 use super::opening::Opening;
-use crate::host::{Appearances, HostedResume, HostedVersions, Hosting, ImageHost, Watcher};
+use crate::host::{
+    Appearances, HelperHost, HostedResume, HostedVersions, Hosting, ImageHost, Watcher,
+};
 use anyview_platform::WindowStacking;
 use anyview_ui::{
     FirstFrameSource, ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers,
@@ -30,6 +32,9 @@ pub struct Factory {
     pub media: Arc<dyn MediaHost>,
     /// The plugins that decode the pictures the viewer cannot (HEIC, a raw file in full).
     pub image_plugins: Arc<dyn ImagePlugins>,
+    /// The tools the plugins run, and installing one that is missing, when the program ships the
+    /// file that names them.
+    pub helpers: Option<Arc<HelperHost>>,
     /// Keeping the small window above the others, where the desktop lets a program ask.
     pub stacking: Arc<dyn StackingAsk>,
 }
@@ -69,7 +74,16 @@ impl Factory {
             appearances,
             media,
             image_plugins: Arc::new(ImageHost::without_plugins()),
+            helpers: None,
             stacking,
+        }
+    }
+
+    /// The same wiring offering to install the tools `helpers` knows when a plugin lacks one.
+    pub fn with_helpers(self, helpers: Arc<HelperHost>) -> Factory {
+        Factory {
+            helpers: Some(helpers),
+            ..self
         }
     }
 

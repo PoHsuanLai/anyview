@@ -16,7 +16,8 @@ use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
 use super::session::Probe;
 use super::sheet::{
-    EditSheet, ExportSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
+    EditSheet, ExportSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet,
+    UnavailableSheet,
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
@@ -127,6 +128,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let requester = carry.edge.clone();
     let requested = carry.edge.clone();
     let reveal_edge = carry.edge.clone();
+    let helper_edge = carry.edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
         ticket,
@@ -408,11 +410,24 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
-                Sheet::Unavailable { needs } => rsx! {
+                Sheet::Unavailable { needs, helper } => rsx! {
                     UnavailableSheet {
                         needs: needs.clone(),
+                        helper: *helper,
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                        oninstall: move |helper| dispatch.send(ViewerIn::Sheet(SheetIn::OfferHelper(helper))),
                     }
+                },
+                Sheet::Helper { helper, phase } => match helper_edge.helper_words(*helper) {
+                    Some(words) => rsx! {
+                        InstallSheet {
+                            words,
+                            phase: phase.clone(),
+                            oninstall: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                            ondismiss: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                        }
+                    },
+                    None => rsx! {},
                 },
                 Sheet::Export { draft } => rsx! {
                     ExportSheet {

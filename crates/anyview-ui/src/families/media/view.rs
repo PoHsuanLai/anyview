@@ -6,9 +6,9 @@ use super::audio::accent_for;
 use super::doc::MediaDoc;
 use crate::families::view::{Area, Held, StageCx};
 use crate::io::SlotPixels;
-use crate::{Command, MediaError, MediaIn, MediaStage, Stage, StageIn};
+use crate::{Command, MediaError, MediaIn, MediaStage, Need, Stage, StageIn};
+use anyview_core::FileAction;
 use anyview_core::VideoPresence;
-use anyview_core::{Fact, FileAction};
 use dioxus::prelude::*;
 use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
@@ -117,7 +117,7 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
 
 /// A recording no plugin plays: its facts, the package that would play it, and Open With….
 #[component]
-fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
+fn Unplayable(doc: Held<MediaDoc>, needs: Need, cx: StageCx) -> Element {
     let run = cx.run;
     let facts: Vec<ds::components::fields::fact_list::Fact> = doc
         .0
@@ -125,7 +125,7 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
         .rows()
         .iter()
         // The package that plays it is the line under the title; it is not listed twice.
-        .filter(|row| row.label != needs.label)
+        .filter(|row| row.label != needs.fact.label)
         .map(|row| {
             ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
         })
@@ -136,9 +136,15 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Fact, cx: StageCx) -> Element {
                 EmptyState {
                     icon: Icon::File,
                     title: doc.0.title().to_owned(),
-                    description: Some(TextLine::from(format!("{}: {}", needs.label.label(), needs.value.as_str()))),
+                    description: Some(TextLine::from(format!("{}: {}", needs.fact.label.label(), needs.fact.value.as_str()))),
                     action: rsx! {
                         div { class: "viewer-failed-actions",
+                            if let Some(helper) = needs.helper {
+                                Button {
+                                    label: "Install…",
+                                    onclick: move |_| run.call(Command::Install(helper)),
+                                }
+                            }
                             Button {
                                 label: "Open With…",
                                 onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
