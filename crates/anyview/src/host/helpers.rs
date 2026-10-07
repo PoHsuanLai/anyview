@@ -8,7 +8,9 @@ use super::plugin_registry::PluginRegistry;
 use anyview_core::{Fact, Helper};
 use anyview_ui::{HelperEnd, HelperSource, HelperWords, Need};
 use ds::prelude::Word;
-use ds_helpers::{Capability, Catalog, Entry, Environment, Helpers, Installer, Outcome, Presence};
+use ds_helpers::{
+    Capability, Catalog, Entry, Environment, Helpers, Installer, Missing, Outcome, Presence,
+};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 
@@ -52,6 +54,25 @@ fn helper_of(capability: &Capability) -> Option<Helper> {
         .find(|helper| helper.slug() == capability.as_str())
 }
 
+/// The package to look for in a software centre: what the request named, else the program, which a
+/// software centre also finds.
+fn looked_for(missing: &Missing) -> String {
+    match (&missing.package, &missing.program) {
+        (Some(package), _) => package.to_string(),
+        (None, Some(program)) => program.to_string(),
+        (None, None) => missing.capability.to_string(),
+    }
+}
+
+/// The program a package must provide: what the request named, else the package.
+fn needed_on_path(missing: &Missing) -> String {
+    match (&missing.program, &missing.package) {
+        (Some(program), _) => program.to_string(),
+        (None, Some(package)) => package.to_string(),
+        (None, None) => missing.capability.to_string(),
+    }
+}
+
 impl HelperHost {
     /// A host over `catalog`, looking for tools in `environment` and installing through
     /// `installer`. A tool that appears makes `registry` read the plugins again.
@@ -91,13 +112,13 @@ impl HelperHost {
     /// so the file that waited opens with it.
     pub async fn provide(&self, helper: Helper) -> HelperEnd {
         let Some(capability) = capability_of(helper) else {
-            return HelperEnd::Unsupported;
+            return HelperEnd::Unsupported(helper.slug().to_owned());
         };
         let end = match self.helpers.provide(&capability).await {
             Outcome::Installed => HelperEnd::Installed,
             Outcome::Declined => HelperEnd::Declined,
-            Outcome::NotFound => HelperEnd::NotFound,
-            Outcome::Unsupported => HelperEnd::Unsupported,
+            Outcome::NotFound(missing) => HelperEnd::NotFound(looked_for(&missing)),
+            Outcome::Unsupported(missing) => HelperEnd::Unsupported(needed_on_path(&missing)),
             Outcome::Failed(reason) => HelperEnd::Failed(reason),
         };
         if end == HelperEnd::Installed {
@@ -208,20 +229,10 @@ impl Drop for Listening {
 impl HelperSource for HelperHost {
     fn words(&self, helper: Helper) -> Option<HelperWords> {
         let entry = self.entry(helper)?;
-        let program = entry.probe.first().map(ToString::to_string)?;
-        // The package to look for by hand: the first this distribution's family names, else the
-        // program itself, which a software centre also finds.
-        let package = self
-            .helpers
-            .family()
-            .and_then(|family| entry.candidates(family).first())
-            .map_or_else(|| program.clone(), ToString::to_string);
         Some(HelperWords {
             app: APP.to_owned(),
             tool: entry.tool.clone(),
             purpose: entry.purpose.clone(),
-            package,
-            program,
         })
     }
 }
