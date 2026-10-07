@@ -312,6 +312,7 @@ dependencies = [
  "dioxus",
  "ds",
  "ds-blitz",
+ "ds-desktop",
  "ds-harness",
  "ds-helpers",
  "ds-settings",
@@ -2365,6 +2366,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "ds-desktop"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=eba96488c64bdb0d5a65f0f124719bea20a1604c#eba96488c64bdb0d5a65f0f124719bea20a1604c"
+dependencies = [
+ "zbus",
 ]
 
 [[package]]

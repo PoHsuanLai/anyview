@@ -27,4 +27,10 @@ pub trait Printer {
         pdf: &[u8],
         title: &JobTitle,
     ) -> impl Future<Output = Result<PrintOutcome, PlatformError>> + Send;
+
+    /// Whether this implementation has the service behind it. An implementation that answers
+    /// "not available" to every request says `false`, so the views never offer what it cannot do.
+    fn present(&self) -> bool {
+        true
+    }
 }
