@@ -93,6 +93,15 @@ fn offered(action: FileAction, playback: Playback) -> bool {
     }
 }
 
+/// What the window's settings and its player say right now.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Live {
+    /// How much the window moves.
+    pub level: MotionLevel,
+    /// What the player can do.
+    pub abilities: crate::MediaAbilities,
+}
+
 /// What the open file allows and offers, as the commands' filters read it.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Offers {
@@ -193,9 +202,9 @@ pub(super) fn params(
     area: Option<crate::Area>,
     query: &TypedText,
     lines: Option<&LineWindow>,
-    level: MotionLevel,
-    abilities: crate::MediaAbilities,
+    live: Live,
 ) -> ViewerParams {
+    let Live { level, abilities } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
         (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
