@@ -14,6 +14,10 @@ use anyview_core::{FilePath, Mime};
 pub struct NoApps;
 
 impl AppsForType for NoApps {
+    fn present(&self) -> bool {
+        false
+    }
+
     fn apps_for(&self, _mime: &Mime) -> Vec<AppEntry> {
         Vec::new()
     }
@@ -47,6 +51,10 @@ impl Share for NoShare {
 pub struct NoPrinter;
 
 impl Printer for NoPrinter {
+    fn present(&self) -> bool {
+        false
+    }
+
     async fn print(&self, _pdf: &[u8], _title: &JobTitle) -> Result<PrintOutcome, PlatformError> {
         Ok(PrintOutcome::NoDialog)
     }
@@ -57,6 +65,10 @@ impl Printer for NoPrinter {
 pub struct NoPicker;
 
 impl Picker for NoPicker {
+    fn present(&self) -> bool {
+        false
+    }
+
     async fn pick(&self) -> Result<PickOutcome, PlatformError> {
         Ok(PickOutcome::NoDialog)
     }
@@ -78,5 +90,6 @@ mod tests {
             PrintOutcome::NoDialog
         );
         assert_eq!(NoPicker.pick().await.unwrap(), PickOutcome::NoDialog);
+        assert!(!NoApps.present() && !NoPrinter.present() && !NoPicker.present());
     }
 }

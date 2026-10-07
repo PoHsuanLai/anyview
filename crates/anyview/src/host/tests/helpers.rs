@@ -190,6 +190,27 @@ fn a_helper_the_file_does_not_declare_is_not_offered() {
     assert_eq!(host.words(Helper::VideoPlayback), None);
 }
 
+#[test]
+fn a_system_that_cannot_install_offers_no_install_beside_the_row() {
+    let machine = Machine::fedora();
+    let fake = FakeInstaller::new(Installed::Installed);
+    let catalog = Catalog::parse(SHIPPED).unwrap();
+    let host = HelperHost::new(
+        catalog,
+        machine.environment(),
+        Installer::Fake(fake),
+        PluginRegistry::default(),
+    )
+    .installing_where(false);
+    let fact = anyview_core::Fact {
+        label: anyview_core::FactLabel::Needs,
+        value: anyview_core::FactValue::text("x"),
+    };
+    assert!(!host.offers(Helper::HeicDecode));
+    let need = host.need(fact, Helper::HeicDecode);
+    assert_eq!(need.helper, None, "the row stays, with no Install...");
+}
+
 #[tokio::test]
 async fn what_the_installer_answers_is_what_the_window_is_told() {
     // name, installer's answer, the end the window hears

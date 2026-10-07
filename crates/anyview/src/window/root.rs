@@ -91,7 +91,8 @@ impl Wiring {
         .with_media(Arc::clone(&seed.factory.media))
         .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
         .with_cards(Arc::new(PeekCards))
-        .with_locks(Arc::new(StoreLocks));
+        .with_locks(Arc::new(StoreLocks))
+        .with_platform(seed.factory.hosting.abilities());
         let edge = match &seed.factory.helpers {
             Some(helpers) => edge.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
             None => edge,

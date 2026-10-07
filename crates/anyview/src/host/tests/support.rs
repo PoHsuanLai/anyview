@@ -126,6 +126,23 @@ fn desktop_with(
         links: FakeLinks::default(),
         pool: Pool::new(PoolSize::exactly(std::num::NonZeroUsize::MIN)).unwrap(),
     };
+    let services = services(scratch, &fakes, helpers);
+    let desktop = Desktop::new(
+        tokio::runtime::Handle::current(),
+        fakes.apps.clone(),
+        fakes.reveal.clone(),
+        fakes.share.clone(),
+        fakes.printer.clone(),
+        fakes.trash.clone(),
+        fakes.picker.clone(),
+        fakes.links.clone(),
+        services,
+    );
+    (desktop, fakes)
+}
+
+/// What the desktop keeps and plays with, under `scratch`, with the exports on the pool of `fakes`.
+pub fn services(scratch: &Path, fakes: &Fakes, helpers: Option<Arc<HelperHost>>) -> Services {
     let now: Clock = Arc::new(|| NOW);
     let (_mailbox, outbox) = Mailbox::new(NoticeWaker::default());
     let media = Media {
@@ -139,21 +156,10 @@ fn desktop_with(
         exports: Arc::new(Exports::new(&fakes.pool, outbox)),
         scratch: scratch.join("cache"),
     };
-    let desktop = Desktop::new(
-        tokio::runtime::Handle::current(),
-        fakes.apps.clone(),
-        fakes.reveal.clone(),
-        fakes.share.clone(),
-        fakes.printer.clone(),
-        fakes.trash.clone(),
-        fakes.picker.clone(),
-        fakes.links.clone(),
-        Services {
-            versions: anyview_store::Versions::under_state(&scratch.join("state")),
-            store: Store::new(&scratch.join("store"), now),
-            media,
-            helpers,
-        },
-    );
-    (desktop, fakes)
+    Services {
+        versions: anyview_store::Versions::under_state(&scratch.join("state")),
+        store: Store::new(&scratch.join("store"), now),
+        media,
+        helpers,
+    }
 }

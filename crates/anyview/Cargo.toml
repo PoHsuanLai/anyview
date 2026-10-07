@@ -18,7 +18,7 @@ publish.workspace = true
 [features]
 default = ["audio", "quire-desktop"]
 audio = ["anyview-media/audio"]
-quire-desktop = ["anyview-platform/quire-desktop"]
+quire-desktop = ["anyview-platform/quire-desktop", "ds-desktop/dbus"]
 
 [dependencies]
 anyview-core = { workspace = true }
@@ -35,6 +35,7 @@ anyview-ui = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true }
+ds-desktop = { workspace = true }
 ds-helpers = { workspace = true }
 ds-settings = { workspace = true, features = ["dioxus", "tokio"] }
 futures-channel = { workspace = true }

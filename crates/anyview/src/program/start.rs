@@ -168,7 +168,7 @@ fn show(
         let env = env.clone();
         move || discover(&env).plugins
     });
-    let helpers = helper_host(&env, &registry);
+    let helpers = helper_host(&env, &registry, can_install(&runtime));
     let mut image_host = ImageHost::following(registry.clone(), PluginRunner::default());
     let mut media_plugins = MediaPlugins::following(registry, PluginRunner::default());
     if let Some(helpers) = &helpers {
@@ -252,22 +252,34 @@ fn show(
 /// The tools the plugins run and what installs them, from the file the viewer ships
 /// (`<data dir>/quire/helpers/anyview.toml`, the person's own data directory first). Without the
 /// file nothing is offered and a missing tool stays a row that names it.
-fn helper_host(env: &Env, registry: &PluginRegistry) -> Option<Arc<HelperHost>> {
+fn helper_host(env: &Env, registry: &PluginRegistry, installable: bool) -> Option<Arc<HelperHost>> {
     let dirs: Vec<std::path::PathBuf> = std::iter::once(env.dirs.data.clone())
         .chain(env.dirs.data_dirs.iter().cloned())
         .collect();
     match ds_helpers::Catalog::load("anyview", &dirs) {
-        Ok(catalog) => Some(Arc::new(HelperHost::new(
-            catalog,
-            ds_helpers::Environment::system(),
-            ds_helpers::Installer::PackageKit(ds_helpers::PackageKit::system()),
-            registry.clone(),
-        ))),
+        Ok(catalog) => Some(Arc::new(
+            HelperHost::new(
+                catalog,
+                ds_helpers::Environment::system(),
+                ds_helpers::Installer::PackageKit(ds_helpers::PackageKit::system()),
+                registry.clone(),
+            )
+            .installing_where(installable),
+        )),
         Err(error) => {
             eprintln!("anyview: a missing tool will not be offered for install: {error}");
             None
         }
     }
+}
+
+/// Whether the system can install a package for a missing tool: quire's `Helpers` capability, which
+/// asks the system bus whether PackageKit answers. Asked once, as the program starts. Without
+/// `quire-desktop` the probe has no bus to ask and says no, so no Install... is offered.
+fn can_install(runtime: &Runtime) -> bool {
+    runtime
+        .block_on(ds_desktop::Desktop::probe())
+        .here(ds_desktop::Capability::Helpers)
 }
 
 /// Follow the tools: the windows are told when one appears, and the folders programs are found in

@@ -73,6 +73,9 @@ ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
 ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
+# Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
+# `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }

@@ -31,6 +31,8 @@ struct Listeners {
 /// to tell.
 pub struct HelperHost {
     helpers: Helpers,
+    /// Whether the system can install a package at all (PackageKit answers).
+    installable: bool,
     registry: PluginRegistry,
     listeners: Mutex<Listeners>,
 }
@@ -84,15 +86,26 @@ impl HelperHost {
     ) -> HelperHost {
         HelperHost {
             helpers: Helpers::new(catalog, environment, installer),
+            installable: true,
             registry,
             listeners: Mutex::default(),
         }
     }
 
-    /// Whether the helpers file declares `helper`: only then can the viewer word the question and
-    /// ask the system.
+    /// The same host, offering to install a tool only where `installable`: the system has a way
+    /// to install one (quire's `Helpers` capability, PackageKit). Without it a missing tool stays
+    /// a row that names it, with no Install... beside it.
+    pub fn installing_where(self, installable: bool) -> HelperHost {
+        HelperHost {
+            installable,
+            ..self
+        }
+    }
+
+    /// Whether the viewer can offer to install `helper`: the helpers file declares it, so the
+    /// viewer can word the question, and the system can install it.
     pub fn offers(&self, helper: Helper) -> bool {
-        self.entry(helper).is_some()
+        self.installable && self.entry(helper).is_some()
     }
 
     /// The `Needs` row `fact`, with `helper` to install when the file declares it.
