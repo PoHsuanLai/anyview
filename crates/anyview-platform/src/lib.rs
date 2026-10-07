@@ -33,7 +33,9 @@ mod thumbnail;
 mod uri;
 
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
-pub mod linux;
+mod desktop;
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
+pub use desktop::linux;
 pub mod portable;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
