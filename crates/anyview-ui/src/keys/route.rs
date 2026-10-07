@@ -78,7 +78,7 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
             Some(Route::Panel(info_toggle(regions.panel)))
         }
         [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
-        [ShortcutKey::Super, ShortcutKey::Char('o')] => Some(Route::OpenFile),
+        [ShortcutKey::Super, ShortcutKey::Char('o')] if regions.pick_files => Some(Route::OpenFile),
         [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
         [ShortcutKey::Escape] => Some(escape(regions)),
         keys => rewind(keys, regions.stage).map(Route::Rewind),

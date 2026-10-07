@@ -58,6 +58,7 @@ pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
 #[component]
 fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
     let run = cx.run;
+    let platform = cx.platform;
     let facts: Vec<ds::components::fields::fact_list::Fact> = doc
         .0
         .facts
@@ -82,9 +83,11 @@ fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
                                     onclick: move |_| run.call(Command::Install(helper)),
                                 }
                             }
-                            Button {
-                                label: "Open With…",
-                                onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                            if platform.offers(FileAction::OpenWith) {
+                                Button {
+                                    label: "Open With…",
+                                    onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                                }
                             }
                         }
                     },
