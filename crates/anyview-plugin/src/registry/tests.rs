@@ -1,5 +1,4 @@
 use super::*;
-use crate::missing::Package;
 use anyview_core::{FormatKind, Mime};
 
 /// A candidate whose manifest provides `probe` for `kinds` (and exports to `targets` when any)
@@ -122,7 +121,7 @@ fn a_kind_nobody_serves_names_its_package_or_nothing() {
     let Route::Missing(missing) = plugins.route(Capability::Probe, &audio) else {
         panic!("a package is known for audio");
     };
-    assert_eq!(missing.package, Package::from_static("anyview-ffmpeg"));
+    assert_eq!(missing.package.name(), "anyview-ffmpeg");
     let pdf = Subject {
         kind: FormatKind::Pdf,
         mime: None,
@@ -170,4 +169,55 @@ fn the_export_sheet_lists_each_target_once_for_the_first_plugin() {
         .collect();
     assert_eq!(offered, [("a", "mp3"), ("a", "flac"), ("b", "ogg")]);
     assert!(plugins.export_targets(&video()).is_empty());
+}
+
+/// An installed mpv plugin whose manifest names these paths, unusable for `reason`.
+fn mpv_plugin_unready(reason: PluginError) -> Plugins {
+    let text = "id = \"mpv\"\nname = \"mpv\"\nprotocol = 1\n[[provides]]\ncapability = \"play\"\n\
+                kinds = [\"video\"]\nmpv = \"/usr/bin/mpv\"\ncplugin = \"/opt/av/mpv-wgpu-cplugin.so\"\n";
+    Plugins::resolve(vec![Candidate {
+        manifest: Manifest::parse(text).unwrap(),
+        origin: Origin::System,
+        readiness: Readiness::Unready(reason),
+    }])
+}
+
+#[test]
+fn a_plugin_that_cannot_run_for_want_of_the_systems_tool_says_so() {
+    let mpv = suggested_package(Capability::Play, &video()).unwrap();
+    let ffmpeg = suggested_package(Capability::Probe, &video()).unwrap();
+    let missing = |path: &str| PluginError::FileMissing { path: path.into() };
+    // name, the registry, the package asked about, whether the tool is what is absent
+    let cases: Vec<(&str, Plugins, Package, bool)> = vec![
+        (
+            "mpv itself is absent",
+            mpv_plugin_unready(missing("/usr/bin/mpv")),
+            mpv,
+            true,
+        ),
+        (
+            "mpv is there but not executable",
+            mpv_plugin_unready(PluginError::NotExecutable {
+                path: "/usr/bin/mpv".into(),
+            }),
+            mpv,
+            true,
+        ),
+        (
+            "the C plugin is absent: installing mpv would not help",
+            mpv_plugin_unready(missing("/opt/av/mpv-wgpu-cplugin.so")),
+            mpv,
+            false,
+        ),
+        ("no mpv plugin at all", Plugins::none(), mpv, false),
+        (
+            "a plugin whose tool the manifest does not name",
+            mpv_plugin_unready(missing("/usr/bin/mpv")),
+            ffmpeg,
+            false,
+        ),
+    ];
+    for (name, plugins, package, want) in cases {
+        assert_eq!(plugins.tool_absent(package), want, "{name}");
+    }
 }
