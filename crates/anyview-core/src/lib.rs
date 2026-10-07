@@ -10,6 +10,7 @@ mod edit;
 mod error;
 mod export;
 mod facts;
+mod helper;
 mod kind;
 mod media;
 mod peek;
@@ -34,6 +35,7 @@ pub use export::{
     StreamPick, Subtitles, TextExport, TextExportKind, TextFlavour, TextSource,
 };
 pub use facts::{Fact, FactLabel, FactValue, Facts};
+pub use helper::Helper;
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
     Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, kind_of_mime,

@@ -28,6 +28,7 @@ impl Shown {
             | Outcome::Taken
             | Outcome::Nothing(_)
             | Outcome::Handed
+            | Outcome::Helped(_, _)
             | Outcome::Failed(_) => return self,
         };
         self.stepped(input).0

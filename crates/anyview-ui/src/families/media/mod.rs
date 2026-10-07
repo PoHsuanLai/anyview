@@ -113,6 +113,10 @@ impl StageView for MediaStageView {
         doc.line().map(Arc::clone)
     }
 
+    fn lacks(doc: &MediaDoc) -> Option<anyview_core::Helper> {
+        doc.needs().and_then(|needs| needs.helper)
+    }
+
     fn media_offer(doc: &MediaDoc) -> MediaOffer {
         doc.offer().clone()
     }

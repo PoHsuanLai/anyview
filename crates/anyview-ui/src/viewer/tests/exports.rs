@@ -7,7 +7,7 @@ use crate::sheet::{ExportDraft, MediaOffer, Sheet, SheetParams};
 use crate::stage::{Pace, Stage};
 use crate::viewer::{Viewer, ViewerIn, ViewerParams};
 use anyview_core::{
-    AudioTarget, Fact, FactLabel, FactValue, FileAction, MediaExport, MediaExportKind,
+    AudioTarget, Fact, FactLabel, FactValue, FileAction, Helper, MediaExport, MediaExportKind,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -69,7 +69,22 @@ fn a_recording_opens_the_sheet_on_the_first_kind_on_offer() {
 fn a_recording_with_nothing_on_offer_opens_the_sheet_that_names_the_package() {
     assert_eq!(
         after_export(media(Pace::Paused), MediaOffer::new(vec![], Some(needs()))),
-        Sheet::Unavailable { needs: needs() }
+        Sheet::Unavailable {
+            needs: needs(),
+            helper: None
+        }
+    );
+}
+
+#[test]
+fn an_offer_that_can_be_installed_opens_the_sheet_with_the_tool_to_offer() {
+    let offer = MediaOffer::new(vec![], Some(needs())).installable(Helper::MediaProbe);
+    assert_eq!(
+        after_export(media(Pace::Paused), offer),
+        Sheet::Unavailable {
+            needs: needs(),
+            helper: Some(Helper::MediaProbe)
+        }
     );
 }
 

@@ -56,7 +56,7 @@ pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
 /// A file with no picture because the plugin that decodes it is not installed: its facts and the
 /// row that names the package, as a recording without a player shows.
 #[component]
-fn Unshown(doc: Held<RasterDoc>, needs: anyview_core::Fact, cx: StageCx) -> Element {
+fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
     let run = cx.run;
     let facts: Vec<ds::components::fields::fact_list::Fact> = doc
         .0
@@ -73,11 +73,19 @@ fn Unshown(doc: Held<RasterDoc>, needs: anyview_core::Fact, cx: StageCx) -> Elem
                 EmptyState {
                     icon: Icon::File,
                     title: "This picture cannot be shown yet".to_owned(),
-                    description: Some(TextLine::from(format!("{}: {}", needs.label.label(), needs.value.as_str()))),
+                    description: Some(TextLine::from(format!("{}: {}", needs.fact.label.label(), needs.fact.value.as_str()))),
                     action: rsx! {
-                        Button {
-                            label: "Open With…",
-                            onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                        div { class: "viewer-failed-actions",
+                            if let Some(helper) = needs.helper {
+                                Button {
+                                    label: "Install…",
+                                    onclick: move |_| run.call(Command::Install(helper)),
+                                }
+                            }
+                            Button {
+                                label: "Open With…",
+                                onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
+                            }
                         }
                     },
                 }

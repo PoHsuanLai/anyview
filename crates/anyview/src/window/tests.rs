@@ -108,6 +108,7 @@ mod remaking {
                     exports: workforce.exports(),
                     scratch: dir.join("cache"),
                 },
+                helpers: None,
             },
         );
         let factory = Factory::new(

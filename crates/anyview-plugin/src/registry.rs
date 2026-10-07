@@ -3,7 +3,7 @@
 use crate::error::PluginError;
 use crate::handles::Subject;
 use crate::manifest::{Manifest, PluginId};
-use crate::missing::{MissingPlugin, suggested_package};
+use crate::missing::{MissingPlugin, Package, suggested_package};
 use crate::provision::{Provision, TargetName};
 use anyview_plugin_protocol::{Capability, PROTOCOL_VERSION};
 use std::cmp::Reverse;
@@ -164,6 +164,27 @@ impl Plugins {
             }),
             None => Route::Unserved,
         }
+    }
+
+    /// Whether the plugin `package` names is installed and cannot run only because the program of
+    /// the system's that its manifest names is absent: the tool is what is missing, not the
+    /// plugin, and installing the tool is what makes the plugin usable.
+    pub fn tool_absent(&self, package: Package) -> bool {
+        let Some(tool) = package.tool() else {
+            return false;
+        };
+        let id = package
+            .name()
+            .strip_prefix("anyview-")
+            .unwrap_or(package.name());
+        self.unusable.iter().any(|unusable| {
+            unusable.id.as_str() == id
+                && matches!(
+                    &unusable.reason,
+                    PluginError::FileMissing { path } | PluginError::NotExecutable { path }
+                        if path.file_name().is_some_and(|name| name == tool)
+                )
+        })
     }
 
     /// The targets the plugins that export `subject` can write, each with the plugin that

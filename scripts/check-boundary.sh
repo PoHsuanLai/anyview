@@ -126,15 +126,17 @@ DIRECT=(
 # (psd, icns, exr and its inflate and SIMD helpers; the budgets rose by nine for them), and the
 # EPUB package reader of anyview-book (roxmltree, one more), and the spreadsheet and
 # office readers of anyview-text and anyview-archive (calamine and quick-xml for XLSX and ODS, with what
-# they pull in, five more). The viewer (anyview) is 664: the peek's
+# they pull in, five more). The viewer (anyview) is 666: the peek's
 # tree and the window, the platform edge and the plugin registry, with no libmpv or libav binding in
 # it, and the built-in audio player's sound card: cpal, with alsa and alsa-sys under it and dasp_sample
 # (four packages; the decoders are the symphonia crates the peek already links, and libasound is an audio
-# device library, not a codec). anyview-peek stays at 590: it never reaches cpal (its rule above).
+# device library, not a codec). The missing-tool prompt adds two: ds-shell (the install sheet, drawn by the views) and
+# ds-helpers (the catalog and PackageKit install, named by the binary); everything else they use was already in the tree.
+# anyview-peek stays at 590: it never reaches cpal (its rule above).
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 590"
-  "anyview: 664"
+  "anyview: 666"
 )
 fail=0
 
@@ -226,10 +228,10 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-settings"
+  "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"

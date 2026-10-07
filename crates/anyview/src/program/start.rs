@@ -5,8 +5,8 @@ use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
 use crate::host::{
-    Appearances, CachedPictures, Clock, Hosting, ImageHost, LinuxDesktop, Media, SETTLE, Services,
-    Store, Watcher,
+    Appearances, CachedPictures, Clock, HelperHost, Hosting, ImageHost, LinuxDesktop, Media,
+    PATH_SETTLE, PathWatch, PluginRegistry, SETTLE, Services, Store, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -149,8 +149,24 @@ fn show(
             rejected.error
         );
     }
-    let image_host = ImageHost::new(found.plugins.clone(), PluginRunner::default());
-    let plugins = Arc::new(MediaPlugins::new(found.plugins, PluginRunner::default()));
+    // The registry is read again when a tool a plugin runs is installed, so a file that needed it
+    // opens with it without a restart.
+    let registry = PluginRegistry::rereading(found.plugins, {
+        let env = env.clone();
+        move || discover(&env).plugins
+    });
+    let helpers = helper_host(&env, &registry);
+    let mut image_host = ImageHost::following(registry.clone(), PluginRunner::default());
+    let mut media_plugins = MediaPlugins::following(registry, PluginRunner::default());
+    if let Some(helpers) = &helpers {
+        image_host = image_host.offering(Arc::clone(helpers));
+        media_plugins = media_plugins.offering(Arc::clone(helpers));
+    }
+    let plugins = Arc::new(media_plugins);
+    // A tool the person installs with a package manager of their own is noticed as it appears.
+    let _tools = helpers
+        .as_ref()
+        .and_then(|helpers| watch_tools(&runtime, helpers));
     let hub = MediaHub::start(
         runtime.handle(),
         move || async move { NowPlaying::register(&for_bus).await },
@@ -171,6 +187,7 @@ fn show(
             store,
             media,
             versions: Versions::under_state(&env.dirs.state),
+            helpers: helpers.clone(),
         },
     ));
     // Old kept versions go once, as the program starts, off the window's threads.
@@ -195,6 +212,10 @@ fn show(
         Arc::new(NoStacking),
     )
     .with_image_plugins(Arc::new(image_host));
+    let factory = match helpers {
+        Some(helpers) => factory.with_helpers(helpers),
+        None => factory,
+    };
     runtime.spawn(open_windows(inbox, app.clone(), factory, hub.clone()));
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
@@ -213,6 +234,38 @@ fn show(
     // The relay and the report task wait on channels that never close; end them with the process.
     runtime.shutdown_background();
     ExitCode::SUCCESS
+}
+
+/// The tools the plugins run and what installs them, from the file the viewer ships
+/// (`<data dir>/quire/helpers/anyview.toml`, the person's own data directory first). Without the
+/// file nothing is offered and a missing tool stays a row that names it.
+fn helper_host(env: &Env, registry: &PluginRegistry) -> Option<Arc<HelperHost>> {
+    let dirs: Vec<std::path::PathBuf> = std::iter::once(env.dirs.data.clone())
+        .chain(env.dirs.data_dirs.iter().cloned())
+        .collect();
+    match ds_helpers::Catalog::load("anyview", &dirs) {
+        Ok(catalog) => Some(Arc::new(HelperHost::new(
+            catalog,
+            ds_helpers::Environment::system(),
+            ds_helpers::Installer::PackageKit(ds_helpers::PackageKit::system()),
+            registry.clone(),
+        ))),
+        Err(error) => {
+            eprintln!("anyview: a missing tool will not be offered for install: {error}");
+            None
+        }
+    }
+}
+
+/// Follow the tools: the windows are told when one appears, and the folders programs are found in
+/// are watched so a package installed in a terminal is noticed. `None` when they cannot be watched.
+fn watch_tools(runtime: &Runtime, helpers: &Arc<HelperHost>) -> Option<PathWatch> {
+    runtime.spawn(helpers.following());
+    let again = Arc::clone(helpers);
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    PathWatch::start(&path, PATH_SETTLE, move || again.look_again())
+        .inspect_err(|error| eprintln!("anyview: installed tools will not be noticed: {error}"))
+        .ok()
 }
 
 /// The audio driver the person asked for, or the system's own choice. A name that is not a

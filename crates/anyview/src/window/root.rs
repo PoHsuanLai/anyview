@@ -7,12 +7,14 @@ use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
 use crate::host::{
-    Carry, Doing, HandedResume, Outcome, PeekCards, Shown, StoreLocks, WindowTask, WindowWatch,
-    route, subject_of, tell, tell_declined, tell_problem,
+    Carry, Doing, HandedResume, Listening, Outcome, PeekCards, Shown, StoreLocks, WindowTask,
+    WindowWatch, route, subject_of, tell, tell_declined, tell_problem,
 };
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
-use anyview_ui::{Edge, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp};
+use anyview_ui::{
+    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp,
+};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{
@@ -90,6 +92,10 @@ impl Wiring {
         .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
         .with_cards(Arc::new(PeekCards))
         .with_locks(Arc::new(StoreLocks));
+        let edge = match &seed.factory.helpers {
+            Some(helpers) => edge.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
+            None => edge,
+        };
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
@@ -141,6 +147,8 @@ fn Window(seed: Seed) -> Element {
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
     let hosting = Arc::clone(&seed.factory.hosting);
     let watching = use_hook(|| Rc::new(watch_for(&seed, &wiring.edge)));
+    // Held for the window's life: a tool that appears is told to it until it closes.
+    let _listening = use_hook(|| Rc::new(listen_for(&seed, &wiring.edge)));
     use_future(move || {
         let taken = wiring.requests.borrow_mut().take();
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
@@ -331,6 +339,9 @@ fn ended(
     if let Outcome::Picked(files) = &outcome {
         edge.chosen(files.clone());
     }
+    if let Outcome::Helped(helper, end) = &outcome {
+        edge.helped(*helper, end.clone());
+    }
     // The file plays with no window now: this window's part is done.
     if outcome == Outcome::Handed
         && let Some(window) = window
@@ -346,6 +357,13 @@ fn watch_for(seed: &Seed, edge: &Edge) -> Option<WindowWatch> {
     let watcher = seed.factory.watcher.as_ref()?;
     let edge = edge.clone();
     Some(watcher.window(move |file| edge.changed(file)))
+}
+
+/// This window's end of the tools the plugins run: told when one appears, whoever installed it.
+fn listen_for(seed: &Seed, edge: &Edge) -> Option<Listening> {
+    let helpers = seed.factory.helpers.as_ref()?;
+    let edge = edge.clone();
+    Some(helpers.listen(move |helper| edge.available(helper)))
 }
 
 /// Watch `file` for this window, and say so if the system refuses.

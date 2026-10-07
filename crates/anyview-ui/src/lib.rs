@@ -48,11 +48,11 @@ pub use families::{
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use io::{
-    Backend, Done, Edge, FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource, HostRequest,
-    ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted,
-    MediaWake, Notice, OpenError, OpenLink, PluginPicture, Preloaded, Probed, Readable, Reply,
-    ResumeSource, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers,
-    folder_sequence,
+    Backend, Done, Edge, FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource,
+    HelperSource, HelperWords, HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice,
+    MediaPlayback, MediaStart, MediaStarted, MediaWake, Need, Notice, OpenError, OpenLink,
+    PluginPicture, Preloaded, Probed, Readable, Reply, ResumeSource, SlotPixels, Stop,
+    VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -66,8 +66,8 @@ pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{
-    ExportDraft, ExportFamily, ExportKindPick, MediaOffer, Sheet, SheetIn, SheetOut, SheetParams,
-    VersionKey, VersionList, VersionRow,
+    ExportDraft, ExportFamily, ExportKindPick, HelperEnd, HelperPhase, MediaOffer, Sheet, SheetIn,
+    SheetOut, SheetParams, VersionKey, VersionList, VersionRow,
 };
 pub use stage::{
     AfterScrub, Animation, BookIn, BookOut, BookParams, BookStage, ControlOffer, Destination,
