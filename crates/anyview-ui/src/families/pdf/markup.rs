@@ -62,6 +62,7 @@ fn cx(stage: Stage) -> StageCx {
         pdf: use_pdf_shelf(),
         media: crate::families::use_media_shelf(),
         frame: FrameLook::default(),
+        platform: crate::PlatformAbilities::ALL,
     }
 }
 

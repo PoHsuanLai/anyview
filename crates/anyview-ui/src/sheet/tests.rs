@@ -409,15 +409,15 @@ fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
         (
             "no package is a phase of its own",
             helping(Installing),
-            SheetIn::HelperEnded(heic, End::NotFound),
-            helping(NotFound),
+            SheetIn::HelperEnded(heic, End::NotFound("libheif-tools".to_owned())),
+            helping(NotFound("libheif-tools".to_owned())),
             vec![],
         ),
         (
             "no way to install is a phase of its own",
             helping(Installing),
-            SheetIn::HelperEnded(heic, End::Unsupported),
-            helping(Unsupported),
+            SheetIn::HelperEnded(heic, End::Unsupported("heif-dec".to_owned())),
+            helping(Unsupported("heif-dec".to_owned())),
             vec![],
         ),
         (
@@ -443,14 +443,14 @@ fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
         ),
         (
             "Escape closes no package",
-            helping(NotFound),
+            helping(NotFound("libheif-tools".to_owned())),
             SheetIn::Cancel,
             Sheet::Closed,
             vec![SheetOut::Closed],
         ),
         (
             "Return closes no way to install",
-            helping(Unsupported),
+            helping(Unsupported("heif-dec".to_owned())),
             SheetIn::Confirm,
             Sheet::Closed,
             vec![SheetOut::Closed],

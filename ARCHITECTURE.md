@@ -64,7 +64,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
 | `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
+| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-desktop` (`Desktop::probe`: whether PackageKit answers, for the Install... offer), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
@@ -290,6 +290,19 @@ desktop ability is a trait the host still holds, answered by a portable stand-in
 | Open... | `PortalPicker` | `NoPicker`: `PickOutcome::NoDialog` (no portable dialog yet; a later lane) |
 | Now playing | `MprisSession` | none: `NowPlaying::Absent` |
 | Thumbnails, window stacking | `FreedesktopThumbnails` and `NoStacking`, re-exported from `linux` | the same, from `portable` |
+
+**What the platform can do, and who hides what it cannot.** `Picker`, `Printer`, `Reveal` and `AppsForType`
+have `present()` (true unless the implementation only answers "not available": `NoPicker`, `NoPrinter`,
+`NoApps`), and `Share` has its `targets()`. `host::Hosting::abilities()` reads them into
+`anyview_ui::PlatformAbilities { pick_files, print, share, open_with, reveal }` (a plain set; `ALL` is the
+default), which the window's `Wiring` gives its `Edge` (`with_platform`). The views read it, never the operating
+system: `views/session.rs` `offered` filters the palette's commands (so the context menu and the file-action keys,
+which derive from them, follow), `keys::Regions::pick_files` unbinds ⌘O, `StageCx::platform` gates the Open With
+and Show in Folder buttons of the card and picture screens, `Offer::of` those of the failure screen, and the
+welcome window drops Open.... The Install... of a missing tool is the host's: `HelperHost::installing_where` is
+quire's `Helpers` capability from `ds-desktop`, probed once in `program::start` (`ds-desktop/dbus` is on with
+`quire-desktop`; without it every capability is absent). `ds-desktop` describes quire's own services, so it is not
+consulted for the portals above.
 
 Single instance without the bus (`portable::LatchkeyInstance`, on latchkey): the first launch takes the
 advisory lock and listens on `$XDG_RUNTIME_DIR/anyview/agent.sock` (macOS: under `$TMPDIR`; Windows: a named

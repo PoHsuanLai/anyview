@@ -1,7 +1,8 @@
 //! The screen of a file that did not open: what is wrong in words a person reads, and what can
 //! be done about it (open it with another app, show it in its folder).
 
-use crate::LoadFailure;
+use crate::{LoadFailure, PlatformAbilities};
+use anyview_core::FileAction;
 use dioxus::prelude::*;
 use ds::components::overlays::empty_state::EmptyForm;
 use ds::prelude::{Button, EmptyState, Icon};
@@ -11,10 +12,33 @@ use ds::prelude::{Button, EmptyState, Icon};
 pub(super) enum Offer {
     /// The probe found the file: another app may open it, and its folder may be shown.
     OpenWithAndReveal,
+    /// The probe found the file and the platform has no file manager: only another app may open it.
+    OpenWithOnly,
     /// The file is named but unread: only its folder may be shown.
     RevealOnly,
     /// The file is not there: nothing is offered.
     Nothing,
+}
+
+impl Offer {
+    /// What a failed file offers: another app opens it where the platform lists applications,
+    /// and its folder shows where there is a file manager.
+    pub(super) fn of(found: bool, named: bool, platform: PlatformAbilities) -> Offer {
+        let apps = platform.offers(FileAction::OpenWith);
+        let folder = platform.offers(FileAction::RevealInFolder);
+        if found {
+            match (apps, folder) {
+                (true, true) => Offer::OpenWithAndReveal,
+                (true, false) => Offer::OpenWithOnly,
+                (false, true) => Offer::RevealOnly,
+                (false, false) => Offer::Nothing,
+            }
+        } else if named && folder {
+            Offer::RevealOnly
+        } else {
+            Offer::Nothing
+        }
+    }
 }
 
 /// The title and the line under it for a failure of `reason`, of the file called `name`.
@@ -63,12 +87,14 @@ pub(super) fn FailedScreen(
     let (title, description) = words(reason, &name);
     let action = match offer {
         Offer::Nothing => None,
-        Offer::OpenWithAndReveal | Offer::RevealOnly => Some(rsx! {
+        Offer::OpenWithAndReveal | Offer::OpenWithOnly | Offer::RevealOnly => Some(rsx! {
             div { class: "viewer-failed-actions",
-                if offer == Offer::OpenWithAndReveal {
+                if offer != Offer::RevealOnly {
                     Button { label: "Open With\u{2026}", onclick: move |_| onopenwith.call(()) }
                 }
-                Button { label: "Show in Folder", onclick: move |_| onreveal.call(()) }
+                if offer != Offer::OpenWithOnly {
+                    Button { label: "Show in Folder", onclick: move |_| onreveal.call(()) }
+                }
             }
         }),
     };

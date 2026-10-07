@@ -4,6 +4,7 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
+use super::abilities::PlatformAbilities;
 use super::helpers::{HelperSource, NoHelpers};
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
@@ -207,6 +208,7 @@ pub struct Edge {
     image_plugins: Arc<dyn ImagePlugins>,
     cards: Arc<dyn FileCards>,
     helpers: Arc<dyn HelperSource>,
+    platform: PlatformAbilities,
     held: Arc<Mutex<Held>>,
 }
 
@@ -246,6 +248,7 @@ impl Edge {
             image_plugins: Arc::new(NoImagePlugins),
             cards: Arc::new(NoCards),
             helpers: Arc::new(NoHelpers),
+            platform: PlatformAbilities::default(),
             held: Arc::default(),
         }
     }
@@ -309,6 +312,17 @@ impl Edge {
     /// The same edge wording its install sheet from `helpers`: without them no tool is offered.
     pub fn with_helpers(self, helpers: Arc<dyn HelperSource>) -> Edge {
         Edge { helpers, ..self }
+    }
+
+    /// The same edge offering only what the platform can do: an action whose desktop service is
+    /// absent is not listed, bound or drawn. Without this every ability is there.
+    pub fn with_platform(self, platform: PlatformAbilities) -> Edge {
+        Edge { platform, ..self }
+    }
+
+    /// What the platform can do, for the window to decide what to offer.
+    pub fn platform(&self) -> PlatformAbilities {
+        self.platform
     }
 
     /// What the install sheet says of `helper`, or `None` when the host does not know the tool.

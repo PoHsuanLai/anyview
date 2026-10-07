@@ -8,7 +8,7 @@ use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, SectionPage,
     use_media_shelf, use_pdf_shelf,
 };
-use crate::{Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
+use crate::{PlatformAbilities, Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
 use ds::host::measure::use_rect;
@@ -71,11 +71,13 @@ pub(super) struct Shelf {
     pub first: Signal<FirstLoad>,
     /// Where the person last said they were in the open file, kept for the file when it is left.
     pub left_at: Signal<Resume>,
+    /// What the platform can do: fixed for the window's life, so not a signal.
+    pub platform: PlatformAbilities,
 }
 
 impl Shelf {
     /// A shelf with nothing on it.
-    pub(super) fn empty() -> Shelf {
+    pub(super) fn empty(platform: PlatformAbilities) -> Shelf {
         Shelf {
             probe: use_signal(|| Probe::Idle),
             opening: use_signal(|| None),
@@ -96,6 +98,7 @@ impl Shelf {
             level: use_level(),
             first: use_signal(|| FirstLoad::Unseen),
             left_at: use_signal(|| Resume::Nothing),
+            platform,
         }
     }
 
@@ -143,6 +146,7 @@ pub(super) fn viewer_params(
         Live {
             level: shelf.level.now(),
             abilities: shelf.media.peek().abilities,
+            platform: shelf.platform,
         },
     )
 }

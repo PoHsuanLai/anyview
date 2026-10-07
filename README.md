@@ -50,9 +50,9 @@ cargo build --release --locked -p anyview --no-default-features --features audio
 (`--no-default-features` drops `audio` too; add it back as above for the built-in audio player.) Such a build
 uses a per-user socket for single instance, opens links and shows files in their folder through the platform's
 opener (`xdg-open`, `open`, `explorer`), and has no Open With, Share, Print, desktop file chooser or
-now-playing entry: those actions answer that they are not available. Until quire's own portable build lands
+now-playing entry: those actions are not offered (the palette, the menus, the buttons and their keys leave them out). Until quire's own portable build lands
 the dependency tree still holds quire's `zbus` and Wayland crates; this is about the viewer's own code.
-Check the portable build with `scripts/check-portable.sh` (a copy of the one in quire, plus the platform crate's own zbus check).
+Check the portable build with `scripts/check-portable.sh` (quire's two rules: the workspace builds without the feature and no core module names `crate::desktop` or zbus, plus the platform crate's own zbus check).
 
 ## Install and uninstall
 

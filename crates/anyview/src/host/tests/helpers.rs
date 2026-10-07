@@ -8,7 +8,7 @@ use anyview_plugin::{
 use anyview_plugin_protocol::Capability;
 use anyview_ui::{HelperEnd, HelperSource, HelperWords};
 use ds::prelude::Word;
-use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Outcome as Installed};
+use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Missing, Outcome as Installed};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -91,6 +91,15 @@ fn host(
     (host, fake)
 }
 
+/// What a scripted installer is told to answer with: the request's own `Missing` replaces it.
+fn nothing() -> Missing {
+    Missing {
+        capability: ds_helpers::Capability::new("heic-decode").unwrap(),
+        package: None,
+        program: None,
+    }
+}
+
 #[test]
 fn the_shipped_file_declares_exactly_the_tools_the_viewer_names() {
     let catalog = Catalog::parse(SHIPPED).expect("the shipped file parses with quire's catalog");
@@ -134,8 +143,6 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
                 app: "Anyview".to_owned(),
                 tool: "libheif tools".to_owned(),
                 purpose: "open HEIC photos".to_owned(),
-                package: "libheif-tools".to_owned(),
-                program: "heif-dec".to_owned(),
             },
         ),
         (
@@ -145,8 +152,6 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
                 app: "Anyview".to_owned(),
                 tool: "libheif tools".to_owned(),
                 purpose: "open HEIC photos".to_owned(),
-                package: "libheif-examples".to_owned(),
-                program: "heif-dec".to_owned(),
             },
         ),
         (
@@ -156,8 +161,6 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
                 app: "Anyview".to_owned(),
                 tool: "mpv".to_owned(),
                 purpose: "play videos".to_owned(),
-                package: "mpv".to_owned(),
-                program: "mpv".to_owned(),
             },
         ),
     ];
@@ -187,17 +190,42 @@ fn a_helper_the_file_does_not_declare_is_not_offered() {
     assert_eq!(host.words(Helper::VideoPlayback), None);
 }
 
+#[test]
+fn a_system_that_cannot_install_offers_no_install_beside_the_row() {
+    let machine = Machine::fedora();
+    let fake = FakeInstaller::new(Installed::Installed);
+    let catalog = Catalog::parse(SHIPPED).unwrap();
+    let host = HelperHost::new(
+        catalog,
+        machine.environment(),
+        Installer::Fake(fake),
+        PluginRegistry::default(),
+    )
+    .installing_where(false);
+    let fact = anyview_core::Fact {
+        label: anyview_core::FactLabel::Needs,
+        value: anyview_core::FactValue::text("x"),
+    };
+    assert!(!host.offers(Helper::HeicDecode));
+    let need = host.need(fact, Helper::HeicDecode);
+    assert_eq!(need.helper, None, "the row stays, with no Install...");
+}
+
 #[tokio::test]
 async fn what_the_installer_answers_is_what_the_window_is_told() {
     // name, installer's answer, the end the window hears
     let cases: Vec<(&str, Installed, HelperEnd)> = vec![
         ("installed", Installed::Installed, HelperEnd::Installed),
         ("declined", Installed::Declined, HelperEnd::Declined),
-        ("no package", Installed::NotFound, HelperEnd::NotFound),
+        (
+            "no package",
+            Installed::NotFound(nothing()),
+            HelperEnd::NotFound("libheif-tools".to_owned()),
+        ),
         (
             "no way to install",
-            Installed::Unsupported,
-            HelperEnd::Unsupported,
+            Installed::Unsupported(nothing()),
+            HelperEnd::Unsupported("heif-dec".to_owned()),
         ),
         (
             "failed",
@@ -280,7 +308,10 @@ async fn the_desktop_carries_an_install_out_and_says_how_it_ended() {
         .unwrap();
     assert_eq!(
         outcome,
-        Outcome::Helped(Helper::HeicDecode, HelperEnd::Unsupported),
+        Outcome::Helped(
+            Helper::HeicDecode,
+            HelperEnd::Unsupported("heic-decode".to_owned())
+        ),
         "a program with no list of its tools cannot install one"
     );
 }

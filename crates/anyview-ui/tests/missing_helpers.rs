@@ -59,28 +59,16 @@ struct Words;
 
 impl HelperSource for Words {
     fn words(&self, helper: Helper) -> Option<HelperWords> {
-        let (tool, purpose, package, program) = match helper {
-            Helper::HeicDecode => (
-                "libheif tools",
-                "open HEIC photos",
-                "libheif-tools",
-                "heif-dec",
-            ),
-            Helper::VideoPlayback => ("mpv", "play videos", "mpv", "mpv"),
-            Helper::MediaProbe => (
-                "FFmpeg",
-                "read and convert audio and video",
-                "ffmpeg",
-                "ffprobe",
-            ),
+        let (tool, purpose) = match helper {
+            Helper::HeicDecode => ("libheif tools", "open HEIC photos"),
+            Helper::VideoPlayback => ("mpv", "play videos"),
+            Helper::MediaProbe => ("FFmpeg", "read and convert audio and video"),
             Helper::RawDecode => return None,
         };
         Some(HelperWords {
             app: "Anyview".to_owned(),
             tool: tool.to_owned(),
             purpose: purpose.to_owned(),
-            package: package.to_owned(),
-            program: program.to_owned(),
         })
     }
 }
@@ -302,14 +290,14 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
     let cases: Vec<Case> = vec![
         (
             "no package",
-            HelperEnd::NotFound,
+            HelperEnd::NotFound("libheif-tools".to_owned()),
             "not-found",
             "libheif tools is not in your software sources",
             "libheif-tools",
         ),
         (
             "no way to install",
-            HelperEnd::Unsupported,
+            HelperEnd::Unsupported("heif-dec".to_owned()),
             "unsupported",
             "Anyview cannot install libheif tools here",
             "heif-dec",

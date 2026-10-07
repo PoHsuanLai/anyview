@@ -24,6 +24,8 @@ pub struct Regions<'a> {
     pub stage: &'a Stage,
     /// What the stage needs to turn a command into an input.
     pub stage_params: &'a StageParams,
+    /// Whether the platform has a file chooser: ⌘O is a chord only then.
+    pub pick_files: bool,
 }
 
 /// Where a key goes, with the input the region is to be given. Precedence is the order of the

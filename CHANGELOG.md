@@ -16,7 +16,18 @@ versioning, with pre-releases while the program is in beta.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
 
+### Look
+
+- quire v0.2.19's Tahoe sizes: controls are 20, 24, 28, 32 and 40 tall (the capsule's buttons are the 32 Large,
+  with an 18 px glyph), windows are rounder, and table and tree rows are quire's 32 px compact row.
+
 ### Platform
+
+- What the platform cannot do is not offered. Open With, Share, Print, Open... and Show in Folder are left out
+  of the palette, the right-click menu, the buttons on a card or a file that did not open, the welcome
+  window and the keys (⌘O, ⌘P, ⌥⌘O, ⌘R) where the desktop service behind them is absent. The Install... of a
+  missing tool is offered only where the system can install packages.
+- The missing-tool sheet takes the package and program it names from the installer's own answer.
 
 - The viewer's Linux desktop services are now an optional cargo feature, `quire-desktop` (on by default). A
   build with `--no-default-features` has no D-Bus code of its own: single instance goes through a per-user
