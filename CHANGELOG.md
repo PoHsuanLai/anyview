@@ -7,14 +7,19 @@ versioning, with pre-releases while the program is in beta.
 
 ### Windows
 
-- A window opens sized to its content, as Preview and QuickTime do: a picture at its own size, a video at
-  its resolution, scaled down to fit when it is larger than 85% of the screen (1600 by 1000 before the screen
-  is known) and never smaller than 480 by 320 (a small picture stays centred). A PDF, and a picture the
+- A window opens sized to its content, as Preview and QuickTime do: a picture with one image pixel to one
+  screen pixel (on a 2x screen a 1200 by 800 picture opens in a 600 by 400 window), a video at its
+  resolution, scaled down to fit when it is larger than 85% of the screen less the top bar (a 1920 by 1200
+  screen is assumed before the screen is known) and never smaller than 480 by 320 (a small picture stays
+  centred). The screen is the one the window is on, at its own scale, once the window is open. A PDF, and a picture the
   HEIC or RAW plugin decodes, take the window to their page or picture size as soon as they have loaded,
   unless you have already resized the window. Everything else opens at the usual size, and moving to the
   next file keeps the window as it is.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
+
+- quire v0.2.20: a touchpad scrolls the PDF, pictures and text with the fingers and carries on with the glide
+  after a fast flick, as a native scroll does; Control with the wheel zooms one step a click.
 
 ### Look
 

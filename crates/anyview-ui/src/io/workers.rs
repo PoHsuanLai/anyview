@@ -138,6 +138,15 @@ impl Reply {
     }
 }
 
+/// What a content's natural size is measured in, so the window can turn it into logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NaturalSize {
+    /// Device pixels, one to one: a picture. On a 2x output it is half as many logical pixels.
+    Pixels(PixelSize),
+    /// Logical pixels as they are: a PDF's page at 100%, where a point is a logical pixel.
+    Points(PixelSize),
+}
+
 /// What the window asks of the binary that hosts it: the things the viewer decides to do but
 /// cannot do itself (they touch the platform, the file system or the window).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -187,7 +196,7 @@ pub enum HostRequest {
     /// The first file this window showed has loaded, and its content is naturally this size (a
     /// PDF's first page at 100%, a picture a plugin decoded). Sent once per window, never for a
     /// file the person moved on to: the host sizes the window to it if the person has not.
-    SizeWindow(PixelSize),
+    SizeWindow(NaturalSize),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

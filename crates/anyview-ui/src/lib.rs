@@ -50,9 +50,9 @@ pub use families::{
 pub use io::{
     Backend, Done, Edge, FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource,
     HelperSource, HelperWords, HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice,
-    MediaPlayback, MediaStart, MediaStarted, MediaWake, Need, Notice, OpenError, OpenLink,
-    PlatformAbilities, PluginPicture, Preloaded, Probed, Readable, Reply, ResumeSource, SlotPixels,
-    Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    MediaPlayback, MediaStart, MediaStarted, MediaWake, NaturalSize, Need, Notice, OpenError,
+    OpenLink, PlatformAbilities, PluginPicture, Preloaded, Probed, Readable, Reply, ResumeSource,
+    SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
