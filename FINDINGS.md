@@ -639,9 +639,37 @@ on. It is a reference, not a log: how each was found lives in git history.
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
   silence) and nothing else. Ends if plugins come from outside the distribution: a sandbox (bubblewrap, or
   Flatpak's) wraps the spawn.
+- **The install of a missing tool has only run against quire's fake installer.** `HelperHost::provide` is tested through
+  `Installer::Fake`; no test and no author has yet run `Installer::PackageKit` against a real PackageKit and polkit
+  (a real install is a change to the person's system, and tests never touch it). Ends when it has been tried once on
+  Fedora, and on Debian or Ubuntu and Arch: open a HEIC with `heif-dec` and `heif-convert` absent, press Install…, and
+  the password prompt, the install and the reopened picture are the whole of it.
+- **Some package names in `dist/helpers/anyview.toml` are unverified.** The Fedora names were looked up with
+  `dnf repoquery --whatprovides`; the `apt`, `pacman` and `zypper` names are written from memory of the distributions'
+  package lists, each marked in the file. A wrong name is `NotFound` in the sheet, which names the package to look for,
+  and installs nothing. Ends when each is checked on its distribution (README's table says "check" for the same ones).
+- **A tool outside the folders of `PATH` is not found, and an mpv outside `/usr/bin` is not used.** The probe is
+  quire's: an executable of the declared name in a folder of `PATH`. The mpv plugin's manifest names one absolute mpv,
+  the one on the search path when `install.sh` ran, else `/usr/bin/mpv`; an mpv installed elsewhere afterwards
+  leaves the row and Install… in place. Ends when the manifest may name `mpv` for the viewer to resolve, or the
+  viewer rewrites it when a tool appears.
+- **Installing FFmpeg reopens the recording, and a playing one starts again.** The export sheet's "nothing to export
+  yet" offers Install… for FFmpeg; the exports on offer are read when the recording opens, so the install reopens it
+  (`ViewerIn::Reload`, with the recording's place not kept). Ends when `MediaOffer` can be read again without
+  restarting the player.
 
 ## Standing facts
 
+- **The missing-tool sheet is quire's, and its pieces are not where the guide says.** `HelperSheet` and `HelperBody` are
+  exported by `ds_shell::prelude`, not by `ds_shell::helpers` (which holds `model::HelperPhase`). The sheet's one rule,
+  `.ds-helper-progress`, is in the shell's stylesheet, so the viewer's `Ds` root is given `ds_shell::stylesheet()` as
+  its `sheet`. `ds-helpers` names zbus with no runtime feature; in the viewer the tokio feature `anyview-platform`
+  enables is unified in, so `Helpers::provide` must run on the platform's tokio runtime, as `Task::Provide` does
+  (`subscribe` is runtime-free).
+- **`Availability` is only as live as someone's `refresh`.** `ds-helpers` announces a change only when `Helpers::refresh`
+  (or `provide`) is called; nothing watches. The viewer watches the folders of `PATH` with `notify` (`host::PathWatch`,
+  a burst settling for 750 ms) and calls `look_again` after each, and records what is there once at start so only changes
+  are news.
 - **Spreadsheet and office peeks add `calamine` and `quick-xml`, and the budgets moved for them.** `anyview-text` reads
   XLSX, ODS and XLS through `calamine` (MIT) and `anyview-archive` reads office metadata through `quick-xml`; both are
   outside quire's pinned block. On top of the 600 and 670 the other readers left, they take `anyview-peek` to 605 packages and `anyview` to 675 in
