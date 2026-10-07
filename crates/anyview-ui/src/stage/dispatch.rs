@@ -2,7 +2,9 @@
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
 use super::book::BookIn;
-use super::media::{MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge};
+use super::media::{
+    ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
+};
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
@@ -23,7 +25,7 @@ impl Stage {
             Stage::NoStage => None,
             Stage::Raster(stage) => raster(command, stage, &params.raster).map(StageIn::Raster),
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
-            Stage::Media(_) => media(command).map(StageIn::Media),
+            Stage::Media(_) => media(command, &params.media.abilities).map(StageIn::Media),
             Stage::Text(_) => text(command).map(StageIn::Text),
             Stage::Table(_) => table(command).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
@@ -207,20 +209,43 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
     }
 }
 
-fn media(command: StageCommand) -> Option<MediaIn> {
+/// The input a media command is, or `None` when the player cannot do it.
+fn media(command: StageCommand, abilities: &MediaAbilities) -> Option<MediaIn> {
+    let needs = |control: ControlOffer, input: MediaIn| match control {
+        ControlOffer::Offered => Some(input),
+        ControlOffer::Withheld => None,
+    };
     match command {
         StageCommand::TogglePlayback => Some(MediaIn::Toggle),
         StageCommand::SeekBack => Some(MediaIn::SeekBack),
         StageCommand::SeekForward => Some(MediaIn::SeekForward),
-        StageCommand::SlowDown => Some(MediaIn::StepSpeed(StepDirection::Backward)),
-        StageCommand::SpeedUp => Some(MediaIn::StepSpeed(StepDirection::Forward)),
-        StageCommand::NormalSpeed => Some(MediaIn::SetSpeed(Speed::NORMAL)),
-        StageCommand::NextChapter => Some(MediaIn::StepChapter(StepDirection::Forward)),
-        StageCommand::PreviousChapter => Some(MediaIn::StepChapter(StepDirection::Backward)),
-        StageCommand::NextAudioTrack => Some(MediaIn::CycleTrack(TrackKind::Audio)),
-        StageCommand::NextSubtitles => Some(MediaIn::CycleTrack(TrackKind::Subtitles)),
-        StageCommand::StepFrameForward => Some(MediaIn::FrameStep(StepDirection::Forward)),
-        StageCommand::StepFrameBack => Some(MediaIn::FrameStep(StepDirection::Backward)),
+        StageCommand::SlowDown => {
+            needs(abilities.speed, MediaIn::StepSpeed(StepDirection::Backward))
+        }
+        StageCommand::SpeedUp => needs(abilities.speed, MediaIn::StepSpeed(StepDirection::Forward)),
+        StageCommand::NormalSpeed => needs(abilities.speed, MediaIn::SetSpeed(Speed::NORMAL)),
+        StageCommand::NextChapter => needs(
+            abilities.chapters,
+            MediaIn::StepChapter(StepDirection::Forward),
+        ),
+        StageCommand::PreviousChapter => needs(
+            abilities.chapters,
+            MediaIn::StepChapter(StepDirection::Backward),
+        ),
+        StageCommand::NextAudioTrack => {
+            needs(abilities.tracks, MediaIn::CycleTrack(TrackKind::Audio))
+        }
+        StageCommand::NextSubtitles => {
+            needs(abilities.tracks, MediaIn::CycleTrack(TrackKind::Subtitles))
+        }
+        StageCommand::StepFrameForward => needs(
+            abilities.frame_step,
+            MediaIn::FrameStep(StepDirection::Forward),
+        ),
+        StageCommand::StepFrameBack => needs(
+            abilities.frame_step,
+            MediaIn::FrameStep(StepDirection::Backward),
+        ),
         StageCommand::MarkTrimStart => Some(MediaIn::Mark(TrimEdge::Start)),
         StageCommand::MarkTrimEnd => Some(MediaIn::Mark(TrimEdge::End)),
         StageCommand::ZoomIn

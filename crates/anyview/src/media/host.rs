@@ -1,13 +1,15 @@
 //! The window's way to start a player: the `MediaHost` the views are lent.
 
 use super::actor::{MediaActor, Plan};
+use super::engine::{BuiltinAbility, Chosen, Engine, builtin_ability, choose, no_sound_fact};
 use super::hub::{MediaHub, SessionId};
 use super::line::LiveLine;
 use super::orders::Home;
-use super::plugins::{PlayRoute, Playing, Reading};
+use super::plugins::{MediaPlugins, PlayRoute, Playing, Reading};
 use super::sink::WindowSink;
 use super::snapshot::Snapshot;
 use crate::runtime::{Actor, Mailbox, UiWaker};
+use anyview_core::{Facts, MediaTags};
 use anyview_platform::TrackSerial;
 use anyview_plugin::Subject;
 use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError};
@@ -45,38 +47,48 @@ impl MediaHost for PlayerHost {
             kind: start.sniffed.kind(),
             mime: Some(start.sniffed.mime()),
         };
-        let host = match plugins.player(&subject) {
-            PlayRoute::Ready(host) => host,
-            PlayRoute::Missing(missing) => {
-                return Ok(MediaStarted {
-                    playback: MediaPlayback::Missing(missing.fact()),
-                    offer: plugins.offer(&start.sniffed, Playing::No),
-                    tags,
-                    facts,
-                    length: None,
-                });
+        let audio = self.hub.inner.audio();
+        let route = plugins.player(&subject);
+        let ability = match &route {
+            PlayRoute::Ready(_) => BuiltinAbility::CannotDecode,
+            PlayRoute::Missing(_) | PlayRoute::Unserved => {
+                builtin_ability(start.sniffed.kind(), start.source.path().as_path(), audio)
             }
-            PlayRoute::Unserved => {
+        };
+        let engine = match choose(route, ability) {
+            Chosen::Mpv(host) => {
+                let gpu = start.texture.gpu();
+                let (Some(device), Some(queue)) = (gpu.device(), gpu.queue()) else {
+                    return Err(OpenError::Media(
+                        "the window has no graphics device yet".to_owned(),
+                    ));
+                };
+                Engine::Mpv {
+                    device,
+                    queue,
+                    audio,
+                    host,
+                    sink: Box::new(WindowSink(start.texture.clone())),
+                }
+            }
+            Chosen::Builtin => Engine::Builtin { audio },
+            Chosen::NoSound => {
+                return Ok(unplayed(plugins, &start, no_sound_fact(), tags, facts));
+            }
+            Chosen::Missing(missing) => {
+                return Ok(unplayed(plugins, &start, missing.fact(), tags, facts));
+            }
+            Chosen::Unserved => {
                 return Err(OpenError::Media(
                     "no plugin plays this kind of file".to_owned(),
                 ));
             }
         };
-        let gpu = start.texture.gpu();
-        let (Some(device), Some(queue)) = (gpu.device(), gpu.queue()) else {
-            return Err(OpenError::Media(
-                "the window has no graphics device yet".to_owned(),
-            ));
-        };
         let id: SessionId = self.hub.inner.next_id();
         let snapshot = Snapshot::new(&start.file, &tags, TrackSerial(id.0));
         let plan = Plan {
-            device,
-            queue,
-            audio: self.hub.inner.audio(),
-            host,
+            engine,
             file: start.file.clone(),
-            sink: Box::new(WindowSink(start.texture.clone())),
             snapshot,
             hub: Arc::downgrade(&self.hub.inner),
             id,
@@ -101,5 +113,22 @@ impl MediaHost for PlayerHost {
             facts,
             length: None,
         })
+    }
+}
+
+/// A recording no player plays: its facts, with `needs` as the row that says what would.
+fn unplayed(
+    plugins: &MediaPlugins,
+    start: &MediaStart,
+    needs: anyview_core::Fact,
+    tags: MediaTags,
+    facts: Facts,
+) -> MediaStarted {
+    MediaStarted {
+        playback: MediaPlayback::Missing(needs),
+        offer: plugins.offer(&start.sniffed, Playing::No),
+        tags,
+        facts,
+        length: None,
     }
 }

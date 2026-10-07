@@ -3,10 +3,10 @@
 //! so the program, which links both, is where one becomes the other.
 
 use anyview_core::{MediaLength, StreamKind};
-use anyview_media::{Direction, EndReason, MediaCommand, MediaEvent, Pace};
+use anyview_media::{Ability, Direction, EndReason, MediaCommand, MediaEvent, Pace};
 use anyview_ui::{
-    EndReason as UiEnd, MediaError, MediaNotice, Pace as UiPace, PlayerCommand, PlayerEvent,
-    StepDirection, TrackKind,
+    ControlOffer, EndReason as UiEnd, MediaAbilities, MediaError, MediaNotice, Pace as UiPace,
+    PlayerCommand, PlayerEvent, StepDirection, TrackKind,
 };
 
 /// Whether the file has opened, which decides what a failure of the player means: it could not
@@ -17,6 +17,13 @@ pub(super) enum Opened {
     Not,
     /// It has.
     Yes,
+}
+
+fn control(ability: Ability) -> ControlOffer {
+    match ability {
+        Ability::Can => ControlOffer::Offered,
+        Ability::Cannot => ControlOffer::Withheld,
+    }
 }
 
 pub(super) fn pace(pace: UiPace) -> Pace {
@@ -104,6 +111,14 @@ pub(super) fn notices_of(event: &MediaEvent, opened: Opened) -> Vec<MediaNotice>
             vec![MediaNotice::Player(PlayerEvent::VolumeChanged(*volume))]
         }
         MediaEvent::Speed(speed) => vec![MediaNotice::Speed(*speed)],
+        MediaEvent::Abilities(abilities) => {
+            vec![MediaNotice::Abilities(MediaAbilities {
+                speed: control(abilities.speed),
+                tracks: control(abilities.tracks),
+                chapters: control(abilities.chapters),
+                frame_step: control(abilities.frame_step),
+            })]
+        }
         MediaEvent::Picture(presence) => vec![MediaNotice::Picture(*presence)],
         MediaEvent::Failed(_) => vec![MediaNotice::Failed(match opened {
             Opened::Not => MediaError::OpenFailed,

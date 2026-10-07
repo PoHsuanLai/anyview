@@ -597,6 +597,124 @@ fn the_palette_lists_the_recordings_commands() {
     }
 }
 
+/// What a player that does only the basics says of itself.
+fn basics_only() -> MediaNotice {
+    use anyview_ui::{ControlOffer, MediaAbilities};
+    MediaNotice::Abilities(MediaAbilities {
+        speed: ControlOffer::Withheld,
+        tracks: ControlOffer::Withheld,
+        chapters: ControlOffer::Withheld,
+        frame_step: ControlOffer::Withheld,
+    })
+}
+
+#[test]
+fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_one_that_can_still_is()
+ {
+    // The scripted player says nothing of its abilities, as mpv does: everything is offered.
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open();
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    hover(&mut harness);
+    assert!(
+        readouts(&harness).contains("1×"),
+        "the speed: {}",
+        readouts(&harness)
+    );
+    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-segmented-segment"), 3, "all three tabs");
+
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open();
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    line.say(&[basics_only()]);
+    settle(&mut harness);
+    hover(&mut harness);
+    let text = readouts(&harness);
+    assert!(
+        text.contains("0:25") && text.contains("1:40"),
+        "still a player: {text}"
+    );
+    assert!(!text.contains('×'), "no speed readout: {text}");
+    let html = harness.html();
+    assert!(
+        !html.contains("Faster") && !html.contains("Slower"),
+        "no speed buttons in the capsule"
+    );
+    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    settle(&mut harness);
+    let palette = harness.text_of(".ds-palette").unwrap_or_default();
+    for gone in [
+        "Speed up",
+        "Slow down",
+        "Normal speed",
+        "Next chapter",
+        "Previous chapter",
+        "Next audio track",
+        "Next subtitles",
+        "Next frame",
+        "Previous frame",
+    ] {
+        assert!(
+            !palette.to_lowercase().contains(gone),
+            "{gone} in {palette}"
+        );
+    }
+    assert!(
+        palette.contains("Mark trim start"),
+        "what it can do stays: {palette}"
+    );
+    harness.send(Input::key(ShortcutKey::Escape));
+    settle(&mut harness);
+    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    settle(&mut harness);
+    assert_eq!(
+        harness.count(".ds-segmented-segment"),
+        0,
+        "only the facts: no tabs"
+    );
+}
+
+#[test]
+fn the_keys_of_what_a_player_cannot_do_send_it_nothing() {
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open();
+    let line = player.latest().unwrap();
+    playing(&line, 30);
+    line.say(&[basics_only()]);
+    settle(&mut harness);
+    for key in ['[', ']', 'n', 'p', 'a', 's', '.', ','] {
+        harness.send(Input::key(ShortcutKey::Char(key)));
+        settle(&mut harness);
+    }
+    harness.send(Input::key(ShortcutKey::Backspace));
+    settle(&mut harness);
+    let sent = line.sent();
+    let unwanted = sent.iter().filter(|command| {
+        matches!(
+            command,
+            PlayerCommand::StepSpeed(_)
+                | PlayerCommand::SetSpeed(_)
+                | PlayerCommand::StepChapter(_)
+                | PlayerCommand::CycleTrack(_)
+                | PlayerCommand::FrameStep(_)
+        )
+    });
+    assert_eq!(unwanted.count(), 0, "{sent:?}");
+}
+
 #[test]
 fn marking_a_start_and_an_end_cuts_the_export_there() {
     let Opened {

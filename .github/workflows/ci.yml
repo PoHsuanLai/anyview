@@ -19,6 +19,8 @@ jobs:
       # System libraries the build links (fontconfig, freetype, harfbuzz, libxml2, libpng, ...)
       # and the tools the install test and the notices script use. libdav1d is only for the
       # off-by-default AVIF feature that --all-features turns on; release builds link no codec.
+      # libasound2-dev is for cpal (the built-in audio player's sound card, alsa-sys): an audio
+      # device library, not a codec.
       - name: System packages
         run: |
           sudo apt-get update
@@ -26,7 +28,7 @@ jobs:
             pkg-config cmake clang \
             libfontconfig-dev libfreetype-dev libharfbuzz-dev libxml2-dev libpng-dev \
             zlib1g-dev libbz2-dev liblzma-dev libglib2.0-dev libdav1d-dev \
-            libxkbcommon-dev libwayland-dev libx11-dev libdbus-1-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libdbus-1-dev libasound2-dev \
             mesa-vulkan-drivers libvulkan1 \
             desktop-file-utils appstream python3
 

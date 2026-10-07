@@ -101,7 +101,7 @@ RULES=(
   "anyview-archive: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
   "anyview-book: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark skrifa"
   "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust2 flate2 bzip2 ruzstd lzma-rs lzma-rust2"
-  "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd"
+  "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd cpal alsa alsa-sys"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
   "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender"
 )
@@ -111,7 +111,7 @@ RULES=(
 # texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
 # nothing here spawns.
 DIRECT=(
-  "anyview: zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview: cpal symphonia zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
   "anyview-export: wgpu pdfrum pdfrum-anyrender pdfrum-edit image tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
@@ -126,12 +126,15 @@ DIRECT=(
 # (psd, icns, exr and its inflate and SIMD helpers; the budgets rose by nine for them), and the
 # EPUB package reader of anyview-book (roxmltree, one more), and the spreadsheet and
 # office readers of anyview-text and anyview-archive (calamine and quick-xml for XLSX and ODS, with what
-# they pull in, five more). The viewer (anyview) is 660: the peek's
+# they pull in, five more). The viewer (anyview) is 664: the peek's
 # tree and the window, the platform edge and the plugin registry, with no libmpv or libav binding in
-# it. Both ratchet down when a change drops a dependency and are never raised without the reason.
+# it, and the built-in audio player's sound card: cpal, with alsa and alsa-sys under it and dasp_sample
+# (four packages; the decoders are the symphonia crates the peek already links, and libasound is an audio
+# device library, not a codec). anyview-peek stays at 590: it never reaches cpal (its rule above).
+# Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 590"
-  "anyview: 660"
+  "anyview: 664"
 )
 fail=0
 

@@ -13,7 +13,8 @@ use anyview_core::{
     Volume,
 };
 use anyview_media::{
-    Continuation, Direction, EndReason, MediaCommand, MediaEvent, Pace, PictureSlot, ShotContent,
+    Continuation, Direction, EndReason, MediaCommand, MediaDriver, MediaEvent, Pace, PictureSlot,
+    ShotContent,
 };
 use std::num::NonZeroU32;
 use support::{Rig, device, fixture};

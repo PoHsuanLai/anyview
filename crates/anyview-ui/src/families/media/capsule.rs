@@ -6,7 +6,7 @@ use super::doc::MediaDoc;
 use super::panel::{clock_text, speed_text};
 use crate::families::view::StageCx;
 use crate::stage::AfterScrub;
-use crate::{Command, MediaStage, Stage, StageCommand};
+use crate::{Command, ControlOffer, MediaStage, Stage, StageCommand};
 use anyview_core::{FileAction, FormatKind, MediaLength, MediaTime, Volume};
 use ds::components::chrome::capsule::model::{CapsuleSlot, LevelSlot, ScrubSlot};
 use ds::components::controls::scrubber_model::BufferedRange;
@@ -135,11 +135,17 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
             value: level_of(live.volume),
             availability: Availability::Enabled,
         }),
-        CapsuleSlot::Divider,
-        CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus),
-        CapsuleSlot::Readout(speed_text(live.speed)),
-        CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus),
     ];
+    // What the player cannot do has no control.
+    match live.abilities.speed {
+        ControlOffer::Offered => slots.extend([
+            CapsuleSlot::Divider,
+            CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus),
+            CapsuleSlot::Readout(speed_text(live.speed)),
+            CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus),
+        ]),
+        ControlOffer::Withheld => {}
+    }
     match doc.kind {
         FormatKind::Video => {
             slots.push(CapsuleSlot::Divider);

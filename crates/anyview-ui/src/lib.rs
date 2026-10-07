@@ -70,14 +70,15 @@ pub use sheet::{
     VersionKey, VersionList, VersionRow,
 };
 pub use stage::{
-    AfterScrub, Animation, BookIn, BookOut, BookParams, BookStage, Destination, EndReason,
-    FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor, HitIndex, HitStep,
-    LineTotal, MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageLines,
-    PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, RasterIn, RasterOut,
-    RasterParams, RasterStage, RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage, StageFamily,
-    StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage,
-    TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews,
-    TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
+    AfterScrub, Animation, BookIn, BookOut, BookParams, BookStage, ControlOffer, Destination,
+    EndReason, FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor,
+    HitIndex, HitStep, LineTotal, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
+    MediaStage, Motion, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage,
+    PlayerCommand, PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, RowNo, RowStep,
+    Runs, SheetNo, SheetTotal, Stage, StageFamily, StageIn, StageOut, StageParams, StepDirection,
+    TableIn, TableOut, TableParams, TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace,
+    TextStage, TextStep, TextView, TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage,
+    TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
