@@ -59,7 +59,8 @@ mod remaking {
     use anyview_store::Viewed;
     use anyview_ui::Look;
     use anyview_ui::Presentation;
-    use ds_blitz::{Decorations, WindowSize, WindowSpec};
+    use ds::prelude::Scale;
+    use ds_blitz::{Decorations, Extent, ScreenArea, ScreenOf, WindowSize, WindowSpec};
     use std::sync::Arc;
 
     struct NoTrash;
@@ -174,7 +175,7 @@ mod remaking {
         for (width, height, want) in [
             (800, 600, (800, 600)),
             (64, 48, (480, 320)),
-            (3200, 1000, (1600, 500)),
+            (3200, 1000, (1632, 510)),
         ] {
             let file = png_file(dir.path(), &format!("{width}.png"), width, height);
             let spec = spec_for(
@@ -196,6 +197,28 @@ mod remaking {
                 "{width}x{height}"
             );
         }
+    }
+
+    #[test]
+    fn a_picture_opens_at_one_image_pixel_to_one_device_pixel_on_a_hidpi_screen() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file = png_file(dir.path(), "retina.png", 1200, 800);
+        let seed = seed(
+            &runtime,
+            dir.path(),
+            &file,
+            Presentation::Window,
+            FakeStacking::with(StackingSupport::Supported),
+        );
+        let on = |physical: Extent, scale: Scale| {
+            let screen = ScreenArea::new(physical, scale, ScreenOf::Primary);
+            spec_for(&seed, screen).size()
+        };
+        let want = |width, height| WindowSize::new(width, height).with_least(480, 320);
+        assert_eq!(on(Extent::new(1920, 1080), Scale(120)), want(1200, 800));
+        assert_eq!(on(Extent::new(3840, 2160), Scale(240)), want(600, 400));
+        assert_eq!(on(Extent::new(3840, 2160), Scale(180)), want(800, 533));
     }
 
     #[test]

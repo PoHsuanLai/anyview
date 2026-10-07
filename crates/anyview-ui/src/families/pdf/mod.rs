@@ -27,7 +27,7 @@ pub use shelf::{PdfShelf, use_pdf_shelf};
 pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
 use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
     PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket, Viewport,
 };
@@ -85,16 +85,16 @@ impl StageView for PdfStageView {
 
     /// The place the file was left is put back now that the page count is known: before it, the
     /// stage could only keep it inside a one-page document.
-    fn natural(doc: &PdfDoc) -> Option<PixelSize> {
+    fn natural(doc: &PdfDoc) -> Option<NaturalSize> {
         // The first page as displayed (crop box, after its rotation) at 100%: a point is a pixel.
         let first = doc.sizes().first()?;
         let whole = |points: anyview_pdf::MilliPoints| {
             Some(points.0.saturating_add(500) / 1000).filter(|px| *px > 0)
         };
-        Some(PixelSize {
+        Some(NaturalSize::Points(PixelSize {
             width: PixelLen(whole(first.width)?),
             height: PixelLen(whole(first.height)?),
-        })
+        }))
     }
 
     fn arrived(_doc: &PdfDoc, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {

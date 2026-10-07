@@ -31,4 +31,4 @@ pub use seams::{
     FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource, ImagePlugins, PluginPicture,
     Readable, ResumeSource, VersionSource,
 };
-pub use workers::{Edge, HostRequest, Reply, Work, WorkKind, Workers};
+pub use workers::{Edge, HostRequest, NaturalSize, Reply, Work, WorkKind, Workers};

@@ -117,7 +117,7 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
         Wired {
             images: Some(images),
             helpers: Some(helpers),
-            sizer: None,
+            ..Wired::default()
         },
     );
 

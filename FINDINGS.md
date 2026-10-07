@@ -6,12 +6,17 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **Image pixels are taken as logical pixels in a window's size.** A picture is meant to show at one image
-  pixel to one physical pixel, as Preview shows it, so its natural size would divide by the monitor's scale
-  factor before it is fitted. quire (v0.2.18) gives the screen's logical extent (`AppHandle::screen_extent`,
-  the monitor's whole size, so the cap of 85% is right at any scale; on Wayland a fractional output is off by
-  the difference) and no scale factor. Ends when quire exposes the scale: `window::fit` divides by it (the TODO
-  beside `cap_for`). A PDF's page at 100% is a point per device pixel, so it is taken as logical pixels too.
+- **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
+  layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top
+  (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A taller panel, or a dock, is covered only by the 85%.
+  Before a window is mapped quire knows the output's whole-number scale, not the fractional one, so the first
+  window of a run (opened before the event loop, with no screen at all) is fitted to a 1920 by 1200 screen at
+  scale 1 and corrected once its first file has loaded (`WindowFit` reads the exact `WindowSizer::screen()`);
+  a picture whose header gave its size, on a fractionally scaled output, opens at that size and is corrected by
+  the same step. Ends when quire reports the compositor's reserved zones.
+- **The picture view does not zoom under Control.** quire v0.2.20 hands every listener a Control-wheel click raw
+  (60 px, `held` has Control); the PDF view zooms by it and the picture view pans, as before. A picture view that
+  zooms on Control (Preview does) is a small change in `families/raster/view.rs`, left for design/11.
 - **A video's size comes from its header only.** The window opens at a recording's resolution when the mp4 or
   Matroska header says it (`anyview_peek::natural_size`). The player line (`MediaLine`, `MediaNotice`) does not
   report the picture's size, so a container the header readers do not know opens at the default window. Ends

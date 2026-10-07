@@ -465,13 +465,17 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `window` | `fit` (where a viewer window's size is decided, below), `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
 **Where a window's size is decided.** `window::fit` is the one place, in two steps. As a window opens, `spec_for`
-(from `open_in_window`, with `AppHandle::screen_extent()`) asks `window_for(file, screen)`, which reads the file's
-natural size with `anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) and passes it to the
-pure `fitted(natural, cap, least)`. The size is the content's own in logical pixels (image pixels, for now), scaled
-down to `cap_for(screen)` keeping its ratio, never below `LEAST` (480 by 320, kept as the window's least size too;
-`WindowSize::fitting` is quire's), and `WINDOW` (1000 by 700, held to the cap) for a file with no natural size. The
-cap is quire's share of the screen (`Extent::fit`, 85% of the monitor's logical size), the fixed 1600 by 1000
-before the event loop runs (the very first window), or `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT` (for tests).
+(from `open_in_window`, with `AppHandle::screen_area()`) asks `window_for(file, screen)`, which reads the file's
+natural size with `anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) in device pixels and
+turns it into logical ones with `ScreenArea::logical_for_pixels` (one image pixel to one device pixel, as Preview
+shows a picture: a 1200 by 800 picture is a 600 by 400 window on a 2x output). The pure `fitted(natural, work,
+least)` then fits it with quire's `WindowSize::fitting_with(.., Fit::KeepRatio)`: scaled down to 85% of `work`
+keeping its ratio, never below `LEAST` (480 by 320, kept as the window's least size too), and `WINDOW` (1000 by
+700, held to the cap per axis) for a file with no natural size. `work` is the screen's work area less the top bar
+(`TOP_BAR`, a `Reserve` of 32 logical pixels at the top: Wayland reports no panel to a client, so quire's work area
+is the whole output), the fixed `DEFAULT_SCREEN` (1920 by 1200) before the event loop runs (the very first
+window), or `ANYVIEW_WINDOW_SCREEN=WIDTHxHEIGHT` (for tests). A PDF's page is `NaturalSize::Points`: a point is a
+logical pixel on any screen, so it is not divided by the scale.
 
 Content whose size only the loaded document knows is sized after load. The first file of a window, once its full
 open has landed, tells the host its natural size (`StageView::natural`: a PDF's first page as displayed, at
@@ -479,15 +483,20 @@ open has landed, tells the host its natural size (`StageView::natural`: a PDF's 
 has then) as `HostRequest::SizeWindow`, once: the shelf's `FirstLoad` is spent by the first load that lands, so
 the next file, a reload and a failed first file never send it. The window routes it to `WindowTask::Size`,
 and `WindowFit::loaded` calls quire's `WindowSizer::request_size(fitted)` unless `origin()` is `Person` (the person
-resized the window, or the compositor did), the window already is that size, or it asked before. The sizer is
-reached through the `Sizer` trait; a test gives a stand-in as a `SizerContext` root context. The mini window is
-never resized. So moving to the next file keeps the window (Preview's habit), a window a person resized is never
+resized the window, or the compositor did), the window already is that size, or it asked before. It fits to
+`WindowSizer::screen()`, which is exact once the window is mapped (its own output and fractional scale), so a
+first window that opened before the screen was known is corrected here. A request nobody answers expires in
+quire after 500 ms and is not retried. A test runs the harness's window (`SizerAck`, `WindowScreen`,
+`Harness::window_requests`). The mini window is never resized. So moving to the next file keeps the window (Preview's habit), a window a person resized is never
 changed, and a file opened into a new window (a second launch, the welcome window's pick, the mini window made a
 window again) gets its own. The mini and welcome windows keep their own constants.
 
 A wheel's detents reach the PDF, picture and text views as `WheelDelivery::Eased` gestures: one
 `Gesture::Scroll` per frame whose shares sum to 60 px a detent over at most 200 ms (design/11 §11.3.11). A touchpad's
-motion reaches the same listener as it is. The PDF view carries the part of a share under a device pixel to the
+run reaches the same listener as `Began`, `Changed`, the glide after a fast lift (one `Changed` a frame) and
+`Ended` (`ScrollSource::Finger`), all quire's; the views apply `by` as they do a share and clamp at the edges (no
+rubber band). Under Control a wheel reaches every listener raw, one 60 px gesture per click, and the PDF view zooms
+by it. The PDF view carries the part of a share under a device pixel to the
 next frame. Table, tree, the failure and welcome screens and the PDF panel are native overflow or quire's
 `VirtualList`, which the window scrolls by design/11 with no code of ours.
 

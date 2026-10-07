@@ -6,12 +6,12 @@
 
 use crate::families::media::MediaShelf;
 use crate::families::pdf::PdfShelf;
-use crate::io::{HostRequest, Job, MediaLine, OpenError, OpenLink};
+use crate::io::{HostRequest, Job, MediaLine, NaturalSize, OpenError, OpenLink};
 use crate::{
     Command, EditOffer, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn,
     StageParams, Ticket, TypedText,
 };
-use anyview_core::{Facts, LineIndex, PixelSize, Resume, SectionIndex, Sniffed, Source};
+use anyview_core::{Facts, LineIndex, Resume, SectionIndex, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::{Point, Size};
@@ -181,7 +181,7 @@ pub trait StageView: 'static {
     /// How big the content naturally is, once loaded, when only the loaded document knows (a
     /// PDF's first page at 100%, a picture a plugin decoded): what the window is sized to after
     /// its first file has loaded.
-    fn natural(_doc: &Self::Doc) -> Option<PixelSize> {
+    fn natural(_doc: &Self::Doc) -> Option<NaturalSize> {
         None
     }
     /// The content.
@@ -235,7 +235,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
         lines: Option<&super::LineWindow>,
     ) -> StageParams;
     fn arrived(&self, stage: &Stage, left_at: &Resume) -> Vec<StageIn>;
-    fn natural(&self) -> Option<PixelSize>;
+    fn natural(&self) -> Option<NaturalSize>;
     fn stage(&self, cx: &StageCx) -> Element;
     fn slots(&self, cx: &StageCx) -> Vec<CapsuleSlot<Command>>;
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
@@ -284,7 +284,7 @@ impl<S: StageView> DocView for Loaded<S> {
         S::arrived(&self.doc, stage, left_at)
     }
 
-    fn natural(&self) -> Option<PixelSize> {
+    fn natural(&self) -> Option<NaturalSize> {
         S::natural(&self.doc)
     }
 
