@@ -79,11 +79,11 @@ four with the viewer. A plugin whose tool is not on the machine yet is installed
 it has nothing to offer, the file opens as its facts with a line naming what to install, and the plugin
 starts working as soon as you install the package, with no second install.
 
-Anyview offers to install the missing tool, the way Totem offers a codec. On that line an Install… button
-asks "Anyview needs libheif tools to open HEIC photos."; if you agree, your system's package service
+Viewer offers to install the missing tool, the way Totem offers a codec. On that line an Install… button
+asks "Viewer needs libheif tools to open HEIC photos."; if you agree, your system's package service
 (PackageKit) installs it and asks for your password itself, and the file opens again in the same window when
 it is done. Not Now asks nothing more until you press Install… again. A tool you install in a terminal
-instead is noticed too, and the file opens with it. Anyview never runs a package manager or `sudo` itself,
+instead is noticed too, and the file opens with it. Viewer never runs a package manager or `sudo` itself,
 and where PackageKit is not available (a Flatpak sandbox, an image-based system) the sheet says which
 package to install. `dist/helpers/anyview.toml` lists the packages for each distribution; it installs to
 `share/quire/helpers/anyview.toml`.
