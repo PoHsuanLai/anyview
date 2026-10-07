@@ -140,7 +140,7 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
             "ID=fedora\n",
             Helper::HeicDecode,
             HelperWords {
-                app: "Anyview".to_owned(),
+                app: "Viewer".to_owned(),
                 tool: "libheif tools".to_owned(),
                 purpose: "open HEIC photos".to_owned(),
             },
@@ -149,7 +149,7 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
             "ID=ubuntu\nID_LIKE=debian\n",
             Helper::HeicDecode,
             HelperWords {
-                app: "Anyview".to_owned(),
+                app: "Viewer".to_owned(),
                 tool: "libheif tools".to_owned(),
                 purpose: "open HEIC photos".to_owned(),
             },
@@ -158,7 +158,7 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
             "ID=fedora\n",
             Helper::VideoPlayback,
             HelperWords {
-                app: "Anyview".to_owned(),
+                app: "Viewer".to_owned(),
                 tool: "mpv".to_owned(),
                 purpose: "play videos".to_owned(),
             },

@@ -172,12 +172,13 @@ impl Root {
 
     #[zbus(property)]
     fn identity(&self) -> String {
-        "Anyview".to_owned()
+        anyview_core::APP_NAME.to_owned()
     }
 
     #[zbus(property)]
     fn desktop_entry(&self) -> String {
-        "anyview".to_owned()
+        // The desktop file's id, which shells use to find the player's icon and name.
+        "org.quire.Anyview".to_owned()
     }
 
     #[zbus(property)]

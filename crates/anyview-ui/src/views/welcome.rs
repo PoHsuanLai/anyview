@@ -110,7 +110,7 @@ fn Welcome() -> Element {
                 }
             },
             WindowTitlebar {
-                title: "Anyview".to_owned(),
+                title: anyview_core::APP_NAME.to_owned(),
                 parts: TitleParts::default(),
                 lights: TrafficLights::Shown,
             }

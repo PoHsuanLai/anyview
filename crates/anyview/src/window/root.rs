@@ -63,8 +63,10 @@ pub(super) fn spec_for(seed: &Seed, screen: Option<ScreenArea>) -> WindowSpec {
 }
 
 fn title_of(file: &FilePath) -> String {
-    file.file_name()
-        .map_or_else(|| "anyview".to_owned(), |name| name.as_str().to_owned())
+    file.file_name().map_or_else(
+        || anyview_core::APP_NAME.to_owned(),
+        |name| name.as_str().to_owned(),
+    )
 }
 
 /// The window's end of its requests: the receiver its [`Edge`] sends to.
