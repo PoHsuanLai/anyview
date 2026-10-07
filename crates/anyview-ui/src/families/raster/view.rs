@@ -17,7 +17,7 @@ use ds::components::controls::button::Button;
 use ds::components::fields::fact_list::FactList;
 use ds::components::overlays::empty_state::EmptyState;
 use ds::host::captured::{CapturedPointer, PointerPhase};
-use ds::host::gesture::{Gesture, use_gestures};
+use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
 use ds::prelude::Icon;
 use ds::prelude::Point;
@@ -120,7 +120,8 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         }
     });
     let gestured = cx.clone();
-    use_gestures(move |gesture| {
+    // A wheel's detents arrive eased, one share a frame (the touchpad's own motion as it is).
+    use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let Some(area) = gestured.area else { return };
         let Stage::Raster(stage) = &gestured.stage else {
             return;
