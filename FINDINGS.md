@@ -22,19 +22,19 @@ on. It is a reference, not a log: how each was found lives in git history.
   pixels (`stage/pdf/place.rs` `LINE`, 80), and Page Down is one whole PDF page; the view's cursor (device
   pixels, `families/pdf/steer.rs`) is what knows them. Ends when a line and a page are asked of the view's
   `Steering` in pixels and the machine only hears where the reader landed.
-- **The portable build offers the desktop's actions and answers them with a notice instead of hiding them.**
-  Built without `quire-desktop` (anyview-platform and `anyview`), Open With, Share, Print and Open... have no
-  implementation (`NoApps`, `NoShare`, `NoPrinter`, `NoPicker`), and Show in Folder and links go through the
-  platform's opener. The palette, the context menu, the three hard-coded Open With buttons and the welcome
-  window's Open... still list them, and the person is told "no file chooser / print dialog / other app / way to
-  share on this desktop" when one is chosen. Hiding them needs the host to say which abilities it has: a small
-  set handed to `anyview-ui` beside `Playback` (`views/session.rs` `offered`, `context/entries.rs`, the buttons in
-  `families/{raster,peek_only,media}`). Left for after the window-sizing lane, which edits the same crate. Ends
-  when the set exists. quire v0.2.19's `ds-desktop` (`use_desktop()`, `Presence::Here`) answers which of quire's own
-  services are there, not whether this viewer's portals are, so adopting it is a pin bump plus a dependency under
-  `quire-desktop`; the feature name, the `desktop` module and `scripts/check-portable.sh` already follow design/36.
-  The abilities set above stays anyview's own. There is also no portable file chooser, so Open... is unavailable there until one is
-  written (a launch with files, drag and drop and the command line still open files).
+- **The portable build has no file chooser, so it has no Open....** The platform abilities set (below) hides
+  Open..., Print, Share and Open With where their service is absent, so the portable build shows none of them
+  (a launch with files, drag and drop and the command line still open files). Ends when a portable chooser is
+  written: `NoPicker` is replaced and its `present()` says yes.
+- **The window's least size may be narrower than a video's capsule.** v0.2.19's Large control is 32 tall (it was
+  28) and its glyph 18. The media capsule (quire's, spanning the window less 32, up to 640) holds up to fourteen
+  slots with a 160 px scrubber, a 96 px volume and three readouts, about 700 px at its narrowest; the window's
+  least width is 480 (`window::fit::LEAST`). A video smaller than that opens with a capsule wider than the
+  window. Not measured on screen. Ends when the capsule drops its readouts or the volume below a width, or the
+  least for a recording is raised.
+- **The install offer follows PackageKit as the program started.** `ds-desktop`'s `Helpers` capability is probed
+  once at start (`program::start::can_install`); a PackageKit that appears later is not noticed until a restart.
+  Without `quire-desktop` the probe has no bus, so no Install... is offered (the row still names the tool).
 - **The portable build has not been run on macOS or Windows.** `anyview-platform` (with or without
   `quire-desktop`) passes `cargo check` for `x86_64-apple-darwin`, and `portable`'s opener command lines are
   table-tested for all three platforms, but nothing has run there, and the crate does not compile for Windows:
