@@ -22,8 +22,8 @@ pub use book::{BookIn, BookOut, BookParams, BookStage};
 pub use family::StageFamily;
 pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep};
 pub use media::{
-    AfterScrub, EndReason, MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Pace,
-    PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge,
+    AfterScrub, ControlOffer, EndReason, MediaAbilities, MediaError, MediaIn, MediaOut,
+    MediaParams, MediaStage, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge,
 };
 pub use model::{Stage, StageIn, StageOut, StageParams};
 pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};

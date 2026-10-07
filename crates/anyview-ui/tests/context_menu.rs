@@ -401,6 +401,32 @@ fn a_recordings_menu_starts_with_playback_and_frame_steps() {
 }
 
 #[test]
+fn a_player_that_cannot_step_frames_has_no_frame_rows_in_the_menu_or_the_palette() {
+    use anyview_ui::{ControlOffer, MediaAbilities, MediaNotice};
+    let (_dir, mut harness, player) = recording();
+    let line = player.latest().unwrap();
+    loaded(&line);
+    line.say(&[MediaNotice::Abilities(MediaAbilities {
+        speed: ControlOffer::Withheld,
+        tracks: ControlOffer::Withheld,
+        chapters: ControlOffer::Withheld,
+        frame_step: ControlOffer::Withheld,
+    })]);
+    settle(&mut harness);
+    let listed = palette(&mut harness);
+    right_click(&mut harness, at(300.0, 200.0));
+    let lines = menu(&harness);
+    assert_eq!(&lines[..2], ["Play/Pause", RULE], "{lines:?}");
+    for gone in ["Previous Frame", "Next Frame", "Speed Up", "Slow Down"] {
+        assert!(
+            !lines.iter().any(|line| line == gone),
+            "{gone} in {lines:?}"
+        );
+        assert!(!listed.contains(gone), "{gone} in {listed}");
+    }
+}
+
+#[test]
 fn a_secondary_click_on_the_capsule_is_the_capsules_own() {
     let (_dir, mut harness, _) = picture();
     harness.send(Input::pointer_move(at(450.0, 300.0)));

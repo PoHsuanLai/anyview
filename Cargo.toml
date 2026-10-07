@@ -325,6 +325,11 @@ mp4parse = "0.17"
 # `anyview-peek` (feature `media`): the segment info, tracks, tags and attachments of a Matroska or
 # WebM file: Zlib OR MIT OR Apache-2.0.
 matroska-demuxer = "0.8"
+# `anyview-media` (feature `audio`): the sound card, for the built-in audio player that plays when the
+# person has no mpv. cpal's only dependency on Linux that is not Rust is libasound (an audio device
+# library, no codec: PipeWire and PulseAudio answer through its `default` device). No JACK, no ASIO.
+# Apache-2.0.
+cpal = { version = "0.17", default-features = false }
 # Blocks on the headless wgpu device's futures: `anyview-media` (feature `player`, to make the
 # device a background session plays on) and its tests. Apache-2.0 OR MIT.
 pollster = "0.4"

@@ -123,6 +123,7 @@ fn stage_input_of(notice: &crate::MediaNotice) -> Option<crate::MediaIn> {
         crate::MediaNotice::Tracks(_)
         | crate::MediaNotice::Chapters(_)
         | crate::MediaNotice::Speed(_)
+        | crate::MediaNotice::Abilities(_)
         | crate::MediaNotice::Picture(_) => None,
     }
 }

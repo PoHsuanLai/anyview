@@ -22,6 +22,28 @@ pub enum EndReason {
     Error,
 }
 
+/// Whether the player does a thing: the window offers a control for it or leaves it out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
+pub enum Ability {
+    /// It does.
+    Can,
+    /// It does not.
+    Cannot,
+}
+
+/// What a player can do beyond play, pause, seek and volume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Abilities {
+    /// Playing at another speed.
+    pub speed: Ability,
+    /// Choosing among tracks.
+    pub tracks: Ability,
+    /// Chapters.
+    pub chapters: Ability,
+    /// Stepping frame by frame.
+    pub frame_step: Ability,
+}
+
 /// One notification from the player.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MediaEvent {
@@ -51,6 +73,9 @@ pub enum MediaEvent {
     Volume(Volume),
     /// The speed changed.
     Speed(Speed),
+    /// What the player can do, said once when the file is loaded by a player that cannot do it
+    /// all; mpv says nothing and is taken to do everything.
+    Abilities(Abilities),
     /// Whether the recording shows a picture, now.
     Picture(VideoPresence),
     /// A frame was saved.

@@ -581,8 +581,60 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  660 packages against a budget of 660, with no libmpv or libav in it. Ends if the header readers move to a crate
+  664 packages against a budget of 664 (660 before the built-in audio player: see below), with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
+- **Audio plays with no mpv, in a built-in player; video and Opus still need mpv.** `anyview-media`'s `audio`
+  feature (on for the binary through its own `audio` feature) decodes with symphonia 0.6 and plays through cpal,
+  and the binary's `media/engine.rs` picks per recording: mpv when a plugin has it (the built-in player is then
+  never asked), else the built-in player when the file is audio, `playable` says its codec has a decoder and its
+  first buffer decodes, and the machine has a sound output, else the facts card with `Needs: anyview-mpv (to play
+  it)` as before. A machine that could play the file but has no sound output gets `Needs: a sound output (to play
+  it)`. It plays MP3, AAC (ADTS, and in M4A), ALAC, FLAC, Ogg Vorbis, and WAV and AIFF PCM. symphonia 0.6.1 has no
+  Opus decoder (its codecs are AAC, ADPCM, ALAC, FLAC, MP1/2/3, PCM and Vorbis), so Opus, and any file whose
+  picture track makes it a video, stay mpv's. Ends if symphonia gains an Opus decoder: its feature is then added
+  to the workspace dependency and `playable` passes it.
+- **The built-in player is two threads and one queue.** The media thread (the actor's) decodes, converts and
+  pushes into `anyview_media::Pipe`; the sound card's callback drains it, applies the volume and counts the frames
+  it took, and wakes the actor as the queue runs low or a twentieth of a second has played. Position is those
+  frames, so it is the card's clock: a pause, an underrun and the end are exact whatever the decoder is doing. The
+  queue is a `Mutex<VecDeque<f32>>` held for one copy per callback; a lock-free ring would add a package for a
+  contention that is a few hundred microseconds a second. `SoundOutput` is the seam: the card is `CardOutput`, the
+  tests drain a fake by hand, and `ANYVIEW_AUDIO_OUTPUT=null` is `SilentOutput`, a thread that drains the pipe at
+  the recording's pace (the only thread of ours in the crate; every window and hub test plays through it, so no
+  test opens a device).
+- **cpal 0.17 with no features is four packages.** `cpal`, `alsa`, `alsa-sys` and `dasp_sample` (libc, bitflags and
+  cfg-if are already in the tree); 0.18 brings `mach2` 0.6 on other targets and more. The viewer's budget rose from
+  660 to 664 for them; `anyview-peek` stays at 590 and the boundary script now forbids `cpal`, `alsa` and
+  `alsa-sys` in its tree and `cpal` and `symphonia` in the binary's own manifest. cpal is Apache-2.0, `alsa`
+  MIT OR Apache-2.0, `alsa-sys` MIT, `dasp_sample` MIT OR Apache-2.0; `cargo deny check licenses` passes with no
+  exception. `alsa-sys` needs libasound's headers to build (Debian `libasound2-dev`, Fedora `alsa-lib-devel`; the CI
+  list has it) and the binary links libasound at run time: an audio device library, no codec (`dev/no-linked-codecs.sh`
+  passes). PipeWire and PulseAudio answer through libasound's `default` device. `ANYVIEW_AUDIO_OUTPUT` names no
+  other host: every name but `null` is the card.
+- **What the built-in player does not do.** It plays at the recording's speed (a speed instruction is answered with
+  1x), has one track and no chapters, shows no cover (the card is the title and tags), saves no frame, and does
+  not step frames. AAC is the low-complexity profile only; a file symphonia marks HE-AAC or USAC is mpv's (untested:
+  no encoder here writes one). The sound is converted to the card's format only when the card has no stream at the
+  recording's own rate and channels (it asks for those first): a linear resampler and a plain channel mix, which is
+  enough for a card that does not follow the file and no substitute for mpv's. Ends if a resampling crate is accepted
+  into the budget.
+- **Seeking is accurate, and slow where the container cannot seek.** Every seek is symphonia's accurate mode: it
+  lands at or before the target and the decoded frames before the target are thrown away, so the first sample after
+  a seek is the one asked for (tested on the counter in WAV, AIFF and FLAC to the sample). A container that answers
+  with a seek error (ADTS has no index) is read again from its start and decoded up to the target; for an hour-long
+  ADTS file that is seconds on the media thread, never on the UI's. Lossy codecs land within a frame of the target.
+- **Lengths are the container's.** ADTS AAC and AAC in M4A written without gapless information run the encoder's
+  priming and padding long (2.176 s and 2.128 s for 2 s of the fixtures); MP3 with a Xing header and FLAC, WAV, AIFF
+  and ALAC are exact. A recording with no stated length plays, says its length when it ends, and has no seek bar
+  until then.
+- **A decode error stops the recording with "The player stopped", a damaged packet does not.** One packet that fails
+  to decode is skipped, as symphonia advises; sixty-four in a row, a read error or a card that fails (unplugged) is
+  `MediaEvent::Failed`, which the stage shows as "The player stopped", and nothing more plays. A panic in either
+  player is caught at `media/guard.rs` and is the same failure, so it never ends the thread silently.
+- **Not checked in tests: the real card.** No test opens a device. What was not seen: sound on real speakers,
+  PipeWire's and PulseAudio's behaviour through libasound under a seek or a pause, the media keys and the desktop's
+  now-playing widget with the built-in player (the window test presses `MediaControl`s on the fake entry), and a
+  card unplugged while playing. Ends with a run by hand on a desktop.
 - **A plugin is not sandboxed.** A plugin runs with the person's own rights, as the program
   they installed. The viewer bounds what it will accept (1 MiB of JSON, 512 MiB of pixels, a time limit on
   silence) and nothing else. Ends if plugins come from outside the distribution: a sandbox (bubblewrap, or

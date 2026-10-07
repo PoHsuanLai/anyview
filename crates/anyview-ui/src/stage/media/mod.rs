@@ -10,4 +10,7 @@ mod step;
 mod tests;
 
 pub use event::{EndReason, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge};
-pub use model::{AfterScrub, MediaError, MediaIn, MediaOut, MediaParams, MediaStage};
+pub use model::{
+    AfterScrub, ControlOffer, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
+    MediaStage,
+};

@@ -8,6 +8,12 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+# `audio` is the built-in audio player (anyview-media's feature of the same name): audio plays with no mpv.
+# Off, only the person's mpv plays.
+[features]
+default = ["audio"]
+audio = ["anyview-media/audio"]
+
 [dependencies]
 anyview-core = { workspace = true }
 anyview-export = { workspace = true }

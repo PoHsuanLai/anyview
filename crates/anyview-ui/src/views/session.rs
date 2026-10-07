@@ -93,6 +93,15 @@ fn offered(action: FileAction, playback: Playback) -> bool {
     }
 }
 
+/// What the window's settings and its player say right now.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Live {
+    /// How much the window moves.
+    pub level: MotionLevel,
+    /// What the player can do.
+    pub abilities: crate::MediaAbilities,
+}
+
 /// What the open file allows and offers, as the commands' filters read it.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Offers {
@@ -193,8 +202,9 @@ pub(super) fn params(
     area: Option<crate::Area>,
     query: &TypedText,
     lines: Option<&LineWindow>,
-    level: MotionLevel,
+    live: Live,
 ) -> ViewerParams {
+    let Live { level, abilities } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
         (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
@@ -214,6 +224,7 @@ pub(super) fn params(
             ..StageParams::default()
         },
     };
+    measured.media.abilities = abilities;
     measured.raster.motion = match level {
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
@@ -224,7 +235,10 @@ pub(super) fn params(
         access,
     };
     let listed = commands(kind, stage, &measured, offers);
-    let panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    if matches!(stage, Stage::Media(_)) {
+        panel.tabs = crate::families::media_tabs(panel.tabs, abilities);
+    }
     let files = listed
         .iter()
         .copied()
