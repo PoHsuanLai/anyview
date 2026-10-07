@@ -16,6 +16,7 @@ use crate::{
 use anyview_core::{Facts, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::prelude::Icon;
 use std::sync::Arc;
 
@@ -76,7 +77,7 @@ impl StageView for TableStageView {
         rsx! { view::TableContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &TableDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(doc: &TableDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         if doc.sheets.len() < 2 {
             return Vec::new();
         }
@@ -94,7 +95,7 @@ impl StageView for TableStageView {
             .sheets
             .get(at as usize) // a u32 fits a usize
             .map_or("", |sheet| sheet.name.as_str());
-        vec![
+        essentials(vec![
             CapsuleSlot::button(
                 Command::Stage(StageCommand::PreviousSheet),
                 "Previous sheet",
@@ -106,7 +107,7 @@ impl StageView for TableStageView {
                 "Next sheet",
                 Icon::ChevronRight,
             ),
-        ]
+        ])
     }
 
     fn panel(doc: &Arc<TableDoc>, tab: PanelTab, cx: &StageCx) -> Option<Element> {

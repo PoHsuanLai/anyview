@@ -12,6 +12,7 @@ use anyview_core::{FactLabel, FactValue, Facts, FileAction};
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::host::measure::Anchor;
 use ds::prelude::*;
 use ds_lint::{LintConfig, markup};
@@ -33,8 +34,8 @@ fn root(children: Element) -> Element {
     }
 }
 
-fn slots() -> Vec<CapsuleSlot<Command>> {
-    vec![
+fn slots() -> Vec<RankedSlot<Command>> {
+    essentials(vec![
         CapsuleSlot::button(
             Command::Stage(StageCommand::ZoomOut),
             "Zoom out",
@@ -48,7 +49,7 @@ fn slots() -> Vec<CapsuleSlot<Command>> {
             "Rotate left",
             Icon::Undo,
         ),
-    ]
+    ])
 }
 
 /// What a picture's palette lists, as the menu draws it. The golden draws the menu inline: a

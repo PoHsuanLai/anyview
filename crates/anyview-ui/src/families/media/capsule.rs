@@ -4,12 +4,12 @@
 
 use super::doc::MediaDoc;
 use super::panel::{clock_text, speed_text};
-use crate::families::capsule_fit::{Ranked, fit_slots, stage_width};
 use crate::families::view::StageCx;
 use crate::stage::AfterScrub;
 use crate::{Command, ControlOffer, MediaStage, Stage, StageCommand};
 use anyview_core::{FileAction, FormatKind, MediaLength, MediaTime, Volume};
 use ds::components::chrome::capsule::model::{CapsuleSlot, LevelSlot, ScrubSlot};
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::controls::scrubber_model::BufferedRange;
 use ds::motion::spring::Millis;
 use ds::prelude::Icon;
@@ -89,14 +89,13 @@ const RANK_LEVEL: u8 = 2;
 const RANK_CLOCK: u8 = 1;
 
 /// The controls, left to right, as many as the stage has room for.
-pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
     // A recording nothing plays has no controls of a player; what can still be done is the export.
     if doc.needs().is_some() {
-        return vec![CapsuleSlot::button(
-            Command::File(FileAction::Export),
-            "Export",
-            Icon::Camera,
-        )];
+        return vec![
+            CapsuleSlot::button(Command::File(FileAction::Export), "Export", Icon::Camera)
+                .essential(),
+        ];
     }
     let Stage::Media(stage) = &cx.stage else {
         return Vec::new();
@@ -114,67 +113,65 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         from: Fraction(0),
         to: Fraction(live.buffered.0.min(100) * 10),
     };
-    // What goes when the stage is narrow, soonest first (`capsule_fit`): the export, the speed, the
+    // What goes when the stage is narrow, soonest first (quire's capsule): the export, the speed, the
     // length, the level, then the clock. Play, the seek buttons and the bar stay.
     let mut slots = vec![
-        Ranked::stays(CapsuleSlot::button(
+        CapsuleSlot::button(
             stage_command(StageCommand::SeekBack),
             "Back",
             Icon::SkipBack,
-        )),
-        Ranked::stays(CapsuleSlot::button(
+        )
+        .essential(),
+        CapsuleSlot::button(
             stage_command(StageCommand::TogglePlayback),
             play_label,
             play_icon,
-        )),
-        Ranked::stays(CapsuleSlot::button(
+        )
+        .essential(),
+        CapsuleSlot::button(
             stage_command(StageCommand::SeekForward),
             "Forward",
             Icon::SkipForward,
-        )),
-        Ranked::stays(CapsuleSlot::Divider),
-        Ranked::drops(RANK_CLOCK, CapsuleSlot::Readout(clock_text(at))),
-        Ranked::stays(CapsuleSlot::Scrub(ScrubSlot {
+        )
+        .essential(),
+        CapsuleSlot::Divider.essential(),
+        CapsuleSlot::Readout(clock_text(at)).droppable(RANK_CLOCK),
+        CapsuleSlot::Scrub(ScrubSlot {
             label: "Position".to_owned(),
             position: fraction_of(at, length),
             length: Millis(u32::try_from(length.0.as_millis()).unwrap_or(u32::MAX)),
             buffered: vec![buffered],
             availability: Availability::Enabled,
-        })),
-        Ranked::drops(RANK_LENGTH, CapsuleSlot::Readout(clock_text(length.0))),
-        Ranked::stays(CapsuleSlot::Divider),
-        Ranked::drops(
-            RANK_LEVEL,
-            CapsuleSlot::Level(LevelSlot {
-                label: "Volume".to_owned(),
-                value: level_of(live.volume),
-                availability: Availability::Enabled,
-            }),
-        ),
+        })
+        .essential(),
+        CapsuleSlot::Readout(clock_text(length.0)).droppable(RANK_LENGTH),
+        CapsuleSlot::Divider.essential(),
+        CapsuleSlot::Level(LevelSlot {
+            label: "Volume".to_owned(),
+            value: level_of(live.volume),
+            availability: Availability::Enabled,
+        })
+        .droppable(RANK_LEVEL),
     ];
     // What the player cannot do has no control.
     match live.abilities.speed {
         ControlOffer::Offered => slots.extend([
-            Ranked::stays(CapsuleSlot::Divider),
-            Ranked::drops(
-                RANK_SPEED,
-                CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus),
-            ),
-            Ranked::drops(RANK_SPEED, CapsuleSlot::Readout(speed_text(live.speed))),
-            Ranked::drops(
-                RANK_SPEED,
-                CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus),
-            ),
+            CapsuleSlot::Divider.essential(),
+            CapsuleSlot::button(stage_command(StageCommand::SlowDown), "Slower", Icon::Minus)
+                .droppable(RANK_SPEED),
+            CapsuleSlot::Readout(speed_text(live.speed)).droppable(RANK_SPEED),
+            CapsuleSlot::button(stage_command(StageCommand::SpeedUp), "Faster", Icon::Plus)
+                .droppable(RANK_SPEED),
         ]),
         ControlOffer::Withheld => {}
     }
     match doc.kind {
         FormatKind::Video => {
-            slots.push(Ranked::stays(CapsuleSlot::Divider));
-            slots.push(Ranked::drops(
-                RANK_EXPORT,
-                CapsuleSlot::button(Command::File(FileAction::Export), "Export", Icon::Camera),
-            ));
+            slots.push(CapsuleSlot::Divider.essential());
+            slots.push(
+                CapsuleSlot::button(Command::File(FileAction::Export), "Export", Icon::Camera)
+                    .droppable(RANK_EXPORT),
+            );
         }
         FormatKind::Audio
         | FormatKind::Pdf
@@ -192,7 +189,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         | FormatKind::Folder
         | FormatKind::Other => {}
     }
-    fit_slots(slots, stage_width(cx.area))
+    slots
 }
 
 #[cfg(test)]

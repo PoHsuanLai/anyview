@@ -13,7 +13,7 @@ use crate::{
 };
 use anyview_core::{Facts, LineIndex, Resume, SectionIndex, Sniffed, Source};
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::{Point, Size};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -190,7 +190,7 @@ pub trait StageView: 'static {
     fn slots(
         doc: &Self::Doc,
         cx: &StageCx,
-    ) -> Vec<ds::components::chrome::capsule::model::CapsuleSlot<Command>>;
+    ) -> Vec<ds::components::chrome::capsule::priority::RankedSlot<Command>>;
     /// The panel's body for `tab`, when this family has something for it beyond the facts.
     fn panel(doc: &Arc<Self::Doc>, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     /// The job that reads `rows` lines from `first`, for a family that shows lines.
@@ -237,7 +237,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn arrived(&self, stage: &Stage, left_at: &Resume) -> Vec<StageIn>;
     fn natural(&self) -> Option<NaturalSize>;
     fn stage(&self, cx: &StageCx) -> Element;
-    fn slots(&self, cx: &StageCx) -> Vec<CapsuleSlot<Command>>;
+    fn slots(&self, cx: &StageCx) -> Vec<RankedSlot<Command>>;
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
@@ -292,7 +292,7 @@ impl<S: StageView> DocView for Loaded<S> {
         S::stage(&self.doc, cx)
     }
 
-    fn slots(&self, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(&self, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         S::slots(&self.doc, cx)
     }
 

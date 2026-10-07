@@ -2,7 +2,6 @@
 //! registry that maps every kind of file to one of them.
 
 mod book;
-mod capsule_fit;
 mod find_bar;
 mod media;
 mod pdf;

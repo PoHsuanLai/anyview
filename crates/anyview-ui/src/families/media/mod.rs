@@ -25,7 +25,7 @@ use crate::{
 };
 use anyview_core::{Facts, Resume, Sniffed, Source};
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use std::sync::Arc;
 
 /// Video and audio.
@@ -101,7 +101,7 @@ impl StageView for MediaStageView {
         rsx! { view::MediaContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         capsule::slots(doc, cx)
     }
 

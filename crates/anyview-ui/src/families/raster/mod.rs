@@ -8,7 +8,6 @@ mod view;
 
 pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterTarget};
 
-use crate::families::capsule_fit::{Ranked, fit_slots, stage_width};
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
@@ -18,10 +17,11 @@ use crate::{
 use anyview_core::{Facts, Permille, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::Icon;
 use std::sync::Arc;
 
-/// How soon each control goes when the capsule is too wide for the stage (`capsule_fit`).
+/// How soon each control goes when the capsule is too wide for the stage (quire's capsule).
 const RANK_ROTATE: u8 = 2;
 const RANK_ZOOM: u8 = 1;
 
@@ -143,7 +143,7 @@ impl StageView for RasterStageView {
         doc.lacking
     }
 
-    fn slots(doc: &RasterDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
+    fn slots(doc: &RasterDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         if doc.needs.is_some() {
             return Vec::new();
         }
@@ -157,32 +157,24 @@ impl StageView for RasterStageView {
             }
             _ => Permille::WHOLE,
         };
-        // Soonest to go first when the stage is narrow (`capsule_fit`): the rotate buttons, then
+        // Soonest to go first when the stage is narrow (quire's capsule): the rotate buttons, then
         // the zoom. An animation's play button stays.
         let mut slots = vec![
-            Ranked::drops(
-                RANK_ZOOM,
-                CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus),
-            ),
-            Ranked::drops(
-                RANK_ZOOM,
-                CapsuleSlot::Readout(format!("{}%", percent.0 / 10)),
-            ),
-            Ranked::drops(
-                RANK_ZOOM,
-                CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus),
-            ),
+            CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus)
+                .droppable(RANK_ZOOM),
+            CapsuleSlot::Readout(format!("{}%", percent.0 / 10)).droppable(RANK_ZOOM),
+            CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus).droppable(RANK_ZOOM),
         ];
         if doc.offer != crate::EditOffer::Withheld {
-            slots.push(Ranked::stays(CapsuleSlot::Divider));
-            slots.push(Ranked::drops(
-                RANK_ROTATE,
-                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo),
-            ));
-            slots.push(Ranked::drops(
-                RANK_ROTATE,
-                CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh),
-            ));
+            slots.push(CapsuleSlot::Divider.essential());
+            slots.push(
+                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo)
+                    .droppable(RANK_ROTATE),
+            );
+            slots.push(
+                CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh)
+                    .droppable(RANK_ROTATE),
+            );
         }
         if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
             let (label, icon) = match geometry::animation_of(raster) {
@@ -191,14 +183,17 @@ impl StageView for RasterStageView {
                     ("Play", Icon::Play)
                 }
             };
-            slots.push(Ranked::stays(CapsuleSlot::Divider));
-            slots.push(Ranked::stays(CapsuleSlot::button(
-                Command::Stage(crate::StageCommand::TogglePlayback),
-                label,
-                icon,
-            )));
+            slots.push(CapsuleSlot::Divider.essential());
+            slots.push(
+                CapsuleSlot::button(
+                    Command::Stage(crate::StageCommand::TogglePlayback),
+                    label,
+                    icon,
+                )
+                .essential(),
+            );
         }
-        fit_slots(slots, stage_width(cx.area))
+        slots
     }
 
     fn panel(_doc: &Arc<RasterDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
