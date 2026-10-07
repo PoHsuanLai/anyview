@@ -97,6 +97,7 @@ else
   done
   # The plugins install.sh put in: their programs and manifests, and the folders that
   # held them when nothing else is in them.
+  remove_file "$PREFIX/share/quire/helpers/anyview.toml"
   remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
   remove_file "$PREFIX/share/anyview/plugins/ffmpeg.toml"
   remove_file "$PREFIX/libexec/anyview/anyview-heif"
@@ -106,7 +107,7 @@ else
   remove_file "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
   remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
   if [[ "$DRY_RUN" == no ]]; then
-    for folder in libexec/anyview libexec share/anyview/plugins share/anyview share/doc/anyview; do
+    for folder in libexec/anyview libexec share/anyview/plugins share/anyview share/doc/anyview share/quire/helpers share/quire; do
       [[ -d "$(dest "$PREFIX/$folder")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "$PREFIX/$folder")"
     done
   fi

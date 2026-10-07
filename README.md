@@ -79,6 +79,15 @@ four with the viewer. A plugin whose tool is not on the machine yet is installed
 it has nothing to offer, the file opens as its facts with a line naming what to install, and the plugin
 starts working as soon as you install the package, with no second install.
 
+Anyview offers to install the missing tool, the way Totem offers a codec. On that line an Install… button
+asks "Anyview needs libheif tools to open HEIC photos."; if you agree, your system's package service
+(PackageKit) installs it and asks for your password itself, and the file opens again in the same window when
+it is done. Not Now asks nothing more until you press Install… again. A tool you install in a terminal
+instead is noticed too, and the file opens with it. Anyview never runs a package manager or `sudo` itself,
+and where PackageKit is not available (a Flatpak sandbox, an image-based system) the sheet says which
+package to install. `dist/helpers/anyview.toml` lists the packages for each distribution; it installs to
+`share/quire/helpers/anyview.toml`.
+
 | Plugin | Gives you | Fedora | Debian and Ubuntu | Arch |
 |---|---|---|---|---|
 | `mpv` | playing video and Opus audio, and everything else with mpv's own controls (the common audio formats play without it) | `mpv` | `mpv` | `mpv` |
@@ -86,12 +95,16 @@ starts working as soon as you install the package, with no second install.
 | `heif` | HEIC, HEIF and AVIF pictures | `libheif-tools` | `libheif-examples` | `libheif` (check) |
 | `raw` | camera raw files developed in full | `LibRaw-samples` | `libraw-bin` | `libraw` (check) |
 
+The package names the Install… button uses are in `dist/helpers/anyview.toml`, with a note on each name that
+has not been checked against the distribution's package list.
+
 The `mpv` plugin loads [mpv-wgpu](https://github.com/PoHsuanLai/mpv-wgpu)'s C plugin into your mpv, so the
 installer builds that too: from `--with-mpv-from DIR`, `MPV_WGPU_DIR` or a checkout at `../mpv` if there is
 one, and otherwise from the revision pinned at the top of `dist/install.sh`, fetched with `git` into
 `~/.cache/anyview/build` (it needs git, the network and a Rust toolchain, like the viewer's own build). If
-there is no `mpv` on the search path, or the fetch or the build fails, the installer says so in one line,
-skips only the mpv plugin and finishes the rest; run it again once the cause is fixed. `--mpv PATH` names
+there is no `mpv` on the search path the plugin still installs, naming `/usr/bin/mpv`, and works once mpv
+is there. If the fetch or the build fails, the installer says so in one line, skips only the mpv plugin and
+finishes the rest; run it again once the cause is fixed. `--mpv PATH` names
 another mpv, and `--without-plugin NAME` (`ffmpeg`, `heif`, `mpv` or `raw`) leaves one out.
 `--with-plugin NAME`, from earlier releases, is accepted and ignored.
 

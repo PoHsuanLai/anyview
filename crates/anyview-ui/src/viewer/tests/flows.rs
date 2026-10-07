@@ -160,3 +160,81 @@ fn the_chrome_hides_through_the_root_at_exactly_the_idle_deadline() {
     });
     assert_eq!(log, vec![(Stamp(3150), fade_out)]);
 }
+
+/// What the sheet asked of the window in `outs`, in order.
+fn sheet_outs(outs: &[ViewerOut]) -> Vec<crate::sheet::SheetOut> {
+    outs.iter()
+        .filter_map(|out| {
+            if let ViewerOut::Sheet(out) = out {
+                Some(out.clone())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn an_install_button_opens_the_question_and_the_sheet_then_takes_the_keys() {
+    use crate::command::Command;
+    use crate::sheet::{HelperEnd, HelperPhase, Sheet, SheetIn, SheetOut};
+    let params = params();
+    let helper = Helper::HeicDecode;
+    let viewer = Viewer {
+        stage: image(),
+        ..Viewer::default()
+    };
+    let (viewer, outs) = viewer.step(
+        ViewerIn::Run(Command::Install(helper)),
+        Stamp(0),
+        &(),
+        &params,
+    );
+    assert_eq!(
+        viewer.sheet,
+        Sheet::Helper {
+            helper,
+            phase: HelperPhase::Ask
+        }
+    );
+    assert_eq!(sheet_outs(&outs), [SheetOut::Opened]);
+    assert!(
+        matches!(&viewer.chrome, Chrome::Pinned { by } if *by == PinReasons::of(PinReason::MenuOpen)),
+        "the chrome is held while the sheet is up: {:?}",
+        viewer.chrome
+    );
+
+    // Return installs, as the default button does.
+    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Enter]), Stamp(0), &(), &params);
+    assert_eq!(sheet_outs(&outs), [SheetOut::Provide(helper)]);
+
+    // The host's answer reopens the file, and the sheet is gone.
+    let (viewer, outs) = viewer.step(
+        ViewerIn::Sheet(SheetIn::HelperEnded(helper, HelperEnd::Installed)),
+        Stamp(0),
+        &(),
+        &params,
+    );
+    assert_eq!(viewer.sheet, Sheet::Closed);
+    assert_eq!(sheet_outs(&outs), [SheetOut::Reopen, SheetOut::Closed]);
+}
+
+#[test]
+fn escape_is_not_now_and_asks_nothing() {
+    use crate::command::Command;
+    use crate::sheet::{Sheet, SheetOut};
+    let params = params();
+    let viewer = Viewer {
+        stage: image(),
+        ..Viewer::default()
+    };
+    let (viewer, _) = viewer.step(
+        ViewerIn::Run(Command::Install(Helper::VideoPlayback)),
+        Stamp(0),
+        &(),
+        &params,
+    );
+    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Escape]), Stamp(0), &(), &params);
+    assert_eq!(viewer.sheet, Sheet::Closed);
+    assert_eq!(sheet_outs(&outs), [SheetOut::Closed]);
+}

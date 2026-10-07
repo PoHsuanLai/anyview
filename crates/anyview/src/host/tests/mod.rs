@@ -1,6 +1,7 @@
 mod desktop;
 mod editing;
 mod feedback;
+mod helpers;
 mod lent;
 mod remembering;
 mod route;

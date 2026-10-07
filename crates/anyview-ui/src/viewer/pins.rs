@@ -28,7 +28,8 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 | Sheet::Rename { .. }
                 | Sheet::SaveCopy { .. }
                 | Sheet::Revert { .. }
-                | Sheet::NoVersions => true,
+                | Sheet::NoVersions
+                | Sheet::Helper { .. } => true,
                 Sheet::Closed => false,
             };
             let context = match viewer.context {

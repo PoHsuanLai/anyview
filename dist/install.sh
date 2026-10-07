@@ -23,11 +23,12 @@
 #   mpv     playback, through your own mpv with mpv-wgpu's C plugin loaded into it. The C plugin is built
 #           from an mpv-wgpu checkout: --with-mpv-from DIR, MPV_WGPU_DIR, or ../mpv when it exists; else
 #           the revision named by MPV_WGPU_REV below is fetched with git into the cache
-#           (${XDG_CACHE_HOME:-~/.cache}/anyview/build) and built there. When there is no mpv on the search
-#           path, git, the network or the build is missing, the mpv plugin is skipped with a one-line
-#           warning and everything else installs; run it again to retry.
+#           (${XDG_CACHE_HOME:-~/.cache}/anyview/build) and built there. When git, the network or the build
+#           is missing, the mpv plugin is skipped with a one-line warning and everything else installs; run
+#           it again to retry. With no mpv on the search path the plugin still installs, naming /usr/bin/mpv,
+#           and works once mpv is installed.
 #   --with-mpv-from DIR  build the mpv plugin's C plugin from this mpv-wgpu checkout
-#   --mpv PATH     the mpv the mpv plugin's manifest names (default: the first `mpv` on the search path)
+#   --mpv PATH     the mpv the mpv plugin's manifest names (default: the first `mpv` on the search path, else /usr/bin/mpv)
 #   --with-plugin NAME  accepted and ignored: plugins install by default now
 #
 # Environment:
@@ -58,6 +59,7 @@ WITH_MPV=yes
 WITH_HEIF=yes
 WITH_RAW=yes
 MPV_PATH=""
+MPV_ABSENT=no
 MPV_FROM=""
 plugin_name() { # plugin_name NAME: succeed for a plugin's name
   case "$1" in ffmpeg|heif|mpv|raw) return 0 ;; *) return 1 ;; esac
@@ -199,17 +201,23 @@ if [[ "$WITH_MPV" == yes ]]; then
   # the person's PATH when it runs; --mpv names another.
   if [[ -z "$MPV_PATH" ]]; then
     MPV_PATH="$(command -v mpv || true)"
-    if [[ -z "$MPV_PATH" && "$DRY_RUN" == yes ]]; then
+    if [[ -z "$MPV_PATH" ]]; then
+      # Like the other plugins, this one installs before its tool does: the manifest names the place
+      # every distribution puts mpv, and the plugin works once the package is there (the viewer offers
+      # to install it, and finds it without a restart).
       MPV_PATH="/usr/bin/mpv"
-      say "    no mpv on the search path (a real run would skip the mpv plugin; install mpv or use --mpv PATH)"
-    elif [[ -z "$MPV_PATH" ]]; then
-      skip_mpv "no mpv on the search path"
+      MPV_ABSENT=yes
+      if [[ "$DRY_RUN" == yes ]]; then
+        say "    no mpv on the search path (the manifest would name $MPV_PATH; the plugin works once mpv is installed)"
+      else
+        warn "no mpv on the search path: the mpv plugin is installed naming $MPV_PATH and starts working once your distribution's mpv package is (README, Plugins)"
+      fi
     fi
   fi
 fi
 if [[ "$WITH_MPV" == yes ]]; then
   [[ "$MPV_PATH" == /* ]] || MPV_PATH="$(cd "$(dirname "$MPV_PATH")" 2>/dev/null && pwd)/$(basename "$MPV_PATH")"
-  if [[ "$DRY_RUN" == no && ! -x "$MPV_PATH" ]]; then
+  if [[ "$DRY_RUN" == no && "$MPV_ABSENT" == no && ! -x "$MPV_PATH" ]]; then
     say "install.sh: $MPV_PATH is not an executable mpv (use --mpv PATH)"
     exit 1
   fi
@@ -274,6 +282,10 @@ install_file 644 "$HERE/dist/$APP_ID.metainfo.xml" "$PREFIX/share/metainfo/$APP_
 for doc in LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md; do
   install_file 644 "$HERE/$doc" "$PREFIX/share/doc/anyview/$doc"
 done
+
+# The helpers file: which distro tool each plugin runs and which package provides it, for the prompt that
+# offers to install a missing one (quire looks for $XDG_DATA_DIRS/quire/helpers/<app>.toml).
+install_file 644 "$HERE/dist/helpers/anyview.toml" "$PREFIX/share/quire/helpers/anyview.toml"
 
 # The service file names the binary's path on this machine, so its Exec is rewritten to the
 # installed one (never to a path inside DESTDIR: that is where it lands, not where it will run).

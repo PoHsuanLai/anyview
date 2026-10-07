@@ -19,7 +19,7 @@ use anyview_pdf::LinkTarget;
 use dioxus::html::input_data::MouseButton;
 use dioxus::prelude::*;
 use ds::host::captured::{CapturedPointer, PointerPhase};
-use ds::host::gesture::{Gesture, use_gestures};
+use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
 use ds::prelude::Point;
 use ds_blitz::use_gpu;
@@ -47,6 +47,13 @@ fn over(area: Area, at: Point) -> bool {
 fn device(logical: f32, area: Area) -> i64 {
     // A pointer distance is far inside i64, so rounding to whole pixels cannot overflow.
     (logical * area.scale).round() as i64
+}
+
+/// `logical` and the `carried` remainder as whole device pixels, and the remainder left over.
+fn whole_pixels(logical: f32, carried: f32, area: Area) -> (i64, f32) {
+    let total = logical * area.scale + carried;
+    let whole = total.round();
+    (whole as i64, total - whole)
 }
 
 /// A point of the window as a point of the room, in device pixels.
@@ -197,7 +204,10 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
         live.with_mut(|live| live.wants = Wants::default());
     }));
 
-    use_gestures(move |gesture| {
+    // A wheel's detents arrive eased, one share a frame, each a few device pixels; the part of a
+    // share below a whole pixel is carried to the next, so the shares still sum to the detent.
+    let mut carried = use_signal(|| (0.0_f32, 0.0_f32));
+    use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let Some(area) = area else { return };
         match gesture {
             Gesture::Pinch { by, at, .. } if over(area, at) => {
@@ -208,7 +218,10 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                     let turn = (by.y.0 * WHEEL_ZOOM).round() as i32;
                     steer.zoom_by(turn, in_room(at, area));
                 } else {
-                    steer.scroll_by(device(by.x.0, area), device(by.y.0, area));
+                    let (dx, left_x) = whole_pixels(by.x.0, carried.peek().0, area);
+                    let (dy, left_y) = whole_pixels(by.y.0, carried.peek().1, area);
+                    carried.set((left_x, left_y));
+                    steer.scroll_by(dx, dy);
                 }
             }
             Gesture::Pinch { .. } | Gesture::Scroll { .. } => {}

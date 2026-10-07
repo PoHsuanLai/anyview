@@ -313,6 +313,7 @@ dependencies = [
  "ds",
  "ds-blitz",
  "ds-harness",
+ "ds-helpers",
  "ds-settings",
  "futures-channel",
  "futures-util",
@@ -620,6 +621,7 @@ dependencies = [
  "ds-core",
  "ds-harness",
  "ds-lint",
+ "ds-shell",
  "futures-channel",
  "futures-util",
  "image",
@@ -2396,6 +2398,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ds-helpers"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=c4494aca33b07a6d8ae3bf5408acb4daa5f88d40#c4494aca33b07a6d8ae3bf5408acb4daa5f88d40"
+dependencies = [
+ "serde",
+ "thiserror 2.0.21",
+ "toml",
+ "zbus",
+]
+
+[[package]]
 name = "ds-intents"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/quire.git?rev=c4494aca33b07a6d8ae3bf5408acb4daa5f88d40#c4494aca33b07a6d8ae3bf5408acb4daa5f88d40"
@@ -2450,6 +2463,22 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "ds-shell"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=c4494aca33b07a6d8ae3bf5408acb4daa5f88d40#c4494aca33b07a6d8ae3bf5408acb4daa5f88d40"
+dependencies = [
+ "dioxus",
+ "ds",
+ "ds-core",
+ "ds-motion",
+ "ds-style",
+ "image",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -7026,7 +7055,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

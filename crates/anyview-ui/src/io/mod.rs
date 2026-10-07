@@ -5,6 +5,7 @@
 
 mod error;
 mod folder;
+mod helpers;
 mod job;
 mod media;
 mod notice;
@@ -15,6 +16,7 @@ mod workers;
 pub use anyview_core::work::{Backend, Stop};
 pub use error::OpenError;
 pub use folder::folder_sequence;
+pub use helpers::{HelperSource, HelperWords, Need};
 pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{

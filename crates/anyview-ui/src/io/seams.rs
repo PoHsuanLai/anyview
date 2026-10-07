@@ -3,8 +3,9 @@
 //! worker calls them, never the UI thread; both are read-only, and what the window wants kept
 //! goes out as a `HostRequest`.
 
+use super::helpers::Need;
 use crate::sheet::VersionRow;
-use anyview_core::{Fact, Facts, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
+use anyview_core::{Facts, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;
 
@@ -28,8 +29,9 @@ pub trait FirstFrameSource: Debug + Send + Sync + 'static {
 pub enum PluginPicture {
     /// A plugin decoded it: straight RGBA, upright, within the area asked for.
     Pixels(Rgba8),
-    /// No installed plugin serves this kind of file, and the row names the package that would.
-    Missing(Fact),
+    /// No installed plugin serves this kind of file, or its tool is missing: the row says what
+    /// would, and carries the tool the viewer can offer to install.
+    Missing(Need),
     /// No plugin serves it and none is known to: the caller shows what it has.
     Unserved,
     /// A plugin serves it and could not make the picture; this says why.

@@ -1,7 +1,8 @@
 //! How a task ended, and the program's one report of it.
 
-use anyview_core::FilePath;
+use anyview_core::{FilePath, Helper};
 use anyview_store::VersionId;
+use anyview_ui::HelperEnd;
 
 /// A request the program has no way to carry out yet, named so the report says which.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,4 +60,6 @@ pub enum Outcome {
     Written { file: FilePath, kept: VersionId },
     /// A save in place wrote nothing, and the file is as it was; the text says what refused.
     NotWritten(String),
+    /// Asking the system to install this tool ended like this.
+    Helped(Helper, HelperEnd),
 }
