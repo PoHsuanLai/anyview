@@ -119,7 +119,7 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 590 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 591 today:
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
 # crates, mp4parse, matroska-demuxer) and the Photoshop, ICNS and OpenEXR readers of anyview-image
@@ -137,7 +137,8 @@ DIRECT=(
 # desktop build links as well. Hiding what the platform cannot do adds one: ds-desktop (quire's capability
 # probe: whether PackageKit answers, so an Install... is offered only where it can work; it has no
 # dependency of its own without its `dbus` feature, which `quire-desktop` turns on, and then only the
-# zbus already in the tree). anyview-peek stays at 590: it never reaches cpal (its rule above).
+# zbus already in the tree). anyview-peek is 591 since quire v0.2.22: `ds` itself now depends on `ds-desktop` (the capsule and menus ask which desktop services answer), so the
+# launcher links it too (one package, no dependency of its own without `dbus`); it never reaches cpal (its rule above).
 # Offering the viewer to docket (the agent layer, `quire-desktop` only) adds twelve to the viewer and nothing to
 # the peek: docket-client, docket-core and docket-dbus; porter-core, porter-dbus and prov (docket's names and
 # labels); almanac-core, cua-action, model-provider, genai-names and vision-prep (pure vocabulary crates
@@ -145,7 +146,7 @@ DIRECT=(
 # older one docket-core's wire uses beside the 0.23 already in the tree). The viewer is 682.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
-  "anyview-peek: 590"
+  "anyview-peek: 591"
   "anyview: 682"
 )
 fail=0
