@@ -260,12 +260,13 @@ EDGES=(
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
   "anyview-tool-kit: anyview-plugin-protocol"
 )
-  # A quire crate is a git dependency now, so it shows with its url where a workspace crate shows a path.
+  # quire, docket and porter crates are git dependencies, so they show with their url where a workspace
+  # crate shows a path.
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
   read -r -a allowed <<<"${edge#*:}"
   found=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
-    | grep -E '\((/|https://github.com/PoHsuanLai/quire)' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
+    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
   want=$(printf '%s\n' "${allowed[@]}" | grep . | sort -u | tr '\n' ' ')
   if [ "$found" != "$want" ]; then
     echo "EDGE: $crate depends on [${found% }], the table allows [${want% }]"
