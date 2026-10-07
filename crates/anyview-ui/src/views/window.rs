@@ -170,11 +170,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         .unwrap_or_default();
     let tabs = current.as_ref().map_or_else(Default::default, |(_, doc)| {
         let tabs = doc.view().panel_params().tabs;
-        match state.stage {
-            crate::Stage::Media(_) => {
-                crate::families::media_tabs(tabs, shelf.media.read().abilities)
-            }
-            _ => tabs,
+        if matches!(state.stage, crate::Stage::Media(_)) {
+            crate::families::media_tabs(tabs, shelf.media.read().abilities)
+        } else {
+            tabs
         }
     });
     let slots = current
