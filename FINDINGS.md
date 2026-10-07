@@ -6,6 +6,27 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **The portable build offers the desktop's actions and answers them with a notice instead of hiding them.**
+  Built without `quire-desktop` (anyview-platform and `anyview`), Open With, Share, Print and Open... have no
+  implementation (`NoApps`, `NoShare`, `NoPrinter`, `NoPicker`), and Show in Folder and links go through the
+  platform's opener. The palette, the context menu, the three hard-coded Open With buttons and the welcome
+  window's Open... still list them, and the person is told "no file chooser / print dialog / other app / way to
+  share on this desktop" when one is chosen. Hiding them needs the host to say which abilities it has: a small
+  set handed to `anyview-ui` beside `Playback` (`views/session.rs` `offered`, `context/entries.rs`, the buttons in
+  `families/{raster,peek_only,media}`). Left for after the window-sizing lane, which edits the same crate. Ends
+  when the set exists. There is also no portable file chooser, so Open... is unavailable there until one is
+  written (a launch with files, drag and drop and the command line still open files).
+- **The portable build has not been run on macOS or Windows.** `portable` compiles for Unix targets and its
+  opener command lines are table-tested for all three platforms, but `anyview-platform` still names
+  `std::os::unix` in the thumbnail cache, `uri` and plugin discovery and `rustix` in the plugin pipe, so a
+  Windows build needs those behind a platform module. quire still pulls `zbus` (`ds-settings`) and
+  `wayland-client` (`ds-blitz`) into every build; `--no-default-features` checks anyview's own code and
+  anyview-platform's own tree (no `zbus`), not the final graph. Ends when quire's portable lane lands and the
+  viewer is built on a Mac.
+- **Single instance without the bus starts nothing.** The bus starts the viewer for a call to its name
+  (`dist/org.quire.Anyview1.service`); the per-user socket (latchkey) does not, so a launcher cannot call a
+  viewer that is not running. Linux with `quire-desktop` keeps the bus for that, and `forward_over` stays the
+  launcher's call. Ends if a launcher without the bus needs it: `latchkey::spawn` is the closure it would pass.
 - **A window opens no larger than a fixed cap, and image pixels are taken as logical pixels.** `window::fit`
   sizes a window to its picture or video, scaled down to `fit_cap()`: 1600 by 1000 logical pixels, or
   `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT`. A picture is meant to show at one image pixel to one physical pixel, as

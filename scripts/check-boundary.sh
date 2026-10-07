@@ -111,7 +111,7 @@ RULES=(
 # texture is made through `ds-blitz`'s `TextureLayer`, a page through its `PdfFileThumb` cache, and
 # nothing here spawns.
 DIRECT=(
-  "anyview: cpal symphonia zbus ashpd freedesktop-desktop-entry wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
+  "anyview: cpal symphonia zbus ashpd freedesktop-desktop-entry latchkey interprocess wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
   "anyview-export: wgpu pdfrum pdfrum-anyrender pdfrum-edit image tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
@@ -288,6 +288,18 @@ for dir in crates/*/ plugins/*/; do
     echo "platform-only names held: $crate reaches none of ${EDGE_ONLY[*]}"
   fi
 done
+# anyview-platform reaches the bus and the freedesktop entry readers only through its `quire-desktop`
+# feature (ARCHITECTURE.md section 2e): with it off, none of them is in its tree. This is the
+# crate's own tree; quire's `ds-settings` still brings zbus into the binary's until quire's portable
+# build lands, and that is not the platform crate's doing.
+for dep in zbus ashpd freedesktop-desktop-entry memfd; do
+  if cargo tree -p anyview-platform --no-default-features -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
+    echo "PORTABLE: anyview-platform reaches $dep without quire-desktop"
+    fail=1
+  fi
+done
+echo "portable build holds: anyview-platform --no-default-features reaches none of zbus ashpd freedesktop-desktop-entry memfd"
+
 # The machines of anyview-ui are pure: their source names no view, no quire component, no decoder,
 # no disk, no thread and no clock. The effects are carried out by `io`, `families` and `views`.
 MACHINES=(chrome command keys load navigate palette panel presentation sheet stage time typed viewer)

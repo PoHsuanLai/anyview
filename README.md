@@ -36,6 +36,24 @@ Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all
 `cargo test --workspace`, `scripts/check-boundary.sh`, `dev/no-linked-codecs.sh`, `scripts/check-deny.sh`
 (needs `cargo-deny`) and `dev/install-test.sh`.
 
+### Without the Linux desktop's services
+
+The Linux desktop's services (D-Bus single instance with bus activation, the now-playing entry and media
+keys, the print and file-chooser portals, Open With, mail sharing, and Show in Folder through the file
+manager) are the cargo feature `quire-desktop` of the `anyview` binary, on by default. Everything else is
+portable. To build the portable viewer:
+
+```sh
+cargo build --release --locked -p anyview --no-default-features --features audio
+```
+
+(`--no-default-features` drops `audio` too; add it back as above for the built-in audio player.) Such a build
+uses a per-user socket for single instance, opens links and shows files in their folder through the platform's
+opener (`xdg-open`, `open`, `explorer`), and has no Open With, Share, Print, desktop file chooser or
+now-playing entry: those actions answer that they are not available. Until quire's own portable build lands
+the dependency tree still holds quire's `zbus` and Wayland crates; this is about the viewer's own code.
+Check the portable build with `scripts/check-portable.sh`.
+
 ## Install and uninstall
 
 ```sh
@@ -92,7 +110,7 @@ A camera raw file shows its embedded preview with no plugin at all. `dist/instal
 - There are no settings yet. Light, dark, accent colour and reduced motion follow the desktop.
 - After the last window closes the program keeps running for ten minutes so the next open is quick.
 - Ctrl and Command are one key, and shortcuts are drawn with Mac symbols.
-- Linux only (Wayland, the freedesktop portals and D-Bus). Single-instance, Open With, Share, Print and Trash have been exercised against fakes, not yet on a real desktop.
+- Built and run on Linux (Wayland, the freedesktop portals and D-Bus); the portable build (`--no-default-features`, above) compiles the viewer without its D-Bus parts but has not run on macOS or Windows. Single-instance, Open With, Share, Print and Trash have been exercised against fakes, not yet on a real desktop.
 - It makes no network connection and sends nothing anywhere.
 
 ## Reporting a problem
