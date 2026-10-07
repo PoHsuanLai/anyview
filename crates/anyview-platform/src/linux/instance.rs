@@ -2,9 +2,9 @@
 //! later launch calls `Open`, `Peek`, `Play` or `Handoff` on it. The `.service` file in `dist/` lets the
 //! bus start the viewer when someone calls the name while none runs.
 
-use super::handoff;
 use crate::env::Env;
 use crate::error::PlatformError;
+use crate::handoff;
 use crate::instance::{Claim, Instance, Primary, Request};
 use anyview_core::FilePath;
 use std::path::PathBuf;

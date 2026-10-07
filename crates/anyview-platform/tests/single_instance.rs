@@ -1,5 +1,6 @@
 //! `Instance` against a private session bus: the first claim owns the name, later ones forward.
 
+#![cfg(feature = "quire-desktop")]
 #![allow(clippy::unwrap_used)]
 
 mod support;

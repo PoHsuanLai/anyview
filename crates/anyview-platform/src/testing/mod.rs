@@ -3,10 +3,12 @@
 //! keeps the other to read what happened.
 
 mod apps;
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 mod bus;
 mod instance;
 mod link;
 mod media;
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 mod mpris_client;
 mod picker;
 mod plugins;
@@ -18,10 +20,12 @@ mod stacking;
 mod thumbnails;
 
 pub use apps::FakeApps;
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 pub use bus::PrivateBus;
 pub use instance::{FakeInstance, FakeRole};
 pub use link::FakeLinks;
 pub use media::{FakeMediaHandle, FakeMediaSession};
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 pub use mpris_client::MprisClient;
 pub use picker::FakePicker;
 pub use plugins::{PluginSet, plugins_with};

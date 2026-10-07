@@ -29,7 +29,7 @@ mod tests;
 
 pub use appearance::{Appearances, look_of};
 pub use cards::PeekCards;
-pub use desktop::{Desktop, Hosting, LinuxDesktop, Services};
+pub use desktop::{Desktop, Hosting, PlatformDesktop, Services};
 pub use feedback::{
     Doing, log, notice_of, notice_of_declined, report, subject_of, tell, tell_declined,
     tell_problem,
