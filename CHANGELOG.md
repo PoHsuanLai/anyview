@@ -16,8 +16,8 @@ versioning, with pre-releases while the program is in beta.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
 
-- The playback bar thins itself to the window: in a narrow window it drops the speed, the length, the volume,
-  the export and then the clock, in that order, and keeps play, the seek buttons and the progress bar. A PDF's
+- The playback bar thins itself to the window: in a narrow window it drops the export, the speed, the length, the
+  volume and then the clock, in that order, and keeps play, the seek buttons and the progress bar. A PDF's
   and a picture's bars drop their least needed buttons the same way. The window's least size is still 480 by
   320, and what a narrow bar hides stays in the command palette and the right-click menu.
 
