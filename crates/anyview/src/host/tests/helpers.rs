@@ -321,9 +321,18 @@ async fn a_tool_installed_some_other_way_is_told_to_every_window_after_the_plugi
     let (tell_a, a) = channel();
     let (tell_b, b) = channel();
     let (tell_late, late) = channel();
-    let first = host.listen(move |helper| drop(tell_a.send(helper)));
-    let _second = host.listen(move |helper| drop(tell_b.send(helper)));
-    let gone = host.listen(move |helper| drop(tell_late.send(helper)));
+    let first = host.listen(move |helper| {
+        // A window that closed has no receiver, and nobody is left to tell.
+        let _gone = tell_a.send(helper);
+    });
+    let _second = host.listen(move |helper| {
+        // A window that closed has no receiver, and nobody is left to tell.
+        let _gone = tell_b.send(helper);
+    });
+    let gone = host.listen(move |helper| {
+        // A window that closed has no receiver, and nobody is left to tell.
+        let _gone = tell_late.send(helper);
+    });
     drop(gone);
 
     machine.install("heif-dec");
