@@ -46,6 +46,7 @@ fn asked(requests: &Requests) -> Vec<HostRequest> {
                 HostRequest::Opened(_)
                     | HostRequest::Watch(_)
                     | HostRequest::Remember(_)
+                    | HostRequest::SizeWindow(_)
                     | HostRequest::Unwatch
             )
         })
