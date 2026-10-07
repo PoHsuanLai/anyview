@@ -23,6 +23,7 @@ use anyview_platform::{
 };
 use anyview_store::Versions;
 use anyview_ui::{HelperEnd, VersionRow};
+use ds::prelude::Word;
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
@@ -252,7 +253,7 @@ where
         Task::PickFile => pick(parts).await,
         Task::Provide(helper) => match &parts.helpers {
             Some(helpers) => Outcome::Helped(helper, helpers.provide(helper).await),
-            None => Outcome::Helped(helper, HelperEnd::Unsupported),
+            None => Outcome::Helped(helper, HelperEnd::Unsupported(helper.slug().to_owned())),
         },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),

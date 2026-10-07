@@ -219,11 +219,11 @@ pub(super) fn line_of(outcome: &Outcome) -> Option<String> {
         | Outcome::Handed
         | Outcome::Written { .. }
         | Outcome::Helped(_, HelperEnd::Installed | HelperEnd::Declined) => None,
-        Outcome::Helped(helper, HelperEnd::NotFound) => Some(format!(
+        Outcome::Helped(helper, HelperEnd::NotFound(_)) => Some(format!(
             "no package for {} in the software sources",
             helper.slug()
         )),
-        Outcome::Helped(helper, HelperEnd::Unsupported) => {
+        Outcome::Helped(helper, HelperEnd::Unsupported(_)) => {
             Some(format!("cannot install {} on this system", helper.slug()))
         }
         Outcome::Helped(helper, HelperEnd::Failed(why)) => {

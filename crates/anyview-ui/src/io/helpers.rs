@@ -32,10 +32,6 @@ pub struct HelperWords {
     pub tool: String,
     /// What it is for, finishing the sentence ("open HEIC photos").
     pub purpose: String,
-    /// The package to look for in a software centre when the sources have none.
-    pub package: String,
-    /// The program a package must provide when the system cannot install one from here.
-    pub program: String,
 }
 
 /// The tools the host knows how to install, lent to the window to word its sheet.

@@ -308,12 +308,12 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
         (
             HelperPhase::Ask
             | HelperPhase::Failed(_)
-            | HelperPhase::NotFound
-            | HelperPhase::Unsupported,
+            | HelperPhase::NotFound(_)
+            | HelperPhase::Unsupported(_),
             SheetIn::Cancel,
         )
         | (
-            HelperPhase::Failed(_) | HelperPhase::NotFound | HelperPhase::Unsupported,
+            HelperPhase::Failed(_) | HelperPhase::NotFound(_) | HelperPhase::Unsupported(_),
             SheetIn::Confirm,
         ) => cancelled(),
         (_, SheetIn::HelperEnded(ended, end)) if ended == helper => ended_with(helper, end),
@@ -321,8 +321,8 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
             HelperPhase::Ask
             | HelperPhase::Installing
             | HelperPhase::Failed(_)
-            | HelperPhase::NotFound
-            | HelperPhase::Unsupported,
+            | HelperPhase::NotFound(_)
+            | HelperPhase::Unsupported(_),
             SheetIn::OpenExport(_)
             | SheetIn::OpenUnavailable(_, _)
             | SheetIn::OfferHelper(_)
@@ -350,8 +350,8 @@ fn ended_with(helper: Helper, end: HelperEnd) -> Step {
     match end {
         HelperEnd::Installed => (Sheet::Closed, vec![SheetOut::Reopen, SheetOut::Closed]),
         HelperEnd::Declined => cancelled(),
-        HelperEnd::NotFound => phase(HelperPhase::NotFound),
-        HelperEnd::Unsupported => phase(HelperPhase::Unsupported),
+        HelperEnd::NotFound(package) => phase(HelperPhase::NotFound(package)),
+        HelperEnd::Unsupported(program) => phase(HelperPhase::Unsupported(program)),
         HelperEnd::Failed(reason) => phase(HelperPhase::Failed(reason)),
     }
 }

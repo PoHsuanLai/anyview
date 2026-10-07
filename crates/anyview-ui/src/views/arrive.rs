@@ -89,8 +89,8 @@ fn available(c: &Carry, helper: Helper) {
             HelperPhase::Installing => {}
             HelperPhase::Ask
             | HelperPhase::Failed(_)
-            | HelperPhase::NotFound
-            | HelperPhase::Unsupported => {
+            | HelperPhase::NotFound(_)
+            | HelperPhase::Unsupported(_) => {
                 dispatch.send(ViewerIn::Sheet(SheetIn::HelperEnded(
                     helper,
                     HelperEnd::Installed,

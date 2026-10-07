@@ -13,7 +13,7 @@ use anyview::media::MediaPlugins;
 use anyview_platform::PluginRunner;
 use anyview_plugin::{Candidate, Manifest, Origin, Plugins, Readiness};
 use ds_harness::{Driver, Input, Query};
-use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Outcome};
+use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Outcome, StandIn};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use support::{Wired, open_wired, until};
@@ -94,7 +94,11 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
     std::fs::write(dir.path().join("os-release"), "ID=fedora\n").unwrap();
 
     let registry = PluginRegistry::fixed(heif_plugins(&program, &dec));
-    let fake = FakeInstaller::new(Outcome::Installed).leaving(tools.clone(), &["heif-dec"]);
+    let decoder = StandIn {
+        name: "heif-dec".to_owned(),
+        body: format!("#!/bin/sh\ncp {} \"$2\"\n", still.display()),
+    };
+    let fake = FakeInstaller::new(Outcome::Installed).leaving_with(tools.clone(), vec![decoder]);
     let helpers = Arc::new(HelperHost::new(
         Catalog::parse(HELPERS).unwrap(),
         Environment {
@@ -143,18 +147,8 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
     );
     assert!(fake.asked().is_empty(), "asking installs nothing");
 
-    // The fake leaves an empty stand-in for the tool; the person's machine would have the real one,
-    // so the stand-in takes the real one's place the moment it lands.
-    let writer = {
-        let (dec, still) = (dec.clone(), still.clone());
-        std::thread::spawn(move || {
-            let started = std::time::Instant::now();
-            while !dec.exists() && started.elapsed().as_secs() < 20 {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            std::fs::write(&dec, format!("#!/bin/sh\ncp {} \"$2\"\n", still.display())).unwrap();
-        })
-    };
+    // The fake's install leaves a stand-in for the tool; the person's machine would have the real
+    // one, so the stand-in copies the picture the real one would have decoded.
     click(
         &mut rig,
         ".ds-alert-footer .ds-alert-slot:first-child .ds-button",
@@ -164,7 +158,6 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
         "the file opened with the plugin",
         |harness| harness.count(".viewer-raster") > 0,
     );
-    writer.join().unwrap();
     assert_eq!(rig.harness.count(".ds-alert"), 0, "the sheet is gone");
     assert_eq!(rig.harness.count(".viewer-peek"), 0, "the card is gone");
     let asked = fake.asked();
