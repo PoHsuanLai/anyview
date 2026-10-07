@@ -12,7 +12,7 @@ use crate::runtime::{Actor, Mailbox, UiWaker};
 use anyview_core::{Facts, MediaTags};
 use anyview_platform::TrackSerial;
 use anyview_plugin::Subject;
-use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, OpenError};
+use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, Need, OpenError};
 use std::sync::Arc;
 
 /// Starts a player on its own media thread for each window that asks.
@@ -73,10 +73,22 @@ impl MediaHost for PlayerHost {
             }
             Chosen::Builtin => Engine::Builtin { audio },
             Chosen::NoSound => {
-                return Ok(unplayed(plugins, &start, no_sound_fact(), tags, facts));
+                return Ok(unplayed(
+                    plugins,
+                    &start,
+                    Need::passive(no_sound_fact()),
+                    tags,
+                    facts,
+                ));
             }
             Chosen::Missing(missing) => {
-                return Ok(unplayed(plugins, &start, missing.fact(), tags, facts));
+                return Ok(unplayed(
+                    plugins,
+                    &start,
+                    plugins.need_of(&missing),
+                    tags,
+                    facts,
+                ));
             }
             Chosen::Unserved => {
                 return Err(OpenError::Media(
@@ -120,7 +132,7 @@ impl MediaHost for PlayerHost {
 fn unplayed(
     plugins: &MediaPlugins,
     start: &MediaStart,
-    needs: anyview_core::Fact,
+    needs: Need,
     tags: MediaTags,
     facts: Facts,
 ) -> MediaStarted {

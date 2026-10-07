@@ -23,10 +23,21 @@ versioning, with pre-releases while the program is in beta.
   fetched with git into the cache. A plugin whose tool is not installed yet still installs and starts working
   once the package is there. If there is no mpv, git, network or build for mpv, only that plugin is skipped,
   with a one-line warning.
+- With no mpv on the search path the mpv plugin still installs, naming `/usr/bin/mpv`, instead of being
+  skipped: it works once mpv is installed (Install… offers it).
 - `--without-plugin NAME` and `--no-plugins` replace `--with-plugin NAME`, which is accepted and ignored.
 
 ### Added
 
+- Anyview offers to install a missing tool, as Totem offers a codec. A recording with no mpv, a HEIC with no
+  libheif tools and a camera raw file with no LibRaw tools keep the "Needs" line and gain an Install… button
+  on it; it asks "Anyview needs libheif tools to open HEIC photos.", and on Install the system's package
+  service (PackageKit) installs the package and asks for the password itself. When it is done the file opens
+  again in the same window with no restart, and a tool installed in a terminal is noticed the same way. Not
+  Now closes the question and asks nothing more until the button is pressed again; where the system cannot
+  install (a Flatpak sandbox, no PackageKit) or has no such package, the sheet says what to install.
+  `dist/helpers/anyview.toml` names the packages for Fedora, Debian and Ubuntu, Arch and openSUSE and is
+  installed to `share/quire/helpers/anyview.toml`.
 - Audio plays without mpv. MP3, AAC (ADTS and M4A), ALAC, FLAC, WAV, AIFF and Ogg Vorbis are decoded in the
   viewer (pure Rust) and played through the sound card, with play and pause, seeking, volume, the resume
   position, the desktop's now-playing entry and media keys, and background playback. With the `mpv` plugin
@@ -35,8 +46,8 @@ versioning, with pre-releases while the program is in beta.
 
 ### Changed
 
-- The package budget of the viewer is 664 (the sound card library adds four packages; the launcher is
-  unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
+- The package budget of the viewer is 666 (the sound card library adds four packages and the missing-tool
+  prompt two, ds-shell and ds-helpers; the launcher is unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
 
 ## 0.1.0-beta.1 (2026-10-06)
 

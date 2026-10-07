@@ -4,7 +4,8 @@
 
 use anyview::host::Appearances;
 use anyview::host::{
-    CachedPictures, Clock, Desktop, Media, SETTLE, Services, Store, Trash, TrashError, Watcher,
+    CachedPictures, Clock, Desktop, HelperHost, ImageHost, Media, SETTLE, Services, Store, Trash,
+    TrashError, Watcher,
 };
 use anyview::media::{MediaHub, MediaPlugins, PlayerHost};
 use anyview::runtime::PoolSize;
@@ -81,7 +82,16 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
 
 /// [`open`], with the plugins a run of the binary would have discovered.
 pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig {
-    open_sized(file, scratch, plugins, None)
+    open_wired(file, scratch, plugins, Wired::default())
+}
+
+/// What a window is wired to beyond the players: the pictures' plugins, the tools that can be
+/// installed when one is missing, and the window's size asked of a stand-in sizer.
+#[derive(Default)]
+pub struct Wired {
+    pub images: Option<ImageHost>,
+    pub helpers: Option<Arc<HelperHost>>,
+    pub sizer: Option<SizerContext>,
 }
 
 /// [`open_with`], the window's size asked of `sizer` instead of a real window's.
@@ -91,6 +101,20 @@ pub fn open_sized(
     plugins: Arc<MediaPlugins>,
     sizer: Option<SizerContext>,
 ) -> Rig {
+    open_wired(
+        file,
+        scratch,
+        plugins,
+        Wired {
+            sizer,
+            ..Wired::default()
+        },
+    )
+}
+
+/// [`open_with`], wired as `wired` says.
+pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired: Wired) -> Rig {
+    let sizer = wired.sizer;
     let started = Instant::now();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -133,9 +157,10 @@ pub fn open_sized(
             versions: anyview_store::Versions::under_state(&scratch.join("state")),
             store: Store::new(&store, now),
             media,
+            helpers: wired.helpers.clone(),
         },
     );
-    let factory = Factory::new(
+    let mut factory = Factory::new(
         workforce.workers(),
         Arc::new(desktop),
         Arc::new(CachedPictures(FakeThumbnails::default())),
@@ -144,6 +169,12 @@ pub fn open_sized(
         Arc::new(PlayerHost::new(hub.clone())),
         Arc::new(FakeStacking::with(StackingSupport::Unsupported)),
     );
+    if let Some(images) = wired.images {
+        factory = factory.with_image_plugins(Arc::new(images));
+    }
+    if let Some(helpers) = wired.helpers {
+        factory = factory.with_helpers(helpers);
+    }
     let opening = Opening::around(FilePath::new(file).unwrap());
     let wired = started.elapsed();
     let mut config = HarnessConfig::new(VIEW)
@@ -370,6 +401,7 @@ pub fn desktop(
                 exports: workforce.exports(),
                 scratch: scratch.join("cache"),
             },
+            helpers: None,
         },
     ))
 }

@@ -2,12 +2,15 @@
 //! plugin, a raw file in full through the RAW plugin. The registry says which plugin serves a file;
 //! asking it runs a program of the person's, so a worker calls this and never the UI thread.
 
-use anyview_core::{Fact, FactLabel, FactValue, PixelArea, Sniffed, Source};
+use super::helpers::HelperHost;
+use super::plugin_registry::PluginRegistry;
+use anyview_core::{Fact, FactLabel, FactValue, Helper, PixelArea, Sniffed, Source};
 use anyview_image::Rgba8;
 use anyview_platform::{PlatformError, PluginRunner};
 use anyview_plugin::{MissingPlugin, Plugins, Route, Subject};
 use anyview_plugin_protocol::Capability;
-use anyview_ui::{ImagePlugins, PluginPicture};
+use anyview_ui::{ImagePlugins, Need, PluginPicture};
+use std::sync::Arc;
 
 /// The media type every camera raw file is sniffed as.
 const RAW: &str = "image/x-dcraw";
@@ -15,14 +18,32 @@ const RAW: &str = "image/x-dcraw";
 /// The plugins of this run as the views' source of decoded pictures.
 #[derive(Debug, Clone)]
 pub struct ImageHost {
-    plugins: Plugins,
+    registry: PluginRegistry,
     runner: PluginRunner,
+    helpers: Option<Arc<HelperHost>>,
 }
 
 impl ImageHost {
     /// The plugins `plugins` holds, run by `runner`.
     pub fn new(plugins: Plugins, runner: PluginRunner) -> ImageHost {
-        ImageHost { plugins, runner }
+        ImageHost::following(PluginRegistry::fixed(plugins), runner)
+    }
+
+    /// The plugins `registry` holds now (it may read them again), run by `runner`.
+    pub fn following(registry: PluginRegistry, runner: PluginRunner) -> ImageHost {
+        ImageHost {
+            registry,
+            runner,
+            helpers: None,
+        }
+    }
+
+    /// The same plugins, offering to install the tools `helpers` knows when one is missing.
+    pub fn offering(self, helpers: Arc<HelperHost>) -> ImageHost {
+        ImageHost {
+            helpers: Some(helpers),
+            ..self
+        }
     }
 
     /// A host with no plugin installed: every kind a plugin serves says which package would.
@@ -44,6 +65,15 @@ fn missing_package(missing: &MissingPlugin, sniffed: &Sniffed) -> Fact {
     missing.fact_for(purpose(sniffed))
 }
 
+/// The tool that a plugin of this media type runs.
+fn tool_of(sniffed: &Sniffed) -> Helper {
+    if sniffed.mime().as_str() == RAW {
+        Helper::RawDecode
+    } else {
+        Helper::HeicDecode
+    }
+}
+
 /// The row for a plugin that is installed and whose tools are not: it names what to install.
 fn missing_tools(sniffed: &Sniffed) -> Fact {
     let text = if sniffed.mime().as_str() == RAW {
@@ -57,13 +87,25 @@ fn missing_tools(sniffed: &Sniffed) -> Fact {
     }
 }
 
+impl ImageHost {
+    /// The row for a plugin that is installed and whose tool is not, with the tool to offer to install.
+    pub(super) fn need_for_tools(&self, sniffed: &Sniffed) -> Need {
+        let fact = missing_tools(sniffed);
+        match &self.helpers {
+            Some(helpers) => helpers.need(fact, tool_of(sniffed)),
+            None => Need::passive(fact),
+        }
+    }
+}
+
 impl ImagePlugins for ImageHost {
     fn decode(&self, source: &Source, sniffed: &Sniffed, max_area: PixelArea) -> PluginPicture {
         let subject = Subject {
             kind: sniffed.kind(),
             mime: Some(sniffed.mime()),
         };
-        match self.plugins.route(Capability::Decode, &subject) {
+        let plugins = self.registry.current();
+        match plugins.route(Capability::Decode, &subject) {
             Route::Served(plugin) => {
                 match self.runner.decode(plugin, source.path(), max_area) {
                     Ok(pixels) => match Rgba8::new(pixels.size(), pixels.rgba().to_vec()) {
@@ -72,12 +114,14 @@ impl ImagePlugins for ImageHost {
                     },
                     // The plugin is there and its greeting offers no decode: its tools are not.
                     Err(PlatformError::PluginLacks { .. }) => {
-                        PluginPicture::Missing(missing_tools(sniffed))
+                        PluginPicture::Missing(self.need_for_tools(sniffed))
                     }
                     Err(error) => PluginPicture::Failed(error.to_string()),
                 }
             }
-            Route::Missing(missing) => PluginPicture::Missing(missing_package(&missing, sniffed)),
+            Route::Missing(missing) => {
+                PluginPicture::Missing(Need::passive(missing_package(&missing, sniffed)))
+            }
             Route::Unserved => PluginPicture::Unserved,
         }
     }
@@ -116,17 +160,17 @@ mod tests {
         };
         assert_eq!(
             want("a.heic", HEIC),
-            PluginPicture::Missing(Fact {
+            PluginPicture::Missing(Need::passive(Fact {
                 label: FactLabel::Needs,
                 value: FactValue::text("anyview-heif (to show it)"),
-            })
+            }))
         );
         assert_eq!(
             want("a.nef", TIFF),
-            PluginPicture::Missing(Fact {
+            PluginPicture::Missing(Need::passive(Fact {
                 label: FactLabel::Needs,
                 value: FactValue::text("anyview-raw (to show it in full quality)"),
-            })
+            }))
         );
         assert_eq!(want("a.png", PNG), PluginPicture::Unserved);
     }

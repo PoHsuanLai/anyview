@@ -63,6 +63,7 @@ check "dry run says it is a dry run" grep -q "dry run: nothing is changed" <<<"$
 check "dry run names the binary" grep -q "$prefix/bin/anyview" <<<"$out"
 check "dry run names the entry" grep -q "$prefix/share/applications/org.quire.Anyview.desktop" <<<"$out"
 check "dry run names the notices" grep -q "$prefix/share/doc/anyview/THIRD-PARTY-NOTICES.md" <<<"$out"
+check "dry run names the helpers file" grep -q "$prefix/share/quire/helpers/anyview.toml" <<<"$out"
 check "dry run names the metainfo" grep -q "$prefix/share/metainfo/org.quire.Anyview.metainfo.xml" <<<"$out"
 check "dry run names the service" grep -q "$prefix/share/dbus-1/services/org.quire.Anyview1.service" <<<"$out"
 check "dry run names both icons" grep -q "256x256/apps/org.quire.Anyview.png" <<<"$out"
@@ -87,6 +88,8 @@ check "the entry is installed" cmp -s "$repo/dist/org.quire.Anyview.desktop" "$i
 service="$installed/share/dbus-1/services/org.quire.Anyview1.service"
 check "the metainfo is installed" cmp -s "$repo/dist/org.quire.Anyview.metainfo.xml" "$installed/share/metainfo/org.quire.Anyview.metainfo.xml"
 check "the notices are installed under doc" cmp -s "$repo/THIRD-PARTY-NOTICES.md" "$installed/share/doc/anyview/THIRD-PARTY-NOTICES.md"
+check "the helpers file is installed where quire looks for it" cmp -s "$repo/dist/helpers/anyview.toml" "$installed/share/quire/helpers/anyview.toml"
+check "the receipt lists the helpers file" grep -qx "file $prefix/share/quire/helpers/anyview.toml" "$installed/share/anyview/install-receipt"
 check "the service names the bus" grep -qx "Name=org.quire.Anyview1" "$service"
 check "the service runs the installed binary, without DESTDIR" grep -qx "Exec=$prefix/bin/anyview" "$service"
 check "the 16 icon is in place" cmp -s "$icons/16.png" "$installed/share/icons/hicolor/16x16/apps/org.quire.Anyview.png"
@@ -99,7 +102,8 @@ want="$(printf '%s\n' ./opt ./opt/av ./opt/av/bin ./opt/av/bin/anyview ./opt/av/
   ./opt/av/share/dbus-1/services/org.quire.Anyview1.service ./opt/av/share/icons ./opt/av/share/icons/hicolor \
   ./opt/av/share/icons/hicolor/16x16 ./opt/av/share/icons/hicolor/16x16/apps \
   ./opt/av/share/icons/hicolor/16x16/apps/org.quire.Anyview.png ./opt/av/share/icons/hicolor/256x256 \
-  ./opt/av/share/icons/hicolor/256x256/apps ./opt/av/share/icons/hicolor/256x256/apps/org.quire.Anyview.png | LC_ALL=C sort)"
+  ./opt/av/share/icons/hicolor/256x256/apps ./opt/av/share/icons/hicolor/256x256/apps/org.quire.Anyview.png \
+  ./opt/av/share/quire ./opt/av/share/quire/helpers ./opt/av/share/quire/helpers/anyview.toml | LC_ALL=C sort)"
 check "the staged tree is exactly the files" test "$(tree_of "$stage")" = "$want"
 check "staging registered nothing" test ! -s "$calls"
 check "HOME and XDG stay empty" bash -c "[ -z \"\$(find $HOME $XDG_CONFIG_HOME $XDG_DATA_HOME -mindepth 1)\" ]"
@@ -190,7 +194,8 @@ check "the mpv-wgpu pin is a full revision, set in one place" bash -c "[[ '$pin'
 # The install script under test names the stand-in's revision instead (a copy with the pin changed,
 # next to the real lib.sh, so the real script is never edited).
 fake_repo="$scratch/fake-dist"
-mkdir -p "$fake_repo/dist/plugins"
+mkdir -p "$fake_repo/dist/plugins" "$fake_repo/dist/helpers"
+cp "$repo/dist/helpers/"* "$fake_repo/dist/helpers/"
 cp "$repo/dist/"*.sh "$fake_repo/dist/"
 cp "$repo/dist/plugins/"* "$fake_repo/dist/plugins/"
 cp "$repo/dist/"*.desktop "$repo/dist/"*.xml "$repo/dist/"*.service "$fake_repo/dist/"
@@ -311,19 +316,25 @@ check "mpv: an unreachable URL: the exit is 0" test "$status" = 0
 check "mpv: an unreachable URL: the plugin is skipped" grep -q 'the mpv plugin was skipped' "$scratch/mpvfail2.out"
 uninstall >/dev/null 2>&1
 check "no failed fetch leaves a half checkout behind" test ! -e "$cache"
-# No mpv on the search path: the plugin is skipped before any fetch, and the rest installs.
+# No mpv on the search path: the plugin still installs, naming where every distribution puts mpv, so
+# it works the moment the package is there (the viewer offers to install it); the rest installs too.
 empty_path="$scratch/emptybin"
 mkdir -p "$empty_path"
 for tool in bash env sed cat dirname basename mktemp id install rm rmdir mkdir cmp stat find git awk sort; do
   ln -s "$(type -P "$tool")" "$empty_path/$tool" 2>/dev/null
 done
 rm -rf "$XDG_CACHE_HOME/anyview"
-PATH="$empty_path" DESTDIR="$stage" MPV_WGPU_URL="$src" ANYVIEW_MPV_SIBLING= bash "$fake_repo/dist/install.sh" --prefix "$prefix" --no-build --without-plugin ffmpeg --without-plugin heif --without-plugin raw >"$scratch/nompv.out" 2>&1
+printf 'prebuilt\n' >"$scratch/prebuilt-cplugin.so"
+PATH="$empty_path" ANYVIEW_MPV_CPLUGIN="$scratch/prebuilt-cplugin.so" DESTDIR="$stage" ANYVIEW_MPV_SIBLING= bash "$fake_repo/dist/install.sh" --prefix "$prefix" --no-build --without-plugin ffmpeg --without-plugin heif --without-plugin raw >"$scratch/nompv.out" 2>&1
 status=$?
 check "with no mpv on the search path install succeeds" test "$status" = 0
-check "and warns that the mpv plugin was skipped" grep -q "warning: no mpv on the search path: the mpv plugin was skipped" "$scratch/nompv.out"
-check "that skip fetched nothing and installed the viewer" bash -c "[ ! -e '$XDG_CACHE_HOME/anyview' ] && [ -x $installed/bin/anyview ] && [ ! -e $mpv_manifest ]"
+check "and warns that the mpv plugin starts working once mpv is installed" grep -q "warning: no mpv on the search path: the mpv plugin is installed naming /usr/bin/mpv" "$scratch/nompv.out"
+check "that install names /usr/bin/mpv, fetched nothing and installed the viewer" bash -c "[ ! -e '$XDG_CACHE_HOME/anyview' ] && [ -x $installed/bin/anyview ] && grep -qx 'mpv = \"/usr/bin/mpv\"' $mpv_manifest"
 uninstall >/dev/null 2>&1
+check "uninstall empties the tree after the install with no mpv" empty "$stage"
+# Naming an mpv that is not there is still refused: that is a typo, not an absent package.
+check "--mpv with a path that is no mpv is refused" bash -c "! PATH='$empty_path' ANYVIEW_MPV_CPLUGIN='$scratch/prebuilt-cplugin.so' DESTDIR='$stage' ANYVIEW_MPV_SIBLING= bash '$fake_repo/dist/install.sh' --prefix '$prefix' --no-build --without-plugin ffmpeg --without-plugin heif --without-plugin raw --mpv /nowhere/mpv >/dev/null 2>&1"
+rm -rf "$stage"
 
 # 6f. mpv from a checkout: --with-mpv-from and MPV_WGPU_DIR build there, into the checkout's own target;
 # a prebuilt C plugin (ANYVIEW_MPV_CPLUGIN) is installed without any build; --mpv names the mpv.

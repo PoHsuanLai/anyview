@@ -134,6 +134,10 @@ impl StageView for RasterStageView {
         doc.offer
     }
 
+    fn lacks(doc: &RasterDoc) -> Option<anyview_core::Helper> {
+        doc.lacking
+    }
+
     fn slots(doc: &RasterDoc, cx: &StageCx) -> Vec<CapsuleSlot<Command>> {
         if doc.needs.is_some() {
             return Vec::new();

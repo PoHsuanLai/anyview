@@ -7,10 +7,10 @@ use super::shelf::FirstLoad;
 use crate::families::{FoundHits, Held};
 use crate::io::{Done, HostRequest, Job, Notice};
 use crate::{
-    Freshness, LoadIn, NavigateIn, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
-    VersionList, ViewerIn, freshness,
+    Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, Sheet, SheetIn, Stage, StageIn, TextIn,
+    TextStage, Ticket, TypedText, VersionList, ViewerIn, freshness,
 };
-use anyview_core::{FilePath, Resume};
+use anyview_core::{FilePath, Helper, Resume};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastAction;
 use std::sync::Arc;
@@ -59,11 +59,60 @@ pub(super) fn arrived(done: Done, c: &Carry) {
             }
         }
         Done::Notice(notice) => noticed(c, notice),
+        Done::Helped(helper, end) => send(c, ViewerIn::Sheet(SheetIn::HelperEnded(helper, end))),
+        Done::Available(helper) => available(c, helper),
         Done::Chosen { files } => send(c, ViewerIn::Dropped(files)),
         Done::Moved { to } => send(c, ViewerIn::Reload(to)),
         Done::Changed { path } => {
             if shown_path(c).as_ref() == Some(&path) {
                 c.edge.submit(Job::Stat { path });
+            }
+        }
+    }
+}
+
+/// A tool a plugin runs is on the machine now, installed some other way. What waited for it opens
+/// again: the sheet that asked for it closes (the install it offered is done), and the file that
+/// lacked it is probed afresh. An install this window is running itself ends in its own answer.
+fn available(c: &Carry, helper: Helper) {
+    let mut preloads = c.shelf.preloads;
+    preloads.write().forget_lacking(helper);
+    let Some(dispatch) = c.dispatch() else {
+        return;
+    };
+    let sheet = dispatch.machine.state().peek().sheet.clone();
+    match sheet {
+        Sheet::Helper {
+            helper: asked,
+            phase,
+        } if asked == helper => match phase {
+            HelperPhase::Installing => {}
+            HelperPhase::Ask
+            | HelperPhase::Failed(_)
+            | HelperPhase::NotFound
+            | HelperPhase::Unsupported => {
+                dispatch.send(ViewerIn::Sheet(SheetIn::HelperEnded(
+                    helper,
+                    HelperEnd::Installed,
+                )));
+            }
+        },
+        Sheet::Closed
+        | Sheet::Export { .. }
+        | Sheet::Unavailable { .. }
+        | Sheet::ConfirmTrash
+        | Sheet::ConfirmEdit { .. }
+        | Sheet::Rename { .. }
+        | Sheet::SaveCopy { .. }
+        | Sheet::Revert { .. }
+        | Sheet::NoVersions
+        | Sheet::Helper { .. } => {
+            let lacking = c
+                .shelf
+                .shown_now()
+                .is_some_and(|(_, doc)| doc.view().lacks() == Some(helper));
+            if let (true, Some(path)) = (lacking, shown_path(c)) {
+                dispatch.send(ViewerIn::Reload(path));
             }
         }
     }
