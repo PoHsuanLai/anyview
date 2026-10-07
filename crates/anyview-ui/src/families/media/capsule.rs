@@ -79,7 +79,7 @@ pub(crate) fn level_to_volume(at: Fraction) -> Volume {
 }
 
 /// How soon each control goes when the capsule is too wide for the stage: the export first (it
-/// stays in the palette and the context menu, and it is the one control the widest capsule has no
+/// stays in the palette and the context menu, and it is the one control a stage under 672 has no
 /// room for beside the speed), then the speed, the length, the level (the volume is the system's
 /// still) and the clock.
 const RANK_EXPORT: u8 = 5;
