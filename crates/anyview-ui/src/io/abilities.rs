@@ -81,7 +81,8 @@ mod tests {
     #[test]
     fn each_desktop_action_follows_its_own_ability_and_the_rest_always_stand() {
         // action, the ability taken away from a full set
-        const BEHIND: &[(FileAction, fn(&mut PlatformAbilities))] = &[
+        type TakeAway = fn(&mut PlatformAbilities);
+        const BEHIND: &[(FileAction, TakeAway)] = &[
             (FileAction::Open, |a| a.pick_files = false),
             (FileAction::Print, |a| a.print = false),
             (FileAction::Share, |a| a.share = false),
