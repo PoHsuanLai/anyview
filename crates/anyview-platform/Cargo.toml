@@ -9,6 +9,13 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
+# The Linux desktop's services: D-Bus (single instance with bus activation, the media session, the
+# file chooser and print portals, the file manager) and the freedesktop application entries. On by
+# default: Cargo has no per-target default features, so the code behind it is also gated on
+# `target_os = "linux"` and a build for another platform ignores it. `--no-default-features` is the
+# portable build (quire design/36): no zbus from this crate, single instance through latchkey.
+default = ["quire-desktop"]
+quire-desktop = ["dep:zbus", "dep:freedesktop-desktop-entry", "dep:memfd", "dep:futures-util"]
 # The fakes (`anyview_platform::testing`), for the tests of the crates that consume the traits.
 testing = ["dep:tempfile"]
 
@@ -18,10 +25,8 @@ anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
 dirs = { workspace = true }
 ds-core = { workspace = true }
-freedesktop-desktop-entry = { workspace = true }
-futures-util = { workspace = true }
+latchkey = { workspace = true }
 md-5 = { workspace = true }
-memfd = { workspace = true }
 percent-encoding = { workspace = true }
 png = { workspace = true }
 rustix = { workspace = true }
@@ -29,12 +34,19 @@ serde_json = { workspace = true }
 tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-zbus = { workspace = true }
+
+# Only a Linux build has a session bus and the freedesktop entries; `quire-desktop` names them.
+[target.'cfg(target_os = "linux")'.dependencies]
+freedesktop-desktop-entry = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+memfd = { workspace = true, optional = true }
+zbus = { workspace = true, optional = true }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-# The integration tests use the fakes and the private bus behind `testing`.
-anyview-platform = { path = ".", features = ["testing"] }
+# The integration tests use the fakes and, with `quire-desktop`, the private bus behind `testing`. Default
+# features stay off here so `--no-default-features` really builds the portable crate.
+anyview-platform = { path = ".", default-features = false, features = ["testing"] }
 tempfile = { workspace = true }

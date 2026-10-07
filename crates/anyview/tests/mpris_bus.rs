@@ -3,6 +3,7 @@
 //! entry says so on the bus, a Pause call over the bus pauses it, and Stop ends it. Sound is off.
 //! A machine without `dbus-daemon` or a graphics adapter skips it, saying so.
 
+#![cfg(feature = "quire-desktop")]
 #![allow(clippy::unwrap_used)]
 
 mod support;

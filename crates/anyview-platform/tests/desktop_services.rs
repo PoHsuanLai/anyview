@@ -1,6 +1,7 @@
 //! Printing and revealing against a private session bus that has no portal and no file manager:
 //! the answers a desktop without them gives.
 
+#![cfg(feature = "quire-desktop")]
 #![allow(clippy::unwrap_used)]
 
 mod support;
