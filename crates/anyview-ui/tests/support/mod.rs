@@ -287,6 +287,8 @@ pub struct Wiring {
     pub presentation: Presentation,
     /// The desktop's look as it changes; the launch look for good when none.
     pub feed: Option<LookFeed>,
+    /// The window's size; `VIEW` when none.
+    pub viewport: Option<Viewport>,
 }
 
 /// A viewer window opened on `paths[at]` with the whole list to walk.
@@ -354,7 +356,7 @@ pub fn wired(
         look: appearance.into(),
         presentation: wiring.presentation,
     };
-    let mut config = HarnessConfig::new(VIEW)
+    let mut config = HarnessConfig::new(wiring.viewport.unwrap_or(VIEW))
         .with_clock(Clock::Virtual)
         .with_backend(Backend::Hybrid)
         .with_context(edge.clone())

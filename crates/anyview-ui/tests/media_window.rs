@@ -18,7 +18,7 @@ use anyview_ui::{
     PlayerEvent, Presentation, StepDirection, TrackKind,
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Driver, Harness, Input, Query, Viewport};
 use std::path::PathBuf;
 use std::sync::Arc;
 use support::{
@@ -1072,4 +1072,85 @@ fn a_player_that_stops_mid_recording_is_said_to_have_stopped() {
             .text_of(".viewer-media-status")
             .is_some_and(|word| word == "The player stopped")
     );
+}
+
+/// A recording in a window `width` wide, playing, with the pointer on it so the capsule shows.
+fn narrow(width: u32) -> (Harness, tempfile::TempDir) {
+    let Opened {
+        mut harness,
+        player,
+        _dir,
+        ..
+    } = open_with(0, |_| Wiring {
+        viewport: Some(Viewport {
+            width,
+            height: 320,
+            scale_percent: 100,
+        }),
+        ..Wiring::default()
+    });
+    playing(&player.latest().unwrap(), 25);
+    harness.send(Input::pointer_move(Point {
+        x: Px(width as f32 / 2.0),
+        y: Px(160.0),
+    }));
+    settle(&mut harness);
+    (harness, _dir)
+}
+
+#[test]
+fn a_capsule_in_a_narrow_window_keeps_play_and_the_bar_and_fits_the_stage() {
+    let (harness, _dir) = narrow(480);
+    let capsule = harness.rect(".ds-capsule").expect("the capsule shows");
+    assert!(
+        capsule.origin.x.0 >= 0.0 && capsule.origin.x.0 + capsule.size.width.0 <= 480.0,
+        "the capsule is inside the window: {capsule:?}"
+    );
+    assert_eq!(
+        harness.count(".ds-capsule .ds-button"),
+        4,
+        "back, play, forward, export"
+    );
+    assert_eq!(harness.count(".ds-scrubber"), 1, "the bar stays");
+    assert_eq!(harness.count(".ds-capsule .ds-slider"), 0, "the level went");
+    let text = readouts(&harness);
+    assert!(text.contains("0:25"), "the clock stays: {text}");
+    assert!(
+        !text.contains("1:40") && !text.contains("1×"),
+        "the length and the speed went: {text}"
+    );
+    let bar = harness.rect(".ds-capsule-scrub").expect("the bar");
+    assert!(
+        bar.size.width.0 >= 120.0,
+        "the bar is no narrower than its least: {bar:?}"
+    );
+}
+
+#[test]
+fn a_capsule_in_a_wide_window_shows_every_control() {
+    let (harness, _dir) = narrow(900);
+    let capsule = harness.rect(".ds-capsule").expect("the capsule shows");
+    assert!(
+        capsule.origin.x.0 >= 0.0 && capsule.origin.x.0 + capsule.size.width.0 <= 900.0,
+        "{capsule:?}"
+    );
+    assert_eq!(
+        harness.count(".ds-capsule .ds-button"),
+        6,
+        "back, play, forward, slower, faster, export"
+    );
+    assert_eq!(harness.count(".ds-scrubber"), 1);
+    assert_eq!(harness.count(".ds-capsule .ds-slider"), 1, "the level");
+    let text = readouts(&harness);
+    for shown in ["0:25", "1:40", "1×"] {
+        assert!(text.contains(shown), "{shown} in {text}");
+    }
+    // Everything fits inside the capsule's own box.
+    let bar = harness.rect(".ds-capsule-scrub").expect("the bar");
+    let level = harness.rect(".ds-capsule-level").expect("the level");
+    assert!(
+        level.origin.x.0 + level.size.width.0 <= capsule.origin.x.0 + capsule.size.width.0,
+        "{level:?} in {capsule:?}"
+    );
+    assert!(bar.size.width.0 >= 120.0, "{bar:?}");
 }
