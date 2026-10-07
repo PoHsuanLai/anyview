@@ -1,8 +1,7 @@
 use super::*;
 use anyview_core::{FilePath, NonEmpty, ResultsId, Resume, Sequence, SequenceOrigin};
-use anyview_platform::linux::DbusInstance;
 use anyview_platform::testing::{FakeInstance, FakeRole};
-use anyview_platform::{Env, Handoff, Request};
+use anyview_platform::{Handoff, Request};
 use futures_channel::mpsc::unbounded;
 use futures_util::StreamExt;
 use std::time::Duration;
@@ -75,15 +74,36 @@ async fn the_first_launch_is_the_viewer_and_the_second_forwards_its_request_and_
     );
 }
 
+#[cfg(feature = "quire-desktop")]
 #[tokio::test]
 async fn with_no_bus_the_launch_runs_alone_rather_than_dropping_its_request() {
     let scratch = tempfile::tempdir().unwrap();
-    let instance = DbusInstance::new(Env::isolated(scratch.path()));
+    let instance =
+        anyview_platform::linux::DbusInstance::new(anyview_platform::Env::isolated(scratch.path()));
     let role = claim_role(&instance, &Request::Open(vec![path("/a/1.png")])).await;
     assert!(
         matches!(role, Role::Alone(anyview_platform::PlatformError::NoBus)),
         "{role:?}"
     );
+}
+
+#[tokio::test]
+async fn over_the_per_user_socket_the_second_launch_forwards_and_the_first_receives() {
+    use anyview_platform::portable::LatchkeyInstance;
+    let scratch = tempfile::tempdir().unwrap();
+    let request = Request::Open(vec![path("/a/1.png")]);
+
+    let first = LatchkeyInstance::under(scratch.path().to_owned());
+    let Role::Primary(mut primary) = claim_role(&first, &Request::Open(vec![])).await else {
+        panic!("the first launch is the viewer");
+    };
+    let second = LatchkeyInstance::under(scratch.path().to_owned());
+    let role = claim_role(&second, &request).await;
+    assert!(matches!(role, Role::Forwarded), "{role:?}");
+    let arrived = tokio::time::timeout(Duration::from_secs(10), primary.next())
+        .await
+        .unwrap();
+    assert_eq!(arrived, Some(request));
 }
 
 #[tokio::test]
