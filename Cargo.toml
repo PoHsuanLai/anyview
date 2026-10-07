@@ -60,15 +60,15 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c92989175004cc0bb750c1f5c1254c823d30" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "c4494aca33b07a6d8ae3bf5408acb4daa5f88d40" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -78,7 +78,7 @@ ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8506c9298917
 
 # The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
 # each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
-blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "0da932ed58d7e346730fefca626bc3a0fa27abd9" }
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "40fc7fd01598ad00f726296537a0daf1931ad3e2" }
 
 # Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
