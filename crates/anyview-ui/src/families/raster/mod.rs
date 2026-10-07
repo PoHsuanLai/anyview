@@ -10,12 +10,12 @@ pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterTarget};
 
 use crate::families::capsule_fit::{Ranked, fit_slots, stage_width};
 use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
     StageIn, StageParams, Ticket,
 };
-use anyview_core::{Facts, Permille, PixelSize, Resume, Sniffed, Source};
+use anyview_core::{Facts, Permille, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::Icon;
@@ -97,9 +97,9 @@ impl StageView for RasterStageView {
         }
     }
 
-    fn natural(doc: &RasterDoc) -> Option<PixelSize> {
+    fn natural(doc: &RasterDoc) -> Option<NaturalSize> {
         // With no picture to show (its plugin is missing) there is nothing to fit the window to.
-        doc.needs.is_none().then_some(doc.size)
+        doc.needs.is_none().then_some(NaturalSize::Pixels(doc.size))
     }
 
     fn arrived(doc: &RasterDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {

@@ -3,12 +3,12 @@
 
 use super::editing;
 use super::outcome::Declined;
-use anyview_core::{
-    FileAction, FileName, FilePath, Helper, PixelSize, Resume, Source, Trail, actions_for,
-};
+use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail, actions_for};
 use anyview_export::DocumentExport;
 use anyview_store::VersionId;
-use anyview_ui::{EditRequest, ExportDraft, HostRequest, Presentation, Probed, VersionKey};
+use anyview_ui::{
+    EditRequest, ExportDraft, HostRequest, NaturalSize, Presentation, Probed, VersionKey,
+};
 
 /// The file a window shows, as the host last heard of it.
 ///
@@ -92,7 +92,7 @@ pub enum WindowTask {
     /// is made again rather than resized, since a window cannot change its own frame.
     Reopen(Presentation),
     /// Size the window to its first file's content, if nobody has resized it.
-    Size(PixelSize),
+    Size(NaturalSize),
 }
 
 /// Work for the desktop. Each names the file it is about: the window may move on while a task
