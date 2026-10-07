@@ -63,19 +63,19 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "8427f268be50b75d7927b999f722bacdd374dc62" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
