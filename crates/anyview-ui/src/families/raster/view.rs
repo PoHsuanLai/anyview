@@ -10,7 +10,7 @@ use super::geometry::{
 use crate::families::view::{Area, Held, StageCx};
 use crate::{Command, RasterIn, RasterStage, Stage, StageIn};
 use anyview_core::FileAction;
-use anyview_core::{Permille, QuarterTurn, Zoom};
+use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Zoom};
 use dioxus::prelude::*;
 use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
@@ -131,7 +131,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         }
     });
     let gestured = cx.clone();
-    // A wheel's detents arrive eased, one share a frame (the touchpad's own motion as it is).
+    // A wheel's detents arrive eased, one share a frame, and a touchpad's run with the glide after it.
     use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let Some(area) = gestured.area else { return };
         let Stage::Raster(stage) = &gestured.stage else {
@@ -154,10 +154,19 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                 send.call(StageIn::Raster(RasterIn::SetZoom { zoom, at: on }));
             }
             Gesture::Scroll { by, at, .. } if over(area, at) => {
-                if let RasterStage::Zoomed { .. } = stage {
-                    send.call(StageIn::Raster(RasterIn::PanStart));
+                if let RasterStage::Zoomed { centre, .. } = stage {
                     // The content follows the fingers: the pointer moved by `by`.
                     let moved = pointer_delta(shown, area, (by.x.0, by.y.0));
+                    let next = DocPoint {
+                        x: DocUnit(centre.x.0.saturating_sub(moved.x.0)),
+                        y: DocUnit(centre.y.0.saturating_sub(moved.y.0)),
+                    };
+                    // A share that would carry the picture out of the window is dropped, so a
+                    // glide ends at the edge (quire sends it on until it has run out).
+                    if place(doc_size, turn_of(stage), shown, next, area).is_none() {
+                        return;
+                    }
+                    send.call(StageIn::Raster(RasterIn::PanStart));
                     send.call(StageIn::Raster(RasterIn::PanBy(moved)));
                     send.call(StageIn::Raster(RasterIn::PanEnd));
                 }
