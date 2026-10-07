@@ -265,8 +265,42 @@ read through `LocalFiles`, because quire's sealed frames load nothing else.
 ## 2e. Modules inside `anyview-platform`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root; the
-implementations are reached through `linux` and `testing`. A second platform adds `macos/` or
-`windows/` beside `linux/` and selects it in `lib.rs`; no other crate changes. Nothing reads
+implementations are reached through `portable`, `linux` and `testing`. A second platform adds `macos/` or
+`windows/` beside `linux/` and selects it in `lib.rs`; no other crate changes.
+
+**Two halves, one feature.** The owner's rule (quire design/36) is that everything but the desktop itself is
+cross-platform and the desktop's services are additive extras. So `portable` is built everywhere and calls no
+desktop service, and `desktop` (public path `anyview_platform::linux`, kept for `sill`) is the Linux desktop's services (D-Bus, the portals, MPRIS, the freedesktop
+application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is on by
+default (Cargo has no per-target default features, so the code behind it is also gated on
+`target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
+dependencies of that feature. The binary forwards it (`anyview/quire-desktop`), and `--no-default-features` is the
+portable build. `anyview-platform` is declared in the workspace with `default-features = false`, so only the
+binary's feature decides it; `sill` takes the crate by path and gets its default. Without the feature each
+desktop ability is a trait the host still holds, answered by a portable stand-in:
+
+| Ability | With `quire-desktop` (Linux) | Without it |
+| --- | --- | --- |
+| Single instance | `DbusInstance`: the name `org.quire.Anyview1`, with bus activation (the `.service` file starts the viewer for a call) | `LatchkeyInstance`: the per-user socket |
+| Link | `SystemOpen` (`xdg-open`; `linux::XdgOpen` is the same type) | `SystemOpen` (`xdg-open`, `open`, `explorer`) |
+| Show in Folder | `FileManagerReveal` (`FileManager1.ShowItems`, the file selected) | `SystemReveal` (`open -R`, `explorer /select,`, else the folder through `xdg-open`) |
+| Open With | `DesktopApps` | `NoApps`: lists nothing |
+| Share | `MailShare` (`xdg-email`) | `NoShare`: no targets |
+| Print | `PortalPrinter` | `NoPrinter`: `PrintOutcome::NoDialog` |
+| Open... | `PortalPicker` | `NoPicker`: `PickOutcome::NoDialog` (no portable dialog yet; a later lane) |
+| Now playing | `MprisSession` | none: `NowPlaying::Absent` |
+| Thumbnails, window stacking | `FreedesktopThumbnails` and `NoStacking`, re-exported from `linux` | the same, from `portable` |
+
+Single instance without the bus (`portable::LatchkeyInstance`, on latchkey): the first launch takes the
+advisory lock and listens on `$XDG_RUNTIME_DIR/anyview/agent.sock` (macOS: under `$TMPDIR`; Windows: a named
+pipe); a later launch finds the lock held, connects, writes one line of JSON (`{"op":"open","files":[..]}`,
+`peek`, `play`, `handoff` with the same fields as the bus method) and reads one line back (`{"ok":true}` or
+`{"ok":false,"why":..}`), then leaves. The viewer parses everything it receives and refuses what the bus
+service refuses (a relative path, a place that is not a `Resume`); a line is cut off at 16 MiB. A killed viewer
+leaves nothing to clean: the kernel drops the lock, and the next launch removes the stale socket under it.
+Nothing starts the viewer when none runs, which the bus does; the launch that finds nobody home is the
+viewer. Linux with `quire-desktop` keeps the bus because activation (a launcher's call starts the viewer) and
+`forward_over` (the launcher's own connection) are the bus's, and latchkey starts nothing by itself. Nothing reads
 `std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`),
 a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
 methods are driven by the caller's runtime and never spawn; blocking ones (Open With, thumbnails)
@@ -279,6 +313,7 @@ run on the caller's worker.
 | `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
 | `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
 | `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` |
+| `handoff` (private) | a `Handoff` as the fields both wires carry (`Wire`): encoded and parsed once, for the bus and the socket |
 | `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
 | `apps` | `AppsForType`, `AppEntry`, `DesktopId`, `Association` |
 | `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
@@ -289,8 +324,9 @@ run on the caller's worker.
 | `link` | `OpenLink`: a web or mail address handed to the desktop's handler |
 | `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts`, `PluginFacts`; the process and its pipe are private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
-| `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection), `MprisSession`, `DesktopApps`, `FreedesktopThumbnails`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`, `XdgOpen`, `NoStacking`; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
-| `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession` (and `FakeMediaHandle`, its clonable test end, for when the session is given away), `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakePicker`, `FakeLinks`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record. `PrivateBus` (a `dbus-daemon` with a configuration of its own) and `MprisClient` (the control center's end of the player) are the bus tests' rigs |
+| `portable` | built everywhere, no desktop service: `LatchkeyInstance` (`new`, `under(dir)` for tests; the `frame` module is its line of JSON), `SystemOpen`, `SystemReveal`, `FreedesktopThumbnails`, `NoStacking`, and the absent abilities `NoApps`, `NoShare`, `NoPrinter`, `NoPicker` |
+| `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
+| `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession` (and `FakeMediaHandle`, its clonable test end, for when the session is given away), `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakePicker`, `FakeLinks`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record. `PrivateBus` (a `dbus-daemon` with a configuration of its own) and `MprisClient` (the control center's end of the player) are the bus tests' rigs, and exist only with `quire-desktop` |
 
 The trait shapes (a trait whose method awaits returns `impl Future + Send`, so a consumer is
 generic over it rather than holding a `dyn`):
@@ -324,9 +360,9 @@ wire is written once, here. `dist/org.quire.Anyview1.service` is the activation 
 `dbus-daemon` the test starts with its own configuration (no service directories) and skip with a
 message when the program is not installed.
 
-`anyview-platform` depends on `zbus` (its `tokio` feature, so the binary's runtime drives it),
-`freedesktop-desktop-entry`, `tokio` (channels only), `md-5`, `png`, `percent-encoding`, `memfd`,
-`futures-util`, `dirs`, `rustix` (`poll`, so a plugin's pipe is read with a deadline and no thread), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
+`anyview-platform` depends on `latchkey`, `tokio` (channels, `spawn_blocking` and a timeout), `md-5`, `png`,
+`percent-encoding`, `serde_json`, `dirs`, and, behind `quire-desktop` on Linux, `zbus` (its `tokio` feature, so
+the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futures-util`; also `rustix` (`poll`, so a plugin's pipe is read with a deadline and no thread), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
@@ -412,7 +448,7 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows`, `wants_of`, `Want` and `Arrival` (what the viewer's name receives: each file, or a handoff that brings its own results and place, becomes a window through ds-blitz's `AppHandle`, or, for a `Play`, a player with no window); `WARM_FOR` |
 | `media` | the program's players: `MediaHub` (the sessions, the desktop's one now-playing entry and the controls that come back, the sessions with no window), `PlayerHost` (the `MediaHost` a window is lent: a player on a thread of its own per window), `NowPlaying` (MPRIS, or absent without a bus), `MediaPlugins` (the registry and the runner: `player`, `reading`, `writer`, `offer`; section 2i), `Exports`, `ExportHandle`, `ExportEnd`, `PluginExport` (the pool's runner for transcodes through the FFmpeg plugin, with progress and stop). Private: `actor` (the `ActorBody` over a `Box<dyn MediaDriver>`), `engine` (which player a recording gets, `choose`, and what each is built from), `guard` (`Guarded`: a panic in a player becomes it failing), `line` (what a window holds of a player), `map` (the player's events and commands to the machine's, both ways), `snapshot` (the entry's state from the events, and how often a moving position is published), `orders` (what each desktop control means to a player), `sink` (the window's texture as the player's picture) |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
-| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `helpers` (`HelperHost`: the tools the plugins run and a missing one's install, below), `plugin_registry` (`PluginRegistry`: the plugins as they are now, read again when a tool is installed), `path_watch` (`PathWatch`: the folders of the search path, watched so a tool installed in a terminal is noticed), `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `PlatformDesktop` (the desktop of this build: the Linux services with `quire-desktop`, else the portable stand-ins), `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `helpers` (`HelperHost`: the tools the plugins run and a missing one's install, below), `plugin_registry` (`PluginRegistry`: the plugins as they are now, read again when a tool is installed), `path_watch` (`PathWatch`: the folders of the search path, watched so a tool installed in a terminal is noticed), `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
 | `window` | `fit` (where a viewer window's size is decided, below), `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
 **Where a window's size is decided.** `window::fit` is the one place, in two steps. As a window opens, `spec_for`
@@ -445,7 +481,7 @@ next frame. Table, tree, the failure and welcome screens and the PDF panel are n
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
 and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to
 `Hosting::carry_out`, which runs it on the platform runtime and resolves with an `Outcome`. A second launch is
-claimed by the first viewer over D-Bus; its files become `Opening`s (the folder is listed on the blocking pool),
+claimed by the first viewer over D-Bus (or, without `quire-desktop`, over the per-user socket); its files become `Opening`s (the folder is listed on the blocking pool),
 which a task of the platform runtime turns into `AppHandle::open_window_with` calls on the one event loop (a `Play` has no window: its arrival is a player with none). A window cannot change its own frame, so becoming the small borderless window of a recording (or a window again) is a window made again for the same file, opened with a `Seed` that says its `Presentation`, after the place the old one was at is written (`WindowTask::Reopen`). Every
 window is opened that way, the first included: the loop starts with none (`launch_idle`), windows are independent,
 and the last one closing leaves the process warm for `WARM_FOR` (`LastWindowClosed::StayFor`).
@@ -992,7 +1028,7 @@ The single place a concept lives. Extend it; never write a second one.
 | Where it is kept between runs, and the recently-viewed list | `anyview_store::StoreWriter`, `read_history` |
 | The folder the store lives in under the data directory (the launcher reads it too) | `anyview_store::STORE_FOLDER` |
 | A kind's commonest media type, and the kind a media type names | `anyview_core::mime_for` (`profile`), `kind_of_mime` (`kind/of_mime.rs`) |
-| A file handed to the viewer with its results and place, and its D-Bus form | `anyview_platform::Handoff`, `Request::Handoff`, `linux/handoff.rs`; the viewer's half is `anyview::Opening::handed` and `HandedResume` |
+| A file handed to the viewer with its results and place, and its D-Bus form | `anyview_platform::Handoff`, `Request::Handoff`, `handoff.rs`; the viewer's half is `anyview::Opening::handed` and `HandedResume` |
 | The "Page 143" a history row shows | `anyview_store::resume_label` |
 | What each format exports, and the sheet's contract | `anyview_core::ExportChoice` and the per-format enums (`export`) |
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
@@ -1063,7 +1099,7 @@ The single place a concept lives. Extend it; never write a second one.
 | An object one thread owns, with commands in and events out (the player) | `anyview::runtime::Actor`, `ActorBody` |
 | The views' work on the pool | `anyview::seam::Workforce` (the one `Workers`) |
 | The command line | `anyview::cli::parse` |
-| Being the viewer, or forwarding a launch to it | `anyview::program::claim_role` over `anyview_platform::Instance` |
+| Being the viewer, or forwarding a launch to it | `anyview::program::claim_role` over `anyview_platform::Instance` (`DbusInstance` or `portable::LatchkeyInstance`) |
 | What a window's request means to the host | `anyview::host::route` |
 | Telling a window that its file changed on disk | `anyview::host::Watcher` (`WindowWatch`), calling `Edge::changed` |
 | Writing where the person is, not for every scroll | `anyview::host::Remembering` |
