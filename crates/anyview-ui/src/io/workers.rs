@@ -15,7 +15,7 @@ use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::work::{Stop, StopState};
-use anyview_core::{FileAction, FilePath, Resume};
+use anyview_core::{FileAction, FilePath, PixelSize, Resume};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -180,6 +180,10 @@ pub enum HostRequest {
     Reveal(FilePath),
     /// Open a web or mail address a link of the open file names, with the program that handles it.
     OpenUri(String),
+    /// The first file this window showed has loaded, and its content is naturally this size (a
+    /// PDF's first page at 100%, a picture a plugin decoded). Sent once per window, never for a
+    /// file the person moved on to: the host sizes the window to it if the person has not.
+    SizeWindow(PixelSize),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

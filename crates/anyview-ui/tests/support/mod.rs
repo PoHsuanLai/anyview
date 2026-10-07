@@ -206,6 +206,7 @@ impl Memory {
             | HostRequest::OpenUri(_)
             | HostRequest::OpenFiles(_)
             | HostRequest::Reveal(_)
+            | HostRequest::SizeWindow(_)
             | HostRequest::Present(_) => {}
         }
     }

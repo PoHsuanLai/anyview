@@ -6,15 +6,22 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **A window opens no larger than a fixed cap, and image pixels are taken as logical pixels.** `window::fit`
-  sizes a window to its picture or video, scaled down to `fit_cap()`: 1600 by 1000 logical pixels, or
-  `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT`. A picture is meant to show at one image pixel to one physical pixel, as
-  Preview shows it, and the cap to be 85% of the work area of the window's monitor. Neither is known:
-  quire has no `screen_extent()`, no monitor scale factor and no open-window `request_size()`. Ends when
-  ds-blitz reports the monitor: `fit_cap()` becomes 85% of its work area and the natural size divides
-  by its scale factor (the TODO beside `fit_cap`). A PDF, HEIC, camera raw, ICNS, JPEG XL and PSD file
-  open at the default window: their size is not in a header read cheaply (a PDF's `/MediaBox` may sit
-  in a compressed object or be inherited).
+- **Image pixels are taken as logical pixels in a window's size.** A picture is meant to show at one image
+  pixel to one physical pixel, as Preview shows it, so its natural size would divide by the monitor's scale
+  factor before it is fitted. quire (v0.2.18) gives the screen's logical extent (`AppHandle::screen_extent`,
+  the monitor's whole size, so the cap of 85% is right at any scale; on Wayland a fractional output is off by
+  the difference) and no scale factor. Ends when quire exposes the scale: `window::fit` divides by it (the TODO
+  beside `cap_for`). A PDF's page at 100% is a point per device pixel, so it is taken as logical pixels too.
+- **A video's size comes from its header only.** The window opens at a recording's resolution when the mp4 or
+  Matroska header says it (`anyview_peek::natural_size`). The player line (`MediaLine`, `MediaNotice`) does not
+  report the picture's size, so a container the header readers do not know opens at the default window. Ends
+  when the player reports the resolution: a `MediaNotice` for it, and `MediaDoc` answers `StageView::natural`
+  (the seam that sizes a window after its first file loaded, as a PDF's page and a plugin-decoded picture do).
+- **A PDF's page keys step by a thousandth of a page, not 40 px.** design/11 §11.3.10 says a line is 40 px and a
+  page `max(0.8 v, v - 40)`. The PDF machine places the reader in pages and thousandths of a page and knows no
+  pixels (`stage/pdf/place.rs` `LINE`, 80), and Page Down is one whole PDF page; the view's cursor (device
+  pixels, `families/pdf/steer.rs`) is what knows them. Ends when a line and a page are asked of the view's
+  `Steering` in pixels and the machine only hears where the reader landed.
 - **quire's `PdfPage::Ready` carries a PNG `data:` URL.** The PDF peek goes through `ds_blitz::pdf_thumb_blocking`
   (the cache the launcher already uses), whose page is `ImageSource`, so a PDF's first page is the one
   picture here that is not a `TextureLayer`. Ends when quire's `PdfPage::Ready` can hold pixels for a
