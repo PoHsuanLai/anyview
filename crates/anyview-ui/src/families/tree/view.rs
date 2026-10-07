@@ -3,6 +3,7 @@
 //! a time as the list mounts them.
 
 use super::doc::TreeDoc;
+use crate::families::rows::compact_px;
 use crate::families::view::{Held, StageCx};
 use crate::{RowNo, Stage, StageIn, TreeIn};
 use anyview_text::{NodeKind, Openness, RowLabel, VisibleRow};
@@ -14,13 +15,11 @@ use ds::prelude::Px;
 use ds_core::vocab::{RowState, Selection, Shown};
 use std::sync::Arc;
 
-/// The height of a compact row.
-const ROW_PX: f32 = 24.0;
 /// How many rows a page up or down moves by: the room's height in rows, less two, so the row the
 /// cursor left stays in view.
 pub(super) fn page_of(area: Option<crate::Area>) -> u32 {
     area.map_or(1, |area| {
-        let rows = (area.size.height.0 / ROW_PX).floor();
+        let rows = (area.size.height.0 / compact_px()).floor();
         // a count of rows on screen is far below u32's range, and a negative one is none
         (rows as u32).saturating_sub(2).max(1)
     })
@@ -129,7 +128,7 @@ pub(super) fn TreeContent(doc: Held<TreeDoc>, cx: StageCx) -> Element {
                 label: "Nodes",
                 keys,
                 row,
-                height: RowHeight::Fixed(Px(ROW_PX)),
+                height: RowHeight::Fixed(Px(compact_px())),
                 cursor,
                 onselect: move |index: u32| send.call(StageIn::Tree(TreeIn::Select(RowNo(index)))),
             }
