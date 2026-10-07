@@ -12,7 +12,7 @@ mod support;
 use anyview_core::{PageIndex, Permille, Resume, Zoom};
 use anyview_ui::HostRequest;
 use dioxus::prelude::Modifiers;
-use ds::host::gesture::{Gesture, GesturePhase, Magnification};
+use ds::host::gesture::{Gesture, GesturePhase, Magnification, ScrollSource};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query};
 use std::path::PathBuf;
@@ -204,6 +204,7 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
     let pinched = capsule(&harness);
     assert_ne!(before, pinched, "a pinch changes the zoom");
     harness.send(Input::gesture(Gesture::Scroll {
+        source: ScrollSource::Wheel,
         phase: GesturePhase::Changed,
         by: Point {
             x: Px(0.0),
