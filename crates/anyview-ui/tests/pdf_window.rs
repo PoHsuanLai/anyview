@@ -376,3 +376,37 @@ fn end_and_home_go_to_the_last_page_and_the_first_and_a_line_key_scrolls_in_the_
         "a line down moved the page up"
     );
 }
+
+#[test]
+fn a_pdf_capsule_fits_a_window_at_its_least_width() {
+    let (_dir, paths) = fixture();
+    let (mut harness, _, _) = wired(
+        &paths,
+        0,
+        Appearance::default(),
+        Wiring {
+            viewport: Some(ds_harness::Viewport {
+                width: 480,
+                height: 320,
+                scale_percent: 100,
+            }),
+            ..Wiring::default()
+        },
+    );
+    harness.advance(Duration::from_millis(500));
+    harness.send(Input::pointer_move(Point {
+        x: Px(240.0),
+        y: Px(160.0),
+    }));
+    settle(&mut harness);
+    let capsule = harness.rect(".ds-capsule").expect("the capsule shows");
+    assert!(
+        capsule.origin.x.0 >= 0.0 && capsule.origin.x.0 + capsule.size.width.0 <= 480.0,
+        "the capsule is inside the window: {capsule:?}"
+    );
+    assert_eq!(
+        harness.count(".ds-capsule .ds-button"),
+        7,
+        "all seven buttons at 480"
+    );
+}

@@ -17,9 +17,12 @@ versioning, with pre-releases while the program is in beta.
   next file keeps the window as it is.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
-
 - quire v0.2.20: a touchpad scrolls the PDF, pictures and text with the fingers and carries on with the glide
   after a fast flick, as a native scroll does; Control with the wheel zooms one step a click.
+- The playback bar thins itself to the window: in a narrow window it drops the export, the speed, the length, the
+  volume and then the clock, in that order, and keeps play, the seek buttons and the progress bar. A PDF's
+  and a picture's bars drop their least needed buttons the same way. The window's least size is still 480 by
+  320, and what a narrow bar hides stays in the command palette and the right-click menu.
 
 ### Look
 

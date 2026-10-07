@@ -31,12 +31,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   Open..., Print, Share and Open With where their service is absent, so the portable build shows none of them
   (a launch with files, drag and drop and the command line still open files). Ends when a portable chooser is
   written: `NoPicker` is replaced and its `present()` says yes.
-- **The window's least size may be narrower than a video's capsule.** v0.2.19's Large control is 32 tall (it was
-  28) and its glyph 18. The media capsule (quire's, spanning the window less 32, up to 640) holds up to fourteen
-  slots with a 160 px scrubber, a 96 px volume and three readouts, about 700 px at its narrowest; the window's
-  least width is 480 (`window::fit::LEAST`). A video smaller than that opens with a capsule wider than the
-  window. Not measured on screen. Ends when the capsule drops its readouts or the volume below a width, or the
-  least for a recording is raised.
 - **The install offer follows PackageKit as the program started.** `ds-desktop`'s `Helpers` capability is probed
   once at start (`program::start::can_install`); a PackageKit that appears later is not noticed until a restart.
   Without `quire-desktop` the probe has no bus, so no Install... is offered (the row still names the tool).
@@ -696,6 +690,16 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Standing facts
 
+- **A capsule thins itself to the stage's width, and quire's capsule has no overflow of its own.** quire's capsule is as
+  wide as its slots (the media one is `calc(100% - 32px)` up to 640, its progress bar at least 160), so each family ranks
+  its slots and `families/capsule_fit.rs` drops the least important rank at a time until the rest fits
+  `StageCx::area` (the widths are quire's tokens: a Large button 32, a gap 4, padding 8, a readout 36 at least, a divider
+  9, a level 96). The media capsule loses the export, the speed, the length, the level and then the clock, in that
+  order; the PDF's, the find, the fits and the zoom; a picture's, the rotate buttons and the zoom. The whole video capsule is 664 with quire's 160 px bar and the widest a capsule goes is 640, so the export
+  goes first at any width (a patch to lower the bar's `min-width` to 120, `quire.patch` in the lane layout, lets all of it
+  show at 696 and up; `SCRUB_LEAST` follows it). There is no mute button, so a stage
+  under about 490 px (a window at its least width, or a wider one with a panel open) has no volume control in the
+  capsule; the system's volume is still there.
 - **The missing-tool sheet is quire's, and its pieces are not where the guide says.** `HelperSheet` and `HelperBody` are
   exported by `ds_shell::prelude`, not by `ds_shell::helpers` (which holds `model::HelperPhase`). The sheet's one rule,
   `.ds-helper-progress`, is in the shell's stylesheet, so the viewer's `Ds` root is given `ds_shell::stylesheet()` as

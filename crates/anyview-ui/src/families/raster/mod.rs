@@ -8,6 +8,7 @@ mod view;
 
 pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterTarget};
 
+use crate::families::capsule_fit::{Ranked, fit_slots, stage_width};
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
@@ -19,6 +20,10 @@ use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::Icon;
 use std::sync::Arc;
+
+/// How soon each control goes when the capsule is too wide for the stage (`capsule_fit`).
+const RANK_ROTATE: u8 = 2;
+const RANK_ZOOM: u8 = 1;
 
 /// Raster and vector images.
 #[derive(Debug, Clone, Copy)]
@@ -152,22 +157,31 @@ impl StageView for RasterStageView {
             }
             _ => Permille::WHOLE,
         };
+        // Soonest to go first when the stage is narrow (`capsule_fit`): the rotate buttons, then
+        // the zoom. An animation's play button stays.
         let mut slots = vec![
-            CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus),
-            CapsuleSlot::Readout(format!("{}%", percent.0 / 10)),
-            CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus),
+            Ranked::drops(
+                RANK_ZOOM,
+                CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus),
+            ),
+            Ranked::drops(
+                RANK_ZOOM,
+                CapsuleSlot::Readout(format!("{}%", percent.0 / 10)),
+            ),
+            Ranked::drops(
+                RANK_ZOOM,
+                CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus),
+            ),
         ];
         if doc.offer != crate::EditOffer::Withheld {
-            slots.push(CapsuleSlot::Divider);
-            slots.push(CapsuleSlot::button(
-                Command::File(RotateLeft),
-                "Rotate left",
-                Icon::Undo,
+            slots.push(Ranked::stays(CapsuleSlot::Divider));
+            slots.push(Ranked::drops(
+                RANK_ROTATE,
+                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo),
             ));
-            slots.push(CapsuleSlot::button(
-                Command::File(RotateRight),
-                "Rotate right",
-                Icon::Refresh,
+            slots.push(Ranked::drops(
+                RANK_ROTATE,
+                CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh),
             ));
         }
         if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
@@ -177,14 +191,14 @@ impl StageView for RasterStageView {
                     ("Play", Icon::Play)
                 }
             };
-            slots.push(CapsuleSlot::Divider);
-            slots.push(CapsuleSlot::button(
+            slots.push(Ranked::stays(CapsuleSlot::Divider));
+            slots.push(Ranked::stays(CapsuleSlot::button(
                 Command::Stage(crate::StageCommand::TogglePlayback),
                 label,
                 icon,
-            ));
+            )));
         }
-        slots
+        fit_slots(slots, stage_width(cx.area))
     }
 
     fn panel(_doc: &Arc<RasterDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
