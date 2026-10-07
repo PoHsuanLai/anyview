@@ -136,13 +136,10 @@ mod remaking {
         let file = touch(dir.path(), "clip.mkv");
         let stacking = FakeStacking::with(StackingSupport::Supported);
         let of = |presentation| {
-            spec_for(&seed(
-                &runtime,
-                dir.path(),
-                &file,
-                presentation,
-                stacking.clone(),
-            ))
+            spec_for(
+                &seed(&runtime, dir.path(), &file, presentation, stacking.clone()),
+                None,
+            )
         };
         assert_eq!(
             of(Presentation::Mini),
@@ -180,13 +177,16 @@ mod remaking {
             (3200, 1000, (1600, 500)),
         ] {
             let file = png_file(dir.path(), &format!("{width}.png"), width, height);
-            let spec = spec_for(&seed(
-                &runtime,
-                dir.path(),
-                &file,
-                Presentation::Window,
-                stacking.clone(),
-            ));
+            let spec = spec_for(
+                &seed(
+                    &runtime,
+                    dir.path(),
+                    &file,
+                    Presentation::Window,
+                    stacking.clone(),
+                ),
+                None,
+            );
             assert_eq!(
                 spec,
                 WindowSpec::new(
@@ -211,7 +211,7 @@ mod remaking {
             Presentation::Window,
             FakeStacking::with(StackingSupport::Supported),
         );
-        let size_of = |seed: &Seed| spec_for(seed).size();
+        let size_of = |seed: &Seed| spec_for(seed, None).size();
         assert_eq!(
             size_of(&old),
             WindowSize::new(900, 500).with_least(480, 320)
@@ -228,13 +228,16 @@ mod remaking {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let file = png_file(dir.path(), "a.png", 900, 500);
-        let spec = spec_for(&seed(
-            &runtime,
-            dir.path(),
-            &file,
-            Presentation::Mini,
-            FakeStacking::with(StackingSupport::Supported),
-        ));
+        let spec = spec_for(
+            &seed(
+                &runtime,
+                dir.path(),
+                &file,
+                Presentation::Mini,
+                FakeStacking::with(StackingSupport::Supported),
+            ),
+            None,
+        );
         assert_eq!(spec.size(), WindowSize::new(480, 270));
     }
 

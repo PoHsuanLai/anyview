@@ -13,6 +13,7 @@ mod welcome;
 mod tests;
 
 pub(crate) use fit::WINDOW;
+pub use fit::{Sizer, SizerContext};
 pub use opening::{Opening, sequence_around};
 pub use root::{open_in_window, seeded_root};
 pub use seed::{Factory, Seed, StackingAsk};

@@ -415,15 +415,32 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `LinuxDesktop`, `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `helpers` (`HelperHost`: the tools the plugins run and a missing one's install, below), `plugin_registry` (`PluginRegistry`: the plugins as they are now, read again when a tool is installed), `path_watch` (`PathWatch`: the folders of the search path, watched so a tool installed in a terminal is noticed), `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
 | `window` | `fit` (where a viewer window's size is decided, below), `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
-**Where a window's size is decided.** `window::fit` is the one place: `spec_for` (called as a window opens,
-from `open_in_window`) asks `window_for(file)`, which reads the file's natural size with
-`anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) and passes it to the pure
-`fitted(natural, cap, least)`. The size is the content's own in logical pixels (image pixels, for now),
-scaled down to `fit_cap()` keeping its ratio, never below `LEAST` (480 by 320, kept as the window's
-least size too), and `WINDOW` (1000 by 700) for a file with no natural size. It is decided once, when a window is
-opened: moving to the next file keeps the window, a window a person resized is never changed, and a file
-opened into a new window (a second launch, the welcome window's pick, the mini window made a window again)
-gets its own. The mini and welcome windows keep their own constants.
+**Where a window's size is decided.** `window::fit` is the one place, in two steps. As a window opens, `spec_for`
+(from `open_in_window`, with `AppHandle::screen_extent()`) asks `window_for(file, screen)`, which reads the file's
+natural size with `anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) and passes it to the
+pure `fitted(natural, cap, least)`. The size is the content's own in logical pixels (image pixels, for now), scaled
+down to `cap_for(screen)` keeping its ratio, never below `LEAST` (480 by 320, kept as the window's least size too;
+`WindowSize::fitting` is quire's), and `WINDOW` (1000 by 700, held to the cap) for a file with no natural size. The
+cap is quire's share of the screen (`Extent::fit`, 85% of the monitor's logical size), the fixed 1600 by 1000
+before the event loop runs (the very first window), or `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT` (for tests).
+
+Content whose size only the loaded document knows is sized after load. The first file of a window, once its full
+open has landed, tells the host its natural size (`StageView::natural`: a PDF's first page as displayed, at
+100%, from pdfrum's crop box and rotation; a picture's decoded size, which a plugin's HEIC or camera raw only
+has then) as `HostRequest::SizeWindow`, once: the shelf's `FirstLoad` is spent by the first load that lands, so
+the next file, a reload and a failed first file never send it. The window routes it to `WindowTask::Size`,
+and `WindowFit::loaded` calls quire's `WindowSizer::request_size(fitted)` unless `origin()` is `Person` (the person
+resized the window, or the compositor did), the window already is that size, or it asked before. The sizer is
+reached through the `Sizer` trait; a test gives a stand-in as a `SizerContext` root context. The mini window is
+never resized. So moving to the next file keeps the window (Preview's habit), a window a person resized is never
+changed, and a file opened into a new window (a second launch, the welcome window's pick, the mini window made a
+window again) gets its own. The mini and welcome windows keep their own constants.
+
+A wheel's detents reach the PDF, picture and text views as `WheelDelivery::Eased` gestures: one
+`Gesture::Scroll` per frame whose shares sum to 60 px a detent over at most 200 ms (design/11 §11.3.11). A touchpad's
+motion reaches the same listener as it is. The PDF view carries the part of a share under a device pixel to the
+next frame. Table, tree, the failure and welcome screens and the PDF panel are native overflow or quire's
+`VirtualList`, which the window scrolls by design/11 with no code of ours.
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
 and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to

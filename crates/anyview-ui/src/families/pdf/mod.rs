@@ -31,7 +31,7 @@ use crate::io::{OpenError, OpenLink};
 use crate::{
     PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket, Viewport,
 };
-use anyview_core::{Facts, Resume, Sniffed, Source};
+use anyview_core::{Facts, PixelLen, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use std::sync::Arc;
@@ -85,6 +85,18 @@ impl StageView for PdfStageView {
 
     /// The place the file was left is put back now that the page count is known: before it, the
     /// stage could only keep it inside a one-page document.
+    fn natural(doc: &PdfDoc) -> Option<PixelSize> {
+        // The first page as displayed (crop box, after its rotation) at 100%: a point is a pixel.
+        let first = doc.sizes().first()?;
+        let whole = |points: anyview_pdf::MilliPoints| {
+            Some(points.0.saturating_add(500) / 1000).filter(|px| *px > 0)
+        };
+        Some(PixelSize {
+            width: PixelLen(whole(first.width)?),
+            height: PixelLen(whole(first.height)?),
+        })
+    }
+
     fn arrived(_doc: &PdfDoc, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {
         stage.restoring(left_at).into_iter().collect()
     }

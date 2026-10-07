@@ -10,7 +10,7 @@ use anyview::host::{
 use anyview::media::{MediaHub, MediaPlugins, PlayerHost};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
-use anyview::window::{Factory, Opening, Seed, seeded_root};
+use anyview::window::{Factory, Opening, Seed, SizerContext, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
@@ -85,16 +85,36 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
     open_wired(file, scratch, plugins, Wired::default())
 }
 
-/// What a window is wired to beyond the players: the pictures' plugins and the tools that can be
-/// installed when one is missing.
+/// What a window is wired to beyond the players: the pictures' plugins, the tools that can be
+/// installed when one is missing, and the window's size asked of a stand-in sizer.
 #[derive(Default)]
 pub struct Wired {
     pub images: Option<ImageHost>,
     pub helpers: Option<Arc<HelperHost>>,
+    pub sizer: Option<SizerContext>,
+}
+
+/// [`open_with`], the window's size asked of `sizer` instead of a real window's.
+pub fn open_sized(
+    file: &Path,
+    scratch: &Path,
+    plugins: Arc<MediaPlugins>,
+    sizer: Option<SizerContext>,
+) -> Rig {
+    open_wired(
+        file,
+        scratch,
+        plugins,
+        Wired {
+            sizer,
+            ..Wired::default()
+        },
+    )
 }
 
 /// [`open_with`], wired as `wired` says.
 pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired: Wired) -> Rig {
+    let sizer = wired.sizer;
     let started = Instant::now();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -157,7 +177,7 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
     }
     let opening = Opening::around(FilePath::new(file).unwrap());
     let wired = started.elapsed();
-    let config = HarnessConfig::new(VIEW)
+    let mut config = HarnessConfig::new(VIEW)
         .with_clock(HarnessClock::Virtual)
         .with_backend(Backend::Hybrid)
         .with_context(Seed {
@@ -165,6 +185,9 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
             opening,
             presentation: anyview_ui::Presentation::Window,
         });
+    if let Some(sizer) = sizer {
+        config = config.with_context(sizer);
+    }
     let harness = Harness::new(seeded_root, config);
     let windowed = started.elapsed();
     Rig {
