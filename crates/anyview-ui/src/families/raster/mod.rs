@@ -14,7 +14,7 @@ use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
     StageIn, StageParams, Ticket,
 };
-use anyview_core::{Facts, Permille, Resume, Sniffed, Source};
+use anyview_core::{Facts, Permille, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::prelude::Icon;
@@ -90,6 +90,11 @@ impl StageView for RasterStageView {
             },
             ..StageParams::default()
         }
+    }
+
+    fn natural(doc: &RasterDoc) -> Option<PixelSize> {
+        // With no picture to show (its plugin is missing) there is nothing to fit the window to.
+        doc.needs.is_none().then_some(doc.size)
     }
 
     fn arrived(doc: &RasterDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {

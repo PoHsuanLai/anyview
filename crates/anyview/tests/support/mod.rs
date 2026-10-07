@@ -9,7 +9,7 @@ use anyview::host::{
 use anyview::media::{MediaHub, MediaPlugins, PlayerHost};
 use anyview::runtime::PoolSize;
 use anyview::seam::{NoticeWaker, Workforce};
-use anyview::window::{Factory, Opening, Seed, seeded_root};
+use anyview::window::{Factory, Opening, Seed, SizerContext, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
@@ -81,6 +81,16 @@ pub fn open(file: &Path, scratch: &Path) -> Rig {
 
 /// [`open`], with the plugins a run of the binary would have discovered.
 pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig {
+    open_sized(file, scratch, plugins, None)
+}
+
+/// [`open_with`], the window's size asked of `sizer` instead of a real window's.
+pub fn open_sized(
+    file: &Path,
+    scratch: &Path,
+    plugins: Arc<MediaPlugins>,
+    sizer: Option<SizerContext>,
+) -> Rig {
     let started = Instant::now();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -136,7 +146,7 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
     );
     let opening = Opening::around(FilePath::new(file).unwrap());
     let wired = started.elapsed();
-    let config = HarnessConfig::new(VIEW)
+    let mut config = HarnessConfig::new(VIEW)
         .with_clock(HarnessClock::Virtual)
         .with_backend(Backend::Hybrid)
         .with_context(Seed {
@@ -144,6 +154,9 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
             opening,
             presentation: anyview_ui::Presentation::Window,
         });
+    if let Some(sizer) = sizer {
+        config = config.with_context(sizer);
+    }
     let harness = Harness::new(seeded_root, config);
     let windowed = started.elapsed();
     Rig {
