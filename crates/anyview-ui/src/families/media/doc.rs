@@ -33,7 +33,7 @@ impl MediaDoc {
     }
 
     /// The package that would play the recording, when none does: a facts card is what it shows.
-    pub fn needs(&self) -> Option<&anyview_core::Fact> {
+    pub fn needs(&self) -> Option<&crate::Need> {
         match &self.playback {
             MediaPlayback::Line(_) => None,
             MediaPlayback::Missing(needs) => Some(needs),
@@ -72,7 +72,7 @@ pub(super) fn open(
         .iter()
         .fold(facts, |facts, row| facts.with(row.label, row.value.clone()));
     let facts = match &started.playback {
-        MediaPlayback::Missing(needs) => facts.with(needs.label, needs.value.clone()),
+        MediaPlayback::Missing(needs) => facts.with(needs.fact.label, needs.fact.value.clone()),
         MediaPlayback::Line(_) => facts,
     };
     Ok(MediaDoc {

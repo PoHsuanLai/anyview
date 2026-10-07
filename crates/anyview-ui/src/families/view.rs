@@ -209,6 +209,11 @@ pub trait StageView: 'static {
     fn edit_offer(_doc: &Self::Doc) -> EditOffer {
         EditOffer::Plain
     }
+    /// The tool the document is shown without because the system lacks it, when installing it
+    /// would let the file show fully.
+    fn lacks(_doc: &Self::Doc) -> Option<anyview_core::Helper> {
+        None
+    }
 }
 
 /// A loaded document of any family, as the window reads it.
@@ -232,6 +237,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
     fn media_offer(&self) -> MediaOffer;
     fn edit_offer(&self) -> EditOffer;
+    fn lacks(&self) -> Option<anyview_core::Helper>;
 }
 
 /// A document of family `S`, which is how it knows how to draw itself.
@@ -307,5 +313,9 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn edit_offer(&self) -> EditOffer {
         S::edit_offer(&self.doc)
+    }
+
+    fn lacks(&self) -> Option<anyview_core::Helper> {
+        S::lacks(&self.doc)
     }
 }

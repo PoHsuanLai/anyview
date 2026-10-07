@@ -2,10 +2,10 @@
 //! the window told it, and a picture it uploads stands for the video.
 #![allow(dead_code, clippy::unwrap_used)]
 
-use anyview_core::{Fact, FactLabel, FactValue, FilePath, MediaExportKind, MediaTags};
+use anyview_core::{Fact, FactLabel, FactValue, FilePath, Helper, MediaExportKind, MediaTags};
 use anyview_ui::{
     MediaHost, MediaLine, MediaNotice, MediaOffer, MediaPlayback, MediaStart, MediaStarted,
-    MediaWake, OpenError, PlayerCommand, SlotPixels,
+    MediaWake, Need, OpenError, PlayerCommand, SlotPixels,
 };
 use ds_blitz::{PixelFormat, Pixels};
 use ds_core::word::Word;
@@ -63,6 +63,8 @@ pub enum Answer {
     Refuses,
     /// No plugin plays recordings: the file opens as its facts and the package that would play it.
     Missing,
+    /// The plugin is there and the system's mpv is not: the same card, with mpv to install.
+    Lacks,
 }
 
 /// Starts [`FakeLine`]s and remembers them, weakly: a player the window let go of is gone.
@@ -75,6 +77,11 @@ pub struct FakePlayer {
 }
 
 impl FakePlayer {
+    /// Answer `answer` from now on: what the person installed in the meantime.
+    pub fn answer_from_now(&self, answer: Answer) {
+        *self.answer.lock().unwrap() = answer;
+    }
+
     pub fn answering(answer: Answer) -> Arc<FakePlayer> {
         let player = FakePlayer::default();
         *player.answer.lock().unwrap() = answer;
@@ -134,15 +141,24 @@ impl MediaHost for FakePlayer {
             .unwrap()
             .clone()
             .unwrap_or_else(|| MediaOffer::new(MediaExportKind::ALL.to_vec(), None));
-        match *self.answer.lock().unwrap() {
+        let answer = *self.answer.lock().unwrap();
+        match answer {
             Answer::Plays => {}
             Answer::Refuses => return Err(OpenError::Media("no player".to_owned())),
-            Answer::Missing => {
+            Answer::Missing | Answer::Lacks => {
+                let fact = Fact {
+                    label: FactLabel::Needs,
+                    value: FactValue::text("anyview-mpv (to play it)"),
+                };
+                let need = match answer {
+                    Answer::Lacks => Need {
+                        fact,
+                        helper: Some(Helper::VideoPlayback),
+                    },
+                    Answer::Plays | Answer::Refuses | Answer::Missing => Need::passive(fact),
+                };
                 return Ok(MediaStarted {
-                    playback: MediaPlayback::Missing(Fact {
-                        label: FactLabel::Needs,
-                        value: FactValue::text("anyview-mpv (to play it)"),
-                    }),
+                    playback: MediaPlayback::Missing(need),
                     offer,
                     tags: self.tags.lock().unwrap().clone(),
                     facts: anyview_core::Facts::empty()
