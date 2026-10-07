@@ -1,6 +1,6 @@
 //! What the palette can run: a file action, or a command for the stage that is showing.
 
-use anyview_core::FileAction;
+use anyview_core::{FileAction, Helper};
 use ds_core::vocab::{Shortcut, ShortcutKey};
 use ds_core::word::Word;
 
@@ -189,6 +189,7 @@ impl Command {
         match self {
             Command::File(action) => action.label().to_string(),
             Command::Stage(command) => command.label().to_string(),
+            Command::Install(_) => "Install\u{2026}".to_owned(),
         }
     }
 }
@@ -200,6 +201,9 @@ pub enum Command {
     File(FileAction),
     /// A command for the stage.
     Stage(StageCommand),
+    /// Offer to install the tool the open file needs: the Install… of a `Needs` row. The palette
+    /// never lists it; a row of the stage's own sends it.
+    Install(Helper),
 }
 
 #[cfg(test)]

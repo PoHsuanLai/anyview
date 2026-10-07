@@ -3,14 +3,16 @@
 //! recording are all done by programs the person installed; this is where the viewer finds out
 //! which, and what to say when there are none.
 
+use crate::host::{HelperHost, PluginRegistry};
 use anyview_core::{
-    ByteLen, Fact, FactLabel, FactValue, Facts, MediaTags, PeekBudget, PixelArea, Sniffed, Source,
+    ByteLen, Fact, FactLabel, FactValue, Facts, Helper, MediaTags, PeekBudget, PixelArea, Sniffed,
+    Source,
 };
 use anyview_media::{MpvHost, offered_kinds, target_of};
 use anyview_platform::{PluginFacts, PluginRunner};
 use anyview_plugin::{Installed, MissingPlugin, Plugins, Provision, Route, Subject};
 use anyview_plugin_protocol::Capability;
-use anyview_ui::MediaOffer;
+use anyview_ui::{MediaOffer, Need};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,8 +26,9 @@ const HEADER_BUDGET: PeekBudget = PeekBudget {
 /// The plugins of this run and the runner that talks to them.
 #[derive(Debug, Clone, Default)]
 pub struct MediaPlugins {
-    plugins: Plugins,
+    registry: PluginRegistry,
     runner: PluginRunner,
+    helpers: Option<Arc<HelperHost>>,
 }
 
 /// What asking for a player came to.
@@ -42,12 +45,42 @@ pub enum PlayRoute {
 impl MediaPlugins {
     /// The plugins `plugins` holds, run by `runner`.
     pub fn new(plugins: Plugins, runner: PluginRunner) -> MediaPlugins {
-        MediaPlugins { plugins, runner }
+        MediaPlugins::following(PluginRegistry::fixed(plugins), runner)
     }
 
-    /// The registry.
-    pub fn plugins(&self) -> &Plugins {
-        &self.plugins
+    /// The plugins `registry` holds now (it may read them again), run by `runner`.
+    pub fn following(registry: PluginRegistry, runner: PluginRunner) -> MediaPlugins {
+        MediaPlugins {
+            registry,
+            runner,
+            helpers: None,
+        }
+    }
+
+    /// The same plugins, offering to install the tools `helpers` knows when one is missing.
+    pub fn offering(self, helpers: Arc<HelperHost>) -> MediaPlugins {
+        MediaPlugins {
+            helpers: Some(helpers),
+            ..self
+        }
+    }
+
+    /// The registry as it is now.
+    pub fn plugins(&self) -> Arc<Plugins> {
+        self.registry.current()
+    }
+
+    /// The row that says what would play, or read, a recording `missing` names, with the tool to
+    /// offer to install when the plugin is installed and the system's tool is what is absent (a
+    /// plugin that is itself absent is not something to install a tool for).
+    pub fn need_of(&self, missing: &MissingPlugin) -> Need {
+        let fact = missing.fact();
+        match &self.helpers {
+            Some(helpers) if self.plugins().tool_absent(missing.package) => {
+                helpers.need(fact, missing.package.helper())
+            }
+            Some(_) | None => Need::passive(fact),
+        }
     }
 
     /// The runner.
@@ -57,7 +90,8 @@ impl MediaPlugins {
 
     /// The programs that play a file of `subject`'s kind.
     pub fn player(&self, subject: &Subject<'_>) -> PlayRoute {
-        match self.plugins.route(Capability::Play, subject) {
+        let plugins = self.plugins();
+        match plugins.route(Capability::Play, subject) {
             Route::Served(plugin) => match plugin.manifest.provision(Capability::Play) {
                 Some(Provision::Play(play)) => PlayRoute::Ready(MpvHost {
                     mpv: play.player.mpv.clone(),
@@ -118,7 +152,7 @@ impl MediaPlugins {
         };
         let facts = match self
             .runner
-            .peek_facts(&self.plugins, &subject, source.path())
+            .peek_facts(&self.plugins(), &subject, source.path())
         {
             Ok(PluginFacts::Facts(facts)) => facts,
             Ok(PluginFacts::Missing(_) | PluginFacts::Unserved) => header_facts(source, sniffed),
@@ -138,7 +172,7 @@ impl MediaPlugins {
 
     /// The writer of `subject`'s exports.
     pub fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
-        match self.plugins.route(Capability::Export, subject) {
+        match self.plugins().route(Capability::Export, subject) {
             Route::Served(plugin) => WriteRoute::Ready(Arc::new(ExportTool {
                 runner: self.runner,
                 plugin: plugin.clone(),
@@ -170,7 +204,9 @@ impl MediaPlugins {
                 None => playing == Playing::Yes,
             })
             .collect();
-        let needs = match (&writable, self.plugins.route(Capability::Export, &subject)) {
+        let plugins = self.plugins();
+        let route = plugins.route(Capability::Export, &subject);
+        let needs = match (&writable, &route) {
             (Some(_), _) => None,
             (None, Route::Missing(missing)) => Some(missing.fact()),
             (None, Route::Served(_) | Route::Unserved) => Some(Fact {
@@ -178,7 +214,15 @@ impl MediaPlugins {
                 value: FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
             }),
         };
-        MediaOffer::new(kinds, needs)
+        let offer = MediaOffer::new(kinds, needs);
+        // The FFmpeg plugin is installed and its FFmpeg is what is missing: that is a tool to
+        // install. A plugin that is itself absent is not.
+        match (&self.helpers, &writable, &route) {
+            (Some(helpers), None, Route::Served(_)) if helpers.offers(Helper::MediaProbe) => {
+                offer.installable(Helper::MediaProbe)
+            }
+            (Some(_) | None, _, _) => offer,
+        }
     }
 
     /// The targets the writer can write now, from its greeting; `None` when it could not be

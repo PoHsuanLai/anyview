@@ -53,7 +53,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
-| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`) |
+| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -64,7 +64,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
 | `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard) |
+| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
@@ -157,7 +157,7 @@ named below.
 | `label` | `ResumeLabel` and `resume_label`, the row subtitle derived from a `Resume` |
 | `history` | `HistoryCap`, `HistoryEntry`, `History` and the pure `history_after_view` |
 | `record` | the per-file record, its hashed file name, `applicable` and `prune_decision` (private) |
-| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `ResumeSource`, `FirstFrameSource` and `FileLocks` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
+| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary, among them `Provide`: install this tool), `Need` (a `Needs` row with the tool that would answer it), `HelperSource` and `HelperWords` (what the host lends the sheet to word it), `ResumeSource`, `FirstFrameSource` and `FileLocks` (what the binary lends it to read), `folder_sequence`, `Backend` and `Stop` |
 | `reader` | `read_history`, `HistoryRead`: the API the launcher links |
 | `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
 | `save` | the save pipeline: `Pending`, `BackedUp` (consumed by `write_in_place`), `Written`, `Durability` |
@@ -191,7 +191,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `panel` | `Panel`, `PanelTab`, `PanelTabs` |
 | `palette` | `Palette`, `PaletteParams` (the ranked rows) |
 | `context` | `ContextMenu` (closed, or open with its corner), `ContextParams` (the rows and where a key opens it), `ContextPick`, `ContextEntry`, `Spot`, and `entries`: which of the palette's commands a Mac's context menu shows, in what order, under what titles, with its rules |
-| `sheet` | `Sheet`, `ExportDraft` (one format's export choice) |
+| `sheet` | `Sheet`, `ExportDraft` (one format's export choice), and the install question for a missing tool: `Sheet::Helper` with `HelperPhase` (`Ask`, `Installing`, `Failed`, `NotFound`, `Unsupported`), `SheetIn::OfferHelper` and `HelperEnded(Helper, HelperEnd)`, `SheetOut::Provide` and `Reopen` |
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
 | `presentation` | `Presentation` |
 | `load` | `Load`, `Ticket`, `freshness` (whether a file on disk is still the one opened: the decision behind a reload) |
@@ -448,18 +448,35 @@ environment once and calls `program::run`; nothing below it reads `std::env`.
 | `program` | `run`; `claim_role` and `Role` (`Forwarded`, `Primary`, `Alone`: single instance over the `Instance` trait); `relay`, `open_each`, `open_windows`, `wants_of`, `Want` and `Arrival` (what the viewer's name receives: each file, or a handoff that brings its own results and place, becomes a window through ds-blitz's `AppHandle`, or, for a `Play`, a player with no window); `WARM_FOR` |
 | `media` | the program's players: `MediaHub` (the sessions, the desktop's one now-playing entry and the controls that come back, the sessions with no window), `PlayerHost` (the `MediaHost` a window is lent: a player on a thread of its own per window), `NowPlaying` (MPRIS, or absent without a bus), `MediaPlugins` (the registry and the runner: `player`, `reading`, `writer`, `offer`; section 2i), `Exports`, `ExportHandle`, `ExportEnd`, `PluginExport` (the pool's runner for transcodes through the FFmpeg plugin, with progress and stop). Private: `actor` (the `ActorBody` over a `Box<dyn MediaDriver>`), `engine` (which player a recording gets, `choose`, and what each is built from), `guard` (`Guarded`: a panic in a player becomes it failing), `line` (what a window holds of a player), `map` (the player's events and commands to the machine's, both ways), `snapshot` (the entry's state from the events, and how often a moving position is published), `orders` (what each desktop control means to a player), `sink` (the window's texture as the player's picture) |
 | `seam` | `Workforce`: the `Pool`, the `Runner` for the views' `Work` and the `Mailbox` its endings come back through; `NoticeWaker`, `Notice`. The one implementation of `anyview_ui::Workers` |
-| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `PlatformDesktop` (the desktop of this build: the Linux services with `quire-desktop`, else the portable stand-ins), `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
+| `host` | `route` (a `HostRequest` as a `Carry`: the window's own `WindowTask`, the desktop's `Task`, or a `Declined` with its reason; pure), `Shown` (the file a window shows), `Desktop` and the `Hosting` trait (the tasks carried out through the platform's traits), `PlatformDesktop` (the desktop of this build: the Linux services with `quire-desktop`, else the portable stand-ins), `Trash` with `SystemTrash`, `Store` (the one writer of the history, behind a lock) and the `Clock`, `Remembering` (the places waiting to be written, at most every `REMEMBER_EVERY`), `Watcher` and `WindowWatch` (the one file watcher and each window's end of it), `HostedResume`, `HandedResume` (the place a handoff held, read once for its file before the store's) and `CachedPictures` (the store and the thumbnail cache as the views' `ResumeSource` and `FirstFrameSource`), `Outcome`, `Declined` and `feedback` (the words the person is told of each outcome, `notice_of`, and the program's one log line, `log`: every task's end goes through `tell`, which logs it and hands the window its `Notice` through `Edge::notify`, which the window draws as a toast, with Show in Folder when the notice names a file), `StoreLocks` (the store's read-only check as the views' `FileLocks`), `PeekCards` (the launcher's light tier as the views' `FileCards`: a font, an archive, a folder or an office document lists what its peek lists); `Media` (the hub, the exports and a scratch folder) and its two tasks: play with no window from where the file was left, and write a media export beside the file (a cut or a track on the pool, the frame on screen from the player that shows it); `helpers` (`HelperHost`: the tools the plugins run and a missing one's install, below), `plugin_registry` (`PluginRegistry`: the plugins as they are now, read again when a tool is installed), `path_watch` (`PathWatch`: the folders of the search path, watched so a tool installed in a terminal is noticed), `documents` (the export of an image, a PDF or a text document through `anyview-export` on the blocking pool, and the PDF `Print` hands the printer for any file that prints) |
 | `window` | `fit` (where a viewer window's size is decided, below), `Opening` (a file, its sequence (its folder's, or the results a handoff brought) and the place a handoff held), `Factory` and `Seed` (what every window shares, and what makes one window its own), `open_in_window` (a window opened through the `AppHandle` with its `Seed` as props) and `seeded_root` (a root that reads the `Seed` from a context: the harness's) |
 
-**Where a window's size is decided.** `window::fit` is the one place: `spec_for` (called as a window opens,
-from `open_in_window`) asks `window_for(file)`, which reads the file's natural size with
-`anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) and passes it to the pure
-`fitted(natural, cap, least)`. The size is the content's own in logical pixels (image pixels, for now),
-scaled down to `fit_cap()` keeping its ratio, never below `LEAST` (480 by 320, kept as the window's
-least size too), and `WINDOW` (1000 by 700) for a file with no natural size. It is decided once, when a window is
-opened: moving to the next file keeps the window, a window a person resized is never changed, and a file
-opened into a new window (a second launch, the welcome window's pick, the mini window made a window again)
-gets its own. The mini and welcome windows keep their own constants.
+**Where a window's size is decided.** `window::fit` is the one place, in two steps. As a window opens, `spec_for`
+(from `open_in_window`, with `AppHandle::screen_extent()`) asks `window_for(file, screen)`, which reads the file's
+natural size with `anyview_peek::natural_size` (a few milliseconds, bounded, nothing decoded) and passes it to the
+pure `fitted(natural, cap, least)`. The size is the content's own in logical pixels (image pixels, for now), scaled
+down to `cap_for(screen)` keeping its ratio, never below `LEAST` (480 by 320, kept as the window's least size too;
+`WindowSize::fitting` is quire's), and `WINDOW` (1000 by 700, held to the cap) for a file with no natural size. The
+cap is quire's share of the screen (`Extent::fit`, 85% of the monitor's logical size), the fixed 1600 by 1000
+before the event loop runs (the very first window), or `ANYVIEW_WINDOW_CAP=WIDTHxHEIGHT` (for tests).
+
+Content whose size only the loaded document knows is sized after load. The first file of a window, once its full
+open has landed, tells the host its natural size (`StageView::natural`: a PDF's first page as displayed, at
+100%, from pdfrum's crop box and rotation; a picture's decoded size, which a plugin's HEIC or camera raw only
+has then) as `HostRequest::SizeWindow`, once: the shelf's `FirstLoad` is spent by the first load that lands, so
+the next file, a reload and a failed first file never send it. The window routes it to `WindowTask::Size`,
+and `WindowFit::loaded` calls quire's `WindowSizer::request_size(fitted)` unless `origin()` is `Person` (the person
+resized the window, or the compositor did), the window already is that size, or it asked before. The sizer is
+reached through the `Sizer` trait; a test gives a stand-in as a `SizerContext` root context. The mini window is
+never resized. So moving to the next file keeps the window (Preview's habit), a window a person resized is never
+changed, and a file opened into a new window (a second launch, the welcome window's pick, the mini window made a
+window again) gets its own. The mini and welcome windows keep their own constants.
+
+A wheel's detents reach the PDF, picture and text views as `WheelDelivery::Eased` gestures: one
+`Gesture::Scroll` per frame whose shares sum to 60 px a detent over at most 200 ms (design/11 §11.3.11). A touchpad's
+motion reaches the same listener as it is. The PDF view carries the part of a share under a device pixel to the
+next frame. Table, tree, the failure and welcome screens and the PDF panel are native overflow or quire's
+`VirtualList`, which the window scrolls by design/11 with no code of ours.
 
 A window's `HostRequest`s go from its `Edge` over a channel to a task of its root component, which routes each
 and either does it itself (closing the window, the clipboard: only that thread can) or hands the task to
@@ -855,6 +872,42 @@ preview's own EXIF orientation, else the one in the raw file's first IFD. The st
 first frame at once; when the RAW plugin is installed and works its full development replaces it, and when it
 is missing the preview stays, with a `Needs: anyview-raw (to show it in full quality)` row.
 
+### Missing tools
+
+A plugin whose tool is missing says so (the `Needs` row), and the viewer offers to install the tool the way Totem
+offers a codec, through quire's shared missing-helper parts and never through anything of its own:
+
+- **The data file** `dist/helpers/anyview.toml`, installed to `<prefix>/share/quire/helpers/anyview.toml` (covered by the
+  receipt and by uninstall), has one table for each of `anyview_core::Helper`'s four tools (`video-playback`,
+  `media-probe`, `heic-decode`, `raw-decode`: the slugs of the enum, which a test holds equal): the name and purpose the
+  sheet says, the executables that prove the tool is there, and the package names for `dnf`, `apt`, `pacman` and
+  `zypper`. Each name is marked verified (looked up on Fedora 44) or not in a comment.
+- **`host::HelperHost`** wraps `ds_helpers::Helpers` over that file (found in the person's data directory, then
+  `XDG_DATA_DIRS`) and PackageKit. `words` words the sheet from the file; `need` turns a `Needs` row into a `Need` that
+  carries the tool only when the file declares it; `provide` runs `Helpers::provide` as a host task
+  (`Task::Provide`, on the platform runtime, never the UI thread) and maps its `Outcome` to `HelperEnd`
+  (`Installed`, `Declined`, `NotFound`, `Unsupported`, `Failed`); the package manager's words go to the log through
+  `feedback::line_of` and to the sheet, never a toast. A host with no file offers nothing, and a missing tool stays a row.
+- **Where the offer is made.** The row stays as the passive state. `ImageHost` gives a HEIC or raw file whose plugin
+  is installed and whose tool is not (`PlatformError::PluginLacks`) an Install… button; `PlayerHost` gives a recording
+  with no player one when the mpv plugin is installed and its mpv is absent (`Plugins::tool_absent`: the manifest's
+  `mpv` is a missing file), and none when the plugin itself is absent or its C plugin is, since a tool would not help. A
+  raw file shown from its embedded preview has no button (a picture is on screen; nothing asks), but it reopens with
+  the full development when the tool appears. The question is asked at the moment of use: the person presses Install…,
+  and nothing opens a sheet by itself, not even on Play (a recording that cannot play is a card, as it always was).
+- **The sheet** is quire's `HelperSheet`, driven by the `Sheet::Helper` machine state: Return installs, Escape is Not
+  Now, nothing does anything while the system installs (the password prompt is the system's). `Installed` closes the
+  sheet and reopens the file in place (`ViewerIn::Reload`); `Declined` closes it quietly; the other ends are the
+  sheet's own phases, closed by Return or Escape.
+- **Hearing of a tool from elsewhere.** `HelperHost::following` (spawned on the platform runtime) awaits
+  `Helpers::subscribe`; `PathWatch` watches the folders of `PATH` and, after a burst settles, `look_again` calls
+  `Helpers::refresh` for each tool. A tool that appears makes `PluginRegistry::refresh` read the manifests again (the
+  plugins' hellos are asked afresh on every request already) and then tells every window (`Edge::available`): a window
+  whose file lacked that tool reopens it, a sheet that was asking closes, and held neighbours that lacked it are let go.
+- **Tests** use `Installer::Fake` only: the sheet's phases (`sheet/tests.rs`), a window under the harness
+  (`anyview-ui/tests/missing_helpers.rs`), the host (`host/tests/helpers.rs`) and the real HEIF plugin end to end
+  (`anyview/tests/missing_helpers.rs`).
+
 ## 2m. Processes, and what to install
 
 The viewer links no codec and no copyleft code: video and audio are played and probed by programs the person
@@ -893,7 +946,7 @@ Distribution packages are named `anyview-mpv` and `anyview-ffmpeg`.
 
 Pictures the viewer cannot decode work the same way: a HEIC opens as its facts with a `Needs: anyview-heif` row
 until the distribution's libheif tools are there (the plugin itself installs with the viewer), and a raw file shows
-its embedded preview with a `Needs: anyview-raw` row until LibRaw's `dcraw_emu` (or `dcraw`) is installed. Distribution packages: `anyview-heif` and `anyview-raw`.
+its embedded preview with a `Needs: anyview-raw` row until LibRaw's `dcraw_emu` (or `dcraw`) is installed. Distribution packages: `anyview-heif` and `anyview-raw`. Each of these rows offers Install… (see "Missing tools").
 
 ## 2o. Modules inside `anyview-book`
 
@@ -1469,7 +1522,7 @@ map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands th
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
 `$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in; every plugin installs by default (`--without-plugin NAME` and `--no-plugins` leave them out; `--with-plugin` is an ignored
 leftover; section 2m). A plugin whose tool is missing is still installed, since it greets the viewer with nothing on offer
-until the tool is there. The mpv plugin is skipped with one warning, and the rest installs, when there is no `mpv`, git, network or build. The mpv plugin's manifest template is
+until the tool is there. The mpv plugin is skipped with one warning, and the rest installs, when there is no git, network or build; with no `mpv` it still installs, naming `/usr/bin/mpv` (a warning says so), so the plugin works the moment mpv is installed. The helpers file `dist/helpers/anyview.toml` installs to `<prefix>/share/quire/helpers/anyview.toml`. The mpv plugin's manifest template is
 `dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
 C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
 `cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools and a shim `cargo`, and fetches mpv-wgpu only from a local repository.

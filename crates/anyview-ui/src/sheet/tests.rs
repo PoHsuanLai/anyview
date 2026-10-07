@@ -1,8 +1,8 @@
 use super::*;
 use crate::typed::TypedText;
 use anyview_core::{
-    ByteLen, PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind, RasterTarget,
-    Resize, TextExport,
+    ByteLen, Helper, PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind,
+    RasterTarget, Resize, TextExport,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -309,12 +309,17 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
         label: anyview_core::FactLabel::Needs,
         value: anyview_core::FactValue::text("anyview-ffmpeg (to convert it)"),
     };
-    let (open, outs) =
-        Sheet::Closed.step(SheetIn::OpenUnavailable(needs.clone()), Stamp(0), &(), &());
+    let (open, outs) = Sheet::Closed.step(
+        SheetIn::OpenUnavailable(needs.clone(), None),
+        Stamp(0),
+        &(),
+        &(),
+    );
     assert_eq!(
         open,
         Sheet::Unavailable {
-            needs: needs.clone()
+            needs: needs.clone(),
+            helper: None,
         }
     );
     assert_eq!(outs, [SheetOut::Opened]);
@@ -328,4 +333,153 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
         .step(SheetIn::OpenExport(PNG), Stamp(0), &(), &());
     assert_eq!(still, open, "a sheet that is up ignores another");
     assert!(outs.is_empty());
+}
+
+fn helping(phase: HelperPhase) -> Sheet {
+    Sheet::Helper {
+        helper: Helper::HeicDecode,
+        phase,
+    }
+}
+
+#[test]
+fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
+    use HelperEnd as End;
+    use HelperPhase::{Ask, Failed, Installing, NotFound, Unsupported};
+    let heic = Helper::HeicDecode;
+    // name, state before, input, state after, outputs
+    type Row = (&'static str, Sheet, SheetIn, Sheet, Vec<SheetOut>);
+    let rows: Vec<Row> = vec![
+        (
+            "offering opens the question",
+            Sheet::Closed,
+            SheetIn::OfferHelper(heic),
+            helping(Ask),
+            vec![SheetOut::Opened],
+        ),
+        (
+            "Install asks the host and waits",
+            helping(Ask),
+            SheetIn::Confirm,
+            helping(Installing),
+            vec![SheetOut::Provide(heic)],
+        ),
+        (
+            "Not Now closes and asks nothing",
+            helping(Ask),
+            SheetIn::Cancel,
+            Sheet::Closed,
+            vec![SheetOut::Closed],
+        ),
+        (
+            "Return and Escape do nothing while the system installs",
+            helping(Installing),
+            SheetIn::Confirm,
+            helping(Installing),
+            vec![],
+        ),
+        (
+            "Escape does nothing while the system installs",
+            helping(Installing),
+            SheetIn::Cancel,
+            helping(Installing),
+            vec![],
+        ),
+        (
+            "an install that worked closes the sheet and opens the file again",
+            helping(Installing),
+            SheetIn::HelperEnded(heic, End::Installed),
+            Sheet::Closed,
+            vec![SheetOut::Reopen, SheetOut::Closed],
+        ),
+        (
+            "a tool that arrived by itself closes the question the same way",
+            helping(Ask),
+            SheetIn::HelperEnded(heic, End::Installed),
+            Sheet::Closed,
+            vec![SheetOut::Reopen, SheetOut::Closed],
+        ),
+        (
+            "a no at the password prompt closes quietly",
+            helping(Installing),
+            SheetIn::HelperEnded(heic, End::Declined),
+            Sheet::Closed,
+            vec![SheetOut::Closed],
+        ),
+        (
+            "no package is a phase of its own",
+            helping(Installing),
+            SheetIn::HelperEnded(heic, End::NotFound),
+            helping(NotFound),
+            vec![],
+        ),
+        (
+            "no way to install is a phase of its own",
+            helping(Installing),
+            SheetIn::HelperEnded(heic, End::Unsupported),
+            helping(Unsupported),
+            vec![],
+        ),
+        (
+            "a failure keeps the package manager's words",
+            helping(Installing),
+            SheetIn::HelperEnded(heic, End::Failed("No network.".to_owned())),
+            helping(Failed("No network.".to_owned())),
+            vec![],
+        ),
+        (
+            "an answer about another tool is not this sheet's",
+            helping(Installing),
+            SheetIn::HelperEnded(Helper::RawDecode, End::Installed),
+            helping(Installing),
+            vec![],
+        ),
+        (
+            "Return closes a failure",
+            helping(Failed("x".to_owned())),
+            SheetIn::Confirm,
+            Sheet::Closed,
+            vec![SheetOut::Closed],
+        ),
+        (
+            "Escape closes no package",
+            helping(NotFound),
+            SheetIn::Cancel,
+            Sheet::Closed,
+            vec![SheetOut::Closed],
+        ),
+        (
+            "Return closes no way to install",
+            helping(Unsupported),
+            SheetIn::Confirm,
+            Sheet::Closed,
+            vec![SheetOut::Closed],
+        ),
+        (
+            "an answer for a sheet that is not up is ignored",
+            Sheet::Closed,
+            SheetIn::HelperEnded(heic, End::Installed),
+            Sheet::Closed,
+            vec![],
+        ),
+        (
+            "a sheet that is up ignores a request for another",
+            helping(Ask),
+            SheetIn::AskTrash,
+            helping(Ask),
+            vec![],
+        ),
+        (
+            "another sheet ignores an offer",
+            Sheet::ConfirmTrash,
+            SheetIn::OfferHelper(heic),
+            Sheet::ConfirmTrash,
+            vec![],
+        ),
+    ];
+    for (name, before, input, after, outs) in rows {
+        let (now, out) = before.step(input, Stamp(0), &(), &());
+        assert_eq!(now, after, "{name}");
+        assert_eq!(out, outs, "{name}");
+    }
 }

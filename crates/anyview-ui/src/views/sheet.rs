@@ -1,9 +1,12 @@
-//! The modal sheets: export, rename, save a copy, revert to a version and the trash question. The sheet machine says which is open
+//! The modal sheets: export, rename, save a copy, revert to a version, the trash question and the install question. The sheet machine says which is open
 //! and what it holds; these draw them and report the person's choices as sheet inputs.
 
 use crate::EditCaution;
-use crate::{ExportDraft, ExportKindPick, MediaOffer, TypedText, VersionKey, VersionList};
-use anyview_core::{Edit, Fact};
+use crate::{
+    ExportDraft, ExportKindPick, HelperPhase, HelperWords, MediaOffer, TypedText, VersionKey,
+    VersionList,
+};
+use anyview_core::{Edit, Fact, Helper};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
 use ds::components::controls::segmented::Tracking;
@@ -195,7 +198,12 @@ pub(super) fn ExportSheet(
 
 /// An export the viewer cannot offer at all: which package adds it. Enter and Esc put it away.
 #[component]
-pub(super) fn UnavailableSheet(needs: Fact, onclose: EventHandler<()>) -> Element {
+pub(super) fn UnavailableSheet(
+    needs: Fact,
+    helper: Option<Helper>,
+    onclose: EventHandler<()>,
+    oninstall: EventHandler<Helper>,
+) -> Element {
     rsx! {
         Sheet { label: "Export", onclose: move |()| onclose.call(()),
             div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
@@ -204,9 +212,47 @@ pub(super) fn UnavailableSheet(needs: Fact, onclose: EventHandler<()>) -> Elemen
                     "{needs.label.label()}: {needs.value.as_str()}"
                 }
                 div { class: "viewer-sheet-buttons",
+                    if let Some(helper) = helper {
+                        Button { label: "Install…", onclick: move |_| oninstall.call(helper) }
+                    }
                     Button { label: "OK", answers: Answers::Return, onclick: move |_| onclose.call(()) }
                 }
             }
+        }
+    }
+}
+
+/// Asking to install a tool the open file needs, then following the install: quire's sheet, whose
+/// phase the machine holds. Return installs and Esc is Not Now, as the sheet's own keys say.
+#[component]
+pub(super) fn InstallSheet(
+    words: HelperWords,
+    phase: HelperPhase,
+    oninstall: EventHandler<()>,
+    ondismiss: EventHandler<()>,
+) -> Element {
+    let HelperWords {
+        app,
+        tool,
+        purpose,
+        package,
+        program,
+    } = words;
+    let phase = match phase {
+        HelperPhase::Ask => ds_shell::helpers::model::HelperPhase::Ask,
+        HelperPhase::Installing => ds_shell::helpers::model::HelperPhase::Installing,
+        HelperPhase::Failed(reason) => ds_shell::helpers::model::HelperPhase::Failed { reason },
+        HelperPhase::NotFound => ds_shell::helpers::model::HelperPhase::NotFound { package },
+        HelperPhase::Unsupported => ds_shell::helpers::model::HelperPhase::Unsupported { program },
+    };
+    rsx! {
+        ds_shell::prelude::HelperSheet {
+            app,
+            tool,
+            purpose,
+            phase,
+            on_install: move |()| oninstall.call(()),
+            on_dismiss: move |()| ondismiss.call(()),
         }
     }
 }

@@ -2,6 +2,7 @@
 //! touches is a trait with a fake, so a test runs the same code against records.
 
 use super::documents;
+use super::helpers::HelperHost;
 use super::media::{self, Media};
 use super::outcome::Outcome;
 use super::remembering::{REMEMBER_EVERY, Remembering};
@@ -21,7 +22,7 @@ use anyview_platform::{
     AppsForType, Env, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
 use anyview_store::Versions;
-use anyview_ui::VersionRow;
+use anyview_ui::{HelperEnd, VersionRow};
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
@@ -88,6 +89,7 @@ struct Parts<A, R, S, P, T, F, L> {
     versions: Versions,
     remembering: Remembering,
     media: Media,
+    helpers: Option<Arc<HelperHost>>,
 }
 
 /// What the desktop keeps and plays with besides the platform's traits: the history and view
@@ -100,6 +102,8 @@ pub struct Services {
     pub media: Media,
     /// The originals kept of every file saved in place.
     pub versions: Versions,
+    /// The tools the plugins run, and installing one: absent when the program ships no list of them.
+    pub helpers: Option<Arc<HelperHost>>,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `A`
@@ -135,6 +139,7 @@ impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
             store,
             media,
             versions,
+            helpers,
         } = services;
         let store = Arc::new(store);
         Desktop {
@@ -151,6 +156,7 @@ impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
                 store,
                 versions,
                 media,
+                helpers,
             }),
         }
     }
@@ -244,6 +250,10 @@ where
 {
     match task {
         Task::PickFile => pick(parts).await,
+        Task::Provide(helper) => match &parts.helpers {
+            Some(helpers) => Outcome::Helped(helper, helpers.provide(helper).await),
+            None => Outcome::Helped(helper, HelperEnd::Unsupported),
+        },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),
         Task::Share(file) => share(parts, &file).await,

@@ -70,6 +70,10 @@ ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb082492901412
 ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
 ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+# The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
+# PackageKit install behind it (ds-helpers, named only by the binary).
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
 ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
 ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "f65eb0824929014121749986d2a8e4075cc05311" }
 

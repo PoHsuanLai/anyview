@@ -24,7 +24,10 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
     let keys = keys.as_slice();
     match regions.sheet {
         Sheet::Export { draft: _ }
-        | Sheet::Unavailable { needs: _ }
+        | Sheet::Unavailable {
+            needs: _,
+            helper: _,
+        }
         | Sheet::ConfirmTrash
         | Sheet::ConfirmEdit {
             request: _,
@@ -36,7 +39,11 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
             versions: _,
             chosen: _,
         }
-        | Sheet::NoVersions => {
+        | Sheet::NoVersions
+        | Sheet::Helper {
+            helper: _,
+            phase: _,
+        } => {
             return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}

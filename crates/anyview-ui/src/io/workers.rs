@@ -4,6 +4,7 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
+use super::helpers::{HelperSource, NoHelpers};
 use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::notice::Notice;
@@ -15,7 +16,7 @@ use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::work::{Stop, StopState};
-use anyview_core::{FileAction, FilePath, Resume};
+use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -180,6 +181,12 @@ pub enum HostRequest {
     Reveal(FilePath),
     /// Open a web or mail address a link of the open file names, with the program that handles it.
     OpenUri(String),
+    /// Install this tool through the system's package service; the answer is `Edge::helped`.
+    Provide(Helper),
+    /// The first file this window showed has loaded, and its content is naturally this size (a
+    /// PDF's first page at 100%, a picture a plugin decoded). Sent once per window, never for a
+    /// file the person moved on to: the host sizes the window to it if the person has not.
+    SizeWindow(PixelSize),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's
@@ -199,6 +206,7 @@ pub struct Edge {
     media: Arc<dyn MediaHost>,
     image_plugins: Arc<dyn ImagePlugins>,
     cards: Arc<dyn FileCards>,
+    helpers: Arc<dyn HelperSource>,
     held: Arc<Mutex<Held>>,
 }
 
@@ -237,6 +245,7 @@ impl Edge {
             media: Arc::new(NoPlayer),
             image_plugins: Arc::new(NoImagePlugins),
             cards: Arc::new(NoCards),
+            helpers: Arc::new(NoHelpers),
             held: Arc::default(),
         }
     }
@@ -295,6 +304,29 @@ impl Edge {
     /// as `cards` describe them: without them a card lists only the kind and the size.
     pub fn with_cards(self, cards: Arc<dyn FileCards>) -> Edge {
         Edge { cards, ..self }
+    }
+
+    /// The same edge wording its install sheet from `helpers`: without them no tool is offered.
+    pub fn with_helpers(self, helpers: Arc<dyn HelperSource>) -> Edge {
+        Edge { helpers, ..self }
+    }
+
+    /// What the install sheet says of `helper`, or `None` when the host does not know the tool.
+    pub fn helper_words(&self, helper: Helper) -> Option<super::helpers::HelperWords> {
+        self.helpers.words(helper)
+    }
+
+    /// Tell the window that a tool a plugin runs is on the machine now (the person installed it
+    /// some other way): a file that lacked it opens again. Callable from any thread, and a no-op
+    /// once the window is gone.
+    pub fn available(&self, helper: Helper) {
+        self.reply.post(Done::Available(helper));
+    }
+
+    /// Tell the window how asking the system to install `helper` ended. Callable from any thread,
+    /// and a no-op once the window is gone.
+    pub fn helped(&self, helper: Helper, end: crate::HelperEnd) {
+        self.reply.post(Done::Helped(helper, end));
     }
 
     /// Tell the window that `path` changed on disk. The window looks at the file's stamp and

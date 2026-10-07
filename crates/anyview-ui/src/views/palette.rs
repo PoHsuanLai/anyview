@@ -16,6 +16,7 @@ fn keys_of(command: &Command) -> Option<Shortcut> {
     match command {
         Command::File(action) => shortcut(*action),
         Command::Stage(command) => Some(command.shortcut()),
+        Command::Install(_) => None,
     }
 }
 

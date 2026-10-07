@@ -5,7 +5,8 @@
 use super::outcome::{Declined, Outcome};
 use super::route::Task;
 use anyview_core::FilePath;
-use anyview_ui::{Edge, Notice};
+use anyview_ui::{Edge, HelperEnd, Notice};
+use ds::prelude::Word;
 
 /// What a task was doing, as the person would name it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,7 +56,8 @@ impl Doing {
             Task::PickFile => Some(Doing::Pick),
             Task::OpenLink(_) => Some(Doing::OpenLink),
             Task::Edit { .. } | Task::Restore { .. } | Task::RevertTo { .. } => Some(Doing::Save),
-            Task::RecordView(_) | Task::Remember { .. } => None,
+            // The install sheet says how it went; the log has the package manager's words.
+            Task::Provide(_) | Task::RecordView(_) | Task::Remember { .. } => None,
         }
     }
 }
@@ -85,7 +87,11 @@ pub fn subject_of(task: &Task) -> Option<FilePath> {
         | Task::ExportDocument { file: probed, .. }
         | Task::ExportMedia { file: probed, .. }
         | Task::Edit { file: probed, .. } => Some(probed.source.path().clone()),
-        Task::RecordView(_) | Task::Remember { .. } | Task::PickFile | Task::OpenLink(_) => None,
+        Task::RecordView(_)
+        | Task::Remember { .. }
+        | Task::PickFile
+        | Task::OpenLink(_)
+        | Task::Provide(_) => None,
     }
 }
 
@@ -204,14 +210,25 @@ pub fn log(line: &str) {
 }
 
 /// The log line of an outcome that did not go as asked; `Done` and its kin say nothing.
-fn line_of(outcome: &Outcome) -> Option<String> {
+pub(super) fn line_of(outcome: &Outcome) -> Option<String> {
     match outcome {
         Outcome::Done
         | Outcome::Moved(_)
         | Outcome::Wrote(_)
         | Outcome::Picked(_)
         | Outcome::Handed
-        | Outcome::Written { .. } => None,
+        | Outcome::Written { .. }
+        | Outcome::Helped(_, HelperEnd::Installed | HelperEnd::Declined) => None,
+        Outcome::Helped(helper, HelperEnd::NotFound) => Some(format!(
+            "no package for {} in the software sources",
+            helper.slug()
+        )),
+        Outcome::Helped(helper, HelperEnd::Unsupported) => {
+            Some(format!("cannot install {} on this system", helper.slug()))
+        }
+        Outcome::Helped(helper, HelperEnd::Failed(why)) => {
+            Some(format!("cannot install {}: {why}", helper.slug()))
+        }
         Outcome::Taken => Some("that name is taken".to_owned()),
         Outcome::Nothing(why) => Some(format!("nothing to do: {why}")),
         Outcome::Failed(why) | Outcome::NotWritten(why) => Some(why.clone()),

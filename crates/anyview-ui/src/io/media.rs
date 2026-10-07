@@ -3,13 +3,14 @@
 //! `MediaLine` it gets back, sends it the stage machine's commands and reads what it reports.
 //! Nothing here names a player, so the views and the machines stay free of it.
 
+use super::helpers::Need;
 use super::workers::Reply;
 use crate::sheet::MediaOffer;
 use crate::stage::{MediaAbilities, MediaError, PlayerCommand, PlayerEvent};
 use crate::{Done, OpenError, Ticket};
 use anyview_core::{
-    Fact, Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed,
-    Source, Speed, VideoPresence,
+    Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed, Source,
+    Speed, VideoPresence,
 };
 use ds_blitz::TextureHandle;
 use std::fmt::Debug;
@@ -104,7 +105,7 @@ pub enum MediaPlayback {
     Line(Arc<dyn MediaLine>),
     /// No plugin plays recordings: the row names the package that would. The recording is shown
     /// as its facts.
-    Missing(Fact),
+    Missing(Need),
 }
 
 /// What opening a recording came to.

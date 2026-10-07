@@ -52,6 +52,13 @@ impl Preloads {
         self.held.push(left);
     }
 
+    /// Let go of the held documents that lacked `helper` (a card that said a tool was missing):
+    /// they open again, with the tool, when they are next wanted.
+    pub(super) fn forget_lacking(&mut self, helper: anyview_core::Helper) {
+        self.held
+            .retain(|held| held.doc.view().lacks() != Some(helper));
+    }
+
     /// The held document of `path`, handed over: it is the open file now.
     pub(super) fn take(&mut self, path: &FilePath) -> Option<Preloaded> {
         let at = self

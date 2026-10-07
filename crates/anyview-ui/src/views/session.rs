@@ -244,7 +244,7 @@ pub(super) fn params(
         .copied()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
-            Command::Stage(_) => None,
+            Command::Stage(_) | Command::Install(_) => None,
         })
         .collect();
     ViewerParams {

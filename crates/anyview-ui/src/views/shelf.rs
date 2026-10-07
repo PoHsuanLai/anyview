@@ -17,6 +17,18 @@ use ds::motion::detail::level::{Level, use_level};
 use ds::motion::detail::operation::Operation;
 use ds::prelude::{Scale, Shown};
 
+/// Which load is the window's first, the one that may size the window once it has landed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum FirstLoad {
+    /// No file has been announced yet.
+    Unseen,
+    /// The first file's load, which has not landed.
+    Is(Ticket),
+    /// The first load has landed, or a later file has taken its place: no file sizes the window
+    /// any more.
+    Past,
+}
+
 /// The window's held results.
 #[derive(Clone, Copy)]
 pub(super) struct Shelf {
@@ -55,6 +67,8 @@ pub(super) struct Shelf {
     pub query: Signal<TypedText>,
     /// The window's motion level: what the desktop asks for, read when a step needs it.
     pub level: Level,
+    /// Whether the load of the window's first file has landed: only it sizes the window.
+    pub first: Signal<FirstLoad>,
     /// Where the person last said they were in the open file, kept for the file when it is left.
     pub left_at: Signal<Resume>,
 }
@@ -80,6 +94,7 @@ impl Shelf {
             chrome: use_signal(|| Shown::Hidden),
             query: use_signal(TypedText::default),
             level: use_level(),
+            first: use_signal(|| FirstLoad::Unseen),
             left_at: use_signal(|| Resume::Nothing),
         }
     }
