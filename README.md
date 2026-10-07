@@ -52,7 +52,7 @@ uses a per-user socket for single instance, opens links and shows files in their
 opener (`xdg-open`, `open`, `explorer`), and has no Open With, Share, Print, desktop file chooser or
 now-playing entry: those actions answer that they are not available. Until quire's own portable build lands
 the dependency tree still holds quire's `zbus` and Wayland crates; this is about the viewer's own code.
-Check the portable build with `scripts/check-portable.sh`.
+Check the portable build with `scripts/check-portable.sh` (a copy of the one in quire, plus the platform crate's own zbus check).
 
 ## Install and uninstall
 

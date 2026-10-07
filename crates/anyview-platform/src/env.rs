@@ -3,8 +3,6 @@
 //! environment variable, a directory or a bus address itself (CONVENTIONS section 6); this file
 //! is the one place the process is asked.
 
-#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
-use crate::error::PlatformError;
 use crate::spawn::{ProcessSpawn, RefuseSpawn, Spawn};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -121,19 +119,5 @@ impl Env {
             spawn: Arc::new(RefuseSpawn),
             audio_output: None,
         }
-    }
-
-    /// A connection builder for the session bus, or [`PlatformError::NoBus`] when the route is
-    /// [`BusRoute::Absent`].
-    #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
-    pub(crate) fn session_builder(
-        &self,
-    ) -> Result<zbus::connection::Builder<'static>, PlatformError> {
-        match &self.session {
-            BusRoute::Usual => zbus::connection::Builder::session(),
-            BusRoute::Address(address) => zbus::connection::Builder::address(address.as_str()),
-            BusRoute::Absent => return Err(PlatformError::NoBus),
-        }
-        .map_err(|error| PlatformError::bus("connect to the session bus", error))
     }
 }

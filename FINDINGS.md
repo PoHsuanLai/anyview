@@ -14,7 +14,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   share on this desktop" when one is chosen. Hiding them needs the host to say which abilities it has: a small
   set handed to `anyview-ui` beside `Playback` (`views/session.rs` `offered`, `context/entries.rs`, the buttons in
   `families/{raster,peek_only,media}`). Left for after the window-sizing lane, which edits the same crate. Ends
-  when the set exists. There is also no portable file chooser, so Open... is unavailable there until one is
+  when the set exists. quire v0.2.19's `ds-desktop` (`use_desktop()`, `Presence::Here`) answers which of quire's own
+  services are there, not whether this viewer's portals are, so adopting it is a pin bump plus a dependency under
+  `quire-desktop`; the feature name, the `desktop` module and `scripts/check-portable.sh` already follow design/36.
+  The abilities set above stays anyview's own. There is also no portable file chooser, so Open... is unavailable there until one is
   written (a launch with files, drag and drop and the command line still open files).
 - **The portable build has not been run on macOS or Windows.** `anyview-platform` (with or without
   `quire-desktop`) passes `cargo check` for `x86_64-apple-darwin`, and `portable`'s opener command lines are
