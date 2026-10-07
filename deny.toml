@@ -75,6 +75,8 @@ allow-git = [
     "https://github.com/PoHsuanLai/blitz-kit",
     # dioxus-core 0.7.10 with the dirty-task fix backported (quire's [patch], v0.2.15+).
     "https://github.com/PoHsuanLai/dioxus",
+    # Single instance without D-Bus (anyview-platform): MIT OR Apache-2.0, one rev in Cargo.toml.
+    "https://github.com/PoHsuanLai/latchkey",
     "https://github.com/PoHsuanLai/quire",
     "https://github.com/PoHsuanLai/mpv-wgpu",
     "https://github.com/PoHsuanLai/pdfrum",

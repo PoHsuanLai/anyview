@@ -6,6 +6,30 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **The portable build offers the desktop's actions and answers them with a notice instead of hiding them.**
+  Built without `quire-desktop` (anyview-platform and `anyview`), Open With, Share, Print and Open... have no
+  implementation (`NoApps`, `NoShare`, `NoPrinter`, `NoPicker`), and Show in Folder and links go through the
+  platform's opener. The palette, the context menu, the three hard-coded Open With buttons and the welcome
+  window's Open... still list them, and the person is told "no file chooser / print dialog / other app / way to
+  share on this desktop" when one is chosen. Hiding them needs the host to say which abilities it has: a small
+  set handed to `anyview-ui` beside `Playback` (`views/session.rs` `offered`, `context/entries.rs`, the buttons in
+  `families/{raster,peek_only,media}`). Left for after the window-sizing lane, which edits the same crate. Ends
+  when the set exists. quire v0.2.19's `ds-desktop` (`use_desktop()`, `Presence::Here`) answers which of quire's own
+  services are there, not whether this viewer's portals are, so adopting it is a pin bump plus a dependency under
+  `quire-desktop`; the feature name, the `desktop` module and `scripts/check-portable.sh` already follow design/36.
+  The abilities set above stays anyview's own. There is also no portable file chooser, so Open... is unavailable there until one is
+  written (a launch with files, drag and drop and the command line still open files).
+- **The portable build has not been run on macOS or Windows.** `anyview-platform` (with or without
+  `quire-desktop`) passes `cargo check` for `x86_64-apple-darwin`, and `portable`'s opener command lines are
+  table-tested for all three platforms, but nothing has run there, and the crate does not compile for Windows:
+  `std::os::unix` in the thumbnail cache, `uri` and plugin discovery, and `rustix` in the plugin pipe, need a
+  platform module. quire still pulls `zbus` (`ds-settings`) and `wayland-client` (`ds-blitz`) into every build;
+  `--no-default-features` checks anyview's own code and anyview-platform's own tree (no `zbus`), not the final
+  graph. Ends when quire's portable lane lands and the viewer is built and run on a Mac.
+- **Single instance without the bus starts nothing.** The bus starts the viewer for a call to its name
+  (`dist/org.quire.Anyview1.service`); the per-user socket (latchkey) does not, so a launcher cannot call a
+  viewer that is not running. Linux with `quire-desktop` keeps the bus for that, and `forward_over` stays the
+  launcher's call. Ends if a launcher without the bus needs it: `latchkey::spawn` is the closure it would pass.
 - **Image pixels are taken as logical pixels in a window's size.** A picture is meant to show at one image
   pixel to one physical pixel, as Preview shows it, so its natural size would divide by the monitor's scale
   factor before it is fitted. quire (v0.2.18) gives the screen's logical extent (`AppHandle::screen_extent`,
@@ -588,7 +612,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
   `crates/anyview/tests/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
-  664 packages against a budget of 664 (660 before the built-in audio player: see below), with no libmpv or libav in it. Ends if the header readers move to a crate
+  667 packages against a budget of 667 (660 before the built-in audio player and 664 before single instance over a socket: latchkey, interprocess and its proc macro doctest-file), with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
 - **Audio plays with no mpv, in a built-in player; video and Opus still need mpv.** `anyview-media`'s `audio`
   feature (on for the binary through its own `audio` feature) decodes with symphonia 0.6 and plays through cpal,

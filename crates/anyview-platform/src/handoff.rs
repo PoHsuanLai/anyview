@@ -9,16 +9,16 @@ use anyview_core::{FilePath, NonEmpty, ResultsId, Resume, Sequence, SequenceOrig
 
 /// What a handoff is made of on the bus, in the order of the method's arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Wire {
-    pub(super) file: String,
-    pub(super) resume: String,
-    pub(super) results: u64,
-    pub(super) entries: Vec<String>,
+pub(crate) struct Wire {
+    pub(crate) file: String,
+    pub(crate) resume: String,
+    pub(crate) results: u64,
+    pub(crate) entries: Vec<String>,
 }
 
 /// `handoff` as the method's arguments. Writing a `Resume` cannot fail: its fields are integers
 /// and words.
-pub(super) fn encode(handoff: &Handoff) -> Wire {
+pub(crate) fn encode(handoff: &Handoff) -> Wire {
     let text = |file: &FilePath| file.as_path().to_string_lossy().into_owned();
     let (results, entries) = match &handoff.sequence {
         Some(sequence) => (
@@ -39,7 +39,7 @@ pub(super) fn encode(handoff: &Handoff) -> Wire {
 }
 
 /// The handoff `wire` says, or why it is not one.
-pub(super) fn decode(wire: &Wire) -> Result<Handoff, String> {
+pub(crate) fn decode(wire: &Wire) -> Result<Handoff, String> {
     let path = |text: &String| FilePath::new(text).map_err(|error| error.to_string());
     let file = path(&wire.file)?;
     let resume: Resume = serde_json::from_str(&wire.resume)

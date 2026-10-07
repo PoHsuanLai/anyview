@@ -16,6 +16,14 @@ versioning, with pre-releases while the program is in beta.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
 
+### Platform
+
+- The viewer's Linux desktop services are now an optional cargo feature, `quire-desktop` (on by default). A
+  build with `--no-default-features` has no D-Bus code of its own: single instance goes through a per-user
+  socket (latchkey), links and Show in Folder through the platform's opener, and Open With, Share, Print, the
+  file chooser and the now-playing entry are absent and say so. Builds with the default features behave as
+  before.
+
 ### Install
 
 - `dist/install.sh` installs the `ffmpeg`, `heif` and `raw` plugins with the viewer, and builds the `mpv`
