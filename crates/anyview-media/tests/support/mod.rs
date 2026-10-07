@@ -184,6 +184,7 @@ pub fn last_tracks(events: &[MediaEvent]) -> Option<&[MediaTrack]> {
         | MediaEvent::Chapters(_)
         | MediaEvent::Volume(_)
         | MediaEvent::Speed(_)
+        | MediaEvent::Abilities(_)
         | MediaEvent::Picture(_)
         | MediaEvent::ShotSaved(_)
         | MediaEvent::ShotFailed { .. }
@@ -206,6 +207,7 @@ pub fn last_chapters(events: &[MediaEvent]) -> Option<usize> {
         | MediaEvent::Tracks(_)
         | MediaEvent::Volume(_)
         | MediaEvent::Speed(_)
+        | MediaEvent::Abilities(_)
         | MediaEvent::Picture(_)
         | MediaEvent::ShotSaved(_)
         | MediaEvent::ShotFailed { .. }
@@ -228,6 +230,7 @@ pub fn length_of(events: &[MediaEvent]) -> Option<anyview_core::MediaLength> {
         | MediaEvent::Chapters(_)
         | MediaEvent::Volume(_)
         | MediaEvent::Speed(_)
+        | MediaEvent::Abilities(_)
         | MediaEvent::Picture(_)
         | MediaEvent::ShotSaved(_)
         | MediaEvent::ShotFailed { .. }
