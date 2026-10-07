@@ -8,9 +8,13 @@ versioning, with pre-releases while the program is in beta.
 ### Windows
 
 - A window opens sized to its content, as Preview and QuickTime do: a picture at its own size, a video at
-  its resolution, scaled down to fit when it is larger than 1600 by 1000 and never smaller than 480 by 320
-  (a small picture stays centred). Everything else opens at the usual size, and moving to the next file
-  keeps the window as it is.
+  its resolution, scaled down to fit when it is larger than 85% of the screen (1600 by 1000 before the screen
+  is known) and never smaller than 480 by 320 (a small picture stays centred). A PDF, and a picture the
+  HEIC or RAW plugin decodes, take the window to their page or picture size as soon as they have loaded,
+  unless you have already resized the window. Everything else opens at the usual size, and moving to the
+  next file keeps the window as it is.
+- The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
+  instead of jumping, and notches in a burst add up.
 
 ### Install
 

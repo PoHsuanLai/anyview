@@ -3,6 +3,7 @@
 
 use super::carry::Carry;
 use super::session::Probe;
+use super::shelf::FirstLoad;
 use crate::families::{FoundHits, Held};
 use crate::io::{Done, HostRequest, Job, Notice};
 use crate::{
@@ -309,11 +310,25 @@ fn opened(c: &Carry, ticket: Ticket, result: Result<crate::LoadedDoc, crate::Ope
 /// document says of itself (an animation moves, a find already up asks again).
 pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     send(c, ViewerIn::Load(LoadIn::Opened { ticket }));
+    size_window(c, ticket, doc);
     for input in told_of(c, doc) {
         send(c, ViewerIn::Stage(input));
     }
     // A player that started before the document landed may have woken the window already.
     drain_media(c);
+}
+
+/// The window's first file has loaded: tell the host how big its content naturally is, once, so
+/// it can size the window. A later file, or the first one loaded again, never does.
+fn size_window(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
+    let mut first = c.shelf.first;
+    if *first.peek() != FirstLoad::Is(ticket) {
+        return;
+    }
+    first.set(FirstLoad::Past);
+    if let Some(natural) = doc.view().natural() {
+        c.edge.request(HostRequest::SizeWindow(natural));
+    }
 }
 
 /// The inputs the stage is given now that `doc` is on screen.

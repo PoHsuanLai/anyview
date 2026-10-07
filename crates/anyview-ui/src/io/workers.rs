@@ -16,7 +16,7 @@ use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::work::{Stop, StopState};
-use anyview_core::{FileAction, FilePath, Helper, Resume};
+use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -183,6 +183,10 @@ pub enum HostRequest {
     OpenUri(String),
     /// Install this tool through the system's package service; the answer is `Edge::helped`.
     Provide(Helper),
+    /// The first file this window showed has loaded, and its content is naturally this size (a
+    /// PDF's first page at 100%, a picture a plugin decoded). Sent once per window, never for a
+    /// file the person moved on to: the host sizes the window to it if the person has not.
+    SizeWindow(PixelSize),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

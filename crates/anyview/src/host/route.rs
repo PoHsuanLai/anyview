@@ -3,7 +3,9 @@
 
 use super::editing;
 use super::outcome::Declined;
-use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail, actions_for};
+use anyview_core::{
+    FileAction, FileName, FilePath, Helper, PixelSize, Resume, Source, Trail, actions_for,
+};
 use anyview_export::DocumentExport;
 use anyview_store::VersionId;
 use anyview_ui::{EditRequest, ExportDraft, HostRequest, Presentation, Probed, VersionKey};
@@ -89,6 +91,8 @@ pub enum WindowTask {
     /// Open the file shown in a window of its own presentation, and close this one: the window
     /// is made again rather than resized, since a window cannot change its own frame.
     Reopen(Presentation),
+    /// Size the window to its first file's content, if nobody has resized it.
+    Size(PixelSize),
 }
 
 /// Work for the desktop. Each names the file it is about: the window may move on while a task
@@ -183,6 +187,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::OpenFiles(files) => (shown, Carry::Window(WindowTask::OpenFiles(files))),
         HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
         HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
+        HostRequest::SizeWindow(size) => (shown, Carry::Window(WindowTask::Size(size))),
         HostRequest::Run(action) => run(shown, action),
     }
 }

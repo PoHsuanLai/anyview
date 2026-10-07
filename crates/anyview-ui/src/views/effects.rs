@@ -6,6 +6,7 @@
 use super::arrive::landed;
 use super::carry::Carry;
 use super::session::{Probe, family};
+use super::shelf::FirstLoad;
 use crate::families::flow_of;
 use crate::io::{HostRequest, Job};
 use crate::{LoadIn, StageFamily, ViewerIn};
@@ -20,6 +21,10 @@ pub(super) fn use_announce(c: &Carry) {
         let Probe::Arrived(ticket, probed) = probe() else {
             return;
         };
+        let mut first = c.shelf.first;
+        if *first.peek() == FirstLoad::Unseen {
+            first.set(FirstLoad::Is(ticket));
+        }
         let stage = family(&probed);
         let flow = flow_of(probed.sniffed.kind());
         let resume = probed.resume.clone();
