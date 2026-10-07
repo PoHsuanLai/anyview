@@ -2,6 +2,7 @@
 //! later launch calls `Open`, `Peek`, `Play` or `Handoff` on it. The `.service` file in `dist/` lets the
 //! bus start the viewer when someone calls the name while none runs.
 
+use super::intents;
 use crate::env::Env;
 use crate::error::PlatformError;
 use crate::handoff;
@@ -41,12 +42,26 @@ impl Instance for DbusInstance {
                     .allow_name_replacements(false)
                     .replace_existing_names(false)
             })
-            .and_then(|builder| builder.serve_at(OBJECT_PATH, Service { sender }))
+            .and_then(|builder| {
+                builder.serve_at(
+                    OBJECT_PATH,
+                    Service {
+                        sender: sender.clone(),
+                    },
+                )
+            })
             .map_err(|error| PlatformError::bus("register the viewer's name", error))?
             .build()
             .await;
         match built {
-            Ok(connection) => Ok(Claim::Primary(Primary::new(requests, Box::new(connection)))),
+            Ok(connection) => {
+                // The agent layer is an extra: a viewer that cannot offer it (no docket on this
+                // desktop, its name taken) still is the viewer.
+                if let Err(error) = intents::serve(&connection, sender).await {
+                    eprintln!("anyview: not offered to the agent layer: {error}");
+                }
+                Ok(Claim::Primary(Primary::new(requests, Box::new(connection))))
+            }
             Err(zbus::Error::NameTaken) => {
                 forward(&self.env, request).await?;
                 Ok(Claim::Forwarded)

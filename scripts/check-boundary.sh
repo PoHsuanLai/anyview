@@ -138,10 +138,15 @@ DIRECT=(
 # probe: whether PackageKit answers, so an Install... is offered only where it can work; it has no
 # dependency of its own without its `dbus` feature, which `quire-desktop` turns on, and then only the
 # zbus already in the tree). anyview-peek stays at 590: it never reaches cpal (its rule above).
+# Offering the viewer to docket (the agent layer, `quire-desktop` only) adds twelve to the viewer and nothing to
+# the peek: docket-client, docket-core and docket-dbus; porter-core, porter-dbus and prov (docket's names and
+# labels); almanac-core, cua-action, model-provider, genai-names and vision-prep (pure vocabulary crates
+# docket-core names in its signatures: episodes, computer-use actions, model shapes); and base64 0.22.1 (the
+# older one docket-core's wire uses beside the 0.23 already in the tree). The viewer is 682.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 590"
-  "anyview: 670"
+  "anyview: 682"
 )
 fail=0
 
@@ -239,7 +244,7 @@ EDGES=(
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core docket-client docket-core porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
@@ -255,12 +260,13 @@ EDGES=(
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
   "anyview-tool-kit: anyview-plugin-protocol"
 )
-  # A quire crate is a git dependency now, so it shows with its url where a workspace crate shows a path.
+  # quire, docket and porter crates are git dependencies, so they show with their url where a workspace
+  # crate shows a path.
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
   read -r -a allowed <<<"${edge#*:}"
   found=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
-    | grep -E '\((/|https://github.com/PoHsuanLai/quire)' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
+    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
   want=$(printf '%s\n' "${allowed[@]}" | grep . | sort -u | tr '\n' ' ')
   if [ "$found" != "$want" ]; then
     echo "EDGE: $crate depends on [${found% }], the table allows [${want% }]"

@@ -9,6 +9,7 @@
 mod apps;
 mod env;
 mod instance;
+mod intents;
 mod mpris;
 mod picker;
 mod portal;
@@ -20,6 +21,7 @@ mod share;
 pub mod linux {
     pub use super::apps::DesktopApps;
     pub use super::instance::{BUS_NAME, DbusInstance, forward_over};
+    pub use super::intents::{AGENT_BUS_NAME, OPEN_FILES};
     pub use super::mpris::{MPRIS_NAME, MprisSession};
     pub use super::picker::PortalPicker;
     pub use super::print::PortalPrinter;

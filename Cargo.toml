@@ -213,6 +213,13 @@ clap = { version = "4", features = ["derive"] }
 # Single instance without D-Bus: one agent per user over a Unix socket or a named pipe, found by an
 # advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as the pdfrum
 # crates are; `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
+# docket, at the desktop manifest's rev; porter at the rev docket itself pins, with the same URL
+# spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
+# `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.
+docket-client = { git = "https://github.com/PoHsuanLai/docket", rev = "5c8709fed4d8c36359439468857ba2924d9386e2", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket", rev = "5c8709fed4d8c36359439468857ba2924d9386e2" }
+prov = { git = "https://github.com/PoHsuanLai/porter", rev = "b1a7affce8812d99c5cacc7a56dc797d5e8a4a06" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "b1a7affce8812d99c5cacc7a56dc797d5e8a4a06" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "335d7a7c65bc7d196d5f19dfb305896ff3a55958" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

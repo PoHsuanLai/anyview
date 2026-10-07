@@ -5,6 +5,12 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Agents
+
+- Viewer can be asked to open files by the desktop's agent layer (docket): `anyview.file.open` opens one or
+  several files in the running window, or starts Viewer to show them. It only shows files; nothing an agent can
+  ask edits or deletes one. A `files-viewer` skill tells the assistant how.
+
 ### Naming
 
 - The program is called Viewer everywhere you see it: the welcome window, the helper sheet ("Viewer needs mpv to play videos."), the now-playing entry and the desktop entry. One constant, `anyview_core::APP_NAME`, holds the name; the binary, the app id and the bus names stay `anyview`, `org.quire.Anyview` and `org.quire.Anyview1`.

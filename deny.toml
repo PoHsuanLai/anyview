@@ -81,5 +81,11 @@ allow-git = [
     "https://github.com/PoHsuanLai/mpv-wgpu",
     "https://github.com/PoHsuanLai/pdfrum",
     "https://github.com/PoHsuanLai/vello",
+    # The desktop's agent layer (anyview-platform, quire-desktop): docket at the manifest's rev, and
+    # porter, almanac and stoker at the revs docket pins. All MIT OR Apache-2.0.
+    "https://github.com/PoHsuanLai/docket",
+    "https://github.com/PoHsuanLai/porter",
+    "https://github.com/PoHsuanLai/almanac",
+    "https://github.com/PoHsuanLai/stoker",
     "https://github.com/DioxusLabs/taffy",
 ]

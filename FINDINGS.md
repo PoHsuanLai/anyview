@@ -931,3 +931,25 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`dist/install.sh` writes a receipt** (`<prefix>/share/anyview/install-receipt`) naming the files it wrote and
   the directories it made; `uninstall.sh` removes exactly those, directories only when empty. An install from
   before the receipt is removed by file names, as it was.
+
+## The agent layer (docket)
+
+- **docket is a git dependency** at 5c8709fe, with porter (`prov`, `porter-core`) at b1a7aff, the rev docket
+  itself pins, spelled the same way so Cargo keeps one copy; docket's own almanac and stoker pins come through it.
+  docket, almanac and stoker are public, so a plain checkout of anyview builds. Owner: docket.
+- **The action is `anyview.file.open`, not `file.open`.** docket's `validate` requires the action name to start with the
+  app's last element lowercased (`ActionOutsideApp`).
+- **docket has no parser in `docket-core`.** The manifest TOML is read in `docket-router::registry::parse`, which
+  brings cedar. anyview reads it with `toml` and `docket_core::validate` (what `parse` does) and the test checks the
+  shipped file that way; `docket-eval --check-skills` is the check with docket's own code.
+- **Only one intent.** `Request::Peek` (quick look) would fit a Read action but `Target::Files` cannot say "exactly
+  one", so it is left out; revealing or focusing a document has no request today. Open with no files is not
+  declared: the router refuses an empty `Files` target.
+- **Not offered yet:** the window context (what is open, the page) is reported private; a real snapshot waits for a
+  ds context model.
+
+- **The viewer's package budget is 682 (was 670).** docket's app side brings twelve packages, all behind
+  `quire-desktop`: docket-client, docket-core, docket-dbus, porter-core, porter-dbus, prov, almanac-core, cua-action,
+  model-provider, genai-names, vision-prep and base64 0.22.1. Most are vocabulary crates docket-core names in its
+  signatures, not code the viewer runs. `anyview-peek` stays at 590. Ends when docket-core splits the app-facing
+  types from the planner and reader vocabulary.

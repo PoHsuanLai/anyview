@@ -155,6 +155,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "almanac-core"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=6c6bf363c91204d6f5aa58488d405f07f1bdd578#6c6bf363c91204d6f5aa58488d405f07f1bdd578"
+dependencies = [
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "alsa"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -505,6 +517,8 @@ dependencies = [
  "anyview-plugin",
  "anyview-plugin-protocol",
  "dirs",
+ "docket-client",
+ "docket-core",
  "ds-core",
  "freedesktop-desktop-entry",
  "futures-util",
@@ -513,11 +527,14 @@ dependencies = [
  "memfd",
  "percent-encoding",
  "png",
+ "porter-core",
+ "prov",
  "rustix",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "toml",
  "zbus",
 ]
 
@@ -941,6 +958,12 @@ checksum = "e7178fe5f7d460b13895ebb9dcb28a3a6216d2df2574a0806cb51b555d297f38"
 dependencies = [
  "arrayvec",
 ]
+
+[[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "base64"
@@ -1759,6 +1782,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cua-action"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=b24f6d456e7915f1052c722f5aebabf1ee0f0e74#b24f6d456e7915f1052c722f5aebabf1ee0f0e74"
+dependencies = [
+ "keyboard-types 0.7.0",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2256,6 +2289,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
 dependencies = [
  "libloading",
+]
+
+[[package]]
+name = "docket-client"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/docket?rev=5c8709fed4d8c36359439468857ba2924d9386e2#5c8709fed4d8c36359439468857ba2924d9386e2"
+dependencies = [
+ "docket-core",
+ "docket-dbus",
+ "futures-util",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zbus",
+]
+
+[[package]]
+name = "docket-core"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/docket?rev=5c8709fed4d8c36359439468857ba2924d9386e2#5c8709fed4d8c36359439468857ba2924d9386e2"
+dependencies = [
+ "almanac-core",
+ "cua-action",
+ "model-provider",
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "docket-dbus"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/docket?rev=5c8709fed4d8c36359439468857ba2924d9386e2#5c8709fed4d8c36359439468857ba2924d9386e2"
+dependencies = [
+ "docket-core",
+ "porter-dbus",
+ "prov",
+ "thiserror 2.0.21",
+ "zbus",
 ]
 
 [[package]]
@@ -2971,6 +3046,11 @@ dependencies = [
  "pin-project-lite",
  "slab",
 ]
+
+[[package]]
+name = "genai-names"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=b24f6d456e7915f1052c722f5aebabf1ee0f0e74#b24f6d456e7915f1052c722f5aebabf1ee0f0e74"
 
 [[package]]
 name = "generational-box"
@@ -4428,6 +4508,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "model-provider"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=b24f6d456e7915f1052c722f5aebabf1ee0f0e74#b24f6d456e7915f1052c722f5aebabf1ee0f0e74"
+dependencies = [
+ "base64 0.22.1",
+ "cua-action",
+ "genai-names",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "vision-prep",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5620,6 +5714,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "porter-core"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=b1a7affce8812d99c5cacc7a56dc797d5e8a4a06#b1a7affce8812d99c5cacc7a56dc797d5e8a4a06"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "porter-dbus"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=b1a7affce8812d99c5cacc7a56dc797d5e8a4a06#b1a7affce8812d99c5cacc7a56dc797d5e8a4a06"
+dependencies = [
+ "porter-core",
+ "serde",
+ "serde_json",
+ "zbus",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5698,6 +5813,15 @@ checksum = "4488a4a36b9a4ba6b9334a32a39971f77c1436ec82c38707bce707699cc3bbcb"
 dependencies = [
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "prov"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter?rev=b1a7affce8812d99c5cacc7a56dc797d5e8a4a06#b1a7affce8812d99c5cacc7a56dc797d5e8a4a06"
+dependencies = [
+ "porter-core",
+ "serde",
 ]
 
 [[package]]
@@ -7497,7 +7621,7 @@ version = "0.48.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "977d0a4abdef933f424a99fe09f95576e089b90aebc6f016a3bc813762493e91"
 dependencies = [
- "base64",
+ "base64 0.23.1",
  "data-url",
  "flate2",
  "fontdb",
@@ -7641,6 +7765,16 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vision-prep"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=b24f6d456e7915f1052c722f5aebabf1ee0f0e74#b24f6d456e7915f1052c722f5aebabf1ee0f0e74"
+dependencies = [
+ "cua-action",
+ "serde",
+ "thiserror 2.0.21",
+]
 
 [[package]]
 name = "void"

@@ -15,7 +15,7 @@ publish.workspace = true
 # `target_os = "linux"` and a build for another platform ignores it. `--no-default-features` is the
 # portable build (quire design/36): no zbus from this crate, single instance through latchkey.
 default = ["quire-desktop"]
-quire-desktop = ["dep:zbus", "dep:freedesktop-desktop-entry", "dep:memfd", "dep:futures-util"]
+quire-desktop = ["dep:docket-client", "dep:docket-core", "dep:porter-core", "dep:prov", "dep:toml", "dep:zbus", "dep:freedesktop-desktop-entry", "dep:memfd", "dep:futures-util"]
 # The fakes (`anyview_platform::testing`), for the tests of the crates that consume the traits.
 testing = ["dep:tempfile"]
 
@@ -41,6 +41,11 @@ freedesktop-desktop-entry = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 memfd = { workspace = true, optional = true }
 zbus = { workspace = true, optional = true }
+docket-client = { workspace = true, optional = true }
+docket-core = { workspace = true, optional = true }
+prov = { workspace = true, optional = true }
+porter-core = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
 
 [lints]
 workspace = true

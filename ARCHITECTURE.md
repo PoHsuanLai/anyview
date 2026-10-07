@@ -57,7 +57,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
-| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, `ds-core` (`Word` for the closed vocabularies) |
+| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `porter-core` and `prov` (docket's app side, section 2n) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
@@ -339,7 +339,7 @@ run on the caller's worker.
 | `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts`, `PluginFacts`; the process and its pipe are private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
 | `portable` | built everywhere, no desktop service: `LatchkeyInstance` (`new`, `under(dir)` for tests; the `frame` module is its line of JSON), `SystemOpen`, `SystemReveal`, `FreedesktopThumbnails`, `NoStacking`, and the absent abilities `NoApps`, `NoShare`, `NoPrinter`, `NoPicker` |
-| `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
+| `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection; it also serves docket's `IntentProvider1`, `intents`, section 2n), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
 | `testing` (feature `testing`) | `FakeInstance`, `FakeMediaSession` (and `FakeMediaHandle`, its clonable test end, for when the session is given away), `FakeApps`, `FakeThumbnails`, `FakePrinter`, `FakePicker`, `FakeLinks`, `FakeShare`, `FakeReveal`, `FakeStacking`, `RecordingSpawn`; clones share their record. `PrivateBus` (a `dbus-daemon` with a configuration of its own) and `MprisClient` (the control center's end of the player) are the bus tests' rigs, and exist only with `quire-desktop` |
 
 The trait shapes (a trait whose method awaits returns `impl Future + Send`, so a consumer is
@@ -1585,3 +1585,30 @@ C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/in
   `Quality` and `Volume` validate on load, so a stored value cannot hold what a constructor
   refuses.
 - **Integer units only** in data: a float appears inside arithmetic and nowhere in a type.
+
+## 2n. The agent layer (docket)
+
+The viewer is reachable by docket, the desktop's agent layer, through the same edge as single instance and
+only with `quire-desktop` (design/36): `scripts/check-portable.sh` still builds without docket or zbus.
+
+- **Declaration.** `dist/intents/org.quire.Anyview.toml` is docket's intents manifest (vocab 1, app
+  `org.quire.Anyview`). It declares `anyview.file.open`: Read, reach `offered`, target `files` (one or several
+  absolute paths). docket requires an action's name to start with the app's last name element, so it is
+  `anyview.file.open`, not `file.open`. No action writes, converts or deletes; the viewer's editing and exports are
+  not declared. The file is embedded in `anyview-platform` (`include_str!`) and parsed with docket-core's
+  `Manifest` and `validate`, so the file the installer ships is the file the viewer answers for.
+- **Serving.** `DbusInstance::claim` already owns `org.quire.Anyview1` for single instance; once it holds the name
+  it calls docket-client's `serve_on` on the same connection, which exports `org.quire.IntentProvider1` and claims
+  `org.quire.Anyview` (the name docket calls). `ViewerIntents::perform` turns `anyview.file.open` into the
+  `Request::Open` a second launch would have forwarded, on the same channel the program already reads, so a call
+  opens in the running window like any forwarded launch. Every path must be absolute and exist, or the whole call is
+  refused and nothing opens. A failure to serve is logged and the viewer carries on without the agent layer.
+- **Activation.** `dist/org.quire.Anyview.service` (beside `org.quire.Anyview1.service`) lets the bus start the
+  viewer when the router calls `org.quire.Anyview`; the request that started it waits in the channel until the
+  program reads it. `install.sh` installs the service, the manifest (`share/quire/intents/`) and the skill
+  (`share/quire/skills/files-viewer/`); `uninstall.sh` removes them through the receipt.
+- **Context.** The window is reported as private: the viewer holds no entities, and what is open is the person's.
+- **Skill.** `dist/skills/files-viewer/` (`SKILL.md`, `skill.toml`) teaches the planner to open files with the
+  action. It names only `anyview.file.open`, so it grants nothing.
+- **Dependency.** docket is a git dependency at a pinned rev, and porter's `prov` and `porter-core` at the rev
+  docket pins, with the same URL spelling (FINDINGS).

@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.quire.Anyview
+Exec=/usr/bin/anyview
