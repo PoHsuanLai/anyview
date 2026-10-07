@@ -1,0 +1,24 @@
+# What an agent may ask the Viewer to do (docket intents vocabulary 1). Installed to
+# $XDG_DATA_DIRS/quire/intents/org.quire.Anyview.toml beside dbus-1/services/org.quire.Anyview.service,
+# which starts the viewer when docket's router calls the name. Every field is written.
+#
+# Reading only: opening a file shows it in the window and changes nothing on disk. The viewer's
+# editing and exporting are not declared, so no agent reaches them.
+vocab = 1
+app = "org.quire.Anyview"
+entities = []
+
+[[actions]]
+name = "anyview.file.open"
+label = "Open in Viewer"
+on = { kind = "files" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install the viewer: the binary, the desktop entry, the D-Bus service file and the icons. Safe to
+# Install the viewer: the binary, the desktop entry, the D-Bus service files, docket's intents manifest and
+# skill, and the icons. Safe to
 # run again: a file already in place and identical is left alone.
 #
 #   dist/install.sh [--dry-run] [--prefix DIR] [--no-build] [--set-default] [--without-plugin NAME]
@@ -299,6 +300,28 @@ else
   sed "s|^Exec=.*|Exec=$PREFIX/bin/anyview|" "$HERE/dist/$BUS_NAME.service" >"$rendered"
   install_file 644 "$rendered" "$service"
 fi
+
+# The agent layer (docket): the viewer's second bus name, org.quire.Anyview, is the one docket's router
+# calls, so it gets its own activation file (the viewer owns both names; whichever is called first starts
+# it), and the intents manifest and the skill are installed where docket looks for them
+# ($XDG_DATA_DIRS/quire/intents and /quire/skills).
+agent_service="$PREFIX/share/dbus-1/services/$APP_ID.service"
+if [[ "$DRY_RUN" == yes ]]; then
+  say "  install $agent_service"
+  say "      (Exec=$PREFIX/bin/anyview, from dist/$APP_ID.service)"
+else
+  rendered_agent="$(mktemp)"
+  sed "s|^Exec=.*|Exec=$PREFIX/bin/anyview|" "$HERE/dist/$APP_ID.service" >"$rendered_agent"
+  install_file 644 "$rendered_agent" "$agent_service"
+  rm -f "$rendered_agent"
+fi
+install_file 644 "$HERE/dist/intents/$APP_ID.toml" "$PREFIX/share/quire/intents/$APP_ID.toml"
+for skill_dir in "$HERE"/dist/skills/*/; do
+  skill_id="$(basename "$skill_dir")"
+  for skill_file in SKILL.md skill.toml; do
+    install_file 644 "$skill_dir$skill_file" "$PREFIX/share/quire/skills/$skill_id/$skill_file"
+  done
+done
 
 # A plugin is a program under libexec and a manifest next to the others: the manifest names the
 # program by its installed path (never one inside DESTDIR, which is where it lands, not where it

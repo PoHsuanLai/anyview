@@ -1,0 +1,10 @@
+vocab = 1
+id = "files-viewer"
+owner = "org.quire.Anyview"
+version = "0.1.0"
+uses = ["org.quire.Anyview:anyview.file.open"]
+
+[when]
+focused_app = ["org.quire.Anyview"]
+kinds = []
+always = "no"
