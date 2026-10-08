@@ -247,9 +247,19 @@ fn open_is_in_the_palette_and_the_menu_where_there_is_a_chooser() {
     let listed = palette(&mut harness);
     assert!(listed.contains(OPEN), "Open… is listed: {listed}");
     let menu = context_menu(&mut harness);
-    let open = menu.iter().position(|row| row == OPEN).expect("Open… in the menu");
-    let with = menu.iter().position(|row| row == "Open With\u{2026}").unwrap();
-    assert_eq!(open + 1, with, "Open… sits just before Open With…: {menu:?}");
+    let open = menu
+        .iter()
+        .position(|row| row == OPEN)
+        .expect("Open… in the menu");
+    let with = menu
+        .iter()
+        .position(|row| row == "Open With\u{2026}")
+        .unwrap();
+    assert_eq!(
+        open + 1,
+        with,
+        "Open… sits just before Open With…: {menu:?}"
+    );
 }
 
 #[test]
