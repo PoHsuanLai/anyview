@@ -4,7 +4,7 @@
 
 use anyview_core::{FilePath, MediaTags, MediaTime, Volume};
 use anyview_media::{EndReason, MediaEvent, Pace};
-use anyview_platform::{Ability, MediaState, PlaybackStatus, TrackSerial};
+use anyview_platform::{Ability, Artwork, MediaState, PlaybackStatus, TrackSerial};
 
 /// How many reports of a moving position pass between two published ones: the player reports
 /// ten a second, and the desktop polls the position about once.
@@ -30,8 +30,14 @@ pub(super) struct Snapshot {
 
 impl Snapshot {
     /// The entry for `file`, before the player has said anything: titled from the file's tags, or
-    /// its name, and not yet controllable.
-    pub(super) fn new(file: &FilePath, tags: &MediaTags, serial: TrackSerial) -> Snapshot {
+    /// its name, carrying its cover, and not yet controllable.
+    pub(super) fn new(
+        file: &FilePath,
+        tags: &MediaTags,
+        art: Option<Artwork>,
+        skip: Ability,
+        serial: TrackSerial,
+    ) -> Snapshot {
         let stem = file
             .file_name()
             .map(|name| name.as_str().to_owned())
@@ -44,11 +50,12 @@ impl Snapshot {
                 title: tags.title.clone().or(stem),
                 artist: tags.artist.clone(),
                 album: tags.album.clone(),
+                art,
                 length: None,
                 position: MediaTime::default(),
                 volume: Volume::FULL,
                 seek: Ability::Cannot,
-                skip: Ability::Cannot,
+                skip,
             },
             creeping: 0,
         }
@@ -135,7 +142,13 @@ mod tests {
     }
 
     fn snapshot() -> Snapshot {
-        Snapshot::new(&file(), &MediaTags::default(), TrackSerial(7))
+        Snapshot::new(
+            &file(),
+            &MediaTags::default(),
+            None,
+            Ability::Can,
+            TrackSerial(7),
+        )
     }
 
     fn secs(s: u64) -> MediaTime {
@@ -153,6 +166,8 @@ mod tests {
                 artist: Some("A Band".to_owned()),
                 album: None,
             },
+            None,
+            Ability::Cannot,
             TrackSerial(1),
         );
         assert_eq!(tagged.state().title.as_deref(), Some("A Song"));

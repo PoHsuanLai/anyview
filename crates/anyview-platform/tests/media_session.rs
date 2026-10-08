@@ -9,9 +9,11 @@ mod support;
 use anyview_core::{FilePath, MediaLength, MediaTime, Percent, Volume};
 use anyview_platform::linux::{MPRIS_NAME, MprisSession};
 use anyview_platform::{
-    Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection, TrackSerial,
+    Ability, Artwork, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection,
+    TrackSerial,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
 use support::PrivateBus;
 use zbus::zvariant::{ObjectPath, OwnedValue, Value};
 
@@ -58,6 +60,7 @@ fn playing() -> MediaState {
         title: Some("Song".to_owned()),
         artist: Some("Band".to_owned()),
         album: None,
+        art: None,
         length: Some(MediaLength(MediaTime::from_secs(180))),
         position: MediaTime::from_secs(12),
         volume: Volume::clamped(Percent(80)),
@@ -114,6 +117,53 @@ async fn the_player_registers_and_shows_what_was_published() {
     assert_eq!(artists, vec!["Band".to_owned()]);
     let track: ObjectPath<'_> = (&*metadata["mpris:trackid"]).try_into().unwrap();
     assert_eq!(track.as_str(), "/org/quire/Anyview1/Track/3");
+}
+
+#[tokio::test]
+async fn the_cover_is_a_file_the_desktop_is_pointed_at() {
+    let Some(bus) = PrivateBus::start() else {
+        return;
+    };
+    let env = bus.env();
+    let session = MprisSession::register(&env).await.unwrap();
+    let client = client(&bus).await;
+    let art_url = |metadata: &HashMap<String, OwnedValue>| -> Option<String> {
+        metadata
+            .get("mpris:artUrl")
+            .map(|url| url.try_clone().unwrap().try_into().unwrap())
+    };
+    let metadata = |client: &zbus::Connection| {
+        let client = client.clone();
+        async move {
+            let value = get(&client, PLAYER, "Metadata").await;
+            HashMap::<String, OwnedValue>::try_from(value).unwrap()
+        }
+    };
+
+    session.publish(&playing()).await.unwrap();
+    assert_eq!(art_url(&metadata(&client).await), None, "no cover, no url");
+
+    let covered = MediaState {
+        art: Some(Artwork {
+            png: Arc::from(&b"\x89PNG fake"[..]),
+        }),
+        ..playing()
+    };
+    session.publish(&covered).await.unwrap();
+    let url = art_url(&metadata(&client).await).expect("the cover is named");
+    let path = url.strip_prefix("file://").expect("a file url");
+    assert!(
+        path.starts_with(env.dirs.cache.to_str().unwrap()),
+        "the cover is in the cache: {path}"
+    );
+    assert_eq!(std::fs::read(path).unwrap(), b"\x89PNG fake");
+
+    session.publish(&playing()).await.unwrap();
+    assert_eq!(
+        art_url(&metadata(&client).await),
+        None,
+        "the next file has none"
+    );
 }
 
 #[tokio::test]

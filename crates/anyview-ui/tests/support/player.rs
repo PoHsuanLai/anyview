@@ -74,6 +74,7 @@ pub struct FakePlayer {
     answer: Mutex<Answer>,
     tags: Mutex<MediaTags>,
     offer: Mutex<Option<MediaOffer>>,
+    cover: Mutex<Option<ds::components::content::image_source::ImageSource>>,
 }
 
 impl FakePlayer {
@@ -91,6 +92,15 @@ impl FakePlayer {
     /// What the next player says its file is called.
     pub fn tagged(self: &Arc<Self>, tags: MediaTags) -> Arc<FakePlayer> {
         *self.tags.lock().unwrap() = tags;
+        Arc::clone(self)
+    }
+
+    /// The cover the next player says its file carries.
+    pub fn covered(
+        self: &Arc<Self>,
+        cover: ds::components::content::image_source::ImageSource,
+    ) -> Arc<FakePlayer> {
+        *self.cover.lock().unwrap() = Some(cover);
         Arc::clone(self)
     }
 
@@ -164,6 +174,7 @@ impl MediaHost for FakePlayer {
                     facts: anyview_core::Facts::empty()
                         .with(FactLabel::Codec, FactValue::text("h264")),
                     length: None,
+                    cover: None,
                 });
             }
         }
@@ -185,6 +196,7 @@ impl MediaHost for FakePlayer {
             tags: self.tags.lock().unwrap().clone(),
             facts: anyview_core::Facts::empty(),
             length: None,
+            cover: self.cover.lock().unwrap().clone(),
         })
     }
 }

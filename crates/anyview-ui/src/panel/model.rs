@@ -56,6 +56,17 @@ impl PanelTabs {
         PanelTabs(self.0 & !tab.bit())
     }
 
+    /// The tab to show when the panel is on `wanted`: that tab, or the first one the file has when
+    /// it has no `wanted` (the person walked to a file without the thumbnails the panel was on, or
+    /// the player withheld the tracks), so the panel is never an empty body under no selected tab.
+    pub fn showing(self, wanted: PanelTab) -> PanelTab {
+        if self.contains(wanted) {
+            wanted
+        } else {
+            self.first().unwrap_or(wanted)
+        }
+    }
+
     /// The first tab of the set, or `None` when the format has no panel.
     pub fn first(self) -> Option<PanelTab> {
         PanelTab::ALL

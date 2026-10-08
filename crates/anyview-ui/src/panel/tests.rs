@@ -162,3 +162,18 @@ fn a_tab_set_lists_its_members() {
     assert!(MEDIA_TABS.contains(PanelTab::Tracks));
     assert!(!MEDIA_TABS.contains(PanelTab::Contents));
 }
+
+#[test]
+fn a_panel_on_a_tab_the_file_lacks_shows_the_files_first_tab() {
+    let media = PanelTabs::of(&[PanelTab::Info]);
+    assert_eq!(media.showing(PanelTab::Thumbnails), PanelTab::Info);
+    assert_eq!(media.showing(PanelTab::Tracks), PanelTab::Info);
+    assert_eq!(media.showing(PanelTab::Info), PanelTab::Info);
+    let both = PanelTabs::of(&[PanelTab::Contents, PanelTab::Info]);
+    assert_eq!(
+        both.showing(PanelTab::Info),
+        PanelTab::Info,
+        "a tab it has is kept"
+    );
+    assert_eq!(PanelTabs::NONE.showing(PanelTab::Info), PanelTab::Info);
+}

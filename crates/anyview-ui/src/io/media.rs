@@ -12,6 +12,7 @@ use anyview_core::{
     Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed, Source,
     Speed, VideoPresence,
 };
+use ds::components::content::image_source::ImageSource;
 use ds_blitz::TextureHandle;
 use std::fmt::Debug;
 use std::num::NonZeroU32;
@@ -46,6 +47,10 @@ pub enum MediaNotice {
     Picture(VideoPresence),
     /// The player could not play the recording.
     Failed(MediaError),
+    /// The desktop's media key asked for the file after this one (the window walks its list).
+    Next,
+    /// The desktop's media key asked for the file before this one.
+    Previous,
 }
 
 /// Tells the window that its line has news. It posts one result to the window's mailbox and
@@ -121,6 +126,8 @@ pub struct MediaStarted {
     pub facts: Facts,
     /// How long it runs, when the host knows before the player does.
     pub length: Option<MediaLength>,
+    /// The cover an audio file carries, if it carries one.
+    pub cover: Option<ImageSource>,
 }
 
 /// Starts players. The binary implements it over its media thread.

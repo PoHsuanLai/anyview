@@ -1,13 +1,13 @@
-/* The media stage: the picture or the album card filling the room, the status word over it, the
-   cover that takes the click, the side panel's lists. Tokens only. An album card takes its colour
-   from `data-accent`, so one accent's tokens colour the whole card. */
+/* The media stage: the picture, the cover art or the plain card of an audio file filling the room,
+   the status word over it, the cover that takes the click, the side panel's lists. Tokens only. */
 
 .viewer-media{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
 .viewer-media[*|data-picture=present]{ background:var(--ink); }
-.viewer-media-card{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-16); background:var(--accent-soft); text-align:center; }
-.viewer-media-title{ margin:0; max-width:100%; font-family:var(--font-ui); font-size:var(--fs-display); color:var(--accent-text); overflow-wrap:anywhere; }
-.viewer-media-artist{ margin:0; font-size:var(--fs-title); color:var(--ink); }
-.viewer-media-album{ margin:0; font-size:var(--fs-body); color:var(--ink-soft); }
+.viewer-media-sleeve{ --audio-art:calc(var(--s-40) * 8); position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-20); text-align:center; }
+.viewer-media-art{ width:min(100%, var(--audio-art)); aspect-ratio:1; object-fit:cover; border-radius:var(--r-card); box-shadow:var(--shadow-1); margin-bottom:var(--s-12); }
+.viewer-media-tile{ display:flex; align-items:center; justify-content:center; background:var(--fill-quaternary); color:var(--ink-faint); }
+.viewer-media-title{ margin:0; max-width:100%; font-family:var(--font-display); font-size:var(--fs-title-2); color:var(--ink); overflow-wrap:anywhere; }
+.viewer-media-byline{ margin:0; max-width:100%; font-size:var(--fs-body); color:var(--ink-soft); overflow-wrap:anywhere; }
 .viewer-media-status{ position:absolute; left:0; right:0; bottom:var(--s-36); margin:0; text-align:center; color:var(--ink-soft); font-size:var(--fs-small); pointer-events:none; }
 .viewer-media-cover{ position:absolute; inset:0; }
 

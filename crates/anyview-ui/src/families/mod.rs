@@ -16,7 +16,8 @@ mod view;
 
 pub use book::{BookDoc, BookStageView, Layout, SectionPage};
 pub use media::{
-    MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, use_media_shelf,
+    MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, audio_window_size,
+    use_media_shelf,
 };
 pub(crate) use media::{level_to_volume, place_to_time, tabs_offered as media_tabs};
 pub use pdf::{

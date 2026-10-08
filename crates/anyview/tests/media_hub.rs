@@ -153,6 +153,8 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
             | MediaNotice::Speed(_)
             | MediaNotice::Abilities(_)
             | MediaNotice::Picture(_)
+            | MediaNotice::Next
+            | MediaNotice::Previous
             | MediaNotice::Failed(_) => None,
         })
     };

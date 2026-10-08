@@ -29,8 +29,8 @@ pub use described::{Described, Describes, FactsPeek, OtherKind, OtherPeek};
 pub use error::PeekError;
 pub use folder::{FOLDER_ENTRIES, FolderPeek, FolderSummary, KindCount};
 pub use frames::{NoFrames, VideoFrames};
-pub use media::{AudioPeek, MediaLook, VideoPeek};
-pub use natural::natural_size;
+pub use media::{AudioCover, AudioPeek, MediaLook, VideoPeek, audio_cover};
+pub use natural::{is_audio, natural_size};
 pub use office::{OfficeLooked, OfficePeek};
 #[cfg(feature = "pane")]
 pub use pane::{Pane, Part, Parts, STYLE};

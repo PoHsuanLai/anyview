@@ -1,13 +1,15 @@
 //! The viewer as an MPRIS player, `org.mpris.MediaPlayer2.anyview` on the session bus: the
 //! control center and the media keys read it and send their controls back as typed values.
 
+use super::art;
 use crate::env::Env;
 use crate::error::PlatformError;
 use crate::media::{
     Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection,
 };
-use anyview_core::{MediaTime, Percent, Volume};
+use anyview_core::{FilePath, MediaTime, Percent, Volume};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use zbus::zvariant::{ObjectPath, OwnedValue, Value};
 use zbus::{interface, object_server::SignalEmitter};
@@ -24,6 +26,8 @@ const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
 pub struct MprisSession {
     connection: zbus::Connection,
     controls: UnboundedReceiver<MediaControl>,
+    /// Where the cover of the recording playing is written for the desktop to read.
+    art_folder: PathBuf,
 }
 
 impl MprisSession {
@@ -53,6 +57,7 @@ impl MprisSession {
                     OBJECT_PATH,
                     Player {
                         state: MediaState::stopped(),
+                        art_url: None,
                         sender,
                     },
                 )
@@ -64,7 +69,28 @@ impl MprisSession {
         Ok(MprisSession {
             connection,
             controls,
+            art_folder: art::folder_in(&env.dirs.cache),
         })
+    }
+}
+
+impl MprisSession {
+    /// The `file:` URL of the cover `state` carries: the one already written when the cover is
+    /// the same, else the new cover written out. `None` for no cover, or one that cannot be
+    /// written.
+    async fn art_url_for(&self, held: &Player, state: &MediaState) -> Option<String> {
+        let art = state.art.clone()?;
+        if held.state.art.as_ref() == Some(&art) {
+            return held.art_url.clone();
+        }
+        let folder = self.art_folder.clone();
+        let written = tokio::task::spawn_blocking(move || art::write(&folder, &art))
+            .await
+            .ok()
+            .flatten()?;
+        FilePath::new(written)
+            .ok()
+            .map(|file| crate::file_uri(&file))
     }
 }
 
@@ -78,12 +104,17 @@ impl MediaSession for MprisSession {
             .await
             .map_err(emit)?;
         let mut held = player.get_mut().await;
+        let before_url = held.art_url.clone();
+        let art_url = self.art_url_for(&held, state).await;
         let before = std::mem::replace(&mut held.state, state.clone());
+        held.art_url = art_url;
         let emitter = player.signal_emitter();
         if before.status != state.status {
             held.playback_status_changed(emitter).await.map_err(emit)?;
         }
-        if metadata_of(&before) != metadata_of(state) {
+        if metadata_of(&before, before_url.as_deref())
+            != metadata_of(state, held.art_url.as_deref())
+        {
             held.metadata_changed(emitter).await.map_err(emit)?;
         }
         if before.volume != state.volume {
@@ -105,7 +136,7 @@ impl MediaSession for MprisSession {
 }
 
 /// The `Metadata` dictionary MPRIS clients read.
-fn metadata_of(state: &MediaState) -> HashMap<String, OwnedValue> {
+fn metadata_of(state: &MediaState, art_url: Option<&str>) -> HashMap<String, OwnedValue> {
     let mut map = HashMap::new();
     let mut put = |key: &str, value: Value<'_>| {
         if let Ok(value) = OwnedValue::try_from(value) {
@@ -125,6 +156,9 @@ fn metadata_of(state: &MediaState) -> HashMap<String, OwnedValue> {
     }
     if let Some(title) = &state.title {
         put("xesam:title", Value::from(title.clone()));
+    }
+    if let Some(url) = art_url {
+        put("mpris:artUrl", Value::from(url.to_owned()));
     }
     if let Some(artist) = &state.artist {
         put("xesam:artist", Value::from(vec![artist.clone()]));
@@ -195,6 +229,8 @@ impl Root {
 /// `org.mpris.MediaPlayer2.Player`: what is playing and its controls.
 struct Player {
     state: MediaState,
+    /// The `file:` URL of the cover in `state`, once it is written.
+    art_url: Option<String>,
     sender: UnboundedSender<MediaControl>,
 }
 
@@ -285,7 +321,7 @@ impl Player {
 
     #[zbus(property)]
     fn metadata(&self) -> HashMap<String, OwnedValue> {
-        metadata_of(&self.state)
+        metadata_of(&self.state, self.art_url.as_deref())
     }
 
     #[zbus(property(emits_changed_signal = "false"))]

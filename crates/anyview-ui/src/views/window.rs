@@ -222,6 +222,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         Panel::Shown { tab } => (Shown::Visible, tab),
         Panel::Hidden => (Shown::Hidden, PanelTab::Info),
     };
+    let panel_tab = tabs.showing(panel_tab);
     let body = current
         .as_ref()
         .and_then(|(_, doc)| doc.view().panel(panel_tab, &cx));

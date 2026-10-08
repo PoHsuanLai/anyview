@@ -44,7 +44,8 @@ pub use error::{IoOp, PlatformError};
 pub use instance::{Claim, Handoff, Instance, Primary, Request};
 pub use link::OpenLink;
 pub use media::{
-    Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection, TrackSerial,
+    Ability, Artwork, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection,
+    TrackSerial,
 };
 pub use picker::{FileKinds, PickOutcome, Picker};
 pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover};

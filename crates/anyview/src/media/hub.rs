@@ -15,6 +15,7 @@ use anyview_core::{FilePath, Resume, Sniffed, Source};
 use anyview_media::{AudioDriver, MediaCommand, MediaError, PictureSlot, ShotContent};
 use anyview_platform::{MediaControl, MediaSession, MediaState, PlaybackStatus};
 use anyview_plugin::Subject;
+use anyview_ui::MediaNotice;
 use ds_blitz::{AppHandle, AppHold};
 use std::collections::HashMap;
 use std::future::Future;
@@ -67,6 +68,15 @@ impl Entry {
         match self.owner {
             Owner::Window(_) => Home::Window,
             Owner::Background(_) => Home::Background,
+        }
+    }
+
+    /// Tell the window of a window's session; a background session has none.
+    fn tell(&self, notice: MediaNotice) {
+        if let Owner::Window(line) = &self.owner
+            && let Some(line) = line.upgrade()
+        {
+            line.tell(notice);
         }
     }
 
@@ -177,6 +187,13 @@ impl Inner {
         locked(&self.sessions).push(Entry { id, file, owner });
     }
 
+    /// Tell the window of session `id` something.
+    fn tell(&self, id: SessionId, notice: MediaNotice) {
+        if let Some(entry) = locked(&self.sessions).iter().find(|e| e.id == id) {
+            entry.tell(notice);
+        }
+    }
+
     /// Carry out what a control asks of the session whose entry is `state`.
     fn control(&self, id: SessionId, control: MediaControl, state: &MediaState) {
         let home = locked(&self.sessions)
@@ -194,6 +211,8 @@ impl Inner {
                     }
                 }
                 Order::End => self.finished(id),
+                Order::Next => self.tell(id, MediaNotice::Next),
+                Order::Previous => self.tell(id, MediaNotice::Previous),
                 Order::Quit => {
                     if let Some(app) = &self.app {
                         let _ended = app.quit();
@@ -282,10 +301,21 @@ impl MediaHub {
                 return Err(MediaError::NotMedia);
             }
         };
-        let tags = self.inner.plugins().reading(source, sniffed).tags;
+        let reading = self.inner.plugins().reading(source, sniffed);
         let id = self.inner.next_id();
-        let snapshot =
-            super::snapshot::Snapshot::new(file, &tags, anyview_platform::TrackSerial(id.0));
+        let art = reading
+            .cover
+            .as_ref()
+            .map(|cover| anyview_platform::Artwork {
+                png: Arc::from(cover.png.as_slice()),
+            });
+        let snapshot = super::snapshot::Snapshot::new(
+            file,
+            &reading.tags,
+            art,
+            anyview_platform::Ability::Cannot,
+            anyview_platform::TrackSerial(id.0),
+        );
         let plan = super::actor::Plan {
             engine,
             file: file.clone(),
@@ -295,6 +325,7 @@ impl MediaHub {
             home: Home::Background,
         };
         let (mailbox, outbox) = Mailbox::new(Silent);
+        let posting = outbox.clone();
         let actor = Actor::spawn("anyview-media", outbox, move |wake| {
             super::actor::MediaActor::start(plan, &wake)
         })
@@ -307,6 +338,7 @@ impl MediaHub {
         let line = Arc::new(LiveLine {
             actor,
             mailbox,
+            outbox: posting,
             id,
             hub: Arc::downgrade(&self.inner),
         });
