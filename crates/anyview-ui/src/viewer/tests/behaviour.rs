@@ -4,11 +4,13 @@ use super::support::*;
 use crate::command::{Command, StageCommand};
 use crate::load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
+use crate::sheet::{Sheet, SheetOut};
 use crate::stage::{
     Animation, LineTotal, PageLines, RasterIn, RasterStage, Stage, StageFamily, StageIn,
     TextExtent, TextIn, TextParams, TextPlace, TextStage, TextStep, TextView, Wrap,
 };
-use crate::viewer::{Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+use crate::typed::TypedText;
+use crate::viewer::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use anyview_core::{
     DocPoint, DocUnit, FilePath, LineIndex, NonEmpty, Permille, QuarterTurn, Sequence,
     SequenceOrigin, Zoom,
@@ -388,4 +390,51 @@ fn a_trashed_file_with_nothing_beside_it_closes_the_window_and_a_lost_one_does_n
             ..
         }
     ));
+}
+
+#[test]
+fn a_file_dropped_or_chosen_while_a_sheet_is_up_closes_the_sheet_before_it_opens() {
+    for arrival in [
+        ViewerIn::Dropped(vec![path("/b.png")]),
+        ViewerIn::Chosen(vec![path("/b.png")]),
+    ] {
+        let asking = Viewer {
+            sheet: Sheet::Rename {
+                name: TypedText::new("a.png"),
+            },
+            ..Viewer::default()
+        };
+        let (after, outs) = asking.step(arrival.clone(), Stamp(0), &(), &params());
+        assert_eq!(after.sheet, Sheet::Closed, "{arrival:?}");
+        assert!(
+            outs.contains(&ViewerOut::Sheet(SheetOut::Closed)),
+            "{arrival:?}: {outs:?}"
+        );
+        assert!(
+            outs.contains(&ViewerOut::Probe {
+                ticket: Ticket(1),
+                path: path("/b.png")
+            }),
+            "{arrival:?}: {outs:?}"
+        );
+    }
+}
+
+#[test]
+fn a_second_ask_for_a_chooser_waits_for_the_first_to_end_however_it_ends() {
+    let open = || ViewerIn::Run(Command::OpenFile);
+    let (asked, outs) = Viewer::default().step(open(), Stamp(0), &(), &params());
+    assert_eq!(outs, vec![ViewerOut::PickFile]);
+    assert_eq!(asked.choosing, Choosing::Asked);
+    let (still, outs) = asked.step(open(), Stamp(0), &(), &params());
+    assert_eq!(outs, vec![], "a chooser is up");
+    for chosen in [vec![], vec![path("/b.png")]] {
+        let (ended, _) =
+            still
+                .clone()
+                .step(ViewerIn::Chosen(chosen.clone()), Stamp(0), &(), &params());
+        assert_eq!(ended.choosing, Choosing::Not, "{chosen:?}");
+        let (_, outs) = ended.step(open(), Stamp(0), &(), &params());
+        assert_eq!(outs, vec![ViewerOut::PickFile], "{chosen:?}: asks again");
+    }
 }

@@ -61,7 +61,7 @@ pub(super) fn arrived(done: Done, c: &Carry) {
         Done::Notice(notice) => noticed(c, notice),
         Done::Helped(helper, end) => send(c, ViewerIn::Sheet(SheetIn::HelperEnded(helper, end))),
         Done::Available(helper) => available(c, helper),
-        Done::Chosen { files } => send(c, ViewerIn::Dropped(files)),
+        Done::Chosen { files } => send(c, ViewerIn::Chosen(files)),
         Done::Moved { to } => send(c, ViewerIn::Reload(to)),
         Done::Changed { path } => {
             if shown_path(c).as_ref() == Some(&path) {

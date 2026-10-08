@@ -39,6 +39,18 @@ pub struct Viewer {
     pub stage: Stage,
     /// Whether the person has sent the open file to the Trash, so that its going is expected.
     pub trashing: Trashing,
+    /// Whether a file chooser has been asked for and has not answered.
+    pub choosing: Choosing,
+}
+
+/// Whether the window is waiting on a file chooser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Choosing {
+    /// No chooser is up.
+    #[default]
+    Not,
+    /// A chooser was asked for; asking again would open a second one on top of it.
+    Asked,
 }
 
 /// Whether the open file is on its way to the Trash.
@@ -73,6 +85,9 @@ pub enum ViewerIn {
     /// Open this file again because it changed on disk, keeping where the person is in it: the
     /// stage stays while the new copy loads, and what shows stays until it lands.
     Reload(FilePath),
+    /// The file chooser ended with these files, none when it was cancelled or could not open. A
+    /// list is opened as a drop is.
+    Chosen(Vec<FilePath>),
     /// Files were dropped on the window: the first one opens. A single file's folder becomes the
     /// sequence (the window lists it and answers with `Navigate(Start)`); several files are the
     /// sequence themselves.

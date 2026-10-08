@@ -2,7 +2,7 @@
 //! crosses regions.
 
 use super::command::run;
-use super::model::{Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+use super::model::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
@@ -14,7 +14,7 @@ use crate::navigate::{Navigate, NavigateIn, NavigateOut};
 use crate::palette::{Palette, PaletteIn, PaletteOut};
 use crate::panel::{PanelIn, PanelTab};
 use crate::presentation::Presentation;
-use crate::sheet::{Sheet, SheetOut};
+use crate::sheet::{Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn};
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
@@ -61,6 +61,13 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Open(path) => begin(viewer, &path, at, params),
         ViewerIn::Reload(path) => reload(viewer, &path, at),
         ViewerIn::Dropped(paths) => dropped(viewer, paths, at, params),
+        ViewerIn::Chosen(paths) => {
+            let viewer = Viewer {
+                choosing: Choosing::Not,
+                ..viewer
+            };
+            dropped(viewer, paths, at, params)
+        }
         ViewerIn::Load(input) => load(viewer, input, at, params),
         ViewerIn::Chrome(input) => chrome(viewer, input, at, params),
         ViewerIn::Panel(input) => panel(viewer, input, at, params),
@@ -125,13 +132,30 @@ fn restart(
     (Viewer { load, ..viewer }, outs)
 }
 
-/// Files dropped on the window. The first opens and the walk is over until a list for it exists:
+/// Ask for a file chooser, unless one is up already and has not answered.
+pub(super) fn choose(viewer: Viewer) -> Step {
+    match viewer.choosing {
+        Choosing::Asked => (viewer, vec![]),
+        Choosing::Not => (
+            Viewer {
+                choosing: Choosing::Asked,
+                ..viewer
+            },
+            vec![ViewerOut::PickFile],
+        ),
+    }
+}
+
+/// Files dropped on the window, or chosen in a file chooser. The first opens and the walk is over until a list for it exists:
 /// one file's list is its folder (asked of the window), many files are the list.
 fn dropped(viewer: Viewer, paths: Vec<FilePath>, at: Stamp, params: &ViewerParams) -> Step {
     let Some(first) = paths.first().cloned() else {
         return (viewer, vec![]);
     };
-    let (viewer, mut outs) = navigate(viewer, NavigateIn::Leave, at, params);
+    // A sheet is about the file it was opened on: the new file is not what it would apply to.
+    let (viewer, mut outs) = sheet(viewer, SheetIn::Cancel, at, params);
+    let (viewer, more) = navigate(viewer, NavigateIn::Leave, at, params);
+    outs.extend(more);
     let (viewer, more) = begin(viewer, &first, at, params);
     outs.extend(more);
     match NonEmpty::from_vec(paths) {
@@ -334,7 +358,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),
         Route::CloseWindow => (viewer, vec![ViewerOut::CloseWindow]),
-        Route::OpenFile => (viewer, vec![ViewerOut::PickFile]),
+        Route::OpenFile => choose(viewer),
         Route::Rewind(rewind) => (viewer, vec![ViewerOut::Rewind(rewind)]),
         Route::Dismiss => dismissed(viewer),
         Route::Stage(input) => stage(viewer, input, at, params),

@@ -28,7 +28,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
             None => (viewer, vec![]),
         },
         Command::File(action) => file_action(viewer, action, at, params),
-        Command::OpenFile => (viewer, vec![ViewerOut::PickFile]),
+        Command::OpenFile => super::step::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }
 }
