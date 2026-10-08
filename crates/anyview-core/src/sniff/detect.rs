@@ -53,6 +53,12 @@ pub fn sniff_folder() -> Sniffed {
 /// The type of a head with no signature: text by its name, binary by its extension.
 fn by_name(head: &FileHead, name: &FileName) -> Sniffed {
     match text::encoding(head) {
+        // A file with no bytes is no text, but its name may say what it was meant to be, so the
+        // opener can tell the person it is empty rather than show a blank document.
+        Some(encoding) if head.bytes().is_empty() => name
+            .extension()
+            .and_then(extension::binary)
+            .unwrap_or_else(|| extension::text(name, encoding)),
         Some(encoding) => extension::text(name, encoding),
         None => name
             .extension()

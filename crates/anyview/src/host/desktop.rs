@@ -431,6 +431,10 @@ fn rename(versions: &Versions, file: &FilePath, to: &FileName) -> Outcome {
         return Outcome::Failed("cannot rename a root".to_owned());
     };
     let target = folder.as_path().join(to.as_str());
+    // The name the person left as it was is no rename, and no clash with itself.
+    if target == file.as_path() {
+        return Outcome::Done;
+    }
     // A symlink is renamed alone: its target, and so its versions, stay where they are.
     let real = std::fs::canonicalize(file.as_path()).ok();
     match anyview_store::rename_noreplace(file.as_path(), &target) {

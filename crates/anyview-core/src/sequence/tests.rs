@@ -113,3 +113,36 @@ fn a_new_sequence_points_at_the_first_and_remembers_its_origin() {
     assert_eq!(seq.origin(), &SequenceOrigin::Folder(folder));
     assert_ne!(seq.origin(), &SequenceOrigin::Results(ResultsId(1)));
 }
+
+#[test]
+fn a_file_taken_out_leaves_the_walk_on_the_file_the_person_was_heading_for() {
+    use Heading::{Back, Onward};
+    // name, length, the file on, heading, index after (in the shorter list), or none left
+    const CASES: &[(&str, usize, usize, Heading, Option<usize>)] = &[
+        ("onward in the middle takes the next", 5, 2, Onward, Some(2)),
+        ("onward at the start takes the next", 5, 0, Onward, Some(0)),
+        (
+            "onward at the end falls back to the previous",
+            5,
+            4,
+            Onward,
+            Some(3),
+        ),
+        ("back in the middle takes the previous", 5, 2, Back, Some(1)),
+        ("back at the start takes the next", 5, 0, Back, Some(0)),
+        ("back at the end takes the previous", 5, 4, Back, Some(3)),
+        ("two files leave one", 2, 0, Onward, Some(0)),
+        ("one file leaves none", 1, 0, Onward, None),
+    ];
+    for (name, len, at, heading, want) in CASES {
+        let after = without_current(sequence(*len, *at), *heading);
+        assert_eq!(after.as_ref().map(|seq| seq.at().index()), *want, "{name}");
+        if let Some(after) = after {
+            assert_eq!(after.entries().count().get(), len - 1, "{name} drops one");
+            assert!(
+                after.entries().iter().all(|entry| *entry != file(*at)),
+                "{name}: the file is gone from the list"
+            );
+        }
+    }
+}

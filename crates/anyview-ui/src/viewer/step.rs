@@ -2,19 +2,19 @@
 //! crosses regions.
 
 use super::command::run;
-use super::model::{Viewer, ViewerIn, ViewerOut, ViewerParams};
+use super::model::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
 use crate::context::{ContextIn, ContextOut, ContextPick};
 use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
-use crate::load::{Load, LoadIn, LoadOut};
-use crate::navigate::{NavigateIn, NavigateOut};
+use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
+use crate::navigate::{Navigate, NavigateIn, NavigateOut};
 use crate::palette::{Palette, PaletteIn, PaletteOut};
 use crate::panel::{PanelIn, PanelTab};
 use crate::presentation::Presentation;
-use crate::sheet::Sheet;
+use crate::sheet::{Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn};
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
@@ -61,12 +61,19 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Open(path) => begin(viewer, &path, at, params),
         ViewerIn::Reload(path) => reload(viewer, &path, at),
         ViewerIn::Dropped(paths) => dropped(viewer, paths, at, params),
+        ViewerIn::Chosen(paths) => {
+            let viewer = Viewer {
+                choosing: Choosing::Not,
+                ..viewer
+            };
+            dropped(viewer, paths, at, params)
+        }
         ViewerIn::Load(input) => load(viewer, input, at, params),
         ViewerIn::Chrome(input) => chrome(viewer, input, at, params),
         ViewerIn::Panel(input) => panel(viewer, input, at, params),
         ViewerIn::Palette(input) => palette(viewer, input, at, params),
         ViewerIn::Context(input) => context(viewer, input, at, params),
-        ViewerIn::Sheet(input) => sheet(viewer, input, at, params),
+        ViewerIn::Sheet(input) => sheet_in(viewer, input, at, params),
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
@@ -86,6 +93,7 @@ fn begin(viewer: Viewer, path: &FilePath, at: Stamp, _params: &ViewerParams) -> 
     (
         Viewer {
             stage: Stage::NoStage,
+            trashing: Trashing::Not,
             ..viewer
         },
         outs,
@@ -124,13 +132,30 @@ fn restart(
     (Viewer { load, ..viewer }, outs)
 }
 
-/// Files dropped on the window. The first opens and the walk is over until a list for it exists:
+/// Ask for a file chooser, unless one is up already and has not answered.
+pub(super) fn choose(viewer: Viewer) -> Step {
+    match viewer.choosing {
+        Choosing::Asked => (viewer, vec![]),
+        Choosing::Not => (
+            Viewer {
+                choosing: Choosing::Asked,
+                ..viewer
+            },
+            vec![ViewerOut::PickFile],
+        ),
+    }
+}
+
+/// Files dropped on the window, or chosen in a file chooser. The first opens and the walk is over until a list for it exists:
 /// one file's list is its folder (asked of the window), many files are the list.
 fn dropped(viewer: Viewer, paths: Vec<FilePath>, at: Stamp, params: &ViewerParams) -> Step {
     let Some(first) = paths.first().cloned() else {
         return (viewer, vec![]);
     };
-    let (viewer, mut outs) = navigate(viewer, NavigateIn::Leave, at, params);
+    // A sheet is about the file it was opened on: the new file is not what it would apply to.
+    let (viewer, mut outs) = sheet(viewer, SheetIn::Cancel, at, params);
+    let (viewer, more) = navigate(viewer, NavigateIn::Leave, at, params);
+    outs.extend(more);
     let (viewer, more) = begin(viewer, &first, at, params);
     outs.extend(more);
     match NonEmpty::from_vec(paths) {
@@ -157,7 +182,16 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
         | LoadIn::Opened { .. }
         | LoadIn::Failed { .. }
         | LoadIn::Elapsed => {
+            let was_failed = matches!(viewer.load, Load::Failed { .. });
             let (load, outs) = viewer.load.step(input, at, &(), &());
+            let vanished = !was_failed
+                && matches!(
+                    load,
+                    Load::Failed {
+                        reason: LoadFailure::NotFound,
+                        ..
+                    }
+                );
             let stage = outs
                 .iter()
                 .find_map(|out| match out {
@@ -173,16 +207,59 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
                     kept_or_new(&viewer.stage, family, params)
                 });
             let outs = outs.into_iter().map(ViewerOut::Load).collect();
-            (
-                Viewer {
-                    load,
-                    stage,
-                    ..viewer
-                },
-                outs,
-            )
+            let viewer = Viewer {
+                load,
+                stage,
+                ..viewer
+            };
+            if vanished {
+                gone(viewer, at, params)
+            } else {
+                (viewer, outs)
+            }
         }
     }
+}
+
+/// The file on screen is not on disk. With others in the list the walk moves on and the file
+/// leaves it, as a viewer does when a picture is deleted beside the one being looked at (and on
+/// an arrow into a file that went, the arrow goes on). Trashed with nothing left to show, the
+/// window closes; anything else leaves the failed screen, which says the file is gone.
+fn gone(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
+    let others = matches!(
+        &viewer.navigate,
+        Navigate::Walking { sequence, .. } if sequence.entries().count().get() > 1
+    );
+    match (others, viewer.trashing) {
+        (true, _) => navigate(viewer, NavigateIn::Gone, at, params),
+        (false, Trashing::Underway) => (
+            Viewer {
+                trashing: Trashing::Not,
+                ..viewer
+            },
+            vec![ViewerOut::CloseWindow],
+        ),
+        (false, Trashing::Not) => (viewer, vec![]),
+    }
+}
+
+/// An input of the sheet; confirming Move to Trash marks the file as on its way out.
+fn sheet_in(
+    viewer: Viewer,
+    input: crate::sheet::SheetIn,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
+    let (viewer, outs) = sheet(viewer, input, at, params);
+    let trashed = outs
+        .iter()
+        .any(|out| matches!(out, ViewerOut::Sheet(SheetOut::Trash)));
+    let trashing = if trashed {
+        Trashing::Underway
+    } else {
+        viewer.trashing
+    };
+    (Viewer { trashing, ..viewer }, outs)
 }
 
 /// The stage for a file of `family`: the one showing when it is already of that family (a reload
@@ -274,14 +351,14 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         },
     );
     match routed {
-        Route::Sheet(input) => sheet(viewer, input, at, params),
+        Route::Sheet(input) => sheet_in(viewer, input, at, params),
         Route::Palette(input) => palette(viewer, input, at, params),
         Route::OpenPalette => palette(viewer, PaletteIn::Open, at, params),
         Route::Context(input) => context(viewer, input, at, params),
         Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),
         Route::CloseWindow => (viewer, vec![ViewerOut::CloseWindow]),
-        Route::OpenFile => (viewer, vec![ViewerOut::PickFile]),
+        Route::OpenFile => choose(viewer),
         Route::Rewind(rewind) => (viewer, vec![ViewerOut::Rewind(rewind)]),
         Route::Dismiss => dismissed(viewer),
         Route::Stage(input) => stage(viewer, input, at, params),

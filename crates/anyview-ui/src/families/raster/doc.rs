@@ -6,11 +6,11 @@ use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenLink, PluginPicture,
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
-    PixelArea, PixelLen, PixelSize, RasterFormat, Sniffed, Source,
+    PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
 };
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
-    declared_size, decode, fidelity,
+    declared_size, decode, fidelity, resized,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -172,12 +172,18 @@ fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
     }
     match decode(&target.source, &target.sniffed) {
         Ok(Decoded::Still(picture)) => {
-            upload(&target.texture, &picture)?;
-            Ok(doc_of(target, picture.size(), 1, None, Runs::Forever))
+            let held = upload(&target.texture, &picture)?;
+            Ok(holding(
+                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                held,
+            ))
         }
         Ok(Decoded::HeldStill { picture, frames }) => {
-            upload(&target.texture, &picture)?;
-            let mut doc = doc_of(target, picture.size(), frames.0, None, Runs::Forever);
+            let held = upload(&target.texture, &picture)?;
+            let mut doc = holding(
+                doc_of(target, picture.size(), frames.0, None, Runs::Forever),
+                held,
+            );
             doc.facts = doc.facts.with(
                 FactLabel::Frames,
                 FactValue::text(format!(
@@ -188,14 +194,17 @@ fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
             Ok(doc)
         }
         Ok(Decoded::Animated(animation)) => {
-            let strip = upload_frames(&target.texture, &animation)?;
+            let (strip, held) = upload_frames(&target.texture, &animation)?;
             let first = animation.frames.first().pixels.size();
             let count = u32::try_from(animation.frames.count().get()).unwrap_or(u32::MAX);
             let runs = match animation.plays {
                 Plays::Forever => Runs::Forever,
                 Plays::Times(times) => Runs::Times(times),
             };
-            Ok(doc_of(target, first, count, Some(Arc::new(strip)), runs))
+            Ok(holding(
+                doc_of(target, first, count, Some(Arc::new(strip)), runs),
+                held,
+            ))
         }
         // HEIC has no decoder here, and AVIF has one only in a build that kept it: a plugin may.
         Err(
@@ -218,8 +227,11 @@ fn plugin_into(target: &RasterTarget, unserved: ImageError) -> Result<RasterDoc,
         .decode(&target.source, &target.sniffed, PLUGIN_AREA)
     {
         PluginPicture::Pixels(picture) => {
-            upload(&target.texture, &picture)?;
-            Ok(doc_of(target, picture.size(), 1, None, Runs::Forever))
+            let held = upload(&target.texture, &picture)?;
+            Ok(holding(
+                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                held,
+            ))
         }
         PluginPicture::Missing(needs) => Ok(blank_doc(target, needs)),
         PluginPicture::Unserved => Err(unserved.into()),
@@ -236,8 +248,11 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
         .decode(&target.source, &target.sniffed, PLUGIN_AREA);
     let needs = match developed {
         PluginPicture::Pixels(picture) => {
-            upload(&target.texture, &picture)?;
-            return Ok(doc_of(target, picture.size(), 1, None, Runs::Forever));
+            let held = upload(&target.texture, &picture)?;
+            return Ok(holding(
+                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                held,
+            ));
         }
         PluginPicture::Missing(needs) => Some(needs),
         PluginPicture::Failed(reason) => {
@@ -248,8 +263,8 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
     };
     match decode(&target.source, &target.sniffed) {
         Ok(Decoded::Still(picture)) => {
-            upload(&target.texture, &picture)?;
-            let mut doc = doc_of(target, picture.size(), 1, None, Runs::Forever);
+            let held = upload(&target.texture, &picture)?;
+            let mut doc = holding(doc_of(target, picture.size(), 1, None, Runs::Forever), held);
             if let Some(needs) = needs {
                 doc.facts = doc.facts.with(needs.fact.label, needs.fact.value);
                 doc.lacking = needs.helper;
@@ -284,6 +299,12 @@ fn blank_doc(target: &RasterTarget, needs: Need) -> RasterDoc {
     doc
 }
 
+/// `doc` for a texture that holds the picture at `held`, which is smaller than the picture when
+/// the GPU cannot take it whole.
+fn holding(doc: RasterDoc, held: PixelSize) -> RasterDoc {
+    RasterDoc { held, ..doc }
+}
+
 fn doc_of(
     target: &RasterTarget,
     size: PixelSize,
@@ -307,21 +328,25 @@ fn doc_of(
 
 /// Every frame of `animation` in a texture of its own: the first goes into `first`, the others
 /// into new handles on the same GPU.
-fn upload_frames(first: &TextureHandle, animation: &Animation) -> Result<FrameStrip, OpenError> {
+fn upload_frames(
+    first: &TextureHandle,
+    animation: &Animation,
+) -> Result<(FrameStrip, PixelSize), OpenError> {
     let mut frames = Vec::new();
+    let mut held = animation.frames.first().pixels.size();
     for (index, frame) in animation.frames.iter().enumerate() {
         let texture = if index == 0 {
             first.clone()
         } else {
             first.gpu().handle()
         };
-        upload(&texture, &frame.pixels)?;
+        held = upload(&texture, &frame.pixels)?;
         frames.push(StripFrame {
             texture,
             delay: Duration::from_micros(frame.delay.0),
         });
     }
-    Ok(FrameStrip { frames })
+    Ok((FrameStrip { frames }, held))
 }
 
 /// The first frame of a picture, cheaper than decoding it whole: the host's small picture of the
@@ -336,11 +361,11 @@ pub(crate) fn first_frame(
     let Some((picture, size, frames, facts)) = cheap_picture(src, sniffed, link)? else {
         return Ok(None);
     };
-    upload(&link.texture, &picture)?;
+    let held = upload(&link.texture, &picture)?;
     Ok(Some(RasterDoc {
         texture: link.texture.clone(),
         size,
-        held: picture.size(),
+        held,
         frames,
         facts,
         needs: None,
@@ -384,8 +409,21 @@ fn cheap_picture(
     Ok(Some((peeked.picture, peeked.source_size, frames, facts)))
 }
 
-fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<(), OpenError> {
+/// Puts `picture` in `texture` and says what size it holds. A picture longer on a side than the
+/// GPU's texture limit goes up shrunk to fit it, as a viewer shows a huge image; the doc keeps
+/// the picture's own size, so the zoom and the facts stay true.
+fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<PixelSize, OpenError> {
+    let limit = texture
+        .gpu()
+        .device()
+        .map_or(u32::MAX, |device| device.limits().max_texture_dimension_2d);
     let size = picture.size();
+    if size.width.0.max(size.height.0) > limit {
+        return upload(
+            texture,
+            &resized(picture, Resize::LongEdge(PixelLen(limit))),
+        );
+    }
     let pixels = Pixels::new(
         PixelFormat::Rgba8Straight,
         size.width.0,
@@ -393,7 +431,8 @@ fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<(), OpenError> {
         picture.bytes(),
     )
     .map_err(|_| OpenError::Unrecognised)?;
-    texture.update(&pixels).map_err(OpenError::Gpu)
+    texture.update(&pixels).map_err(OpenError::Gpu)?;
+    Ok(size)
 }
 
 fn facts(source: &Source, sniffed: &Sniffed, size: PixelSize, frames: u32) -> Facts {

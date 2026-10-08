@@ -5,9 +5,10 @@
 
 use super::doc::RasterDoc;
 use super::geometry::{
-    centre_of, fit, frame_of, held_source, place, point_under, pointer_delta, scale_of, turn_of,
+    centre_of, fit, frame_of, held_source, limited_pan, place, point_under, pointer_delta,
+    scale_of, turn_of,
 };
-use crate::families::view::{Area, Held, StageCx};
+use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
 use crate::{Command, RasterIn, RasterStage, Stage, StageIn};
 use anyview_core::FileAction;
 use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Zoom};
@@ -119,6 +120,14 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                 if let Some(from) = last() {
                     let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
                     let by = pointer_delta(shown, area, (at.0 - from.0, at.1 - from.1));
+                    let by = limited_pan(
+                        doc_size,
+                        turn_of(stage),
+                        shown,
+                        centre_of(stage, doc_size),
+                        area,
+                        by,
+                    );
                     send.call(StageIn::Raster(RasterIn::PanBy(by)));
                     last.set(Some(at));
                 }
@@ -138,32 +147,41 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
             return;
         };
         let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
+        // A pinch and a wheel turn under Control zoom alike: `by` thousandths, about the pointer.
+        let zoom_by = |by: i32, at: Point| {
+            let zoom = Zoom::scaled(Permille(
+                u32::try_from(i64::from(shown.0) * (1000 + i64::from(by)) / 1000)
+                    .unwrap_or(Zoom::MIN_SCALE.0),
+            ));
+            let centre = centre_of(stage, doc_size);
+            let on = point_under(
+                centre,
+                shown,
+                area,
+                (at.x.0 - area.origin.x.0, at.y.0 - area.origin.y.0),
+            );
+            send.call(StageIn::Raster(RasterIn::SetZoom { zoom, at: on }));
+        };
         match gesture {
-            Gesture::Pinch { by, at, .. } if over(area, at) => {
-                let zoom = Zoom::scaled(Permille(
-                    u32::try_from(i64::from(shown.0) * (1000 + i64::from(by.0)) / 1000)
-                        .unwrap_or(Zoom::MIN_SCALE.0),
-                ));
-                let centre = centre_of(stage, doc_size);
-                let on = point_under(
-                    centre,
-                    shown,
-                    area,
-                    (at.x.0 - area.origin.x.0, at.y.0 - area.origin.y.0),
-                );
-                send.call(StageIn::Raster(RasterIn::SetZoom { zoom, at: on }));
+            Gesture::Pinch { by, at, .. } if over(area, at) => zoom_by(by.0, at),
+            Gesture::Scroll { by, at, held, .. }
+                if over(area, at) && held.intersects(Modifiers::CONTROL | Modifiers::META) =>
+            {
+                zoom_by((by.y.0 * WHEEL_ZOOM).round() as i32, at);
             }
             Gesture::Scroll { by, at, .. } if over(area, at) => {
                 if let RasterStage::Zoomed { centre, .. } = stage {
                     // The content follows the fingers: the pointer moved by `by`.
                     let moved = pointer_delta(shown, area, (by.x.0, by.y.0));
-                    let next = DocPoint {
-                        x: DocUnit(centre.x.0.saturating_sub(moved.x.0)),
-                        y: DocUnit(centre.y.0.saturating_sub(moved.y.0)),
-                    };
-                    // A share that would carry the picture out of the window is dropped, so a
-                    // glide ends at the edge (quire sends it on until it has run out).
-                    if place(doc_size, turn_of(stage), shown, next, area).is_none() {
+                    // A share stops at the picture's edge, so a glide ends flush with it (quire
+                    // sends it on until it has run out).
+                    let moved = limited_pan(doc_size, turn_of(stage), shown, *centre, area, moved);
+                    if moved
+                        == (DocPoint {
+                            x: DocUnit(0),
+                            y: DocUnit(0),
+                        })
+                    {
                         return;
                     }
                     send.call(StageIn::Raster(RasterIn::PanStart));
@@ -219,6 +237,14 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                 );
                 let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
                 let by = pointer_delta(shown, area, (at.0 - from.0, at.1 - from.1));
+                let by = limited_pan(
+                    doc_size,
+                    turn_of(stage),
+                    shown,
+                    centre_of(stage, doc_size),
+                    area,
+                    by,
+                );
                 send.call(StageIn::Raster(RasterIn::PanBy(by)));
                 last.set(Some(at));
             },

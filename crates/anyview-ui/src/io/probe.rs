@@ -3,6 +3,7 @@
 use super::error::OpenError;
 use super::job::Probed;
 use super::seams::FileAccess;
+use crate::StageFamily;
 use crate::families::family_of;
 use anyview_archive::zip_entries;
 use anyview_core::{
@@ -37,13 +38,30 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
             }
         }
     };
+    let family = family_of(sniffed.kind());
+    if stamp.len == ByteLen(0) && !meta.is_dir() && !holds_text(family) {
+        return Err(OpenError::Empty);
+    }
     Ok(Probed {
         resume: Resume::Nothing,
         access: FileAccess::Writable,
-        family: family_of(sniffed.kind()),
+        family,
         source: Source::new(path.clone(), stamp),
         sniffed,
     })
+}
+
+/// Whether a file of `family` can be a blank document: only text can, and a picture, a document
+/// or a recording of no bytes is a file that failed to be written.
+fn holds_text(family: StageFamily) -> bool {
+    match family {
+        StageFamily::Text | StageFamily::Table | StageFamily::Tree => true,
+        StageFamily::Raster
+        | StageFamily::Pdf
+        | StageFamily::Media
+        | StageFamily::Book
+        | StageFamily::PeekOnly => false,
+    }
 }
 
 /// The stamp the file at `path` has now, or `None` when it cannot be read.

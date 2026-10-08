@@ -32,6 +32,22 @@ pub struct TrimMarks {
 }
 
 impl TrimMarks {
+    /// The marks after `edge` is set at `at`. A start at or after the end, or an end at or
+    /// before the start, drops the mark it would cross, as an editor does: the latest mark is
+    /// the person's intent, and a cut is never silently the whole recording.
+    pub fn marked(self, edge: crate::TrimEdge, at: MediaTime) -> TrimMarks {
+        match edge {
+            crate::TrimEdge::Start => TrimMarks {
+                start: Some(at),
+                end: self.end.filter(|end| *end > at),
+            },
+            crate::TrimEdge::End => TrimMarks {
+                start: self.start.filter(|start| *start < at),
+                end: Some(at),
+            },
+        }
+    }
+
     /// `draft` with its trim, if it is one, cut where the marks say; any other draft as it is.
     pub fn applied_to(self, draft: crate::ExportDraft) -> crate::ExportDraft {
         use anyview_core::MediaExport;
@@ -46,8 +62,7 @@ impl TrimMarks {
         }
     }
 
-    /// The part of the recording the marks keep: all of it when none is set, and all of it
-    /// when the marks are not in order.
+    /// The part of the recording the marks keep: all of it when none is set.
     pub fn range(self) -> TimeRange {
         let start = self.start.unwrap_or_default();
         TimeRange::new(start, self.end).unwrap_or(TimeRange::WHOLE)
@@ -210,5 +225,90 @@ impl MediaLive {
         self.chapters
             .iter()
             .rposition(|chapter| chapter.start <= position)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::TrimEdge::{End, Start};
+
+    fn at(seconds: u64) -> MediaTime {
+        MediaTime::from_secs(seconds)
+    }
+
+    #[test]
+    fn a_mark_that_would_cross_the_other_drops_it_and_the_marks_stay_in_order() {
+        // name, marks before (start, end), the edge set, where, marks after
+        type Marks = (Option<u64>, Option<u64>);
+        const CASES: &[(&str, Marks, crate::TrimEdge, u64, Marks)] = &[
+            ("a first start", (None, None), Start, 10, (Some(10), None)),
+            ("a first end", (None, None), End, 10, (None, Some(10))),
+            (
+                "an end after the start",
+                (Some(10), None),
+                End,
+                20,
+                (Some(10), Some(20)),
+            ),
+            (
+                "an end before the start drops the start",
+                (Some(40), None),
+                End,
+                20,
+                (None, Some(20)),
+            ),
+            (
+                "an end on the start drops the start",
+                (Some(20), None),
+                End,
+                20,
+                (None, Some(20)),
+            ),
+            (
+                "a start before the end",
+                (None, Some(40)),
+                Start,
+                20,
+                (Some(20), Some(40)),
+            ),
+            (
+                "a start after the end drops the end",
+                (None, Some(20)),
+                Start,
+                40,
+                (Some(40), None),
+            ),
+            (
+                "a start on the end drops the end",
+                (None, Some(20)),
+                Start,
+                20,
+                (Some(20), None),
+            ),
+            (
+                "moving the start inside the cut keeps the end",
+                (Some(10), Some(40)),
+                Start,
+                30,
+                (Some(30), Some(40)),
+            ),
+            (
+                "moving the end past the start drops the start",
+                (Some(30), Some(40)),
+                End,
+                5,
+                (None, Some(5)),
+            ),
+        ];
+        for (name, (start, end), edge, when, (want_start, want_end)) in CASES {
+            let before = TrimMarks {
+                start: start.map(at),
+                end: end.map(at),
+            };
+            let after = before.marked(*edge, at(*when));
+            assert_eq!(after.start, want_start.map(at), "{name}: start");
+            assert_eq!(after.end, want_end.map(at), "{name}: end");
+        }
     }
 }

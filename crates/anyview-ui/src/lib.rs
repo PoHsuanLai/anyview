@@ -81,5 +81,5 @@ pub use stage::{
     TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
-pub use viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
+pub use viewer::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 pub use views::{Launch, ViewerApp, WelcomeApp, stylesheet};

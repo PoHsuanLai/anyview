@@ -215,6 +215,38 @@ pub(crate) fn pointer_delta(scale: Permille, area: Area, (dx, dy): (f32, f32)) -
     }
 }
 
+/// The part of a pan of `by` (the pointer's move, in 1/64 texel) that the picture can follow from
+/// `centre`: the room never shows past the picture's edge, and a picture narrower or shorter than
+/// the room on an axis moves only until its edge meets the room's, so it is never carried out of
+/// view.
+pub(crate) fn limited_pan(
+    size: PixelSize,
+    turn: QuarterTurn,
+    scale: Permille,
+    centre: DocPoint,
+    area: Area,
+    by: DocPoint,
+) -> DocPoint {
+    let (wr, hr) = turned(size, turn);
+    let per_texel = f64::from(scale.0.max(1)) / 1000.0 / f64::from(area.scale.max(f32::EPSILON));
+    let half = (
+        f64::from(area.size.width.0) / (2.0 * per_texel),
+        f64::from(area.size.height.0) / (2.0 * per_texel),
+    );
+    let along = |from: DocUnit, by: DocUnit, extent: f64, half: f64| {
+        let wanted = texels(from) - texels(by);
+        // The centre where the picture's start meets the room's start, and where its end meets the
+        // room's end; the pan stays between them, whichever way round they fall.
+        let (near, far) = (half, extent - half);
+        let reach = wanted.clamp(near.min(far), near.max(far));
+        DocUnit(from.0.saturating_sub(units(reach).0))
+    };
+    DocPoint {
+        x: along(centre.x, by.x, wr, half.0),
+        y: along(centre.y, by.y, hr, half.1),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -424,6 +456,88 @@ mod tests {
         ];
         for (name, part, copy, want) in cases {
             assert_eq!(held_source(part, SIZE, copy), want, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_pan_stops_with_the_picture_edge_flush_with_the_room() {
+        // The 400 x 200 picture at 1x in a 100 x 100 room: the centre stays in 50..350 by 50..150.
+        let room = area(100.0, 100.0, 1.0);
+        // name, centre, the pointer's move, the centre it leaves
+        type Case = (&'static str, (f64, f64), (f64, f64), (f64, f64));
+        const CASES: &[Case] = &[
+            (
+                "a short pan is whole",
+                (200.0, 100.0),
+                (-30.0, 0.0),
+                (230.0, 100.0),
+            ),
+            (
+                "past the left edge ends at it",
+                (60.0, 100.0),
+                (500.0, 0.0),
+                (50.0, 100.0),
+            ),
+            (
+                "past the right edge ends at it",
+                (340.0, 100.0),
+                (-500.0, 0.0),
+                (350.0, 100.0),
+            ),
+            (
+                "past the top ends at it",
+                (200.0, 60.0),
+                (0.0, 500.0),
+                (200.0, 50.0),
+            ),
+            (
+                "past the bottom ends at it",
+                (200.0, 140.0),
+                (0.0, -500.0),
+                (200.0, 150.0),
+            ),
+        ];
+        for (name, centre, by, want) in CASES {
+            let left = limited_pan(
+                SIZE,
+                QuarterTurn::None,
+                Permille(1000),
+                point(centre.0, centre.1),
+                room,
+                point(by.0, by.1),
+            );
+            let landed = point(centre.0, centre.1);
+            let landed = (landed.x.0 - left.x.0, landed.y.0 - left.y.0);
+            assert_eq!(
+                landed,
+                (point(want.0, want.1).x.0, point(want.0, want.1).y.0),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_picture_smaller_than_the_room_moves_only_until_its_edge_meets_the_rooms() {
+        // The 400 wide picture in a 1000 wide room: its centre can lie from 400 - 500 = -100,
+        // where its right edge meets the room's, to 500, where its left edge meets the room's.
+        let room = area(1000.0, 100.0, 1.0);
+        // name, the pointer's move, the centre it leaves
+        const CASES: &[(&str, f64, f64)] = &[
+            ("a short move is whole", -30.0, 230.0),
+            ("towards the left edge stops there", 500.0, -100.0),
+            ("towards the right edge stops there", -900.0, 500.0),
+        ];
+        for (name, by, want) in CASES {
+            let left = limited_pan(
+                SIZE,
+                QuarterTurn::None,
+                Permille(1000),
+                point(200.0, 100.0),
+                room,
+                point(*by, 0.0),
+            );
+            let landed = point(200.0, 100.0).x.0 - left.x.0;
+            assert_eq!(landed, point(*want, 0.0).x.0, "{name}");
         }
     }
 }

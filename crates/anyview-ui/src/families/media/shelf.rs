@@ -46,9 +46,6 @@ impl MediaShelf {
     /// Mark where a trim begins or ends.
     pub fn mark(&self, edge: crate::TrimEdge, at: MediaTime) {
         let mut live = self.0;
-        live.with_mut(|live| match edge {
-            crate::TrimEdge::Start => live.marks.start = Some(at),
-            crate::TrimEdge::End => live.marks.end = Some(at),
-        });
+        live.with_mut(|live| live.marks = live.marks.marked(edge, at));
     }
 }

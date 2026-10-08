@@ -1,9 +1,12 @@
 mod desktop;
 mod editing;
+mod exporting;
 mod feedback;
 mod helpers;
 mod lent;
 mod remembering;
+mod renaming;
+mod rotations;
 mod route;
 mod support;
 mod watch;

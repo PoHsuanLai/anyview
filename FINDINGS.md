@@ -14,9 +14,14 @@ on. It is a reference, not a log: how each was found lives in git history.
   scale 1 and corrected once its first file has loaded (`WindowFit` reads the exact `WindowSizer::screen()`);
   a picture whose header gave its size, on a fractionally scaled output, opens at that size and is corrected by
   the same step. Ends when quire reports the compositor's reserved zones.
-- **The picture view does not zoom under Control.** quire v0.2.20 hands every listener a Control-wheel click raw
-  (60 px, `held` has Control); the PDF view zooms by it and the picture view pans, as before. A picture view that
-  zooms on Control (Preview does) is a small change in `families/raster/view.rs`, left for design/11.
+- **A pointer event over a texture layer or a frame goes no further than the widget.** Blitz hands an event
+  over a custom widget (quire's `TextureLayer`, an `<object>`) or a sub-document (an `<iframe>`) to it and
+  stops (`blitz-dom` `events/mod.rs`), so a click or right-click never reaches the window's handlers. The
+  picture's texture takes no input, so `.viewer-raster-picture object` is `pointer-events:none` (`views/style.css`).
+  A rendered Markdown page, an EPUB chapter and a comic page are frames, which also carry the wheel that scrolls
+  them, so there is no rule that opens the context menu over them without stopping their scroll; the menu key
+  opens it there. Ends when quire v0.2.31's Blitz fix lands: the rule goes, and the tests of the three menus
+  join `tests/file_formats.rs`.
 - **A video's size comes from its header only.** The window opens at a recording's resolution when the mp4 or
   Matroska header says it (`anyview_peek::natural_size`). The player line (`MediaLine`, `MediaNotice`) does not
   report the picture's size, so a container the header readers do not know opens at the default window. Ends

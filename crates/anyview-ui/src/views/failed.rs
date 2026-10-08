@@ -64,6 +64,10 @@ pub(super) fn words(reason: LoadFailure, name: &str) -> (&'static str, String) {
             "This file looks damaged",
             "It may be incomplete or corrupted.".to_owned(),
         ),
+        LoadFailure::Empty => (
+            "This file is empty",
+            "There is nothing in it to show.".to_owned(),
+        ),
         LoadFailure::TooLarge => (
             "This file is too large to open here",
             "Another app may be able to open it.".to_owned(),
@@ -131,6 +135,7 @@ mod tests {
                 "can\u{2019}t be shown",
             ),
             ("broken", LoadFailure::Damaged, "damaged"),
+            ("nothing in it", LoadFailure::Empty, "empty"),
             ("big", LoadFailure::TooLarge, "too large"),
             ("password", LoadFailure::Locked, "protected"),
         ];

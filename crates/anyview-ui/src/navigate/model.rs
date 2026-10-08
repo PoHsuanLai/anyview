@@ -1,6 +1,6 @@
 //! Navigation's states, inputs and outputs.
 
-use anyview_core::{FilePath, Neighbours, Sequence};
+use anyview_core::{FilePath, Heading, Neighbours, Sequence};
 use ds_core::vocab::ShortcutKey;
 
 /// Whether there is a list to walk.
@@ -9,8 +9,11 @@ pub enum Navigate {
     /// A single file with no list around it.
     #[default]
     Idle,
-    /// Walking `sequence`; its position is the open file.
-    Walking { sequence: Sequence },
+    /// Walking `sequence`; its position is the open file, and `heading` the way the last move went.
+    Walking {
+        sequence: Sequence,
+        heading: Heading,
+    },
 }
 
 /// What moves navigation.
@@ -29,6 +32,9 @@ pub enum NavigateIn {
     /// The open file is no longer one of the list (another file was dropped on the window): there
     /// is nothing to walk until a list for the new file arrives.
     Leave,
+    /// The open file is gone from disk and there are others in the list: leave it out of the walk
+    /// and open the one the person was heading for.
+    Gone,
     /// The clock; navigation keeps no timer.
     Elapsed,
 }

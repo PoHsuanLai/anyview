@@ -332,8 +332,15 @@ fn ended(
             follow(watching, path, edge);
         }
     }
-    if let Outcome::Picked(files) = &outcome {
-        edge.chosen(files.clone());
+    // A chooser that ended without a file (cancelled, none on this desktop, failed) is told too, so
+    // the window knows it may ask for another.
+    if note.doing == Some(Doing::Pick) {
+        let files = if let Outcome::Picked(files) = &outcome {
+            files.clone()
+        } else {
+            Vec::new()
+        };
+        edge.chosen(files);
     }
     if let Outcome::Helped(helper, end) = &outcome {
         edge.helped(*helper, end.clone());

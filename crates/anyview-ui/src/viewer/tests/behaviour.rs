@@ -2,13 +2,15 @@
 
 use super::support::*;
 use crate::command::{Command, StageCommand};
-use crate::load::{Load, LoadFlow, LoadIn, LoadOut, Ticket};
+use crate::load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
+use crate::sheet::{Sheet, SheetOut};
 use crate::stage::{
     Animation, LineTotal, PageLines, RasterIn, RasterStage, Stage, StageFamily, StageIn,
     TextExtent, TextIn, TextParams, TextPlace, TextStage, TextStep, TextView, Wrap,
 };
-use crate::viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
+use crate::typed::TypedText;
+use crate::viewer::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use anyview_core::{
     DocPoint, DocUnit, FilePath, LineIndex, NonEmpty, Permille, QuarterTurn, Sequence,
     SequenceOrigin, Zoom,
@@ -150,7 +152,7 @@ fn several_dropped_files_are_the_list_and_the_first_opens() {
         &(),
         &params,
     );
-    let Navigate::Walking { sequence } = &viewer.navigate else {
+    let Navigate::Walking { sequence, .. } = &viewer.navigate else {
         panic!("a walk starts");
     };
     assert_eq!(sequence.entries().count().get(), 3);
@@ -258,7 +260,10 @@ fn home_and_end_still_walk_the_folder_for_a_file_that_does_not_scroll() {
         Sequence::starting_at(files, &path("/b.png"), SequenceOrigin::Selection).unwrap();
     let viewer = Viewer {
         stage: zoomed_image(),
-        navigate: Navigate::Walking { sequence },
+        navigate: Navigate::Walking {
+            sequence,
+            heading: anyview_core::Heading::Onward,
+        },
         ..Viewer::default()
     };
     let (_, outs) = viewer.step(
@@ -316,4 +321,120 @@ fn a_restore_input_is_taken_by_a_fresh_raster_stage() {
             centre: DocPoint::default()
         }
     );
+}
+
+fn walking_on_b() -> Navigate {
+    let files = NonEmpty::from_vec(vec![path("/a.png"), path("/b.png"), path("/c.png")]).unwrap();
+    let sequence =
+        Sequence::starting_at(files, &path("/b.png"), SequenceOrigin::Selection).unwrap();
+    Navigate::Walking {
+        sequence,
+        heading: anyview_core::Heading::Onward,
+    }
+}
+
+fn not_found(ticket: u64) -> ViewerIn {
+    ViewerIn::Load(LoadIn::Failed {
+        ticket: Ticket(ticket),
+        reason: LoadFailure::NotFound,
+    })
+}
+
+#[test]
+fn a_file_that_vanishes_in_a_walk_leaves_it_and_the_next_one_opens() {
+    let probing = Viewer {
+        load: Load::Probing { ticket: Ticket(3) },
+        navigate: walking_on_b(),
+        ..Viewer::default()
+    };
+    let (after, outs) = probing.step(not_found(3), Stamp(0), &(), &params());
+    assert!(
+        outs.contains(&ViewerOut::Probe {
+            ticket: Ticket(4),
+            path: path("/c.png")
+        }),
+        "{outs:?}"
+    );
+    let Navigate::Walking { sequence, .. } = &after.navigate else {
+        panic!("still walking");
+    };
+    assert_eq!(sequence.entries().count().get(), 2);
+}
+
+#[test]
+fn a_late_answer_that_a_file_is_gone_moves_nothing() {
+    let probing = Viewer {
+        load: Load::Probing { ticket: Ticket(3) },
+        navigate: walking_on_b(),
+        ..Viewer::default()
+    };
+    let (after, outs) = probing.clone().step(not_found(2), Stamp(0), &(), &params());
+    assert_eq!((after, outs), (probing, vec![]));
+}
+
+#[test]
+fn a_trashed_file_with_nothing_beside_it_closes_the_window_and_a_lost_one_does_not() {
+    let probing = |trashing| Viewer {
+        load: Load::Probing { ticket: Ticket(3) },
+        trashing,
+        ..Viewer::default()
+    };
+    let (_, outs) = probing(Trashing::Underway).step(not_found(3), Stamp(0), &(), &params());
+    assert_eq!(outs, vec![ViewerOut::CloseWindow]);
+    let (after, outs) = probing(Trashing::Not).step(not_found(3), Stamp(0), &(), &params());
+    assert!(outs.is_empty(), "{outs:?}");
+    assert!(matches!(
+        after.load,
+        Load::Failed {
+            reason: LoadFailure::NotFound,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_file_dropped_or_chosen_while_a_sheet_is_up_closes_the_sheet_before_it_opens() {
+    for arrival in [
+        ViewerIn::Dropped(vec![path("/b.png")]),
+        ViewerIn::Chosen(vec![path("/b.png")]),
+    ] {
+        let asking = Viewer {
+            sheet: Sheet::Rename {
+                name: TypedText::new("a.png"),
+            },
+            ..Viewer::default()
+        };
+        let (after, outs) = asking.step(arrival.clone(), Stamp(0), &(), &params());
+        assert_eq!(after.sheet, Sheet::Closed, "{arrival:?}");
+        assert!(
+            outs.contains(&ViewerOut::Sheet(SheetOut::Closed)),
+            "{arrival:?}: {outs:?}"
+        );
+        assert!(
+            outs.contains(&ViewerOut::Probe {
+                ticket: Ticket(1),
+                path: path("/b.png")
+            }),
+            "{arrival:?}: {outs:?}"
+        );
+    }
+}
+
+#[test]
+fn a_second_ask_for_a_chooser_waits_for_the_first_to_end_however_it_ends() {
+    let open = || ViewerIn::Run(Command::OpenFile);
+    let (asked, outs) = Viewer::default().step(open(), Stamp(0), &(), &params());
+    assert_eq!(outs, vec![ViewerOut::PickFile]);
+    assert_eq!(asked.choosing, Choosing::Asked);
+    let (still, outs) = asked.step(open(), Stamp(0), &(), &params());
+    assert_eq!(outs, vec![], "a chooser is up");
+    for chosen in [vec![], vec![path("/b.png")]] {
+        let (ended, _) =
+            still
+                .clone()
+                .step(ViewerIn::Chosen(chosen.clone()), Stamp(0), &(), &params());
+        assert_eq!(ended.choosing, Choosing::Not, "{chosen:?}");
+        let (_, outs) = ended.step(open(), Stamp(0), &(), &params());
+        assert_eq!(outs, vec![ViewerOut::PickFile], "{chosen:?}: asks again");
+    }
 }

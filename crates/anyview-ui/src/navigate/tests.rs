@@ -1,5 +1,5 @@
 use super::*;
-use anyview_core::{FilePath, Neighbours, NonEmpty, Sequence, SequenceOrigin};
+use anyview_core::{FilePath, Heading, Neighbours, NonEmpty, Sequence, SequenceOrigin};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::ShortcutKey;
@@ -19,13 +19,16 @@ fn walking_at(files: &[&str], index: usize) -> Navigate {
         SequenceOrigin::Selection,
     )
     .unwrap();
-    Navigate::Walking { sequence }
+    Navigate::Walking {
+        sequence,
+        heading: Heading::Onward,
+    }
 }
 
 fn position(state: &Navigate) -> Option<usize> {
     match state {
         Navigate::Idle => None,
-        Navigate::Walking { sequence } => Some(sequence.at().index()),
+        Navigate::Walking { sequence, .. } => Some(sequence.at().index()),
     }
 }
 
@@ -146,7 +149,7 @@ fn every_row_of_the_table_steps_as_written() {
 
 #[test]
 fn a_walk_starts_from_the_open_file_and_preloads_around_it() {
-    let Navigate::Walking { sequence } = walking_at(FILES, 1) else {
+    let Navigate::Walking { sequence, .. } = walking_at(FILES, 1) else {
         panic!("walking_at builds a walk");
     };
     let (state, outs) = Navigate::Idle.step(NavigateIn::Start(sequence), Stamp(0), &(), &());
@@ -197,4 +200,59 @@ fn leaving_ends_the_walk_and_a_new_list_starts_another() {
         (Navigate::Idle, vec![]),
         "no list to leave is no change"
     );
+}
+
+#[test]
+fn a_file_that_has_gone_leaves_the_walk_and_the_one_the_person_was_heading_for_opens() {
+    // name, the walk's start, the move that lands on the gone file, its index, the file then opened
+    const CASES: &[(&str, usize, NavigateIn, usize, &str)] = &[
+        ("an arrow right goes on", 0, NavigateIn::Next, 1, "/c.png"),
+        (
+            "an arrow left goes on",
+            2,
+            NavigateIn::Previous,
+            1,
+            "/a.png",
+        ),
+        (
+            "end falls back to the one before",
+            1,
+            NavigateIn::Last,
+            2,
+            "/b.png",
+        ),
+        (
+            "home goes to the one after",
+            1,
+            NavigateIn::First,
+            0,
+            "/b.png",
+        ),
+    ];
+    for (name, from, arrived, at, want) in CASES {
+        let (walk, _) = walking_at(FILES, *from).step(arrived.clone(), Stamp(0), &(), &());
+        let (walk, outs) = walk.step(NavigateIn::Gone, Stamp(0), &(), &());
+        assert!(
+            outs.contains(&NavigateOut::Open(path(want))),
+            "{name}: {outs:?}"
+        );
+        let Navigate::Walking { sequence, .. } = walk else {
+            panic!("{name}: still walking");
+        };
+        assert_eq!(sequence.entries().count().get(), FILES.len() - 1, "{name}");
+        assert!(
+            sequence
+                .entries()
+                .iter()
+                .all(|entry| *entry != path(FILES[*at])),
+            "{name}: the gone file left the list"
+        );
+    }
+}
+
+#[test]
+fn the_only_file_left_stays_when_it_is_gone() {
+    let walk = walking_at(&["/a.png"], 0);
+    let (after, outs) = walk.clone().step(NavigateIn::Gone, Stamp(0), &(), &());
+    assert_eq!((after, outs), (walk, vec![]));
 }

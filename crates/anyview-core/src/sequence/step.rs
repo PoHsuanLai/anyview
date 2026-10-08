@@ -34,6 +34,38 @@ pub fn moved(seq: Sequence, mv: SequenceMove) -> Sequence {
     seq.pointing_at(target)
 }
 
+/// Which way a walk was last going, so a file that has gone is stepped over the way the person
+/// was heading.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Heading {
+    /// Towards the end of the list.
+    Onward,
+    /// Towards the start of the list.
+    Back,
+}
+
+/// `seq` without the file it is on, now on the file that follows it (the one before when it was
+/// last); with `Heading::Back`, on the one before it (the one after when it was first). `None`
+/// when it was the only file.
+pub fn without_current(seq: Sequence, heading: Heading) -> Option<Sequence> {
+    let here = seq.at().index();
+    let kept: Vec<FilePath> = seq
+        .entries()
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| *index != here)
+        .map(|(_, entry)| entry.clone())
+        .collect();
+    let entries = super::NonEmpty::from_vec(kept)?;
+    let target = match heading {
+        Heading::Onward => here,
+        Heading::Back => here.saturating_sub(1),
+    };
+    let rest = Sequence::new(entries, seq.origin().clone());
+    let at = rest.position_at(target);
+    Some(moved(rest, SequenceMove::To(at)))
+}
+
 /// The entries on either side of the current one: what to preload so the next arrow press is
 /// instant. An end has no neighbour on that side.
 #[derive(Debug, Clone, PartialEq, Eq)]
