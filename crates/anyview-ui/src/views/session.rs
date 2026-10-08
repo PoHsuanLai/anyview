@@ -153,7 +153,8 @@ pub(super) fn commands(
         .filter(|command| access == FileAccess::Writable || !edits_pages(**command))
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
-    files.chain(stages).collect()
+    let open = platform.pick_files.then_some(Command::OpenFile);
+    open.into_iter().chain(files).chain(stages).collect()
 }
 
 /// Whether `action` turns or flips the picture.
@@ -258,7 +259,7 @@ pub(super) fn params(
         .copied()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
-            Command::Stage(_) | Command::Install(_) => None,
+            Command::Stage(_) | Command::OpenFile | Command::Install(_) => None,
         })
         .collect();
     ViewerParams {

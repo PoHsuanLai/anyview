@@ -238,3 +238,38 @@ fn the_welcome_window_asks_for_a_file_only_where_there_is_a_chooser() {
     chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
     assert!(!asked(&requests).contains(&HostRequest::PickFile), "no ⌘O");
 }
+
+const OPEN: &str = "Open\u{2026}";
+
+#[test]
+fn open_is_in_the_palette_and_the_menu_where_there_is_a_chooser() {
+    let (mut harness, _) = picture(PlatformAbilities::ALL);
+    let listed = palette(&mut harness);
+    assert!(listed.contains(OPEN), "Open… is listed: {listed}");
+    let menu = context_menu(&mut harness);
+    let open = menu
+        .iter()
+        .position(|row| row == OPEN)
+        .expect("Open… in the menu");
+    let with = menu
+        .iter()
+        .position(|row| row == "Open With\u{2026}")
+        .unwrap();
+    assert_eq!(
+        open + 1,
+        with,
+        "Open… sits just before Open With…: {menu:?}"
+    );
+}
+
+#[test]
+fn open_is_in_neither_the_palette_nor_the_menu_without_a_chooser() {
+    let (mut harness, _) = picture(PlatformAbilities {
+        pick_files: false,
+        ..PlatformAbilities::ALL
+    });
+    let listed = palette(&mut harness);
+    assert!(!listed.contains(OPEN), "{listed}");
+    let menu = context_menu(&mut harness);
+    assert!(!menu.iter().any(|row| row == OPEN), "{menu:?}");
+}

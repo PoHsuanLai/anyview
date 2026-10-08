@@ -33,6 +33,7 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
         file(FileAction::CopyPath, "Copy Path"),
     ],
     &[
+        (ContextPick::Run(Command::OpenFile), "Open\u{2026}"),
         file(FileAction::OpenWith, "Open With\u{2026}"),
         file(FileAction::RevealInFolder, "Show in Folder"),
         (ContextPick::GetInfo, "Get Info"),

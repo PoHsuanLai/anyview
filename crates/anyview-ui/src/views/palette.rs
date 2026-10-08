@@ -9,13 +9,14 @@ use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
 use ds::components::menus::palette::palette_claim::{Claim, FieldKey};
 use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
-use ds::prelude::{CommandPalette, Shortcut};
+use ds::prelude::{CommandPalette, Shortcut, ShortcutKey};
 
 /// The keys shown beside a command.
 fn keys_of(command: &Command) -> Option<Shortcut> {
     match command {
         Command::File(action) => shortcut(*action),
         Command::Stage(command) => Some(command.shortcut()),
+        Command::OpenFile => Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')])),
         Command::Install(_) => None,
     }
 }

@@ -136,6 +136,7 @@ fn a_picture_menu_lists_what_the_palette_offers_in_the_context_order() {
             RULE,
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
@@ -275,6 +276,7 @@ fn a_text_file_menu_has_no_picture_rows() {
         [
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
@@ -317,6 +319,7 @@ fn a_pdf_menu_rotates_the_page_and_has_the_files_actions() {
             RULE,
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
@@ -465,4 +468,19 @@ fn a_read_only_picture_has_no_edit_rows_in_the_menu_or_the_palette() {
         lines.contains(&"Duplicate".to_owned()),
         "a copy is still on offer: {lines:?}"
     );
+}
+
+/// A real hand moves a little between the press and the release. Blitz takes a held button's
+/// movement past 2px for a selection drag and then sends no contextmenu event, so a picture (which
+/// has nothing to select) must not start one.
+#[test]
+fn a_right_click_with_a_little_hand_movement_still_opens_the_menu() {
+    let (_dir, mut harness, _) = picture();
+    let from = at(300.0, 200.0);
+    harness.send(Input::pointer_move(from));
+    harness.send(Input::button_down(from, PointerButton::Secondary));
+    harness.send(Input::pointer_move(at(304.0, 203.0)));
+    harness.send(Input::button_up(at(304.0, 203.0), PointerButton::Secondary));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 1);
 }
