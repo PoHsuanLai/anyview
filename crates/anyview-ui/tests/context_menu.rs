@@ -136,6 +136,7 @@ fn a_picture_menu_lists_what_the_palette_offers_in_the_context_order() {
             RULE,
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
@@ -275,6 +276,7 @@ fn a_text_file_menu_has_no_picture_rows() {
         [
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
@@ -317,6 +319,7 @@ fn a_pdf_menu_rotates_the_page_and_has_the_files_actions() {
             RULE,
             "Copy Path",
             RULE,
+            "Open\u{2026}",
             "Open With\u{2026}",
             "Show in Folder",
             "Get Info",

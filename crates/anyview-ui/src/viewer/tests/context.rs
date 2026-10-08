@@ -22,7 +22,7 @@ const ROTATE: ContextPick = ContextPick::Run(Command::File(FileAction::RotateLef
 
 fn rows() -> ViewerParams {
     let params = params();
-    let listed = [Command::File(FileAction::RotateLeft)];
+    let listed = [Command::File(FileAction::RotateLeft), Command::OpenFile];
     ViewerParams {
         context: ContextParams {
             entries: entries(&listed, params.panel.tabs),
@@ -151,4 +151,14 @@ fn the_menu_lists_get_info_where_the_file_has_an_info_tab() {
         }),
         "{listed:?}"
     );
+}
+
+#[test]
+fn the_open_row_asks_for_a_file_as_ctrl_o_does() {
+    let (viewer, _) = step(showing(), ViewerIn::Context(ContextIn::Open(HERE)));
+    let (_, outs) = step(
+        viewer,
+        ViewerIn::Context(ContextIn::Pick(ContextPick::Run(Command::OpenFile))),
+    );
+    assert_eq!(outs, vec![ViewerOut::PickFile]);
 }
