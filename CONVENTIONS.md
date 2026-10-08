@@ -74,8 +74,12 @@ quietly.
   dev code.
 - **An API change updates every caller in the same change.** No deprecated alias, no "kept
   for callers", no old path re-exported "for one release".
-- **`#[non_exhaustive]` on nothing.** Nothing is published, so it buys no compatibility and
-  costs exhaustive matching, which is the reason the vocabulary is enums.
+- **`#[non_exhaustive]` on settings, never on vocabulary.** Other repos (sill, mailo, temor) build
+  anyview's settings, so a struct that configures something (a budget, a worker, a launch, the
+  abilities a host grants) is `#[non_exhaustive]` with a `Default` where one makes sense and
+  `with_*` methods or a constructor, and a field added later breaks no caller. A vocabulary enum
+  (`FormatKind`, `Body`, `Part`) or a data struct is never `#[non_exhaustive]`: exhaustive matching
+  is the reason the vocabulary is enums.
 
 ## 4. Types
 
