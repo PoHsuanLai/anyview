@@ -128,6 +128,33 @@ pub enum PlatformError {
     },
 }
 
+impl From<bayonet::run::RunError<Capability>> for PlatformError {
+    fn from(error: bayonet::run::RunError<Capability>) -> Self {
+        use bayonet::run::RunError;
+        match error {
+            RunError::Spawn { program, kind } => PlatformError::Spawn { program, kind },
+            RunError::Silent { plugin, waited } => PlatformError::PluginSilent { plugin, waited },
+            RunError::Crashed { plugin, status } => PlatformError::PluginCrashed { plugin, status },
+            RunError::Protocol { plugin, reason } => {
+                PlatformError::PluginProtocol { plugin, reason }
+            }
+            RunError::Version {
+                plugin,
+                offered,
+                supported,
+            } => PlatformError::PluginVersion {
+                plugin,
+                offered,
+                supported,
+            },
+            RunError::Lacks { plugin, capability } => {
+                PlatformError::PluginLacks { plugin, capability }
+            }
+            RunError::Cancelled { plugin } => PlatformError::PluginCancelled { plugin },
+        }
+    }
+}
+
 impl PlatformError {
     /// A failed bus call named `call`.
     pub(crate) fn bus(call: &'static str, error: impl std::fmt::Display) -> Self {

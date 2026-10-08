@@ -1,6 +1,6 @@
 [package]
 name = "anyview-plugin"
-description = "Plugins as values: the manifest a plugin installs, its validation, which plugin serves a kind and capability, and the package to suggest when none does. Pure; discovery and the process live in anyview-platform."
+description = "Plugins as values: the capabilities the viewer asks of a plugin and what each handles, which plugin serves a kind and capability, and the package to suggest when none does. Pure, on bayonet; discovery and the process live in anyview-platform."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,9 +11,9 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
+bayonet = { workspace = true, features = ["host"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
-toml = { workspace = true }
 
 [lints]
 workspace = true

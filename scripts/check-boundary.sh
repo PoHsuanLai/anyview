@@ -60,11 +60,12 @@ cd "$(dirname "$0")/.."
 # `mpv-wgpu-player`'s `subprocess` host, which links no mpv), and probing and writing recordings is the
 # FFmpeg plugin. The media crate itself spawns nothing, reads no clock and draws nothing: no runtime,
 # no bus, no UI.
-# anyview-plugin-protocol is what a plugin author depends on, so it is pure and small: `serde`,
-# `serde_json` and `thiserror` and nothing of the viewer's (no anyview-core, no ds-core, no `toml`),
-# and no runtime, bus, GPU, decoder or UI. anyview-plugin is the manifest and the registry as values:
-# it names anyview-core and the protocol, and parses TOML, and reaches no runtime, bus, GPU, decoder,
-# player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate and nothing else
+# anyview-plugin-protocol is what a plugin author depends on, so it is pure and small: bayonet's wire
+# (bayonet without its `host` feature: `serde`, `serde_json` and `thiserror`), `serde` and `thiserror`
+# and nothing of the viewer's (no anyview-core, no ds-core, no `toml`), and no runtime, bus, GPU,
+# decoder or UI. anyview-plugin is the viewer's capabilities and the registry as values: it names
+# anyview-core, the protocol and bayonet (whose host half parses the manifest's TOML), and reaches no
+# runtime, bus, GPU, decoder, player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate and nothing else
 # (its dev-dependencies, which the checks below do not look at, are the host's crates).
 # anyview-ffmpeg (under plugins/, since it is a program shipped as its own package and no layer of
 # the viewer) is a plugin like the fake one: the protocol crate, `serde`, `serde_json` and `thiserror`,
@@ -144,10 +145,13 @@ DIRECT=(
 # labels); almanac-core, cua-action, model-provider, genai-names and vision-prep (pure vocabulary crates
 # docket-core names in its signatures: episodes, computer-use actions, model shapes); and base64 0.22.1 (the
 # older one docket-core's wire uses beside the 0.23 already in the tree). The viewer is 682.
+# The plugin machinery moved out to bayonet (a library of its own, shared with other apps): the viewer is 683,
+# one package more, since bayonet is a package where the same code was three workspace crates' own, and its
+# dependencies (toml, rustix, serde, serde_json, thiserror) were all in the tree already.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
   "anyview-peek: 591"
-  "anyview: 682"
+  "anyview: 683"
 )
 fail=0
 
@@ -245,7 +249,7 @@ EDGES=(
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol ds-core docket-client docket-core porter-core prov"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
@@ -253,21 +257,22 @@ EDGES=(
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
   "anyview-export: anyview-core anyview-image anyview-pdf anyview-store anyview-text ds-blitz ds-core"
-  "anyview-plugin: anyview-core anyview-plugin-protocol"
-  "anyview-plugin-protocol: "
+  "anyview-plugin: anyview-core anyview-plugin-protocol bayonet"
+  "anyview-plugin-protocol: bayonet"
   "anyview-plugin-fake: anyview-plugin-protocol"
   "anyview-ffmpeg: anyview-plugin-protocol"
   "anyview-heif: anyview-plugin-protocol anyview-tool-kit"
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
   "anyview-tool-kit: anyview-plugin-protocol"
 )
-  # quire, docket and porter crates are git dependencies, so they show with their url where a workspace
-  # crate shows a path.
+  # quire, docket, porter and bayonet crates are git dependencies, so they show with their url where a
+  # workspace crate shows a path. (bayonet is a path while it sits beside this checkout, and then shows
+  # with a path like the workspace's own.)
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
   read -r -a allowed <<<"${edge#*:}"
   found=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
-    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
+    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter|bayonet))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
   want=$(printf '%s\n' "${allowed[@]}" | grep . | sort -u | tr '\n' ' ')
   if [ "$found" != "$want" ]; then
     echo "EDGE: $crate depends on [${found% }], the table allows [${want% }]"

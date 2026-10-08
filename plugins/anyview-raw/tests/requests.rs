@@ -180,10 +180,7 @@ fn a_host_that_gives_up_waiting_kills_the_tool_with_the_plugin() {
     let pid = scratch.path("pid");
     let emu = scratch.fake_emu(&format!("echo $$ > {}; sleep 60", pid.display()));
     let plugin = scratch.install(&with_emu(&emu));
-    let runner = PluginRunner::new(Timeouts {
-        silence: Duration::from_millis(700),
-        ..Timeouts::default()
-    });
+    let runner = PluginRunner::new(Timeouts::default().with_silence(Duration::from_millis(700)));
     let error = runner
         .decode(&plugin, &file(&scratch.raw()), PixelArea(1_000))
         .unwrap_err();

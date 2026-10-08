@@ -27,11 +27,12 @@ fn request(scratch: &Scratch, target: &str) -> (ExportRequest, PathBuf) {
 }
 
 fn runner() -> PluginRunner {
-    PluginRunner::new(Timeouts {
-        hello: Duration::from_secs(2),
-        silence: Duration::from_secs(2),
-        cancel_grace: Duration::from_millis(400),
-    })
+    PluginRunner::new(
+        Timeouts::default()
+            .with_hello(Duration::from_secs(2))
+            .with_silence(Duration::from_secs(2))
+            .with_cancel_grace(Duration::from_millis(400)),
+    )
 }
 
 #[test]
@@ -135,11 +136,12 @@ fn a_plugin_that_goes_quiet_during_an_export_times_out() {
     let scratch = Scratch::new();
     scratch.install(Where::User, "fake", 1, &["--fault", "hang-on-request"]);
     let (request, _) = request(&scratch, "txt");
-    let runner = PluginRunner::new(Timeouts {
-        hello: Duration::from_secs(2),
-        silence: Duration::from_millis(300),
-        cancel_grace: Duration::from_millis(300),
-    });
+    let runner = PluginRunner::new(
+        Timeouts::default()
+            .with_hello(Duration::from_secs(2))
+            .with_silence(Duration::from_millis(300))
+            .with_cancel_grace(Duration::from_millis(300)),
+    );
     let error = runner
         .export(&scratch.plugin("fake"), &request, &Stop::new(), |_| {})
         .unwrap_err();

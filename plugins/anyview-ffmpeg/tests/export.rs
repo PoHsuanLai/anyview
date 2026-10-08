@@ -258,11 +258,12 @@ fn a_target_nobody_wrote_and_a_recording_with_no_sound_are_unsupported() {
 }
 
 fn quick() -> PluginRunner {
-    PluginRunner::new(Timeouts {
-        hello: Duration::from_secs(5),
-        silence: Duration::from_secs(10),
-        cancel_grace: Duration::from_secs(3),
-    })
+    PluginRunner::new(
+        Timeouts::default()
+            .with_hello(Duration::from_secs(5))
+            .with_silence(Duration::from_secs(10))
+            .with_cancel_grace(Duration::from_secs(3)),
+    )
 }
 
 /// Whether the process `pid` is still there.
@@ -382,13 +383,14 @@ fn a_host_that_gives_up_on_a_silent_export_kills_ffmpeg_with_the_plugin() {
     let pidfile = scratch.path("ffmpeg.pid");
     let fake = scratch.fake_ffmpeg(&format!("echo $$ > {}\nsleep 1000", pidfile.display()));
     let plugin = scratch.install(&support::with_ffmpeg(&fake));
-    let impatient = PluginRunner::new(Timeouts {
-        hello: Duration::from_secs(5),
-        // The host's silence clock starts when the plugin has said hello, so it also times the
-        // plugin starting ffmpeg: long enough that a machine at load average 50 has got there.
-        silence: Duration::from_secs(3),
-        cancel_grace: Duration::from_millis(300),
-    });
+    let impatient = PluginRunner::new(
+        Timeouts::default()
+            .with_hello(Duration::from_secs(5))
+            // The host's silence clock starts when the plugin has said hello, so it also times the
+            // plugin starting ffmpeg: long enough that a machine at load average 50 has got there.
+            .with_silence(Duration::from_secs(3))
+            .with_cancel_grace(Duration::from_millis(300)),
+    );
     let output = scratch.path("never.flac");
     let error = impatient
         .export(

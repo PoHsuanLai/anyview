@@ -95,7 +95,7 @@ pub fn run(behaviour: &Behaviour) -> ExitCode {
     }
 }
 
-type Sent = Result<(), anyview_plugin_protocol::ProtocolError>;
+type Sent = Result<(), anyview_plugin_protocol::WireError>;
 
 fn hello(behaviour: &Behaviour) -> PluginMessage {
     let (protocol, provides) = match behaviour.fault {
