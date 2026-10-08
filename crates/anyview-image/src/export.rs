@@ -8,9 +8,9 @@ use crate::orientation::ExifOrientation;
 use crate::pixels::Rgba8;
 use crate::scale::resized;
 use anyview_core::{
-    ExportJob, FileHead, FilePath, FormatDetail, FormatKind, MetadataCarry, NonEmpty, PdfPages,
-    PixelSize, PixelSource, RasterExport, RasterFormat, RasterTarget, Resize, SniffStep, Sniffed,
-    sniff,
+    ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MetadataCarry, NonEmpty,
+    PdfPages, PixelSize, PixelSource, RasterExport, RasterFormat, RasterTarget, Resize, SniffStep,
+    Sniffed, sniff,
 };
 
 /// The jobs that write `choice` for the image `file`. A re-encode keeps the original's EXIF and
@@ -52,8 +52,13 @@ impl ImageFile {
             path: file.as_path().to_path_buf(),
             kind: std::io::ErrorKind::InvalidInput,
         })?;
-        let head = FileHead::new(&bytes[..bytes.len().min(4096)]);
-        match sniff(&head, &name) {
+        ImageFile::from_bytes(bytes, &name)
+    }
+
+    /// The image whose bytes are `bytes`, called `name` (an entry of a comic, say), sniffed.
+    pub fn from_bytes(bytes: Vec<u8>, name: &FileName) -> Result<ImageFile, ImageError> {
+        let head = FileHead::new(&bytes);
+        match sniff(&head, name) {
             SniffStep::Done(sniffed) => Ok(ImageFile { bytes, sniffed }),
             SniffStep::LookInside(_) => Err(ImageError::WrongKind {
                 kind: FormatKind::Archive,

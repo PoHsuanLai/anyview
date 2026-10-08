@@ -6,6 +6,7 @@
 //! pool calls [`PdfBackend::run`]. Pixels come out as CPU buffers ([`Raster`]); uploading them to a
 //! texture belongs to the view. Page images are encoded by `anyview-image`, not here.
 
+mod bind;
 mod document;
 mod edit;
 mod error;
@@ -21,6 +22,7 @@ mod search;
 mod tile;
 
 pub use anyview_core::work::{Backend, Stop, StopState, Ticket};
+pub use bind::{Bookmark, bind};
 pub use document::{DocId, PdfDocument};
 pub use edit::{PageOp, apply, page_op};
 pub use error::PdfError;
