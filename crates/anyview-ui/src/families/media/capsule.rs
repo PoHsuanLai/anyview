@@ -118,7 +118,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
     let mut slots = vec![
         CapsuleSlot::button(
             stage_command(StageCommand::SeekBack),
-            "Back",
+            "Skip back",
             Icon::SkipBack,
         )
         .essential(),
@@ -130,7 +130,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         .essential(),
         CapsuleSlot::button(
             stage_command(StageCommand::SeekForward),
-            "Forward",
+            "Skip forward",
             Icon::SkipForward,
         )
         .essential(),

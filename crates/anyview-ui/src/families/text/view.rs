@@ -20,7 +20,7 @@ const ROW: f32 = 18.0;
 /// Lines asked for beyond the room, so a short scroll lands on lines already read.
 const OVERSCAN: u32 = 8;
 
-fn place_of(stage: &Stage) -> Option<TextPlace> {
+pub(super) fn place_of(stage: &Stage) -> Option<TextPlace> {
     match stage {
         Stage::Text(text) => Some(place_of_text(text)),
         Stage::NoStage

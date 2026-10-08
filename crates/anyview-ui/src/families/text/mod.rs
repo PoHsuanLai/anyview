@@ -17,7 +17,8 @@ use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenLink};
 use crate::{
     Command, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
-    StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews, Ticket, TypedText,
+    StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextView, TextViews, Ticket,
+    TypedText,
 };
 use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -134,16 +135,21 @@ impl StageView for TextStageView {
         rsx! { view::TextContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &TextDoc, _cx: &StageCx) -> Vec<RankedSlot<Command>> {
+    fn slots(doc: &TextDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         let mut slots = vec![CapsuleSlot::button(
             Command::Stage(StageCommand::ToggleWrap),
             "Wrap lines",
             Icon::Columns,
         )];
         if doc.rendered.is_some() {
+            // The tip names what the button shows next, as Preview's view toggles do.
+            let next = match view::place_of(&cx.stage).map(|place| place.view) {
+                Some(TextView::Source) => "Show rendered",
+                Some(TextView::Rendered) | None => "Show source",
+            };
             slots.push(CapsuleSlot::button(
                 Command::Stage(StageCommand::ToggleSource),
-                "Rendered or source",
+                next,
                 Icon::Code,
             ));
         }

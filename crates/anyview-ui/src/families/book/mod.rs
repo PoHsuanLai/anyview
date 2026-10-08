@@ -74,11 +74,15 @@ impl StageView for BookStageView {
         essentials(vec![
             CapsuleSlot::button(
                 stage(StageCommand::PreviousPage),
-                "Previous",
+                "Previous page",
                 Icon::ChevronLeft,
             ),
             CapsuleSlot::Readout(place),
-            CapsuleSlot::button(stage(StageCommand::NextPage), "Next", Icon::ChevronRight),
+            CapsuleSlot::button(
+                stage(StageCommand::NextPage),
+                "Next page",
+                Icon::ChevronRight,
+            ),
         ])
     }
 

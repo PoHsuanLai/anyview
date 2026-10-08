@@ -69,6 +69,7 @@ pub(super) fn FindBar(
             span { class: "viewer-find-standing", "data-standing": hits_word(hits), "{standing}" }
             Button {
                 label: "Previous match",
+                title: Some("Previous match".to_owned()),
                 bezel: Bezel::Toolbar,
                 size: ControlSize::Small,
                 image: ImagePosition::Only,
@@ -77,6 +78,7 @@ pub(super) fn FindBar(
             }
             Button {
                 label: "Next match",
+                title: Some("Next match".to_owned()),
                 bezel: Bezel::Toolbar,
                 size: ControlSize::Small,
                 image: ImagePosition::Only,
@@ -85,6 +87,7 @@ pub(super) fn FindBar(
             }
             Button {
                 label: "Close find",
+                title: Some("Close find".to_owned()),
                 bezel: Bezel::Toolbar,
                 size: ControlSize::Small,
                 image: ImagePosition::Only,
