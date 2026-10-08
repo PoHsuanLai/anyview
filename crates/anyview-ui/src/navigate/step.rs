@@ -1,7 +1,7 @@
 //! Navigation's transitions, over the core sequence's pure moves.
 
 use super::model::{Navigate, NavigateIn, NavigateOut};
-use anyview_core::{Sequence, SequenceMove, moved, neighbours};
+use anyview_core::{Heading, Sequence, SequenceMove, moved, neighbours, without_current};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
@@ -16,13 +16,13 @@ impl Machine for Navigate {
     fn step(self, input: NavigateIn, _at: Stamp, _params: &(), _cx: &()) -> Step {
         match self {
             Navigate::Idle => idle(input),
-            Navigate::Walking { sequence } => walking(sequence, input),
+            Navigate::Walking { sequence, heading } => walking(sequence, heading, input),
         }
     }
 
     fn wake(&self) -> Option<Stamp> {
         match self {
-            Navigate::Idle | Navigate::Walking { sequence: _ } => None,
+            Navigate::Idle | Navigate::Walking { .. } => None,
         }
     }
 }
@@ -31,34 +31,48 @@ fn idle(input: NavigateIn) -> Step {
     match input {
         NavigateIn::Start(sequence) => {
             let preload = NavigateOut::Preload(neighbours(&sequence));
-            (Navigate::Walking { sequence }, vec![preload])
+            (
+                Navigate::Walking {
+                    sequence,
+                    heading: Heading::Onward,
+                },
+                vec![preload],
+            )
         }
         NavigateIn::Next
         | NavigateIn::Previous
         | NavigateIn::First
         | NavigateIn::Last
         | NavigateIn::Leave
+        | NavigateIn::Gone
         | NavigateIn::Elapsed => (Navigate::Idle, vec![]),
     }
 }
 
-fn walking(sequence: Sequence, input: NavigateIn) -> Step {
+fn walking(sequence: Sequence, heading: Heading, input: NavigateIn) -> Step {
     match input {
         NavigateIn::Start(next) => {
             let preload = NavigateOut::Preload(neighbours(&next));
-            (Navigate::Walking { sequence: next }, vec![preload])
+            (
+                Navigate::Walking {
+                    sequence: next,
+                    heading: Heading::Onward,
+                },
+                vec![preload],
+            )
         }
-        NavigateIn::Next => walk(sequence, SequenceMove::Next),
-        NavigateIn::Previous => walk(sequence, SequenceMove::Previous),
-        NavigateIn::First => walk(sequence, SequenceMove::First),
-        NavigateIn::Last => walk(sequence, SequenceMove::Last),
+        NavigateIn::Next => walk(sequence, SequenceMove::Next, Heading::Onward),
+        NavigateIn::Previous => walk(sequence, SequenceMove::Previous, Heading::Back),
+        NavigateIn::First => walk(sequence, SequenceMove::First, Heading::Onward),
+        NavigateIn::Last => walk(sequence, SequenceMove::Last, Heading::Back),
+        NavigateIn::Gone => gone(sequence, heading),
         NavigateIn::Leave => (Navigate::Idle, vec![]),
-        NavigateIn::Elapsed => (Navigate::Walking { sequence }, vec![]),
+        NavigateIn::Elapsed => (Navigate::Walking { sequence, heading }, vec![]),
     }
 }
 
 /// Moves; a move that lands where the walk already is (the end of the list) opens nothing.
-fn walk(sequence: Sequence, movement: SequenceMove) -> Step {
+fn walk(sequence: Sequence, movement: SequenceMove, heading: Heading) -> Step {
     let before = sequence.at();
     let after = moved(sequence, movement);
     let outs = if after.at() == before {
@@ -69,5 +83,32 @@ fn walk(sequence: Sequence, movement: SequenceMove) -> Step {
             NavigateOut::Preload(neighbours(&after)),
         ]
     };
-    (Navigate::Walking { sequence: after }, outs)
+    (
+        Navigate::Walking {
+            sequence: after,
+            heading,
+        },
+        outs,
+    )
+}
+
+/// The file the walk is on is gone: it leaves the list and the walk opens the file the person
+/// was heading for. The last file has nothing to move on to, so the walk stays on it.
+fn gone(sequence: Sequence, heading: Heading) -> Step {
+    match without_current(sequence.clone(), heading) {
+        Some(rest) => {
+            let outs = vec![
+                NavigateOut::Open(rest.current().clone()),
+                NavigateOut::Preload(neighbours(&rest)),
+            ];
+            (
+                Navigate::Walking {
+                    sequence: rest,
+                    heading,
+                },
+                outs,
+            )
+        }
+        None => (Navigate::Walking { sequence, heading }, vec![]),
+    }
 }

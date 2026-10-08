@@ -37,6 +37,19 @@ pub struct Viewer {
     pub presentation: Presentation,
     /// What shows the content.
     pub stage: Stage,
+    /// Whether the person has sent the open file to the Trash, so that its going is expected.
+    pub trashing: Trashing,
+}
+
+/// Whether the open file is on its way to the Trash.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Trashing {
+    /// The file is not being trashed.
+    #[default]
+    Not,
+    /// The person confirmed Move to Trash; the file's disappearance is the answer to that, not a
+    /// surprise.
+    Underway,
 }
 
 impl Viewer {
