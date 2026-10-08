@@ -60,12 +60,10 @@ anyview-heif = { path = "plugins/anyview-heif" }
 anyview-raw = { path = "plugins/anyview-raw" }
 anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # bayonet runs the plugins (the wire, the manifest envelope, discovery, the registry and the process
-# handling), generic over the capability type. It becomes
-#   git = "https://github.com/PoHsuanLai/bayonet", rev = "<rev>"
-# once it is pushed; this line is the only place that changes. No default features: a crate that
+# handling), generic over the capability type. No default features: a crate that
 # only speaks the wire (the plugin programs) gets serde and nothing else, and the crates that run
 # plugins ask for `host`.
-bayonet = { path = "../bayonet", default-features = false }
+bayonet = { git = "https://github.com/PoHsuanLai/bayonet", rev = "592eea9b69aea9bb9e4d6694d09322595f8e8e0a", default-features = false }
 # quire, the design system, pinned by git rev: this is the one place to bump it (all six lines, and
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
