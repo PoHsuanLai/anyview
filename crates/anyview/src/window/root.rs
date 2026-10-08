@@ -7,18 +7,16 @@ use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
 use crate::host::{
-    Carry, Doing, HandedResume, Listening, Outcome, PeekCards, Shown, StoreLocks, WindowTask,
-    WindowWatch, route, subject_of, tell, tell_declined, tell_problem,
+    Carry, Doing, HandedResume, Listening, Outcome, PeekCards, Shown, StoreLocks, SystemPasteboard,
+    WindowTask, WindowWatch, copy_text, route, subject_of, tell, tell_declined, tell_problem,
 };
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
-use anyview_ui::{
-    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp,
-};
+use anyview_ui::{Edge, HelperSource, HostRequest, Launch, Presentation, ResumeSource, ViewerApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{
-    AppEnded, AppHandle, Decorations, ScreenArea, WindowSize, WindowSizer, WindowSpec, clipboard,
+    AppEnded, AppHandle, Decorations, ScreenArea, WindowSize, WindowSizer, WindowSpec,
     use_window_sizer,
 };
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -169,13 +167,10 @@ fn Window(seed: Seed) -> Element {
                         }
                     }
                     Carry::Window(WindowTask::CopyText(text)) => {
-                        match clipboard::write_text(&text) {
-                            Ok(()) => edge.notify(Notice::say("Path copied")),
-                            Err(error) => tell_problem(
-                                &edge,
-                                &format!("cannot copy: {error}"),
-                                Some(Notice::say("Couldn\u{2019}t copy to the clipboard")),
-                            ),
+                        let copied = copy_text(&SystemPasteboard, &text);
+                        match copied.problem {
+                            Some(detail) => tell_problem(&edge, &detail, Some(copied.notice)),
+                            None => edge.notify(copied.notice),
                         }
                     }
                     Carry::Window(WindowTask::OpenFiles(files)) => {

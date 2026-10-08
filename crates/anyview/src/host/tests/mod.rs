@@ -4,6 +4,7 @@ mod exporting;
 mod feedback;
 mod helpers;
 mod lent;
+mod pasteboard;
 mod remembering;
 mod renaming;
 mod rotations;

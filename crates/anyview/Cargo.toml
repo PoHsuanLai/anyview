@@ -32,6 +32,7 @@ anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
 anyview-store = { workspace = true }
 anyview-ui = { workspace = true }
+arboard = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true }

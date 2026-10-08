@@ -959,7 +959,15 @@ on. It is a reference, not a log: how each was found lives in git history.
   signatures, not code the viewer runs. `anyview-peek` stays at 590. Ends when docket-core splits the app-facing
   types from the planner and reader vocabulary.
 
-- **The viewer's package budget is 683 (was 682).** bayonet, the plugin library, is one package. The plugin
+- **The viewer's package budget is 687 (was 683).** Copy Path did nothing on KDE Plasma Wayland: blitz-shell's
+  arboard has no Wayland backend (quire builds it with `default-features = false`), and it makes a clipboard
+  for each call and drops it, so a selection set through the XWayland bridge was gone as the call returned.
+  The viewer now owns one `arboard::Clipboard` for the process (`host/pasteboard.rs`) and enables arboard's
+  `wayland-data-control`, whose `wl-clipboard-rs` serves the selection until something else replaces it; X11
+  stays the fallback. That adds `wl-clipboard-rs` and its `petgraph`, `fixedbitset`, `os_pipe` and
+  `tree_magic_mini`. Copy File (`text/uri-list`) still needs quire's `Clipboard` to take more than text.
+
+- **The viewer's package budget was 683 (was 682).** bayonet, the plugin library, is one package. The plugin
   machinery it took over (the frames, the manifest envelope, discovery, the process handling) was already in the
   tree as the code of `anyview-plugin`, `anyview-plugin-protocol` and `anyview-platform`, and its dependencies
   (`toml`, `rustix`, `serde`, `serde_json`, `thiserror`) were already there, so nothing else is added.
