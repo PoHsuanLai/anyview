@@ -23,8 +23,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, PoisonError, mpsc};
 use std::time::Duration;
 
-/// How a worker runs. The default is what the launcher's pane uses.
+/// How a worker runs. The default is what the launcher's pane uses; change one setting with the
+/// `with_*` methods. It is `#[non_exhaustive]`, so a setting added later breaks no caller.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct WorkerConfig {
     /// The name of the worker's thread; each peek's thread is named for it too.
     pub name: String,
@@ -47,6 +49,31 @@ impl Default for WorkerConfig {
             stack: 8 * 1024 * 1024,
             abandoned: 4,
         }
+    }
+}
+
+impl WorkerConfig {
+    /// This config with the thread named `name`.
+    pub fn with_name(self, name: impl Into<String>) -> Self {
+        WorkerConfig {
+            name: name.into(),
+            ..self
+        }
+    }
+
+    /// This config giving up on a look after `overrun`.
+    pub fn with_overrun(self, overrun: Duration) -> Self {
+        WorkerConfig { overrun, ..self }
+    }
+
+    /// This config running each look on a stack of `stack` bytes.
+    pub fn with_stack(self, stack: usize) -> Self {
+        WorkerConfig { stack, ..self }
+    }
+
+    /// This config refusing files once `abandoned` abandoned looks still run.
+    pub fn with_abandoned(self, abandoned: usize) -> Self {
+        WorkerConfig { abandoned, ..self }
     }
 }
 
@@ -260,11 +287,9 @@ mod tests {
         });
         let failed: PeekFailure<Said> =
             Arc::new(|input| Said::Failed(input.name().as_str().to_owned()));
-        let config = WorkerConfig {
-            overrun,
-            abandoned,
-            ..WorkerConfig::default()
-        };
+        let config = WorkerConfig::default()
+            .with_overrun(overrun)
+            .with_abandoned(abandoned);
         (PeekWorker::spawn(config, work, failed), release)
     }
 
