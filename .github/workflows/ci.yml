@@ -78,3 +78,36 @@ jobs:
         run: |
           python3 scripts/third-party-notices.py "$RUNNER_TEMP/notices.md"
           diff -q "$RUNNER_TEMP/notices.md" THIRD-PARTY-NOTICES.md
+
+  # The headless half of the library builds off Linux: what a mail client or a terminal links to
+  # look at a file (anyview-peek without its `pane`, so no renderer and no window). Nothing in that
+  # tree may be Linux-only. The viewer itself is a Linux desktop program and is gated above.
+  peek-macos:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
+      - name: Toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Peek builds headless
+        run: cargo check -p anyview-peek --no-default-features --locked
+
+  peek-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        shell: bash
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Peek builds headless
+        run: cargo check -p anyview-peek --no-default-features --locked
