@@ -10,6 +10,7 @@
 mod frame;
 mod grid;
 mod lines;
+mod parts;
 mod picture;
 mod specimen;
 
@@ -27,17 +28,23 @@ use ds::style::icon::family::PlateFamily;
 use ds::style::icon::render::IconPx;
 use std::sync::Arc;
 
+pub use parts::{Part, Parts};
+
 /// The pane's stylesheet: the `app` layer, tokens only (`tests/coherence.rs` lints it Strict).
 pub const STYLE: &str = include_str!("pane.css");
 
 /// What a peeked file looks like. Draw it inside a `Ds` root, in a column as wide as the pane
 /// (328 px of content is what `PANE_MEDIA` fits a picture or a page into).
 ///
+/// `parts` says which of the media, the name and the facts are drawn; the default is all three. A
+/// strip that shows an attachment as a picture alone asks for `Parts::of([Part::Media])`.
+///
 /// `peeked` is shared so a host can keep one result and hand it to the pane on every render
 /// without copying pixels or comparing them (`Arc` equality starts at the pointer).
 #[component]
 pub fn Pane(
     peeked: Arc<AnyPeeked>,
+    #[props(default)] parts: Parts,
     #[props(default = PANE_MEDIA)] page_room: Size,
     #[props(default)] common: Common,
 ) -> Element {
@@ -59,9 +66,15 @@ pub fn Pane(
             "data-kind": peeked.kind.slug(),
             "data-body": peeked.body.slug(),
             ..data,
-            div { class: "anyview-pane-media", {media(&peeked, page_room)} }
-            b { class: "anyview-pane-title", "{name}" }
-            div { class: "anyview-pane-facts", FactList { facts } }
+            if parts.contains(Part::Media) {
+                div { class: "anyview-pane-media", {media(&peeked, page_room)} }
+            }
+            if parts.contains(Part::Title) {
+                b { class: "anyview-pane-title", "{name}" }
+            }
+            if parts.contains(Part::Facts) {
+                div { class: "anyview-pane-facts", FactList { facts } }
+            }
         }
     }
 }

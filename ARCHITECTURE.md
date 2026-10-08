@@ -414,7 +414,7 @@ the folder peek (a directory has no bytes) and a thumbnail read from the desktop
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in; facts only without the `pane` feature |
 | `worker` | `PeekWorker`, `WorkerConfig`: the one thread that looks at the latest file asked for (`ask(input, reply)`), a thread per peek with an 8 MiB stack, the 4 s overrun and the cap on abandoned peeks; it takes no async runtime |
 | `when` | `modified_text`: a modification time as UTC |
-| `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
+| `pane` | `Pane`, `Part`, `Parts` (which of the media, the name and the facts it draws; all by default), `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
 `peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
 reason and the facts the file can still give. The pane draws a `Body` over the file's name and a `FactList`

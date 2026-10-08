@@ -33,7 +33,7 @@ pub use media::{AudioPeek, MediaLook, VideoPeek};
 pub use natural::natural_size;
 pub use office::{OfficeLooked, OfficePeek};
 #[cfg(feature = "pane")]
-pub use pane::{Pane, STYLE};
+pub use pane::{Pane, Part, Parts, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
 pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
