@@ -162,14 +162,14 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::Trash => about_file(shown, |probed| {
             Carry::Desktop(Task::Trash(probed.source.path().clone()))
         }),
-        HostRequest::Rename(typed) => match FileName::new(typed.as_str()) {
-            Ok(to) => about_file(shown, |probed| {
+        HostRequest::Rename(typed) => match named(typed.as_str()) {
+            Some(to) => about_file(shown, |probed| {
                 Carry::Desktop(Task::Rename {
                     file: probed.source.path().clone(),
                     to,
                 })
             }),
-            Err(_) => declined(shown, Declined::NotAFileName),
+            None => declined(shown, Declined::NotAFileName),
         },
         HostRequest::Remember(resume) => {
             let (shown, carry) = about_file(shown, |probed| {
@@ -190,6 +190,15 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::SizeWindow(size) => (shown, Carry::Window(WindowTask::Size(size))),
         HostRequest::Run(action) => run(shown, action),
     }
+}
+
+/// The name typed for a file, if it is one a person can see: a name of spaces alone is as much no
+/// name as an empty one.
+fn named(typed: &str) -> Option<FileName> {
+    if typed.trim().is_empty() {
+        return None;
+    }
+    FileName::new(typed).ok()
 }
 
 /// A file action the viewer left to its host.
