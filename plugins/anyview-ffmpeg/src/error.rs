@@ -1,6 +1,6 @@
 //! The one error this plugin raises, and the code the host is told.
 
-use anyview_plugin_protocol::{ErrorCode, ProtocolError};
+use anyview_plugin_protocol::{ErrorCode, WireError};
 use std::path::PathBuf;
 
 /// Why a request could not be done.
@@ -50,7 +50,7 @@ pub enum FfmpegError {
     },
     /// The host's pipe failed.
     #[error("the host's pipe failed: {0}")]
-    Host(#[from] ProtocolError),
+    Host(#[from] WireError),
 }
 
 impl FfmpegError {

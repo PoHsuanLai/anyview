@@ -1,6 +1,6 @@
 //! What a capability handles, and what is asked of it.
 
-use crate::error::PluginError;
+use crate::error::ProvisionFault;
 use anyview_core::{FormatKind, Mime};
 use anyview_plugin_protocol::Capability;
 
@@ -17,9 +17,9 @@ impl Handles {
         capability: Capability,
         kinds: Vec<FormatKind>,
         mimes: Vec<Mime>,
-    ) -> Result<Handles, PluginError> {
+    ) -> Result<Handles, ProvisionFault> {
         if kinds.is_empty() && mimes.is_empty() {
-            return Err(PluginError::HandlesNothing { capability });
+            return Err(ProvisionFault::HandlesNothing { capability });
         }
         Ok(Handles { kinds, mimes })
     }

@@ -1,4 +1,6 @@
 use super::*;
+use crate::error::PluginError;
+use crate::manifest::Manifest;
 use anyview_core::{FormatKind, Mime};
 
 /// A candidate whose manifest provides `probe` for `kinds` (and exports to `targets` when any)
@@ -53,25 +55,6 @@ fn a_higher_protocol_beats_the_user_directory() {
             supported: PROTOCOL_VERSION
         }
     );
-}
-
-#[test]
-fn rank_prefers_a_higher_protocol_then_the_user() {
-    let low_user = Installed {
-        manifest: candidate("a", 1, Origin::User, "\"video\"", "").manifest,
-        origin: Origin::User,
-    };
-    let high_system = Installed {
-        manifest: candidate("a", 3, Origin::System, "\"video\"", "").manifest,
-        origin: Origin::System,
-    };
-    let high_user = Installed {
-        manifest: candidate("a", 3, Origin::User, "\"video\"", "").manifest,
-        origin: Origin::User,
-    };
-    let mut all = vec![low_user.clone(), high_system.clone(), high_user.clone()];
-    all.sort_by_key(rank);
-    assert_eq!(all, [high_user, high_system, low_user]);
 }
 
 #[test]

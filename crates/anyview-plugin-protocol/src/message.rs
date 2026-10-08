@@ -4,7 +4,7 @@
 //! one request; the plugin answers and exits. During an export the host may send `Cancel`.
 
 use crate::capability::Capability;
-use crate::error::ProtocolError;
+use crate::error::ImageSizeError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -145,13 +145,13 @@ pub struct ImageHeader {
 
 impl ImageHeader {
     /// Checks that `payload_len` is exactly the pixels this header announces.
-    pub fn check(&self, payload_len: usize) -> Result<(), ProtocolError> {
+    pub fn check(&self, payload_len: usize) -> Result<(), ImageSizeError> {
         let wanted = u64::from(self.width) * u64::from(self.height) * 4;
         let have = u64::try_from(payload_len).unwrap_or(u64::MAX);
         if wanted == have && wanted > 0 {
             Ok(())
         } else {
-            Err(ProtocolError::ImageSize {
+            Err(ImageSizeError {
                 width: self.width,
                 height: self.height,
                 wanted,

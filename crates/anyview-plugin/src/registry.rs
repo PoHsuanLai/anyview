@@ -1,61 +1,25 @@
-//! Which plugin serves a kind and capability: the registry built from what discovery found.
+//! Which plugin serves a kind and capability: the registry built from what discovery found. The
+//! ranking is bayonet's; what "serves a kind" means is the viewer's.
 
-use crate::error::PluginError;
 use crate::handles::Subject;
-use crate::manifest::{Manifest, PluginId};
 use crate::missing::{MissingPlugin, Package, suggested_package};
 use crate::provision::{Provision, TargetName};
 use anyview_plugin_protocol::{Capability, PROTOCOL_VERSION};
-use std::cmp::Reverse;
+use bayonet::registry::{Fit, Registry};
 
-/// Which directory a manifest was found in. The person's own beats the system's.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Origin {
-    /// `$XDG_DATA_DIRS`: installed by the distribution.
-    System,
-    /// `$XDG_DATA_HOME`: installed by the person.
-    User,
-}
+pub use bayonet::registry::Origin;
 
 /// Whether the files a manifest names can be used.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Readiness {
-    /// Every program is there and runs.
-    Ready,
-    /// One is not, and this says which and why.
-    Unready(PluginError),
-}
+pub type Readiness = bayonet::registry::Readiness<Provision>;
 
 /// A manifest as discovery found it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Candidate {
-    /// What the plugin says of itself.
-    pub manifest: Manifest,
-    /// Where it was found.
-    pub origin: Origin,
-    /// Whether its programs are usable.
-    pub readiness: Readiness,
-}
+pub type Candidate = bayonet::registry::Candidate<Provision>;
 
 /// A plugin the viewer can use.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Installed {
-    /// What the plugin says of itself.
-    pub manifest: Manifest,
-    /// Where it was found.
-    pub origin: Origin,
-}
+pub type Installed = bayonet::registry::Installed<Provision>;
 
 /// A plugin that was found and cannot be used, with the reason.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unusable {
-    /// Which plugin.
-    pub id: PluginId,
-    /// Where it was found.
-    pub origin: Origin,
-    /// Why not.
-    pub reason: PluginError,
-}
+pub type Unusable = bayonet::registry::Unusable<Provision>;
 
 /// What a lookup came to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,12 +37,17 @@ pub enum Route<'a> {
 /// Among manifests with one id, those with an unusable program or a protocol newer than the
 /// viewer's are set aside first; of the rest the higher protocol version wins, and at equal
 /// versions the person's directory wins over the system's. Plugins with different ids are tried
-/// in that same order, then by id, so which one serves a
-/// kind never depends on the order the disk listed the files in.
+/// in that same order, then by id, so which one serves a kind never depends on the order the disk
+/// listed the files in.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Plugins {
-    installed: Vec<Installed>,
-    unusable: Vec<Unusable>,
+    registry: Registry<Provision>,
+}
+
+impl From<Registry<Provision>> for Plugins {
+    fn from(registry: Registry<Provision>) -> Plugins {
+        Plugins { registry }
+    }
 }
 
 impl Plugins {
@@ -89,66 +58,32 @@ impl Plugins {
 
     /// The registry for `candidates`, applying the precedence above.
     pub fn resolve(candidates: Vec<Candidate>) -> Plugins {
-        let mut usable = Vec::new();
-        let mut unusable = Vec::new();
-        for candidate in candidates {
-            match usability(&candidate) {
-                Ok(()) => usable.push(Installed {
-                    manifest: candidate.manifest,
-                    origin: candidate.origin,
-                }),
-                Err(reason) => unusable.push(Unusable {
-                    id: candidate.manifest.id,
-                    origin: candidate.origin,
-                    reason,
-                }),
-            }
-        }
-        usable.sort_by_key(rank);
-        let mut installed: Vec<Installed> = Vec::with_capacity(usable.len());
-        for plugin in usable {
-            if installed
-                .iter()
-                .all(|kept| kept.manifest.id != plugin.manifest.id)
-            {
-                installed.push(plugin);
-            }
-        }
-        unusable.sort_by(|a, b| (&a.id, a.origin).cmp(&(&b.id, b.origin)));
-        Plugins {
-            installed,
-            unusable,
-        }
+        Plugins::from(Registry::resolve(candidates, PROTOCOL_VERSION))
     }
 
     /// The usable plugins, in serving order.
     pub fn installed(&self) -> &[Installed] {
-        &self.installed
+        self.registry.installed()
     }
 
     /// The plugins that were found and cannot be used.
     pub fn unusable(&self) -> &[Unusable] {
-        &self.unusable
+        self.registry.unusable()
     }
 
     /// The plugin that serves `capability` for `subject`: one that lists the subject's MIME type
     /// beats one that lists only its kind; ties go in serving order.
     pub fn serving(&self, capability: Capability, subject: &Subject<'_>) -> Option<&Installed> {
-        let serves = |plugin: &&Installed| {
-            plugin
-                .manifest
-                .provision(capability)
-                .is_some_and(|provision| provision.handles().handles(subject))
-        };
-        let by_mime = |plugin: &&Installed| {
-            plugin
-                .manifest
-                .provision(capability)
-                .is_some_and(|provision| provision.handles().names_mime(subject))
-        };
-        let mut serving = self.installed.iter().filter(serves).peekable();
-        let first = serving.peek().copied();
-        serving.find(by_mime).or(first)
+        self.registry.serving(capability, |provision| {
+            let handles = provision.handles();
+            if handles.names_mime(subject) {
+                Fit::Exact
+            } else if handles.handles(subject) {
+                Fit::Broad
+            } else {
+                Fit::Miss
+            }
+        })
     }
 
     /// What a request for `capability` on `subject` comes to.
@@ -177,14 +112,7 @@ impl Plugins {
             .name()
             .strip_prefix("anyview-")
             .unwrap_or(package.name());
-        self.unusable.iter().any(|unusable| {
-            unusable.id.as_str() == id
-                && matches!(
-                    &unusable.reason,
-                    PluginError::FileMissing { path } | PluginError::NotExecutable { path }
-                        if path.file_name().is_some_and(|name| name == tool)
-                )
-        })
+        self.registry.tool_absent(id, tool)
     }
 
     /// The targets the plugins that export `subject` can write, each with the plugin that
@@ -192,7 +120,7 @@ impl Plugins {
     /// first of them.
     pub fn export_targets(&self, subject: &Subject<'_>) -> Vec<(&Installed, &TargetName)> {
         let mut offered: Vec<(&Installed, &TargetName)> = Vec::new();
-        for plugin in &self.installed {
+        for plugin in self.installed() {
             let Some(Provision::Export(export)) = plugin.manifest.provision(Capability::Export)
             else {
                 continue;
@@ -208,29 +136,6 @@ impl Plugins {
         }
         offered
     }
-}
-
-fn usability(candidate: &Candidate) -> Result<(), PluginError> {
-    let protocol = candidate.manifest.protocol;
-    if protocol > PROTOCOL_VERSION {
-        return Err(PluginError::ProtocolUnsupported {
-            protocol,
-            supported: PROTOCOL_VERSION,
-        });
-    }
-    match &candidate.readiness {
-        Readiness::Ready => Ok(()),
-        Readiness::Unready(reason) => Err(reason.clone()),
-    }
-}
-
-/// The serving order: the person's before the system's, newer protocol first, then by id.
-fn rank(plugin: &Installed) -> (Reverse<u32>, Reverse<Origin>, PluginId) {
-    (
-        Reverse(plugin.manifest.protocol),
-        Reverse(plugin.origin),
-        plugin.manifest.id.clone(),
-    )
 }
 
 #[cfg(test)]

@@ -3,109 +3,92 @@
 use crate::handles::Subject;
 use anyview_core::{Fact, FactLabel, FactValue, FormatKind, Helper};
 use anyview_plugin_protocol::Capability;
+use bayonet::{Suggestion, suggest};
 
-/// The name of a package a person installs with their system's package manager.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Package {
-    name: &'static str,
-    helper: Helper,
-    /// The file name of the program the plugin's manifest names, when it names one the system
-    /// provides (mpv's), which is then visible in the manifest as a missing file.
-    tool: Option<&'static str>,
-}
-
-impl Package {
-    /// The package's name, as every distribution that ships it spells it.
-    pub fn name(self) -> &'static str {
-        self.name
-    }
-
-    /// The distro tool the package's plugin runs: what the viewer offers to install when the
-    /// plugin is there and its tool is not.
-    pub fn helper(self) -> Helper {
-        self.helper
-    }
-
-    /// The file name of the program of the system's that the plugin's manifest names, if it names
-    /// one: when that file is absent the plugin is installed and the tool is what is missing.
-    pub fn tool(self) -> Option<&'static str> {
-        self.tool
-    }
-}
+/// A package a person installs with their system's package manager. Its helper is the distro tool
+/// the package's plugin runs: what the viewer offers to install when the plugin is there and its
+/// tool is not. Its tool is the file name of the program the plugin's manifest names, when it names
+/// one the system provides (mpv's), which is then visible in the manifest as a missing file.
+pub type Package = bayonet::Package<Helper>;
 
 /// Playback, through the user's own mpv.
-const MPV: Package = Package {
-    name: "anyview-mpv",
-    helper: Helper::VideoPlayback,
-    tool: Some("mpv"),
-};
+const MPV: Package = Package::new("anyview-mpv", Helper::VideoPlayback, Some("mpv"));
 /// Facts, pictures and conversions, through the user's own FFmpeg.
-const FFMPEG: Package = Package {
-    name: "anyview-ffmpeg",
-    helper: Helper::MediaProbe,
-    tool: None,
-};
+const FFMPEG: Package = Package::new("anyview-ffmpeg", Helper::MediaProbe, None);
 
 /// HEIC and HEIF pictures (and AVIF when the viewer has no decoder of its own), through the
 /// person's own libheif tools.
-const HEIF: Package = Package {
-    name: "anyview-heif",
-    helper: Helper::HeicDecode,
-    tool: None,
-};
+const HEIF: Package = Package::new("anyview-heif", Helper::HeicDecode, None);
 /// Camera raw files developed in full, through the person's own LibRaw tools.
-const RAW: Package = Package {
-    name: "anyview-raw",
-    helper: Helper::RawDecode,
-    tool: None,
-};
+const RAW: Package = Package::new("anyview-raw", Helper::RawDecode, None);
+
+/// What a row of [`SUGGESTIONS`] matches: a kind and, when it names a media type, that type.
+#[derive(Debug, Clone, Copy)]
+struct Wants {
+    kind: FormatKind,
+    mime: Option<&'static str>,
+}
+
+/// One row of [`SUGGESTIONS`].
+const fn row(
+    capability: Capability,
+    kind: FormatKind,
+    mime: Option<&'static str>,
+    package: Package,
+) -> Suggestion<Capability, Wants, Helper> {
+    Suggestion {
+        capability,
+        key: Wants { kind, mime },
+        package,
+    }
+}
 
 /// Which package provides a capability for a kind. A row matches when its capability and its kind
 /// are the ones asked about and, when the row names a media type, the file's media type is that
 /// one: a raster image is not one plugin's business, HEIC is.
-const SUGGESTIONS: &[(Capability, FormatKind, Option<&str>, Package)] = &[
-    (Capability::Probe, FormatKind::Video, None, FFMPEG),
-    (Capability::Probe, FormatKind::Audio, None, FFMPEG),
-    (Capability::Peek, FormatKind::Video, None, FFMPEG),
-    (Capability::Peek, FormatKind::Audio, None, FFMPEG),
-    (Capability::Thumbnail, FormatKind::Video, None, FFMPEG),
-    (Capability::Thumbnail, FormatKind::Audio, None, FFMPEG),
-    (Capability::Decode, FormatKind::Video, None, FFMPEG),
-    (Capability::Export, FormatKind::Video, None, FFMPEG),
-    (Capability::Export, FormatKind::Audio, None, FFMPEG),
-    (Capability::Play, FormatKind::Video, None, MPV),
-    (Capability::Play, FormatKind::Audio, None, MPV),
-    (
+const SUGGESTIONS: &[Suggestion<Capability, Wants, Helper>] = &[
+    row(Capability::Probe, FormatKind::Video, None, FFMPEG),
+    row(Capability::Probe, FormatKind::Audio, None, FFMPEG),
+    row(Capability::Peek, FormatKind::Video, None, FFMPEG),
+    row(Capability::Peek, FormatKind::Audio, None, FFMPEG),
+    row(Capability::Thumbnail, FormatKind::Video, None, FFMPEG),
+    row(Capability::Thumbnail, FormatKind::Audio, None, FFMPEG),
+    row(Capability::Decode, FormatKind::Video, None, FFMPEG),
+    row(Capability::Export, FormatKind::Video, None, FFMPEG),
+    row(Capability::Export, FormatKind::Audio, None, FFMPEG),
+    row(Capability::Play, FormatKind::Video, None, MPV),
+    row(Capability::Play, FormatKind::Audio, None, MPV),
+    row(
         Capability::Thumbnail,
         FormatKind::Raster,
         Some("image/heic"),
         HEIF,
     ),
-    (
+    row(
         Capability::Thumbnail,
         FormatKind::Raster,
         Some("image/avif"),
         HEIF,
     ),
-    (
+    row(
         Capability::Decode,
         FormatKind::Raster,
         Some("image/heic"),
         HEIF,
     ),
-    (
+    row(
         Capability::Decode,
         FormatKind::Raster,
         Some("image/avif"),
         HEIF,
     ),
-    (
+    row(
         Capability::Thumbnail,
         FormatKind::Raster,
         Some("image/x-dcraw"),
         RAW,
     ),
-    (
+    row(
         Capability::Decode,
         FormatKind::Raster,
         Some("image/x-dcraw"),
@@ -115,14 +98,12 @@ const SUGGESTIONS: &[(Capability, FormatKind, Option<&str>, Package)] = &[
 
 /// The package to suggest for `capability` on `subject`, or `None` when no package is known.
 pub fn suggested_package(capability: Capability, subject: &Subject<'_>) -> Option<Package> {
-    SUGGESTIONS
-        .iter()
-        .find(|(c, k, mime, _)| {
-            *c == capability
-                && *k == subject.kind
-                && mime.is_none_or(|wanted| subject.mime.is_some_and(|m| m.as_str() == wanted))
-        })
-        .map(|(_, _, _, package)| *package)
+    suggest(SUGGESTIONS, capability, |wants| {
+        wants.kind == subject.kind
+            && wants
+                .mime
+                .is_none_or(|wanted| subject.mime.is_some_and(|m| m.as_str() == wanted))
+    })
 }
 
 /// A kind needs a capability that no installed plugin provides, and a package that would.

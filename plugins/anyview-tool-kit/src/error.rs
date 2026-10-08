@@ -1,6 +1,6 @@
 //! The one error the picture plugins raise, and the code the host is told.
 
-use anyview_plugin_protocol::{ErrorCode, ProtocolError};
+use anyview_plugin_protocol::{ErrorCode, WireError};
 
 /// Why a request could not be done.
 #[derive(Debug, thiserror::Error)]
@@ -54,7 +54,7 @@ pub enum ToolError {
     },
     /// The host's pipe failed.
     #[error("the host's pipe failed: {0}")]
-    Host(#[from] ProtocolError),
+    Host(#[from] WireError),
 }
 
 impl ToolError {
