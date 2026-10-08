@@ -1333,7 +1333,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `Palette` | `Closed`, `Open { query, selection }` | `Open`, `Typed`, `Move`, `Pick`, `Enter`, `Close` | `Opened`, `Closed`, `Run(Command)` |
 | `ContextMenu` | `Closed`, `Open { at }` | `Open(Spot)`, `OpenAtCentre`, `Pick`, `Close` | `Run(ContextPick)` |
 | `Sheet` | `Closed`, `Export { draft }`, `ConfirmTrash`, `Rename { name }` | `OpenExport`, `AskTrash`, `AskRename`, `PickKind`, `Change`, `Typed`, `Confirm`, `Cancel` | `Opened`, `Closed`, `Export`, `Trash`, `Rename` |
-| `Navigate` | `Idle`, `Walking { sequence }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Leave` | `Open(path)`, `Preload(neighbours)` |
+| `Navigate` | `Idle`, `Walking { sequence, heading }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Gone`, `Leave` | `Open(path)`, `Preload(neighbours)` |
 | `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
 | `Load` | `Idle`, `Probing`, `Peeking { frame }`, `Opening`, `Ready`, `Failed { reason }`, each with its `Ticket` | `Begin`, `Probed`, `Peeked`, `PeekFailed`, `Opened`, `Failed` | `Probe`, `Peek`, `Open`, `Cancel`, `UseStage`, `ShowFirstFrame`, `ShowFull` |
 | `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing { due }`, `Paused`, `Ended`) rides in each; `wake()` is the playing frame's `due` | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `TogglePlayback`, `StepFrame`, `Elapsed` | `Remember`, `Turned`, `ShowFrame` |
@@ -1344,7 +1344,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
 | `BookStage` | `Reading { section }` | `Next`, `Previous`, `First`, `Last`, `GoTo`, `Restore` | `Remember` |
 | `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Book`, `Table`, `Tree` | one family's input each | each family's output, lifted |
-| `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens; one's folder or the several are the list), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
+| `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens, and a sheet up is cancelled; one's folder or the several are the list), `Chosen` (the same, once the file chooser ends, with no files when it was cancelled; one chooser is asked for at a time), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
 **Why the machines and the views share a crate.** The machines are the part that must stay pure, and
 they are: each `model.rs` and `step.rs` names only `anyview-core` and `ds-core`, which the script
