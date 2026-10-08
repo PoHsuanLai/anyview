@@ -23,12 +23,12 @@ pub struct Discovery {
 /// `$XDG_DATA_DIRS` (the system's, most important first), as `env` names them. A file that is
 /// not a usable manifest is listed in `rejected` and skipped; nothing here fails.
 pub fn discover(env: &Env) -> Discovery {
-    let found = bayonet::discover::<Provision>(&Search {
-        app: "anyview",
-        user: &env.dirs.data,
-        system: &env.dirs.data_dirs,
-        protocol: PROTOCOL_VERSION,
-    });
+    let found = bayonet::discover::<Provision>(&Search::new(
+        "anyview",
+        &env.dirs.data,
+        &env.dirs.data_dirs,
+        PROTOCOL_VERSION,
+    ));
     Discovery {
         plugins: Plugins::from(found.registry),
         rejected: found.rejected,

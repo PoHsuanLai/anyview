@@ -12,11 +12,10 @@ use std::time::{Duration, Instant};
 use support::{Scratch, Where};
 
 fn quick() -> PluginRunner {
-    PluginRunner::new(Timeouts {
-        hello: Duration::from_millis(400),
-        silence: Duration::from_millis(400),
-        cancel_grace: Duration::from_millis(400),
-    })
+    PluginRunner::new(Timeouts::default()
+        .with_hello(Duration::from_millis(400))
+        .with_silence(Duration::from_millis(400))
+        .with_cancel_grace(Duration::from_millis(400)))
 }
 
 fn rows(rows: &[anyview_plugin_protocol::FactRow]) -> Vec<(String, String)> {
@@ -85,11 +84,10 @@ fn a_24_megapixel_decode_crosses_the_pipe_whole_and_fast_enough() {
     let scratch = Scratch::new();
     scratch.install(Where::User, "fake", 1, &[]);
     let path = scratch.book("a.book", "x");
-    let runner = PluginRunner::new(Timeouts {
-        hello: Duration::from_secs(5),
-        silence: Duration::from_secs(60),
-        cancel_grace: Duration::from_secs(1),
-    });
+    let runner = PluginRunner::new(Timeouts::default()
+        .with_hello(Duration::from_secs(5))
+        .with_silence(Duration::from_secs(60))
+        .with_cancel_grace(Duration::from_secs(1)));
     let started = Instant::now();
     let picture = runner
         .decode(&scratch.plugin("fake"), &path, PixelArea(30_000_000))
