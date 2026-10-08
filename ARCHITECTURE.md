@@ -12,6 +12,10 @@ the way sill does (quire `CONSUMING.md` section 1). The pinned block of `[worksp
 in `Cargo.toml` is copied verbatim from quire's `docs/workspace-deps.toml`; a new dependency is a
 change to that file first.
 
+The plugin machinery that does not depend on what a capability is (frames, the manifest envelope, discovery,
+ranking, starting and containing a process) is bayonet, a repo of its own
+(`github.com/PoHsuanLai/bayonet`), taken through one line of `[workspace.dependencies]` (section 2l).
+
 ## 1. Crates and allowed edges
 
 Layers go lowest first. A crate names only crates in a lower layer, and
@@ -21,7 +25,7 @@ planned has no directory yet; its row is the rule it will carry.
 | Layer | Crate | Status | Purpose |
 | --- | --- | --- | --- |
 | L0 | `anyview-core` | exists | pure vocabulary: kinds, sniffing, units, sequence, actions, edits, exports, view memory, the `Peek` trait |
-| L0 | `anyview-plugin-protocol` | exists | the plugin protocol, version 1: its messages and the length-prefixed JSON frames they travel in; the one crate a plugin author depends on |
+| L0 | `anyview-plugin-protocol` | exists | the plugin protocol, version 1: its messages, over bayonet's length-prefixed JSON frames, which it re-exports; the one crate a plugin author depends on |
 | L1 | `anyview-store` | exists | the recently-viewed history and per-file view memory on disk: one format, a read API (sill reads it) and a write API; and the save pipeline (`Pending` to `BackedUp` to `Written`) with the versions store of kept originals under `<state>/anyview/versions` |
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
@@ -30,7 +34,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, the archive peek, and an office package's title, author, count and embedded picture |
 | L1 | `anyview-book` | exists | books: an EPUB's package (metadata, reading order, contents), a chapter as sealed HTML (allowlisted markup, sealed styles, images inlined as `data:` URLs), a comic zip's pages in natural order, and the covers of both; reads the zip through `anyview-archive` |
 | L1 | `anyview-font` | exists | fonts: names and glyph count read with skrifa, the specimen as vector outlines, and the font peek |
-| L1 | `anyview-plugin` | exists | plugins as values: the manifest, its validation, the registry of which plugin serves a kind and capability, the package to suggest when none does |
+| L1 | `anyview-plugin` | exists | plugins as values: the viewer's capabilities and what each handles (the `[[provides]]` entries of bayonet's manifest), the registry of which plugin serves a kind and capability, the package to suggest when none does |
 | L2 | `anyview-export` | exists | the exports and printouts of images, PDFs and text documents: runs the jobs each format plans, writes each file beside the original through a temporary file renamed into place, and makes the PDF a printer takes |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
@@ -46,8 +50,8 @@ planned has no directory yet; its row is the rule it will carry.
 | Crate | May depend on |
 | --- | --- |
 | `anyview-core` | `ds-core` (its `#[derive(Word)]` is re-exported by `ds-core`, so `ds-core-derive` is not an edge) |
-| `anyview-plugin-protocol` | nothing in the workspace: `serde`, `serde_json`, `thiserror` |
-| `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol` |
+| `anyview-plugin-protocol` | nothing in the workspace: bayonet without its host half (the wire), `serde`, `thiserror` |
+| `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol`, bayonet (`host`) |
 | `anyview-plugin-fake` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-tool-kit` | `anyview-plugin-protocol` |
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
@@ -57,7 +61,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
-| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `porter-core` and `prov` (docket's app side, section 2n) |
+| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, bayonet (`host`), `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `porter-core` and `prov` (docket's app side, section 2n) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
@@ -90,7 +94,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
 | `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `cpal`, `symphonia`, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
 | `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `mpv-wgpu-player` (with its `player` feature), built with the `subprocess` host only, so no libmpv and no `rsmpv`. Its `audio` feature names `symphonia` and `cpal`, which the launcher's library must never reach (`anyview-peek` links symphonia for probing and never `cpal`). It spawns no thread of its own (cpal's callback thread and the `null` output's clock are the only ones), reads no clock beyond that output's, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
-| `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: serde, serde_json and thiserror only, so a plugin author's tree stays theirs |
+| `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: bayonet's wire (no `host` feature, so no `toml`), serde and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
 | `anyview-heif`, `anyview-raw`, `anyview-tool-kit` | the same as `anyview-ffmpeg` below, but `image` is theirs to name (they read the PNG, TIFF or PPM a tool wrote): and `libheif-rs`, `libheif-sys`, `libraw-rs`, `libraw-sys`, `rsraw`, `rawloader` and `rawler` are forbidden in every crate's tree, with the libmpv and libav bindings |
@@ -336,7 +340,7 @@ run on the caller's worker.
 | `reveal` | `Reveal` |
 | `picker` | `Picker`, `PickOutcome` (`Chosen`, `Cancelled`, `NoDialog`): the desktop's file dialog |
 | `link` | `OpenLink`: a web or mail address handed to the desktop's handler |
-| `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts`, `PluginFacts`; the process and its pipe are private |
+| `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts` (bayonet's), `PluginFacts`; the `Wire` that tells bayonet the viewer's messages is private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
 | `portable` | built everywhere, no desktop service: `LatchkeyInstance` (`new`, `under(dir)` for tests; the `frame` module is its line of JSON), `SystemOpen`, `SystemReveal`, `FreedesktopThumbnails`, `NoStacking`, and the absent abilities `NoApps`, `NoShare`, `NoPrinter`, `NoPicker` |
 | `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection; it also serves docket's `IntentProvider1`, `intents`, section 2n), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
@@ -376,7 +380,7 @@ message when the program is not installed.
 
 `anyview-platform` depends on `latchkey`, `tokio` (channels, `spawn_blocking` and a timeout), `md-5`, `png`,
 `percent-encoding`, `serde_json`, `dirs`, and, behind `quire-desktop` on Linux, `zbus` (its `tokio` feature, so
-the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futures-util`; also `rustix` (`poll`, so a plugin's pipe is read with a deadline and no thread), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
+the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futures-util`; also bayonet with its `host` feature (finding the manifests and running the plugins: `poll` on the plugin's pipe, so it is read with a deadline and no thread, and the process group it is killed with), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
@@ -604,17 +608,22 @@ is a separate executable the person installs, which uses their own distribution'
 talks to the viewer over a pipe. The viewer asks it to do one thing and kills it when it is done, so a
 plugin that crashes, hangs or lies costs one request and never the viewer.
 
-Three crates, a test plugin and the FFmpeg plugin carry it:
+bayonet, a repo of its own (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0, used by other apps too), carries
+the mechanics that do not depend on what a capability is: the wire's frames, the manifest's envelope, discovery in
+`<data dir>/<app>/plugins`, the ranking of plugins, the package suggestion, and starting, timing out, cancelling
+and killing a plugin. It is generic over the capability type; the viewer's capabilities and their messages stay
+here, implemented on bayonet's two seams, `Provides` (one `[[provides]]` entry) and `Protocol` (the messages and the
+greeting). Three crates, a test plugin and the FFmpeg plugin carry the rest:
 
 | Crate | Holds |
 | --- | --- |
-| `anyview-plugin-protocol` (L0) | `Capability`, `HostMessage`, `PluginMessage` and the request and reply types, `PROTOCOL_VERSION`, the frame codec (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`), `ProtocolError`. Pure: `serde`, `serde_json`, `thiserror` |
-| `anyview-plugin` (L1) | `Manifest` (parse and validate TOML), `PluginId`, `Program`, `Provision` (`Probe`, `Peek`, `Thumbnail`, `Decode`, `Export`, `Play`), `Handles`, `Subject`, `Plugins` (the registry), `Candidate`, `Origin`, `Readiness`, `Route`, `MissingPlugin`, `suggested_package`, `PluginError`. Pure |
-| `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and `hello`: what the plugin answers on this machine, which a host reads the export targets it can write from), `Timeouts`, `PluginFacts`, the private process |
+| `anyview-plugin-protocol` (L0) | `Capability`, `HostMessage`, `PluginMessage` and the request and reply types, `PROTOCOL_VERSION`, `ImageSizeError`, and bayonet's frame codec re-exported (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`, `WireError`). Pure: bayonet's wire, `serde`, `thiserror` |
+| `anyview-plugin` (L1) | `Provision` (`Probe`, `Peek`, `Thumbnail`, `Decode`, `Export`, `Play`: bayonet's `Provides` for the viewer), `Handles`, `Subject`, `Plugins` (the registry over bayonet's), `Route`, `MissingPlugin`, `suggested_package`, `ProvisionFault`; and as bayonet's generic types fixed to the viewer's: `Manifest`, `Candidate`, `Installed`, `Unusable`, `Readiness`, `Package`, `PluginError`; `PluginId`, `Program`, `Origin` as they are. Pure |
+| `anyview-platform` (L2), module `plugin` | `discover(&Env)`, `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and `hello`: what the plugin answers on this machine, which a host reads the export targets it can write from), `Timeouts`, `PluginFacts`, the private `Wire` |
 | `anyview-ffmpeg` (`plugins/`) | `anyview-ffmpeg`, the FFmpeg plugin (below) |
 | `anyview-plugin-fake` (dev) | `anyview-fake-plugin`, a plugin for one invented kind that can misbehave on request, and the tests |
 
-The manifest lives in `anyview-plugin`, apart from `anyview-core`, so that the core stays free of a TOML
+The viewer's part of the manifest lives in `anyview-plugin`, apart from `anyview-core`, so that the core stays free of a TOML
 parser and the protocol crate free of the viewer's vocabulary (a plugin author needs the messages and
 nothing else); the registry is pure so that crates above the platform, which cannot name it, can still be
 handed a `Plugins` value.
@@ -1154,12 +1163,14 @@ The single place a concept lives. Extend it; never write a second one.
 | Now playing and the desktop's media controls | `anyview_platform::MediaSession`, `MediaState`, `MediaControl` |
 | Which applications open a type, and opening with one | `anyview_platform::AppsForType` |
 | The shared thumbnail cache, and a file's `file://` URI | `anyview_platform::ThumbnailCache`, `file_uri` |
-| What a plugin says of itself (the manifest), and its checks | `anyview_plugin::Manifest`, `PluginError` |
-| Which plugin serves a kind and capability, and which wins when manifests collide | `anyview_plugin::Plugins` (`resolve`, `serving`, `route`, `export_targets`) |
-| The package to suggest for a kind no plugin serves, and the facts row that says it | `anyview_plugin::suggested_package` (`missing.rs`), `MissingPlugin::fact` |
-| The plugin protocol's messages and framing | `anyview_plugin_protocol` (`HostMessage`, `PluginMessage`, `encode_frame`, `FrameDecoder`) |
-| Finding manifests on disk and checking their programs | `anyview_platform::discover` |
-| Starting a plugin and asking it something | `anyview_platform::PluginRunner` |
+| What a plugin says of itself (the manifest), and its checks | bayonet's `manifest` (the envelope), `anyview_plugin::Manifest`, `PluginError`, `Provision` (the viewer's `[[provides]]` entries) |
+| Which plugin serves a kind and capability, and which wins when manifests collide | bayonet's `registry` (the ranking), `anyview_plugin::Plugins` (`resolve`, `serving`, `route`, `export_targets`) |
+| The package to suggest for a kind no plugin serves, and the facts row that says it | bayonet's `Package` and `suggest`, `anyview_plugin::suggested_package` (`missing.rs`), `MissingPlugin::fact` |
+| The plugin protocol's messages | `anyview_plugin_protocol` (`HostMessage`, `PluginMessage`) |
+| Framing: the length-prefixed JSON a message travels in | bayonet's `wire` (`encode_frame`, `read_frame`, `write_frame`, `FrameDecoder`), re-exported by `anyview_plugin_protocol` |
+| Finding manifests on disk and checking their programs | bayonet's `discover`, called by `anyview_platform::discover` |
+| Starting a plugin, its timeouts, cancel and kill | bayonet's `run` (`Runner`, `Session`) |
+| Asking a plugin something | `anyview_platform::PluginRunner` |
 | The facts of a kind with no built-in back end, from a plugin or the package that is missing | `anyview_platform::PluginRunner::peek_facts` |
 | Printing, sharing, revealing a file, keeping a window above | `anyview_platform::Printer`, `Share`, `Reveal`, `WindowStacking` |
 | Which view shows a kind of file, and opening it | `anyview_ui::visit`, `family_of` (`families/registry.rs`) |

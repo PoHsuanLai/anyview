@@ -78,6 +78,9 @@ allow-git = [
     # Single instance without D-Bus (anyview-platform): MIT OR Apache-2.0, one rev in Cargo.toml.
     "https://github.com/PoHsuanLai/latchkey",
     "https://github.com/PoHsuanLai/quire",
+    # The plugin library (the wire, the manifest envelope, discovery and the process handling): one
+    # rev in Cargo.toml. MIT OR Apache-2.0. A path dependency while it is a sibling checkout.
+    "https://github.com/PoHsuanLai/bayonet",
     "https://github.com/PoHsuanLai/mpv-wgpu",
     "https://github.com/PoHsuanLai/pdfrum",
     "https://github.com/PoHsuanLai/vello",

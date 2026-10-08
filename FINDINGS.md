@@ -958,3 +958,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   model-provider, genai-names, vision-prep and base64 0.22.1. Most are vocabulary crates docket-core names in its
   signatures, not code the viewer runs. `anyview-peek` stays at 590. Ends when docket-core splits the app-facing
   types from the planner and reader vocabulary.
+
+- **The viewer's package budget is 683 (was 682).** bayonet, the plugin library, is one package. The plugin
+  machinery it took over (the frames, the manifest envelope, discovery, the process handling) was already in the
+  tree as the code of `anyview-plugin`, `anyview-plugin-protocol` and `anyview-platform`, and its dependencies
+  (`toml`, `rustix`, `serde`, `serde_json`, `thiserror`) were already there, so nothing else is added.
+  `anyview-peek` stays at 591: it does not reach the plugin crates. The plugin programs take bayonet without
+  its `host` feature, so `toml` stays out of their trees. Ends never: this is a package moved out of the
+  workspace into its own repo.

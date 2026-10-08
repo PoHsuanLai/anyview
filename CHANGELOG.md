@@ -5,6 +5,10 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Plugins
+
+- The plugin machinery that has nothing to do with what a plugin offers is now bayonet (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0), a library of its own, so other apps can share it: the length-prefixed JSON frames, the manifest's shared fields, discovery in `anyview/plugins`, which plugin wins when manifests collide, the package suggestion, and starting a plugin with its timeouts, cancel and kill. anyview keeps its own capabilities (probe, peek, thumbnail, decode, export, play) and messages on top of it. Nothing changes for you: the manifests, the protocol, the `Needs:` lines and the way a crashed or silent plugin costs one request are as they were.
+
 ### Agents
 
 - Viewer can be asked to open files by the desktop's agent layer (docket): `anyview.file.open` opens one or
