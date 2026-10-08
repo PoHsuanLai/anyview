@@ -129,10 +129,10 @@ fn audit(h: &Harness, w: u32, ht: u32) -> Vec<String> {
         if n.x + n.w > t.x + t.w + 0.5 {
             bad.push(format!("title name past titlebar {n:?} {t:?}"));
         }
-        if let Some(l) = all(h, ".ds-lights").first() {
-            if n.x < l.x + l.w - 0.5 {
-                bad.push(format!("title name over the lights {n:?} {l:?}"));
-            }
+        if let Some(l) = all(h, ".ds-lights").first()
+            && n.x < l.x + l.w - 0.5
+        {
+            bad.push(format!("title name over the lights {n:?} {l:?}"));
         }
     }
     let cap = all(h, ".ds-capsule");
@@ -164,7 +164,7 @@ fn the_chrome_fits_at_every_size_and_scale() {
                     let bad = audit(&h, w, ht);
                     if !bad.is_empty() {
                         fails
-                            .entry(format!("{kind}"))
+                            .entry(kind.to_string())
                             .or_default()
                             .push(format!("{w}x{ht}@{scale}: {}", bad.join(" | ")));
                     }

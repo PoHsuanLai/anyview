@@ -204,26 +204,33 @@ fn leaving_ends_the_walk_and_a_new_list_starts_another() {
 
 #[test]
 fn a_file_that_has_gone_leaves_the_walk_and_the_one_the_person_was_heading_for_opens() {
-    // name, the key that brought the walk here, the file it is on, the file then opened
-    const CASES: &[(&str, NavigateIn, usize, &str)] = &[
-        ("an arrow right goes on", NavigateIn::Next, 1, "/c.png"),
-        ("an arrow left goes on", NavigateIn::Previous, 1, "/a.png"),
+    // name, the walk's start, the move that lands on the gone file, its index, the file then opened
+    const CASES: &[(&str, usize, NavigateIn, usize, &str)] = &[
+        ("an arrow right goes on", 0, NavigateIn::Next, 1, "/c.png"),
+        (
+            "an arrow left goes on",
+            2,
+            NavigateIn::Previous,
+            1,
+            "/a.png",
+        ),
         (
             "end falls back to the one before",
+            1,
             NavigateIn::Last,
             2,
             "/b.png",
         ),
-        ("home goes to the one after", NavigateIn::First, 0, "/b.png"),
+        (
+            "home goes to the one after",
+            1,
+            NavigateIn::First,
+            0,
+            "/b.png",
+        ),
     ];
-    for (name, arrived, at, want) in CASES {
-        // The walk is one before `at` in the direction of the move, so the move lands on `at`.
-        let from = match arrived {
-            NavigateIn::Next => at - 1,
-            NavigateIn::Previous => at + 1,
-            _ => 1,
-        };
-        let (walk, _) = walking_at(FILES, from).step(arrived.clone(), Stamp(0), &(), &());
+    for (name, from, arrived, at, want) in CASES {
+        let (walk, _) = walking_at(FILES, *from).step(arrived.clone(), Stamp(0), &(), &());
         let (walk, outs) = walk.step(NavigateIn::Gone, Stamp(0), &(), &());
         assert!(
             outs.contains(&NavigateOut::Open(path(want))),

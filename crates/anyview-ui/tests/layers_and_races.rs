@@ -148,19 +148,16 @@ fn loading_the_second(scale: u16) -> (Arc<LoadsOnHold>, Harness, Requests, tempf
 
 /// The name of the file the host was last told is open.
 fn host_shows(requests: &Requests) -> Option<String> {
-    requests
-        .lock()
-        .unwrap()
-        .iter()
-        .rev()
-        .find_map(|request| match request {
-            HostRequest::Opened(probed) => probed
-                .source
-                .path()
-                .file_name()
-                .map(|name| name.as_str().to_owned()),
-            _ => None,
-        })
+    requests.lock().unwrap().iter().rev().find_map(|request| {
+        let HostRequest::Opened(probed) = request else {
+            return None;
+        };
+        probed
+            .source
+            .path()
+            .file_name()
+            .map(|name| name.as_str().to_owned())
+    })
 }
 
 #[test]

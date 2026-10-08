@@ -95,14 +95,13 @@ fn exported_trim(harness: &mut Harness, requests: &Requests) -> Option<TimeRange
             .unwrap(),
     ));
     settle(harness);
-    requests
-        .lock()
-        .unwrap()
-        .iter()
-        .find_map(|request| match request {
-            HostRequest::Export(ExportDraft::Media(MediaExport::Trim(range))) => Some(*range),
-            _ => None,
-        })
+    requests.lock().unwrap().iter().find_map(|request| {
+        if let HostRequest::Export(ExportDraft::Media(MediaExport::Trim(range))) = request {
+            Some(*range)
+        } else {
+            None
+        }
+    })
 }
 
 #[test]
