@@ -975,7 +975,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 [[package]]
 name = "bayonet"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/bayonet?rev=592eea9b69aea9bb9e4d6694d09322595f8e8e0a#592eea9b69aea9bb9e4d6694d09322595f8e8e0a"
+source = "git+https://github.com/PoHsuanLai/bayonet.git?rev=592eea9b69aea9bb9e4d6694d09322595f8e8e0a#592eea9b69aea9bb9e4d6694d09322595f8e8e0a"
 dependencies = [
  "rustix",
  "serde",
