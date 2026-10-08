@@ -11,6 +11,9 @@
 .viewer-raster{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
 .viewer-raster[*|data-zoom=zoomed]{ cursor:grab; }
 .viewer-raster-picture{ position:absolute; }
+/* A picture has no text to select. Blitz starts a selection drag once a held button moves more than 2px and then drops the
+   contextmenu event on release, so a secondary click with the slightest hand movement would open no menu. */
+.viewer-raster, .viewer-raster-picture, .viewer-raster-picture *{ user-select:none; }
 
 .viewer-text{ position:absolute; inset:0; overflow:hidden; font-family:var(--font-code); font-size:var(--fs-mono); }
 .viewer-text[*|data-view=rendered]{ font-family:var(--font-ui); }
