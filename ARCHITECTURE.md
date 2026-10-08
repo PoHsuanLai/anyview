@@ -384,7 +384,7 @@ the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futur
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
-are blocking and run on the caller's worker; only
+are blocking and run on the caller's worker (`worker` is that worker, for a host that has none); only
 `pane` draws.
 
 Every peek reads an `anyview_core::Input`: a path (`&FilePath`, `&Source`) or any bytes a host injects
@@ -408,6 +408,7 @@ the folder peek (a directory has no bytes) and a thumbnail read from the desktop
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `natural` | `natural_size`: the size a picture or a video shows at, from the first bytes of the file (a picture's header through `anyview-image`, a movie's `moov` or Matroska header up to 8 MiB); any other kind, a path that is not a regular file and a header that does not say give `None` |
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in |
+| `worker` | `PeekWorker`, `WorkerConfig`: the one thread that looks at the latest file asked for (`ask(input, reply)`), a thread per peek with an 8 MiB stack, the 4 s overrun and the cap on abandoned peeks; it takes no async runtime |
 | `when` | `modified_text`: a modification time as UTC |
 | `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 

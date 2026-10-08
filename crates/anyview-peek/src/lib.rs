@@ -19,6 +19,7 @@ mod pdf;
 mod probe;
 mod registry;
 mod when;
+mod worker;
 
 pub use any::{AnyPeeked, peek, peek_with};
 pub use body::{Body, Light};
@@ -35,3 +36,4 @@ pub use pdf::{PdfPeek, PdfPeeked};
 pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;
+pub use worker::{PeekFailure, PeekWork, PeekWorker, WorkerConfig};

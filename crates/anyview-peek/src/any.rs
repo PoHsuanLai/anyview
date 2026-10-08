@@ -133,6 +133,16 @@ fn reads_whole_file(kind: FormatKind) -> bool {
     }
 }
 
+/// The card of a file that could not even be probed, for `reason`: no type, its size and date.
+pub(crate) fn failed_card(src: &Input, reason: &str) -> AnyPeeked {
+    AnyPeeked {
+        kind: FormatKind::Other,
+        name: name_of(src),
+        facts: with_file_facts(Facts::empty(), src),
+        body: Body::Unavailable(reason.to_owned()),
+    }
+}
+
 /// The card of a file whose peek could not be made, for `reason`: its type, size and date.
 fn unavailable(src: &Input, sniffed: &Sniffed, reason: &str) -> AnyPeeked {
     let facts = Facts::empty().with(
