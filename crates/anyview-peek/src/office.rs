@@ -7,7 +7,7 @@ use crate::error::PeekError;
 use crate::frames::cover_picture;
 use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
+    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
 use anyview_image::ImagePeek;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ impl Peek for OfficePeek {
     type Error = PeekError;
 
     fn peek(
-        src: &Source,
+        src: &Input,
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<OfficeLooked, PeekError> {
@@ -45,7 +45,7 @@ impl Peek for OfficePeek {
                 picture: None,
             });
         };
-        let mut look = office_look(src.path(), *format)?;
+        let mut look = office_look(src, *format)?;
         let picture = look.thumbnail.take().and_then(|thumbnail| {
             let name = match thumbnail.codec {
                 ThumbnailCodec::Png => "thumbnail.png",

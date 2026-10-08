@@ -7,7 +7,7 @@ use crate::frames::{NoFrames, VideoFrames, still_peek};
 use crate::registry::{KindVisitor, visit};
 use crate::when::modified_text;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatKind, PeekBudget, Sniffed, Source, is_regular,
+    ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, PeekBudget, Sniffed, is_regular,
 };
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
@@ -26,10 +26,10 @@ pub struct AnyPeeked {
     pub body: Body,
 }
 
-/// Peeks at `src`, whose type `sniffed` established, inside `budget`: blocking, so run it on a
+/// Peeks at `src` (a path: `&FilePath`, `&Source`; or any bytes a host injects), whose type `sniffed` established, inside `budget`: blocking, so run it on a
 /// worker. It never fails: a peek that cannot be made comes back as [`Body::Unavailable`] with
 /// the reason, and the facts the file can still give (its type, size and date).
-pub fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
+pub fn peek(src: impl Into<Input>, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
     peek_with(src, sniffed, budget, &NoFrames)
 }
 
@@ -37,11 +37,12 @@ pub fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
 /// frame replaces only the facts-only card of a video whose header was read; a failed peek, and
 /// every other kind, are as [`peek`] makes them.
 pub fn peek_with(
-    src: &Source,
+    src: impl Into<Input>,
     sniffed: &Sniffed,
     budget: &PeekBudget,
     frames: &dyn VideoFrames,
 ) -> AnyPeeked {
+    let src = &src.into();
     let mut peeked = peek_kind(src, sniffed, budget);
     if peeked.kind == FormatKind::Video
         && matches!(peeked.body, Body::FactsOnly(_))
@@ -55,7 +56,7 @@ pub fn peek_with(
 /// The peek of the file's kind, behind two guards: the path must be a file the kind's peek may
 /// read in full, and a panic in a back end (a decoder fed a hostile file) becomes the same
 /// unavailable card as any other failure, so no worker thread dies of one file.
-fn peek_kind(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
+fn peek_kind(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked {
     if let Err(error) = guard(src, sniffed, budget) {
         return unavailable(src, sniffed, &error.to_string());
     }
@@ -68,43 +69,38 @@ fn peek_kind(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> AnyPeeked 
 }
 
 /// `peek`, with a panic in it turned into the unavailable card.
-fn contained(src: &Source, sniffed: &Sniffed, peek: impl FnOnce() -> AnyPeeked) -> AnyPeeked {
+fn contained(src: &Input, sniffed: &Sniffed, peek: impl FnOnce() -> AnyPeeked) -> AnyPeeked {
     catch_unwind(AssertUnwindSafe(peek))
         .unwrap_or_else(|_| unavailable(src, sniffed, "the preview could not be made"))
 }
 
 /// Whether `src` may be peeked at all: it is a regular file (a folder for the folder peek), and
-/// for a kind whose peek reads the whole file, one within the budget's bytes. The path is read
-/// afresh, not from the stamp, so a file that changed since it was probed is judged as it is.
-fn guard(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<(), PeekError> {
-    let path = src.path().as_path();
+/// for a kind whose peek reads the whole file, one within the budget's bytes. A path is read
+/// afresh, not from the stamp, so a file that changed since it was probed is judged as it is; the
+/// length is the larger of the stamp's and the bytes' own, so a source that understates its size
+/// is held to the budget as well.
+fn guard(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<(), PeekError> {
     let refused = |kind| PeekError::Unreadable {
-        path: path.to_path_buf(),
+        path: src.label(),
         kind,
     };
-    let meta = std::fs::metadata(path).map_err(|e| refused(e.kind()))?;
-    let wanted = match sniffed.kind() {
-        FormatKind::Folder => meta.is_dir(),
-        FormatKind::Pdf
-        | FormatKind::Raster
-        | FormatKind::Vector
-        | FormatKind::Video
-        | FormatKind::Audio
-        | FormatKind::Markdown
-        | FormatKind::Code
-        | FormatKind::PlainText
-        | FormatKind::Table
-        | FormatKind::Tree
-        | FormatKind::Font
-        | FormatKind::Archive
-        | FormatKind::Book
-        | FormatKind::Office
-        | FormatKind::Other => is_regular(&meta),
+    let folder = sniffed.kind() == FormatKind::Folder;
+    let wanted = match src.path() {
+        Some(path) => {
+            let meta = std::fs::metadata(path.as_path()).map_err(|e| refused(e.kind()))?;
+            if folder {
+                meta.is_dir()
+            } else {
+                is_regular(&meta)
+            }
+        }
+        // Only a path can be a folder.
+        None => !folder,
     };
     if !wanted {
         return Err(refused(std::io::ErrorKind::InvalidInput));
     }
-    let len = ByteLen(meta.len());
+    let len = ByteLen(src.stamp().len.0.max(src.bytes().len().0));
     if reads_whole_file(sniffed.kind()) && len > budget.bytes {
         return Err(PeekError::OverBudget {
             len,
@@ -137,8 +133,18 @@ fn reads_whole_file(kind: FormatKind) -> bool {
     }
 }
 
+/// The card of a file that could not even be probed, for `reason`: no type, its size and date.
+pub(crate) fn failed_card(src: &Input, reason: &str) -> AnyPeeked {
+    AnyPeeked {
+        kind: FormatKind::Other,
+        name: name_of(src),
+        facts: with_file_facts(Facts::empty(), src),
+        body: Body::Unavailable(reason.to_owned()),
+    }
+}
+
 /// The card of a file whose peek could not be made, for `reason`: its type, size and date.
-fn unavailable(src: &Source, sniffed: &Sniffed, reason: &str) -> AnyPeeked {
+fn unavailable(src: &Input, sniffed: &Sniffed, reason: &str) -> AnyPeeked {
     let facts = Facts::empty().with(
         FactLabel::Kind,
         FactValue::text(Described::of(sniffed).kind),
@@ -153,7 +159,7 @@ fn unavailable(src: &Source, sniffed: &Sniffed, reason: &str) -> AnyPeeked {
 
 /// The visitor that runs the peek of whichever kind it is given.
 struct Run<'a> {
-    src: &'a Source,
+    src: &'a Input,
     sniffed: &'a Sniffed,
     budget: &'a PeekBudget,
 }
@@ -179,16 +185,13 @@ impl KindVisitor for Run<'_> {
     }
 }
 
-/// The file's name, else its whole path (a root has no name).
-fn name_of(src: &Source) -> String {
-    match src.path().file_name() {
-        Some(name) => name.as_str().to_owned(),
-        None => src.path().as_path().display().to_string(),
-    }
+/// The file's name.
+fn name_of(src: &Input) -> String {
+    src.name().as_str().to_owned()
 }
 
 /// `facts` plus the size and the modification time, unless the peek already gave that row.
-fn with_file_facts(facts: Facts, src: &Source) -> Facts {
+fn with_file_facts(facts: Facts, src: &Input) -> Facts {
     let stamp = src.stamp();
     let mut facts = facts;
     if facts.value(FactLabel::Size).is_none() {
@@ -206,22 +209,15 @@ fn with_file_facts(facts: Facts, src: &Source) -> Facts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyview_core::{FileHead, FilePath, FileStamp, ModTime, SniffStep, sniff};
+    use anyview_core::{FileHead, FileName, SniffStep, sniff};
 
     #[test]
     fn a_panic_in_a_peek_is_the_unavailable_card_of_that_file() {
-        let path = FilePath::new("/a/notes.txt").unwrap_or_else(|e| panic!("{e}"));
-        let name = path.file_name().unwrap_or_else(|| panic!("no name"));
+        let name = FileName::new("notes.txt").unwrap_or_else(|e| panic!("{e}"));
         let SniffStep::Done(sniffed) = sniff(&FileHead::new(b"hello"), &name) else {
             panic!("plain text is sniffed at once");
         };
-        let src = Source::new(
-            path,
-            FileStamp {
-                len: ByteLen(5),
-                modified: ModTime(0),
-            },
-        );
+        let src = Input::from((name, b"hello".to_vec()));
         let card = contained(&src, &sniffed, || panic!("a decoder fell over"));
         assert_eq!(card.name, "notes.txt");
         assert!(matches!(card.body, Body::Unavailable(_)), "{:?}", card.body);

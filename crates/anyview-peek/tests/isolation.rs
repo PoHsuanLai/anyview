@@ -80,7 +80,7 @@ fn a_picture_over_the_byte_budget_is_not_read() {
         bytes: ByteLen(16),
         ..pane_budget()
     };
-    let peeked = peek(&probed.source, &probed.sniffed, &tight);
+    let peeked = peek(&probed.input, &probed.sniffed, &tight);
     assert!(
         matches!(peeked.body, Body::Unavailable(_)),
         "{:?}",

@@ -4,7 +4,7 @@ use super::*;
 use crate::facts::{FactLabel, FactValue, Facts};
 use crate::kind::FormatKind;
 use crate::sniff::{FileHead, SniffStep, Sniffed, sniff};
-use crate::source::{ByteLen, FileName, FilePath, FileStamp, ModTime, Source};
+use crate::source::{ByteLen, FileName, FilePath, FileStamp, Input, ModTime, Source};
 use crate::units::PixelArea;
 use ds_core::word::Word;
 use std::time::Duration;
@@ -24,7 +24,7 @@ impl Peek for FakeText {
     type Peeked = Counted;
     type Error = NoBudget;
 
-    fn peek(src: &Source, _: &Sniffed, budget: &PeekBudget) -> Result<Counted, NoBudget> {
+    fn peek(src: &Input, _: &Sniffed, budget: &PeekBudget) -> Result<Counted, NoBudget> {
         match budget.bytes.0.min(src.stamp().len.0) {
             0 => Err(NoBudget),
             read => Ok(Counted(read)),
@@ -37,7 +37,7 @@ impl Peek for FakeText {
 }
 
 /// What a generic consumer does with any format: peek, then list the facts.
-fn peek_facts<P: Peek>(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Option<Facts> {
+fn peek_facts<P: Peek>(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Option<Facts> {
     (sniffed.kind() == P::KIND)
         .then(|| P::peek(src, sniffed, budget).ok())
         .flatten()
@@ -52,7 +52,7 @@ fn budget(bytes: u64) -> PeekBudget {
     }
 }
 
-fn text_file(len: u64) -> (Source, Sniffed) {
+fn text_file(len: u64) -> (Input, Sniffed) {
     let name = FileName::new("notes.txt").unwrap();
     let SniffStep::Done(sniffed) = sniff(&FileHead::new(b"hello"), &name) else {
         panic!("text is answered from its head");
@@ -61,10 +61,8 @@ fn text_file(len: u64) -> (Source, Sniffed) {
         len: ByteLen(len),
         modified: ModTime(0),
     };
-    (
-        Source::new(FilePath::new("/notes.txt").unwrap(), stamp),
-        sniffed,
-    )
+    let source = Source::new(FilePath::new("/notes.txt").unwrap(), stamp);
+    (Input::from(&source), sniffed)
 }
 
 #[test]
@@ -116,4 +114,12 @@ fn stage_support_words() {
         StageSupport::ALL,
         &[StageSupport::Stage, StageSupport::PeekOnly]
     );
+}
+
+#[test]
+fn a_peek_reads_bytes_a_host_injected_as_it_reads_a_path() {
+    let (_, sniffed) = text_file(5);
+    let injected = Input::from((FileName::new("mail.txt").unwrap(), b"hello world".to_vec()));
+    let got = FakeText::peek(&injected, &sniffed, &budget(1_000)).unwrap();
+    assert_eq!(got, Counted(11));
 }

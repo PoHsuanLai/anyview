@@ -11,7 +11,7 @@ mod tests;
 use crate::error::ArchiveError;
 use crate::extract::{ExtractLimits, extract};
 use anyview_core::{
-    ArchiveFormat, ByteLen, FactLabel, FactValue, Facts, FilePath, OfficeFormat, PageCount,
+    ArchiveFormat, ByteLen, FactLabel, FactValue, Facts, Input, OfficeFormat, PageCount,
 };
 use parts::{Metadata, parts_of};
 
@@ -103,24 +103,28 @@ fn one_line(text: String) -> String {
     }
 }
 
-fn part(path: &FilePath, name: &str, allowed: ByteLen) -> Option<Vec<u8>> {
+fn part(src: &Input, name: &str, allowed: ByteLen) -> Option<Vec<u8>> {
     let limits = ExtractLimits {
         entry: allowed,
         scanned: allowed,
     };
-    extract(path, ArchiveFormat::Zip, name, limits).ok()
+    extract(src, ArchiveFormat::Zip, name, limits).ok()
 }
 
-/// What the office document at `path`, whose format sniffing named, says about itself. A format
+/// What the office document `src` (a path, or any source a host injects), whose format sniffing named, says about itself. A format
 /// that is not a zip package (the binary Word, Excel and PowerPoint) says nothing. Parts that are
 /// missing or do not parse leave their fields empty: the facts the file does have still stand.
-pub fn office_look(path: &FilePath, format: OfficeFormat) -> Result<OfficeLook, ArchiveError> {
+pub fn office_look(
+    src: impl Into<Input>,
+    format: OfficeFormat,
+) -> Result<OfficeLook, ArchiveError> {
+    let src = &src.into();
     let Some(parts) = parts_of(format) else {
         return Ok(OfficeLook::default());
     };
     let mut look = OfficeLook::default();
     for source in parts.metadata {
-        let Some(bytes) = part(path, source.name, METADATA_BYTES) else {
+        let Some(bytes) = part(src, source.name, METADATA_BYTES) else {
             continue;
         };
         let Metadata {
@@ -133,7 +137,7 @@ pub fn office_look(path: &FilePath, format: OfficeFormat) -> Result<OfficeLook, 
         look.count = look.count.or(count);
     }
     look.thumbnail = parts.thumbnails.iter().find_map(|(name, codec)| {
-        part(path, name, THUMBNAIL_BYTES).map(|bytes| Thumbnail {
+        part(src, name, THUMBNAIL_BYTES).map(|bytes| Thumbnail {
             bytes,
             codec: *codec,
         })

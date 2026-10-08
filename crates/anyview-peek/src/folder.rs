@@ -5,8 +5,8 @@
 
 use crate::error::PeekError;
 use anyview_core::{
-    ByteLen, Deadline, FactLabel, FactValue, Facts, FileHead, FileName, FormatKind, Peek,
-    PeekBudget, SniffStep, Sniffed, Source, ZipEntries, open_regular, sniff, sniff_zip,
+    ByteLen, Deadline, FactLabel, FactValue, Facts, FileHead, FileName, FilePath, FormatKind,
+    Input, Peek, PeekBudget, SniffStep, Sniffed, ZipEntries, open_regular, sniff, sniff_zip,
 };
 use anyview_text::Tally;
 use ds::prelude::Word;
@@ -60,7 +60,7 @@ impl Peek for FolderPeek {
     type Error = PeekError;
 
     fn peek(
-        src: &Source,
+        src: &Input,
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<FolderSummary, PeekError> {
@@ -69,7 +69,13 @@ impl Peek for FolderPeek {
                 kind: sniffed.kind(),
             });
         }
-        let path = src.path().as_path();
+        // Listing a folder reads the directory itself: only a path has one.
+        let Some(path) = src.path().map(FilePath::as_path) else {
+            return Err(PeekError::Folder {
+                path: src.label(),
+                kind: std::io::ErrorKind::InvalidInput,
+            });
+        };
         // The listing and the sniffing are the loops that grow with the folder; both stop at the
         // budget's time and report what they had counted.
         let deadline = Deadline::of(budget, Instant::now());

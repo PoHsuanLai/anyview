@@ -6,7 +6,7 @@
 //! with a real one and the registry's arm names the new type.
 
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
+    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
 use ds::prelude::Word;
 use std::convert::Infallible;
@@ -63,7 +63,7 @@ impl<K: Describes> Peek for FactsPeek<K> {
     type Peeked = Described;
     type Error = Infallible;
 
-    fn peek(_: &Source, sniffed: &Sniffed, _: &PeekBudget) -> Result<Described, Infallible> {
+    fn peek(_: &Input, sniffed: &Sniffed, _: &PeekBudget) -> Result<Described, Infallible> {
         Ok(Described::of(sniffed))
     }
 

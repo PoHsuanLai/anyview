@@ -8,7 +8,7 @@
 mod support;
 
 use anyview_core::{
-    ByteLen, FilePath, FileStamp, MediaTime, ModTime, Peek, PixelLen, PixelSize, Source,
+    ByteLen, FilePath, FileStamp, Input, MediaTime, ModTime, Peek, PixelLen, PixelSize, Source,
 };
 use anyview_image::{Decoded, FrameCount, Plays, RasterPeek, Rgba8, decode_bytes};
 use image::codecs::gif::{GifEncoder, Repeat};
@@ -264,7 +264,8 @@ fn a_peek_of_each_new_format_is_its_first_picture_and_an_animation_peeks_one_fra
     ];
     for (name, bytes, frames, whole) in files {
         let src = on_disk(&dir, name, &bytes);
-        let peeked = RasterPeek::peek(&src, &sniffed(&bytes, name), &budget(10_000)).unwrap();
+        let peeked =
+            RasterPeek::peek(&Input::from(&src), &sniffed(&bytes, name), &budget(10_000)).unwrap();
         assert_eq!(peeked.source_size, whole, "{name}");
         assert_eq!(peeked.picture.size(), whole, "{name}: one still frame");
         assert_eq!(peeked.frames, FrameCount(frames), "{name}");

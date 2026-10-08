@@ -9,11 +9,10 @@ mod tests;
 
 pub use needle::{ByteOffset, FindHit, Needle};
 
-use crate::bytes::ByteSource;
 use crate::error::TextError;
 use crate::lines::TextLines;
-use anyview_core::LineIndex;
 use anyview_core::work::{Stop, StopState};
+use anyview_core::{LineIndex, ReadAt};
 
 /// The most hits one search keeps: a phrase that occurs more often than this is not a search
 /// the reader can step through, and the list would be most of the file.
@@ -22,7 +21,7 @@ pub const MAX_HITS: usize = 10_000;
 /// How many lines one read takes.
 const BATCH: u32 = 2048;
 
-impl<B: ByteSource> TextLines<B> {
+impl<B: ReadAt> TextLines<B> {
     /// Every hit of `needle`, in file order, at most [`MAX_HITS`]. Reads the whole file once, in
     /// batches of lines. Blocking; when `stop` is raised it returns the hits found so far, which
     /// the caller that raised it no longer wants.

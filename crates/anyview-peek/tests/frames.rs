@@ -15,8 +15,8 @@ use support::{Home, fixture, pane_budget, rows};
 struct Cached;
 
 impl VideoFrames for Cached {
-    fn frame(&self, source: &anyview_core::Source) -> Option<Rgba8> {
-        if source.path().as_path().to_string_lossy().contains("none") {
+    fn frame(&self, source: &anyview_core::Input) -> Option<Rgba8> {
+        if source.name().as_str().contains("none") {
             return None;
         }
         let size = anyview_core::PixelSize {

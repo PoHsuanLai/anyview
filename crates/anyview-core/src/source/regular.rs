@@ -42,6 +42,7 @@ mod tests {
         assert_eq!(refused.kind(), ErrorKind::InvalidInput);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_device_reached_through_a_link_is_refused() {
         let dir = tempfile::tempdir().unwrap();

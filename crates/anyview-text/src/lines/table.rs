@@ -2,9 +2,10 @@
 //! line is then at most 63 lines from a known offset, so a window is read without scanning, or
 //! decoding, the file again.
 
-use crate::bytes::ByteSource;
+use crate::bytes::read_range;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
+use anyview_core::ReadAt;
 use std::ops::Range;
 
 /// Lines between two recorded offsets.
@@ -26,11 +27,11 @@ pub(super) struct LineTable {
 impl LineTable {
     /// Streams `source` once from `content` (the first byte after any byte-order mark).
     pub(super) fn build(
-        source: &impl ByteSource,
+        source: &impl ReadAt,
         codec: TextCodec,
         content: u64,
     ) -> Result<Self, TextError> {
-        let end = source.byte_len().0;
+        let end = source.len().0;
         let unit = codec.unit();
         let mut starts = Vec::new();
         let mut line: u32 = 0;
@@ -39,7 +40,7 @@ impl LineTable {
         }
         let mut at = content;
         while at < end {
-            let chunk = source.read(at..at + CHUNK)?;
+            let chunk = read_range(source, at..at + CHUNK)?;
             if chunk.is_empty() {
                 break;
             }
@@ -76,7 +77,7 @@ impl LineTable {
     /// nearest recorded offset.
     pub(super) fn read(
         &self,
-        source: &impl ByteSource,
+        source: &impl ReadAt,
         range: Range<u32>,
     ) -> Result<Vec<u8>, TextError> {
         let first = range.start.min(self.lines);
@@ -103,7 +104,7 @@ enum Phase {
 /// From `span.0`, skips `lines.0` lines and returns the bytes of the next `lines.1`, line breaks
 /// included. `span.1` is where the bytes end.
 fn scan(
-    source: &impl ByteSource,
+    source: &impl ReadAt,
     codec: TextCodec,
     span: (u64, u64),
     lines: (u32, u32),
@@ -120,7 +121,7 @@ fn scan(
     let mut seen: u32 = 0;
     let mut at = offset;
     while at < end {
-        let chunk = source.read(at..at + CHUNK)?;
+        let chunk = read_range(source, at..at + CHUNK)?;
         if chunk.is_empty() {
             break;
         }

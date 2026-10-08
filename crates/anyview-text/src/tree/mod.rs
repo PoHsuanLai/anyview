@@ -16,7 +16,7 @@ pub use visible::{Openness, VisibleRow};
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
 use crate::peek::head::read_limited;
-use anyview_core::{ByteLen, LineIndex, Source, TreeFormat, TreePath};
+use anyview_core::{ByteLen, Input, LineIndex, TreeFormat, TreePath};
 use node::Node;
 use std::ops::Range;
 
@@ -103,11 +103,11 @@ impl Tree {
     /// value and cannot be read in part, so a larger one is [`TextError::JsonOverBudget`]; a JSON
     /// Lines file is read as far as `limit` reaches, and says so in the coverage it returns.
     pub fn read(
-        src: &Source,
+        src: impl Into<Input>,
         format: TreeFormat,
         limit: ByteLen,
     ) -> Result<(Self, Coverage), TextError> {
-        let head = read_limited(src, limit)?;
+        let head = read_limited(&src.into(), limit)?;
         if format == TreeFormat::Json && head.coverage == Coverage::Prefix {
             return Err(TextError::JsonOverBudget);
         }

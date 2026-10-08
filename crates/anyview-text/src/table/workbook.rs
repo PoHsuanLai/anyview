@@ -1,12 +1,13 @@
 //! Spreadsheets (XLSX, ODS, XLS) as tables, one per sheet.
 
 use super::{HeaderMode, Table};
+use crate::bytes::read_range;
 use crate::encoding::Coverage;
 use crate::error::TextError;
-use anyview_core::{ByteLen, Source};
-use calamine::{Cell, Data, DataRef, Reader, Sheets, open_workbook_auto};
-use std::fs::File;
-use std::io::BufReader;
+use anyview_core::{ByteLen, Input};
+use calamine::{Cell, Data, DataRef, Reader, Sheets, open_workbook_auto_from_rs};
+use std::io::Cursor;
+use std::sync::Arc;
 
 /// The largest workbook file that is opened: a sheet is read into memory whole.
 pub const WORKBOOK_BYTES: ByteLen = ByteLen(128 * 1024 * 1024);
@@ -169,7 +170,7 @@ fn cut(range: &calamine::Range<Data>, left: usize) -> (Vec<Vec<String>>, Coverag
 /// the reader builds the grid itself (XLS, whose grid the format limits to 65 536 by 256 cells,
 /// and ODS, whose reader bounds its repeats).
 fn read_sheet(
-    workbook: &mut Sheets<BufReader<File>>,
+    workbook: &mut Sheets<Cursor<Arc<[u8]>>>,
     name: &str,
     left: usize,
 ) -> Result<(Vec<Vec<String>>, Coverage), TextError> {
@@ -192,24 +193,27 @@ impl Workbook {
     /// The workbook the file `src` names. At most [`SHEET_ROWS`] rows are kept of a sheet and
     /// [`WORKBOOK_CELLS`] cells of the whole; what is cut is a sheet whose table says it was
     /// only a start. A file over [`WORKBOOK_BYTES`] is refused.
-    pub fn open(src: &Source) -> Result<Self, TextError> {
-        Workbook::read(src, usize::MAX, WORKBOOK_CELLS)
+    pub fn open(src: impl Into<Input>) -> Result<Self, TextError> {
+        Workbook::read(&src.into(), usize::MAX, WORKBOOK_CELLS)
     }
 
     /// The start of the workbook the file `src` names, for a glance: its first sheet only, at
     /// most [`SHEET_ROWS`] rows and a million cells of it. [`Workbook::sheet_count`] still counts
     /// every sheet the file has.
-    pub fn open_start(src: &Source) -> Result<Self, TextError> {
-        Workbook::read(src, 1, START_CELLS)
+    pub fn open_start(src: impl Into<Input>) -> Result<Self, TextError> {
+        Workbook::read(&src.into(), 1, START_CELLS)
     }
 
-    fn read(src: &Source, sheets: usize, cells: usize) -> Result<Self, TextError> {
-        if src.stamp().len.0 > WORKBOOK_BYTES.0 {
+    fn read(src: &Input, sheets: usize, cells: usize) -> Result<Self, TextError> {
+        if src.stamp().len.0.max(src.bytes().len().0) > WORKBOOK_BYTES.0 {
             return Err(TextError::WorkbookTooLarge {
                 allowed: WORKBOOK_BYTES,
             });
         }
-        let mut workbook = open_workbook_auto(src.path().as_path()).map_err(failed)?;
+        // The sheet is read into memory whole anyway, so the workbook is read from the bytes
+        // (sniffed by content), whether they are a file or were handed in.
+        let bytes: Arc<[u8]> = read_range(src.bytes(), 0..WORKBOOK_BYTES.0)?.into();
+        let mut workbook = open_workbook_auto_from_rs(Cursor::new(bytes)).map_err(failed)?;
         let names = workbook.sheet_names();
         let sheet_count = u32::try_from(names.len()).unwrap_or(u32::MAX);
         let mut left = cells;

@@ -6,8 +6,8 @@ use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
 use crate::tree::{Tree, TreeRow};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed,
-    Source, TreeFormat, TreePath,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget,
+    Sniffed, TreeFormat, TreePath,
 };
 
 /// How many top-level keys the facts name before "and N more".
@@ -45,7 +45,7 @@ impl Peek for TreePeek {
     type Peeked = TreePeeked;
     type Error = TextError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<TreePeeked, TextError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<TreePeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         let FormatDetail::Tree(format) = sniffed.detail() else {
             return Err(TextError::WrongKind {

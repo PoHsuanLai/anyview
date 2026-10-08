@@ -10,9 +10,13 @@ publish.workspace = true
 
 # `media` (on by default) is the recording's peek: pure-Rust parsers read its facts and, for audio,
 # its cover (symphonia, mp4parse, matroska-demuxer). Off, a recording is peeked as a file of a kind with no back end: its type, size and date.
+# `pane` (on by default) is everything that draws or rasterises: the `Pane` component (dioxus) and a
+# PDF's first page (ds-blitz, which brings the renderer). Off, a headless caller (a mail client
+# peeking at attachments, a terminal) builds none of that, and a PDF is peeked as facts only.
 [features]
-default = ["media"]
+default = ["media", "pane"]
 media = ["dep:symphonia", "dep:mp4parse", "dep:matroska-demuxer"]
+pane = ["dep:dioxus", "dep:ds-blitz"]
 
 [dependencies]
 anyview-archive = { workspace = true }
@@ -21,11 +25,12 @@ anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }
 anyview-text = { workspace = true }
-dioxus = { workspace = true }
+# The `pane` feature: the component, and the PDF page cache.
+dioxus = { workspace = true, optional = true }
 ds = { workspace = true }
 # `pdf`: `pdf_thumb_blocking`, the first page of a PDF rasterised by pdfrum and cached. pdfrum is
 # reached only through it.
-ds-blitz = { workspace = true, features = ["pdf"] }
+ds-blitz = { workspace = true, features = ["pdf"], optional = true }
 thiserror = { workspace = true }
 # The `media` feature: pure-Rust readers of a recording's header (never a decoder).
 matroska-demuxer = { workspace = true, optional = true }

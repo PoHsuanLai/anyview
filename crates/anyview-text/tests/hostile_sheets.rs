@@ -6,7 +6,7 @@
 
 mod support;
 
-use anyview_core::Peek;
+use anyview_core::{Input, Peek};
 use anyview_text::{Coverage, RowIndex, SHEET_ROWS, TablePeek, WORKBOOK_CELLS, Workbook};
 use support::{budget, workbook_of_xml};
 
@@ -38,7 +38,7 @@ fn two_cells_a_million_rows_and_sixteen_thousand_columns_apart_do_not_become_a_g
         let held = table.row_count().0 as usize * table.columns().0 as usize;
         assert!(held <= WORKBOOK_CELLS, "{name}: a grid of {held} cells");
         assert_eq!(table.cell(RowIndex(0), 0), "x", "{name}");
-        let peeked = TablePeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
+        let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
         assert!(peeked.rows.len() <= 40, "{name}");
     }
 }
@@ -56,7 +56,7 @@ fn a_sheet_of_millions_of_cells_is_read_only_as_far_as_the_caps_reach() {
         })
         .collect();
     let (src, sniffed) = workbook_of_xml(dir.path(), "bomb.xlsx", &["Sheet"], &[rows]);
-    let peeked = TablePeek::peek(&src, &sniffed, &budget(64 * 1024 * 1024)).unwrap();
+    let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(64 * 1024 * 1024)).unwrap();
     assert!(peeked.rows.len() <= 40);
     let book = Workbook::open_start(&src).unwrap();
     assert_eq!(book.sheets().len(), 1);

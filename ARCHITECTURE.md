@@ -84,7 +84,7 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
-| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd`, `cpal`, `alsa`, `alsa-sys` anywhere in its tree: no libmpv, no libav, no D-Bus and no sound card in the launcher's process, and no `anyview-media` at all (it probes with `symphonia`; playing is the media crate's). Its `media` feature (default on) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); `--no-default-features` leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget |
+| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd`, `cpal`, `alsa`, `alsa-sys` anywhere in its tree: no libmpv, no libav, no D-Bus and no sound card in the launcher's process, and no `anyview-media` at all (it probes with `symphonia`; playing is the media crate's). Its `media` feature (default on) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); `--no-default-features` leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget, and so is its headless tree (`--no-default-features`: no `pane`, so no `ds-blitz`, `dioxus` of its own or renderer, and no `anyview-image` encoder), which reaches none of `ds-blitz`, `wgpu`, `rav1e` or `zbus` and builds on macOS and Windows |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf` |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
@@ -104,8 +104,8 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga,
 qoi, exr and hdr added by its own manifest), `psd` (Photoshop, MIT OR Apache-2.0), `icns` (Apple icons, MIT),
-`jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
-`ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
+`jxl-oxide`, `resvg` (without text), `kamadak-exif`, `thiserror` and `ds-core`; with the `encode` feature
+(which the viewer and its exports turn on) also `img-parts` and `ravif`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
 `anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rust2`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust2` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
@@ -134,7 +134,7 @@ no other public path. A module names only modules above it in this list.
 | `error` | `CoreError`, the crate's one error |
 | `units` | page, section (`SectionIndex`, `SectionCount`: the chapter or comic page of a book), media (time, length, volume, speed, chapter, time range, bitrate), ratio, zoom, turn, content-space and pixel newtypes; all integer |
 | `media` | what a player says of a recording: `StreamKind`, `MediaTrack`, `TrackPlay`, `MediaChapter`, `VideoPresence`, `MediaTags` |
-| `source` | `FilePath`, `FileName`, `FileStamp`, `Source` |
+| `source` | `FilePath`, `FileName`, `FileStamp`, `Source` (a file's serialisable identity), `ReadAt` (bytes read by offset: a byte slice, a `Vec`, an `Arc`, an open `File`, or anything a host implements it for) and `ReadAtStream` (a `Read + Seek` over one), and `Input` (what a peek reads: name, stamp, shared bytes and, when they are a file of their own, the path; made from `&FilePath`, `&Source` or a name and a `Vec<u8>`) |
 | `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
 | `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
@@ -240,7 +240,10 @@ segment and copies every other byte.
 The `avif` feature adds AVIF decoding through the `image` crate and the dav1d C library (BSD-2,
 linked dynamically, found with pkg-config). It is off by default, so the default build needs no C
 toolchain pieces; without it an AVIF file is `ImageError::NotCompiledIn`. AVIF encoding is `ravif`
-(pure Rust) and is always built.
+(pure Rust, and with `rav1e` the largest tree in the crate), built only with the `encode` feature: that
+feature gates every way pictures go out (the `encode` functions, `edited` and the exports) and the
+metadata carried across a re-encode. A caller that only looks at pictures, as `anyview-peek` does,
+links none of it.
 
 ## 2d. Modules inside `anyview-text`
 
@@ -384,14 +387,22 @@ the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futur
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
-are blocking and run on the caller's worker; only `pane` draws.
+are blocking and run on the caller's worker (`worker` is that worker, for a host that has none); only
+`pane` draws. Its `pane` feature (on by default) is everything that draws or rasterises, `dioxus` and
+`ds-blitz`; without it the crate links neither, and a PDF is peeked as facts only.
+
+Every peek reads an `anyview_core::Input`: a path (`&FilePath`, `&Source`) or any bytes a host injects
+(`Input::from((name, bytes))`, or its own `ReadAt`). A back end reads it through `ReadAt` or
+`Input::reader`; only two things need a real path, and each refuses cleanly when the input has none:
+the folder peek (a directory has no bytes) and a thumbnail read from the desktop's cache (the host's
+`VideoFrames`). A PDF takes the page cache when it has a path and `pdf_thumb_bytes` when it has not.
 
 | Module | Holds |
 | --- | --- |
 | `error` | `PeekError` |
 | `registry` | `KindVisitor`, `visit`: the one exhaustive match over `FormatKind` in the light tier |
 | `body` | `Body` (the type-erased result), `Light` (a `Peek` whose result and error convert into `Body` and `PeekError`) |
-| `probe` | `Probed`, `probe`: what a path is, from `stat`, its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive |
+| `probe` | `Probed`, `probe`: what a file is, from its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive. It takes a path or any `Input`, as `peek` does |
 | `any` | `AnyPeeked`, `peek` and `peek_with`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable`; `peek_with` also gives a video that shows only its facts the host's frame |
 | `frames` | `VideoFrames`, `NoFrames`: the seam through which the host lends a video's cached thumbnail (the peek names no platform crate, so the host reads the cache) |
 | `media` | `VideoPeek`, `AudioPeek`, `MediaLook`; with the `media` feature, private `recording` (`Recording`, the header as plain values, and its rows), `audio` (symphonia: MP3, AAC and ALAC in M4A, FLAC, Ogg Vorbis and Opus, WAV, AIFF; tags, track number and the front cover), `mp4` (mp4parse over the `ftyp` and `moov` boxes alone, found by seeking over the rest: MP4, M4V, MOV), `matroska` (matroska-demuxer: MKV, WebM) and `peek` (which parser a container goes to, the cover reduced to the budget); AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video go to no parser; without the feature, `absent` (`FactsPeek`) |
@@ -400,9 +411,10 @@ are blocking and run on the caller's worker; only `pane` draws.
 | `book` | `BookPeek`, `BookLook`: an EPUB's title, author, publisher, language and chapters, or a comic's page count, over the cover (the package's cover image, else its first image; a comic's first page), reduced to the budget; a book that cannot be opened still shows its type |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `natural` | `natural_size`: the size a picture or a video shows at, from the first bytes of the file (a picture's header through `anyview-image`, a movie's `moov` or Matroska header up to 8 MiB); any other kind, a path that is not a regular file and a header that does not say give `None` |
-| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
+| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in; facts only without the `pane` feature |
+| `worker` | `PeekWorker`, `WorkerConfig` (`#[non_exhaustive]`, with `with_*` builders): the one thread that looks at the latest file asked for (`ask(input, reply)`), a thread per peek with an 8 MiB stack, the 4 s overrun and the cap on abandoned peeks; it takes no async runtime |
 | `when` | `modified_text`: a modification time as UTC |
-| `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
+| `pane` | `Pane`, `Part`, `Parts` (which of the media, the name and the facts it draws; all by default), `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
 `peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
 reason and the facts the file can still give. The pane draws a `Body` over the file's name and a `FactList`

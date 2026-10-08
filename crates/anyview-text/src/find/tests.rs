@@ -1,5 +1,4 @@
 use super::*;
-use crate::bytes::HeldBytes;
 
 fn hit(line: u32, from: u32, to: u32) -> FindHit {
     FindHit {
@@ -59,7 +58,7 @@ fn a_phrase_that_stops_inside_a_letters_lowercase_is_not_a_match() {
 
 #[test]
 fn a_file_is_searched_line_by_line_in_order() {
-    let text = HeldBytes::new(b"alpha\nBeta alpha\n\ngamma ALPHA alpha\n".to_vec());
+    let text = b"alpha\nBeta alpha\n\ngamma ALPHA alpha\n".to_vec();
     let lines = TextLines::open(text).unwrap();
     let needle = Needle::new("alpha").unwrap();
     assert_eq!(
@@ -71,7 +70,7 @@ fn a_file_is_searched_line_by_line_in_order() {
 #[test]
 fn a_search_keeps_no_more_than_the_most_it_may() {
     let many = "a\n".repeat(MAX_HITS + 50);
-    let lines = TextLines::open(HeldBytes::new(many.into_bytes())).unwrap();
+    let lines = TextLines::open(many.into_bytes()).unwrap();
     let hits = lines
         .find(&Needle::new("a").unwrap(), &Stop::new())
         .unwrap();
@@ -84,7 +83,7 @@ fn a_search_keeps_no_more_than_the_most_it_may() {
 
 #[test]
 fn a_search_that_was_stopped_reads_nothing_more() {
-    let text = HeldBytes::new(b"alpha\nalpha\n".to_vec());
+    let text = b"alpha\nalpha\n".to_vec();
     let lines = TextLines::open(text).unwrap();
     let stop = Stop::new();
     stop.request();

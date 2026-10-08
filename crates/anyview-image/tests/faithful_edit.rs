@@ -1,6 +1,7 @@
 //! Turning and flipping keep what a person would notice: depth, colour type, palette, pages,
 //! text, resolution and colour profile. Every file is built here from scratch.
 
+#![cfg(feature = "encode")]
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(clippy::unwrap_used)]
 

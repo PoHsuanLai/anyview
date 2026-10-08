@@ -6,7 +6,7 @@ use crate::seal::{Assets, Chapter, seal};
 use crate::zip_path::directory_of;
 use crate::zip_read::read;
 use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FormatKind, SectionIndex, SniffStep, sniff,
+    ByteLen, FileHead, FileName, FormatKind, Input, SectionIndex, SniffStep, sniff,
 };
 use std::cell::Cell;
 
@@ -21,7 +21,7 @@ const ASSET_LIMIT: ByteLen = ByteLen(8 * 1024 * 1024);
 const TOTAL_LIMIT: u64 = 24 * 1024 * 1024;
 
 pub(super) fn read_chapter(
-    path: &FilePath,
+    input: &Input,
     package: &Package,
     at: SectionIndex,
 ) -> Result<Chapter, BookError> {
@@ -29,9 +29,9 @@ pub(super) fn read_chapter(
         .spine
         .get(at.0 as usize)
         .ok_or(BookError::NoSuchSection)?;
-    let html = text_of(&read(path, &item.entry, CHAPTER_LIMIT)?);
+    let html = text_of(&read(input, &item.entry, CHAPTER_LIMIT)?);
     let assets = ZipAssets {
-        path,
+        input,
         taken: Cell::new(0),
     };
     Ok(seal(&html, directory_of(&item.entry), &assets))
@@ -39,7 +39,7 @@ pub(super) fn read_chapter(
 
 /// The files of the zip, read as a chapter asks for them.
 struct ZipAssets<'a> {
-    path: &'a FilePath,
+    input: &'a Input,
     taken: Cell<u64>,
 }
 
@@ -48,7 +48,7 @@ impl Assets for ZipAssets<'_> {
         if self.taken.get() >= TOTAL_LIMIT {
             return None;
         }
-        let bytes = read(self.path, entry, ASSET_LIMIT).ok()?;
+        let bytes = read(self.input, entry, ASSET_LIMIT).ok()?;
         let mime = image_mime(entry, &bytes)?;
         self.taken.set(self.taken.get() + bytes.len() as u64);
         Some(format!(
@@ -61,7 +61,7 @@ impl Assets for ZipAssets<'_> {
         if self.taken.get() >= TOTAL_LIMIT {
             return None;
         }
-        let bytes = read(self.path, entry, ASSET_LIMIT).ok()?;
+        let bytes = read(self.input, entry, ASSET_LIMIT).ok()?;
         self.taken.set(self.taken.get() + bytes.len() as u64);
         Some(text_of(&bytes))
     }

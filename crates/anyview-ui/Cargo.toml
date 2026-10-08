@@ -12,7 +12,7 @@ publish.workspace = true
 anyview-archive = { workspace = true }
 anyview-book = { workspace = true }
 anyview-core = { workspace = true }
-anyview-image = { workspace = true }
+anyview-image = { workspace = true, features = ["encode"] }
 anyview-pdf = { workspace = true }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }

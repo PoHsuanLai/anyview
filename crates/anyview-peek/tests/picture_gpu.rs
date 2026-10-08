@@ -1,6 +1,7 @@
 //! The picture reaches the screen through the window's device: the pane is drawn by the hybrid
 //! painter and the pixels read back. Skips, with a note, where no GPU adapter opens (CI without one).
 
+#![cfg(feature = "pane")]
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(clippy::unwrap_used)]
 

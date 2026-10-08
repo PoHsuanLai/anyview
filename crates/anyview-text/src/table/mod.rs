@@ -10,7 +10,7 @@ mod tests;
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
 use crate::peek::head::read_limited;
-use anyview_core::{ByteLen, Delimiter, Source};
+use anyview_core::{ByteLen, Delimiter, Input};
 use header::looks_like_header;
 use std::ops::Range;
 
@@ -182,8 +182,12 @@ impl Table {
 
     /// The delimited file `src` names, reading at most [`TABLE_BYTES`] and keeping at most
     /// [`TABLE_ROWS`] rows; what is left out shows in [`Table::coverage`].
-    pub fn read(src: &Source, delimiter: Delimiter, mode: HeaderMode) -> Result<Self, TextError> {
-        let head = read_limited(src, TABLE_BYTES)?;
+    pub fn read(
+        src: impl Into<Input>,
+        delimiter: Delimiter,
+        mode: HeaderMode,
+    ) -> Result<Self, TextError> {
+        let head = read_limited(&src.into(), TABLE_BYTES)?;
         let table = Table::parse_limited(&head.text, delimiter, mode, TABLE_ROWS)?;
         let coverage = match (head.coverage, table.coverage) {
             (Coverage::Whole, Coverage::Whole) => Coverage::Whole,

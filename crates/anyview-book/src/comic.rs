@@ -3,7 +3,7 @@
 use crate::error::BookError;
 use crate::natural::natural_order;
 use crate::zip_read::{file_names, read};
-use anyview_core::{ByteLen, FilePath, SectionCount, SectionIndex};
+use anyview_core::{ByteLen, Input, SectionCount, SectionIndex};
 
 /// The largest page that is read.
 const PAGE_LIMIT: ByteLen = ByteLen(64 * 1024 * 1024);
@@ -20,7 +20,7 @@ pub struct ComicPage {
 /// An opened comic: where it is and its pages in reading order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Comic {
-    path: FilePath,
+    input: Input,
     pages: Vec<ComicPage>,
     count: SectionCount,
 }
@@ -41,9 +41,10 @@ fn mime_of(entry: &str) -> Option<&'static str> {
 }
 
 impl Comic {
-    /// The comic in the zip at `path`: its images, sorted. A zip with none is [`BookError::Empty`].
-    pub fn open(path: &FilePath) -> Result<Comic, BookError> {
-        let mut pages: Vec<ComicPage> = file_names(path)?
+    /// The comic in the zip `input` (a path, or any bytes a host injects): its images, sorted. A zip with none is [`BookError::Empty`].
+    pub fn open(input: impl Into<Input>) -> Result<Comic, BookError> {
+        let input = input.into();
+        let mut pages: Vec<ComicPage> = file_names(&input)?
             .into_iter()
             .filter_map(|entry| mime_of(&entry).map(|mime| ComicPage { entry, mime }))
             .collect();
@@ -53,7 +54,7 @@ impl Comic {
             .ok_or(BookError::Empty)?;
         pages.sort_by(|a, b| natural_order(&a.entry, &b.entry));
         Ok(Comic {
-            path: path.clone(),
+            input,
             pages,
             count,
         })
@@ -75,6 +76,6 @@ impl Comic {
             .pages
             .get(at.0 as usize)
             .ok_or(BookError::NoSuchSection)?;
-        Ok((page, read(&self.path, &page.entry, PAGE_LIMIT)?))
+        Ok((page, read(&self.input, &page.entry, PAGE_LIMIT)?))
     }
 }

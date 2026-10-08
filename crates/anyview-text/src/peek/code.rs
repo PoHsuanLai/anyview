@@ -7,7 +7,7 @@ use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::lines::split_start;
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
+    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
     SyntaxName,
 };
 
@@ -48,7 +48,7 @@ impl Peek for CodePeek {
     type Peeked = CodePeeked;
     type Error = TextError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<CodePeeked, TextError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<CodePeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         let FormatDetail::Code(syntax) = sniffed.detail() else {
             return Err(TextError::WrongKind {

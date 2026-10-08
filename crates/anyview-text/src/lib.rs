@@ -13,7 +13,7 @@ mod peek;
 mod table;
 mod tree;
 
-pub use bytes::{ByteSource, FileBytes, HeldBytes};
+pub use bytes::FileBytes;
 pub use code::{
     CodeLines, Highlighter, SyntaxId, TOKEN_CLASS_PREFIX, TokenClass, TokenLine, TokenSpan,
     tokens_html,

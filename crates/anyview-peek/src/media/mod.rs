@@ -17,6 +17,19 @@ mod recording;
 #[cfg(feature = "media")]
 pub use peek::{AudioPeek, MediaLook, VideoPeek, video_size};
 
+/// A stream over `src` at its start, once its first byte has read: a missing file, a FIFO or a
+/// failing source is [`PeekError::Unreadable`] here, not a parser's complaint later.
+#[cfg(feature = "media")]
+fn opened(src: &anyview_core::Input) -> Result<anyview_core::ReadAtStream, crate::PeekError> {
+    src.bytes()
+        .read_at(0, &mut [0u8; 1])
+        .map_err(|error| crate::PeekError::Unreadable {
+            path: src.label(),
+            kind: error.kind(),
+        })?;
+    Ok(src.reader())
+}
+
 #[cfg(not(feature = "media"))]
 mod absent;
 #[cfg(not(feature = "media"))]

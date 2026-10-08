@@ -3,7 +3,7 @@
 
 use super::package::{Package, text_of, xml};
 use crate::zip_path::{directory_of, resolve};
-use anyview_core::{ByteLen, FilePath, SectionIndex};
+use anyview_core::{ByteLen, Input, SectionIndex};
 use roxmltree::Node;
 use std::collections::HashMap;
 
@@ -20,18 +20,18 @@ pub struct TocEntry {
     pub section: Option<SectionIndex>,
 }
 
-/// The contents of the book at `path`. Never empty: a book whose contents cannot be read lists
+/// The contents of the book at `input`. Never empty: a book whose contents cannot be read lists
 /// its chapters by number.
-pub(super) fn read(path: &FilePath, package: &Package) -> Vec<TocEntry> {
+pub(super) fn read(input: &Input, package: &Package) -> Vec<TocEntry> {
     let from_nav = package
         .nav
         .as_deref()
-        .and_then(|entry| nav(path, package, entry));
+        .and_then(|entry| nav(input, package, entry));
     let found = from_nav.or_else(|| {
         package
             .ncx
             .as_deref()
-            .and_then(|entry| ncx(path, package, entry))
+            .and_then(|entry| ncx(input, package, entry))
     });
     match found {
         Some(entries) if !entries.is_empty() => entries,
@@ -72,8 +72,8 @@ fn words(node: Node<'_, '_>) -> String {
         .join(" ")
 }
 
-fn nav(path: &FilePath, package: &Package, entry: &str) -> Option<Vec<TocEntry>> {
-    let text = text_of(&read_part(path, entry)?);
+fn nav(input: &Input, package: &Package, entry: &str) -> Option<Vec<TocEntry>> {
+    let text = text_of(&read_part(input, entry)?);
     let document = xml("the navigation document", &text).ok()?;
     let navs: Vec<Node<'_, '_>> = document
         .descendants()
@@ -122,8 +122,8 @@ fn nav_list(list: Node<'_, '_>, depth: u8, spine: &Spine<'_>, base: &str, out: &
     }
 }
 
-fn ncx(path: &FilePath, package: &Package, entry: &str) -> Option<Vec<TocEntry>> {
-    let text = text_of(&read_part(path, entry)?);
+fn ncx(input: &Input, package: &Package, entry: &str) -> Option<Vec<TocEntry>> {
+    let text = text_of(&read_part(input, entry)?);
     let document = xml("the contents file", &text).ok()?;
     let map = document
         .descendants()
@@ -171,6 +171,6 @@ fn ncx_points(
     }
 }
 
-fn read_part(path: &FilePath, entry: &str) -> Option<Vec<u8>> {
-    crate::zip_read::read(path, entry, PART_LIMIT).ok()
+fn read_part(input: &Input, entry: &str) -> Option<Vec<u8>> {
+    crate::zip_read::read(input, entry, PART_LIMIT).ok()
 }

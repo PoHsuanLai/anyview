@@ -10,8 +10,8 @@ use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, MediaContainer, Peek,
-    PeekBudget, PixelArea, PixelSize, Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, MediaContainer, Peek,
+    PeekBudget, PixelArea, PixelSize, Sniffed,
 };
 use anyview_image::ImagePeek;
 use std::sync::Arc;
@@ -68,7 +68,7 @@ fn reader_for(sniffed: &Sniffed) -> Reader {
     }
 }
 
-fn look(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
+fn look(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
     let mut recording = match reader_for(sniffed) {
         Reader::Symphonia => audio::read(src, budget)?,
         Reader::Mp4 => mp4::read(src, budget)?,
@@ -82,7 +82,13 @@ fn look(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLoo
     Ok(MediaLook {
         described: Described::of(sniffed),
         recording,
-        stream_len: ByteLen(src.stamp().len.0.saturating_sub(cover_len)),
+        stream_len: ByteLen(
+            src.stamp()
+                .len
+                .0
+                .max(src.bytes().len().0)
+                .saturating_sub(cover_len),
+        ),
         cover: cover.map(Arc::new),
     })
 }
@@ -103,7 +109,7 @@ const SIZE_HEADER: ByteLen = ByteLen(8 * 1024 * 1024);
 
 /// The size of the first video track's picture, from the header alone: `None` when the container
 /// has no reader here, the header is damaged or over [`SIZE_HEADER`], or the file has no video.
-pub fn video_size(src: &Source, sniffed: &Sniffed) -> Option<PixelSize> {
+pub fn video_size(src: &Input, sniffed: &Sniffed) -> Option<PixelSize> {
     let budget = PeekBudget {
         bytes: SIZE_HEADER,
         pixels: PixelArea(0),
@@ -138,7 +144,7 @@ impl Peek for VideoPeek {
     type Peeked = MediaLook;
     type Error = PeekError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
         look(src, sniffed, budget)
     }
 
@@ -156,7 +162,7 @@ impl Peek for AudioPeek {
     type Peeked = MediaLook;
     type Error = PeekError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
         look(src, sniffed, budget)
     }
 

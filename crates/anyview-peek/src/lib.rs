@@ -14,11 +14,13 @@ mod frames;
 mod media;
 mod natural;
 mod office;
+#[cfg(feature = "pane")]
 mod pane;
 mod pdf;
 mod probe;
 mod registry;
 mod when;
+mod worker;
 
 pub use any::{AnyPeeked, peek, peek_with};
 pub use body::{Body, Light};
@@ -30,8 +32,10 @@ pub use frames::{NoFrames, VideoFrames};
 pub use media::{AudioPeek, MediaLook, VideoPeek};
 pub use natural::natural_size;
 pub use office::{OfficeLooked, OfficePeek};
-pub use pane::{Pane, STYLE};
+#[cfg(feature = "pane")]
+pub use pane::{Pane, Part, Parts, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
 pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;
+pub use worker::{PeekFailure, PeekWork, PeekWorker, WorkerConfig};

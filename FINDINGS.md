@@ -168,7 +168,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   C library with its headers and a `dav1d.pc` for pkg-config; this build image has the runtime library
   (`libdav1d7`) but not `libdav1d-dev`, so `cargo clippy --all-features` and `cargo test --all-features`
   stop in `dav1d-sys`. The gate runs without `--all-features`, and an AVIF file is
-  `ImageError::NotCompiledIn`. AVIF encoding (`ravif`) is always built and tested. Ends when the image
+  `ImageError::NotCompiledIn`. AVIF encoding (`ravif`) is built and tested with the `encode` feature, which the viewer, the exports and the workspace gate turn on. Ends when the image
   or CI has `libdav1d-dev` and `pkg-config`: run the gate with `--all-features`.
 - **SVG text is not drawn.** `resvg` is built without its `text` feature and with no font database, and
   an `href` that is not a `data:` URL resolves to nothing (`Svg::parse` sets the resolver; usvg's default

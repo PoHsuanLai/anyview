@@ -5,8 +5,8 @@
 use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenLink, PluginPicture, Stop};
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
-    PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Input, Peek,
+    PeekBudget, PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
 };
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
@@ -390,7 +390,7 @@ fn cheap_picture(
     }
     let (peeked, facts): (ImagePeek, Facts) = match (sniffed.kind(), sniffed.detail()) {
         (FormatKind::Vector, _) => {
-            let peeked = VectorPeek::peek(src, sniffed, &FIRST_FRAME)?;
+            let peeked = VectorPeek::peek(&Input::from(src), sniffed, &FIRST_FRAME)?;
             let facts = VectorPeek::facts(&peeked);
             (peeked, facts)
         }
@@ -399,7 +399,7 @@ fn cheap_picture(
             FormatKind::Raster,
             FormatDetail::Raster(RasterFormat::Gif | RasterFormat::Webp | RasterFormat::Raw),
         ) => {
-            let peeked = RasterPeek::peek(src, sniffed, &FIRST_FRAME)?;
+            let peeked = RasterPeek::peek(&Input::from(src), sniffed, &FIRST_FRAME)?;
             let facts = RasterPeek::facts(&peeked);
             (peeked, facts)
         }

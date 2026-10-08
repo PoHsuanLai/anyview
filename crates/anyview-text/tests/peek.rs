@@ -6,7 +6,7 @@
 
 mod support;
 
-use anyview_core::{FormatKind, Peek};
+use anyview_core::{FormatKind, Input, Peek};
 use anyview_text::{
     CodePeek, MarkdownPeek, PEEK_LINES, PlainPeek, RowLabel, TablePeek, Tally, TextCodec,
     TextError, TokenClass, TreePeek,
@@ -17,7 +17,7 @@ const PLENTY: u64 = 1_000_000;
 
 fn peek<P: Peek>(name: &str, bytes: u64) -> Result<P::Peeked, P::Error> {
     let (src, sniffed) = fixture(name);
-    P::peek(&src, &sniffed, &budget(bytes))
+    P::peek(&Input::from(&src), &sniffed, &budget(bytes))
 }
 
 #[test]

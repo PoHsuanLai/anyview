@@ -1,4 +1,5 @@
 use super::*;
+use anyview_core::FilePath;
 use std::io::Write;
 
 /// A package of `entries` written into a scratch directory.

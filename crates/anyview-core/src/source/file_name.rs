@@ -19,6 +19,11 @@ impl FileName {
         Ok(FileName(name.to_owned()))
     }
 
+    /// The name of a file that has none (a root, or bytes nobody named).
+    pub fn unnamed() -> Self {
+        FileName("file".to_owned())
+    }
+
     /// The whole name.
     pub fn as_str(&self) -> &str {
         &self.0

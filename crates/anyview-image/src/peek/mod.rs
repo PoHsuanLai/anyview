@@ -9,7 +9,7 @@ use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
 use crate::scale::{Resampling, fit_area, peek_area, resampled};
 use anyview_core::{
-    Facts, FormatDetail, FormatKind, Peek, PeekBudget, PixelSize, RasterFormat, Sniffed, Source,
+    Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, PixelSize, RasterFormat, Sniffed,
 };
 
 /// The kind of image a peek looked at, for the facts' first row.
@@ -54,7 +54,7 @@ impl Peek for RasterPeek {
     type Peeked = ImagePeek;
     type Error = ImageError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<ImagePeek, ImageError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<ImagePeek, ImageError> {
         peek_image(src, sniffed, budget, Self::KIND)
     }
 
@@ -68,7 +68,7 @@ impl Peek for VectorPeek {
     type Peeked = ImagePeek;
     type Error = ImageError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<ImagePeek, ImageError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<ImagePeek, ImageError> {
         peek_image(src, sniffed, budget, Self::KIND)
     }
 
@@ -81,7 +81,7 @@ impl Peek for VectorPeek {
 /// `min(budget.pixels, budget.bytes / 4)` pixels. The budget's time is the caller's to enforce, by
 /// abandoning the worker; this crate reads no clock.
 fn peek_image(
-    src: &Source,
+    src: &Input,
     sniffed: &Sniffed,
     budget: &PeekBudget,
     expected: FormatKind,
