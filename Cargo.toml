@@ -220,10 +220,10 @@ clap = { version = "4", features = ["derive"] }
 # docket, at the desktop manifest's rev; porter at the rev docket itself pins, with the same URL
 # spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.
-docket-client = { git = "https://github.com/PoHsuanLai/docket", rev = "7b1328b0683f439d9ad85d37778cb7755ee0a05c", default-features = false, features = ["dbus"] }
-docket-core = { git = "https://github.com/PoHsuanLai/docket", rev = "7b1328b0683f439d9ad85d37778cb7755ee0a05c" }
-prov = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
+docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "30aa26b81626cac46fd58ee5b09e32a5a6c3eff4", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "30aa26b81626cac46fd58ee5b09e32a5a6c3eff4" }
+prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "335d7a7c65bc7d196d5f19dfb305896ff3a55958" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
