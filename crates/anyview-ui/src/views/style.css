@@ -7,6 +7,8 @@
 
 .viewer-titlebar{ position:absolute; top:0; left:0; right:0; z-index:var(--z-raise); transition:opacity var(--t-quick) var(--e-out); }
 .viewer-titlebar[*|data-shown=hidden]{ opacity:0; pointer-events:none; }
+/* The side panel hangs below the titlebar's height, so the bar never covers the top of its tabs. */
+.viewer .ds-side-panel{ top:calc(var(--chrome-titlebar-height) + var(--s-8)); }
 
 .viewer-raster{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
 .viewer-raster[*|data-zoom=zoomed]{ cursor:grab; }
