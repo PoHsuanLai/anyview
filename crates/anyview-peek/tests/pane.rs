@@ -4,6 +4,7 @@
 //! `DS_BLESS=1 cargo test -p anyview-peek --test pane` writes the goldens; read the diff before
 //! committing one.
 
+#![cfg(feature = "pane")]
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(clippy::unwrap_used)]
 

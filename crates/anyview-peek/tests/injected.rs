@@ -121,6 +121,7 @@ fn injected_zips_are_told_apart_and_listed() {
     assert_eq!(book.kind, FormatKind::Book);
 }
 
+#[cfg(feature = "pane")]
 #[test]
 fn an_injected_pdf_is_rasterised_from_memory() {
     let bytes = std::fs::read(path(Home::Own, "hello.pdf")).unwrap();

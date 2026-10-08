@@ -14,6 +14,7 @@ mod frames;
 mod media;
 mod natural;
 mod office;
+#[cfg(feature = "pane")]
 mod pane;
 mod pdf;
 mod probe;
@@ -31,6 +32,7 @@ pub use frames::{NoFrames, VideoFrames};
 pub use media::{AudioPeek, MediaLook, VideoPeek};
 pub use natural::natural_size;
 pub use office::{OfficeLooked, OfficePeek};
+#[cfg(feature = "pane")]
 pub use pane::{Pane, STYLE};
 pub use pdf::{PdfPeek, PdfPeeked};
 pub use probe::{Probed, probe};

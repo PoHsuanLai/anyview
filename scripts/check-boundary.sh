@@ -151,10 +151,16 @@ DIRECT=(
 # one package more, since bayonet is a package where the same code was three workspace crates' own, and its
 # dependencies (toml, rustix, serde, serde_json, thiserror) were all in the tree already.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
+#
+# The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
+# links to look at a file: 248 packages, with no renderer, no window system and no encoder. It reaches
+# none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 564"
   "anyview: 683"
 )
+HEADLESS_BUDGET=248
+HEADLESS_FORBIDDEN=(ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
 for rule in "${RULES[@]}"; do
@@ -179,6 +185,22 @@ for rule in "${RULES[@]}"; do
     echo "boundary holds: $crate reaches none of ${forbidden[*]}"
   fi
 done
+
+# The headless peek reaches no renderer and no encoder, and stays inside its package budget.
+for dep in "${HEADLESS_FORBIDDEN[@]}"; do
+  if cargo tree -p anyview-peek --no-default-features -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    echo "LEAK: anyview-peek --no-default-features depends on $dep"
+    fail=1
+  fi
+done
+headless=$(cargo tree -p anyview-peek --no-default-features -e normal,build --prefix none --format '{p}' 2>/dev/null \
+  | sed 's/ (\*)$//' | sort -u | grep -c .)
+if [ "$headless" -gt "$HEADLESS_BUDGET" ]; then
+  echo "BUDGET: anyview-peek --no-default-features has $headless packages, the budget is $HEADLESS_BUDGET"
+  fail=1
+else
+  echo "budget holds: anyview-peek --no-default-features has $headless packages of $HEADLESS_BUDGET"
+fi
 
 # No crate of the workspace reaches the bindings of libmpv or libav, and the lockfile does not hold
 # them at all, so a dev-dependency cannot bring them back either.
