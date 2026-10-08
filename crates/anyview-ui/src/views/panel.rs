@@ -6,7 +6,8 @@ use anyview_core::Facts;
 use dioxus::prelude::*;
 use ds::components::controls::segmented::Tracking;
 use ds::components::fields::fact_list::{Fact, FactList};
-use ds::prelude::{Choice, SegmentedControl, Shown, SidePanel};
+use ds::prelude::{Choice, Common, SegmentedControl, Shown, SidePanel};
+use ds::root::pass_through::ExtraClass;
 use ds_core::word::Word;
 
 /// The rows of `facts` as the panel lists them.
@@ -39,6 +40,10 @@ pub(super) fn InfoPanel(
             label: "Info",
             shown,
             onclose,
+            common: Common {
+                extra_class: ExtraClass::parse("viewer-side-panel").ok(),
+                ..Common::default()
+            },
             header: rsx! {
                 if choices.len() > 1 {
                     SegmentedControl::<PanelTab> {
