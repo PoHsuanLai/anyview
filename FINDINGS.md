@@ -20,7 +20,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   picture's texture takes no input, so `.viewer-raster-picture object` is `pointer-events:none` (`views/style.css`).
   A rendered Markdown page, an EPUB chapter and a comic page are frames, which also carry the wheel that scrolls
   them, so there is no rule that opens the context menu over them without stopping their scroll; the menu key
-  opens it there. Ends when quire v0.2.30's Blitz fix lands: the rule goes, and the tests of the three menus
+  opens it there. Ends when quire v0.2.31's Blitz fix lands: the rule goes, and the tests of the three menus
   join `tests/file_formats.rs`.
 - **A video's size comes from its header only.** The window opens at a recording's resolution when the mp4 or
   Matroska header says it (`anyview_peek::natural_size`). The player line (`MediaLine`, `MediaNotice`) does not
