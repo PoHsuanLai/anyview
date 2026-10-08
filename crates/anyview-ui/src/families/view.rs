@@ -57,6 +57,9 @@ impl<T> PartialEq for Held<T> {
     }
 }
 
+/// Thousandths of zoom a logical pixel of a wheel turn under Control makes.
+pub(crate) const WHEEL_ZOOM: f32 = 5.0;
+
 /// The room the content has, as the window measured it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Area {

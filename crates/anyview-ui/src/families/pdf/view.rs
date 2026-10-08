@@ -11,7 +11,7 @@ use super::page::PageBox;
 use super::scene::{Frame, Scene, fits, scale_of};
 use super::steer::{Cursor, Steering};
 use super::work::{PdfAsk, PdfTask};
-use crate::families::view::{Area, Held, StageCx};
+use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
 use crate::io::{HostRequest, Job};
 use crate::{Destination, FindHits, HitIndex, PageView, PdfIn, PdfStage, Stage, StageIn};
 use anyview_core::{PageIndex, Permille, Zoom};
@@ -27,9 +27,6 @@ use std::sync::Arc;
 
 /// How far a drag may travel and still be a click on a link, in logical pixels.
 const CLICK_SLOP: f32 = 6.0;
-
-/// Thousandths of zoom a logical pixel of a wheel turn under Control makes.
-const WHEEL_ZOOM: f32 = 5.0;
 
 /// Where the reader starts when the stage is not the PDF stage yet.
 const START: PageView = PageView {
