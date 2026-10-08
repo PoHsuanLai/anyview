@@ -56,11 +56,9 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
 fn holds_text(family: StageFamily) -> bool {
     match family {
         StageFamily::Text | StageFamily::Table | StageFamily::Tree => true,
-        StageFamily::Raster
-        | StageFamily::Pdf
-        | StageFamily::Media
-        | StageFamily::Book
-        | StageFamily::PeekOnly => false,
+        StageFamily::Raster | StageFamily::Pdf | StageFamily::Media | StageFamily::PeekOnly => {
+            false
+        }
     }
 }
 

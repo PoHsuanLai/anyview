@@ -3,7 +3,6 @@
 //! view is mapped to [`PeekOnlyStageView`], never left out. `anyview_core::stage_support` says the same
 //! thing in `anyview-core`'s own table; a test holds the two equal.
 
-use super::book::BookStageView;
 use super::media::MediaStageView;
 use super::pdf::PdfStageView;
 use super::peek_only::PeekOnlyStageView;
@@ -33,8 +32,7 @@ pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
         }
         FormatKind::Table => visitor.visit::<TableStageView>(),
         FormatKind::Tree => visitor.visit::<TreeStageView>(),
-        FormatKind::Pdf => visitor.visit::<PdfStageView>(),
-        FormatKind::Book => visitor.visit::<BookStageView>(),
+        FormatKind::Book | FormatKind::Pdf => visitor.visit::<PdfStageView>(),
         FormatKind::Video | FormatKind::Audio => visitor.visit::<MediaStageView>(),
         FormatKind::Font
         | FormatKind::Archive

@@ -90,7 +90,6 @@ impl StageView for MediaStageView {
                 | Stage::Raster(_)
                 | Stage::Pdf(_)
                 | Stage::Media(_)
-                | Stage::Book(_)
                 | Stage::Text(_)
                 | Stage::Table(_)
                 | Stage::Tree(_),

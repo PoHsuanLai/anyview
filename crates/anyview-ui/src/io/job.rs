@@ -10,15 +10,12 @@ use super::seams::{
     FileAccess, FileCards, FileLocks, FirstFrameSource, ImagePlugins, ResumeSource, VersionSource,
 };
 use crate::families::{
-    BookDoc, FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SectionPage, TextDoc, open_for,
-    peek_for,
+    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
 use crate::sheet::VersionRow;
 use crate::{StageFamily, Ticket, TypedText};
 use anyview_core::work::Stop;
-use anyview_core::{
-    FilePath, FileStamp, LineIndex, Resume, SectionIndex, Sequence, Sniffed, Source,
-};
+use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
@@ -112,12 +109,6 @@ pub enum Job {
         doc: Arc<TextDoc>,
         query: TypedText,
     },
-    /// Unpack and seal one section of an open book.
-    Section {
-        ticket: Ticket,
-        doc: Arc<BookDoc>,
-        section: SectionIndex,
-    },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
     Preload { path: FilePath, link: OpenLink },
     /// Read the stamp `path` has now.
@@ -163,11 +154,6 @@ pub enum Done {
         query: TypedText,
         result: Result<FoundHits, OpenError>,
     },
-    /// A section of the book of `ticket`.
-    Section {
-        ticket: Ticket,
-        result: Result<SectionPage, OpenError>,
-    },
     /// The file `path`, opened ahead; `None` when it could not be or was too large to be worth it.
     Preloaded {
         path: FilePath,
@@ -211,7 +197,6 @@ impl Job {
             | Job::Open { .. }
             | Job::Lines { .. }
             | Job::Search { .. }
-            | Job::Section { .. }
             | Job::Stat { .. }
             | Job::Folder { .. }
             | Job::Versions { .. } => WorkLane::Visible,
@@ -227,8 +212,7 @@ impl Job {
             | Job::Peek { ticket, .. }
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
-            | Job::Search { ticket, .. }
-            | Job::Section { ticket, .. } => *ticket,
+            | Job::Search { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
             Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } | Job::Versions { .. } => {
                 Ticket::default()
@@ -259,10 +243,6 @@ impl Job {
             Job::Search { ticket, query, .. } => Done::Found {
                 ticket: *ticket,
                 query: query.clone(),
-                result: Err(OpenError::Crashed),
-            },
-            Job::Section { ticket, .. } => Done::Section {
-                ticket: *ticket,
                 result: Err(OpenError::Crashed),
             },
             Job::Preload { path, .. } => Done::Preloaded {
@@ -330,14 +310,6 @@ impl Job {
                 ticket,
                 result: doc.find(&query, stop).map_err(OpenError::from),
                 query,
-            },
-            Job::Section {
-                ticket,
-                doc,
-                section,
-            } => Done::Section {
-                ticket,
-                result: doc.section(section).map_err(OpenError::from),
             },
             Job::Preload { path, link } => Done::Preloaded {
                 loaded: preloaded(&path, &link, resume, locks),

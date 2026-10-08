@@ -56,7 +56,6 @@ fn status(stage: &Stage) -> Option<&'static str> {
         | Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)
-        | Stage::Book(_)
         | Stage::Text(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,

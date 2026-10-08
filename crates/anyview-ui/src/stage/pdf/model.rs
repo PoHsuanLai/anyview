@@ -125,6 +125,8 @@ pub struct PdfParams {
     pub viewport: Viewport,
     /// A zoom step's factor in thousandths (setting `viewer.zoom.step`).
     pub step: Permille,
+    /// Whether the pages can be edited: not those of a book, which is a PDF only in the window.
+    pub edits: bool,
 }
 
 impl Default for PdfParams {
@@ -136,6 +138,7 @@ impl Default for PdfParams {
                 fit: Permille::WHOLE,
             },
             step: Permille(1250),
+            edits: true,
         }
     }
 }

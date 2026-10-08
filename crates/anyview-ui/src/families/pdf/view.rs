@@ -73,7 +73,6 @@ fn current_hit(stage: &Stage) -> Option<HitIndex> {
         | Stage::NoStage
         | Stage::Raster(_)
         | Stage::Media(_)
-        | Stage::Book(_)
         | Stage::Text(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,

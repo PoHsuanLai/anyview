@@ -131,6 +131,7 @@ pub(super) fn search(query: &TypedText) -> PdfOut {
 /// the document would be left with no page, or the page is already at the end it moves towards.
 pub(super) fn page_edit(page: PageIndex, input: &PdfIn, params: &PdfParams) -> Vec<PdfOut> {
     let edit = match input {
+        PdfIn::DeletePage | PdfIn::MovePage(_) if !params.edits => None,
         PdfIn::DeletePage if params.pages.get() > 1 => {
             PageRange::new(page, page).map(Edit::DeletePages).ok()
         }

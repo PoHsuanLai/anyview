@@ -5,7 +5,7 @@
 use crate::families::view::Area;
 use crate::io::OpenError;
 use crate::{EditCaution, EditOffer};
-use anyview_core::{ByteLen, FactLabel, FactValue, Facts, PageCount, PageIndex, Source};
+use anyview_core::{ByteLen, FactLabel, FactValue, Facts, PageCount, PageIndex, Sniffed, Source};
 use anyview_pdf::{OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
 use std::io::ErrorKind;
 use std::sync::{Mutex, PoisonError};
@@ -79,6 +79,19 @@ impl PdfDoc {
             .with(FactLabel::Kind, FactValue::text("application/pdf"))
             .with(FactLabel::Pages, FactValue::pages(document.page_count()))
             .with(FactLabel::Size, FactValue::size(size));
+        PdfDoc::with_facts(document, facts)
+    }
+
+    /// The document a book was bound as, with the rows the book's own Info tab has. Its pages take no edit.
+    pub(super) fn of_book(document: PdfDocument, facts: Facts) -> PdfDoc {
+        // The book's pages are a PDF only in the window: no edit of them could be written back.
+        PdfDoc {
+            offer: EditOffer::Withheld,
+            ..PdfDoc::with_facts(document, facts)
+        }
+    }
+
+    fn with_facts(document: PdfDocument, facts: Facts) -> PdfDoc {
         let offer = if document.is_signed() {
             EditOffer::Asks(EditCaution::Signed)
         } else {
@@ -139,6 +152,13 @@ pub(super) fn open(src: &Source) -> Result<PdfDoc, OpenError> {
     let document = PdfDocument::open(src.path().as_path())
         .map_err(|error| OpenError::Pdf(PdfFailure::of(&error)))?;
     Ok(PdfDoc::of(document, src.stamp().len))
+}
+
+/// Open the book `src` as the PDF it is bound as. Blocking: reads it and lays it out, unless this
+/// session has bound this version of it already.
+pub(super) fn open_book(src: &Source, sniffed: &Sniffed) -> Result<PdfDoc, OpenError> {
+    let bound = super::bound::bind(src, sniffed)?;
+    Ok(PdfDoc::of_book(bound.document, bound.facts))
 }
 
 /// The room a window gives the pages, as the PDF stage reads it.

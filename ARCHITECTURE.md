@@ -38,7 +38,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-export` | exists | the exports and printouts of images, PDFs and text documents: runs the jobs each format plans, writes each file beside the original through a temporary file renamed into place, and makes the PDF a printer takes |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages, books and the facts view) and the window that draws every region (`views`) |
+| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages (which also show books, bound as PDFs) and the facts view) and the window that draws every region (`views`) |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
@@ -57,7 +57,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
-| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
+| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -200,13 +200,13 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
 | `presentation` | `Presentation` |
 | `load` | `Load`, `Ticket`, `freshness` (whether a file on disk is still the one opened: the decision behind a reload) |
-| `stage` | `Stage` and its seven machines (`raster`, `pdf`, `media`, `text`, `book`, `table` (the sheet and the row the cursor is on) and `tree` (which nodes are open); the last two ask nothing of the window, so their `Out` types are empty; the media one steps on the player's events as `PlayerEvent`s and answers in `PlayerCommand`s, both the machine's own types), the shared `find` and `zoom` parts, `dispatch` (a command or a key becomes an input for the stage that is showing) and `resume` (the place a stage keeps, and the input that puts one back) |
+| `stage` | `Stage` and its six machines (`raster`, `pdf`, `media`, `text`, `table` (the sheet and the row the cursor is on) and `tree` (which nodes are open); the last two ask nothing of the window, so their `Out` types are empty; the media one steps on the player's events as `PlayerEvent`s and answers in `PlayerCommand`s, both the machine's own types), the shared `find` and `zoom` parts, `dispatch` (a command or a key becomes an input for the stage that is showing) and `resume` (the place a stage keeps, and the input that puts one back) |
 | `keys` | `route`, `Route`, `Regions` |
 | `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
-| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, unpack a section of a book, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
-| `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf`, `media`, `book` and `peek_only` (office facts and the document's thumbnail), and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
+| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
+| `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf` (and, in `pdf/bound`, a book bound as a PDF), `media` and `peek_only` (office facts and the document's thumbnail), and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
 | `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, and Show in Folder where there is a file manager); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
@@ -226,7 +226,7 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `decode::natural` | `natural_size`: the upright size a picture shows at, read from the first 256 KiB of the file (a header and its EXIF orientation, or an SVG's root tag); nothing is decoded and the claim is not checked against a decode's ceiling |
 | `peek` | `RasterPeek` and `VectorPeek` (the two `Peek` implementations), `ImagePeek`, `PeekedFormat` |
 | `encode` | `encode`, `encode_bmp`, `encode_with_metadata`; `codecs`, `avif` and `metadata` (EXIF and ICC splicing with `img-parts`) are private |
-| `export` | `plan_export` (an image choice as `ExportJob`s: pure), `encode_file` (a file resized and encoded, keeping its metadata or not), `ImageFile` (a file's bytes and what it sniffed as: its upright picture, an SVG's declared size, whether a JPEG is already upright) |
+| `export` | `plan_export` (an image choice as `ExportJob`s: pure), `encode_file` (a file resized and encoded, keeping its metadata or not), `ImageFile` (a file's, or a comic entry's, bytes and what it sniffed as: its upright picture, an SVG's declared size, whether a JPEG is already upright) |
 | `rotate` | `rotate_jpeg`, `flip_jpeg`: lossless rotation and mirroring by rewriting the EXIF orientation segment |
 | `edit` | `edited`: an `Edit` applied to a picture file: a JPEG through its orientation tag alone, PNG, WebP, TIFF and BMP decoded, moved and written again with their metadata; animations and the formats with no lossless writer are refused |
 
@@ -447,6 +447,7 @@ CPU memory.
 | `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file) |
 | `export` | `plan_export` (a PDF choice as `ExportJob`s: one for a PDF or a text file, one for each page of page images), `selected`, `write_pages`, `write_text` |
 | `pictures` | `PagePicture` (a JPEG kept as it is, upright pixels, or an SVG drawn as vector paths) and `pdf_of_pictures`: one page for each, the size of its picture and at most an A4 sheet's long side |
+| `bind` | `Bookmark`, `bind`: PDFs joined in order into one, with an outline whose lines go to the first page of a part, or to the first page that shows their words (how the viewer binds a book) |
 | `job` | `PdfBackend` (implements `Backend`), `PdfJob`, `PdfDone` |
 
 A view asks `schedule` for the tiles it needs (the visible ones nearest the middle first, then a margin
@@ -1019,8 +1020,24 @@ script, a frame, a form, an event handler or an unknown element never reaches th
 Stylesheets lose `@import`, `@font-face` and every `url()` that is not a file of the package, which is
 inlined as a `data:` URL, and so do images (an SVG `image` becomes a picture; an image the package does
 not hold becomes its alt text). A link keeps only a fragment or a web or mail address. A chapter takes in
-at most 24 MiB of files. The viewer draws the result in the same sealed frame Markdown uses
-(`families/book`); fixed-layout books, scripts, audio and video, fonts and DRM are not supported.
+at most 24 MiB of files. The viewer lays each chapter out on a fixed reading page and binds the chapters as one PDF the PDF
+stage shows (`families/pdf/bound`, below); fixed-layout books, scripts, audio and video, fonts and DRM are not supported.
+
+### Books as PDFs
+
+An EPUB and a comic zip are shown by the PDF stage (the registry maps `FormatKind::Book` to
+`PdfStageView`), so they have its page stack, find, zoom, thumbnails, contents and resume (`Resume::Pdf`:
+page and offset) and one wheel, with no frame to swallow it. `families/pdf/bound` makes the document on the
+open worker: `epub` lays each chapter (sealed HTML with `data:` images, plus the book's styles) out with
+`ds_blitz::pdf` on one fixed page of 776 by 1164 points, text 680 wide in 14 point Inter at line-height 1.6
+(`book.css`: the Reading face of the text family, in points so that a page at 100% reads at `--fs-reading`);
+`comic` puts each picture on a page of its own size (`anyview_pdf::pdf_of_pictures`, twelve at a time so a
+comic is never all decoded at once); `anyview_pdf::bind` joins the parts and writes the outline: each line of
+the book's contents goes to the first page of its chapter, and, where several lines lead into one chapter file,
+to the first page from the previous line's on that shows the line's words. The result is kept for the session by
+file and stamp (`kept`: four books, 256 MiB) so opening it again is instant; nothing is written to disk. The
+`StageFamily`, `Stage` and `Job` of a book no longer exist; `Resume::Book` stays in `anyview-core` only so an
+old store still reads.
 
 ## 2n. Modules inside `anyview-export`
 
@@ -1371,8 +1388,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `TableStage` | `Browsing { sheet }`, `Selected { sheet, row }` | `NextSheet`, `PreviousSheet`, `ChooseSheet`, `Select`, `Deselect` | none |
 | `TreeStage` | `Browsing { open }`, `Selected { open, row }` | `Toggle`, `Open`, `Close`, `CollapseAll`, `Select`, `Deselect` | none |
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
-| `BookStage` | `Reading { section }` | `Next`, `Previous`, `First`, `Last`, `GoTo`, `Restore` | `Remember` |
-| `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Book`, `Table`, `Tree` | one family's input each | each family's output, lifted |
+| `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Table`, `Tree` | one family's input each | each family's output, lifted |
 | `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens, and a sheet up is cancelled; one's folder or the several are the list), `Chosen` (the same, once the file chooser ends, with no files when it was cancelled; one chooser is asked for at a time), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
 **Why the machines and the views share a crate.** The machines are the part that must stay pure, and

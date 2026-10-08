@@ -17,7 +17,7 @@ anyview-pdf = { workspace = true }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
-ds-blitz = { workspace = true }
+ds-blitz = { workspace = true, features = ["pdf"] }
 ds-core = { workspace = true }
 ds-shell = { workspace = true }
 futures-channel = { workspace = true }

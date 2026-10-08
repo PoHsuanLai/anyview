@@ -6,6 +6,36 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **A book is bound as a PDF all at once, on the open worker.** `families/pdf/bound` lays every chapter out
+  before the window shows the first page, behind the load skeleton. Measured in a release build on a loaded
+  machine (load 80): a novel of 117 000 words (30 chapters, 209 pages) is laid out in 1.0 s, an omnibus of
+  650 000 words (100 chapters, 1099 pages) in 3.3 s, and the same book opened again in 0.17 s from the
+  session's copy. A debug build is ten times slower. Laying out lazily (first chapters first, pages appearing)
+  needs a `PdfDocument` that grows, which the stage's page sizes, outline and shared `Arc` do not allow; it is
+  not built because nothing measured needs it. Ends if a book that people open takes more than about 5 s.
+- **A bound book is kept in memory for the session, never on disk.** `bound/kept.rs` holds four books, 256 MiB
+  in all, by file and stamp, so a book that changed is laid out again. The views are given no cache folder (the
+  host owns the paths, and a test must not touch the real one), so a book is laid out once per launch. Ends when
+  the host lends the open worker a cache directory, or when the 1 s to 3 s of layout is felt.
+- **A book's own look is partly lost.** Every chapter is laid out on one fixed page, 776 by 1164 points (a 2:3
+  page with 680 points of text between 48-point side margins) in 14 point Inter at line-height 1.6, so that a
+  page at 100% reads at `--fs-reading` on the Markdown measure. The chapter's own styles come first and the page's
+  rules after, so the reading face and measure win; its colours, rules and pictures stay. Fixed-layout books,
+  columns, floats and `break-*` rules are laid out as Blitz and quire's pagination do: a break is made only
+  between lines, rows and pictures, so a picture taller than a page is cut.
+- **A contents line that leads into the middle of a chapter file goes to the page that shows its words.** A book
+  whose chapters are a few long files lists its parts by fragment (`file.xhtml#part-2`); the binder does not
+  know where a fragment fell, so it takes the first page, from the previous line's on, whose text holds the
+  line's words (`anyview_pdf::bind`). A title the text does not repeat (a contents line "I" over a heading
+  "Chapter the First") stays on the previous line's page. Ends if `ds_blitz::pdf` reports where each
+  `id` landed.
+- **A book has no export or print.** `anyview-export` reads the file named by the path as the PDF it is, and a
+  book's PDF exists only in the window (`bound`), so the Export and Print rows stay off the book's menu
+  (`FormatKind::Book` keeps its plain action list) even though the stage is the PDF stage. Ends when the binder
+  moves to a crate the exporter can name, or the host lends the kept bytes.
+- **`Resume::Book` is not written any more.** A book remembers a page and an offset as a PDF does
+  (`Resume::Pdf`). The variant stays in `anyview-core` so an old store file still reads (and is ignored), and
+  because sill matches the enum exhaustively. Ends with sill's next release that drops it.
 - **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
   layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top
   (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A taller panel, or a dock, is covered only by the 85%.
@@ -311,7 +341,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   open (a reload) must send `Find` again. Ends if live re-search is wanted.
 - **`stage_support` is the viewer's current truth.** Raster, vector, Markdown, code, plain text, tables, JSON,
   PDF, video, audio and books have a stage (images, text shown as source, PDF pages as tiles, a recording as the
-  player's picture or an album card, a chapter or comic page in a sealed frame); fonts, archives, office documents, folders and unknown files
+  player's picture or an album card, an EPUB or comic as the pages of a PDF made from it); fonts, archives, office documents, folders and unknown files
   are `PeekOnly`. The registry (`families/registry.rs`) maps each `PeekOnly` kind to the
   facts-and-Open-With… view, and a test holds the two tables equal. Each row changes with the stage that
   lands, and the registry names the new view in the same change.

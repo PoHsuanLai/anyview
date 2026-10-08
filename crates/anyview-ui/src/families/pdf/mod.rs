@@ -4,6 +4,7 @@
 //! as `TextureLayer`s (`view`, `page`, `draw`); and the find bar, the capsule and the side panel's
 //! thumbnails and outline are drawn from the stage machine's state.
 
+mod bound;
 mod cache;
 mod capsule;
 mod doc;
@@ -31,7 +32,7 @@ use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
     PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket, Viewport,
 };
-use anyview_core::{Facts, PixelLen, PixelSize, Resume, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, PixelLen, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use std::sync::Arc;
@@ -47,10 +48,13 @@ impl StageView for PdfStageView {
     fn open(
         _ticket: Ticket,
         src: &Source,
-        _sniffed: &Sniffed,
+        sniffed: &Sniffed,
         _link: &OpenLink,
     ) -> Result<PdfDoc, OpenError> {
-        doc::open(src)
+        match sniffed.kind() {
+            FormatKind::Book => doc::open_book(src, sniffed),
+            _ => doc::open(src),
+        }
     }
 
     fn facts(doc: &PdfDoc) -> Facts {
@@ -68,6 +72,7 @@ impl StageView for PdfStageView {
     fn params(doc: &PdfDoc, stage: &Stage, area: Option<Area>) -> StageParams {
         let mut pdf = PdfParams {
             pages: doc.pages(),
+            edits: doc.offer != crate::EditOffer::Withheld,
             ..PdfParams::default()
         };
         if let (Some(view), Some(area)) = (live::page_view(stage), doc::room_of(area)) {
