@@ -68,22 +68,22 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "592eea9b69
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "db321897069ad54de99b6cab95e16ffa51b4c618" }
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -222,8 +222,8 @@ clap = { version = "4", features = ["derive"] }
 # `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.
 docket-client = { git = "https://github.com/PoHsuanLai/docket", rev = "7b1328b0683f439d9ad85d37778cb7755ee0a05c", default-features = false, features = ["dbus"] }
 docket-core = { git = "https://github.com/PoHsuanLai/docket", rev = "7b1328b0683f439d9ad85d37778cb7755ee0a05c" }
-prov = { git = "https://github.com/PoHsuanLai/porter", rev = "5d4ef2dfb13d8cc24276f5e4971893874bfebb4f" }
-porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "5d4ef2dfb13d8cc24276f5e4971893874bfebb4f" }
+prov = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "335d7a7c65bc7d196d5f19dfb305896ff3a55958" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

@@ -40,7 +40,7 @@ versioning, with pre-releases while the program is in beta.
 
 ### Look
 
-- quire v0.2.23 to v0.2.28, with docket and porter moved to the revs built on them: a titled button also carries its title as an accessible description when it says more than the button's name; nothing else visible changes in Viewer (the Spaces kit and the consent alert's session offer are not used).
+- quire v0.2.23 to v0.2.30, with docket and porter moved to the revs built on them: a titled button also carries its title as an accessible description when it says more than the button's name; nothing else visible changes in Viewer (the Spaces kit and the consent alert's session offer are not used).
 - quire v0.2.21: small icons are solid (filled) by default, a menu returns focus to what opened it, and the video controls' progress bar can be as narrow as 120 px, so the export button now shows on a window wide enough for the whole control bar (672 px and up).
 - quire v0.2.19's Tahoe sizes: controls are 20, 24, 28, 32 and 40 tall (the capsule's buttons are the 32 Large,
   with an 18 px glyph), windows are rounder, and table and tree rows are quire's 32 px compact row.
