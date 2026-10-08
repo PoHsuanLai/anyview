@@ -51,9 +51,10 @@ impl StageView for PdfStageView {
         sniffed: &Sniffed,
         _link: &OpenLink,
     ) -> Result<PdfDoc, OpenError> {
-        match sniffed.kind() {
-            FormatKind::Book => doc::open_book(src, sniffed),
-            _ => doc::open(src),
+        if sniffed.kind() == FormatKind::Book {
+            doc::open_book(src, sniffed)
+        } else {
+            doc::open(src)
         }
     }
 
