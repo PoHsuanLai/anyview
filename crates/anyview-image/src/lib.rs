@@ -5,10 +5,13 @@
 //! Every public item is reached from this root, once.
 
 mod decode;
+#[cfg(feature = "encode")]
 mod edit;
+#[cfg(feature = "encode")]
 mod encode;
 mod error;
 mod exif;
+#[cfg(feature = "encode")]
 mod export;
 mod orientation;
 mod peek;
@@ -20,10 +23,13 @@ pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, declared_size, decode,
     decode_bytes, natural_size,
 };
+#[cfg(feature = "encode")]
 pub use edit::{Fidelity, Loss, edited, fidelity};
+#[cfg(feature = "encode")]
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
 pub use exif::{ExifFacts, Exposure, Ratio};
+#[cfg(feature = "encode")]
 pub use export::{ImageFile, encode_file, plan_export};
 pub use orientation::{ExifOrientation, Mirror};
 pub use peek::{ImagePeek, PeekedFormat, RasterPeek, VectorPeek};

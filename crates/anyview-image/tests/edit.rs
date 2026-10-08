@@ -1,6 +1,7 @@
 //! Edits saved in place: a JPEG changes only its orientation tag, a lossless format is written
 //! again turned, and a format that would lose something is refused.
 
+#![cfg(feature = "encode")]
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(clippy::unwrap_used)]
 

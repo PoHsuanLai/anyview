@@ -120,7 +120,9 @@ DIRECT=(
 
 # The most distinct packages (name and version) `cargo tree -p <crate>` may list, normal and build
 # dependencies only. The launcher links anyview-peek, so growth here is growth of its binary: raise a
-# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 591 today:
+# budget in the change that adds the dependency, with the reason (FINDINGS). anyview-peek is 564 today (591
+# before anyview-image's AVIF encoder, ravif with rav1e and their 27 packages, moved behind its `encode` feature,
+# which the viewer and its exports turn on and the peek does not):
 # about 530 are `ds` and `ds-blitz`, which the launcher already links, and the rest the container codecs
 # of anyview-archive, skrifa and the pure-Rust media parsers (symphonia and its format and codec
 # crates, mp4parse, matroska-demuxer) and the Photoshop, ICNS and OpenEXR readers of anyview-image
@@ -150,7 +152,7 @@ DIRECT=(
 # dependencies (toml, rustix, serde, serde_json, thiserror) were all in the tree already.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 BUDGETS=(
-  "anyview-peek: 591"
+  "anyview-peek: 564"
   "anyview: 683"
 )
 fail=0

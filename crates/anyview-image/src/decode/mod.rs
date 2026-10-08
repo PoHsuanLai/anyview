@@ -23,6 +23,7 @@ pub(crate) use look::{Looked, look};
 pub use natural::natural_size;
 pub use plays::Plays;
 pub(crate) use plays::plays_of;
+#[cfg(feature = "encode")]
 pub(crate) use svg::Svg;
 
 use crate::error::ImageError;

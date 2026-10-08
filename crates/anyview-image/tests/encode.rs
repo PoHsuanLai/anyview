@@ -1,6 +1,7 @@
 //! Encode then decode: lossless targets give the pixels back, lossy ones stay close, and metadata
 //! carried from the original arrives upright.
 
+#![cfg(feature = "encode")]
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(clippy::unwrap_used)]
 

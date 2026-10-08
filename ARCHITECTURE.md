@@ -104,8 +104,8 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 
 `anyview-image` depends on `image` (png and jpeg from the pinned block, gif, webp, bmp, tiff, ico, tga,
 qoi, exr and hdr added by its own manifest), `psd` (Photoshop, MIT OR Apache-2.0), `icns` (Apple icons, MIT),
-`jxl-oxide`, `resvg` (without text), `kamadak-exif`, `img-parts`,
-`ravif`, `thiserror` and `ds-core`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
+`jxl-oxide`, `resvg` (without text), `kamadak-exif`, `thiserror` and `ds-core`; with the `encode` feature
+(which the viewer and its exports turn on) also `img-parts` and `ravif`. `anyview-text` depends on `syntect` (the pure-Rust regex engine, no
 oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `thiserror` and `ds-core`.
 
 `anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rust2`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust2` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
@@ -240,7 +240,10 @@ segment and copies every other byte.
 The `avif` feature adds AVIF decoding through the `image` crate and the dav1d C library (BSD-2,
 linked dynamically, found with pkg-config). It is off by default, so the default build needs no C
 toolchain pieces; without it an AVIF file is `ImageError::NotCompiledIn`. AVIF encoding is `ravif`
-(pure Rust) and is always built.
+(pure Rust, and with `rav1e` the largest tree in the crate), built only with the `encode` feature: that
+feature gates every way pictures go out (the `encode` functions, `edited` and the exports) and the
+metadata carried across a re-encode. A caller that only looks at pictures, as `anyview-peek` does,
+links none of it.
 
 ## 2d. Modules inside `anyview-text`
 

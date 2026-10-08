@@ -12,20 +12,25 @@ publish.workspace = true
 # AVIF decoding needs the dav1d C library (BSD-2-Clause, linked dynamically) and pkg-config.
 # Off by default so the default build needs no C toolchain pieces.
 avif = ["image/avif-native"]
+# Writing pictures: the encoders (the AVIF one is ravif and rav1e, a large pure-Rust tree), the
+# metadata carried across a re-encode (img-parts), the lossless-where-possible edits and the exports.
+# Off, the crate only reads: a caller that peeks at pictures (a launcher, a mail client) links none of
+# it. The viewer and its exports turn it on.
+encode = ["dep:ravif", "dep:img-parts"]
 
 [dependencies]
 anyview-core = { workspace = true }
 ds-core = { workspace = true }
 # The pinned block enables png and jpeg; the other formats the viewer opens are added here.
 image = { workspace = true, features = ["gif", "webp", "bmp", "tiff", "ico", "tga", "qoi", "exr", "hdr"] }
-img-parts = { workspace = true }
+img-parts = { workspace = true, optional = true }
 png = { workspace = true }
 tiff = { workspace = true }
 icns = { workspace = true }
 psd = { workspace = true }
 jxl-oxide = { workspace = true }
 kamadak-exif = { workspace = true }
-ravif = { workspace = true }
+ravif = { workspace = true, optional = true }
 resvg = { workspace = true }
 thiserror = { workspace = true }
 

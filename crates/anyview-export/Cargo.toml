@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
-anyview-image = { workspace = true }
+anyview-image = { workspace = true, features = ["encode"] }
 anyview-pdf = { workspace = true }
 anyview-store = { workspace = true }
 anyview-text = { workspace = true }
