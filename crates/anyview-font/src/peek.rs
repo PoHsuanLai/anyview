@@ -3,11 +3,9 @@
 use crate::error::FontError;
 use crate::face::{Face, Variation, read};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FontFormat, FormatDetail, FormatKind, Peek, PeekBudget,
-    Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FontFormat, FormatDetail, FormatKind, Input, Peek,
+    PeekBudget, Sniffed,
 };
-use std::fs::File;
-use std::io::Read;
 
 /// What a peek of a font holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,7 +27,7 @@ impl Peek for FontPeek {
     type Peeked = FontPeeked;
     type Error = FontError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<FontPeeked, FontError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<FontPeeked, FontError> {
         let FormatDetail::Font(format) = sniffed.detail() else {
             return Err(FontError::WrongKind {
                 kind: sniffed.kind(),
@@ -90,22 +88,18 @@ impl Peek for FontPeek {
     }
 }
 
-/// The whole file, which must fit in the budget: a font's tables lie all over it.
-fn read_whole(src: &Source, allowed: ByteLen) -> Result<Vec<u8>, FontError> {
-    let len = src.stamp().len;
+/// The whole file, which must fit in the budget: a font's tables lie all over it. The length is
+/// the larger of the stamp's and the bytes' own, so a source that understates its size is held to
+/// the budget as well.
+fn read_whole(src: &Input, allowed: ByteLen) -> Result<Vec<u8>, FontError> {
+    let len = ByteLen(src.stamp().len.0.max(src.bytes().len().0));
     if len.0 > allowed.0 {
         return Err(FontError::OverBudget { len, allowed });
     }
-    let path = src.path().as_path();
-    let read_error = |error: std::io::Error| FontError::Read {
-        path: path.to_path_buf(),
-        kind: error.kind(),
-    };
-    let mut bytes = Vec::new();
-    File::open(path)
-        .map_err(read_error)?
-        .take(allowed.0)
-        .read_to_end(&mut bytes)
-        .map_err(read_error)?;
-    Ok(bytes)
+    src.bytes()
+        .read_range(0..allowed.0)
+        .map_err(|error| FontError::Read {
+            path: src.label(),
+            kind: error.kind(),
+        })
 }

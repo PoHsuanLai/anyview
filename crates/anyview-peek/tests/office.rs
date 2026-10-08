@@ -46,7 +46,7 @@ fn a_document_with_a_thumbnail_shows_it() {
     let path = docx(dir.path(), &[("docProps/thumbnail.png", PNG)]);
     let probed = probe(&path).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Office);
-    let peeked = peek(&probed.source, &probed.sniffed, &pane_budget());
+    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
     assert!(matches!(peeked.body, Body::Picture(_)), "{:?}", peeked.body);
     let facts = rows(&peeked.facts);
     assert!(facts.contains(&("title", "Plans".to_owned())), "{facts:?}");
@@ -58,7 +58,7 @@ fn a_document_without_a_thumbnail_shows_its_facts() {
     let dir = tempfile::tempdir().unwrap();
     let path = docx(dir.path(), &[]);
     let probed = probe(&path).unwrap();
-    let peeked = peek(&probed.source, &probed.sniffed, &pane_budget());
+    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
     assert!(
         matches!(peeked.body, Body::FactsOnly(_)),
         "{:?}",

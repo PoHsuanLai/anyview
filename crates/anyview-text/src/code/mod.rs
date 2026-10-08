@@ -14,10 +14,9 @@ mod tests;
 pub use class::TokenClass;
 pub use html::{TOKEN_CLASS_PREFIX, tokens_html};
 
-use crate::bytes::ByteSource;
 use crate::error::TextError;
 use crate::lines::TextLines;
-use anyview_core::{LineIndex, SyntaxName};
+use anyview_core::{LineIndex, ReadAt, SyntaxName};
 use state::{ClassCache, LineState, plain};
 use std::ops::Range;
 use syntect::parsing::SyntaxSet;
@@ -137,14 +136,14 @@ impl TokenLine {
 
 /// A text file prepared for highlighting by line range: the lines, the syntax, and the parser
 /// states saved on the way.
-pub struct CodeLines<B: ByteSource> {
+pub struct CodeLines<B: ReadAt> {
     text: TextLines<B>,
     syntax: Option<SyntaxId>,
     saved: Vec<LineState>,
     classes: ClassCache,
 }
 
-impl<B: ByteSource> std::fmt::Debug for CodeLines<B> {
+impl<B: ReadAt> std::fmt::Debug for CodeLines<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CodeLines")
             .field("syntax", &self.syntax)
@@ -153,7 +152,7 @@ impl<B: ByteSource> std::fmt::Debug for CodeLines<B> {
     }
 }
 
-impl<B: ByteSource> CodeLines<B> {
+impl<B: ReadAt> CodeLines<B> {
     /// `text` to be highlighted as `syntax`; with `None` every line is one plain span.
     pub fn new(highlighter: &Highlighter, text: TextLines<B>, syntax: Option<SyntaxId>) -> Self {
         let saved = syntax

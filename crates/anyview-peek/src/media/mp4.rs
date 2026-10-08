@@ -7,24 +7,18 @@ use super::recording::{
     AudioStream, CoverArt, CoverCodec, Recording, TrackCounts, VideoStream, length_of_micros,
 };
 use crate::error::PeekError;
-use anyview_core::{PeekBudget, PixelLen, PixelSize, Source};
+use anyview_core::{Input, PeekBudget, PixelLen, PixelSize};
 use mp4parse::{AudioSampleEntry, CodecType, SampleEntry, Track, TrackType, VideoSampleEntry};
-use std::fs::File;
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 /// The most top-level boxes looked at before giving up: a real file has a handful.
 const TOP_LEVEL_BOXES: usize = 64;
 
-/// What the header of the movie at `src` says.
-pub fn read(src: &Source, budget: &PeekBudget) -> Result<Recording, PeekError> {
-    let path = src.path().as_path();
-    let io = |error: std::io::Error| PeekError::Unreadable {
-        path: path.to_path_buf(),
-        kind: error.kind(),
-    };
-    let mut file = File::open(path).map_err(io)?;
+/// What the header of the movie `src` says.
+pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
+    let mut file = super::opened(src)?;
     let header =
-        movie_header(&mut file, src.stamp().len.0, budget.bytes.0).map_err(PeekError::media)?;
+        movie_header(&mut file, src.bytes().len().0, budget.bytes.0).map_err(PeekError::media)?;
     let context = mp4parse::read_mp4(&mut Cursor::new(&header.bytes))
         .map_err(|error| PeekError::media(format!("not a movie: {error}")))?;
     let mut recording = Recording {
@@ -86,7 +80,11 @@ struct MovieHeader {
 
 /// Walks the top-level boxes of `file` (`len` bytes), keeping `ftyp` and `moov` and seeking past
 /// the rest. A `moov` larger than `limit` bytes is refused rather than read.
-fn movie_header(file: &mut File, len: u64, limit: u64) -> Result<MovieHeader, String> {
+fn movie_header(
+    file: &mut (impl Read + Seek),
+    len: u64,
+    limit: u64,
+) -> Result<MovieHeader, String> {
     let mut bytes = Vec::new();
     let mut moov_body = None;
     let mut position = 0_u64;
@@ -270,6 +268,7 @@ fn audio_of(track: &Track) -> Option<AudioStream> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use std::fs::File;
 
     /// A box of `kind` holding `body`.
     fn boxed(kind: &[u8; 4], body: &[u8]) -> Vec<u8> {

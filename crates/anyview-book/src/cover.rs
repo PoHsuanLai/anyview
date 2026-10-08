@@ -2,7 +2,7 @@
 
 use crate::comic::Comic;
 use crate::epub::Epub;
-use anyview_core::{ByteLen, FilePath, SectionIndex};
+use anyview_core::{ByteLen, Input, SectionIndex};
 
 /// The largest cover that is read.
 const COVER_LIMIT: ByteLen = ByteLen(16 * 1024 * 1024);
@@ -26,9 +26,9 @@ pub fn epub_cover(epub: &Epub) -> Option<Cover> {
     })
 }
 
-/// The first page of the comic at `path`. Blocking.
-pub fn comic_cover(path: &FilePath) -> Option<Cover> {
-    let comic = Comic::open(path).ok()?;
+/// The first page of the comic `input`. Blocking.
+pub fn comic_cover(input: impl Into<Input>) -> Option<Cover> {
+    let comic = Comic::open(input).ok()?;
     let (page, bytes) = comic.page(SectionIndex(0)).ok()?;
     Some(Cover {
         name: page

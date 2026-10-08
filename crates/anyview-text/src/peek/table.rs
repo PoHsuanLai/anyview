@@ -6,8 +6,8 @@ use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::table::{ColumnCount, HeaderMode, RowIndex, Table, Workbook};
 use anyview_core::{
-    Delimiter, FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Peek,
-    PeekBudget, Sniffed, Source,
+    Delimiter, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, OfficeFormat, Peek,
+    PeekBudget, Sniffed,
 };
 use ds_core::word::Word;
 
@@ -56,11 +56,7 @@ impl Peek for TablePeek {
     type Peeked = TablePeeked;
     type Error = TextError;
 
-    fn peek(
-        src: &Source,
-        sniffed: &Sniffed,
-        budget: &PeekBudget,
-    ) -> Result<TablePeeked, TextError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<TablePeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         match sniffed.detail() {
             FormatDetail::Table(delimiter) => delimited(src, *delimiter, budget),
@@ -113,7 +109,7 @@ impl Peek for TablePeek {
 }
 
 fn delimited(
-    src: &Source,
+    src: &Input,
     delimiter: Delimiter,
     budget: &PeekBudget,
 ) -> Result<TablePeeked, TextError> {
@@ -132,12 +128,8 @@ fn delimited(
     }
 }
 
-fn sheet(
-    src: &Source,
-    format: OfficeFormat,
-    budget: &PeekBudget,
-) -> Result<TablePeeked, TextError> {
-    if src.stamp().len.0 > budget.bytes.0 {
+fn sheet(src: &Input, format: OfficeFormat, budget: &PeekBudget) -> Result<TablePeeked, TextError> {
+    if src.stamp().len.0.max(src.bytes().len().0) > budget.bytes.0 {
         return Err(TextError::WorkbookTooLarge {
             allowed: budget.bytes,
         });

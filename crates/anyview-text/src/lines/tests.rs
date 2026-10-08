@@ -1,9 +1,9 @@
 use super::*;
-use crate::bytes::{FileBytes, HeldBytes};
+use crate::bytes::FileBytes;
 use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Source};
-use std::cell::Cell;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-fn window(text: &TextLines<impl ByteSource>, from: u32, to: u32) -> Vec<String> {
+fn window(text: &TextLines<impl ReadAt>, from: u32, to: u32) -> Vec<String> {
     text.lines(LineIndex(from)..LineIndex(to)).unwrap()
 }
 
@@ -36,7 +36,7 @@ fn text_is_split_at_line_feeds_and_a_final_one_ends_the_last_line() {
 
 #[test]
 fn a_window_returns_exactly_the_requested_lines_at_every_anchor_boundary() {
-    let text = TextLines::open(HeldBytes::new(numbered(300))).unwrap();
+    let text = TextLines::open(Vec::<u8>::from(numbered(300))).unwrap();
     assert_eq!(text.line_count(), LineCount(300));
     // name, from, to
     const CASES: &[(&str, u32, u32)] = &[
@@ -56,7 +56,7 @@ fn a_window_returns_exactly_the_requested_lines_at_every_anchor_boundary() {
 
 #[test]
 fn a_range_outside_the_file_is_cut_to_the_lines_that_exist() {
-    let text = TextLines::open(HeldBytes::new(numbered(5))).unwrap();
+    let text = TextLines::open(Vec::<u8>::from(numbered(5))).unwrap();
     assert_eq!(window(&text, 3, 99), names(3, 5), "past the end");
     assert_eq!(
         window(&text, 7, 9),
@@ -80,7 +80,7 @@ fn line_counts_follow_final_line_breaks() {
         ("bom only", b"\xEF\xBB\xBF", 0),
     ];
     for (name, bytes, count) in CASES {
-        let text = TextLines::open(HeldBytes::new(*bytes)).unwrap();
+        let text = TextLines::open(Vec::<u8>::from(*bytes)).unwrap();
         assert_eq!(text.line_count(), LineCount(*count), "{name}");
     }
 }
@@ -112,7 +112,7 @@ fn each_encoding_windows_to_the_same_lines() {
         ("utf-16 be", utf16(false)),
     ];
     for (name, bytes) in cases {
-        let text = TextLines::open(HeldBytes::new(bytes)).unwrap();
+        let text = TextLines::open(bytes).unwrap();
         assert_eq!(text.line_count(), LineCount(200), "{name} count");
         assert_eq!(window(&text, 60, 70), names(60, 70), "{name} window");
         assert_eq!(window(&text, 199, 200), names(199, 200), "{name} last");
@@ -121,26 +121,27 @@ fn each_encoding_windows_to_the_same_lines() {
 
 #[test]
 fn a_legacy_encoded_file_decodes_with_the_fallback() {
-    let text = TextLines::open(HeldBytes::new(b"caf\xE9\nna\xEFve\n".as_slice())).unwrap();
+    let text = TextLines::open(Vec::<u8>::from(b"caf\xE9\nna\xEFve\n".as_slice())).unwrap();
     assert_eq!(text.encoding(), TextCodec::Windows1252);
     assert_eq!(window(&text, 0, 2), ["café", "naïve"]);
 }
 
 /// Counts the bytes handed out, to show a window does not read the whole file.
+#[derive(Debug)]
 struct Counting {
-    inner: HeldBytes,
-    read: Cell<u64>,
+    inner: Vec<u8>,
+    read: AtomicU64,
 }
 
-impl ByteSource for Counting {
-    fn byte_len(&self) -> ByteLen {
-        self.inner.byte_len()
+impl ReadAt for Counting {
+    fn len(&self) -> ByteLen {
+        ReadAt::len(&self.inner)
     }
 
-    fn read(&self, range: Range<u64>) -> Result<Vec<u8>, TextError> {
-        let bytes = self.inner.read(range)?;
-        self.read.set(self.read.get() + bytes.len() as u64);
-        Ok(bytes)
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.inner.read_at(offset, buf)?;
+        self.read.fetch_add(read as u64, Ordering::Relaxed);
+        Ok(read)
     }
 }
 
@@ -149,18 +150,18 @@ fn a_window_deep_in_a_huge_file_reads_a_small_part_of_it() {
     let big = numbered(1_000_000);
     let file_len = big.len() as u64;
     let source = Counting {
-        inner: HeldBytes::new(big),
-        read: Cell::new(0),
+        inner: Vec::<u8>::from(big),
+        read: AtomicU64::new(0),
     };
     let text = TextLines::open(source).unwrap();
     assert_eq!(text.line_count(), LineCount(1_000_000));
     assert!(
-        text.bytes.read.get() >= file_len,
+        text.bytes.read.load(Ordering::Relaxed) >= file_len,
         "opening streams the file once"
     );
-    text.bytes.read.set(0);
+    text.bytes.read.store(0, Ordering::Relaxed);
     assert_eq!(window(&text, 500_000, 500_040), names(500_000, 500_040));
-    let spent = text.bytes.read.get();
+    let spent = text.bytes.read.load(Ordering::Relaxed);
     assert!(
         spent <= 128 * 1024,
         "{spent} bytes read of a {file_len} byte file for 40 lines"

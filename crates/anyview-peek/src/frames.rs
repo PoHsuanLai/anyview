@@ -6,8 +6,8 @@
 //! shows its frame; without one, or without a cached thumbnail, the pane shows the facts card.
 
 use anyview_core::{
-    FileHead, FileName, FormatDetail, PeekBudget, PixelLen, RasterFormat, Resize, SniffStep,
-    Source, sniff,
+    FileHead, FileName, FormatDetail, Input, PeekBudget, PixelLen, RasterFormat, Resize, SniffStep,
+    sniff,
 };
 use anyview_image::{
     Decoded, ExifFacts, FrameCount, ImagePeek, PeekedFormat, Rgba8, decode_bytes, resized,
@@ -17,8 +17,8 @@ use std::fmt::Debug;
 /// Where the host finds a picture of a video it did not decode.
 pub trait VideoFrames: Debug + Send + Sync {
     /// The small picture of `source` as it is now (a cached thumbnail made for this very version of
-    /// the file), upright, or `None` when the host has none. Blocking: it reads a file.
-    fn frame(&self, source: &Source) -> Option<Rgba8>;
+    /// the file; `source.path()` says where it is, when it is a file at all), upright, or `None` when the host has none. Blocking: it reads a file.
+    fn frame(&self, source: &Input) -> Option<Rgba8>;
 }
 
 /// No host source: every video without a cover shows its facts.
@@ -26,7 +26,7 @@ pub trait VideoFrames: Debug + Send + Sync {
 pub struct NoFrames;
 
 impl VideoFrames for NoFrames {
-    fn frame(&self, _: &Source) -> Option<Rgba8> {
+    fn frame(&self, _: &Input) -> Option<Rgba8> {
         None
     }
 }

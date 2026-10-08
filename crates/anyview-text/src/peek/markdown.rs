@@ -6,7 +6,7 @@ use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::lines::split_start;
 use crate::markdown::{Heading, NoFiles, RenderEnv, render};
-use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Peek, PeekBudget, Sniffed, Source};
+use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed};
 
 /// What a peek of a Markdown file holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,7 +51,7 @@ impl Peek for MarkdownPeek {
     type Error = TextError;
 
     fn peek(
-        src: &Source,
+        src: &Input,
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<MarkdownPeeked, TextError> {

@@ -4,8 +4,8 @@
 #![allow(clippy::unwrap_used)]
 
 use anyview_core::{
-    ByteLen, FactLabel, FileHead, FileName, FilePath, FileStamp, FontFormat, FormatKind, ModTime,
-    Peek, PeekBudget, PixelArea, SniffStep, Sniffed, Source, sniff,
+    ByteLen, FactLabel, FileHead, FileName, FilePath, FileStamp, FontFormat, FormatKind, Input,
+    ModTime, Peek, PeekBudget, PixelArea, SniffStep, Sniffed, Source, sniff,
 };
 use anyview_font::{EM, FontError, FontPeek, FontPeeked, Variation};
 use std::path::{Path, PathBuf};
@@ -41,7 +41,7 @@ fn opened(path: &Path, name: &str) -> (Source, Sniffed) {
 
 fn peeked(name: &str) -> FontPeeked {
     let (src, sniffed) = opened(&fixture(name), name);
-    FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap()
+    FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20)).unwrap()
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn a_collection_reports_its_faces_and_opens_the_first() {
     let path = collection(dir.path());
     let (src, sniffed) = opened(&path, "pair.ttc");
     assert_eq!(sniffed.kind(), FormatKind::Font);
-    let font = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap();
+    let font = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20)).unwrap();
     assert_eq!(font.format, FontFormat::Ttc);
     assert_eq!(font.faces, 2);
     assert_eq!(font.face.as_ref().unwrap().family, "Anyview Blocks");
@@ -154,7 +154,7 @@ fn a_font_longer_than_the_budget_is_refused_and_a_web_font_is_named_not_opened()
     let (src, sniffed) = opened(&fixture("blocks.ttf"), "blocks.ttf");
     let len = src.stamp().len;
     assert_eq!(
-        FontPeek::peek(&src, &sniffed, &budget(1000)),
+        FontPeek::peek(&Input::from(&src), &sniffed, &budget(1000)),
         Err(FontError::OverBudget {
             len,
             allowed: ByteLen(1000)
@@ -164,7 +164,7 @@ fn a_font_longer_than_the_budget_is_refused_and_a_web_font_is_named_not_opened()
     let woff = dir.path().join("web.woff2");
     std::fs::write(&woff, b"wOF2\x00\x01\x00\x00restofheader").unwrap();
     let (src, sniffed) = opened(&woff, "web.woff2");
-    let font = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap();
+    let font = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20)).unwrap();
     assert_eq!(font.format, FontFormat::Woff2);
     assert!(font.face.is_none());
     assert_eq!(
@@ -181,7 +181,7 @@ fn bytes_that_are_not_a_font_are_malformed() {
     let bad = dir.path().join("bad.ttf");
     std::fs::write(&bad, b"\x00\x01\x00\x00 and then nothing a font would hold").unwrap();
     let (src, sniffed) = opened(&bad, "bad.ttf");
-    let got = FontPeek::peek(&src, &sniffed, &budget(1 << 20));
+    let got = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20));
     assert!(matches!(got, Err(FontError::Malformed { .. })), "{got:?}");
 }
 
@@ -232,7 +232,7 @@ fn a_woff_gives_the_same_face_as_the_font_it_wraps() {
     let path = dir.path().join("blocks.woff");
     std::fs::write(&path, woff_of(&ttf)).unwrap();
     let (src, sniffed) = opened(&path, "blocks.woff");
-    let woff = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap();
+    let woff = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20)).unwrap();
     let plain = peeked("blocks.ttf");
     assert_eq!(woff.format, FontFormat::Woff);
     assert_eq!(woff.face, plain.face);
@@ -253,7 +253,7 @@ fn a_woff_with_a_table_that_does_not_unpack_is_malformed() {
     let path = dir.path().join("bad.woff");
     std::fs::write(&path, woff).unwrap();
     let (src, sniffed) = opened(&path, "bad.woff");
-    let error = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap_err();
+    let error = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20)).unwrap_err();
     assert!(matches!(error, FontError::Malformed { .. }), "{error:?}");
 }
 
@@ -315,7 +315,7 @@ fn a_web_font_that_unpacks_to_too_much_or_shares_table_data_is_malformed() {
         std::fs::write(&path, bytes).unwrap();
         let (src, sniffed) = opened(&path, "bomb.woff");
         let started = std::time::Instant::now();
-        let got = FontPeek::peek(&src, &sniffed, &budget(1 << 30));
+        let got = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 30));
         assert!(
             matches!(got, Err(FontError::Malformed { .. })),
             "{name}: {got:?}"
@@ -330,6 +330,6 @@ fn a_web_font_that_unpacks_to_too_much_or_shares_table_data_is_malformed() {
 #[test]
 fn a_font_that_breaks_the_glyph_reader_is_malformed_not_a_panic() {
     let (src, sniffed) = opened(&fixture("damaged-glyf.ttf"), "damaged-glyf.ttf");
-    let got = FontPeek::peek(&src, &sniffed, &budget(1 << 20));
+    let got = FontPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20));
     assert!(matches!(got, Err(FontError::Malformed { .. })), "{got:?}");
 }

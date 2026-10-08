@@ -6,28 +6,55 @@ use super::recording::{
     AudioStream, CoverArt, CoverCodec, Recording, TrackCounts, length_of_micros,
 };
 use crate::error::PeekError;
-use anyview_core::{MediaTags, PeekBudget, Source};
-use std::fs::File;
+use anyview_core::{Input, MediaTags, PeekBudget, ReadAtStream};
+use std::io::{Read, Seek, SeekFrom};
 use symphonia::core::codecs::CodecParameters;
 use symphonia::core::codecs::audio::well_known as codec;
 use symphonia::core::codecs::audio::{AudioCodecId, AudioCodecParameters};
 use symphonia::core::common::Limit;
 use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, FormatReader, Track, TrackType};
-use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
+use symphonia::core::io::{MediaSource, MediaSourceStream, MediaSourceStreamOptions};
 use symphonia::core::meta::{
     MetadataOptions, MetadataRevision, StandardTag, StandardVisualKey, Visual,
 };
 
-/// What a header says of the audio file at `src`.
-pub fn read(src: &Source, budget: &PeekBudget) -> Result<Recording, PeekError> {
-    let path = src.path().as_path();
-    let file = File::open(path).map_err(|error| PeekError::Unreadable {
-        path: path.to_path_buf(),
-        kind: error.kind(),
-    })?;
+/// The bytes of an input as symphonia reads them: seekable, of a length known.
+struct Stream {
+    inner: ReadAtStream,
+    len: u64,
+}
+
+impl Read for Stream {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.inner.read(buf)
+    }
+}
+
+impl Seek for Stream {
+    fn seek(&mut self, to: SeekFrom) -> std::io::Result<u64> {
+        self.inner.seek(to)
+    }
+}
+
+impl MediaSource for Stream {
+    fn is_seekable(&self) -> bool {
+        true
+    }
+
+    fn byte_len(&self) -> Option<u64> {
+        Some(self.len)
+    }
+}
+
+/// What a header says of the audio `src` (a path, or any bytes a host injects).
+pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
+    let file = Stream {
+        inner: super::opened(src)?,
+        len: src.bytes().len().0,
+    };
     let mut hint = Hint::new();
-    if let Some(extension) = path.extension().and_then(|extension| extension.to_str()) {
+    if let Some(extension) = src.name().extension() {
         hint.with_extension(extension);
     }
     let stream = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());

@@ -57,7 +57,8 @@ pub use sniff::{
     FileHead, SniffStep, Sniffed, ZipEntries, ZipProbe, sniff, sniff_folder, sniff_zip,
 };
 pub use source::{
-    ByteLen, FileName, FilePath, FileStamp, ModTime, Source, is_regular, open_regular,
+    ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, ReadAtStream, Source,
+    is_regular, open_regular,
 };
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use tree_path::{OpenNodes, TreePath};

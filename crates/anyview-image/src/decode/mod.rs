@@ -27,7 +27,7 @@ pub(crate) use svg::Svg;
 
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
-use anyview_core::{MediaTime, NonEmpty, PixelArea, PixelSize, QuarterTurn, Sniffed, Source};
+use anyview_core::{Input, MediaTime, NonEmpty, PixelArea, PixelSize, QuarterTurn, Sniffed};
 use ceiling::Ceiling;
 use codec::{Codec, codec_for};
 use stills::Collected;
@@ -89,8 +89,8 @@ pub struct FrameCount(pub u32);
 
 /// The picture or animation in the file `src` points at, whose type `sniffed` established.
 /// Blocking: reads and decodes the whole file.
-pub fn decode(src: &Source, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
-    let bytes = read(src)?;
+pub fn decode(src: impl Into<Input>, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
+    let bytes = read(&src.into())?;
     decode_bytes(&bytes, sniffed)
 }
 
@@ -137,8 +137,11 @@ pub fn decode_bytes(bytes: &[u8], sniffed: &Sniffed) -> Result<Decoded, ImageErr
 /// header and its EXIF orientation without decoding a pixel. `None` when the format's size is not
 /// read that way (ICNS, JPEG XL and SVG, whose size comes from decoding or drawing them) or the file
 /// declares more pixels than a decode accepts.
-pub fn declared_size(src: &Source, sniffed: &Sniffed) -> Result<Option<PixelSize>, ImageError> {
-    declared_size_of(&read(src)?, sniffed)
+pub fn declared_size(
+    src: impl Into<Input>,
+    sniffed: &Sniffed,
+) -> Result<Option<PixelSize>, ImageError> {
+    declared_size_of(&read(&src.into())?, sniffed)
 }
 
 /// [`declared_size`] of a file already read.
@@ -180,9 +183,11 @@ fn animated(frames: Vec<Frame>, plays: Plays) -> Result<Decoded, ImageError> {
 }
 
 /// The file's bytes.
-pub(crate) fn read(src: &Source) -> Result<Vec<u8>, ImageError> {
-    std::fs::read(src.path().as_path()).map_err(|e| ImageError::Read {
-        path: src.path().as_path().to_path_buf(),
-        kind: e.kind(),
-    })
+pub(crate) fn read(src: &Input) -> Result<Vec<u8>, ImageError> {
+    src.bytes()
+        .read_range(0..src.bytes().len().0)
+        .map_err(|e| ImageError::Read {
+            path: src.label(),
+            kind: e.kind(),
+        })
 }

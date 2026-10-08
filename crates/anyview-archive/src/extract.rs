@@ -4,8 +4,7 @@ use crate::container::{Container, container};
 use crate::entry::EntryKind;
 use crate::error::ArchiveError;
 use crate::{sevenz, stream, zip_archive};
-use anyview_core::{ArchiveFormat, ByteLen, FilePath};
-use std::fs::File;
+use anyview_core::{ArchiveFormat, ByteLen, Input};
 use std::io::{BufReader, Cursor, Read};
 use tar::Archive;
 
@@ -18,20 +17,20 @@ pub struct ExtractLimits {
     pub scanned: ByteLen,
 }
 
-/// The bytes of the entry `entry` of the archive at `path`, whose format `format` was sniffed.
+/// The bytes of the entry `entry` of the archive `src` (a path, or any source a host injects), whose format `format` was sniffed.
 /// Blocking: run it on a worker. A folder or a link is [`ArchiveError::NotAFile`].
 pub fn extract(
-    path: &FilePath,
+    src: impl Into<Input>,
     format: ArchiveFormat,
     entry: &str,
     limits: ExtractLimits,
 ) -> Result<Vec<u8>, ArchiveError> {
-    let path = path.as_path();
+    let src = &src.into();
     match container(format) {
-        Container::Zip => zip_archive::extract(path, format, entry, limits.entry),
-        Container::SevenZip => sevenz::extract(path, entry, limits.entry),
+        Container::Zip => zip_archive::extract(src, format, entry, limits.entry),
+        Container::SevenZip => sevenz::extract(src, entry, limits.entry),
         Container::Tar => {
-            let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+            let file = ArchiveError::open(src)?;
             tar_entry(
                 &mut Archive::new(BufReader::new(file)),
                 format,
@@ -40,7 +39,7 @@ pub fn extract(
             )
         }
         Container::Compressed(codec) => {
-            let unpacked = stream::unpack(path, format, codec, limits.scanned.0)?;
+            let unpacked = stream::unpack(src, format, codec, limits.scanned.0)?;
             let mut archive = Archive::new(Cursor::new(&unpacked.bytes[..]));
             match tar_entry(&mut archive, format, entry, limits.entry) {
                 Ok(bytes) => Ok(bytes),
@@ -49,7 +48,7 @@ pub fn extract(
                         allowed: limits.scanned,
                     })
                 }
-                Err(error) => single_file(path, entry, unpacked, limits, error),
+                Err(error) => single_file(src, entry, unpacked, limits, error),
             }
         }
     }
@@ -57,15 +56,13 @@ pub fn extract(
 
 /// The one file a compressed stream holds, when it is not a tar and `entry` names it.
 fn single_file(
-    path: &std::path::Path,
+    src: &Input,
     entry: &str,
     unpacked: stream::Unpacked,
     limits: ExtractLimits,
     not_tar: ArchiveError,
 ) -> Result<Vec<u8>, ArchiveError> {
-    let name = path
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned());
+    let name = crate::list::stem_of(src);
     match (name, not_tar) {
         (Some(name), ArchiveError::Malformed { .. } | ArchiveError::NoSuchEntry { .. })
             if name == entry =>

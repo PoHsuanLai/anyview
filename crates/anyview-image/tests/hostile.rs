@@ -8,7 +8,7 @@
 
 mod support;
 
-use anyview_core::{Peek, PixelLen, PixelSize};
+use anyview_core::{Input, Peek, PixelLen, PixelSize};
 use anyview_image::{Decoded, FrameCount, ImageError, RasterPeek, VectorPeek, decode_bytes};
 use std::time::{Duration, Instant};
 use support::{budget, bytes, fixture, sniffed};
@@ -77,7 +77,7 @@ fn a_header_that_claims_a_huge_canvas_is_refused_before_anything_is_decoded() {
     for (name, file) in CASES {
         let (src, sniffed) = fixture(file);
         let started = Instant::now();
-        let peeked = RasterPeek::peek(&src, &sniffed, &budget(1 << 20));
+        let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20));
         refused_in_time(name, started, &peeked);
         assert!(
             matches!(peeked, Err(ImageError::TooLarge { .. })),
@@ -122,7 +122,7 @@ fn what_a_still_costs_at_its_peak_decides_not_its_area_alone() {
         let path = dir.path().join("wide.bmp");
         std::fs::write(&path, &file).unwrap();
         let source = support::source_of(&path, file.len());
-        let peeked = RasterPeek::peek(&source, &sniffed, &budget(1 << 20));
+        let peeked = RasterPeek::peek(&Input::from(&source), &sniffed, &budget(1 << 20));
         let opened = decode_bytes(&file, &sniffed);
         assert_eq!(refused(&peeked), *peek_refuses, "{name}: peek {peeked:?}");
         assert_eq!(refused(&opened), *view_refuses, "{name}: view {opened:?}");
@@ -147,7 +147,7 @@ fn thousands_of_frames_are_neither_decoded_to_be_counted_nor_kept() {
     std::fs::write(&path, &file).unwrap();
     let source = support::source_of(&path, file.len());
     let started = Instant::now();
-    let peeked = RasterPeek::peek(&source, &sniffed, &budget(1 << 20)).unwrap();
+    let peeked = RasterPeek::peek(&Input::from(&source), &sniffed, &budget(1 << 20)).unwrap();
     assert_eq!(peeked.frames, FrameCount(3000));
     assert_eq!(peeked.source_size, size(512, 512));
     assert!(started.elapsed() < REFUSAL, "took {:?}", started.elapsed());
@@ -160,14 +160,14 @@ fn a_frame_that_breaks_the_webp_decoder_is_an_error_not_a_panic() {
     // Either answer is fine; a panic, which fails this test, is not.
     let _ = decode_bytes(&file, &sniffed);
     let (src, _) = fixture("damaged-frame.webp");
-    let _ = RasterPeek::peek(&src, &sniffed, &budget(1 << 20));
+    let _ = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20));
 }
 
 #[test]
 fn an_icon_element_that_claims_four_gigabytes_is_refused() {
     let (src, sniffed) = fixture("bomb-element.icns");
     let started = Instant::now();
-    let peeked = RasterPeek::peek(&src, &sniffed, &budget(1 << 20));
+    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20));
     refused_in_time("a 16 byte icns", started, &peeked);
 }
 
@@ -190,7 +190,7 @@ fn a_raw_file_of_start_markers_has_no_preview_and_is_read_once() {
 
 fn svg_peek(file: &str) -> Result<anyview_image::ImagePeek, ImageError> {
     let (src, sniffed) = fixture(file);
-    VectorPeek::peek(&src, &sniffed, &budget(1 << 20))
+    VectorPeek::peek(&Input::from(&src), &sniffed, &budget(1 << 20))
 }
 
 #[test]

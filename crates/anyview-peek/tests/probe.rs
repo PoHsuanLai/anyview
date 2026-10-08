@@ -31,8 +31,8 @@ fn a_file_is_sniffed_from_its_head_and_stamped_as_it_is() {
     let probed = probe(&FilePath::new(&png).unwrap()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Raster);
     let meta = std::fs::metadata(&png).unwrap();
-    assert_eq!(probed.source.stamp().len, ByteLen(meta.len()));
-    assert_ne!(probed.source.stamp().modified.0, 0);
+    assert_eq!(probed.input.stamp().len, ByteLen(meta.len()));
+    assert_ne!(probed.input.stamp().modified.0, 0);
 
     let dir = tempfile::tempdir().unwrap();
     let text = dir.path().join("notes.txt");

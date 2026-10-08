@@ -1,9 +1,9 @@
 //! What every text peek starts from: the first bytes of the file within the byte budget, decoded.
 
-use crate::bytes::{ByteSource, FileBytes};
+use crate::bytes::read_range;
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{ByteLen, FormatKind, PeekBudget, Sniffed, Source};
+use anyview_core::{ByteLen, FormatKind, Input, PeekBudget, Sniffed};
 
 /// The lines (or rows) a peek shows. Every pane shows about this many, so the limit is the
 /// pane's, not the budget's: the byte budget decides how much is read to find them.
@@ -33,18 +33,17 @@ pub(crate) fn expect_kind(sniffed: &Sniffed, expected: FormatKind) -> Result<(),
 }
 
 /// The first `budget.bytes` bytes of the file, decoded.
-pub(crate) fn read_head(src: &Source, budget: &PeekBudget) -> Result<Head, TextError> {
+pub(crate) fn read_head(src: &Input, budget: &PeekBudget) -> Result<Head, TextError> {
     read_limited(src, budget.bytes)
 }
 
 /// The first `limit` bytes of the file, decoded.
-pub(crate) fn read_limited(src: &Source, limit: ByteLen) -> Result<Head, TextError> {
+pub(crate) fn read_limited(src: &Input, limit: ByteLen) -> Result<Head, TextError> {
     if limit.0 == 0 {
         return Err(TextError::NoBudget);
     }
-    let file = FileBytes::open(src)?;
-    let bytes = file.read(0..limit.0)?;
-    let coverage = if file.byte_len().0 > bytes.len() as u64 {
+    let bytes = read_range(src.bytes(), 0..limit.0)?;
+    let coverage = if src.bytes().len().0 > bytes.len() as u64 {
         Coverage::Prefix
     } else {
         Coverage::Whole

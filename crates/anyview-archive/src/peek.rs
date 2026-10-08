@@ -5,7 +5,7 @@ use crate::entry::{EntryLimit, Holds, Listing};
 use crate::error::ArchiveError;
 use crate::list::list;
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed, Source,
+    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
 
 /// The entries a peek keeps; the pane shows about this many.
@@ -28,7 +28,7 @@ impl Peek for ArchivePeek {
     type Error = ArchiveError;
 
     fn peek(
-        src: &Source,
+        src: &Input,
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<ArchivePeeked, ArchiveError> {
@@ -37,7 +37,7 @@ impl Peek for ArchivePeek {
                 kind: sniffed.kind(),
             });
         };
-        let listing = list(src.path(), *format, PEEK_ENTRIES, budget.bytes)?;
+        let listing = list(src, *format, PEEK_ENTRIES, budget.bytes)?;
         Ok(ArchivePeeked { listing })
     }
 

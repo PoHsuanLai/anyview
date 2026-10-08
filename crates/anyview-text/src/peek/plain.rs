@@ -5,7 +5,7 @@ use super::tally::Tally;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::lines::split_start;
-use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Peek, PeekBudget, Sniffed, Source};
+use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed};
 
 /// What a peek of a plain text file holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,11 +27,7 @@ impl Peek for PlainPeek {
     type Peeked = PlainPeeked;
     type Error = TextError;
 
-    fn peek(
-        src: &Source,
-        sniffed: &Sniffed,
-        budget: &PeekBudget,
-    ) -> Result<PlainPeeked, TextError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<PlainPeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
         let head = read_head(src, budget)?;
         let (lines, count) = split_start(&head.text, PEEK_LINES);

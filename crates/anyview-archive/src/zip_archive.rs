@@ -5,24 +5,22 @@ use crate::entry::{
 };
 use crate::error::ArchiveError;
 use crate::limit::Limited;
-use anyview_core::{ArchiveFormat, ByteLen, FilePath, ZipEntries};
-use std::fs::File;
+use anyview_core::{ArchiveFormat, ByteLen, Input, ZipEntries};
 use std::io::{BufReader, Read};
-use std::path::Path;
 use zip::ZipArchive;
 use zip::result::ZipError;
 
 const SYMLINK: u32 = 0o120_000;
 const TYPE_MASK: u32 = 0o170_000;
 
-/// The start of the central directory of the zip at `path`, reading at most `budget` bytes.
+/// The start of the central directory of the zip `src`, reading at most `budget` bytes.
 pub(crate) fn list(
-    path: &Path,
+    src: &Input,
     format: ArchiveFormat,
     limit: EntryLimit,
     budget: ByteLen,
 ) -> Result<Listing, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+    let file = ArchiveError::open(src)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
     let mut archive = match ZipArchive::new(reader) {
         Ok(archive) => archive,
@@ -62,12 +60,12 @@ fn kind_of(is_dir: bool, mode: Option<u32>) -> EntryKind {
 
 /// The bytes of the entry called `name`, at most `allowed` of them.
 pub(crate) fn extract(
-    path: &Path,
+    src: &Input,
     format: ArchiveFormat,
     name: &str,
     allowed: ByteLen,
 ) -> Result<Vec<u8>, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+    let file = ArchiveError::open(src)?;
     let mut archive = ZipArchive::new(BufReader::new(file))
         .map_err(|error| ArchiveError::malformed(format, error))?;
     let mut entry = match archive.by_name(name) {
@@ -102,15 +100,15 @@ pub(crate) fn extract(
 /// How much of a `mimetype` entry sniffing reads.
 const MIMETYPE_BYTES: u64 = 128;
 
-/// What sniffing needs of the zip at `path`: every entry's name (as many as the budget lets the
+/// What sniffing needs of the zip `src`: every entry's name (as many as the budget lets the
 /// central directory be read for) and the start of its `mimetype` entry when it has one.
 ///
 /// A zip whose directory is larger than `budget` is [`ArchiveError::OverBudget`]; one that does not
 /// parse is [`ArchiveError::Malformed`].
-pub fn zip_entries(path: &FilePath, budget: ByteLen) -> Result<ZipEntries, ArchiveError> {
+pub fn zip_entries(src: impl Into<Input>, budget: ByteLen) -> Result<ZipEntries, ArchiveError> {
+    let src = &src.into();
     let format = ArchiveFormat::Zip;
-    let path = path.as_path();
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+    let file = ArchiveError::open(src)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
     let mut archive = match ZipArchive::new(reader) {
         Ok(archive) => archive,

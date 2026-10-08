@@ -6,10 +6,10 @@ mod table;
 #[cfg(test)]
 mod tests;
 
-use crate::bytes::ByteSource;
+use crate::bytes::read_range;
 use crate::encoding::{Coverage, DETECT_BYTES, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::LineIndex;
+use anyview_core::{LineIndex, ReadAt};
 use std::ops::Range;
 use table::LineTable;
 
@@ -21,17 +21,17 @@ pub struct LineCount(pub u32);
 /// of lines. Opening streams the file once; asking for lines afterwards reads only those lines
 /// and, at worst, the 63 before them.
 #[derive(Debug, Clone)]
-pub struct TextLines<B: ByteSource> {
+pub struct TextLines<B: ReadAt> {
     bytes: B,
     codec: TextCodec,
     table: LineTable,
 }
 
-impl<B: ByteSource> TextLines<B> {
+impl<B: ReadAt> TextLines<B> {
     /// Detects the encoding from the first [`DETECT_BYTES`] of `bytes` and indexes its lines.
     pub fn open(bytes: B) -> Result<Self, TextError> {
-        let head = bytes.read(0..DETECT_BYTES as u64)?; // a usize fits a u64
-        let coverage = if bytes.byte_len().0 > head.len() as u64 {
+        let head = read_range(&bytes, 0..DETECT_BYTES as u64)?; // a usize fits a u64
+        let coverage = if bytes.len().0 > head.len() as u64 {
             Coverage::Prefix
         } else {
             Coverage::Whole

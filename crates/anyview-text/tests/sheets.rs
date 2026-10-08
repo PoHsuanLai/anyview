@@ -5,7 +5,7 @@
 
 mod support;
 
-use anyview_core::{Delimiter, FormatDetail, FormatKind, Peek};
+use anyview_core::{Delimiter, FormatDetail, FormatKind, Input, Peek};
 use anyview_text::{
     CharWidth, Coverage, HeaderMode, Separator, TABLE_ROWS, Table, TablePeek, TableSource, Tally,
     Workbook,
@@ -114,7 +114,7 @@ fn a_workbook_peeks_its_first_sheet_and_counts_the_rest() {
             ("More", &[&["x"]]),
         ],
     );
-    let peeked = TablePeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
+    let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
     assert_eq!(peeked.rows.len(), 2);
     assert_eq!(peeked.total_rows, Tally::Exact(2));
     assert!(matches!(
@@ -131,7 +131,7 @@ fn a_workbook_peeks_its_first_sheet_and_counts_the_rest() {
         ])
     );
     assert!(
-        TablePeek::peek(&src, &sniffed, &budget(100)).is_err(),
+        TablePeek::peek(&Input::from(&src), &sniffed, &budget(100)).is_err(),
         "over the budget"
     );
 }

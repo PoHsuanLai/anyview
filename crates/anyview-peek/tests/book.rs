@@ -51,7 +51,7 @@ fn an_epub_shows_its_cover_over_its_facts() {
         ],
     );
     let probed = probe(&file).unwrap();
-    let peeked = peek(&probed.source, &probed.sniffed, &pane_budget());
+    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
     assert!(
         matches!(peeked.body, Body::Picture(_)),
         "{:?}",
@@ -80,7 +80,7 @@ fn a_comic_shows_its_first_page_and_counts_its_pages() {
         &[("10.png", picture()), ("2.png", picture())],
     );
     let probed = probe(&file).unwrap();
-    let peeked = peek(&probed.source, &probed.sniffed, &pane_budget());
+    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
     assert!(matches!(peeked.body, Body::Picture(_)));
     let facts = rows(&peeked.facts);
     assert!(
@@ -101,7 +101,7 @@ fn a_broken_epub_still_shows_what_it_is() {
         ],
     );
     let probed = probe(&file).unwrap();
-    let peeked = peek(&probed.source, &probed.sniffed, &pane_budget());
+    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
     assert_eq!(peeked.body.slug(), "facts");
     assert!(
         rows(&peeked.facts)

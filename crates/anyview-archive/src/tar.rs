@@ -3,10 +3,8 @@
 use crate::entry::{Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep};
 use crate::error::ArchiveError;
 use crate::limit::Limited;
-use anyview_core::{ArchiveFormat, ByteLen};
-use std::fs::File;
+use anyview_core::{ArchiveFormat, ByteLen, Input};
 use std::io::{BufReader, Read, Seek};
-use std::path::Path;
 use tar::{Archive, EntryType};
 
 /// Lists the entries of `archive` into `tally` and says how far it got; the error is the
@@ -51,13 +49,13 @@ pub(crate) fn kind_of(kind: EntryType) -> EntryKind {
     }
 }
 
-/// The start of the plain tar at `path`, reading at most `budget` bytes of headers.
+/// The start of the plain tar `src`, reading at most `budget` bytes of headers.
 pub(crate) fn list(
-    path: &Path,
+    src: &Input,
     limit: EntryLimit,
     budget: ByteLen,
 ) -> Result<Listing, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+    let file = ArchiveError::open(src)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
     let mut tally = Tally::new(limit);
     let seen = fill(&mut Archive::new(reader), &mut tally);

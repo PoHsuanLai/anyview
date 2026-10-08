@@ -4,9 +4,8 @@
 
 use super::recording::{AudioStream, Recording, TrackCounts, VideoStream, length_of_micros};
 use crate::error::PeekError;
-use anyview_core::{PixelLen, PixelSize, Source};
+use anyview_core::{Input, PixelLen, PixelSize};
 use matroska_demuxer::{MatroskaFile, TrackEntry, TrackType};
-use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 
 /// The most reads and seeks the demuxer may make of one header. It walks the top-level elements
@@ -45,15 +44,10 @@ impl<R: Seek> Seek for Bounded<R> {
     }
 }
 
-/// What the header of the Matroska file at `src` says.
-pub fn read(src: &Source) -> Result<Recording, PeekError> {
-    let path = src.path().as_path();
-    let file = File::open(path).map_err(|error| PeekError::Unreadable {
-        path: path.to_path_buf(),
-        kind: error.kind(),
-    })?;
+/// What the header of the Matroska file `src` says.
+pub fn read(src: &Input) -> Result<Recording, PeekError> {
     let reader = Bounded {
-        inner: BufReader::new(file),
+        inner: BufReader::new(super::opened(src)?),
         left: MOST_OPERATIONS,
     };
     let matroska =

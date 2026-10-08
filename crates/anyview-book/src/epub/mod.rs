@@ -10,7 +10,7 @@ pub use contents::TocEntry;
 use crate::error::BookError;
 use crate::seal::Chapter;
 use crate::zip_read::read;
-use anyview_core::{ByteLen, FilePath, SectionCount, SectionIndex};
+use anyview_core::{ByteLen, Input, SectionCount, SectionIndex};
 use package::Package;
 
 /// The largest package part (container, package document, contents) that is read.
@@ -32,25 +32,26 @@ pub struct EpubMeta {
 /// An opened EPUB: where it is and what its package says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Epub {
-    path: FilePath,
+    input: Input,
     package: Package,
     count: SectionCount,
 }
 
 impl Epub {
-    /// The EPUB at `path`: its container and package document. A book with no chapter is
+    /// The EPUB `input` (a path, or any bytes a host injects): its container and package document. A book with no chapter is
     /// [`BookError::Empty`].
-    pub fn open(path: &FilePath) -> Result<Epub, BookError> {
-        let container = read(path, "META-INF/container.xml", PART_LIMIT)?;
+    pub fn open(input: impl Into<Input>) -> Result<Epub, BookError> {
+        let input = input.into();
+        let container = read(&input, "META-INF/container.xml", PART_LIMIT)?;
         let package_path = package::rootfile(&container)?;
-        let document = read(path, &package_path, PART_LIMIT)?;
+        let document = read(&input, &package_path, PART_LIMIT)?;
         let package = package::parse(&package_path, &document)?;
         let count = u32::try_from(package.spine.len())
             .ok()
             .and_then(SectionCount::new)
             .ok_or(BookError::Empty)?;
         Ok(Epub {
-            path: path.clone(),
+            input,
             package,
             count,
         })
@@ -74,16 +75,16 @@ impl Epub {
     /// The table of contents, nested by depth; the reading order named by chapter when the book
     /// has none. Blocking.
     pub fn contents(&self) -> Vec<TocEntry> {
-        contents::read(&self.path, &self.package)
+        contents::read(&self.input, &self.package)
     }
 
     /// The chapter `at` as sealed HTML. Blocking.
     pub fn chapter(&self, at: SectionIndex) -> Result<Chapter, BookError> {
-        chapter::read_chapter(&self.path, &self.package, at)
+        chapter::read_chapter(&self.input, &self.package, at)
     }
 
     /// The bytes of the entry `entry`, for a cover. Blocking.
     pub(crate) fn entry(&self, entry: &str, allowed: ByteLen) -> Result<Vec<u8>, BookError> {
-        read(&self.path, entry, allowed)
+        read(&self.input, entry, allowed)
     }
 }

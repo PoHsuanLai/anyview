@@ -1,6 +1,6 @@
 //! The one error `anyview-archive` returns, with variants a caller acts on.
 
-use anyview_core::{ArchiveFormat, ByteLen};
+use anyview_core::{ArchiveFormat, ByteLen, Input, ReadAtStream};
 use std::path::PathBuf;
 
 /// Why an archive could not be listed or one of its entries read.
@@ -59,11 +59,20 @@ pub enum ArchiveError {
 }
 
 impl ArchiveError {
-    pub(crate) fn read(path: &std::path::Path, error: &std::io::Error) -> Self {
+    pub(crate) fn read(src: &Input, error: &std::io::Error) -> Self {
         ArchiveError::Read {
-            path: path.to_path_buf(),
+            path: src.label(),
             kind: error.kind(),
         }
+    }
+
+    /// A stream over `src` at its start, once its first byte has read: a missing file, a FIFO or
+    /// a failing source is a [`ArchiveError::Read`] here, not a malformed archive later.
+    pub(crate) fn open(src: &Input) -> Result<ReadAtStream, Self> {
+        src.bytes()
+            .read_at(0, &mut [0u8; 1])
+            .map_err(|e| ArchiveError::read(src, &e))?;
+        Ok(src.reader())
     }
 
     pub(crate) fn malformed(format: ArchiveFormat, reason: impl std::fmt::Display) -> Self {

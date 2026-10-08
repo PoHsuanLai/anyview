@@ -8,8 +8,8 @@ use crate::error::PeekError;
 use crate::frames::cover_picture;
 use anyview_book::{BookError, Comic, Epub, comic_cover, epub_cover};
 use anyview_core::{
-    BookFormat, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Peek, PeekBudget, Sniffed,
-    Source,
+    BookFormat, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget,
+    Sniffed,
 };
 use anyview_image::ImagePeek;
 use std::sync::Arc;
@@ -36,8 +36,8 @@ fn row(facts: Facts, label: FactLabel, text: Option<&String>) -> Facts {
     }
 }
 
-fn epub_look(src: &Source, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
-    let epub = Epub::open(src.path())?;
+fn epub_look(src: &Input, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
+    let epub = Epub::open(src)?;
     let meta = epub.meta();
     let facts = row(Facts::empty(), FactLabel::Title, meta.title.as_ref());
     let facts = row(facts, FactLabel::Author, meta.author.as_ref());
@@ -52,14 +52,13 @@ fn epub_look(src: &Source, budget: &PeekBudget) -> Result<(Facts, Option<ImagePe
     Ok((facts, cover))
 }
 
-fn comic_look(src: &Source, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
-    let comic = Comic::open(src.path())?;
+fn comic_look(src: &Input, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
+    let comic = Comic::open(src)?;
     let facts = Facts::empty().with(
         FactLabel::Pages,
         FactValue::text(comic.sections().get().to_string()),
     );
-    let cover =
-        comic_cover(src.path()).and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
+    let cover = comic_cover(src).and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
     Ok((facts, cover))
 }
 
@@ -68,7 +67,7 @@ impl Peek for BookPeek {
     type Peeked = BookLook;
     type Error = PeekError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<BookLook, PeekError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<BookLook, PeekError> {
         let described = Described::of(sniffed);
         let FormatDetail::Book(format) = sniffed.detail() else {
             return Err(PeekError::WrongKind {

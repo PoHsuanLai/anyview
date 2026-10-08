@@ -4,7 +4,7 @@ use super::PeekBudget;
 use crate::facts::Facts;
 use crate::kind::FormatKind;
 use crate::sniff::Sniffed;
-use crate::source::Source;
+use crate::source::Input;
 
 /// The light tier of one format: cheap, no GPU, no player. It runs in the launcher pane and as the
 /// viewer's first frame. Each format implements it once, and a generic consumer runs over the
@@ -17,10 +17,10 @@ pub trait Peek: 'static {
     /// Why a peek failed.
     type Error: std::error::Error + Send;
 
-    /// Looks at `src`, whose type `sniffed` established. Blocking: run it on a worker. Stays inside
-    /// `budget` (bytes read, pixels decoded, time).
+    /// Looks at `src` (a path, or any bytes a host injects), whose type `sniffed` established.
+    /// Blocking: run it on a worker. Stays inside `budget` (bytes read, pixels decoded, time).
     fn peek(
-        src: &Source,
+        src: &Input,
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<Self::Peeked, Self::Error>;

@@ -3,10 +3,8 @@
 
 use crate::container::Codec;
 use crate::error::ArchiveError;
-use anyview_core::ArchiveFormat;
-use std::fs::File;
+use anyview_core::{ArchiveFormat, Input};
 use std::io::{BufReader, Read};
-use std::path::Path;
 
 /// The start of an unpacked stream.
 #[derive(Debug)]
@@ -17,14 +15,14 @@ pub(crate) struct Unpacked {
     pub whole: bool,
 }
 
-/// The first `cap` bytes of what the stream at `path` unpacks to.
+/// The first `cap` bytes of what the stream `src` unpacks to.
 pub(crate) fn unpack(
-    path: &Path,
+    src: &Input,
     format: ArchiveFormat,
     codec: Codec,
     cap: u64,
 ) -> Result<Unpacked, ArchiveError> {
-    let file = File::open(path).map_err(|e| ArchiveError::read(path, &e))?;
+    let file = ArchiveError::open(src)?;
     let broken = |error: &dyn std::fmt::Display| ArchiveError::malformed(format, error);
     let source = BufReader::new(file);
     match codec {

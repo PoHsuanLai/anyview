@@ -5,11 +5,13 @@
 //! is a cache hit when the pane asks for it again at the same size.
 
 use crate::error::PeekError;
-use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Peek, PeekBudget, Sniffed, Source};
+use anyview_core::{
+    ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed,
+};
 use ds::components::content::pdf_thumb::{PdfPage, PdfTrouble};
 use ds::components::lists::preview::content::PANE_MEDIA;
 use ds::prelude::{Scale, Size, Word};
-use ds_blitz::{ThumbRequest, pdf_thumb_blocking};
+use ds_blitz::{ThumbRequest, pdf_thumb_blocking, pdf_thumb_bytes};
 
 /// The device pixels a page is rasterised for at 2x: the pane's media box twice over.
 const SHARP_AREA: u64 = 656 * 440;
@@ -43,13 +45,13 @@ impl Peek for PdfPeek {
     type Peeked = PdfPeeked;
     type Error = PeekError;
 
-    fn peek(src: &Source, sniffed: &Sniffed, budget: &PeekBudget) -> Result<PdfPeeked, PeekError> {
+    fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<PdfPeeked, PeekError> {
         if sniffed.kind() != Self::KIND {
             return Err(PeekError::WrongKind {
                 kind: sniffed.kind(),
             });
         }
-        let len = src.stamp().len;
+        let len = ByteLen(src.stamp().len.0.max(src.bytes().len().0));
         if len > budget.bytes {
             return Err(PeekError::OverBudget {
                 len,
@@ -58,13 +60,20 @@ impl Peek for PdfPeek {
         }
         let room: Size = PANE_MEDIA;
         let request = ThumbRequest {
-            path: src.path().as_path().to_path_buf(),
+            path: src.label(),
             size: room,
             scale: scale_for(budget),
         };
-        Ok(PdfPeeked {
-            page: pdf_thumb_blocking(&request),
-        })
+        // A file on disk goes through the page cache, which a pane asks again at the same size;
+        // bytes handed in are rasterised from memory, whole, as the budget allows.
+        let page = match src.path() {
+            Some(_) => pdf_thumb_blocking(&request),
+            None => match src.bytes().read_range(0..budget.bytes.0) {
+                Ok(bytes) => pdf_thumb_bytes(bytes, request.device_box()),
+                Err(_) => PdfPage::Failed(PdfTrouble::Unreadable),
+            },
+        };
+        Ok(PdfPeeked { page })
     }
 
     fn facts(peeked: &PdfPeeked) -> Facts {

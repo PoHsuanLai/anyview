@@ -1,17 +1,16 @@
 use super::*;
-use crate::bytes::HeldBytes;
 
-fn code(source: &str, name: &str) -> (Highlighter, CodeLines<HeldBytes>) {
+fn code(source: &str, name: &str) -> (Highlighter, CodeLines<Vec<u8>>) {
     let highlighter = Highlighter::new();
     let syntax = highlighter.syntax(&SyntaxName::new(name).unwrap());
-    let lines = TextLines::open(HeldBytes::new(source)).unwrap();
+    let lines = TextLines::open(Vec::<u8>::from(source)).unwrap();
     let code = CodeLines::new(&highlighter, lines, syntax);
     (highlighter, code)
 }
 
 fn highlight(
     highlighter: &Highlighter,
-    code: &mut CodeLines<HeldBytes>,
+    code: &mut CodeLines<Vec<u8>>,
     from: u32,
     to: u32,
 ) -> Vec<TokenLine> {

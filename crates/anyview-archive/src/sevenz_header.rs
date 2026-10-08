@@ -6,8 +6,8 @@
 //! number is held against the file's length, a count limit or a byte limit first. An encoded
 //! (compressed) header is unpacked here, inside its limit, so what it says is checked too.
 
+use anyview_core::ReadAtStream;
 use lzma_rust2::{Lzma2Reader, LzmaReader};
-use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
 /// The signature header: signature, version, start-header checksum, and the next header's place.
@@ -58,9 +58,9 @@ pub(crate) enum Fault {
 
 type Checked<T> = Result<T, Fault>;
 
-/// Checks the header of the 7z in `file`, `len` bytes long, which a listing may read `budget`
+/// Checks the header of the 7z read from `file`, `len` bytes long, which a listing may read `budget`
 /// bytes of. Anything that is not a 7z passes: the crate names what is wrong with it.
-pub(crate) fn check(file: &mut File, len: u64, budget: u64) -> Checked<()> {
+pub(crate) fn check(file: &mut ReadAtStream, len: u64, budget: u64) -> Checked<()> {
     let mut start = [0u8; START_HEADER];
     if file.seek(SeekFrom::Start(0)).is_err() || file.read_exact(&mut start).is_err() {
         return Ok(());
@@ -105,7 +105,7 @@ pub(crate) fn check(file: &mut File, len: u64, budget: u64) -> Checked<()> {
 }
 
 /// `size` bytes at `at`; the caller has held `size` against the file's length and a limit.
-fn read_at(file: &mut File, at: u64, size: u64) -> Checked<Vec<u8>> {
+fn read_at(file: &mut ReadAtStream, at: u64, size: u64) -> Checked<Vec<u8>> {
     file.seek(SeekFrom::Start(at))
         .map_err(|_| Fault::Broken("the header cannot be reached"))?;
     let mut bytes = Vec::new();
@@ -120,7 +120,12 @@ fn read_at(file: &mut File, at: u64, size: u64) -> Checked<Vec<u8>> {
 
 /// The header an encoded header holds: one folder of one coder (LZMA, LZMA2 or none), unpacked
 /// within [`HEADER_BYTES`] and `budget`.
-fn unpack_header(file: &mut File, len: u64, encoded: &[u8], budget: u64) -> Checked<Vec<u8>> {
+fn unpack_header(
+    file: &mut ReadAtStream,
+    len: u64,
+    encoded: &[u8],
+    budget: u64,
+) -> Checked<Vec<u8>> {
     let streams = streams_info(&mut Cursor(encoded))?;
     let (Some(folder), Some(&packed)) = (streams.folders.first(), streams.pack_sizes.first())
     else {

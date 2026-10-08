@@ -134,7 +134,7 @@ no other public path. A module names only modules above it in this list.
 | `error` | `CoreError`, the crate's one error |
 | `units` | page, section (`SectionIndex`, `SectionCount`: the chapter or comic page of a book), media (time, length, volume, speed, chapter, time range, bitrate), ratio, zoom, turn, content-space and pixel newtypes; all integer |
 | `media` | what a player says of a recording: `StreamKind`, `MediaTrack`, `TrackPlay`, `MediaChapter`, `VideoPresence`, `MediaTags` |
-| `source` | `FilePath`, `FileName`, `FileStamp`, `Source` |
+| `source` | `FilePath`, `FileName`, `FileStamp`, `Source` (a file's serialisable identity), `ReadAt` (bytes read by offset: a byte slice, a `Vec`, an `Arc`, an open `File`, or anything a host implements it for) and `ReadAtStream` (a `Read + Seek` over one), and `Input` (what a peek reads: name, stamp, shared bytes and, when they are a file of their own, the path; made from `&FilePath`, `&Source` or a name and a `Vec<u8>`) |
 | `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
 | `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
@@ -384,14 +384,21 @@ the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futur
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
-are blocking and run on the caller's worker; only `pane` draws.
+are blocking and run on the caller's worker; only
+`pane` draws.
+
+Every peek reads an `anyview_core::Input`: a path (`&FilePath`, `&Source`) or any bytes a host injects
+(`Input::from((name, bytes))`, or its own `ReadAt`). A back end reads it through `ReadAt` or
+`Input::reader`; only two things need a real path, and each refuses cleanly when the input has none:
+the folder peek (a directory has no bytes) and a thumbnail read from the desktop's cache (the host's
+`VideoFrames`). A PDF takes the page cache when it has a path and `pdf_thumb_bytes` when it has not.
 
 | Module | Holds |
 | --- | --- |
 | `error` | `PeekError` |
 | `registry` | `KindVisitor`, `visit`: the one exhaustive match over `FormatKind` in the light tier |
 | `body` | `Body` (the type-erased result), `Light` (a `Peek` whose result and error convert into `Body` and `PeekError`) |
-| `probe` | `Probed`, `probe`: what a path is, from `stat`, its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive |
+| `probe` | `Probed`, `probe`: what a file is, from its first 4 KiB and, for a zip, its entries (`anyview_archive::zip_entries`); a zip that cannot be listed is a plain archive. It takes a path or any `Input`, as `peek` does |
 | `any` | `AnyPeeked`, `peek` and `peek_with`: runs the registry's visitor, adds the size and the date, and turns a failure into `Body::Unavailable`; `peek_with` also gives a video that shows only its facts the host's frame |
 | `frames` | `VideoFrames`, `NoFrames`: the seam through which the host lends a video's cached thumbnail (the peek names no platform crate, so the host reads the cache) |
 | `media` | `VideoPeek`, `AudioPeek`, `MediaLook`; with the `media` feature, private `recording` (`Recording`, the header as plain values, and its rows), `audio` (symphonia: MP3, AAC and ALAC in M4A, FLAC, Ogg Vorbis and Opus, WAV, AIFF; tags, track number and the front cover), `mp4` (mp4parse over the `ftyp` and `moov` boxes alone, found by seeking over the rest: MP4, M4V, MOV), `matroska` (matroska-demuxer: MKV, WebM) and `peek` (which parser a container goes to, the cover reduced to the budget); AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video go to no parser; without the feature, `absent` (`FactsPeek`) |
@@ -400,7 +407,7 @@ are blocking and run on the caller's worker; only `pane` draws.
 | `book` | `BookPeek`, `BookLook`: an EPUB's title, author, publisher, language and chapters, or a comic's page count, over the cover (the package's cover image, else its first image; a comic's first page), reduced to the budget; a book that cannot be opened still shows its type |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `natural` | `natural_size`: the size a picture or a video shows at, from the first bytes of the file (a picture's header through `anyview-image`, a movie's `moov` or Matroska header up to 8 MiB); any other kind, a path that is not a regular file and a header that does not say give `None` |
-| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache |
+| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in |
 | `when` | `modified_text`: a modification time as UTC |
 | `pane` | `Pane`, `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
