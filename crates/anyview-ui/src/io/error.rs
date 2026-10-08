@@ -35,6 +35,9 @@ pub enum OpenError {
     /// A decoder panicked on this file; the work was abandoned and the viewer went on.
     #[error("the file could not be read")]
     Crashed,
+    /// The file has no bytes and its name says it is not text.
+    #[error("the file is empty")]
+    Empty,
     /// The probe could not tell what the file is (a zip needs its entries listed).
     #[error("the viewer cannot tell what this file is")]
     Unrecognised,
@@ -62,6 +65,7 @@ impl OpenError {
             | OpenError::Plugin(_)
             | OpenError::Unrecognised => LoadFailure::Unsupported,
             OpenError::Crashed => LoadFailure::Damaged,
+            OpenError::Empty => LoadFailure::Empty,
         }
     }
 }

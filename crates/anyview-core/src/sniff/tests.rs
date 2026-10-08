@@ -147,7 +147,8 @@ const CASES: &[Case] = &[
     Case { name: "text with an unknown extension", file: "a.xyz", head: b"hello\n", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf8) },
     Case { name: "utf-16 text", file: "a.txt", head: b"\xFF\xFEh\0i\0", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf16Le) },
     Case { name: "an empty file", file: "empty.txt", head: b"", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf8) },
-    Case { name: "an empty file named png is not an image", file: "empty.png", head: b"", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf8) },
+    Case { name: "an empty file named png is the image it was meant to be", file: "empty.png", head: b"", kind: FormatKind::Raster, mime: "image/png", detail: FormatDetail::Raster(RasterFormat::Png) },
+    Case { name: "an empty file named pdf is the document it was meant to be", file: "empty.pdf", head: b"", kind: FormatKind::Pdf, mime: "application/pdf", detail: FormatDetail::None },
     Case { name: "text named png is not an image", file: "a.png", head: b"not really a png\n", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf8) },
     // Extensions are whole tokens: a suffix or a middle part is not one.
     Case { name: "extension is the last token", file: "photo.png.txt", head: b"hello\n", kind: FormatKind::PlainText, mime: "text/plain", detail: FormatDetail::Text(TextEncoding::Utf8) },

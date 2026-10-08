@@ -30,6 +30,8 @@ pub enum LoadFailure {
     Locked,
     /// The file is damaged or truncated.
     Damaged,
+    /// The file has no bytes, though its name says it is a picture, a document or a recording.
+    Empty,
 }
 
 /// How a probed file is opened.
