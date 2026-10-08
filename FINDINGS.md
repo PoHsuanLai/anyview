@@ -934,7 +934,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## The agent layer (docket)
 
-- **docket is a git dependency** at 419e3819, with porter (`prov`, `porter-core`) at 0a0e868, the rev docket
+- **docket is a git dependency** at 7b1328b0, with porter (`prov`, `porter-core`) at 5d4ef2d, the rev docket
   itself pins, spelled the same way so Cargo keeps one copy; docket's own almanac and stoker pins come through it.
   docket, almanac and stoker are public, so a plain checkout of anyview builds. Owner: docket.
 - **The action is `anyview.file.open`, not `file.open`.** docket's `validate` requires the action name to start with the
