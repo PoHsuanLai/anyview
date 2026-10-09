@@ -7,10 +7,12 @@ use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::Probed;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, MediaOffer, Motion, PaletteParams,
-    PanelParams, PlatformAbilities, PresentationParams, SheetParams, Spot, Stage, StageCommand,
-    StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
+    PanelParams, PlatformAbilities, PresentationParams, SheetParams, Spot, Stage, StageAbilities,
+    StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
+use ds::components::chrome::capsule::model::CapsuleSlot;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::MotionLevel;
 use ds_core::word::Word;
 
@@ -65,20 +67,38 @@ pub(super) enum Playback {
     Unplayable,
 }
 
-/// What the viewer offers of the file actions: Copy File waits until the desktop's clipboard can
-/// hold a file (the host's clipboard carries text only), what plays waits for a player, and what
-/// needs a desktop service waits for the platform to have it.
-fn offered(action: FileAction, playback: Playback, platform: PlatformAbilities) -> bool {
+/// Whether the open file takes `action`, from what the showing stage declares it can do
+/// (`Stage::abilities`), what the file allows and what the platform has. One match, so a file
+/// action added to the vocabulary has to say where it applies, and nothing is listed that would do
+/// nothing: Copy File waits until the desktop's clipboard can hold a file (the host's clipboard
+/// carries text only), what plays waits for a player, what edits waits for a stage that edits and a
+/// file that takes a save, and what needs a desktop service waits for the platform to have it.
+fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool {
+    let Offers {
+        playback,
+        edit,
+        access,
+        exportable,
+        platform,
+    } = offers;
     if !platform.offers(action) {
         return false;
     }
+    let writable = access == FileAccess::Writable;
     match action {
         FileAction::CopyFile => false,
         FileAction::PlayInMiniWindow | FileAction::PlayInBackground => {
-            playback == Playback::Playable
+            ability.plays && playback == Playback::Playable
         }
+        FileAction::RotateLeft
+        | FileAction::RotateRight
+        | FileAction::FlipHorizontal
+        | FileAction::FlipVertical => {
+            ability.edits.contains(&action) && edit != EditOffer::Withheld && writable
+        }
+        FileAction::RevertTo => !ability.edits.is_empty() && writable,
+        FileAction::Export | FileAction::ConvertTo => ability.export.is_some() && exportable,
         FileAction::Open
-        | FileAction::OpenWith
         | FileAction::RevealInFolder
         | FileAction::CopyPath
         | FileAction::Share
@@ -86,14 +106,7 @@ fn offered(action: FileAction, playback: Playback, platform: PlatformAbilities) 
         | FileAction::Duplicate
         | FileAction::MoveToTrash
         | FileAction::Print
-        | FileAction::Export
-        | FileAction::SaveCopy
-        | FileAction::RevertTo
-        | FileAction::RotateLeft
-        | FileAction::RotateRight
-        | FileAction::FlipHorizontal
-        | FileAction::FlipVertical
-        | FileAction::ConvertTo => true,
+        | FileAction::SaveCopy => true,
     }
 }
 
@@ -117,6 +130,9 @@ pub(super) struct Offers {
     pub edit: EditOffer,
     /// Whether the file takes a save in place.
     pub access: FileAccess,
+    /// Whether the Export sheet has anything to write: a recording with no export on offer and
+    /// no package to name has none.
+    pub exportable: bool,
     /// The desktop services there are for the file actions that need one.
     pub platform: PlatformAbilities,
 }
@@ -130,47 +146,24 @@ pub(super) fn commands(
     params: &StageParams,
     offers: Offers,
 ) -> Vec<Command> {
-    let Offers {
-        playback,
-        edit: offer,
-        access,
-        platform,
-    } = offers;
+    let ability = stage.abilities();
     let files = kind
         .map(actions_for)
         .unwrap_or_default()
         .iter()
-        .filter(|action| offer != EditOffer::Withheld || !is_picture_edit(**action))
-        .filter(|action| access == FileAccess::Writable || !saves_in_place(**action))
         .filter(|action| match reach(**action) {
-            Reach::Viewer | Reach::Both => offered(**action, playback, platform),
+            Reach::Viewer | Reach::Both => offered(**action, ability, offers),
             Reach::Launcher => false,
         })
         .map(|action| Command::File(*action));
     let stages = StageCommand::ALL
         .iter()
-        .filter(|_| playback == Playback::Playable)
-        .filter(|command| access == FileAccess::Writable || !edits_pages(**command))
+        .filter(|_| offers.playback == Playback::Playable)
+        .filter(|command| offers.access == FileAccess::Writable || !edits_pages(**command))
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
-    let open = platform.pick_files.then_some(Command::OpenFile);
+    let open = offers.platform.pick_files.then_some(Command::OpenFile);
     open.into_iter().chain(files).chain(stages).collect()
-}
-
-/// Whether `action` turns or flips the picture.
-fn is_picture_edit(action: FileAction) -> bool {
-    matches!(
-        action,
-        FileAction::RotateLeft
-            | FileAction::RotateRight
-            | FileAction::FlipHorizontal
-            | FileAction::FlipVertical
-    )
-}
-
-/// Whether `action` writes the open file itself.
-fn saves_in_place(action: FileAction) -> bool {
-    is_picture_edit(action) || action == FileAction::RevertTo
 }
 
 /// Whether `command` changes the pages of the PDF it is run on.
@@ -179,6 +172,45 @@ fn edits_pages(command: StageCommand) -> bool {
         command,
         StageCommand::DeletePage | StageCommand::MovePageEarlier | StageCommand::MovePageLater
     )
+}
+
+/// The capsule's `slots` without the buttons for a file action the file does not take (`files` is
+/// what the palette and the menu list), and without the dividers that leave: none first or last,
+/// and never two together.
+pub(super) fn offered_slots(
+    slots: Vec<RankedSlot<Command>>,
+    files: &[FileAction],
+) -> Vec<RankedSlot<Command>> {
+    let mut kept: Vec<RankedSlot<Command>> = Vec::with_capacity(slots.len());
+    for ranked in slots {
+        let taken = match &ranked.slot {
+            CapsuleSlot::Item(item) => match item.value {
+                Command::File(action) => files.contains(&action),
+                Command::Stage(_) | Command::OpenFile | Command::Install(_) => true,
+            },
+            CapsuleSlot::Readout(_)
+            | CapsuleSlot::Divider
+            | CapsuleSlot::Scrub(_)
+            | CapsuleSlot::Level(_) => true,
+        };
+        if !taken {
+            continue;
+        }
+        let doubled = matches!(ranked.slot, CapsuleSlot::Divider)
+            && kept
+                .last()
+                .is_none_or(|last| matches!(last.slot, CapsuleSlot::Divider));
+        if !doubled {
+            kept.push(ranked);
+        }
+    }
+    if kept
+        .last()
+        .is_some_and(|last| matches!(last.slot, CapsuleSlot::Divider))
+    {
+        kept.pop();
+    }
+    kept
 }
 
 /// Whether `query` names `label`: every letter of the query, in order, ignoring case.
@@ -243,10 +275,18 @@ pub(super) fn params(
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
     };
+    let exportable = match (stage, doc) {
+        (Stage::Media(_), Some(doc)) => {
+            let media = doc.view().media_offer();
+            media.first().is_some() || media.needs().is_some()
+        }
+        _ => true,
+    };
     let offers = Offers {
         playback,
         edit: offer,
         access,
+        exportable,
         platform,
     };
     let listed = commands(kind, stage, &measured, offers);
@@ -300,6 +340,342 @@ pub(super) fn family(probed: &Probed) -> crate::StageFamily {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::ContextPick;
+    use crate::families::family_of;
+    use crate::panel::{PanelTab, PanelTabs};
+    use crate::{ContextEntry, PlatformAbilities};
+    use FileAction::{
+        ConvertTo, CopyFile, CopyPath, Export, FlipHorizontal, FlipVertical, PlayInBackground,
+        PlayInMiniWindow, Print, RevertTo, RotateLeft, RotateRight, SaveCopy, Share,
+    };
+
+    /// What a file of `kind` lists, by the palette (`commands`) and the context menu (`entries`).
+    fn lists(kind: FormatKind, offers: Offers) -> (Vec<Command>, Vec<ContextEntry>) {
+        let stage = Stage::for_family(family_of(kind), TextViews::default());
+        let palette = commands(Some(kind), &stage, &StageParams::default(), offers);
+        let menu = entries(&palette, PanelTabs::of(&[PanelTab::Info]));
+        (palette, menu)
+    }
+
+    fn plain() -> Offers {
+        Offers {
+            playback: Playback::Playable,
+            edit: EditOffer::Plain,
+            access: FileAccess::Writable,
+            exportable: true,
+            platform: PlatformAbilities::ALL,
+        }
+    }
+
+    /// The file actions the table speaks of, so a row names only those it has a view on.
+    const ASKED: &[FileAction] = &[
+        RotateLeft,
+        RotateRight,
+        FlipHorizontal,
+        FlipVertical,
+        Export,
+        ConvertTo,
+        Print,
+        SaveCopy,
+        RevertTo,
+        PlayInMiniWindow,
+        PlayInBackground,
+        CopyFile,
+        CopyPath,
+        Share,
+    ];
+
+    fn asked(palette: &[Command]) -> Vec<FileAction> {
+        ASKED
+            .iter()
+            .copied()
+            .filter(|action| palette.contains(&Command::File(*action)))
+            .collect()
+    }
+
+    #[test]
+    fn each_family_lists_only_what_it_can_do_in_the_palette_and_the_menu() {
+        use FormatKind::{
+            Archive, Audio, Book, Code, Folder, Font, Markdown, Office, Other, Pdf, PlainText,
+            Raster, Table, Tree, Vector, Video,
+        };
+        const COMMON: &[FileAction] = &[CopyPath, Share];
+        let with = |extra: &[FileAction]| -> Vec<FileAction> {
+            let mut all: Vec<FileAction> = ASKED
+                .iter()
+                .copied()
+                .filter(|a| COMMON.contains(a) || extra.contains(a))
+                .collect();
+            all.dedup();
+            all
+        };
+        // name, kind, the asked-about actions it lists
+        let cases: Vec<(&str, FormatKind, Vec<FileAction>)> = vec![
+            (
+                "a picture turns, flips, prints, exports and converts",
+                Raster,
+                with(&[
+                    RotateLeft,
+                    RotateRight,
+                    FlipHorizontal,
+                    FlipVertical,
+                    Export,
+                    ConvertTo,
+                    Print,
+                    SaveCopy,
+                    RevertTo,
+                ]),
+            ),
+            (
+                "a PDF turns its page, and does not flip",
+                Pdf,
+                with(&[
+                    RotateLeft,
+                    RotateRight,
+                    Export,
+                    ConvertTo,
+                    Print,
+                    SaveCopy,
+                    RevertTo,
+                ]),
+            ),
+            (
+                "a vector picture has no edit and no conversion",
+                Vector,
+                with(&[Export, Print]),
+            ),
+            (
+                "a video plays in a small window and exports",
+                Video,
+                with(&[Export, PlayInMiniWindow]),
+            ),
+            (
+                "a song plays in the background, exports and converts",
+                Audio,
+                with(&[Export, ConvertTo, PlayInBackground]),
+            ),
+            (
+                "Markdown, code and text export, convert and print",
+                Markdown,
+                with(&[Export, ConvertTo, Print]),
+            ),
+            ("code", Code, with(&[Export, ConvertTo, Print])),
+            ("plain text", PlainText, with(&[Export, ConvertTo, Print])),
+            ("a table has no export", Table, with(&[])),
+            ("a tree has no export", Tree, with(&[])),
+            ("a book has no export", Book, with(&[])),
+            ("a font is a card of facts", Font, with(&[])),
+            ("an archive is a card of facts", Archive, with(&[])),
+            ("a document is a card of facts", Office, with(&[])),
+            ("a folder is a card of facts", Folder, with(&[])),
+            ("a file of no kind is a card of facts", Other, with(&[])),
+        ];
+        for (name, kind, want) in cases {
+            let (palette, menu) = lists(kind, plain());
+            assert_eq!(asked(&palette), want, "{name}: the palette");
+            // The menu rows are the palette's commands, none other.
+            for entry in &menu {
+                if let ContextEntry::Item {
+                    pick: ContextPick::Run(command),
+                    title,
+                } = entry
+                {
+                    assert!(
+                        palette.contains(command),
+                        "{name}: {title} is in the palette"
+                    );
+                }
+            }
+            let titles: Vec<&str> = menu
+                .iter()
+                .filter_map(|entry| match entry {
+                    ContextEntry::Item { title, .. } => Some(*title),
+                    ContextEntry::Separator => None,
+                })
+                .collect();
+            let row = |title: &str| titles.contains(&title);
+            assert_eq!(
+                row("Rotate Left"),
+                want.contains(&RotateLeft),
+                "{name}: menu"
+            );
+            assert_eq!(
+                row("Export\u{2026}"),
+                want.contains(&Export),
+                "{name}: menu"
+            );
+            assert!(row("Get Info"), "{name}: the info tab gives the row");
+            assert!(
+                !titles.iter().any(|t| t.contains("Open With")),
+                "{name}: {titles:?}"
+            );
+            assert!(
+                !titles.contains(&"Copy"),
+                "{name}: no file is put on the clipboard yet"
+            );
+        }
+    }
+
+    #[test]
+    fn a_file_that_cannot_be_saved_or_turned_or_played_lists_none_of_what_needs_it() {
+        // name, kind, the offers, the asked-about actions it must not list
+        let read_only = Offers {
+            access: FileAccess::ReadOnly,
+            ..plain()
+        };
+        let withheld = Offers {
+            edit: EditOffer::Withheld,
+            ..plain()
+        };
+        let unplayable = Offers {
+            playback: Playback::Unplayable,
+            ..plain()
+        };
+        let unexportable = Offers {
+            exportable: false,
+            ..plain()
+        };
+        let no_desktop = Offers {
+            platform: PlatformAbilities::NONE,
+            ..plain()
+        };
+        let cases: Vec<(&str, FormatKind, Offers, Vec<FileAction>)> = vec![
+            (
+                "a picture that refuses a save",
+                FormatKind::Raster,
+                read_only,
+                vec![
+                    RotateLeft,
+                    RotateRight,
+                    FlipHorizontal,
+                    FlipVertical,
+                    RevertTo,
+                ],
+            ),
+            (
+                "a PDF that refuses a save",
+                FormatKind::Pdf,
+                read_only,
+                vec![RotateLeft, RotateRight, RevertTo],
+            ),
+            (
+                "a picture whose edit cannot be made",
+                FormatKind::Raster,
+                withheld,
+                vec![RotateLeft, RotateRight, FlipHorizontal, FlipVertical],
+            ),
+            (
+                "a recording nothing plays",
+                FormatKind::Video,
+                unplayable,
+                vec![PlayInMiniWindow],
+            ),
+            (
+                "a recording with no export to offer",
+                FormatKind::Video,
+                unexportable,
+                vec![Export, ConvertTo],
+            ),
+            (
+                "a platform with no desktop services",
+                FormatKind::Raster,
+                no_desktop,
+                vec![Print, Share],
+            ),
+        ];
+        for (name, kind, offers, gone) in cases {
+            let (palette, menu) = lists(kind, offers);
+            for action in gone {
+                assert!(
+                    !palette.contains(&Command::File(action)),
+                    "{name}: {action:?}"
+                );
+            }
+            let in_menu = |title: &str| {
+                menu.iter().any(
+                    |entry| matches!(entry, ContextEntry::Item { title: t, .. } if *t == title),
+                )
+            };
+            if offers.access == FileAccess::ReadOnly || offers.edit == EditOffer::Withheld {
+                assert!(!in_menu("Rotate Left"), "{name}: menu");
+            }
+        }
+    }
+
+    #[test]
+    fn play_pause_is_listed_for_a_recording_only() {
+        let stage = Stage::for_family(family_of(FormatKind::Raster), TextViews::default());
+        let toggle = Command::Stage(StageCommand::TogglePlayback);
+        let still = commands(
+            Some(FormatKind::Raster),
+            &stage,
+            &StageParams::default(),
+            plain(),
+        );
+        assert!(!still.contains(&toggle), "a still picture does not play");
+        let media = Stage::for_family(family_of(FormatKind::Video), TextViews::default());
+        let video = commands(
+            Some(FormatKind::Video),
+            &media,
+            &StageParams::default(),
+            plain(),
+        );
+        assert!(video.contains(&toggle), "a recording does");
+        let pdf = Stage::for_family(family_of(FormatKind::Pdf), TextViews::default());
+        let pages = commands(
+            Some(FormatKind::Pdf),
+            &pdf,
+            &StageParams::default(),
+            plain(),
+        );
+        assert!(!pages.contains(&toggle), "a PDF does not");
+    }
+
+    #[test]
+    fn the_capsule_drops_the_file_buttons_the_palette_does_not_list_and_the_dividers_they_leave() {
+        use ds::components::chrome::capsule::priority::SlotPriority;
+        use ds::prelude::Icon;
+        let button = |command: Command| {
+            RankedSlot::new(
+                SlotPriority::Essential,
+                CapsuleSlot::button(command, "x", Icon::Plus),
+            )
+        };
+        let divider = || RankedSlot::new(SlotPriority::Essential, CapsuleSlot::Divider);
+        let zoom = Command::Stage(StageCommand::ZoomIn);
+        let rotate = Command::File(RotateLeft);
+        let slots = vec![
+            button(zoom),
+            divider(),
+            button(rotate),
+            button(Command::File(RotateRight)),
+            divider(),
+            button(Command::Stage(StageCommand::TogglePlayback)),
+        ];
+        let shape = |kept: &[RankedSlot<Command>]| -> Vec<String> {
+            kept.iter()
+                .map(|ranked| match &ranked.slot {
+                    CapsuleSlot::Item(item) => format!("{:?}", item.value),
+                    CapsuleSlot::Divider => "|".to_owned(),
+                    CapsuleSlot::Readout(_) | CapsuleSlot::Scrub(_) | CapsuleSlot::Level(_) => {
+                        "?".to_owned()
+                    }
+                })
+                .collect()
+        };
+        let all = offered_slots(slots.clone(), &[RotateLeft, RotateRight]);
+        assert_eq!(all.len(), 6, "everything offered stays");
+        let none = offered_slots(slots, &[]);
+        assert_eq!(
+            shape(&none),
+            [
+                format!("{zoom:?}"),
+                "|".to_owned(),
+                format!("{:?}", Command::Stage(StageCommand::TogglePlayback))
+            ],
+            "the rotate buttons go, with one of the two dividers around them"
+        );
+    }
 
     #[test]
     fn a_query_names_a_label_by_its_letters_in_order() {

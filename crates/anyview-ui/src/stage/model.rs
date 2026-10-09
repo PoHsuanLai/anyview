@@ -14,7 +14,7 @@ use anyview_core::Resume;
 /// What shows the open file's content.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Stage {
-    /// Nothing yet, or a file with no stage (`StageFamily::PeekOnly`): facts and Open With….
+    /// Nothing yet, or a file with no stage (`StageFamily::PeekOnly`): facts.
     #[default]
     NoStage,
     /// An image.

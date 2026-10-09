@@ -17,14 +17,13 @@ struct KindProfile {
 
 use FileAction::{
     ConvertTo, CopyFile, CopyPath, Duplicate, Export, FlipHorizontal, FlipVertical, MoveToTrash,
-    Open, OpenWith, PlayInBackground, PlayInMiniWindow, Print, Rename, RevealInFolder, RevertTo,
-    RotateLeft, RotateRight, SaveCopy, Share,
+    Open, PlayInBackground, PlayInMiniWindow, Print, Rename, RevealInFolder, RevertTo, RotateLeft,
+    RotateRight, SaveCopy, Share,
 };
 
 /// A file with nothing to do but handle it.
 const PLAIN: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -35,7 +34,6 @@ const PLAIN: &[FileAction] = &[
 ];
 const IMAGE: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -55,7 +53,6 @@ const IMAGE: &[FileAction] = &[
 ];
 const PDF: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -73,7 +70,6 @@ const PDF: &[FileAction] = &[
 ];
 const VECTOR: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -86,7 +82,6 @@ const VECTOR: &[FileAction] = &[
 ];
 const VIDEO: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -99,7 +94,6 @@ const VIDEO: &[FileAction] = &[
 ];
 const AUDIO: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -113,7 +107,6 @@ const AUDIO: &[FileAction] = &[
 ];
 const TEXT: &[FileAction] = &[
     Open,
-    OpenWith,
     RevealInFolder,
     CopyFile,
     CopyPath,
@@ -199,7 +192,7 @@ pub fn edits_for(kind: FormatKind) -> &'static [EditKind] {
 }
 
 /// Whether the viewer has a full stage for `kind` or shows only the light tier. Every kind is
-/// answered: a kind without a stage says `PeekOnly` and offers facts and Open With….
+/// answered: a kind without a stage says `PeekOnly` and offers facts.
 pub fn stage_support(kind: FormatKind) -> StageSupport {
     profile_of(kind).stage
 }

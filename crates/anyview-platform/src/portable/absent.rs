@@ -1,36 +1,12 @@
 //! The desktop abilities a platform without the desktop's services does not have, each behind its
-//! trait: Open With lists nothing, there is no mail target, no print dialog and no file chooser.
+//! trait: there is no mail target, no print dialog and no file chooser.
 //! The host answers each with a "not available" outcome rather than an error.
 
-use crate::apps::{AppEntry, AppsForType, DesktopId};
 use crate::error::PlatformError;
-use crate::picker::{PickOutcome, Picker};
+use crate::picker::{FileKinds, PickOutcome, Picker};
 use crate::printer::{JobTitle, PrintOutcome, Printer};
 use crate::share::{Share, ShareTarget};
-use anyview_core::{FilePath, Mime};
-
-/// [`AppsForType`] with no application database: no application is offered.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NoApps;
-
-impl AppsForType for NoApps {
-    fn present(&self) -> bool {
-        false
-    }
-
-    fn apps_for(&self, _mime: &Mime) -> Vec<AppEntry> {
-        Vec::new()
-    }
-
-    fn open_with(&self, app: &DesktopId, _file: &FilePath) -> Result<(), PlatformError> {
-        // Nothing is ever offered, so nothing can be chosen: a request for one names an entry
-        // that does not exist.
-        Err(PlatformError::Exec {
-            id: app.as_str().to_owned(),
-            reason: "this platform lists no applications".to_owned(),
-        })
-    }
-}
+use anyview_core::FilePath;
 
 /// [`Share`] with nowhere to send a file.
 #[derive(Debug, Clone, Copy, Default)]
@@ -69,7 +45,7 @@ impl Picker for NoPicker {
         false
     }
 
-    async fn pick(&self) -> Result<PickOutcome, PlatformError> {
+    async fn pick(&self, _kinds: &FileKinds) -> Result<PickOutcome, PlatformError> {
         Ok(PickOutcome::NoDialog)
     }
 }
@@ -81,15 +57,16 @@ mod tests {
 
     #[tokio::test]
     async fn each_absent_ability_says_so_and_does_nothing() {
-        let mime = Mime::parse("image/png").unwrap();
-        assert!(NoApps.apps_for(&mime).is_empty());
         assert!(NoShare.targets().is_empty());
         let title = JobTitle("a".to_owned());
         assert_eq!(
             NoPrinter.print(b"%PDF", &title).await.unwrap(),
             PrintOutcome::NoDialog
         );
-        assert_eq!(NoPicker.pick().await.unwrap(), PickOutcome::NoDialog);
-        assert!(!NoApps.present() && !NoPrinter.present() && !NoPicker.present());
+        assert_eq!(
+            NoPicker.pick(&FileKinds::default()).await.unwrap(),
+            PickOutcome::NoDialog
+        );
+        assert!(!NoPrinter.present() && !NoPicker.present());
     }
 }

@@ -68,13 +68,6 @@ fn what_the_person_is_told_follows_what_was_done_and_how_it_ended() {
             false,
         ),
         (
-            "no program to open with",
-            Doing::OpenWith,
-            Outcome::Nothing("none"),
-            Some("No other app can open this kind of file"),
-            false,
-        ),
-        (
             "no way to share",
             Doing::Share,
             Outcome::Nothing("none"),

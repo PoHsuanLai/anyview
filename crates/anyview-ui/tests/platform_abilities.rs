@@ -18,7 +18,7 @@ use std::time::Duration;
 use support::{Requests, VIEW, Wiring, folder, settle, wired};
 
 /// The labels of the actions that need a desktop service, as the palette words them.
-const DESKTOP: &[&str] = &["Open with", "Share", "Print", "Reveal in folder"];
+const DESKTOP: &[&str] = &["Share", "Print", "Reveal in folder"];
 
 fn with(platform: PlatformAbilities, files: &[(&str, &str, &str)]) -> (Harness, Requests) {
     let (dir, paths) = folder(files);
@@ -91,7 +91,7 @@ fn with_every_ability_the_palette_the_menu_and_the_keys_are_as_they_were() {
         assert!(listed.contains(label), "{label} is listed: {listed}");
     }
     let menu = context_menu(&mut harness);
-    for label in ["Open With\u{2026}", "Share\u{2026}", "Show in Folder"] {
+    for label in ["Share\u{2026}", "Show in Folder"] {
         assert!(menu.iter().any(|row| row == label), "{label} in {menu:?}");
     }
     chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
@@ -115,7 +115,7 @@ fn with_no_ability_the_desktop_actions_are_in_no_palette_no_menu_and_on_no_key()
         assert!(listed.contains(kept), "{kept} is still listed: {listed}");
     }
     let menu = context_menu(&mut harness);
-    for label in ["Open With\u{2026}", "Share\u{2026}", "Show in Folder"] {
+    for label in ["Share\u{2026}", "Show in Folder"] {
         assert!(!menu.iter().any(|row| row == label), "{label} in {menu:?}");
     }
     assert!(
@@ -125,13 +125,11 @@ fn with_no_ability_the_desktop_actions_are_in_no_palette_no_menu_and_on_no_key()
     chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
     chord(&mut harness, &[ShortcutKey::Ctrl], 'p');
     chord(&mut harness, &[ShortcutKey::Ctrl], 'r');
-    chord(&mut harness, &[ShortcutKey::Ctrl, ShortcutKey::Alt], 'o');
     let asked = asked(&requests);
     for request in [
         HostRequest::PickFile,
         HostRequest::Run(FileAction::Print),
         HostRequest::Run(FileAction::RevealInFolder),
-        HostRequest::Run(FileAction::OpenWith),
     ] {
         assert!(
             !asked.contains(&request),
@@ -140,7 +138,7 @@ fn with_no_ability_the_desktop_actions_are_in_no_palette_no_menu_and_on_no_key()
     }
 }
 
-/// An archive with nothing in it: a card, with Open With… and Show in Folder.
+/// An archive with nothing in it: a card, with Show in Folder.
 fn empty_zip() -> Vec<u8> {
     let mut zip = b"PK\x05\x06".to_vec();
     zip.extend([0; 18]);
@@ -166,22 +164,14 @@ fn card(platform: PlatformAbilities) -> Harness {
 fn a_card_draws_the_buttons_of_the_services_there_are_and_none_of_those_there_are_not() {
     // name, the abilities, the buttons that remain
     let cases = [
-        ("all", PlatformAbilities::ALL, 2),
-        (
-            "no applications",
-            PlatformAbilities {
-                open_with: false,
-                ..PlatformAbilities::ALL
-            },
-            1,
-        ),
+        ("all", PlatformAbilities::ALL, 1),
         (
             "no file manager",
             PlatformAbilities {
                 reveal: false,
                 ..PlatformAbilities::ALL
             },
-            1,
+            0,
         ),
         ("none", PlatformAbilities::NONE, 0),
     ];
@@ -251,14 +241,14 @@ fn open_is_in_the_palette_and_the_menu_where_there_is_a_chooser() {
         .iter()
         .position(|row| row == OPEN)
         .expect("Open… in the menu");
-    let with = menu
+    let reveal = menu
         .iter()
-        .position(|row| row == "Open With\u{2026}")
-        .unwrap();
+        .position(|row| row == "Show in Folder")
+        .expect("Show in Folder in the menu");
     assert_eq!(
         open + 1,
-        with,
-        "Open… sits just before Open With…: {menu:?}"
+        reveal,
+        "Open… sits just before Show in Folder: {menu:?}"
     );
 }
 

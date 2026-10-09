@@ -46,7 +46,7 @@ fn versions_of(scratch: &std::path::Path, file: &Probed) -> Vec<anyview_store::V
 async fn a_jpeg_turn_is_saved_in_place_with_its_original_kept() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::Edit {
             file: file.clone(),
@@ -71,7 +71,7 @@ async fn a_jpeg_turn_is_saved_in_place_with_its_original_kept() {
 async fn undo_restores_the_original_bytes_and_redo_applies_the_edit_again() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let run = |task| desktop.carry_out(task);
     let edit = run(Task::Edit {
         file: file.clone(),
@@ -102,7 +102,7 @@ async fn undo_restores_the_original_bytes_and_redo_applies_the_edit_again() {
 async fn the_window_trail_walks_a_save_an_undo_and_a_redo_through_routing() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let (shown, _) = route(Shown::default(), HostRequest::Opened(file.clone()));
     let (shown, carry) = route(shown, HostRequest::Edit(turn()));
     let Carry::Desktop(task) = carry else {
@@ -142,7 +142,7 @@ async fn undo_with_nothing_edited_is_declined() {
 async fn a_png_flip_is_written_again_as_a_png_and_a_save_that_fails_says_nothing_was_written() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", QUADRANTS);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let flip = EditRequest::of_picture(Edit::Flip(Axis::Horizontal));
     let outcome = desktop
         .carry_out(Task::Edit {
@@ -186,7 +186,7 @@ fn page_count(file: &Probed) -> u32 {
 async fn pdf_pages_are_deleted_moved_and_turned_in_place() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.pdf", &pdf_fixture::fixture_bytes());
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     assert_eq!(page_count(&file), 3);
     let at = |page| PageIndex(page);
     let edits = [
@@ -235,7 +235,7 @@ async fn pdf_pages_are_deleted_moved_and_turned_in_place() {
 async fn revert_to_lists_the_kept_versions_and_puts_the_chosen_one_back() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     for _ in 0..2 {
         kept_of(
             &desktop
@@ -273,7 +273,7 @@ async fn revert_to_lists_the_kept_versions_and_puts_the_chosen_one_back() {
 async fn a_version_that_is_not_kept_reverts_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::RevertTo {
             file: file.source.path().clone(),
@@ -289,7 +289,7 @@ async fn a_version_that_is_not_kept_reverts_nothing() {
 async fn save_a_copy_writes_beside_the_source_and_leaves_it_untouched() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", QUADRANTS);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let (shown, _) = route(Shown::default(), HostRequest::Opened(file.clone()));
     let (_, carry) = route(
         shown.clone(),
@@ -390,7 +390,7 @@ fn versions_older_than_the_keep_period_are_pruned_and_newer_ones_stay() {
 async fn an_undo_asked_while_a_save_is_written_waits_and_is_asked_again_when_it_ends() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let (shown, _) = route(Shown::default(), HostRequest::Opened(file.clone()));
     let (shown, carry) = route(shown, HostRequest::Edit(turn()));
     let Carry::Desktop(task) = carry else {

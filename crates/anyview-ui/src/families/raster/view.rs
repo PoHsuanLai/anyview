@@ -10,7 +10,6 @@ use super::geometry::{
 };
 use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
 use crate::{Command, RasterIn, RasterStage, Stage, StageIn};
-use anyview_core::FileAction;
 use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Zoom};
 use dioxus::prelude::*;
 use ds::components::content::text_runs::TextLine;
@@ -59,7 +58,6 @@ pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
 #[component]
 fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
     let run = cx.run;
-    let platform = cx.platform;
     let facts: Vec<ds::components::fields::fact_list::Fact> = doc
         .0
         .facts
@@ -82,12 +80,6 @@ fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
                                 Button {
                                     label: "Install…",
                                     onclick: move |_| run.call(Command::Install(helper)),
-                                }
-                            }
-                            if platform.offers(FileAction::OpenWith) {
-                                Button {
-                                    label: "Open With…",
-                                    onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
                                 }
                             }
                         }

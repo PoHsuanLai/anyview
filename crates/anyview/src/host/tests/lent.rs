@@ -12,7 +12,7 @@ use std::sync::Arc;
 async fn the_views_recall_what_the_store_kept_for_this_version_of_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let hosting: Arc<dyn Hosting> = Arc::new(desktop);
     let recall = HostedResume(Arc::clone(&hosting));
     let kept = Resume::Text { line: LineIndex(9) };

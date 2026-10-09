@@ -52,8 +52,8 @@ mod remaking {
     use crate::window::root::{remade, spec_for, stacking_for};
     use anyview_media::AudioDriver;
     use anyview_platform::testing::{
-        FakeApps, FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
-        FakeStacking, StackingSupport,
+        FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare, FakeStacking,
+        StackingSupport,
     };
     use anyview_platform::{PickOutcome, PrintOutcome, Stacking, StackingOutcome};
     use anyview_store::Viewed;
@@ -94,7 +94,6 @@ mod remaking {
         );
         let desktop = Desktop::new(
             runtime.handle().clone(),
-            FakeApps::default(),
             FakeReveal::default(),
             FakeShare::default(),
             FakePrinter::answering(PrintOutcome::Printed),

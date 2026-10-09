@@ -7,6 +7,6 @@ use ds_core::word::Word;
 pub enum StageSupport {
     /// The viewer has a stage for it.
     Stage,
-    /// Only the light tier: facts and Open With…
+    /// Only the light tier: facts
     PeekOnly,
 }

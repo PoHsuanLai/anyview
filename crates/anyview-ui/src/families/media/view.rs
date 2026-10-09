@@ -115,7 +115,7 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
     }
 }
 
-/// A recording no plugin plays: its facts, the package that would play it, and Open With….
+/// A recording no plugin plays: its facts, the package that would play it, and Show in Folder.
 #[component]
 fn Unplayable(doc: Held<MediaDoc>, needs: Need, cx: StageCx) -> Element {
     let run = cx.run;
@@ -144,12 +144,6 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Need, cx: StageCx) -> Element {
                                 Button {
                                     label: "Install…",
                                     onclick: move |_| run.call(Command::Install(helper)),
-                                }
-                            }
-                            if platform.offers(FileAction::OpenWith) {
-                                Button {
-                                    label: "Open With…",
-                                    onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
                                 }
                             }
                             if platform.offers(FileAction::RevealInFolder) {

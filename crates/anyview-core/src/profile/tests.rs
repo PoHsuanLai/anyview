@@ -9,7 +9,6 @@ use ds_core::word::Word;
 
 const COMMON: &[FileAction] = &[
     FileAction::Open,
-    FileAction::OpenWith,
     FileAction::RevealInFolder,
     FileAction::CopyFile,
     FileAction::CopyPath,

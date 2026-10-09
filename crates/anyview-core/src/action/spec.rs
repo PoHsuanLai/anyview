@@ -32,7 +32,6 @@ pub(super) fn spec_of(action: FileAction) -> ActionSpec {
     use ShortcutKey::{Alt, Backspace, Char, Shift, Super};
     match action {
         FileAction::Open => spec(Reach::Launcher, Binding::Standard(StandardAction::Open)),
-        FileAction::OpenWith => spec(Reach::Both, Binding::Own(&[Alt, Super, Char('o')])),
         FileAction::RevealInFolder => spec(Reach::Both, Binding::Standard(StandardAction::Reveal)),
         FileAction::CopyFile => spec(Reach::Both, Binding::Standard(StandardAction::Copy)),
         FileAction::CopyPath => spec(Reach::Both, Binding::Own(&[Alt, Super, Char('c')])),

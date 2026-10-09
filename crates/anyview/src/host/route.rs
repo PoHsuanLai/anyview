@@ -103,8 +103,6 @@ pub enum Task {
     RecordView(Probed),
     /// Keep where the person is in the file.
     Remember { source: Source, resume: Resume },
-    /// Open the file in the default other program that handles its type.
-    OpenWith(Probed),
     /// Show the file in the file manager.
     Reveal(FilePath),
     /// Ask the person for a file in the desktop's dialog; what they choose opens in the window.
@@ -206,9 +204,6 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
     let path = |probed: &Probed| probed.source.path().clone();
     match action {
         FileAction::Open => declined_with_file(shown, Declined::AlreadyOpen),
-        FileAction::OpenWith => about_file(shown, |probed| {
-            Carry::Desktop(Task::OpenWith(probed.clone()))
-        }),
         FileAction::RevealInFolder => {
             about_file(shown, |probed| Carry::Desktop(Task::Reveal(path(probed))))
         }

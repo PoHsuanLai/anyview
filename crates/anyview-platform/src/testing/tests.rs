@@ -1,5 +1,4 @@
 use super::*;
-use crate::apps::{AppEntry, Association, DesktopId};
 use crate::instance::{Claim, Instance, Request};
 use crate::media::{MediaControl, MediaSession, MediaState, PlaybackStatus};
 use crate::stacking::{Stacking, StackingOutcome, WindowStacking};
@@ -99,20 +98,4 @@ fn the_stacking_fake_refuses_keep_above_only_when_unsupported() {
         assert_eq!(fake.request(*asked), *want, "{name}");
         assert_eq!(fake.requested(), vec![*asked], "{name}");
     }
-}
-
-#[test]
-fn the_apps_fake_offers_its_entries_and_records_what_opens() {
-    let id = DesktopId::new("a.desktop").unwrap();
-    let entry = AppEntry {
-        id: id.clone(),
-        name: "A".to_owned(),
-        association: Association::Default,
-    };
-    let fake = FakeApps::offering(vec![entry.clone()]);
-    let mime = anyview_core::Mime::parse("image/png").unwrap();
-    assert_eq!(crate::AppsForType::apps_for(&fake, &mime), vec![entry]);
-    let target = file("/a.png");
-    crate::AppsForType::open_with(&fake, &id, &target).unwrap();
-    assert_eq!(fake.opened(), vec![(id, target)]);
 }

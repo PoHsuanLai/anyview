@@ -172,6 +172,35 @@ fn the_sheet_is_worded_from_the_file_for_this_distribution() {
 }
 
 #[test]
+fn every_tool_the_shipped_file_declares_is_worded_and_offered_beside_its_row() {
+    // The path every missing-tool screen takes: the sheet is worded from the file, and the row
+    // gains the tool to install. One pass over every tool the viewer names, on each family of
+    // distributions the file has packages for.
+    let fact = anyview_core::Fact {
+        label: anyview_core::FactLabel::Needs,
+        value: anyview_core::FactValue::text("x"),
+    };
+    for os_release in [
+        "ID=fedora\n",
+        "ID=ubuntu\nID_LIKE=debian\n",
+        "ID=arch\n",
+        "ID=opensuse-leap\nID_LIKE=suse\n",
+    ] {
+        let machine = Machine::new(os_release);
+        let (host, _) = host(&machine, Installed::Installed, &[]);
+        for helper in Helper::ALL {
+            let words = host.words(*helper);
+            assert!(words.is_some(), "{os_release:?}: {helper:?} has words");
+            assert_eq!(
+                host.need(fact.clone(), *helper).helper,
+                Some(*helper),
+                "{os_release:?}: {helper:?} is offered to install"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_helper_the_file_does_not_declare_is_not_offered() {
     let machine = Machine::fedora();
     let only_heic = "[heic-decode]\ntool=\"libheif tools\"\npurpose=\"open HEIC photos\"\n\
@@ -301,7 +330,7 @@ async fn the_desktop_carries_an_install_out_and_says_how_it_ended() {
         "the fake left the tool"
     );
 
-    let (without, _fakes) = desktop(dir.path(), vec![]);
+    let (without, _fakes) = desktop(dir.path());
     let outcome = without
         .carry_out(Task::Provide(Helper::HeicDecode))
         .await

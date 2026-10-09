@@ -114,12 +114,6 @@ fn every_shortcut_the_palette_shows_for_a_file_action_runs_that_action() {
             HostRequest::Run(FileAction::RevealInFolder),
         ),
         (
-            "open with",
-            vec![ShortcutKey::Ctrl, ShortcutKey::Alt],
-            'o',
-            HostRequest::Run(FileAction::OpenWith),
-        ),
-        (
             "copy the path",
             vec![ShortcutKey::Ctrl, ShortcutKey::Alt],
             'c',

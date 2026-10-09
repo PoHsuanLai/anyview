@@ -2,7 +2,6 @@
 //! clone and its clones share their record, so a test hands one clone to the code under test and
 //! keeps the other to read what happened.
 
-mod apps;
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 mod bus;
 mod instance;
@@ -19,7 +18,6 @@ mod spawn;
 mod stacking;
 mod thumbnails;
 
-pub use apps::FakeApps;
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 pub use bus::PrivateBus;
 pub use instance::{FakeInstance, FakeRole};

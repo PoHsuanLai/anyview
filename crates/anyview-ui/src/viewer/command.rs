@@ -10,17 +10,6 @@ use crate::stage::Stage;
 use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
 use ds_core::time::stamp::Stamp;
 
-/// The export format of what the stage shows, or `None` when the file has no export.
-fn export_family(stage: &Stage) -> Option<ExportFamily> {
-    match stage {
-        Stage::Raster(_) => Some(ExportFamily::Raster),
-        Stage::Pdf(_) => Some(ExportFamily::Pdf),
-        Stage::Media(_) => Some(ExportFamily::Media),
-        Stage::Text(_) => Some(ExportFamily::Text),
-        Stage::NoStage | Stage::Book(_) | Stage::Table(_) | Stage::Tree(_) => None,
-    }
-}
-
 pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerParams) -> Step {
     match command {
         Command::Stage(command) => match viewer.stage.input_for(command, &params.stage) {
@@ -36,7 +25,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
 /// The export sheet for what the stage shows. A recording's depends on what is installed: with
 /// nothing on offer the sheet says which package adds the exports.
 fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
-    let opening = match export_family(&viewer.stage) {
+    let opening = match viewer.stage.abilities().export {
         None => None,
         Some(ExportFamily::Media) => {
             let offer = &params.sheet.media;
@@ -87,7 +76,6 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         }
         FileAction::FlipVertical => edit(viewer, Edit::Flip(Axis::Vertical), action, at, params),
         FileAction::Open
-        | FileAction::OpenWith
         | FileAction::RevealInFolder
         | FileAction::CopyFile
         | FileAction::CopyPath

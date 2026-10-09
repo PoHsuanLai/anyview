@@ -14,7 +14,7 @@ use super::keys::{keys_of, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
-use super::session::Probe;
+use super::session::{Probe, offered_slots};
 use super::sheet::{
     EditSheet, ExportSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet,
     UnavailableSheet,
@@ -27,7 +27,7 @@ use crate::{
     Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn,
     Spot, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
 };
-use anyview_core::{FileAction, FilePath};
+use anyview_core::FilePath;
 use dioxus::prelude::*;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
@@ -179,9 +179,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             tabs
         }
     });
+    let machine_params = dispatch.params();
+    // The capsule lists from what the palette and the menu list: a button for a file action the
+    // file does not take (a rotate on a file that refuses a save) is not drawn.
     let slots = current
         .as_ref()
-        .map(|(_, doc)| doc.view().slots(&cx))
+        .map(|(_, doc)| offered_slots(doc.view().slots(&cx), &machine_params.files))
         .unwrap_or_default();
     let failure = match state.load {
         Load::Failed { reason, .. } => Some(reason),
@@ -211,8 +214,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         Offer::Nothing
     } else {
         Offer::of(
-            shelf.probe.read().found().is_some(),
-            shelf.wanted.read().is_some(),
+            shelf.probe.read().found().is_some() || shelf.wanted.read().is_some(),
             shelf.platform,
         )
     };
@@ -223,7 +225,6 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let body = current
         .as_ref()
         .and_then(|(_, doc)| doc.view().panel(panel_tab, &cx));
-    let machine_params = dispatch.params();
     let rows = machine_params.palette.rows;
     let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
@@ -290,7 +291,6 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         reason,
                         name: title.clone(),
                         offer: failed_offer,
-                        onopenwith: move |()| dispatch.send(ViewerIn::Run(Command::File(FileAction::OpenWith))),
                         onreveal: move |()| reveal(&reveal_edge, &shelf),
                     }
                 } else {

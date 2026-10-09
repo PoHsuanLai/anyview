@@ -1,4 +1,4 @@
-//! A file the viewer has no stage for: its facts and Open With…. It is the stage of every kind
+//! A file the viewer has no stage for: its facts. It is the stage of every kind
 //! the full tier does not cover yet (the registry maps them here), and it is a real view, not a
 //! stub: a person sees what the file is and hands it to the program that can show it.
 
@@ -182,12 +182,6 @@ impl StageView for PeekOnlyStageView {
                         description: Some(TextLine::from(description)),
                         action: rsx! {
                             div { class: "viewer-failed-actions",
-                                if platform.offers(FileAction::OpenWith) {
-                                    Button {
-                                        label: "Open With\u{2026}",
-                                        onclick: move |_| run.call(Command::File(FileAction::OpenWith)),
-                                    }
-                                }
                                 if platform.offers(FileAction::RevealInFolder) {
                                     Button {
                                         label: "Show in Folder",

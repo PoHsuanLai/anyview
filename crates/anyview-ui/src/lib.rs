@@ -75,10 +75,10 @@ pub use stage::{
     HitIndex, HitStep, LineTotal, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
     MediaStage, Motion, Pace, PageLines, PageView, PdfIn, PdfOut, PdfParams, PdfStage,
     PlayerCommand, PlayerEvent, RasterIn, RasterOut, RasterParams, RasterStage, RowNo, RowStep,
-    Runs, SheetNo, SheetTotal, Stage, StageFamily, StageIn, StageOut, StageParams, StepDirection,
-    TableIn, TableOut, TableParams, TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace,
-    TextStage, TextStep, TextView, TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage,
-    TrimEdge, Viewport, Wrap, ZoomDir,
+    Runs, SheetNo, SheetTotal, Stage, StageAbilities, StageFamily, StageIn, StageOut, StageParams,
+    StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent, TextIn, TextOut,
+    TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind, TreeIn, TreeOut,
+    TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};

@@ -137,7 +137,6 @@ fn a_picture_menu_lists_what_the_palette_offers_in_the_context_order() {
             "Copy Path",
             RULE,
             "Open\u{2026}",
-            "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
             RULE,
@@ -155,7 +154,6 @@ fn a_picture_menu_lists_what_the_palette_offers_in_the_context_order() {
             ("Rotate Left", file(FileAction::RotateLeft)),
             ("Rotate Right", file(FileAction::RotateRight)),
             ("Copy Path", file(FileAction::CopyPath)),
-            ("Open With\u{2026}", file(FileAction::OpenWith)),
             ("Show in Folder", file(FileAction::RevealInFolder)),
             ("Export\u{2026}", file(FileAction::Export)),
             ("Share\u{2026}", file(FileAction::Share)),
@@ -277,7 +275,6 @@ fn a_text_file_menu_has_no_picture_rows() {
             "Copy Path",
             RULE,
             "Open\u{2026}",
-            "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
             RULE,
@@ -320,7 +317,6 @@ fn a_pdf_menu_rotates_the_page_and_has_the_files_actions() {
             "Copy Path",
             RULE,
             "Open\u{2026}",
-            "Open With\u{2026}",
             "Show in Folder",
             "Get Info",
             RULE,
@@ -339,6 +335,29 @@ fn a_pdf_menu_rotates_the_page_and_has_the_files_actions() {
             ("Export\u{2026}", file(FileAction::Export)),
         ],
         &listed,
+    );
+}
+
+#[test]
+fn picking_rotate_on_a_pdf_asks_the_host_to_turn_the_page_it_is_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("fixture.pdf");
+    std::fs::write(&path, pdf_fixture::fixture_bytes()).unwrap();
+    let paths: Vec<PathBuf> = vec![std::fs::canonicalize(path).unwrap()];
+    let (mut harness, requests) = window(&paths, 0, Appearance::default());
+    settle(&mut harness);
+    right_click(&mut harness, at(300.0, 200.0));
+    let before = asked(&requests).len();
+    let rotate = harness.centre(".ds-menu-item").expect("a first row");
+    harness.send(Input::click(rotate));
+    harness.advance(std::time::Duration::from_secs(1));
+    assert_eq!(
+        asked(&requests)[before..],
+        [HostRequest::Edit(EditRequest::on_page(
+            Edit::Rotate(QuarterTurn::ThreeQuarter),
+            anyview_core::PageIndex(0)
+        ))],
+        "the first row is Rotate Left, and it turns the first page"
     );
 }
 

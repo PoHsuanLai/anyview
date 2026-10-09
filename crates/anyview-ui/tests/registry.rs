@@ -1,5 +1,5 @@
 //! Every kind of file is mapped to a view, and the registry agrees with the core's table of which
-//! kinds have a stage: a kind with no stage is shown as facts and Open With…, never left out.
+//! kinds have a stage: a kind with no stage is shown as facts, never left out.
 
 use anyview_core::{FormatKind, StageSupport, stage_support};
 use anyview_ui::{StageFamily, family_of};

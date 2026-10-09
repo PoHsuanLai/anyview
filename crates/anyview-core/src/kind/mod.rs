@@ -26,7 +26,7 @@ pub use media::MediaContainer;
 pub use mime::Mime;
 pub use of_mime::kind_of_mime;
 pub use office::OfficeFormat;
-pub use opened::opened_mimes;
+pub use opened::{claimed_mimes, opened_globs, opened_mimes};
 pub use raster::RasterFormat;
 pub use syntax::SyntaxName;
 pub use tree::TreeFormat;

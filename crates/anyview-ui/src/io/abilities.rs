@@ -1,6 +1,5 @@
 //! What the platform the viewer runs on can do for the person: the file actions that need a
-//! service of the desktop (a file chooser, a print dialog, a way to share, a list of applications,
-//! a file manager). The binary says which it has, from the platform parts it was built with; the
+//! service of the desktop (a file chooser, a print dialog, a way to share, a file manager). The binary says which it has, from the platform parts it was built with; the
 //! views offer an action only when its ability is there, so no control is shown that can do
 //! nothing. The views never ask which operating system they run on, only this data.
 
@@ -15,8 +14,6 @@ pub struct PlatformAbilities {
     pub print: bool,
     /// A way to send a file to someone: Share….
     pub share: bool,
-    /// A list of the applications that open a file: Open With….
-    pub open_with: bool,
     /// A file manager to show a file in: Show in Folder.
     pub reveal: bool,
 }
@@ -27,7 +24,6 @@ impl PlatformAbilities {
         pick_files: true,
         print: true,
         share: true,
-        open_with: true,
         reveal: true,
     };
 
@@ -36,7 +32,6 @@ impl PlatformAbilities {
         pick_files: false,
         print: false,
         share: false,
-        open_with: false,
         reveal: false,
     };
 
@@ -46,7 +41,6 @@ impl PlatformAbilities {
             FileAction::Open => self.pick_files,
             FileAction::Print => self.print,
             FileAction::Share => self.share,
-            FileAction::OpenWith => self.open_with,
             FileAction::RevealInFolder => self.reveal,
             FileAction::CopyFile
             | FileAction::CopyPath
@@ -86,7 +80,6 @@ mod tests {
             (FileAction::Open, |a| a.pick_files = false),
             (FileAction::Print, |a| a.print = false),
             (FileAction::Share, |a| a.share = false),
-            (FileAction::OpenWith, |a| a.open_with = false),
             (FileAction::RevealInFolder, |a| a.reveal = false),
         ];
         for action in FileAction::ALL {
