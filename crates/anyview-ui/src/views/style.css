@@ -16,10 +16,6 @@
 /* A picture has no text to select. Blitz starts a selection drag once a held button moves more than 2px and then drops the
    contextmenu event on release, so a secondary click with the slightest hand movement would open no menu. */
 .viewer-raster, .viewer-raster-picture, .viewer-raster-picture *{ user-select:none; }
-/* Blitz hands a pointer event over a custom widget (quire's texture layer, an <object>) to the widget and goes no further, so
-   a click or right-click on the picture would reach neither the room's handlers nor the context menu. A raster texture takes no
-   input of its own; this rule goes when quire v0.2.31's Blitz fix lands. */
-.viewer-raster-picture object{ pointer-events:none; }
 
 .viewer-text{ position:absolute; inset:0; overflow:hidden; font-family:var(--font-code); font-size:var(--fs-mono); }
 .viewer-text[*|data-view=rendered]{ font-family:var(--font-ui); }

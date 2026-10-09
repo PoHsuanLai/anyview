@@ -47,7 +47,7 @@ fn slots() -> Vec<RankedSlot<Command>> {
         CapsuleSlot::button(
             Command::File(FileAction::RotateLeft),
             "Rotate left",
-            Icon::Undo,
+            Icon::RotateLeft,
         ),
     ])
 }

@@ -68,22 +68,22 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "592eea9b69
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc26003f466d20fa12123f783180653" }  # v0.2.30
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }  # v0.2.31
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -93,7 +93,7 @@ ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "366dcd97ebc2
 
 # The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
 # each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
-blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "c6b142d062046c19139c2f423496faf436e52bd7" }
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "be460865dec8f844e7111fe79be70826dfea8427" }
 
 # Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
@@ -101,20 +101,20 @@ blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "c6b142d062
 # bf588142 (restyles elements whose animation was cancelled mid-way) and 1b23fbd9 (attributes carry no
 # namespace, so `[data-x=y]` matches) (sill G295). Move back
 # to DioxusLabs/blitz when a toolchain-bump wave finds the fix (or its equivalent) upstream.
-blitz-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4", default-features = false, features = ["svg", "system-fonts", "custom-widget", "accessibility"] }
-blitz-paint = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4", features = ["custom-widget"] }
-blitz-traits = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4" }
+blitz-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa", default-features = false, features = ["svg", "system-fonts", "custom-widget", "accessibility"] }
+blitz-paint = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa", features = ["custom-widget"] }
+blitz-traits = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa" }
 # The HTML parser (html5ever 0.39): an `<iframe srcdoc>` builds a real sub-document. ds-blitz
 # installs it in headless documents; the window gets it through dioxus-native's `html` feature.
-blitz-html = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4" }
-dioxus-native-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4", default-features = false, features = ["svg", "system-fonts", "accessibility"] }
+blitz-html = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa" }
+dioxus-native-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa", default-features = false, features = ["svg", "system-fonts", "accessibility"] }
 # The portable window path for apps (winit); the shell uses shell-host instead.
-dioxus-native = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4", default-features = false, features = ["vello-hybrid", "svg", "system-fonts", "accessibility"] }
+dioxus-native = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa", default-features = false, features = ["vello-hybrid", "svg", "system-fonts", "accessibility"] }
 # The window shell under dioxus-native, named for `ds_blitz::open_window`: its proxy and window
 # config types build a second DioxusNativeApplication on the same event loop. dioxus-native's
 # own `dioxus:` asset resolver and link opener come with it (both already in the tree through
 # dioxus-native, same versions), since ds-blitz now builds the window's document itself.
-blitz-shell = { git = "https://github.com/PoHsuanLai/blitz", rev = "cf4cb3981e97ea5feacf9f3a5e13001b69bbc0a4", default-features = false }
+blitz-shell = { git = "https://github.com/PoHsuanLai/blitz", rev = "15ead74d94d7e0680738ab5ab2bff09bb319eeaa", default-features = false }
 dioxus-asset-resolver = { version = "0.7", features = ["native"] }
 webbrowser = "1.0"
 # The system clipboard's text/html, for an edit surface's paste (ds-blitz): blitz-shell's own

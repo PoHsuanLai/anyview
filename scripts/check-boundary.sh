@@ -150,6 +150,9 @@ DIRECT=(
 # The plugin machinery moved out to bayonet (a library of its own, shared with other apps): the viewer is 683,
 # one package more, since bayonet is a package where the same code was three workspace crates' own, and its
 # dependencies (toml, rustix, serde, serde_json, thiserror) were all in the tree already.
+# quire v0.2.31 builds arboard with `wayland-data-control`, so copied text reaches a Wayland desktop and outlives
+# the call that set it: the viewer is 687, four packages more (wl-clipboard-rs, which serves the selection, and its
+# petgraph, os_pipe and tree_magic_mini).
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -157,7 +160,7 @@ DIRECT=(
 # none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 564"
-  "anyview: 683"
+  "anyview: 687"
 )
 HEADLESS_BUDGET=248
 HEADLESS_FORBIDDEN=(ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)

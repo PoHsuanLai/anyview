@@ -168,12 +168,16 @@ impl StageView for RasterStageView {
         if doc.offer != crate::EditOffer::Withheld {
             slots.push(CapsuleSlot::Divider.essential());
             slots.push(
-                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::Undo)
+                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::RotateLeft)
                     .droppable(RANK_ROTATE),
             );
             slots.push(
-                CapsuleSlot::button(Command::File(RotateRight), "Rotate right", Icon::Refresh)
-                    .droppable(RANK_ROTATE),
+                CapsuleSlot::button(
+                    Command::File(RotateRight),
+                    "Rotate right",
+                    Icon::RotateRight,
+                )
+                .droppable(RANK_ROTATE),
             );
         }
         if let (true, Stage::Raster(raster)) = (doc.plays(), &cx.stage) {
