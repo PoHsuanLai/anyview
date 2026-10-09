@@ -69,6 +69,8 @@ pub struct PdfDoc {
     pub facts: Facts,
     /// A signed document asks before a page edit rewrites it.
     pub offer: EditOffer,
+    /// Whether this is a book bound as a PDF, which opens at reading width.
+    pub book: bool,
     scratch: Mutex<Vec<PdfWorker>>,
 }
 
@@ -87,6 +89,7 @@ impl PdfDoc {
         // The book's pages are a PDF only in the window: no edit of them could be written back.
         PdfDoc {
             offer: EditOffer::Withheld,
+            book: true,
             ..PdfDoc::with_facts(document, facts)
         }
     }
@@ -99,6 +102,7 @@ impl PdfDoc {
         };
         PdfDoc {
             offer,
+            book: false,
             outline: outline(&document),
             document,
             facts,

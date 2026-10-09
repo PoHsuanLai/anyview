@@ -380,3 +380,43 @@ fn a_book_offers_no_page_edits_for_its_pages_are_not_a_file() {
         .collect();
     assert!(edits.is_empty(), "{edits:?}");
 }
+
+#[test]
+fn a_book_opens_at_reading_width_and_a_remembered_zoom_wins() {
+    for scale in [100u16, 200] {
+        let dir = tempfile::tempdir().unwrap();
+        let harness = open(&epub(dir.path()), scale, Wiring::default());
+        let page = harness.rect(".viewer-pdf-page").unwrap();
+        assert!(
+            page.size.width.0 >= 800.0 && page.size.width.0 <= 900.0,
+            "{scale}%: the page fills the width of a 900 px window: {page:?}"
+        );
+        assert!(
+            page.size.height.0 > 600.0,
+            "{scale}%: so it is taller than the window: {page:?}"
+        );
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let path = epub(dir.path());
+    let memory = Memory::with(
+        &path,
+        Resume::Pdf {
+            page: PageIndex(0),
+            offset: Permille(0),
+            zoom: Zoom::Fit,
+        },
+    );
+    let harness = open(
+        &path,
+        100,
+        Wiring {
+            memory: Some(memory),
+            ..Wiring::default()
+        },
+    );
+    let page = harness.rect(".viewer-pdf-page").unwrap();
+    assert!(
+        page.size.height.0 <= 600.0,
+        "a place left at fit-page stays: {page:?}"
+    );
+}

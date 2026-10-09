@@ -30,9 +30,10 @@ pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
-    PanelTab, PanelTabs, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket, Viewport,
+    PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
+    Viewport,
 };
-use anyview_core::{Facts, FormatKind, PixelLen, PixelSize, Resume, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, PixelLen, PixelSize, Resume, Sniffed, Source, Zoom};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use std::sync::Arc;
@@ -103,8 +104,13 @@ impl StageView for PdfStageView {
         }))
     }
 
-    fn arrived(_doc: &PdfDoc, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {
-        stage.restoring(left_at).into_iter().collect()
+    fn arrived(doc: &PdfDoc, stage: &Stage, left_at: &Resume) -> Vec<StageIn> {
+        match stage.restoring(left_at) {
+            Some(restore) => vec![restore],
+            // A book opens at reading width, as Books and Preview do; a place left wins.
+            None if doc.book => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fill))],
+            None => Vec::new(),
+        }
     }
 
     fn stage(doc: &Arc<PdfDoc>, cx: &StageCx) -> Element {
