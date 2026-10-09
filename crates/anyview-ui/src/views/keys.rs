@@ -4,6 +4,7 @@
 
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::{Key, KeyboardEvent, Modifiers};
+use ds::prelude::is_command;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
 /// The named keys the viewer reads, and what each stands for.
@@ -46,7 +47,7 @@ fn key_of(key: &Key) -> Option<ShortcutKey> {
 /// The modifiers held, as shortcut keys, in no particular order (a `Shortcut` normalises).
 fn modifiers_of(held: Modifiers) -> Vec<ShortcutKey> {
     let mut keys = Vec::new();
-    if held.intersects(Modifiers::CONTROL | Modifiers::META) {
+    if is_command(held) {
         keys.push(ShortcutKey::Super);
     }
     if held.contains(Modifiers::ALT) {
@@ -101,6 +102,12 @@ mod tests {
                 "so is meta",
                 Key::Character("k".into()),
                 Modifiers::META,
+                vec![ShortcutKey::Super, ShortcutKey::Char('k')],
+            ),
+            (
+                "so is super, as a window reports the Super key",
+                Key::Character("k".into()),
+                Modifiers::SUPER,
                 vec![ShortcutKey::Super, ShortcutKey::Char('k')],
             ),
             (

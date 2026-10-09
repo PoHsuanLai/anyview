@@ -1,5 +1,5 @@
-//! The hover tips of the controls: a button's `title` is a Mac tooltip that shows after a second
-//! under the pointer, goes when the pointer leaves, and stays inside the window.
+//! The hover tips of the controls: a button's `title` is a tooltip that shows as soon as the
+//! pointer is over it (quire's default), goes when the pointer leaves, and stays inside the window.
 
 #![allow(clippy::unwrap_used)]
 
@@ -50,14 +50,12 @@ fn on_screen(rect: Rect, width: u32, height: u32) -> bool {
 }
 
 #[test]
-fn a_capsule_button_shows_its_name_after_a_second_and_not_before() {
+fn a_capsule_button_shows_its_name_as_soon_as_the_pointer_is_over_it() {
     for scale in SCALES {
         let (mut harness, _dir) = opened(900, 600, scale);
         hover(&mut harness, "Zoom in");
-        harness.advance(Duration::from_millis(400));
-        assert_eq!(harness.count(TIP), 0, "{scale}%: a tip before its wait");
-        harness.advance(Duration::from_millis(900));
-        assert_eq!(harness.count(TIP), 1, "{scale}%: no tip after a second");
+        settle(&mut harness);
+        assert_eq!(harness.count(TIP), 1, "{scale}%: no tip under the pointer");
         assert_eq!(harness.text_of(TIP).as_deref(), Some("Zoom in"), "{scale}%");
     }
 }

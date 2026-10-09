@@ -87,6 +87,15 @@ fn a_right_click_over_a_pdf_a_table_and_a_tree_opens_the_menu() {
     }
 }
 
+/// A rendered Markdown page and an EPUB chapter are frames: the right-click has to come out of
+/// the frame's document to reach the window's menu.
+#[test]
+fn a_right_click_over_a_rendered_page_and_a_book_opens_the_menu() {
+    for name in ["r.md", "book.epub"] {
+        assert_menu_opens_over(name);
+    }
+}
+
 #[test]
 fn a_picture_wider_than_the_gpu_texture_limit_is_shown_not_refused() {
     let dir = tempfile::tempdir().unwrap();
