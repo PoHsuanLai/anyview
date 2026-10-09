@@ -63,7 +63,9 @@ const EXTENSIONS: &[(&str, &str)] = &[
     ("cjs", "javascript"),
     ("jsx", "javascript"),
     ("ts", "typescript"),
-    ("tsx", "typescript"),
+    ("mts", "typescript"),
+    ("cts", "typescript"),
+    ("tsx", "tsx"),
     ("c", "c"),
     ("h", "c"),
     ("cc", "c++"),
@@ -74,10 +76,25 @@ const EXTENSIONS: &[(&str, &str)] = &[
     ("cs", "c#"),
     ("java", "java"),
     ("kt", "kotlin"),
+    ("kts", "kotlin"),
     ("go", "go"),
     ("rb", "ruby"),
     ("php", "php"),
     ("swift", "swift"),
+    ("dart", "dart"),
+    ("zig", "zig"),
+    ("zon", "zig"),
+    ("nix", "nix"),
+    ("ps1", "powershell"),
+    ("psm1", "powershell"),
+    ("psd1", "powershell"),
+    ("proto", "protobuf"),
+    ("tf", "terraform"),
+    ("tfvars", "terraform"),
+    ("hcl", "hcl"),
+    ("cmake", "cmake"),
+    ("mk", "makefile"),
+    ("env", "dotenv"),
     ("lua", "lua"),
     ("pl", "perl"),
     ("r", "r"),
@@ -91,17 +108,33 @@ const EXTENSIONS: &[(&str, &str)] = &[
     ("xml", "xml"),
     ("css", "css"),
     ("scss", "scss"),
+    ("sass", "sass"),
     ("yaml", "yaml"),
     ("yml", "yaml"),
     ("toml", "toml"),
     ("ini", "ini"),
     ("conf", "ini"),
+    ("cfg", "ini"),
+    ("properties", "ini"),
+    ("desktop", "ini"),
+    ("service", "ini"),
+    ("socket", "ini"),
+    ("inf", "ini"),
     ("diff", "diff"),
     ("patch", "diff"),
 ];
 
 /// Whole file names (not extensions) of source files.
-const NAMES: &[(&str, &str)] = &[("makefile", "makefile"), ("dockerfile", "dockerfile")];
+const NAMES: &[(&str, &str)] = &[
+    ("makefile", "makefile"),
+    ("gnumakefile", "makefile"),
+    ("dockerfile", "dockerfile"),
+    ("containerfile", "dockerfile"),
+    ("cmakelists.txt", "cmake"),
+    (".env", "dotenv"),
+    (".editorconfig", "ini"),
+    (".gitconfig", "ini"),
+];
 
 /// The syntax that highlights files with `extension`, ignoring case.
 pub(crate) fn for_extension(extension: &str) -> Option<SyntaxName> {
@@ -117,6 +150,14 @@ pub(crate) fn for_name(name: &str) -> Option<SyntaxName> {
         .iter()
         .find(|(known, _)| known.eq_ignore_ascii_case(name))
         .map(|(_, syntax)| SyntaxName::known(syntax))
+        .or_else(|| is_env_variant(name).then(|| SyntaxName::known("dotenv")))
+}
+
+/// `.env.local`, `.env.production`, ...: a dotenv file with a suffix saying which environment.
+fn is_env_variant(name: &str) -> bool {
+    name.len() > ".env.".len()
+        && name.is_char_boundary(".env.".len())
+        && name[..".env.".len()].eq_ignore_ascii_case(".env.")
 }
 
 #[cfg(test)]
@@ -174,6 +215,16 @@ mod tests {
             Some("makefile")
         );
         assert_eq!(for_name("Makefile.bak"), None);
+        for env in [".env.local", ".env.production", ".ENV.test"] {
+            assert_eq!(
+                for_name(env).as_ref().map(SyntaxName::as_str),
+                Some("dotenv"),
+                "{env}"
+            );
+        }
+        for other in [".env.", ".envrc", "env.local", "x.env.local"] {
+            assert_eq!(for_name(other), None, "{other}");
+        }
         assert_eq!(for_name("notmakefile"), None);
     }
 

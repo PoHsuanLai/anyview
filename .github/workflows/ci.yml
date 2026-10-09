@@ -91,6 +91,15 @@ jobs:
           python3 scripts/third-party-notices.py "$RUNNER_TEMP/notices.md"
           diff -q "$RUNNER_TEMP/notices.md" THIRD-PARTY-NOTICES.md
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: dev/syntax-dump
+
+      - name: Syntax dump is current
+        run: |
+          bash dev/syntax-dump/build.sh
+          git diff --exit-code --stat -- crates/anyview-text/src/code/syntaxes.packdump
+
   # The headless half of the library builds off Linux: what a mail client or a terminal links to
   # look at a file (anyview-peek without its `pane`, so no renderer and no window). Nothing in that
   # tree may be Linux-only. The viewer itself is a Linux desktop program and is gated above.

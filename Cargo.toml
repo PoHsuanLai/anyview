@@ -286,8 +286,9 @@ futures-channel = "0.3"
 # `StreamExt::next` on that receiver, and the stream of a portal request's `Response` signals
 # (`anyview-platform`): MIT OR Apache-2.0.
 futures-util = { version = "0.3", default-features = false }
-# `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT.
-syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "regex-fancy"] }
+# `anyview-text`: syntax highlighting with the pure-Rust regex engine (no oniguruma): MIT. Only the
+# dump loader: the syntaxes are packed by dev/syntax-dump, which is no member of this workspace.
+syntect = { version = "5", default-features = false, features = ["parsing", "dump-load", "regex-fancy"] }
 # Markdown parser: MIT.
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Delimited tables: MIT OR Unlicense.

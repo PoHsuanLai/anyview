@@ -1,6 +1,8 @@
 //! Syntax highlighting into token classes, by line range.
 //!
-//! The highlighter is `syntect` with its pure-Rust regex engine. A window of lines is highlighted
+//! The highlighter is `syntect` with its pure-Rust regex engine. Its syntaxes are syntect's
+//! defaults plus the grammars under `crates/anyview-text/syntaxes`, packed into one dump by
+//! `dev/syntax-dump` and loaded when a [`Highlighter`] is made. A window of lines is highlighted
 //! from the nearest saved parser state, so a window deep in a large file costs one pass over the
 //! lines before it, the first time, and nothing after.
 
@@ -42,19 +44,25 @@ pub struct SyntaxId(usize);
 /// language is the best it has.
 const ALIASES: &[(&str, &str)] = &[
     ("shell", "Bourne Again Shell (bash)"),
-    ("typescript", "JavaScript"),
-    ("kotlin", "Java"),
-    ("scss", "CSS"),
+    ("tsx", "TypeScriptReact"),
+    ("protobuf", "Protocol Buffer"),
+    ("hcl", "Terraform"),
     ("markdown", "Markdown"),
     ("json", "JSON"),
 ];
 
 impl Highlighter {
-    /// The default syntaxes.
+    /// The syntaxes of the dump built by `dev/syntax-dump`: syntect's defaults and anyview's own.
+    ///
+    /// The dump tool's syntect version and regex engine (regex-fancy) must match this workspace's:
+    /// a dump from another version fails to load and every file shows plain. The `> 90 syntaxes`
+    /// test in `tests.rs` catches that.
     pub fn new() -> Self {
-        Highlighter {
-            set: SyntaxSet::load_defaults_newlines(),
-        }
+        // The dump is part of the binary and a test loads it; were it ever unreadable, every text
+        // would be shown plain, which is what a language without a syntax gets.
+        let set = syntect::dumps::from_uncompressed_data(include_bytes!("syntaxes.packdump"))
+            .unwrap_or_else(|_| SyntaxSet::new());
+        Highlighter { set }
     }
 
     /// The syntax that highlights `name`, or `None` for a language the set does not have (the
