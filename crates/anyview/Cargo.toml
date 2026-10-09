@@ -13,8 +13,8 @@ publish.workspace = true
 #
 # `quire-desktop` is the Linux desktop's services (anyview-platform's feature of the same name): D-Bus single
 # instance with bus activation, the now-playing entry, the file chooser and print portals, the file manager,
-# Open With, mail sharing. On by default (Cargo has no per-target default); `--no-default-features` is the
-# portable build, whose single instance is a per-user socket and whose desktop abilities are absent.
+# Open With, mail sharing. The viewer turns it on by default (Cargo has no per-target default);
+# `--no-default-features` is the portable build, whose single instance is a per-user socket and whose desktop abilities are absent.
 [features]
 default = ["audio", "quire-desktop"]
 audio = ["anyview-media/audio"]

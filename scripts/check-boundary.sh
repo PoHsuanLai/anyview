@@ -347,7 +347,7 @@ for dir in crates/*/ plugins/*/; do
     echo "platform-only names held: $crate reaches none of ${EDGE_ONLY[*]}"
   fi
 done
-# anyview-platform reaches the bus and the freedesktop entry readers only through its `quire-desktop`
+# anyview-platform reaches the bus and the freedesktop entry readers only through its opt-in `quire-desktop`
 # feature (ARCHITECTURE.md section 2e): with it off, none of them is in its tree. This is the
 # crate's own tree; quire's `ds-settings` still brings zbus into the binary's until quire's portable
 # build lands, and that is not the platform crate's doing.

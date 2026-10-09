@@ -284,12 +284,12 @@ implementations are reached through `portable`, `linux` and `testing`. A second 
 **Two halves, one feature.** The owner's rule (quire design/36) is that everything but the desktop itself is
 cross-platform and the desktop's services are additive extras. So `portable` is built everywhere and calls no
 desktop service, and `desktop` (public path `anyview_platform::linux`, kept for `sill`) is the Linux desktop's services (D-Bus, the portals, MPRIS, the freedesktop
-application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is on by
-default (Cargo has no per-target default features, so the code behind it is also gated on
-`target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
-dependencies of that feature. The binary forwards it (`anyview/quire-desktop`), and `--no-default-features` is the
+application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is opt-in
+(the default build is the traits, the portable stand-ins and the `testing` fakes; Cargo has no per-target default
+features, so the code behind it is also gated on `target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
+dependencies of that feature. The binary forwards it (`anyview/quire-desktop`, on in its defaults), and `--no-default-features` is the
 portable build. `anyview-platform` is declared in the workspace with `default-features = false`, so only the
-binary's feature decides it; `sill` takes the crate by path and gets its default. Without the feature each
+binary's feature decides it; `sill` takes the crate by path and asks for `quire-desktop`. Without the feature each
 desktop ability is a trait the host still holds, answered by a portable stand-in:
 
 | Ability | With `quire-desktop` (Linux) | Without it |
