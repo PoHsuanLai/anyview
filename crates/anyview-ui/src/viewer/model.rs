@@ -4,6 +4,7 @@ use crate::chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams};
 use crate::command::Command;
 use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
+use crate::hand::{Hand, HandIn};
 use crate::io::PlatformAbilities;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
@@ -37,6 +38,8 @@ pub struct Viewer {
     pub presentation: Presentation,
     /// What shows the content.
     pub stage: Stage,
+    /// Whether a drag pans a picture.
+    pub hand: Hand,
     /// Whether the person has sent the open file to the Trash, so that its going is expected.
     pub trashing: Trashing,
     /// Whether a file chooser has been asked for and has not answered.
@@ -110,6 +113,8 @@ pub enum ViewerIn {
     Presentation(PresentationIn),
     /// The stage showing the file.
     Stage(StageIn),
+    /// The pan tool, or Space held for it.
+    Hand(HandIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the
     /// palette runs for the row it picked.
     Run(Command),

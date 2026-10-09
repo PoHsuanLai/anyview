@@ -1,5 +1,7 @@
 use super::support::*;
+use crate::Command;
 use crate::chrome::*;
+use crate::hand::{HandIn, Tool};
 use crate::load::*;
 use crate::navigate::*;
 use crate::palette::*;
@@ -237,4 +239,117 @@ fn escape_is_not_now_and_asks_nothing() {
     let (viewer, outs) = viewer.step(key(&[ShortcutKey::Escape]), Stamp(0), &(), &params);
     assert_eq!(viewer.sheet, Sheet::Closed);
     assert_eq!(sheet_outs(&outs), [SheetOut::Closed]);
+}
+
+/// Every way a different file can come on screen: the same root input path, whatever the source.
+fn arrivals() -> Vec<(&'static str, ViewerIn)> {
+    vec![
+        ("an open", ViewerIn::Open(path("/b.png"))),
+        ("a drop", ViewerIn::Dropped(vec![path("/b.png")])),
+        ("a chooser", ViewerIn::Chosen(vec![path("/b.png")])),
+    ]
+}
+
+#[test]
+fn a_different_file_starts_with_no_menu_palette_sheet_or_framing_of_the_last() {
+    use crate::context::{ContextMenu, Spot};
+    use crate::sheet::Sheet;
+    let params = params();
+    for (name, arrival) in arrivals() {
+        let viewer = Viewer {
+            stage: Stage::Raster(RasterStage::Zoomed {
+                turn: QuarterTurn::Quarter,
+                zoom: Zoom::Scale(Permille(2000)),
+                centre: DocPoint {
+                    x: DocUnit(40),
+                    y: DocUnit(50),
+                },
+                anim: Animation::Still,
+            }),
+            palette: palette_on(1),
+            context: ContextMenu::Open {
+                at: Spot { x: 10, y: 10 },
+            },
+            sheet: Sheet::ConfirmTrash,
+            ..Viewer::default()
+        };
+        let (after, _) = viewer.step(arrival, Stamp(0), &(), &params);
+        assert_eq!(after.stage, Stage::NoStage, "{name}: the framing");
+        assert_eq!(after.palette, Palette::Closed, "{name}: the palette");
+        assert_eq!(after.context, ContextMenu::Closed, "{name}: the menu");
+        assert_eq!(after.sheet, Sheet::Closed, "{name}: the sheet");
+    }
+}
+
+#[test]
+fn an_arrow_onto_another_file_closes_the_menu_and_the_palette_too() {
+    use crate::context::{ContextMenu, Spot};
+    let params = params();
+    let files = NonEmpty::from_vec(vec![path("/a.png"), path("/b.png")]).unwrap();
+    let sequence =
+        Sequence::starting_at(files, &path("/a.png"), SequenceOrigin::Selection).unwrap();
+    let (viewer, _) = Viewer::default().step(
+        ViewerIn::Navigate(NavigateIn::Start(sequence)),
+        Stamp(0),
+        &(),
+        &params,
+    );
+    let viewer = Viewer {
+        context: ContextMenu::Open {
+            at: Spot { x: 1, y: 1 },
+        },
+        ..viewer
+    };
+    // The menu swallows keys, so the walk is driven as the window's buttons do.
+    let (after, _) = viewer.step(ViewerIn::Navigate(NavigateIn::Next), Stamp(1), &(), &params);
+    assert_eq!(after.context, ContextMenu::Closed);
+}
+
+#[test]
+fn pan_is_the_tool_until_chosen_otherwise_and_the_choice_goes_with_the_person_to_the_next_file() {
+    let params = params();
+    let viewer = Viewer {
+        stage: image(),
+        ..Viewer::default()
+    };
+    assert_eq!(viewer.hand.tool, Tool::Pan, "a drag pans from the start");
+    let (viewer, _) = viewer.step(key(&[ShortcutKey::Char('h')]), Stamp(0), &(), &params);
+    assert_eq!(viewer.hand.tool, Tool::Select, "H is the other tool");
+    assert!(!viewer.hand.pans());
+    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Space]), Stamp(1), &(), &params);
+    assert!(outs.is_empty());
+    assert!(viewer.hand.pans(), "Space held is the hand over Select");
+    let (viewer, _) = viewer.step(ViewerIn::Hand(HandIn::SpaceUp), Stamp(2), &(), &params);
+    assert!(!viewer.hand.pans(), "released");
+    let (viewer, _) = viewer.step(
+        ViewerIn::Run(Command::UseTool(Tool::Pan)),
+        Stamp(3),
+        &(),
+        &params,
+    );
+    assert!(viewer.hand.pans(), "the palette's row chooses it");
+    let (viewer, _) = viewer.step(
+        ViewerIn::Run(Command::UseTool(Tool::Select)),
+        Stamp(4),
+        &(),
+        &params,
+    );
+    let (viewer, _) = viewer.step(key(&[ShortcutKey::Space]), Stamp(5), &(), &params);
+    let (viewer, _) = viewer.step(ViewerIn::Open(path("/b.png")), Stamp(6), &(), &params);
+    assert_eq!(
+        viewer.hand.tool,
+        Tool::Select,
+        "the tool goes with the person to another file"
+    );
+    assert!(
+        !viewer.hand.pans(),
+        "a Space held on the file left is let go"
+    );
+    // Text has no hand: Space and H do nothing to it.
+    let text = Viewer {
+        stage: Stage::Text(TextStage::default()),
+        ..Viewer::default()
+    };
+    let (text, _) = text.step(key(&[ShortcutKey::Char('h')]), Stamp(0), &(), &params);
+    assert_eq!(text.hand.tool, Tool::Pan, "H changed nothing on text");
 }

@@ -49,9 +49,17 @@ versioning, with pre-releases while the program is in beta.
   resolution, scaled down to fit when it is larger than 85% of the screen less the top bar (a 1920 by 1200
   screen is assumed before the screen is known) and never smaller than 480 by 320 (a small picture stays
   centred). The screen is the one the window is on, at its own scale, once the window is open. A PDF, and a picture the
-  HEIC or RAW plugin decodes, take the window to their page or picture size as soon as they have loaded,
-  unless you have already resized the window. Everything else opens at the usual size, and moving to the
-  next file keeps the window as it is.
+  HEIC or RAW plugin decodes, take the window to their page or picture size as soon as they have loaded.
+  Everything else, and a file that does not open, takes the usual size.
+- Every different file starts fresh, as in Preview: the window takes the new file's size (a window you
+  resized, or the last file's, does not hold; a maximized or fullscreen window is left as it is), and its zoom,
+  pan, scroll, find, open menus and sheets are the file's own. Opening the same file again puts it back where you
+  left it. The side panel stays open from file to file, on the same tab when the new file has it and on its first
+  tab when not.
+- Dragging a zoomed picture pans it, as in Preview, Photos and Loupe. Select | Pan, in the titlebar's trailing
+  corner as in Preview, chooses between that and Select (H, or "Use Select" and "Use Pan" in the command palette);
+  the choice stays as you go from file to file, and the picture's place does not. Holding Space pans for as
+  long as it is down on a still picture (it plays an animation), and lets go when the window loses the keyboard.
 - The mouse wheel scrolls PDFs, pictures and text smoothly: each notch eases over a fraction of a second
   instead of jumping, and notches in a burst add up.
 - quire v0.2.20: a touchpad scrolls the PDF, pictures and text with the fingers and carries on with the glide

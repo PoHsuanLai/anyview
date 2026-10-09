@@ -17,6 +17,7 @@ fn keys_of(command: &Command) -> Option<Shortcut> {
         Command::File(action) => shortcut(*action),
         Command::Stage(command) => Some(command.shortcut()),
         Command::OpenFile => Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')])),
+        Command::UseTool(_) => Some(Shortcut(vec![ShortcutKey::Char('h')])),
         Command::Install(_) => None,
     }
 }

@@ -147,6 +147,18 @@ pub enum NaturalSize {
     Compact(PixelSize),
 }
 
+/// What a different file sizes the window to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SizeBasis {
+    /// The loaded document says its content is this size.
+    Natural(NaturalSize),
+    /// The document loaded and knows no size of its own (a recording's picture, a picture whose
+    /// plugin is missing): the host may read the size from the file's header, off the UI thread.
+    Header,
+    /// The file did not load: the default window, as for any file with no natural size.
+    Default,
+}
+
 /// What the window asks of the binary that hosts it: the things the viewer decides to do but
 /// cannot do itself (they touch the platform, the file system or the window).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,10 +205,10 @@ pub enum HostRequest {
     OpenUri(String),
     /// Install this tool through the system's package service; the answer is `Edge::helped`.
     Provide(Helper),
-    /// The first file this window showed has loaded, and its content is naturally this size (a
-    /// PDF's first page at 100%, a picture a plugin decoded). Sent once per window, never for a
-    /// file the person moved on to: the host sizes the window to it if the person has not.
-    SizeWindow(NaturalSize),
+    /// A different file has loaded (or failed to), and this is what to size the window to. Sent
+    /// once for each file the window opens, never for the same file loaded again: the host sizes
+    /// the window to it, as it did when the first file opened.
+    SizeWindow(SizeBasis),
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

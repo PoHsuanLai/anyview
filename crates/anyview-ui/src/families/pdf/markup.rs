@@ -47,6 +47,7 @@ fn finding() -> Stage {
 fn cx(stage: Stage) -> StageCx {
     StageCx {
         stage,
+        hand: crate::Hand::default(),
         ticket: Ticket::default(),
         area: None,
         send: EventHandler::new(|_: StageIn| {}),

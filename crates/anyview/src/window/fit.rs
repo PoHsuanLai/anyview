@@ -1,14 +1,15 @@
 //! How large a window opens: its content's own size when it has one, within the screen and a
 //! least. This is the one place a viewer window's size is decided. [`window_for`] asks it as the
-//! window opens, for the size the file's header gives; [`WindowFit`] asks it once more, after the
-//! first file has loaded, for content whose size only the loaded document knows (a PDF's page, a
-//! picture a plugin decoded). Nothing else resizes the window: moving to the next file keeps the
-//! size, and a window a person resized is theirs.
+//! window opens, for the size the file's header gives; [`WindowFit`] asks it again, after each
+//! file has loaded, for content whose size only the loaded document knows (a PDF's page, a
+//! picture a plugin decoded), and again for every different file the window then shows. Nothing
+//! else resizes the window.
 
 use anyview_core::{FilePath, PixelSize};
 use anyview_peek::{is_audio, natural_size};
-use anyview_ui::{NaturalSize, audio_window_size};
-use ds_blitz::{Extent, Fit, Reserve, ScreenArea, SizeOrigin, WindowSize, WindowSizer};
+use anyview_ui::{NaturalSize, SizeBasis, audio_window_size};
+use ds::window::vocab::{Fullscreen, Maximized, WindowState};
+use ds_blitz::{Extent, Fit, Reserve, ScreenArea, WindowSize, WindowSizer};
 
 /// The window of a file with no natural size (text, code, a table, a book, a folder, a failure): 1000
 /// by 700 logical pixels.
@@ -120,43 +121,70 @@ pub(crate) fn fitted(natural: Option<Extent>, work: Extent, least: Extent) -> Wi
     }
 }
 
-/// The one resize after load: a window that opened at a default size, because its file's header
-/// did not give one, takes its content's natural size once the first file has loaded. It asks at
-/// most once, never once the person has resized the window, and never for a later file (moving
-/// with the arrows keeps the window, as Preview does).
+/// The resize after each load: the window takes the natural size of the file that has just landed,
+/// as it did when the first opened, so a different file never inherits the last one's window. A
+/// size the person set by hand does not hold: Preview sizes its window to each document, and the
+/// owner asked for the same. The same file loaded again does not ask (the viewer sends nothing).
 pub(crate) struct WindowFit {
     sizer: WindowSizer,
-    asked: std::cell::Cell<bool>,
 }
 
 impl WindowFit {
     pub(crate) fn new(sizer: WindowSizer) -> WindowFit {
-        WindowFit {
-            sizer,
-            asked: std::cell::Cell::new(false),
-        }
+        WindowFit { sizer }
     }
 
-    /// The window's first file has loaded and its content is `natural` big: size the window to it
-    /// on the screen it is on (exact once it is mapped, which it is by now). Returns whether it
-    /// asked for a size.
-    pub(crate) fn loaded(&self, natural: NaturalSize) -> bool {
-        if self.asked.replace(true) || self.sizer.origin() == Some(SizeOrigin::Person) {
+    /// A different file has loaded: size the window to its content on the screen it is on (exact
+    /// once it is mapped, which it is by now). The size is `natural`, and the default window when
+    /// there is none (a text, a table, a failure). A maximized, fullscreen window is never
+    /// resized: its size is the desktop's, and a request would only fight it (Preview and
+    /// Photos do the same). Returns whether it asked for a size.
+    pub(crate) fn loaded(&self, natural: Option<NaturalSize>, window: WindowState) -> bool {
+        if holds_its_size(window) {
             return false;
         }
         let screen = self.sizer.screen();
         let wanted = fitted(
-            Some(logical_of(natural, screen)),
+            natural.map(|natural| logical_of(natural, screen)),
             work_for(screen),
-            least_of(natural),
+            natural.map_or(LEAST, least_of),
         )
         .start();
-        // The window already is that size (the header gave it): nothing to ask.
+        // The window already is that size: nothing to ask.
         if wanted == self.sizer.size() {
             return false;
         }
         self.sizer.request_size(wanted);
         true
+    }
+}
+
+/// Whether the desktop, not the app, decides the window's size now.
+fn holds_its_size(window: WindowState) -> bool {
+    window.maximized == Maximized::On || window.fullscreen == Fullscreen::On
+}
+
+/// What to size a window to for `basis`: the document's own size, else what the header of `file`
+/// says (a picture's or movie's size, an audio file's compact window), else nothing (the default
+/// window). The header is read on a blocking thread, never on
+/// the UI's: a video's takes a probe of the file.
+pub(crate) async fn natural_for(basis: SizeBasis, file: Option<FilePath>) -> Option<NaturalSize> {
+    natural_with(basis, file, natural_of).await
+}
+
+async fn natural_with(
+    basis: SizeBasis,
+    file: Option<FilePath>,
+    probe: fn(&FilePath) -> Option<NaturalSize>,
+) -> Option<NaturalSize> {
+    match basis {
+        SizeBasis::Natural(natural) => Some(natural),
+        SizeBasis::Default => None,
+        SizeBasis::Header => {
+            let file = file?;
+            let size = tokio::task::spawn_blocking(move || probe(&file)).await;
+            size.ok().flatten()
+        }
     }
 }
 
@@ -381,35 +409,140 @@ mod tests {
     }
 
     #[test]
-    fn the_first_load_asks_once_and_only_once() {
+    fn a_load_asks_for_the_size_of_its_content() {
         let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
-        assert!(harness.within(|| fit.loaded(page())));
-        assert!(!harness.within(|| fit.loaded(page())), "a second load");
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
         // The page fits the 85% of the work area, so it is its own size.
         assert_eq!(harness.window_requests(), vec![Extent::new(612, 792)]);
     }
 
     #[test]
+    fn each_different_file_sizes_the_window_afresh() {
+        let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        let wide = NaturalSize::Points(PixelSize {
+            width: anyview_core::PixelLen(800),
+            height: anyview_core::PixelLen(400),
+        });
+        assert!(harness.within(|| fit.loaded(Some(wide), WindowState::default())));
+        assert_eq!(
+            harness.window_requests(),
+            vec![Extent::new(612, 792), Extent::new(800, 400)]
+        );
+    }
+
+    #[test]
+    fn a_file_with_no_natural_size_takes_the_default_window() {
+        let (mut harness, fit) = window(area(1000), Extent::new(612, 792));
+        assert!(harness.within(|| fit.loaded(None, WindowState::default())));
+        assert_eq!(harness.window_requests(), vec![Extent::new(1000, 700)]);
+    }
+
+    #[test]
     fn a_page_taller_than_the_screen_is_scaled_to_its_cap() {
         let (mut harness, fit) = window(area(900), Extent::new(1000, 700));
-        assert!(harness.within(|| fit.loaded(page())));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
         // The work area is 900 less the 32 bar, 85% of it is 737: 612 by 792 scales to 570 by 737.
         assert_eq!(harness.window_requests(), vec![Extent::new(570, 737)]);
     }
 
     #[test]
-    fn a_window_the_person_resized_is_not_asked_to_resize() {
+    fn a_window_the_person_resized_follows_the_next_file_as_preview_does() {
         let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
         harness.resize_window(Extent::new(800, 500));
-        assert!(!harness.within(|| fit.loaded(page())));
-        assert!(harness.window_requests().is_empty());
-        assert_eq!(harness.window_size(), Extent::new(800, 500));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert_eq!(harness.window_requests(), vec![Extent::new(612, 792)]);
+    }
+
+    #[test]
+    fn a_maximized_or_fullscreen_window_is_never_resized_by_a_new_file() {
+        for (name, state) in [
+            (
+                "maximized",
+                WindowState {
+                    maximized: Maximized::On,
+                    ..WindowState::default()
+                },
+            ),
+            (
+                "fullscreen",
+                WindowState {
+                    fullscreen: Fullscreen::On,
+                    ..WindowState::default()
+                },
+            ),
+        ] {
+            let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
+            assert!(
+                !harness.within(|| fit.loaded(Some(page()), state)),
+                "{name}"
+            );
+            assert!(harness.window_requests().is_empty(), "{name}");
+            assert!(
+                harness.within(|| fit.loaded(Some(page()), WindowState::default())),
+                "{name}: the same window, restored, is sized again"
+            );
+        }
+    }
+
+    #[test]
+    fn a_header_is_probed_off_the_thread_that_asked() {
+        static PROBED_ON: std::sync::Mutex<Option<std::thread::ThreadId>> =
+            std::sync::Mutex::new(None);
+        fn size_of(_: &FilePath) -> Option<NaturalSize> {
+            *PROBED_ON.lock().unwrap() = Some(std::thread::current().id());
+            Some(NaturalSize::Pixels(PixelSize {
+                width: anyview_core::PixelLen(640),
+                height: anyview_core::PixelLen(360),
+            }))
+        }
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let file = FilePath::new(std::env::current_exe().unwrap()).unwrap();
+        let pixels = |w, h| {
+            Some(NaturalSize::Pixels(PixelSize {
+                width: anyview_core::PixelLen(w),
+                height: anyview_core::PixelLen(h),
+            }))
+        };
+        assert_eq!(
+            runtime.block_on(natural_with(SizeBasis::Header, Some(file.clone()), size_of)),
+            pixels(640, 360),
+            "the header's size, read by the probe"
+        );
+        let probed_on = PROBED_ON.lock().unwrap().unwrap();
+        assert_ne!(
+            probed_on,
+            std::thread::current().id(),
+            "the probe did not run on the thread that asked"
+        );
+        assert_eq!(
+            runtime.block_on(natural_with(
+                SizeBasis::Default,
+                Some(file.clone()),
+                size_of
+            )),
+            None,
+            "a failure is the default window, header or not"
+        );
+        assert_eq!(
+            runtime.block_on(natural_with(SizeBasis::Header, None, size_of)),
+            None,
+            "no file, no header"
+        );
+        assert_eq!(
+            runtime.block_on(natural_with(SizeBasis::Natural(page()), None, size_of)),
+            Some(page()),
+            "the document's own size needs no probe"
+        );
     }
 
     #[test]
     fn a_window_already_that_size_is_not_asked() {
         let (mut harness, fit) = window(area(1000), Extent::new(612, 792));
-        assert!(!harness.within(|| fit.loaded(page())));
+        assert!(!harness.within(|| fit.loaded(Some(page()), WindowState::default())));
         assert!(harness.window_requests().is_empty());
     }
 }

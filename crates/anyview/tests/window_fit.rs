@@ -141,7 +141,7 @@ fn a_picture_is_asked_for_at_one_image_pixel_to_one_device_pixel() {
 }
 
 #[test]
-fn a_window_the_person_resized_after_it_was_sized_stays_as_they_left_it() {
+fn a_window_the_person_resized_follows_the_next_file_as_preview_does() {
     let dir = tempfile::tempdir().unwrap();
     let mut rig = pdf_then_picture(dir.path(), Wired::default());
     page_is_up(&mut rig);
@@ -150,12 +150,16 @@ fn a_window_the_person_resized_after_it_was_sized_stays_as_they_left_it() {
     rig.harness.send(Input::key(ShortcutKey::Right));
     picture_is_up(&mut rig);
     settle(&mut rig);
-    assert_eq!(requests(&rig), vec![Extent::new(612, 792)], "asked once");
-    assert_eq!(rig.harness.window_size(), Extent::new(800, 500));
+    assert_eq!(
+        requests(&rig),
+        vec![Extent::new(612, 792), Extent::new(900, 500)],
+        "the page sized it, and the picture again, over the person's size"
+    );
+    assert_eq!(rig.harness.window_size(), Extent::new(900, 500));
 }
 
 #[test]
-fn the_arrow_keys_move_to_the_next_file_and_never_resize() {
+fn the_arrow_keys_move_to_the_next_file_and_size_the_window_to_it() {
     let dir = tempfile::tempdir().unwrap();
     let mut rig = pdf_then_picture(dir.path(), Wired::default());
     until(&mut rig.harness, "the window's size asked for", |harness| {
@@ -171,9 +175,45 @@ fn the_arrow_keys_move_to_the_next_file_and_never_resize() {
     settle(&mut rig);
     assert_eq!(
         requests(&rig),
-        vec![Extent::new(612, 792)],
-        "only the window's first file sized it"
+        vec![
+            Extent::new(612, 792),
+            Extent::new(900, 500),
+            Extent::new(612, 792)
+        ],
+        "the page, the picture, and the page again on the way back"
     );
+    assert_eq!(rig.harness.window_size(), Extent::new(612, 792));
+}
+
+#[test]
+fn at_scale_200_each_file_is_asked_for_in_logical_pixels() {
+    let dir = tempfile::tempdir().unwrap();
+    // quire counts scale in 120ths: 240 is a 2x output, the owner's.
+    let screen = ScreenArea::new(Extent::new(3840, 2160), Scale(240), ScreenOf::Window).unwrap();
+    let wired = Wired {
+        screen: WindowScreen::Area(screen),
+        ..Wired::default()
+    };
+    let mut rig = pdf_then_picture(dir.path(), wired);
+    page_is_up(&mut rig);
+    settle(&mut rig);
+    rig.harness.send(Input::key(ShortcutKey::Right));
+    picture_is_up(&mut rig);
+    settle(&mut rig);
+    rig.harness.send(Input::key(ShortcutKey::Left));
+    page_is_up(&mut rig);
+    settle(&mut rig);
+    assert_eq!(
+        requests(&rig),
+        vec![
+            Extent::new(612, 792),
+            // 900 by 500 device pixels are 450 by 250 logical, held at the window's least.
+            Extent::new(480, 320),
+            Extent::new(612, 792)
+        ],
+        "a point is a logical pixel; a picture pixel is half of one"
+    );
+    assert_eq!(rig.harness.window_size(), Extent::new(612, 792));
 }
 
 #[test]

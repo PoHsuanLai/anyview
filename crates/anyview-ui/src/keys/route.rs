@@ -5,6 +5,7 @@ use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
+use crate::hand::HandIn;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn, PanelTab};
@@ -112,6 +113,19 @@ fn info_toggle(panel: &Panel) -> PanelIn {
     }
 }
 
+/// H switches the pan tool, and Space held turns it on, for a picture. (An animation's Space is
+/// its play button, which the stage claimed before this.)
+fn hand_key(keys: &[ShortcutKey], stage: &Stage) -> Option<HandIn> {
+    if !matches!(stage, Stage::Raster(_)) {
+        return None;
+    }
+    match keys {
+        [ShortcutKey::Char('h')] => Some(HandIn::Toggle),
+        [ShortcutKey::Space] => Some(HandIn::SpaceDown),
+        _ => None,
+    }
+}
+
 fn escape(regions: &Regions<'_>) -> Route {
     if let Some(input) = regions.stage.dismissal() {
         return Route::Stage(input);
@@ -129,6 +143,9 @@ fn unclaimed(keys: &[ShortcutKey], regions: &Regions<'_>) -> Route {
         .and_then(|command| regions.stage.input_for(command, regions.stage_params));
     if let Some(input) = staged {
         return Route::Stage(input);
+    }
+    if let Some(input) = hand_key(keys, regions.stage) {
+        return Route::Hand(input);
     }
     if let Some(input) = NavigateIn::from_key(keys) {
         // A row picked in a table or a tree is the reader's place: Left and Right do not carry

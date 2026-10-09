@@ -2,7 +2,7 @@
 //! `AppHandle` with its [`Seed`] as props ([`window_root`]), and a harness test gives the
 //! [`Seed`] as a context ([`seeded_root`]).
 
-use super::fit::{WindowFit, window_for};
+use super::fit::{WindowFit, natural_for, window_for};
 use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
@@ -192,10 +192,26 @@ fn Window(seed: Seed) -> Element {
                             watching.unwatch();
                         }
                     }
-                    Carry::Window(WindowTask::Size(natural)) => {
-                        if let Some(fit) = fit.as_ref() {
-                            fit.loaded(natural);
-                        }
+                    Carry::Window(WindowTask::Size { basis, file }) => {
+                        let (fit, shown, window) =
+                            (Rc::clone(&fit), Rc::clone(&shown), window.clone());
+                        // A header is read off the UI thread; if the person has moved on by the
+                        // time it is read, the next file has its own size to ask for.
+                        spawn(async move {
+                            let natural = natural_for(basis, file.clone()).await;
+                            let now = shown
+                                .borrow()
+                                .file()
+                                .map(|probed| probed.source.path().clone());
+                            if now != file {
+                                return;
+                            }
+                            if let Some(fit) = fit.as_ref() {
+                                let state =
+                                    window.as_ref().map(WindowHost::state).unwrap_or_default();
+                                fit.loaded(natural, state);
+                            }
+                        });
                     }
                     Carry::Window(WindowTask::Reopen(presentation)) => {
                         reopen(

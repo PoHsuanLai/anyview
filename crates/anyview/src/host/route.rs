@@ -7,7 +7,7 @@ use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail
 use anyview_export::DocumentExport;
 use anyview_store::VersionId;
 use anyview_ui::{
-    EditRequest, ExportDraft, HostRequest, NaturalSize, Presentation, Probed, VersionKey,
+    EditRequest, ExportDraft, HostRequest, Presentation, Probed, SizeBasis, VersionKey,
 };
 
 /// The file a window shows, as the host last heard of it.
@@ -91,8 +91,13 @@ pub enum WindowTask {
     /// Open the file shown in a window of its own presentation, and close this one: the window
     /// is made again rather than resized, since a window cannot change its own frame.
     Reopen(Presentation),
-    /// Size the window to its first file's content, if nobody has resized it.
-    Size(NaturalSize),
+    /// Size the window to the file it has just loaded (or failed to): the document's own size,
+    /// else what the file's header says, else the default window. `file` is the one the window
+    /// showed when it was asked, so an answer that comes late can tell the window has moved on.
+    Size {
+        basis: SizeBasis,
+        file: Option<FilePath>,
+    },
 }
 
 /// Work for the desktop. Each names the file it is about: the window may move on while a task
@@ -185,7 +190,10 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::OpenFiles(files) => (shown, Carry::Window(WindowTask::OpenFiles(files))),
         HostRequest::Watch(file) => (shown, Carry::Window(WindowTask::Watch(file))),
         HostRequest::Unwatch => (shown, Carry::Window(WindowTask::Unwatch)),
-        HostRequest::SizeWindow(size) => (shown, Carry::Window(WindowTask::Size(size))),
+        HostRequest::SizeWindow(basis) => {
+            let file = shown.file().map(|probed| probed.source.path().clone());
+            (shown, Carry::Window(WindowTask::Size { basis, file }))
+        }
         HostRequest::Run(action) => run(shown, action),
     }
 }

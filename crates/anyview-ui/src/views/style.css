@@ -11,7 +11,8 @@
 .viewer .viewer-side-panel{ top:calc(var(--chrome-titlebar-height) + var(--s-8)); }
 
 .viewer-raster{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
-.viewer-raster[*|data-zoom=zoomed]{ cursor:grab; }
+.viewer-raster[*|data-pan=on]{ cursor:grab; }
+.viewer-raster[*|data-pan=on][*|data-drag=on]{ cursor:grabbing; }
 .viewer-raster-picture{ position:absolute; }
 /* A picture has no text to select. Blitz starts a selection drag once a held button moves more than 2px and then drops the
    contextmenu event on release, so a secondary click with the slightest hand movement would open no menu. */
@@ -60,3 +61,4 @@
 .viewer-failed-actions{ display:flex; gap:var(--s-8); }
 .viewer-peek-listing{ align-self:stretch; margin:0; padding:var(--s-8) var(--s-12); list-style:none; max-height:240px; overflow-y:auto; font-family:var(--font-code); font-size:var(--fs-mono); border:var(--hair) solid var(--line); border-radius:var(--r-small); }
 .viewer-peek-listing li{ white-space:pre; overflow:hidden; }
+.viewer-titlebar-trailing{ position:absolute; top:0; bottom:0; right:var(--s-12); display:flex; align-items:center; }

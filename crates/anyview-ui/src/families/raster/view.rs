@@ -9,18 +9,19 @@ use super::geometry::{
     scale_of, turn_of,
 };
 use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
-use crate::{Command, RasterIn, RasterStage, Stage, StageIn};
+use crate::{Command, RasterIn, RasterStage, Stage, StageIn, Tool};
 use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Zoom};
 use dioxus::prelude::*;
 use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
+use ds::components::controls::segmented::Tracking;
 use ds::components::fields::fact_list::FactList;
 use ds::components::overlays::empty_state::EmptyState;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::Icon;
 use ds::prelude::Point;
+use ds::prelude::{Choice, Icon, SegmentedControl};
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
 use ds_core::word::Word;
 
@@ -203,9 +204,14 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
             class: "viewer-raster",
             role: "img",
             "data-zoom": zoomed,
+            "data-pan": if cx.hand.pans() { "on" } else { "off" },
+            "data-drag": if matches!(stage, RasterStage::Panning { .. }) { "on" } else { "off" },
             onmounted: move |event| capture.on_mounted(event),
             onpointerdown: move |event: PointerEvent| {
                 let Some(area) = down.area else { return };
+                if !down.hand.pans() {
+                    return;
+                }
                 let Stage::Raster(RasterStage::Zoomed { .. }) = &down.stage else { return };
                 if event.trigger_button() != Some(dioxus::html::input_data::MouseButton::Primary) {
                     return;
@@ -289,6 +295,39 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Select | Pan, as Preview's tool control: a drag pans a zoomed picture under Pan (or while Space is
+/// held). It sits on the titlebar's trailing side, where the window can show a mode that stays.
+/// Space plays an animation, so only a still picture's tip offers it.
+#[component]
+pub(super) fn PointerModes(tool: Tool, still: bool, onpick: EventHandler<Tool>) -> Element {
+    let tip = if still {
+        "Select or Pan. Hold Space to pan for a moment."
+    } else {
+        "Select or Pan."
+    };
+    rsx! {
+        div {
+            class: "viewer-modes",
+            title: tip,
+            onpointerdown: move |event: PointerEvent| event.stop_propagation(),
+            ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
+            SegmentedControl::<Tool> {
+                label: "Pointer mode",
+                choices: vec![
+                    Choice::new(Tool::Select, Tool::Select.label()),
+                    Choice::new(Tool::Pan, Tool::Pan.label()),
+                ],
+                tracking: Tracking::SelectOne(tool),
+                onchange: move |picked: Tool| {
+                    if picked != tool {
+                        onpick.call(picked);
+                    }
+                },
             }
         }
     }

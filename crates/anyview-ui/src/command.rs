@@ -190,6 +190,7 @@ impl Command {
             Command::File(action) => action.label().to_string(),
             Command::Stage(command) => command.label().to_string(),
             Command::OpenFile => "Open\u{2026}".to_owned(),
+            Command::UseTool(tool) => format!("Use {}", tool.label()),
             Command::Install(_) => "Install\u{2026}".to_owned(),
         }
     }
@@ -204,6 +205,9 @@ pub enum Command {
     Stage(StageCommand),
     /// Choose another file to open, as ⌘O does: offered only where there is a file chooser.
     OpenFile,
+    /// Choose the pointer tool on a picture, as Preview's tool control does. The palette lists the
+    /// tool the person is not using, named for what the row switches to ("Use Select").
+    UseTool(crate::Tool),
     /// Offer to install the tool the open file needs: the Install… of a `Needs` row. The palette
     /// never lists it; a row of the stage's own sends it.
     Install(Helper),

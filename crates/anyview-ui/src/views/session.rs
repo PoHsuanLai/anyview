@@ -80,6 +80,7 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
         access,
         exportable,
         platform,
+        tool: _,
     } = offers;
     if !platform.offers(action) {
         return false;
@@ -119,6 +120,8 @@ pub(super) struct Live {
     pub abilities: crate::MediaAbilities,
     /// What the platform can do.
     pub platform: PlatformAbilities,
+    /// The pointer tool in use.
+    pub tool: crate::Tool,
 }
 
 /// What the open file allows and offers, as the commands' filters read it.
@@ -135,6 +138,8 @@ pub(super) struct Offers {
     pub exportable: bool,
     /// The desktop services there are for the file actions that need one.
     pub platform: PlatformAbilities,
+    /// The pointer tool in use: the palette lists the other.
+    pub tool: crate::Tool,
 }
 
 /// The commands the palette lists for a file of `kind` showing `stage`: the file actions the
@@ -163,7 +168,13 @@ pub(super) fn commands(
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     let open = offers.platform.pick_files.then_some(Command::OpenFile);
-    open.into_iter().chain(files).chain(stages).collect()
+    let pan = (offers.playback == Playback::Playable && matches!(stage, Stage::Raster(_)))
+        .then_some(Command::UseTool(offers.tool.other()));
+    open.into_iter()
+        .chain(files)
+        .chain(stages)
+        .chain(pan)
+        .collect()
 }
 
 /// Whether `command` changes the pages of the PDF it is run on.
@@ -186,7 +197,10 @@ pub(super) fn offered_slots(
         let taken = match &ranked.slot {
             CapsuleSlot::Item(item) => match item.value {
                 Command::File(action) => files.contains(&action),
-                Command::Stage(_) | Command::OpenFile | Command::Install(_) => true,
+                Command::Stage(_)
+                | Command::OpenFile
+                | Command::UseTool(_)
+                | Command::Install(_) => true,
             },
             CapsuleSlot::Readout(_)
             | CapsuleSlot::Divider
@@ -250,6 +264,7 @@ pub(super) fn params(
         level,
         abilities,
         platform,
+        tool,
     } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
@@ -288,6 +303,7 @@ pub(super) fn params(
         access,
         exportable,
         platform,
+        tool,
     };
     let listed = commands(kind, stage, &measured, offers);
     let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
@@ -299,7 +315,9 @@ pub(super) fn params(
         .copied()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
-            Command::Stage(_) | Command::OpenFile | Command::Install(_) => None,
+            Command::Stage(_) | Command::OpenFile | Command::UseTool(_) | Command::Install(_) => {
+                None
+            }
         })
         .collect();
     ViewerParams {
@@ -364,6 +382,7 @@ mod tests {
             access: FileAccess::Writable,
             exportable: true,
             platform: PlatformAbilities::ALL,
+            tool: crate::Tool::default(),
         }
     }
 

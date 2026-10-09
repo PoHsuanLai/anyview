@@ -20,6 +20,7 @@ use ds_core::word::Word;
 pub(super) fn Titlebar(
     title: String,
     shown: Shown,
+    trailing: Option<Element>,
     onpointerenter: EventHandler<()>,
     onpointerleave: EventHandler<()>,
 ) -> Element {
@@ -35,6 +36,11 @@ pub(super) fn Titlebar(
                     parts: TitleParts::default(),
                     lights: TrafficLights::Shown,
                 }
+            }
+            // quire's titlebar has no trailing slot yet, so the family's mode controls sit over
+            // the bar's trailing end.
+            if let Some(modes) = trailing {
+                div { class: "viewer-titlebar-trailing", {modes} }
             }
         }
     }

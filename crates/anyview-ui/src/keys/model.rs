@@ -3,6 +3,7 @@
 use crate::chrome::ChromeIn;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
+use crate::hand::HandIn;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn};
@@ -60,6 +61,8 @@ pub enum Route {
     Dismiss,
     /// The stage claimed the key, including Esc closing what the stage has open.
     Stage(StageIn),
+    /// H, or Space held on a still picture: the pan tool.
+    Hand(HandIn),
     /// ← → Home End walk the sequence.
     Navigate(NavigateIn),
     /// Tab and ⇧Tab move keyboard focus into and out of the chrome.
