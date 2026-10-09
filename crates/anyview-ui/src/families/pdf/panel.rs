@@ -17,9 +17,6 @@ use ds_core::vocab::{Availability, RowState};
 use ds_core::word::Word;
 use std::sync::Arc;
 
-/// The width of a thumbnail, in logical pixels.
-const WIDTH: f32 = 112.0;
-
 /// How many pages either side of the reader get a thumbnail drawn.
 const NEAR: u32 = 12;
 
@@ -64,7 +61,8 @@ pub(super) fn Thumbnails(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                 {
                     let page = PageIndex(at);
                     let size = doc.0.size_of(page);
-                    let height = WIDTH * size.height.0 as f32 / size.width.0 as f32;
+                    // A thumbnail fills the panel's width, at the page's own proportions.
+                    let ratio = size.width.0 as f32 / size.height.0 as f32;
                     let marked = if page == reader { Emphasis::Current } else { Emphasis::Other };
                     let texture = live.thumb(page).cloned();
                     rsx! {
@@ -77,7 +75,7 @@ pub(super) fn Thumbnails(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                                     span {
                                         class: "viewer-thumb-page",
                                         "data-mark": marked.slug(),
-                                        style: "width:{WIDTH}px;height:{height}px",
+                                        style: "aspect-ratio:{ratio}",
                                         TextureLayer { texture, fit: TextureFit::Fill }
                                         // A texture layer swallows a click, so the row around
                                         // it would never hear one; this cover is what the

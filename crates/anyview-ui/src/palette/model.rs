@@ -8,16 +8,39 @@ use ds_core::vocab::ShortcutKey;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct RowIndex(pub usize);
 
+/// How many of a find's hits the palette lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum HitList {
+    /// The first few, with a row to list them all.
+    #[default]
+    Brief,
+    /// Every one.
+    Whole,
+}
+
+/// What the palette lists under its field: the commands the text names, or, as in mailo, the
+/// places in the open file the text names and then the commands. Finding is the palette's, so there
+/// is no find bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PaletteScope {
+    /// The commands the text names (⌘K).
+    #[default]
+    Commands,
+    /// The text is a find in the open file (⌘F): its hits, then the commands.
+    Find(HitList),
+}
+
 /// Whether the palette is open.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Palette {
     /// Not showing.
     #[default]
     Closed,
-    /// Showing, with what was typed and the highlighted row.
+    /// Showing, with what was typed, the highlighted row and what it lists.
     Open {
         query: TypedText,
         selection: RowIndex,
+        scope: PaletteScope,
     },
 }
 
@@ -39,6 +62,10 @@ pub enum PaletteMove {
 pub enum PaletteIn {
     /// Open with an empty query.
     Open,
+    /// Open as a find, on this text (the last find's, when there is one).
+    OpenFind(TypedText),
+    /// Make what is typed a find: ⌘F in the open palette, or the Find row.
+    ToFind,
     /// The field now holds this text; the rows are re-ranked for it.
     Typed(TypedText),
     /// Move the highlight; it stops at the first and last row.

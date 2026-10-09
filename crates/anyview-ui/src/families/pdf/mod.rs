@@ -1,7 +1,7 @@
 //! PDF: the PDF stage's view. A document is opened once on a worker (`doc`); the pages are a stack
 //! laid out at the scale on screen and placed by pure arithmetic (`scene`); the tiles of the pages in
 //! view are drawn and uploaded by workers (`work`), held under a budget (`cache`, `live`) and drawn
-//! as `TextureLayer`s (`view`, `page`, `draw`); and the find bar, the capsule and the side panel's
+//! as `TextureLayer`s (`view`, `page`, `draw`); and the capsule and the side panel's
 //! thumbnails and outline are drawn from the stage machine's state.
 
 mod bound;
@@ -9,7 +9,6 @@ mod cache;
 mod capsule;
 mod doc;
 mod draw;
-mod find;
 mod live;
 #[cfg(test)]
 mod markup;
@@ -27,7 +26,7 @@ pub use doc::{PdfDoc, PdfFailure};
 pub use shelf::{PdfShelf, use_pdf_shelf};
 pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
-use crate::families::view::{Area, Held, StageCx, StageView};
+use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenLink};
 use crate::{
     PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
@@ -115,6 +114,24 @@ impl StageView for PdfStageView {
 
     fn stage(doc: &Arc<PdfDoc>, cx: &StageCx) -> Element {
         rsx! { view::PdfContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
+    }
+
+    fn hit_lines(_doc: &Arc<PdfDoc>, cx: &StageCx, upto: u32) -> Vec<HitLine> {
+        let Some((query, _)) = cx.stage.find_state() else {
+            return Vec::new();
+        };
+        let words = query.as_str();
+        cx.pdf
+            .read()
+            .hits()
+            .iter()
+            .take(upto as usize)
+            .map(|hit| HitLine {
+                context: words.to_owned(),
+                matched: 0..words.len(),
+                place: format!("Page {}", hit.page.0 + 1),
+            })
+            .collect()
     }
 
     fn edit_offer(doc: &PdfDoc) -> crate::EditOffer {

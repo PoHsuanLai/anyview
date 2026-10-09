@@ -77,6 +77,8 @@ pub enum PdfIn {
     NextHit,
     /// The previous hit, wrapping to the last before the first.
     PreviousHit,
+    /// Make this hit the current one and show it (a row of the palette's hits).
+    GoToHit(HitIndex),
     /// Close the find.
     CloseFind,
     /// Go to a place (a link, the outline, a thumbnail).

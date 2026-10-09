@@ -1,6 +1,6 @@
 use crate::chrome::{Chrome, ChromeOut, PinReason, PinReasons};
 use crate::command::{Command, StageCommand};
-use crate::palette::{Palette, PaletteParams, RowIndex};
+use crate::palette::{Palette, PaletteParams, PaletteScope, RowIndex};
 use crate::panel::{PanelParams, PanelTab, PanelTabs};
 use crate::presentation::{ContentClass, PresentationParams};
 use crate::sheet::ExportDraft;
@@ -60,6 +60,7 @@ pub(super) fn palette_on(row: usize) -> Palette {
     Palette::Open {
         query: TypedText::EMPTY,
         selection: RowIndex(row),
+        scope: PaletteScope::Commands,
     }
 }
 

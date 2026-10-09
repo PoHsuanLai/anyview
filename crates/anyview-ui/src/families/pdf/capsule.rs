@@ -24,37 +24,38 @@ pub(super) fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
         scale_of(view.zoom, fit)
     });
     let zoom = scale.map_or_else(String::new, |scale| format!("{}%", scale.0 / 10));
-    let page = format!("{} / {}", view.page.0 + 1, doc.pages().get());
+    let page = format!("{} of {}", view.page.0 + 1, doc.pages().get());
     let stage = |command| Command::Stage(command);
     // Soonest to go first: the fits and the find (the palette and the menu keep them), then the
     // zoom. The page and its neighbours stay.
-    let slots = vec![
+    let mut slots = vec![
         CapsuleSlot::button(
             stage(StageCommand::PreviousPage),
-            "Previous page",
+            "Previous Page",
             Icon::ChevronUp,
         )
         .essential(),
         CapsuleSlot::Readout(page).essential(),
         CapsuleSlot::button(
             stage(StageCommand::NextPage),
-            "Next page",
+            "Next Page",
             Icon::ChevronDown,
         )
         .essential(),
         CapsuleSlot::Divider.essential(),
-        CapsuleSlot::button(stage(StageCommand::ZoomOut), "Zoom out", Icon::Minus)
+        CapsuleSlot::button(stage(StageCommand::ZoomOut), "Zoom Out", Icon::Minus)
             .droppable(RANK_ZOOM),
         CapsuleSlot::Readout(zoom).droppable(RANK_ZOOM),
-        CapsuleSlot::button(stage(StageCommand::ZoomIn), "Zoom in", Icon::Plus)
+        CapsuleSlot::button(stage(StageCommand::ZoomIn), "Zoom In", Icon::Plus)
             .droppable(RANK_ZOOM),
         CapsuleSlot::Divider.essential(),
-        CapsuleSlot::button(stage(StageCommand::ZoomToFit), "Fit page", Icon::Maximize)
+        CapsuleSlot::button(stage(StageCommand::ZoomToFit), "Fit Page", Icon::Maximize)
             .droppable(RANK_FIT),
-        CapsuleSlot::button(stage(StageCommand::ZoomToWidth), "Fit width", Icon::Columns)
+        CapsuleSlot::button(stage(StageCommand::ZoomToWidth), "Fit Width", Icon::Columns)
             .droppable(RANK_FIT),
         CapsuleSlot::Divider.essential(),
         CapsuleSlot::button(stage(StageCommand::Find), "Find", Icon::Search).droppable(RANK_FIND),
     ];
+    slots.extend(crate::families::found::standing(&cx.stage));
     slots
 }

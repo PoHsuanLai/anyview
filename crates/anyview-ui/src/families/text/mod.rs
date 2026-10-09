@@ -2,10 +2,10 @@
 //! worker (`doc`); the lines on screen are a window a worker read and highlighted, and a
 //! Markdown file's page is a sealed frame (`frame`).
 
-mod bar;
 mod doc;
 mod find;
 mod frame;
+mod modes;
 mod view;
 mod wrap;
 
@@ -13,12 +13,12 @@ pub use doc::{LineWindow, TextDoc};
 pub use find::FoundHits;
 pub(crate) use find::top_for;
 
-use crate::families::view::{Area, Held, StageCx, StageView};
+use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenLink};
 use crate::{
-    Command, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
-    StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextView, TextViews, Ticket,
-    TypedText,
+    Command, HitIndex, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand,
+    StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews,
+    Ticket, TypedText,
 };
 use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -134,29 +134,52 @@ impl StageView for TextStageView {
         rsx! { view::TextContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(doc: &TextDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
-        let mut slots = vec![CapsuleSlot::button(
+    fn slots(_doc: &TextDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
+        let mut slots = essentials(vec![CapsuleSlot::button(
             Command::Stage(StageCommand::ToggleWrap),
-            "Wrap lines",
+            "Wrap Lines",
             Icon::Columns,
-        )];
-        if doc.rendered.is_some() {
-            // The tip names what the button shows next, as Preview's view toggles do.
-            let next = match view::place_of(&cx.stage).map(|place| place.view) {
-                Some(TextView::Source) => "Show rendered",
-                Some(TextView::Rendered) | None => "Show source",
-            };
-            slots.push(CapsuleSlot::button(
-                Command::Stage(StageCommand::ToggleSource),
-                next,
-                Icon::Code,
-            ));
-        }
-        essentials(slots)
+        )]);
+        slots.extend(crate::families::found::standing(&cx.stage));
+        slots
     }
 
     fn panel(_doc: &Arc<TextDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
         None
+    }
+
+    fn modes(doc: &Arc<TextDoc>, cx: &StageCx) -> Option<Element> {
+        // Only a file with a page to preview has two views to choose between.
+        doc.rendered.as_ref()?;
+        let view = view::place_of(&cx.stage)?.view;
+        let run = cx.run;
+        Some(rsx! {
+            modes::ViewModes {
+                view,
+                onpick: move |_| run.call(Command::Stage(StageCommand::ToggleSource)),
+            }
+        })
+    }
+
+    fn hit_lines(_doc: &Arc<TextDoc>, cx: &StageCx, upto: u32) -> Vec<HitLine> {
+        let Some(found) = cx.hits.as_ref() else {
+            return Vec::new();
+        };
+        (0..upto.min(found.0.count().0))
+            .filter_map(|index| {
+                let hit = found.0.get(HitIndex(index))?;
+                let snippet = found
+                    .0
+                    .snippet(HitIndex(index))
+                    .cloned()
+                    .unwrap_or_default();
+                Some(HitLine {
+                    context: snippet.text,
+                    matched: snippet.matched,
+                    place: format!("Line {}", hit.line.0 + 1),
+                })
+            })
+            .collect()
     }
 
     fn search(doc: &Arc<TextDoc>, ticket: Ticket, query: &TypedText) -> Option<Job> {

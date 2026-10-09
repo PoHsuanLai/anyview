@@ -1,0 +1,18 @@
+/* The file card: an icon or a picture, the name, one summary line, chips, and a "Details"
+   disclosure of stacked captions. Left-aligned in the Info panel, centred on the stage of a file
+   with no full tier. Tokens only. */
+
+.viewer-card{ display:flex; flex-direction:column; align-items:flex-start; gap:var(--s-8); min-width:0; box-sizing:border-box; }
+.viewer-card-glyph{ display:flex; align-items:center; justify-content:center; color:var(--ink-faint); }
+.viewer-card-picture{ width:calc(var(--s-32) * 2); height:calc(var(--s-32) * 2); object-fit:cover; border-radius:var(--r-small); border:var(--hair) solid var(--line); }
+.viewer-card-name{ margin:0; max-width:100%; font-family:var(--font-display); font-size:var(--fs-title); font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.viewer-card-summary{ margin:0; max-width:100%; font-family:var(--font-data); font-size:var(--fs-small); color:var(--ink-soft); overflow-wrap:anywhere; }
+.viewer-card-chips{ display:flex; flex-wrap:wrap; gap:var(--s-4); }
+.viewer-card-note{ margin:0; max-width:100%; font-size:var(--fs-small); color:var(--ink-soft); }
+.viewer-card-details{ align-self:stretch; margin-top:var(--s-4); }
+.viewer-facts{ display:flex; flex-direction:column; gap:var(--s-8); margin:0; padding:var(--s-4) 0 var(--s-8); }
+.viewer-fact{ display:flex; flex-direction:column; gap:var(--s-1); min-width:0; }
+.viewer-fact-caption{ margin:0; font-size:var(--fs-caption); color:var(--ink-faint); }
+.viewer-fact-value{ margin:0; font-size:var(--fs-control); color:var(--ink); overflow-wrap:anywhere; }
+.viewer-peek .viewer-card{ align-items:center; text-align:center; }
+.viewer-peek .viewer-card-details{ text-align:left; }

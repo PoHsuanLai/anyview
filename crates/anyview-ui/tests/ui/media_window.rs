@@ -1317,7 +1317,7 @@ fn a_panel_open_on_a_tab_the_player_then_withholds_shows_the_facts_not_a_blank()
     assert!(harness.html().contains("viewer-chapters") || harness.html().contains("no chapters"));
     line.say(&[basics_only()]);
     settle(&mut harness);
-    let panel = harness.text_of(".viewer-side-panel").unwrap_or_default();
+    let panel = harness.text_of(".viewer-panel").unwrap_or_default();
     assert!(
         panel.contains("WebM video"),
         "the file's facts fill the panel once the tab is gone: {panel:?}"

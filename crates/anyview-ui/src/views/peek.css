@@ -1,9 +1,8 @@
 /* The facts-only stage: a peek of a file the viewer has no full tier for (a font, an archive, a
-   folder, a document), its facts card, its thumbnail and its listing. Tokens only. */
+   folder, a document): the file card (`families/card.css`) and the listing. Tokens only. */
 
 .viewer-peek{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:var(--s-36) var(--s-16) var(--s-16); box-sizing:border-box; }
 .viewer-peek-body{ margin-top:auto; margin-bottom:auto; flex:none; display:flex; flex-direction:column; align-items:center; gap:var(--s-16); width:100%; max-width:calc(var(--s-40) * 12); }
 .viewer-peek-facts{ align-self:stretch; }
-.viewer-peek-thumbnail{ max-width:100%; max-height:calc(var(--s-40) * 6); border-radius:var(--r-small); border:var(--hair) solid var(--line); }
 .viewer-peek-listing{ align-self:stretch; margin:0; padding:var(--s-8) var(--s-12); list-style:none; max-height:calc(var(--s-40) * 6); overflow-y:auto; font-family:var(--font-code); font-size:var(--fs-mono); border:var(--hair) solid var(--line); border-radius:var(--r-small); }
 .viewer-peek-listing li{ white-space:pre; overflow:hidden; }

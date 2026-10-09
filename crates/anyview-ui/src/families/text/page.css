@@ -1,15 +1,17 @@
 /* The page of a rendered Markdown file, inside its sealed frame (the design system's own
    stylesheet and the window root's attributes come first, so every token is defined there).
-   The page reads like a document: a comfortable measure, the reading size, headings in the
+   The page reads like a document: a measure of 680 (the same as a bound book's page), the reading size, headings in the
    display ink, code in the code face. Colours are tokens; nothing here is a literal. */
 
 /* The body is the root of the frame's own document, so the ground the page reads on is a box inside it. */
 .viewer-ground{ min-height:100vh; background:var(--paper); color:var(--ink); }
-.viewer-page{ box-sizing:border-box; max-width:760px; margin:0 auto; padding:var(--s-36) var(--s-26); font-size:var(--fs-reading); line-height:1.6; }
-.viewer-page h1,.viewer-page h2,.viewer-page h3,.viewer-page h4,.viewer-page h5,.viewer-page h6{ margin:var(--s-22) 0 var(--s-8); color:var(--ink); line-height:1.25; }
+.viewer-page{ box-sizing:border-box; max-width:calc(var(--s-40) * 17); margin:0 auto; padding:var(--s-36) var(--s-26); font-family:var(--font-ui); font-size:var(--fs-reading); line-height:1.6; }
+.viewer-page h1,.viewer-page h2,.viewer-page h3,.viewer-page h4,.viewer-page h5,.viewer-page h6{ margin:var(--s-22) 0 var(--s-8); color:var(--ink); font-family:var(--font-display); line-height:1.25; }
 .viewer-page h1{ font-size:var(--fs-display); }
 .viewer-page h2{ font-size:var(--fs-title); }
 .viewer-page h3{ font-size:var(--fs-heading); }
+.viewer-page h4,.viewer-page h5,.viewer-page h6{ font-size:var(--fs-reading); }
+.viewer-page h6{ color:var(--ink-soft); }
 .viewer-page p,.viewer-page ul,.viewer-page ol,.viewer-page blockquote,.viewer-page pre,.viewer-page table{ margin:0 0 var(--s-12); }
 .viewer-page a{ color:var(--accent-text); }
 .viewer-page blockquote{ padding:0 var(--s-12); color:var(--ink-soft); border-left:var(--s-2) solid var(--line); }

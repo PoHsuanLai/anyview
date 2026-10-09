@@ -21,7 +21,7 @@ use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
 use ds::prelude::Point;
-use ds::prelude::{Choice, Icon, SegmentedControl};
+use ds::prelude::{Choice, Icon, SegmentedControl, Shortcut, ShortcutKey, Tooltip};
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
 use ds_core::word::Word;
 
@@ -302,32 +302,30 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
 
 /// Select | Pan, as Preview's tool control: a drag pans a zoomed picture under Pan (or while Space is
 /// held). It sits on the titlebar's trailing side, where the window can show a mode that stays.
-/// Space plays an animation, so only a still picture's tip offers it.
+/// The tip is the owner's terse `Name  Key`: the key is H, which switches the tool.
 #[component]
-pub(super) fn PointerModes(tool: Tool, still: bool, onpick: EventHandler<Tool>) -> Element {
-    let tip = if still {
-        "Select or Pan. Hold Space to pan for a moment."
-    } else {
-        "Select or Pan."
-    };
+pub(super) fn PointerModes(tool: Tool, onpick: EventHandler<Tool>) -> Element {
     rsx! {
-        div {
-            class: "viewer-modes",
-            title: tip,
-            onpointerdown: move |event: PointerEvent| event.stop_propagation(),
-            ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
-            SegmentedControl::<Tool> {
-                label: "Pointer mode",
-                choices: vec![
-                    Choice::new(Tool::Select, Tool::Select.label()),
-                    Choice::new(Tool::Pan, Tool::Pan.label()),
-                ],
-                tracking: Tracking::SelectOne(tool),
-                onchange: move |picked: Tool| {
-                    if picked != tool {
-                        onpick.call(picked);
-                    }
-                },
+        Tooltip {
+            text: "Pointer Tool",
+            shortcut: Some(Shortcut(vec![ShortcutKey::Char('h')])),
+            div {
+                class: "viewer-modes",
+                onpointerdown: move |event: PointerEvent| event.stop_propagation(),
+                ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
+                SegmentedControl::<Tool> {
+                    label: "Pointer mode",
+                    choices: vec![
+                        Choice::new(Tool::Select, Tool::Select.label()),
+                        Choice::new(Tool::Pan, Tool::Pan.label()),
+                    ],
+                    tracking: Tracking::SelectOne(tool),
+                    onchange: move |picked: Tool| {
+                        if picked != tool {
+                            onpick.call(picked);
+                        }
+                    },
+                }
             }
         }
     }

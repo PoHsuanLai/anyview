@@ -72,6 +72,18 @@ impl FindHits {
         }
     }
 
+    /// The hits after making `hit` the current one (past the last it wraps); the other states
+    /// have no hit to go to and stay as they are.
+    pub fn jumped(self, hit: HitIndex) -> FindHits {
+        match self {
+            FindHits::Found(cursor) => FindHits::Found(HitCursor {
+                current: hit.0 % cursor.count.get(),
+                ..cursor
+            }),
+            FindHits::Idle | FindHits::Pending | FindHits::NoMatch => self,
+        }
+    }
+
     /// How many hits there are, when the search found some.
     pub fn count(self) -> Option<HitCount> {
         match self {
@@ -143,5 +155,14 @@ mod tests {
         for (name, hits, want) in CASES {
             assert_eq!(hits.count().map_or(0, |count| count.0), *want, "{name}");
         }
+    }
+
+    #[test]
+    fn a_jump_lands_on_the_hit_and_wraps_past_the_last() {
+        let hits = FindHits::answered(HitCount(3), HitIndex(0));
+        assert_eq!(hits.jumped(HitIndex(2)).current(), Some(HitIndex(2)));
+        assert_eq!(hits.jumped(HitIndex(4)).current(), Some(HitIndex(1)));
+        assert_eq!(FindHits::Pending.jumped(HitIndex(1)), FindHits::Pending);
+        assert_eq!(FindHits::NoMatch.jumped(HitIndex(1)), FindHits::NoMatch);
     }
 }

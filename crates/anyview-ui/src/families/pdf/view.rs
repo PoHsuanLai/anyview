@@ -5,7 +5,6 @@
 
 use super::doc::{PdfDoc, room_of};
 use super::draw::{Drawing, UNMEASURED};
-use super::find::PdfFinding;
 use super::live::{Wants, page_view};
 use super::page::PageBox;
 use super::scene::{Frame, Scene, fits, scale_of};
@@ -309,6 +308,5 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                 }
             }
         }
-        PdfFinding { cx: cx.clone() }
     }
 }

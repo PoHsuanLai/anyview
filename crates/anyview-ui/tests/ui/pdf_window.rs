@@ -71,38 +71,46 @@ fn a_pdf_opens_with_its_pages_laid_out_and_its_tiles_drawn() {
         harness.count(".viewer-pdf-tile") >= 1,
         "its tiles arrived from the workers and are layers"
     );
-    assert!(capsule(&harness).contains("1 / 3"), "{}", capsule(&harness));
+    assert!(
+        capsule(&harness).contains("1 of 3"),
+        "{}",
+        capsule(&harness)
+    );
     saved(&mut harness, "pdf-opened.png");
 }
 
 #[test]
-fn command_f_finds_text_and_the_next_hit_moves_the_page() {
+fn command_f_finds_text_in_the_palette_and_the_next_hit_moves_the_page() {
     let (_dir, mut harness, _) = opened();
-    assert_eq!(harness.count(".viewer-find"), 0, "no find bar until asked");
+    assert_eq!(harness.count(".ds-palette"), 0, "no palette until asked");
     harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
     settle(&mut harness);
-    assert_eq!(harness.count(".viewer-find"), 1, "the bar is up");
+    assert_eq!(harness.count(".ds-palette"), 1, "the palette is up");
     type_text(&mut harness, "fox");
     // "fox" is once on page 1 and twice on page 2: three hits, the one nearest the reader first.
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("1 of 3")
+    let listed = harness.text_of(".ds-palette").unwrap_or_default();
+    assert!(
+        listed.contains("In This File") && listed.contains("Page 1") && listed.contains("Page 2"),
+        "the hits are listed by their pages: {listed}"
     );
-    assert!(capsule(&harness).contains("1 / 3"), "{}", capsule(&harness));
     assert!(
         harness.count(".viewer-pdf-hit") >= 1,
-        "the hit is marked over the page"
+        "the hit is marked over the page behind the palette"
     );
     saved(&mut harness, "pdf-find.png");
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-palette"), 0, "Enter jumps and closes");
+    assert!(
+        capsule(&harness).contains("1 of 3"),
+        "the capsule reads the hit: {}",
+        capsule(&harness)
+    );
 
     harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('g')));
     settle(&mut harness);
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("2 of 3")
-    );
     assert!(
-        capsule(&harness).contains("2 / 3"),
+        capsule(&harness).contains("2 of 3"),
         "the next hit is on page 2: {}",
         capsule(&harness)
     );
@@ -114,32 +122,33 @@ fn command_f_finds_text_and_the_next_hit_moves_the_page() {
     ));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("1 / 3"),
+        capsule(&harness).contains("1 of 3"),
         "and the previous is back on page 1: {}",
         capsule(&harness)
     );
 
     harness.send(Input::key(ShortcutKey::Escape));
     settle(&mut harness);
-    assert_eq!(harness.count(".viewer-find"), 0, "Esc closes the find");
     assert_eq!(
         harness.count(".viewer-pdf-hit"),
         0,
-        "and takes the marks away"
+        "Esc takes the marks away"
     );
 }
 
 #[test]
-fn keys_typed_in_the_find_field_are_text_and_not_commands_of_the_stage() {
+fn keys_typed_in_the_find_palette_are_text_and_not_commands_of_the_stage() {
     let (_dir, mut harness, _) = opened();
     let before = capsule(&harness);
     harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
     settle(&mut harness);
     // `9` fits the width and `+` zooms in when a stage hears them.
     type_text(&mut harness, "9+");
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("No matches"),
+    assert!(
+        harness
+            .text_of(".ds-palette")
+            .unwrap_or_default()
+            .contains("No matches"),
         "the keys were typed into the query"
     );
     assert_eq!(capsule(&harness), before, "and moved nothing");
@@ -156,7 +165,7 @@ fn a_link_to_a_page_goes_there_and_a_web_link_goes_to_the_host() {
     harness.send(Input::click(links));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("3 / 3"),
+        capsule(&harness).contains("3 of 3"),
         "the first link leads to page 3: {}",
         capsule(&harness)
     );
@@ -221,7 +230,7 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
     harness.send(Input::wheel(at, Px(0.0), Px(-700.0)));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("2 / 3"),
+        capsule(&harness).contains("2 of 3"),
         "the wheel scrolls to the next page: {fitted} then {}",
         capsule(&harness)
     );
@@ -248,14 +257,22 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
             .unwrap(),
     ));
     settle(&mut harness);
-    assert!(capsule(&harness).contains("3 / 3"), "{}", capsule(&harness));
+    assert!(
+        capsule(&harness).contains("3 of 3"),
+        "{}",
+        capsule(&harness)
+    );
     harness.send(Input::click(
         harness
             .centre(".viewer-thumbs .ds-row:nth-child(2)")
             .unwrap(),
     ));
     settle(&mut harness);
-    assert!(capsule(&harness).contains("2 / 3"), "{}", capsule(&harness));
+    assert!(
+        capsule(&harness).contains("2 of 3"),
+        "{}",
+        capsule(&harness)
+    );
 
     // The outline is the second tab: four bookmarks, each to its page.
     let tabs = |harness: &Harness, at: usize| {
@@ -278,7 +295,7 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     ));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("3 / 3"),
+        capsule(&harness).contains("3 of 3"),
         "Appendix: {}",
         capsule(&harness)
     );
@@ -297,11 +314,11 @@ fn dragging_the_page_scrolls_it_with_the_pointer() {
         x: from.x,
         y: Px(5.0),
     };
-    assert!(capsule(&harness).contains("1 / 3"));
+    assert!(capsule(&harness).contains("1 of 3"));
     harness.send(Input::drag(from, to, 8));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("2 / 3"),
+        capsule(&harness).contains("2 of 3"),
         "dragging up moves the next page into view: {}",
         capsule(&harness)
     );
@@ -341,7 +358,7 @@ fn a_pdf_opens_on_the_page_the_store_remembers() {
     let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), wiring);
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("3 / 3"),
+        capsule(&harness).contains("3 of 3"),
         "it opened where it was left: {}",
         capsule(&harness)
     );
@@ -353,14 +370,14 @@ fn end_and_home_go_to_the_last_page_and_the_first_and_a_line_key_scrolls_in_the_
     harness.send(Input::key(ShortcutKey::End));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("3 / 3"),
+        capsule(&harness).contains("3 of 3"),
         "End is the last page: {}",
         capsule(&harness)
     );
     harness.send(Input::key(ShortcutKey::Home));
     settle(&mut harness);
     assert!(
-        capsule(&harness).contains("1 / 3"),
+        capsule(&harness).contains("1 of 3"),
         "Home is the first: {}",
         capsule(&harness)
     );

@@ -77,6 +77,7 @@ pub(super) fn zoom_asked(input: &PdfIn, params: &PdfParams) -> Option<Zoom> {
         }
         | PdfIn::NextHit
         | PdfIn::PreviousHit
+        | PdfIn::GoToHit(_)
         | PdfIn::CloseFind
         | PdfIn::GoTo(_)
         | PdfIn::NextPage
@@ -109,6 +110,7 @@ pub(super) fn page_beside(
         }
         | PdfIn::NextHit
         | PdfIn::PreviousHit
+        | PdfIn::GoToHit(_)
         | PdfIn::CloseFind
         | PdfIn::GoTo(_)
         | PdfIn::Arrived
@@ -158,6 +160,7 @@ pub(super) fn page_edit(page: PageIndex, input: &PdfIn, params: &PdfParams) -> V
         }
         | PdfIn::NextHit
         | PdfIn::PreviousHit
+        | PdfIn::GoToHit(_)
         | PdfIn::CloseFind
         | PdfIn::GoTo(_)
         | PdfIn::NextPage
@@ -229,6 +232,7 @@ fn reading(view: PageView, input: PdfIn, params: &PdfParams) -> Step {
         }
         | PdfIn::NextHit
         | PdfIn::PreviousHit
+        | PdfIn::GoToHit(_)
         | PdfIn::CloseFind
         | PdfIn::Arrived
         | PdfIn::Elapsed => stay(view),
@@ -306,6 +310,7 @@ fn jumping(target: Destination, view: PageView, input: PdfIn, params: &PdfParams
         }
         | PdfIn::NextHit
         | PdfIn::PreviousHit
+        | PdfIn::GoToHit(_)
         | PdfIn::CloseFind
         | PdfIn::Restore(_)
         | PdfIn::Elapsed => (this, vec![]),

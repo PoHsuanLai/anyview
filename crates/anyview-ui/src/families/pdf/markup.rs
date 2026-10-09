@@ -1,17 +1,16 @@
 //! The PDF stage's own markup, rendered server-side inside a `Ds` root and compared with a golden
 //! under `tests/snapshots/pdf/` (`DS_BLESS=1` rewrites them; read the diff), and linted against
 //! quire's stylesheet and the viewer's. The tiles are `TextureLayer`s, which need a GPU, so the
-//! window test (`tests/pdf_window.rs`) is what shows them; here the page boxes, the find bar and
+//! window test (`tests/pdf_window.rs`) is what shows them; here the page boxes and
 //! the panel's lists are drawn without textures.
 
 use super::doc::PdfDoc;
-use super::find::PdfFinding;
 use super::page::{Emphasis, LinkView, Mark, PageBox};
 use super::panel::{Outline, Thumbnails};
 use super::shelf::use_pdf_shelf;
 use crate::families::view::{FrameLook, Held, StageCx};
 use crate::testing::golden;
-use crate::{FindHits, HitCount, HitIndex, PageView, PdfStage, Stage, StageIn, Ticket, TypedText};
+use crate::{PageView, PdfStage, Stage, StageIn, Ticket};
 use anyview_core::{PageIndex, Permille, Zoom};
 use anyview_pdf::{LinkTarget, PdfDocument};
 use dioxus::prelude::*;
@@ -36,14 +35,6 @@ fn view() -> PageView {
     }
 }
 
-fn finding() -> Stage {
-    Stage::Pdf(PdfStage::Finding {
-        query: TypedText::new("fox"),
-        hits: FindHits::answered(HitCount(3), HitIndex(1)),
-        view: view(),
-    })
-}
-
 fn cx(stage: Stage) -> StageCx {
     StageCx {
         stage,
@@ -54,7 +45,6 @@ fn cx(stage: Stage) -> StageCx {
         run: EventHandler::new(|_| {}),
         lines: None,
         ask_lines: EventHandler::new(|_| {}),
-        typing: EventHandler::new(|_| {}),
         hits: None,
         work: EventHandler::new(|_| {}),
         request: EventHandler::new(|_| {}),
@@ -118,29 +108,6 @@ const CASES: &[Case] = &[
                     }
                 }
             })
-        },
-    },
-    Case {
-        name: "find-bar-on-the-second-of-three",
-        make: || {
-            let cx = cx(finding());
-            root(
-                rsx! { div { style: "position:relative; width:600px; height:120px", PdfFinding { cx } } },
-            )
-        },
-    },
-    Case {
-        name: "find-bar-with-no-match",
-        make: || {
-            let stage = Stage::Pdf(PdfStage::Finding {
-                query: TypedText::new("zebra"),
-                hits: FindHits::answered(HitCount(0), HitIndex(0)),
-                view: view(),
-            });
-            let cx = cx(stage);
-            root(
-                rsx! { div { style: "position:relative; width:600px; height:120px", PdfFinding { cx } } },
-            )
         },
     },
     Case {

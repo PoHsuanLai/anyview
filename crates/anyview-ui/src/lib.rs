@@ -40,7 +40,7 @@ pub use context::{
 };
 pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
-    Area, Finish, FlightId, FoundHits, FrameLook, Held, KindVisitor, Leaving, LineWindow,
+    Area, Finish, FlightId, FoundHits, FrameLook, Held, HitLine, KindVisitor, Leaving, LineWindow,
     LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, PDF_CSS,
     PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
     PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
@@ -62,7 +62,9 @@ pub use load::{
 };
 pub use look::{Look, LookFeed};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
-pub use palette::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
+pub use palette::{
+    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteScope, RowIndex,
+};
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
 pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,

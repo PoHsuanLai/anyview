@@ -12,11 +12,12 @@ use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
-use crate::palette::{Palette, PaletteIn, PaletteOut};
+use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteScope, RowIndex};
 use crate::panel::{PanelIn, PanelTab};
 use crate::presentation::Presentation;
 use crate::sheet::{Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn};
+use crate::typed::TypedText;
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
 use ds_core::time::stamp::Stamp;
@@ -295,8 +296,17 @@ fn kept_or_new(showing: &Stage, family: StageFamily, params: &ViewerParams) -> S
     }
 }
 
-/// The palette's own transitions, then what it ran.
-fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
+/// The palette's own transitions, then what it ran, then the find the palette stands for.
+pub(super) fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
+    let before = viewer.palette.clone();
+    let closing = matches!(input, PaletteIn::Close);
+    let (viewer, mut outs) = palette_stepped(viewer, input, at, params);
+    let (viewer, more) = find_synced(viewer, &before, closing, at, params);
+    outs.extend(more);
+    (viewer, outs)
+}
+
+fn palette_stepped(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
     let (palette, outs) = viewer.palette.clone().step(input, at, &params.palette, &());
     let viewer = Viewer { palette, ..viewer };
     outs.into_iter()
@@ -311,6 +321,93 @@ fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -
                 (viewer, outs)
             }
         })
+}
+
+/// ⌘F, or the Find button: the palette opens as a find, on the text of the find that is up (so its
+/// last text is there to replace), else on none.
+pub(super) fn open_find(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
+    let last = viewer
+        .stage
+        .find_state()
+        .map_or(TypedText::EMPTY, |(query, _)| query.clone());
+    palette(viewer, PaletteIn::OpenFind(last), at, params)
+}
+
+/// The stage's find follows the palette while it is a find: what is typed is searched for, the row
+/// the highlight moves to is the current hit (so the file behind shows it), and Esc, which closes
+/// the palette without picking, puts the find away. A hit picked with Enter leaves the find up,
+/// its marks on the file and ⌘G to step.
+fn find_synced(
+    viewer: Viewer,
+    before: &Palette,
+    closing: bool,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
+    match (before, viewer.palette.clone()) {
+        (
+            Palette::Open {
+                query: _,
+                selection: _,
+                scope: PaletteScope::Find(_),
+            },
+            Palette::Closed,
+        ) if closing && viewer.stage.is_finding() => match viewer.stage.dismissal() {
+            Some(input) => stage(viewer, input, at, params),
+            None => (viewer, vec![]),
+        },
+        (
+            _,
+            Palette::Open {
+                query,
+                selection,
+                scope: PaletteScope::Find(_),
+            },
+        ) => match before {
+            // The same text: the highlight may have moved to another hit.
+            Palette::Open {
+                query: was,
+                selection: row,
+                scope: PaletteScope::Find(_),
+            } if *was == query => {
+                if *row == selection {
+                    (viewer, vec![])
+                } else {
+                    jumped(viewer, selection, at, params)
+                }
+            }
+            Palette::Open {
+                query: _,
+                selection: _,
+                scope: _,
+            }
+            | Palette::Closed => searched(viewer, &query, at, params),
+        },
+        _ => (viewer, vec![]),
+    }
+}
+
+/// The find asked for `query`: nothing is searched until something is typed, so opening the
+/// palette as a find does not turn a Markdown page into its source.
+fn searched(viewer: Viewer, query: &TypedText, at: Stamp, params: &ViewerParams) -> Step {
+    if query.is_empty() && !viewer.stage.is_finding() {
+        return (viewer, vec![]);
+    }
+    match viewer.stage.find_input(query) {
+        Some(input) => stage(viewer, input, at, params),
+        None => (viewer, vec![]),
+    }
+}
+
+/// The highlight moved to `row`: when that row is a hit, it is the current one.
+fn jumped(viewer: Viewer, row: RowIndex, at: Stamp, params: &ViewerParams) -> Step {
+    match params.palette.rows.get(row.0) {
+        Some(Command::FindHit(hit)) => match viewer.stage.hit_input(*hit) {
+            Some(input) => stage(viewer, input, at, params),
+            None => (viewer, vec![]),
+        },
+        Some(_) | None => (viewer, vec![]),
+    }
 }
 
 /// The context menu's own transitions, then what the row picked did. It opens over a file that is
@@ -377,6 +474,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Sheet(input) => sheet_in(viewer, input, at, params),
         Route::Palette(input) => palette(viewer, input, at, params),
         Route::OpenPalette => palette(viewer, PaletteIn::Open, at, params),
+        Route::OpenFind => open_find(viewer, at, params),
         Route::Context(input) => context(viewer, input, at, params),
         Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),

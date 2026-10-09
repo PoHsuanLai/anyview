@@ -30,6 +30,7 @@ pub fn stylesheet() -> String {
         include_str!("peek.css"),
         include_str!("sheets.css"),
         include_str!("welcome.css"),
+        crate::families::CARD_CSS,
         crate::families::RASTER_CSS,
         crate::families::TEXT_CSS,
         crate::families::DATA_CSS,

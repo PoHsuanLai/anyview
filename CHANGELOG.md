@@ -5,6 +5,23 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Text
+
+- A Markdown file has a Preview | Source control at the right end of the title bar, next to where a picture has Select | Pan, so the preview is easy to find; the V key still switches. Source is set in the code face with a line-number gutter and room at the sides, and the preview reads in the interface face at a comfortable width, with headings in the display face.
+
+### Left panel
+
+- The side panel is now a pane on the left of the window, as in Preview and Finder. It stays open from file to file on the tab it was on (or the first tab, when the next file has not got that one), you can drag its edge to make it wider or narrower or to fold it away, and opening it makes the picture smaller rather than the window bigger. Page thumbnails fill its width.
+- Get Info is now a card: the file's icon or picture, its name, one line saying what it is, and a Details section that lists everything else with each caption above its value. A file Viewer cannot show uses the same card in the middle of the window.
+
+### Find
+
+- Find is in the command palette. Command F opens it as a find, with the last find's text selected: what you type is searched for in the file, the matches are marked behind the palette, and the places are listed under "In This File" (with the line or page), followed by the commands that match. Moving through the list shows each match, Return goes to it and closes the palette, and Esc clears the marks. The bottom bar then reads "3 of 17" with Previous Match and Next Match buttons, and Command G and Shift-Command G step through the matches as before. The find bar is gone.
+
+### Tooltips
+
+- Tooltips are short: a name in title case, then the key, as in "Pointer Tool  H". The buttons on the bottom bar now begin each word with a capital ("Zoom In", "Next Page"), and a PDF's page reads "3 of 12".
+
 ### Design system
 
 - Viewer is built on quire v0.3.1. The Select | Pan control is now part of the title bar, at its right end: clicking it never drags the window or zooms it, and it fades with the bar. A window that is snapped or tiled beside another is left at the size the desktop gave it when you open another file (this takes effect once the windowing layer reports tiling, which it does not yet on Linux). If the window system cannot start at all, Viewer now says so and exits with an error. Tooltips show as soon as the pointer is over a button. Shortcuts written with the command key now also answer to the Super key, as a window reports it. A right-click over a picture, a rendered Markdown page or a book now always opens the menu, and so does one where the hand moved slightly. Rotate Left and Rotate Right have a matching pair of icons. Copy Path reaches the clipboard on a Wayland desktop and stays there. The wheel speeds up when you spin it, the page moves in the same frame as the wheel, a menu or the palette taller than the window scrolls inside it, a long file name in the titlebar keeps its extension, and tooltips show in a real window.

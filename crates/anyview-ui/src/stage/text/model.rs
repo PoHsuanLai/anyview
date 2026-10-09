@@ -58,6 +58,13 @@ pub enum TextStage {
 }
 
 impl TextStage {
+    /// Where the reader is and how the text is shown.
+    pub fn place(&self) -> TextPlace {
+        match self {
+            TextStage::Reading { place } | TextStage::Finding { place, .. } => *place,
+        }
+    }
+
     /// A stage at the top of a file with these views: rendered first when there is a rendering,
     /// wrapped.
     pub fn opened(views: TextViews) -> TextStage {
@@ -117,6 +124,8 @@ pub enum TextIn {
     NextHit,
     /// The previous hit, wrapping to the last before the first.
     PreviousHit,
+    /// Make this hit the current one and show it (a row of the palette's hits).
+    GoToHit(HitIndex),
     /// Close the find.
     CloseFind,
     /// Switch between rendered and source, when the file has both.

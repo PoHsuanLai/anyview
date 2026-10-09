@@ -9,6 +9,7 @@ use crate::panel::*;
 use crate::presentation::*;
 use crate::stage::*;
 use crate::testing::settle;
+use crate::typed::TypedText;
 use crate::viewer::*;
 use anyview_core::*;
 use ds_core::machine::Machine;
@@ -114,6 +115,111 @@ fn keys_open_and_close_the_regions_in_the_order_they_are_open() {
     assert_eq!(outs, vec![]);
     let (_, outs) = pressed(viewer, &[Super, Char('w')], 5);
     assert_eq!(outs, vec![ViewerOut::CloseWindow]);
+}
+
+fn reading_text() -> Stage {
+    Stage::Text(TextStage::Reading {
+        place: TextPlace {
+            line: LineIndex(0),
+            wrap: Wrap::On,
+            view: TextView::Source,
+        },
+    })
+}
+
+#[test]
+fn command_f_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_puts_away() {
+    use ShortcutKey::{Char, Escape, Super};
+    let viewer = Viewer {
+        stage: reading_text(),
+        ..Viewer::default()
+    };
+    let (viewer, outs) = pressed(viewer, &[Super, Char('f')], 0);
+    assert_eq!(
+        viewer.palette,
+        Palette::Open {
+            query: TypedText::EMPTY,
+            selection: RowIndex(0),
+            scope: PaletteScope::Find(HitList::Brief),
+        }
+    );
+    assert!(outs.contains(&ViewerOut::Palette(PaletteOut::Opened)));
+    assert_eq!(
+        viewer.stage,
+        reading_text(),
+        "nothing is searched before something is typed"
+    );
+    let (viewer, outs) = viewer.step(
+        ViewerIn::Palette(PaletteIn::Typed(TypedText::new("fox"))),
+        Stamp(1),
+        &(),
+        &params(),
+    );
+    assert!(matches!(
+        viewer.stage,
+        Stage::Text(TextStage::Finding { .. })
+    ));
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Find(
+            FindOut::Search(TypedText::new("fox"))
+        ))))
+    );
+    let (viewer, outs) = pressed(viewer, &[Escape], 2);
+    assert_eq!(viewer.palette, Palette::Closed);
+    assert!(matches!(
+        viewer.stage,
+        Stage::Text(TextStage::Reading { .. })
+    ));
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Find(
+            FindOut::Clear
+        ))))
+    );
+}
+
+#[test]
+fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_step() {
+    use ShortcutKey::{Down, Enter};
+    let mut params = params();
+    params.palette.rows = (0..3).map(|at| Command::FindHit(HitIndex(at))).collect();
+    let place = TextPlace {
+        line: LineIndex(0),
+        wrap: Wrap::On,
+        view: TextView::Source,
+    };
+    let viewer = Viewer {
+        stage: Stage::Text(TextStage::Finding {
+            query: TypedText::new("fox"),
+            hits: FindHits::answered(HitCount(3), HitIndex(0)),
+            place,
+        }),
+        palette: Palette::Open {
+            query: TypedText::new("fox"),
+            selection: RowIndex(0),
+            scope: PaletteScope::Find(HitList::Brief),
+        },
+        ..Viewer::default()
+    };
+    let (viewer, outs) = viewer.step(key(&[Down]), Stamp(0), &(), &params);
+    let Stage::Text(TextStage::Finding { hits, .. }) = &viewer.stage else {
+        panic!("the find is still up: {:?}", viewer.stage);
+    };
+    assert_eq!(
+        hits.current(),
+        Some(HitIndex(1)),
+        "the highlighted hit is current"
+    );
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Find(
+            FindOut::ShowHit(HitIndex(1))
+        ))))
+    );
+    let (viewer, _) = viewer.step(key(&[Enter]), Stamp(1), &(), &params);
+    assert_eq!(viewer.palette, Palette::Closed);
+    assert!(
+        matches!(viewer.stage, Stage::Text(TextStage::Finding { .. })),
+        "Enter jumps and closes; the marks stay for the next and previous keys"
+    );
 }
 
 #[test]

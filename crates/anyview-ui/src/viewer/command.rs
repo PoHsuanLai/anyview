@@ -2,23 +2,47 @@
 
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::region::{Step, presentation, sheet, stage};
-use crate::command::Command;
+use crate::command::{Command, StageCommand};
 use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
 use crate::presentation::PresentationIn;
 use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
-use crate::stage::Stage;
+use crate::stage::{Stage, StageIn, TextIn};
 use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
 use ds_core::time::stamp::Stamp;
 
 pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerParams) -> Step {
     match command {
+        // Finding is the palette's: the Find button and the Find row open it as a find.
+        Command::Stage(StageCommand::Find) => super::step::open_find(viewer, at, params),
         Command::Stage(command) => match viewer.stage.input_for(command, &params.stage) {
             Some(input) => stage(viewer, input, at, params),
             None => (viewer, vec![]),
         },
         Command::File(action) => file_action(viewer, action, at, params),
         Command::UseTool(tool) => (super::step::hand(viewer, HandIn::Use(tool)), vec![]),
+        Command::FindHit(hit) => match viewer.stage.hit_input(hit) {
+            Some(input) => stage(viewer, input, at, params),
+            None => (viewer, vec![]),
+        },
+        // The palette lists every hit and stays open; the row never reaches the viewer.
+        Command::ShowAllHits => (viewer, vec![]),
+        Command::ShowView(view) => {
+            let other = match &viewer.stage {
+                Stage::Text(text) => text.place().view != view,
+                Stage::NoStage
+                | Stage::Raster(_)
+                | Stage::Pdf(_)
+                | Stage::Media(_)
+                | Stage::Table(_)
+                | Stage::Tree(_) => false,
+            };
+            if other {
+                stage(viewer, StageIn::Text(TextIn::ToggleSource), at, params)
+            } else {
+                (viewer, vec![])
+            }
+        }
         Command::OpenFile => super::step::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }

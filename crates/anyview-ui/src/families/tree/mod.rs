@@ -69,7 +69,7 @@ impl StageView for TreeStageView {
     fn slots(_doc: &TreeDoc, _cx: &StageCx) -> Vec<RankedSlot<Command>> {
         essentials(vec![CapsuleSlot::button(
             Command::Stage(StageCommand::CollapseAll),
-            "Collapse all",
+            "Collapse All",
             Icon::ChevronUp,
         )])
     }

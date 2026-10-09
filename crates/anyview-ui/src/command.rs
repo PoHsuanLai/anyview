@@ -191,6 +191,12 @@ impl Command {
             Command::Stage(command) => command.label().to_string(),
             Command::OpenFile => "Open\u{2026}".to_owned(),
             Command::UseTool(tool) => format!("Use {}", tool.label()),
+            Command::FindHit(hit) => format!("Match {}", hit.0 + 1),
+            Command::ShowAllHits => "Show All Matches".to_owned(),
+            Command::ShowView(view) => match view {
+                crate::TextView::Rendered => "Show Preview".to_owned(),
+                crate::TextView::Source => "Show Source".to_owned(),
+            },
             Command::Install(_) => "Install\u{2026}".to_owned(),
         }
     }
@@ -208,6 +214,13 @@ pub enum Command {
     /// Choose the pointer tool on a picture, as Preview's tool control does. The palette lists the
     /// tool the person is not using, named for what the row switches to ("Use Select").
     UseTool(crate::Tool),
+    /// Show a text file as its page or as its source, as the titlebar's Preview | Source does. The
+    /// palette lists the view the person is not looking at ("Show Source").
+    ShowView(crate::TextView),
+    /// Go to this hit of the find that is up. Only the palette lists it, in "In This File".
+    FindHit(crate::HitIndex),
+    /// List every hit of the find, not the first few. Only the palette lists it.
+    ShowAllHits,
     /// Offer to install the tool the open file needs: the Install… of a `Needs` row. The palette
     /// never lists it; a row of the stage's own sends it.
     Install(Helper),

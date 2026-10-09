@@ -115,7 +115,7 @@ fn capsule(harness: &Harness) -> String {
 /// The page the capsule reads, and how many pages there are.
 fn place(harness: &Harness) -> (u32, u32) {
     let text = harness.text_of(".ds-capsule-readout").unwrap_or_default();
-    let (here, pages) = text.split_once(" / ").unwrap_or(("", ""));
+    let (here, pages) = text.split_once(" of ").unwrap_or(("", ""));
     (here.parse().unwrap_or(0), pages.parse().unwrap_or(0))
 }
 

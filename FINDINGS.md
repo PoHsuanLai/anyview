@@ -40,9 +40,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   `2 Oct 2026 at 22:30` in the person's zone (`LocalZone::system`, over `jiff`, which added two packages to the dependency budgets, read when the facts are built), with no
   zone name. A camera time with no `OffsetTime` is taken as written, since a camera clock is the owner's own; a PDF
   date with no zone likewise. Changing the system zone while a file is open is not followed until it is reopened.
-- **The Info panel has no summary line or chips yet.** `Facts::summary` builds the headline line
-  (`JPEG image · 4032 × 3024 · 3.2 MB`) and `Tier` marks the rows in it, but the card that shows it is design
-  standard lane B; the panel lists every row, by section. Chips (HDR, Animated, Signed...) are not built.
+- **The Info card's chips are only "Animated".** The card (`families/card.rs`) shows the summary line and a
+  "Details" disclosure of stacked captions; its chips come from the rows the facts already have (a frame count
+  makes "Animated"). HDR, Encrypted and Signed have no row in `anyview-core`'s facts to read them from. Ends when
+  `Facts` carries notable traits.
 - **A PDF's forms, embedded fonts, PDF/A claim and linearization are not listed.** `Document::form` needs pdfrum's
   `forms` feature, which the viewer does not turn on; the others are D-tier in the audit.
 - **A tiled window is still resized by a new file, until the blitz fork patches winit.** `WindowFit::loaded`
@@ -52,6 +53,23 @@ on. It is a reference, not a log: how each was found lives in git history.
   tiled states, so on a real desktop a snapped window is still resized (the compositor answers with its own
   size). It starts working when the blitz fork patches winit to report them. The unit test covers it
   through the vocabulary: a window told it is tiled on any edge is never asked for a size.
+- **The left panel's width is kept for the window's life, not across launches.** The panel is a `SplitView` pane
+  (`PaneSpec` 220, between 180 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
+  reports only whether the pane is open (`on_shown`), so a new window opens at 220. Ends when the split view
+  reports a pane's size to persist.
+- **A capsule button's tip carries no key.** The tips are the owner's terse `Name  Key`, but quire's
+  `ToolbarItem` has no key to give a button, so the capsule says the name alone ("Zoom In"); the mode controls
+  in the titlebar (`Pointer Tool  H`, `View Mode  V`) carry theirs. `~/av-wt/design/quire-capsule-shortcut.patch`
+  adds `ToolbarItem::shortcut`. Ends when quire takes it.
+- **The panel is not open by default for a PDF or a book.** The design standard opens the thumbnails for them;
+  the panel machine starts closed for every file and stays as the person left it from file to file. Ends when
+  the open-by-default rule is wanted.
+- **The Data modality is not built.** Tables are still a header and quire `Row`s in a `VirtualList` with guessed column
+  widths, and no sticky header rule, resizable columns or sort. It needs quire's virtual-row `Table` (lane Q).
+- **The text view's wrap is on for every text file.** The standard has it on for plain text and off for code;
+  `TextStage::opened` starts every file wrapped. Ends when the stage is told the kind it opens.
+- **Find has no case or word options, and a PDF's hits have no words around them.** The palette lists a PDF's
+  hit as the phrase and its page ("Page 7"): `anyview-pdf`'s `Hit` keeps the rectangles, not the text.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
   a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
   pure `hand` machine's cases and the viewer step, not by a held key in the harness.
@@ -315,7 +333,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   source until the page is rendered, the facts list no line count, a line remembered beyond the start is blank
   until the open lands, and a find waits for the whole file. Ends if a start must be searchable.
 - **A search keeps at most 10,000 hits and ignores case only.** `anyview_text::MAX_HITS`; there is no
-  whole-word or regular-expression search. Ends when the find bar has options.
+  whole-word or regular-expression search. Ends when the find palette has options.
 - **An animation holds every frame in a texture.** The decode cap (512 MiB of frames) bounds the GPU memory too,
   and an animation near it uploads for as long as it takes to decode. Ends if frames must stream.
 - **A rendered Markdown page is a sealed frame that carries the whole design-system stylesheet** (about

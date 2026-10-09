@@ -1,7 +1,8 @@
 //! The viewer's full tier: one view per family of formats, the trait they implement, and the
 //! registry that maps every kind of file to one of them.
 
-mod find_bar;
+mod card;
+mod found;
 mod media;
 mod pdf;
 mod peek_only;
@@ -13,6 +14,7 @@ mod text;
 mod tree;
 mod view;
 
+pub(crate) use card::InfoCard;
 pub use media::{
     MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, audio_window_size,
     use_media_shelf,
@@ -31,7 +33,7 @@ pub(crate) use text::top_for;
 pub(crate) use text::views_of;
 pub use text::{FoundHits, LineWindow, TextDoc, TextStageView};
 pub use tree::{TreeDoc, TreeStageView};
-pub use view::{Area, FrameLook, Held, Leaving, LoadedDoc, StageCx, StageView};
+pub use view::{Area, FrameLook, Held, HitLine, Leaving, LoadedDoc, StageCx, StageView};
 
 /// The colour of each token class of highlighted code, in tokens only.
 pub const TOKEN_CSS: &str = include_str!("text/tokens.css");
@@ -39,8 +41,11 @@ pub const TOKEN_CSS: &str = include_str!("text/tokens.css");
 /// The media stage's stylesheet: the picture, the album card, the panel's tracks and chapters.
 pub const MEDIA_CSS: &str = include_str!("media/media.css");
 
-/// The PDF stage's stylesheet: the pages, the marks over them, the find bar, the panel's lists.
+/// The PDF stage's stylesheet: the pages, the marks over them, the panel's lists.
 pub const PDF_CSS: &str = include_str!("pdf/pdf.css");
+
+/// The file card's stylesheet.
+pub(crate) const CARD_CSS: &str = include_str!("card.css");
 
 /// The picture stage's stylesheet.
 pub(crate) const RASTER_CSS: &str = include_str!("raster/raster.css");

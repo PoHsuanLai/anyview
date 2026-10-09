@@ -176,10 +176,10 @@ fn a_file_with_no_stage_shows_its_facts_and_offers_show_in_folder() {
     harness.advance(Duration::from_millis(300));
     assert_eq!(harness.count(".viewer-peek"), 1);
     assert_eq!(
-        harness.text_of(".ds-empty-state-title").as_deref(),
+        harness.text_of(".viewer-card-name").as_deref(),
         Some("mystery.bin")
     );
-    assert!(harness.count(".ds-fact-list") > 0, "its facts are listed");
+    assert!(harness.count(".viewer-fact") > 0, "its facts are listed");
     let reveal = harness
         .centre(".viewer-peek .ds-button")
         .expect("Show in Folder");
