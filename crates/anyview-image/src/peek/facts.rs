@@ -13,7 +13,8 @@ fn kind_text(format: PeekedFormat) -> String {
     format!("{name} image")
 }
 
-/// Kind, dimensions, frame count for an animation, colour, then whatever EXIF recorded.
+/// Kind, dimensions, frame count for an animation, colour, then whatever EXIF recorded, the
+/// capture time worded as the Info panel words it.
 pub(super) fn of(peeked: &ImagePeek) -> Facts {
     let text = |label: FactLabel, value: Option<String>, facts: Facts| match value {
         Some(value) => facts.with(label, FactValue::text(value)),
@@ -35,5 +36,8 @@ pub(super) fn of(peeked: &ImagePeek) -> Facts {
     facts = text(FactLabel::Camera, peeked.exif.camera(), facts);
     facts = text(FactLabel::Lens, peeked.exif.lens.clone(), facts);
     facts = text(FactLabel::Exposure, peeked.exif.exposure_text(), facts);
-    text(FactLabel::Taken, peeked.exif.taken_text(), facts)
+    match peeked.exif.taken_value() {
+        Some(taken) => facts.with(FactLabel::Taken, taken),
+        None => facts,
+    }
 }

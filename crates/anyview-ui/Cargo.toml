@@ -14,6 +14,8 @@ anyview-book = { workspace = true }
 anyview-core = { workspace = true }
 anyview-image = { workspace = true, features = ["encode"] }
 anyview-pdf = { workspace = true }
+# The file's own details (dates, folder, permissions, where it came from) for the General section.
+anyview-store = { workspace = true }
 anyview-text = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
@@ -26,6 +28,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+# Pins the time zone the expected dates are written in.
+anyview-core = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true }
 ds-lint = { workspace = true }
 dioxus-ssr = { workspace = true }

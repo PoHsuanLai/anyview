@@ -36,6 +36,16 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`Resume::Book` is not written any more.** A book remembers a page and an offset as a PDF does
   (`Resume::Pdf`). The variant stays in `anyview-core` so an old store file still reads (and is ignored), and
   because sill matches the enum exhaustively. Ends with sill's next release that drops it.
+- **Times follow the zone the system reports when a file is opened.** File, PDF and EXIF times read as
+  `2 Oct 2026 at 22:30` in the person's zone (`LocalZone::system`, over `jiff`, which added two packages to the dependency budgets, read when the facts are built), with no
+  zone name. A camera time with no `OffsetTime` is taken as written, since a camera clock is the owner's own; a PDF
+  date with no zone likewise. Changing the system zone while a file is open is not followed until it is reopened.
+- **The Info panel has no summary line or chips yet.** `Facts::summary` builds the headline line
+  (`JPEG image · 4032 × 3024 · 3.2 MB`) and `Tier` marks the rows in it, but the card that shows it is design
+  standard lane B; the panel lists every row, by section. Chips (HDR, Animated, Signed...) are not built.
+- **A PDF's forms, embedded fonts, PDF/A claim and linearization are not listed.** `Document::form` needs pdfrum's
+  `forms` feature, which the viewer does not turn on; the others are D-tier in the audit.
+
 - **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
   layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top
   (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A taller panel, or a dock, is covered only by the 85%.
@@ -97,9 +107,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   longer than the budget's bytes (`PeekError::OverBudget`): the launcher's budget must cover the PDFs it
   wants to show. Ends when `anyview-pdf` supplies a peek that reads only the first page (the registry arm
   names it instead).
-- **A modification time is shown in UTC.** `modified_text` reads no zone: this crate has no clock and no
-  zone database, and `jiff` is not in its tree. Ends when `anyview-platform` can hand a peek the person's
-  zone; the row then moves into `anyview-core`'s `FactValue` with a zone argument.
 - **The kinds with no back end show only what sniffing says.** Unknown files
   are `FactsPeek`: the type, the size and the date, with no cover and no listing. Each ends when its crate
   lands and the registry's arm names the real peek. Books are read by `BookPeek` (their cover and facts) and office documents by `OfficePeek` (their facts and the document's own thumbnail). Video and audio are read by pure-Rust header parsers (below).

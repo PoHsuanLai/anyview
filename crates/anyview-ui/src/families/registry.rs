@@ -13,7 +13,8 @@ use super::tree::TreeStageView;
 use super::view::{LoadedDoc, StageView};
 use crate::io::{OpenError, OpenLink};
 use crate::{LoadFlow, StageFamily, Ticket};
-use anyview_core::{FormatKind, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, Input, Sniffed, Source};
+use anyview_store::general_facts as general_of;
 
 /// Something done with the view that shows a kind, without naming it.
 pub trait KindVisitor {
@@ -57,6 +58,11 @@ pub fn family_of(kind: FormatKind) -> StageFamily {
     visit(kind, FamilyOf)
 }
 
+/// The General section of the file `src`: what the file system says of it. Blocking.
+fn general_facts(src: &Source, sniffed: &Sniffed) -> Facts {
+    general_of(&Input::from(src), sniffed)
+}
+
 struct Opener<'a> {
     ticket: Ticket,
     src: &'a Source,
@@ -68,7 +74,9 @@ impl KindVisitor for Opener<'_> {
     type Out = Result<LoadedDoc, OpenError>;
 
     fn visit<S: StageView>(self) -> Self::Out {
-        S::open(self.ticket, self.src, self.sniffed, self.link).map(LoadedDoc::of::<S>)
+        let general = general_facts(self.src, self.sniffed);
+        S::open(self.ticket, self.src, self.sniffed, self.link)
+            .map(|doc| LoadedDoc::of::<S>(doc).describing(general))
     }
 }
 
@@ -117,7 +125,8 @@ impl KindVisitor for FirstFrame<'_> {
 
     fn visit<S: StageView>(self) -> Self::Out {
         let doc = S::first_frame(self.ticket, self.src, self.sniffed, self.link)?;
-        Ok(doc.map(LoadedDoc::of::<S>))
+        let general = general_facts(self.src, self.sniffed);
+        Ok(doc.map(|doc| LoadedDoc::of::<S>(doc).describing(general)))
     }
 }
 
@@ -138,4 +147,97 @@ pub(crate) fn peek_for(
             link,
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::families::{PeekOnlyDoc, PeekOnlyStageView};
+    use crate::io::Readable;
+    use anyview_core::{
+        ByteLen, FactGroup, FactLabel, FactValue, FileHead, FileName, FilePath, FileStamp, ModTime,
+        SniffStep, sniff,
+    };
+
+    /// A text file on disk, as the viewer is handed it.
+    fn text_file(dir: &std::path::Path) -> (Source, Sniffed) {
+        let path = dir.join("notes.txt");
+        std::fs::write(&path, b"hello\n").unwrap();
+        let stamp = FileStamp {
+            len: ByteLen(6),
+            modified: ModTime(0),
+        };
+        let name = FileName::new("notes.txt").unwrap();
+        let SniffStep::Done(sniffed) = sniff(&FileHead::new(b"hello\n"), &name) else {
+            panic!("a text file is not a zip");
+        };
+        (Source::new(FilePath::new(&path).unwrap(), stamp), sniffed)
+    }
+
+    #[test]
+    fn a_files_general_section_comes_from_the_file_system() {
+        let dir = tempfile::tempdir().unwrap();
+        let (src, sniffed) = text_file(dir.path());
+        let general = general_facts(&src, &sniffed);
+        let value = |label| general.value(label).map(FactValue::as_str);
+        assert_eq!(value(FactLabel::Kind), Some("Plain text"));
+        assert_eq!(value(FactLabel::Size), Some("6 B"));
+        assert_eq!(value(FactLabel::Where), Some(dir.path().to_str().unwrap()));
+        assert!(value(FactLabel::Modified).is_some());
+        assert!(value(FactLabel::Permissions).is_some());
+        assert!(
+            general
+                .rows()
+                .iter()
+                .all(|row| row.group == FactGroup::General)
+        );
+    }
+
+    #[test]
+    fn the_info_tab_lists_the_family_rows_then_general_with_the_file_systems_kind_and_size() {
+        let dir = tempfile::tempdir().unwrap();
+        let (src, sniffed) = text_file(dir.path());
+        let family = Facts::empty()
+            .with(FactLabel::Kind, FactValue::text("text/plain"))
+            .with(FactLabel::Lines, FactValue::text("1"))
+            .with(FactLabel::Size, FactValue::text("stale"));
+        let doc = LoadedDoc::of::<PeekOnlyStageView>(PeekOnlyDoc {
+            name: "notes.txt".to_owned(),
+            kind: sniffed.kind(),
+            facts: family,
+            thumbnail: None,
+            listing: Vec::new(),
+            readable: Readable::Yes,
+        })
+        .describing(general_facts(&src, &sniffed));
+        let groups: Vec<FactGroup> = doc.facts().sections().iter().map(|(g, _)| *g).collect();
+        assert_eq!(groups, [FactGroup::Text, FactGroup::General]);
+        let facts = doc.facts();
+        assert_eq!(
+            facts.value(FactLabel::Kind).map(FactValue::as_str),
+            Some("Plain text")
+        );
+        assert_eq!(
+            facts.value(FactLabel::Size).map(FactValue::as_str),
+            Some("6 B")
+        );
+        assert_eq!(
+            facts.value(FactLabel::Lines).map(FactValue::as_str),
+            Some("1")
+        );
+    }
+
+    #[test]
+    fn a_document_with_no_file_behind_it_has_no_general_section() {
+        let doc = LoadedDoc::of::<PeekOnlyStageView>(PeekOnlyDoc {
+            name: "attachment.txt".to_owned(),
+            kind: FormatKind::PlainText,
+            facts: Facts::empty().with(FactLabel::Lines, FactValue::text("1")),
+            thumbnail: None,
+            listing: Vec::new(),
+            readable: Readable::Yes,
+        });
+        let groups: Vec<FactGroup> = doc.facts().sections().iter().map(|(g, _)| *g).collect();
+        assert_eq!(groups, [FactGroup::Text]);
+    }
 }

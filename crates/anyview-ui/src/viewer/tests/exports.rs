@@ -13,10 +13,10 @@ use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
 fn needs() -> Fact {
-    Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text("anyview-ffmpeg (to convert it)"),
-    }
+    Fact::new(
+        FactLabel::Needs,
+        FactValue::text("anyview-ffmpeg (to convert it)"),
+    )
 }
 
 /// The sheet after Export is asked of `stage` with `offer` on offer.

@@ -156,10 +156,10 @@ impl MediaHost for FakePlayer {
             Answer::Plays => {}
             Answer::Refuses => return Err(OpenError::Media("no player".to_owned())),
             Answer::Missing | Answer::Lacks => {
-                let fact = Fact {
-                    label: FactLabel::Needs,
-                    value: FactValue::text("anyview-mpv (to play it)"),
-                };
+                let fact = Fact::new(
+                    FactLabel::Needs,
+                    FactValue::text("anyview-mpv (to play it)"),
+                );
                 let need = match answer {
                     Answer::Lacks => Need {
                         fact,

@@ -48,6 +48,20 @@ pub(crate) const SVG_LONG_EDGE_MIN: u32 = 1024;
 /// An SVG shown in full is drawn with its long edge at most this many pixels.
 pub(crate) const SVG_LONG_EDGE_MAX: u32 = 4096;
 
+/// How the file stores its colour (channels and bits each), read from its header alone, for the
+/// formats the `image` crate decodes; `None` for the others, and for a header it cannot read.
+pub fn colour_of(bytes: &[u8], sniffed: &Sniffed) -> Option<ColourInfo> {
+    match codec_for(sniffed).ok()? {
+        Codec::Image(format) => stills::stored_colour(bytes, format),
+        Codec::HighRange(_)
+        | Codec::Psd
+        | Codec::Icns
+        | Codec::Jxl
+        | Codec::Svg
+        | Codec::RawPreview => None,
+    }
+}
+
 /// One picture of an animation and how long it stays.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
@@ -91,7 +105,7 @@ pub struct FrameCount(pub u32);
 /// The picture or animation in the file `src` points at, whose type `sniffed` established.
 /// Blocking: reads and decodes the whole file.
 pub fn decode(src: impl Into<Input>, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
-    let bytes = read(&src.into())?;
+    let bytes = file_bytes(&src.into())?;
     decode_bytes(&bytes, sniffed)
 }
 
@@ -142,7 +156,7 @@ pub fn declared_size(
     src: impl Into<Input>,
     sniffed: &Sniffed,
 ) -> Result<Option<PixelSize>, ImageError> {
-    declared_size_of(&read(&src.into())?, sniffed)
+    declared_size_of(&file_bytes(&src.into())?, sniffed)
 }
 
 /// [`declared_size`] of a file already read.
@@ -183,8 +197,9 @@ fn animated(frames: Vec<Frame>, plays: Plays) -> Result<Decoded, ImageError> {
     }
 }
 
-/// The file's bytes.
-pub(crate) fn read(src: &Input) -> Result<Vec<u8>, ImageError> {
+/// The file's bytes, for a caller that decodes them with [`decode_bytes`] and reads the file's
+/// facts from the same bytes rather than reading the file twice.
+pub fn file_bytes(src: &Input) -> Result<Vec<u8>, ImageError> {
     src.bytes()
         .read_range(0..src.bytes().len().0)
         .map_err(|e| ImageError::Read {

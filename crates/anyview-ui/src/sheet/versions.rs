@@ -2,7 +2,7 @@
 //! version by, when it was kept and how large it is. Held with a `Cow` so a state table can spell
 //! a list as a constant.
 
-use anyview_core::ByteLen;
+use anyview_core::{ByteLen, FactTime, FactValue, LocalZone, ModTime};
 use std::borrow::Cow;
 
 /// Names one kept version to the host that keeps them. The window never reads it.
@@ -38,9 +38,9 @@ pub struct VersionRow {
 }
 
 impl VersionRow {
-    /// The row as the sheet words it: when it was kept (UTC) and its size.
+    /// The row as the sheet words it: when it was kept (local time) and its size.
     pub fn label(&self) -> String {
-        format!("{} ({})", utc_label(self.saved_at), size_label(self.size))
+        format!("{} ({})", when_label(self.saved_at), size_label(self.size))
     }
 }
 
@@ -75,34 +75,17 @@ impl VersionList {
     }
 }
 
-/// `YYYY-MM-DD HH:MM UTC` for `seconds` after the Unix epoch.
-pub(crate) fn utc_label(seconds: u64) -> String {
-    let (days, in_day) = (seconds / 86_400, seconds % 86_400);
-    let (year, month, day) = civil_of_days(days);
-    format!(
-        "{year:04}-{month:02}-{day:02} {:02}:{:02} UTC",
-        in_day / 3600,
-        in_day % 3600 / 60
-    )
+/// `9 Oct 2026 at 14:05` for `seconds` after the Unix epoch, in the person's own time zone: the
+/// words every date in the app uses.
+pub(crate) fn when_label(seconds: u64) -> String {
+    when_label_in(seconds, &LocalZone::system())
 }
 
-/// The year, month and day `days` after 1970-01-01 (the proleptic Gregorian calendar, counted
-/// from a March year so the leap day is the last of it).
-fn civil_of_days(days: u64) -> (u64, u64, u64) {
-    let shifted = days + 719_468;
-    let era = shifted / 146_097;
-    let of_era = shifted % 146_097;
-    let year_of_era = (of_era - of_era / 1460 + of_era / 36_524 - of_era / 146_096) / 365;
-    let day_of_year = of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_index = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * month_index + 2) / 5 + 1;
-    let month = if month_index < 10 {
-        month_index + 3
-    } else {
-        month_index - 9
-    };
-    let year = year_of_era + era * 400 + u64::from(month <= 2);
-    (year, month, day)
+fn when_label_in(seconds: u64, zone: &LocalZone) -> String {
+    let nanos = i64::try_from(seconds).unwrap_or(i64::MAX / 1_000_000_000) * 1_000_000_000;
+    FactValue::date_in(FactTime::from_mod_time(ModTime(nanos)), zone)
+        .as_str()
+        .to_owned()
 }
 
 /// A size in the largest of bytes, kB and MB that keeps it above one.
@@ -122,21 +105,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_moment_is_worded_in_utc() {
-        // name, seconds since the epoch, words
-        const CASES: &[(&str, u64, &str)] = &[
-            ("the epoch", 0, "1970-01-01 00:00 UTC"),
+    fn a_moment_is_worded_in_the_persons_zone() {
+        // name, seconds since the epoch, minutes east of UTC, words
+        const CASES: &[(&str, u64, i16, &str)] = &[
+            ("the epoch", 0, 0, "1 Jan 1970 at 00:00"),
             (
                 "a leap day",
                 951_782_400 + 3600 + 120,
-                "2000-02-29 01:02 UTC",
+                0,
+                "29 Feb 2000 at 01:02",
             ),
-            ("the end of a year", 1_767_225_599, "2025-12-31 23:59 UTC"),
-            ("a recent day", 1_790_000_000, "2026-09-21 14:13 UTC"),
+            (
+                "the end of a year",
+                1_767_225_599,
+                0,
+                "31 Dec 2025 at 23:59",
+            ),
+            (
+                "east of Greenwich",
+                1_767_225_599,
+                480,
+                "1 Jan 2026 at 07:59",
+            ),
+            (
+                "west of Greenwich",
+                1_790_000_000,
+                -300,
+                "21 Sep 2026 at 09:13",
+            ),
         ];
-        for (name, seconds, words) in CASES {
-            assert_eq!(utc_label(*seconds), *words, "{name}");
+        for (name, seconds, minutes, words) in CASES {
+            let zone = LocalZone::fixed(*minutes);
+            assert_eq!(when_label_in(*seconds, &zone), *words, "{name}");
         }
+        assert!(!when_label(0).contains("UTC"));
     }
 
     #[test]

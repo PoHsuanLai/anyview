@@ -1,6 +1,6 @@
 //! The words a photo's exposure, camera and date are shown as. Pure: integers in, text out.
 
-use super::{Exposure, Ratio};
+use super::{Exposure, Ratio, SignedRatio};
 
 /// The model, with the maker in front unless the model already starts with it (cameras often
 /// write `Canon` and `Canon EOS R5`).
@@ -53,7 +53,7 @@ fn aperture(f_number: Ratio) -> String {
 }
 
 /// `35 mm`, rounded to a whole millimetre.
-fn focal_length(length: Ratio) -> String {
+pub(super) fn focal_length(length: Ratio) -> String {
     let mm = (u64::from(length.numerator) + u64::from(length.denominator) / 2)
         / u64::from(length.denominator);
     format!("{mm} mm")
@@ -73,24 +73,51 @@ pub(super) fn exposure(exposure: &Exposure) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// `2024:05:01 12:30:45` as `2024-05-01 12:30`; anything else comes back as it was.
-pub(super) fn taken(raw: &str) -> String {
-    let digits = |s: &str, len: usize| s.len() == len && s.bytes().all(|b| b.is_ascii_digit());
-    let Some((date, time)) = raw.split_once(' ') else {
-        return raw.to_owned();
+/// `+02:00`, `-05:30`, `Z` as the minutes east of UTC; `None` for anything else.
+pub(super) fn offset_minutes(raw: &str) -> Option<i16> {
+    let raw = raw.trim();
+    if raw.eq_ignore_ascii_case("z") {
+        return Some(0);
+    }
+    let sign = match raw.as_bytes().first()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
     };
-    let date_parts: Vec<&str> = date.split(':').collect();
-    let time_parts: Vec<&str> = time.split(':').collect();
-    match (date_parts.as_slice(), time_parts.as_slice()) {
-        ([year, month, day], [hour, minute, ..])
-            if digits(year, 4)
-                && digits(month, 2)
-                && digits(day, 2)
-                && digits(hour, 2)
-                && digits(minute, 2) =>
-        {
-            format!("{year}-{month}-{day} {hour}:{minute}")
+    let (hours, minutes) = raw[1..].split_once(':')?;
+    let digits = |s: &str| s.len() == 2 && s.bytes().all(|b| b.is_ascii_digit());
+    if !digits(hours) || !digits(minutes) {
+        return None;
+    }
+    let (hours, minutes) = (hours.parse::<i16>().ok()?, minutes.parse::<i16>().ok()?);
+    (hours < 24 && minutes < 60).then_some(sign * (hours * 60 + minutes))
+}
+
+/// `1/200 s · f/2.8`: the shutter and the aperture, the parts that were recorded.
+pub(super) fn settings(exposure: &Exposure) -> Option<String> {
+    let parts: Vec<String> = [
+        exposure.shutter.map(shutter),
+        exposure.aperture.map(aperture),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    (!parts.is_empty()).then(|| parts.join(" · "))
+}
+
+/// `+0.7 EV`, `-1 EV`, `0 EV`: an exposure bias in stops, to a tenth.
+pub(super) fn bias(bias: SignedRatio) -> String {
+    let tenths = (i64::from(bias.numerator).abs() * 10 + i64::from(bias.denominator).abs() / 2)
+        / i64::from(bias.denominator).abs();
+    let negative = (bias.numerator < 0) != (bias.denominator < 0);
+    match (tenths, negative) {
+        (0, _) => "0 EV".to_owned(),
+        (_, negative) => {
+            let sign = if negative { '-' } else { '+' };
+            match tenths % 10 {
+                0 => format!("{sign}{} EV", tenths / 10),
+                fraction => format!("{sign}{}.{fraction} EV", tenths / 10),
+            }
         }
-        _ => raw.to_owned(),
     }
 }

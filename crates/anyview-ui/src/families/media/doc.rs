@@ -3,7 +3,9 @@
 use crate::MediaOffer;
 use crate::Ticket;
 use crate::io::{MediaLine, MediaPlayback, OpenError, OpenLink};
-use anyview_core::{FactLabel, FactValue, Facts, FormatKind, MediaTags, Sniffed, Source};
+use anyview_core::{
+    FactGroup, FactLabel, FactValue, Facts, FormatKind, MediaTags, Sniffed, Source,
+};
 use ds::components::content::image_source::ImageSource;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
@@ -73,11 +75,15 @@ pub(super) fn open(
     let facts = Facts::empty()
         .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
         .with(FactLabel::Size, FactValue::size(src.stamp().len));
-    let facts = started
-        .facts
-        .rows()
-        .iter()
-        .fold(facts, |facts, row| facts.with(row.label, row.value.clone()));
+    let facts = started.facts.rows().iter().fold(facts, |facts, row| {
+        // A recording's size is its picture's: the Video section, not an image's Picture.
+        let row = row.clone();
+        facts.with_fact(if row.label == FactLabel::Dimensions {
+            row.in_group(FactGroup::Video)
+        } else {
+            row
+        })
+    });
     let facts = match &started.playback {
         MediaPlayback::Missing(needs) => facts.with(needs.fact.label, needs.fact.value.clone()),
         MediaPlayback::Line(_) => facts,

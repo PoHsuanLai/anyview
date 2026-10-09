@@ -154,16 +154,19 @@ DIRECT=(
 # the call that set it: the viewer is 687, four packages more (wl-clipboard-rs, which serves the selection, and its
 # petgraph, os_pipe and tree_magic_mini). The pane links ds-blitz too, so anyview-peek is 569: the same four, and
 # fixedbitset, which the viewer already had. The headless peek links no ds-blitz and stays 248.
+# The person's own time zone adds two to all three: jiff and jiff-core, which anyview-core's `LocalZone` asks for
+# the system zone (std has no local time; every file, PDF and EXIF time is shown in the person's zone). The peek is
+# 571, the headless peek 250 and the viewer 689.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
-# links to look at a file: 248 packages, with no renderer, no window system and no encoder. It reaches
+# links to look at a file: 250 packages, with no renderer, no window system and no encoder. It reaches
 # none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
-  "anyview-peek: 569"
-  "anyview: 687"
+  "anyview-peek: 571"
+  "anyview: 689"
 )
-HEADLESS_BUDGET=248
+HEADLESS_BUDGET=250
 HEADLESS_FORBIDDEN=(ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
@@ -274,7 +277,7 @@ EDGES=(
   "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-text ds ds-blitz ds-core ds-shell"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-store anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"

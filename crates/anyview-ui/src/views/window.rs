@@ -160,7 +160,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     };
     let facts = current
         .as_ref()
-        .map(|(_, doc)| doc.view().facts())
+        .map(|(_, doc)| doc.facts())
         .unwrap_or_default();
     let tabs = current.as_ref().map_or_else(Default::default, |(_, doc)| {
         let tabs = doc.view().panel_params().tabs;

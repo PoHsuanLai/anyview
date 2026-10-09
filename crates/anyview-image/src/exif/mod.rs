@@ -1,15 +1,21 @@
 //! What a photo's EXIF block says: orientation for decoding, camera, lens, exposure and date for
 //! the facts. Reading goes through `kamadak-exif`; patching the orientation is `patch`.
 
+mod flash;
 mod format;
+mod location;
 mod patch;
+mod rows;
 
 #[cfg(test)]
 mod tests;
 
+pub use flash::{Flash, FlashMode, FlashState};
+pub use location::Location;
 pub(crate) use patch::with_orientation;
 
 use crate::orientation::ExifOrientation;
+use crate::resolution::Resolution;
 use exif::{In, Reader, Tag, Value};
 use std::io::Cursor;
 
@@ -36,7 +42,17 @@ pub struct Exposure {
     pub focal_length: Option<Ratio>,
 }
 
-/// The facts of a photo's EXIF block. An image with no EXIF block, or none the reader
+/// A signed fraction as EXIF stores it, such as an exposure bias in stops.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SignedRatio {
+    /// The numerator.
+    pub numerator: i32,
+    /// The denominator, never zero.
+    pub denominator: i32,
+}
+
+/// The facts of a photo's EXIF block. Never a place (see [`Location`], which only the viewer's
+/// own Info panel reads) and never the body and lens serial numbers, which are not read at all. An image with no EXIF block, or none the reader
 /// understands, has [`ExifFacts::none`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExifFacts {
@@ -52,6 +68,19 @@ pub struct ExifFacts {
     pub exposure: Exposure,
     /// The capture time as EXIF writes it, `YYYY:MM:DD HH:MM:SS`.
     pub taken: Option<String>,
+    /// The minutes east of UTC the capture time was written in, when the block says
+    /// (`OffsetTimeOriginal`, `OffsetTime`). A camera clock with no offset is the owner's own.
+    pub taken_offset: Option<i16>,
+    /// How far the exposure was moved from the metered one, in stops.
+    pub bias: Option<SignedRatio>,
+    /// Whether and how the flash fired.
+    pub flash: Option<Flash>,
+    /// The program that made or last saved the file.
+    pub software: Option<String>,
+    /// The copyright notice.
+    pub copyright: Option<String>,
+    /// The density the picture is meant to be shown at.
+    pub resolution: Option<Resolution>,
 }
 
 impl ExifFacts {
@@ -64,6 +93,12 @@ impl ExifFacts {
             lens: None,
             exposure: Exposure::default(),
             taken: None,
+            taken_offset: None,
+            bias: None,
+            flash: None,
+            software: None,
+            copyright: None,
+            resolution: None,
         }
     }
 
@@ -79,6 +114,15 @@ impl ExifFacts {
             .and_then(|tag| u16::try_from(tag).ok())
             .and_then(ExifOrientation::from_tag)
             .unwrap_or(ExifOrientation::UPRIGHT);
+        // An offset belongs to the clock it was written beside.
+        let (taken, offset) = match field(Tag::DateTimeOriginal) {
+            Some(original) => (text(original), field(Tag::OffsetTimeOriginal)),
+            None => (field(Tag::DateTime).and_then(text), field(Tag::OffsetTime)),
+        };
+        let taken_offset = offset
+            .and_then(text)
+            .as_deref()
+            .and_then(format::offset_minutes);
         ExifFacts {
             orientation,
             make: field(Tag::Make).and_then(text),
@@ -90,9 +134,15 @@ impl ExifFacts {
                 iso: field(Tag::PhotographicSensitivity).and_then(|v| v.get_uint(0)),
                 focal_length: field(Tag::FocalLength).and_then(ratio),
             },
-            taken: field(Tag::DateTimeOriginal)
-                .or_else(|| field(Tag::DateTime))
-                .and_then(text),
+            taken,
+            taken_offset,
+            bias: field(Tag::ExposureBiasValue).and_then(signed_ratio),
+            flash: field(Tag::Flash)
+                .and_then(|value| value.get_uint(0))
+                .map(Flash::of_field),
+            software: field(Tag::Software).and_then(text),
+            copyright: field(Tag::Copyright).and_then(text),
+            resolution: resolution(&exif),
         }
     }
 
@@ -119,11 +169,6 @@ impl ExifFacts {
     pub fn exposure_text(&self) -> Option<String> {
         format::exposure(&self.exposure)
     }
-
-    /// `2024-05-01 12:30`, or the raw text when it is not a date EXIF would write.
-    pub fn taken_text(&self) -> Option<String> {
-        self.taken.as_deref().map(format::taken)
-    }
 }
 
 /// The first string of an ASCII value, with the padding cameras add trimmed; `None` when empty.
@@ -147,4 +192,33 @@ fn ratio(value: &Value) -> Option<Ratio> {
         numerator: first.num,
         denominator: first.denom,
     })
+}
+
+/// The first signed fraction of a value; `None` when the denominator is zero.
+fn signed_ratio(value: &Value) -> Option<SignedRatio> {
+    let Value::SRational(rationals) = value else {
+        return None;
+    };
+    let first = rationals.first()?;
+    (first.denom != 0).then_some(SignedRatio {
+        numerator: first.num,
+        denominator: first.denom,
+    })
+}
+
+/// The dots an inch the block says the picture has, from its X and Y resolution and their unit
+/// (inches unless it says centimetres).
+fn resolution(exif: &exif::Exif) -> Option<Resolution> {
+    let field = |tag| exif.get_field(tag, In::PRIMARY).map(|f| &f.value);
+    let per_unit = |tag| field(tag).and_then(ratio);
+    let centimetres = field(Tag::ResolutionUnit).and_then(|unit| unit.get_uint(0)) == Some(3);
+    Resolution::per_unit(
+        per_unit(Tag::XResolution)?,
+        per_unit(Tag::YResolution)?,
+        if centimetres {
+            crate::resolution::Unit::Centimetre
+        } else {
+            crate::resolution::Unit::Inch
+        },
+    )
 }

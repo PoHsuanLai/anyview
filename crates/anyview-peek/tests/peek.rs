@@ -116,7 +116,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("dimensions", "48 × 32"),
                 ("colour", "RGBA, 8-bit"),
                 ("size", "122 B"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
         (
@@ -129,7 +129,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("frames", "3"),
                 ("colour", "RGBA, 8-bit"),
                 ("size", "282 B"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
         (
@@ -140,7 +140,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("kind", "PDF document"),
                 ("dimensions", "300 × 200 pt"),
                 ("size", "621 B"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
         (
@@ -152,7 +152,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("lines", "60"),
                 ("encoding", "UTF-8"),
                 ("size", "2.2 KB"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
         (
@@ -165,7 +165,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("columns", "3"),
                 ("encoding", "UTF-8"),
                 ("size", "905 B"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
         (
@@ -177,7 +177,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
                 ("entries", "100"),
                 ("encoding", "UTF-8"),
                 ("size", "2.5 KB"),
-                ("modified", "1970-01-01 00:00 UTC"),
+                ("modified", "1 Jan 1970 at 00:00"),
             ],
         ),
     ];
@@ -273,7 +273,7 @@ fn kinds_without_a_back_end_show_their_type_size_and_date() {
         let want = vec![
             ("kind", (*words).to_owned()),
             ("size", format!("{} B", bytes.len())),
-            ("modified", "2026-10-02 14:30 UTC".to_owned()),
+            ("modified", "2 Oct 2026 at 14:30".to_owned()),
         ];
         assert_eq!(rows(&peeked.facts), want, "{name}");
     }
@@ -307,7 +307,7 @@ fn a_folder_counts_its_items_size_and_kinds() {
         ("kind", "Folder".to_owned()),
         ("entries", "4 items: 2 plain text, 1 raster".to_owned()),
         ("size", "136 B".to_owned()),
-        ("modified", "1970-01-01 00:00 UTC".to_owned()),
+        ("modified", "1 Jan 1970 at 00:00".to_owned()),
     ];
     assert_eq!(rows(&peeked.facts), want);
 }
@@ -373,7 +373,7 @@ fn an_archive_lists_its_entries_then_the_size_and_the_date() {
     assert_eq!(facts[0], ("kind", "ZIP archive".to_owned()));
     assert_eq!(facts[1], ("entries", "3, 23 B unpacked".to_owned()));
     assert_eq!(facts[2].0, "size");
-    assert_eq!(facts[3], ("modified", "2026-10-02 14:30 UTC".to_owned()));
+    assert_eq!(facts[3], ("modified", "2 Oct 2026 at 14:30".to_owned()));
 }
 
 #[test]

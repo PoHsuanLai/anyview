@@ -81,10 +81,7 @@ fn missing_tools(sniffed: &Sniffed) -> Fact {
     } else {
         "libheif's heif-dec (or heif-convert) for the HEIF plugin (to show it)"
     };
-    Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text(text),
-    }
+    Fact::new(FactLabel::Needs, FactValue::text(text))
 }
 
 impl ImageHost {
@@ -160,17 +157,17 @@ mod tests {
         };
         assert_eq!(
             want("a.heic", HEIC),
-            PluginPicture::Missing(Need::passive(Fact {
-                label: FactLabel::Needs,
-                value: FactValue::text("anyview-heif (to show it)"),
-            }))
+            PluginPicture::Missing(Need::passive(Fact::new(
+                FactLabel::Needs,
+                FactValue::text("anyview-heif (to show it)")
+            )))
         );
         assert_eq!(
             want("a.nef", TIFF),
-            PluginPicture::Missing(Need::passive(Fact {
-                label: FactLabel::Needs,
-                value: FactValue::text("anyview-raw (to show it in full quality)"),
-            }))
+            PluginPicture::Missing(Need::passive(Fact::new(
+                FactLabel::Needs,
+                FactValue::text("anyview-raw (to show it in full quality)")
+            )))
         );
         assert_eq!(want("a.png", PNG), PluginPicture::Unserved);
     }

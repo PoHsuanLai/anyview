@@ -3,7 +3,7 @@
 
 mod facts;
 
-use crate::decode::{ColourInfo, FrameCount, Looked, look, read};
+use crate::decode::{ColourInfo, FrameCount, Looked, file_bytes, look};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::pixels::Rgba8;
@@ -92,7 +92,7 @@ fn peek_image(
         });
     }
     let area = peek_area(budget)?;
-    let bytes = read(src)?;
+    let bytes = file_bytes(src)?;
     let looked = look(&bytes, sniffed, area)?;
     Ok(reduced(looked, sniffed, area))
 }

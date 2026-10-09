@@ -78,10 +78,10 @@ mod tests {
 
     #[test]
     fn a_frame_offer_opens_on_a_frame_and_names_what_is_missing() {
-        let needs = Fact {
-            label: FactLabel::Needs,
-            value: FactValue::text("anyview-ffmpeg (to convert it)"),
-        };
+        let needs = Fact::new(
+            FactLabel::Needs,
+            FactValue::text("anyview-ffmpeg (to convert it)"),
+        );
         let offer = MediaOffer::new(vec![MediaExportKind::FramePng], Some(needs.clone()));
         assert_eq!(
             offer.first(),

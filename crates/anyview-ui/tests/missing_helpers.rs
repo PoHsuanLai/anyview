@@ -42,12 +42,12 @@ impl ImagePlugins for HeifTool {
             return PluginPicture::Pixels(Rgba8::new(size, vec![200; 4 * 2 * 4]).unwrap());
         }
         PluginPicture::Missing(Need {
-            fact: Fact {
-                label: FactLabel::Needs,
-                value: FactValue::text(
+            fact: Fact::new(
+                FactLabel::Needs,
+                FactValue::text(
                     "libheif's heif-dec (or heif-convert) for the HEIF plugin (to show it)",
                 ),
-            },
+            ),
             helper: Some(Helper::HeicDecode),
         })
     }
@@ -476,10 +476,10 @@ fn the_sheet_that_says_nothing_can_be_exported_offers_to_install_what_adds_it() 
     )
     .unwrap();
     let path = std::fs::canonicalize(path).unwrap();
-    let fact = Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
-    };
+    let fact = Fact::new(
+        FactLabel::Needs,
+        FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
+    );
     let player = FakePlayer::answering(Answer::Plays)
         .offering(MediaOffer::new(vec![], Some(fact)).installable(Helper::MediaProbe));
     let (mut harness, requests, edge) = wired(

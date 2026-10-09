@@ -24,6 +24,10 @@ versioning, with pre-releases while the program is in beta.
 
 - EPUB and CBZ open in the PDF view. A book's chapters are laid out on reading pages and bound into one PDF with the chapters as its outline, so a book scrolls, zooms, finds and prints as a PDF does. A book opens at reading width, as Books and Preview do, unless you left it somewhere else. Its pages cannot be edited, because they are not a file.
 
+### Info panel
+
+- The Info panel lists what a file says about itself, in sections: a picture's colour, density and (for a photo) camera, lens, exposure, flash, time and software, and where it was taken; a PDF's title, author, dates, producer, version, page size, protection and signatures; and for every file a General section, last: its kind in a person's words ("JPEG image", "Rust source"), its size with the exact bytes, when it was made and changed, the folder it is in, where it was downloaded from (host first, without the query) and its permissions. Where a photo was taken is shown here and nowhere else: the launcher's preview never lists it, and a camera's serial numbers are never read.
+
 ### Plugins
 
 - The plugin machinery that has nothing to do with what a plugin offers is now bayonet (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0), a library of its own, so other apps can share it: the length-prefixed JSON frames, the manifest's shared fields, discovery in `anyview/plugins`, which plugin wins when manifests collide, the package suggestion, and starting a plugin with its timeouts, cancel and kill. anyview keeps its own capabilities (probe, peek, thumbnail, decode, export, play) and messages on top of it. Nothing changes for you: the manifests, the protocol, the `Needs:` lines and the way a crashed or silent plugin costs one request are as they were.

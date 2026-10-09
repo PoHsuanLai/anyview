@@ -15,24 +15,28 @@ mod exif;
 mod export;
 mod orientation;
 mod peek;
+mod picture_facts;
 mod pixels;
+mod resolution;
 mod rotate;
 mod scale;
 
 pub use decode::{
-    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, declared_size, decode,
-    decode_bytes, natural_size,
+    Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, colour_of,
+    declared_size, decode, decode_bytes, file_bytes, natural_size,
 };
 #[cfg(feature = "encode")]
 pub use edit::{Fidelity, Loss, edited, fidelity};
 #[cfg(feature = "encode")]
 pub use encode::{encode, encode_bmp, encode_with_metadata};
 pub use error::ImageError;
-pub use exif::{ExifFacts, Exposure, Ratio};
+pub use exif::{ExifFacts, Exposure, Flash, FlashMode, FlashState, Location, Ratio, SignedRatio};
 #[cfg(feature = "encode")]
 pub use export::{ImageFile, encode_file, plan_export};
 pub use orientation::{ExifOrientation, Mirror};
 pub use peek::{ImagePeek, PeekedFormat, RasterPeek, VectorPeek};
+pub use picture_facts::picture_facts;
 pub use pixels::{PremultipliedRgba8, Rgba8};
+pub use resolution::Resolution;
 pub use rotate::{flip_jpeg, rotate_jpeg};
 pub use scale::resized;

@@ -46,6 +46,8 @@ pub fn sniffed(bytes: &[u8], name: &str) -> Sniffed {
 
 /// A file on disk as the viewer would be handed it, modified at `modified` nanoseconds.
 pub fn on_disk(path: &Path, modified: i64) -> (Source, Sniffed) {
+    // The expected dates are in UTC, whatever zone the machine is in.
+    anyview_core::LocalZone::pin(0);
     let bytes = std::fs::read(path).unwrap();
     let name = path.file_name().unwrap().to_str().unwrap();
     let stamp = FileStamp {

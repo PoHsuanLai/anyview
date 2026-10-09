@@ -49,10 +49,10 @@ pub(super) fn choose(route: PlayRoute, builtin: BuiltinAbility) -> Chosen {
 
 /// The row a recording shows in place of a player when the machine has no sound output.
 pub(super) fn no_sound_fact() -> Fact {
-    Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text("a sound output (to play it)"),
-    }
+    Fact::new(
+        FactLabel::Needs,
+        FactValue::text("a sound output (to play it)"),
+    )
 }
 
 /// Whether the built-in player can play `file`, a recording of `kind`. Reads the start of the file.

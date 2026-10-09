@@ -10,7 +10,7 @@ mod kept;
 
 use crate::io::OpenError;
 use anyview_book::BookError;
-use anyview_core::{BookFormat, FactLabel, FactValue, Facts, FormatDetail, Sniffed, Source};
+use anyview_core::{BookFormat, Facts, FormatDetail, Sniffed, Source};
 use anyview_pdf::PdfDocument;
 
 /// The document a book is bound as, and the rows of its Info tab.
@@ -28,9 +28,8 @@ pub(super) fn bind(src: &Source, sniffed: &Sniffed) -> Result<Bound, OpenError> 
     let (bytes, facts) = match kept::get(src) {
         Some(found) => found,
         None => {
-            let base = Facts::empty()
-                .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
-                .with(FactLabel::Size, FactValue::size(src.stamp().len));
+            // The book's own rows only: the General section (kind, size, dates) is the window's.
+            let base = Facts::empty();
             let (bytes, facts) = match format {
                 BookFormat::Epub => epub::bind(src.path(), base)?,
                 BookFormat::Cbz => comic::bind(src.path(), base)?,

@@ -971,10 +971,10 @@ fn open_answering(answer: Answer, offer: Option<MediaOffer>) -> Opened {
 }
 
 fn needs(package: &str, purpose: &str) -> Fact {
-    Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text(format!("{package} (to {purpose})")),
-    }
+    Fact::new(
+        FactLabel::Needs,
+        FactValue::text(format!("{package} (to {purpose})")),
+    )
 }
 
 /// The export command from the palette.
@@ -1312,7 +1312,7 @@ fn a_panel_open_on_a_tab_the_player_then_withholds_shows_the_facts_not_a_blank()
     settle(&mut harness);
     let panel = harness.text_of(".viewer-side-panel").unwrap_or_default();
     assert!(
-        panel.contains("video/"),
+        panel.contains("WebM video"),
         "the file's facts fill the panel once the tab is gone: {panel:?}"
     );
 }

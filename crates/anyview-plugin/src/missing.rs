@@ -126,10 +126,10 @@ impl MissingPlugin {
     /// The same row with a purpose of the caller's: a raw file that already shows from its
     /// preview says what the plugin adds to it.
     pub fn fact_for(&self, purpose: &str) -> Fact {
-        Fact {
-            label: FactLabel::Needs,
-            value: FactValue::text(format!("{} (to {purpose})", self.package.name())),
-        }
+        Fact::new(
+            FactLabel::Needs,
+            FactValue::text(format!("{} (to {purpose})", self.package.name())),
+        )
     }
 
     fn purpose(&self) -> &'static str {

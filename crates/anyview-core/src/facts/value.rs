@@ -1,90 +1,7 @@
-//! Facts: the label and value rows a pane lists about a file (dimensions, pages, duration…).
+//! The text a fact shows, formatted for a person.
 
 use crate::source::ByteLen;
 use crate::units::{Bitrate, MediaLength, PageCount, PixelSize};
-use ds_core::word::Word;
-
-/// What a row of facts is about. Closed, so every pane words and orders the same facts the same
-/// way and a label is never a free string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
-pub enum FactLabel {
-    /// What sort of file it is.
-    Kind,
-    /// How large the file is on disk.
-    Size,
-    /// When it last changed.
-    Modified,
-    /// Width and height of an image.
-    Dimensions,
-    /// How many pages a document has.
-    Pages,
-    /// How many slides a presentation has.
-    Slides,
-    /// How many sheets a workbook has.
-    Sheets,
-    /// How long a recording runs.
-    Duration,
-    /// How many frames an animation has.
-    Frames,
-    /// How the video, or the sound of an audio file, is compressed.
-    Codec,
-    /// How the sound of a video is compressed.
-    AudioCodec,
-    /// How many bits a second the streams of a recording take.
-    Bitrate,
-    /// How many pictures a second a video shows.
-    Framerate,
-    /// Samples a second of a recording's sound.
-    SampleRate,
-    /// How many channels a recording's sound has.
-    Channels,
-    /// What a recording holds: how many video, audio and subtitle tracks.
-    Streams,
-    /// How many chapters a recording is divided into.
-    Chapters,
-    /// The camera that took a photo.
-    Camera,
-    /// The lens a photo was taken with.
-    Lens,
-    /// The shutter, aperture and sensitivity of a photo.
-    Exposure,
-    /// When a photo was taken.
-    Taken,
-    /// How an image stores its colour: channels and bits per channel.
-    Colour,
-    /// How many lines a text file has.
-    Lines,
-    /// How a text file's bytes are encoded.
-    Encoding,
-    /// How many rows a table has.
-    Rows,
-    /// How many columns a table has.
-    Columns,
-    /// The names of a structured value's top-level entries.
-    Keys,
-    /// How many entries an archive holds.
-    Entries,
-    /// The family a font belongs to.
-    Family,
-    /// A font's weight and slant by name: `Bold Italic`.
-    Style,
-    /// How many glyphs a font draws.
-    Glyphs,
-    /// A document's title.
-    Title,
-    /// A document's author, or the artist of a recording.
-    Author,
-    /// Who published a book.
-    Publisher,
-    /// The language a book is written in.
-    Language,
-    /// The album a recording belongs to.
-    Album,
-    /// Where a recording sits in its album, as the tag gives it.
-    TrackNumber,
-    /// A plugin the viewer lacks and the package that provides it.
-    Needs,
-}
 
 /// The text shown for a fact, already formatted for a person. A producer builds one from its typed
 /// value with the constructors here, so a pane never formats a number itself.
@@ -165,48 +82,38 @@ impl FactValue {
         FactValue(text)
     }
 
+    /// A size and its exact bytes: `3.2 MB (3,214,880 bytes)`; a size under a kilobyte is just
+    /// `412 B`.
+    pub fn size_exact(len: ByteLen) -> Self {
+        let short = FactValue::size(len);
+        if len.0 < 1_000 {
+            return short;
+        }
+        let digits = len.0.to_string();
+        let mut grouped = String::new();
+        for (at, digit) in digits.chars().enumerate() {
+            if at > 0 && (digits.len() - at).is_multiple_of(3) {
+                grouped.push(',');
+            }
+            grouped.push(digit);
+        }
+        FactValue(format!("{} ({grouped} bytes)", short.0))
+    }
+
+    /// `1.7`, `2.0.1`: the numbers of a format's version, joined by points.
+    pub fn version(parts: &[u32]) -> Self {
+        FactValue::text(
+            parts
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join("."),
+        )
+    }
+
     /// The text.
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-}
-
-/// One row: a label and its value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Fact {
-    /// What the row is about.
-    pub label: FactLabel,
-    /// What is true of it.
-    pub value: FactValue,
-}
-
-/// The rows a pane lists, in the order the producer gave them. Empty is a file with nothing to say.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Facts(Vec<Fact>);
-
-impl Facts {
-    /// No rows.
-    pub fn empty() -> Self {
-        Facts(Vec::new())
-    }
-
-    /// These rows plus one more at the end.
-    pub fn with(mut self, label: FactLabel, value: FactValue) -> Self {
-        self.0.push(Fact { label, value });
-        self
-    }
-
-    /// The rows in order.
-    pub fn rows(&self) -> &[Fact] {
-        &self.0
-    }
-
-    /// The value of the first row labelled `label`.
-    pub fn value(&self, label: FactLabel) -> Option<&FactValue> {
-        self.0
-            .iter()
-            .find(|fact| fact.label == label)
-            .map(|fact| &fact.value)
     }
 }
 
@@ -231,6 +138,35 @@ mod tests {
         ];
         for (name, bytes, want) in CASES {
             assert_eq!(FactValue::size(ByteLen(*bytes)).as_str(), *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn versions_join_their_numbers_with_points() {
+        assert_eq!(FactValue::version(&[1, 7]).as_str(), "1.7");
+        assert_eq!(FactValue::version(&[2]).as_str(), "2");
+        assert_eq!(FactValue::version(&[]).as_str(), "");
+    }
+
+    #[test]
+    fn exact_sizes_group_their_digits() {
+        const CASES: &[(&str, u64, &str)] = &[
+            ("bytes", 412, "412 B"),
+            ("a kilobyte", 1_000, "1.0 KB (1,000 bytes)"),
+            ("megabytes", 3_214_880, "3.2 MB (3,214,880 bytes)"),
+            ("a round million", 1_000_000, "1.0 MB (1,000,000 bytes)"),
+            (
+                "the largest",
+                u64::MAX,
+                "18446744.0 TB (18,446,744,073,709,551,615 bytes)",
+            ),
+        ];
+        for (name, bytes, want) in CASES {
+            assert_eq!(
+                FactValue::size_exact(ByteLen(*bytes)).as_str(),
+                *want,
+                "{name}"
+            );
         }
     }
 
@@ -282,26 +218,5 @@ mod tests {
             FactValue::pages(PageCount::new(12).unwrap()).as_str(),
             "12 pages"
         );
-    }
-
-    #[test]
-    fn rows_keep_their_order_and_are_found_by_label() {
-        let facts = Facts::empty()
-            .with(FactLabel::Kind, FactValue::text("PNG image"))
-            .with(FactLabel::Size, FactValue::size(ByteLen(2_000)))
-            .with(FactLabel::Kind, FactValue::text("shadowed"));
-        let labels: Vec<_> = facts.rows().iter().map(|f| f.label).collect();
-        assert_eq!(labels, [FactLabel::Kind, FactLabel::Size, FactLabel::Kind]);
-        assert_eq!(
-            facts.value(FactLabel::Kind),
-            Some(&FactValue::text("PNG image"))
-        );
-        assert_eq!(
-            facts.value(FactLabel::Size).map(FactValue::as_str),
-            Some("2.0 KB")
-        );
-        assert_eq!(facts.value(FactLabel::Pages), None);
-        assert!(Facts::empty().rows().is_empty());
-        assert_eq!(Facts::default(), Facts::empty());
     }
 }

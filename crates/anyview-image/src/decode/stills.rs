@@ -95,6 +95,18 @@ pub(crate) fn header(bytes: &[u8], format: ImageFormat) -> Result<Header, ImageE
     })
 }
 
+/// How the file stores its colour, read from its header only; `None` when the header is
+/// unreadable.
+pub(crate) fn stored_colour(bytes: &[u8], format: ImageFormat) -> Option<ColourInfo> {
+    guarded(|| {
+        let decoder = ImageReader::with_format(Cursor::new(bytes), format)
+            .into_decoder()
+            .map_err(|e| decode_error(e, None))?;
+        Ok(ColourInfo::of_color_type(decoder.color_type()))
+    })
+    .ok()
+}
+
 /// The picture of a still image file, upright, with the colour it was stored in.
 pub(crate) fn still(
     bytes: &[u8],

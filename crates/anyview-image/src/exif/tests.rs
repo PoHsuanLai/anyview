@@ -34,7 +34,8 @@ fn the_rotated_fixture_reads_back_what_was_written_into_it() {
         facts.exposure_text().as_deref(),
         Some("1/200 s · f/2.8 · ISO 100 · 35 mm")
     );
-    assert_eq!(facts.taken_text().as_deref(), Some("2024-05-01 12:30"));
+    assert_eq!(facts.taken.as_deref(), Some("2024:05:01 12:30:45"));
+    assert_eq!(facts.taken_offset, None);
 }
 
 #[test]
@@ -43,7 +44,7 @@ fn a_file_without_exif_has_no_facts_and_is_upright() {
     assert_eq!(ExifFacts::read(b"not an image"), ExifFacts::none());
     assert_eq!(ExifFacts::none().camera(), None);
     assert_eq!(ExifFacts::none().exposure_text(), None);
-    assert_eq!(ExifFacts::none().taken_text(), None);
+    assert_eq!(ExifFacts::none().taken_value(), None);
 }
 
 #[test]
@@ -158,16 +159,22 @@ fn exposures_read_as_a_photographer_writes_them() {
 }
 
 #[test]
-fn capture_times_are_shown_to_the_minute_or_left_alone() {
-    const CASES: &[(&str, &str, &str)] = &[
-        ("exif style", "2024:05:01 12:30:45", "2024-05-01 12:30"),
-        ("no seconds", "2024:05:01 12:30", "2024-05-01 12:30"),
-        ("already iso", "2024-05-01 12:30:45", "2024-05-01 12:30:45"),
-        ("blank date", "    :  :     :  :  ", "    :  :     :  :  "),
-        ("no time", "2024:05:01", "2024:05:01"),
+fn offset_times_are_minutes_east_of_utc() {
+    const CASES: &[(&str, Option<i16>)] = &[
+        ("+02:00", Some(120)),
+        ("-05:30", Some(-330)),
+        ("+00:00", Some(0)),
+        ("Z", Some(0)),
+        (" +09:00 ", Some(540)),
+        ("", None),
+        ("   :  ", None),
+        ("+2:00", None),
+        ("+25:00", None),
+        ("+02:60", None),
+        ("0200", None),
     ];
-    for (name, raw, want) in CASES {
-        assert_eq!(format::taken(raw), *want, "{name}");
+    for (raw, want) in CASES {
+        assert_eq!(format::offset_minutes(raw), *want, "{raw:?}");
     }
 }
 
@@ -255,4 +262,53 @@ fn a_block_that_is_not_tiff_or_is_cut_off_is_refused() {
             "{name}"
         );
     }
+}
+
+/// A little-endian TIFF whose first IFD points to an Exif IFD of ASCII entries `(tag, text)`.
+fn tiff_with_exif_text(entries: &[(u16, &str)]) -> Vec<u8> {
+    let exif_at = 8 + 2 + 12 + 4;
+    let mut out = b"II*\0".to_vec();
+    out.extend_from_slice(&8u32.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    for part in [0x8769u16, 4] {
+        out.extend_from_slice(&part.to_le_bytes());
+    }
+    out.extend_from_slice(&1u32.to_le_bytes());
+    out.extend_from_slice(&u32::try_from(exif_at).unwrap().to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&u16::try_from(entries.len()).unwrap().to_le_bytes());
+    let mut spill = exif_at + 2 + 12 * entries.len() + 4;
+    let mut tail = Vec::new();
+    for (tag, text) in entries {
+        let mut bytes = text.as_bytes().to_vec();
+        bytes.push(0);
+        out.extend_from_slice(&tag.to_le_bytes());
+        out.extend_from_slice(&2u16.to_le_bytes());
+        out.extend_from_slice(&u32::try_from(bytes.len()).unwrap().to_le_bytes());
+        out.extend_from_slice(&u32::try_from(spill).unwrap().to_le_bytes());
+        spill += bytes.len();
+        tail.extend_from_slice(&bytes);
+    }
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&tail);
+    out
+}
+
+#[test]
+fn a_capture_time_carries_the_offset_written_beside_it() {
+    const ORIGINAL: u16 = 0x9003;
+    let both = ExifFacts::read(&tiff_with_exif_text(&[
+        (ORIGINAL, "2024:05:01 12:30:45"),
+        (0x9011, "+02:00"),
+    ]));
+    assert_eq!(both.taken.as_deref(), Some("2024:05:01 12:30:45"));
+    assert_eq!(both.taken_offset, Some(120));
+    let none = ExifFacts::read(&tiff_with_exif_text(&[(ORIGINAL, "2024:05:01 12:30:45")]));
+    assert_eq!(none.taken_offset, None);
+    // `OffsetTime` is the offset of `DateTime`, not of `DateTimeOriginal`.
+    let mismatched = ExifFacts::read(&tiff_with_exif_text(&[
+        (ORIGINAL, "2024:05:01 12:30:45"),
+        (0x9010, "+09:00"),
+    ]));
+    assert_eq!(mismatched.taken_offset, None);
 }

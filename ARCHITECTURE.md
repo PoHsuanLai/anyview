@@ -57,7 +57,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
-| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
+| `anyview-ui` | `anyview-archive` (`zip_entries`, so a zip is told from what is inside it, and an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`file_details`, the General section of the Info tab), `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -143,7 +143,7 @@ no other public path. A module names only modules above it in this list.
 | `action` | `FileAction`, `Reach`, `reach`, `shortcut` |
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
-| `facts` | `FactLabel`, `FactValue`, `Facts` |
+| `facts` | `Fact`, `Facts`, `FactLabel` (and where each label is listed by default: `group`, `tier`), `FactGroup` (the sections of the Info panel, in display order, `General` last), `Tier` (headline rows make the summary line, `Facts::summary`), `FactValue` and its constructors (size with exact bytes, date, coordinate, altitude, version), `FactTime`, `LocalZone` (the person's time zone, read from the system by `jiff`; every shown time is converted to it and never names a zone), `Coordinate`, `kind_name` (Finder's "JPEG image"), and `FileDetails` with `Facts::general` (the General section: kind, size, created, modified, where, where from, permissions); `label`, `group`, `value`, `when`, `place`, `summary`, `kind_name` and `file` are private |
 | `peek` | `Peek`, `PeekBudget`, `Deadline` (the budget's time as an instant a long loop asks about; cooperative), `StageSupport` |
 | `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
 | `APP_NAME` | the name a person sees ("Viewer"): the welcome title, the helper sheet, the now-playing identity. Identifiers (binary, app id, bus names) keep `anyview` |
@@ -169,6 +169,7 @@ named below.
 | `versions` | `Versions` (back up, list, restore), `Version`, `VersionId`, `KeepPeriod`, `SavedAt`; kept versions are private (`0700` folders, `0600` files), a version identical to the file's latest is not made again, a sidecar that cannot be read is skipped by `list` |
 | `prune`, `rekey` | `Versions::prune` (by age, the half-made files of a crash, then the size cap `DEFAULT_CAP`, a file's newest version never; nothing by age when the clock is over a year past the newest version) and `Versions::rekey` (a renamed file's versions follow it) |
 | `place` | `free_beside`, `is_free`, `rename_noreplace` (`renameat2` with `RENAME_NOREPLACE`, a link and unlink where the file system has none), `link_new`, `copy_new`, `partial_beside`, `is_taken`: Rename, Duplicate and every export claim names here, never by looking first |
+| `details` | `file_details`: a file's size, dates, folder, permissions and the address it was downloaded from (the `user.xdg.origin.url` attribute), as `FileDetails`; best effort, a field the file system lacks is absent |
 | `attrs`, `sweep`, `guard`, `original` | the owner, extended attributes and ACLs a save and a copy keep, and `is_read_only`; `sweep_leftovers` (temporary files of dead processes); one save of a real path at a time in the process; a file's identity at backup time, for the stamp check before the rename |
 
 A save writes a temporary file beside the original (its mode, owner, xattrs and ACLs, named for the
@@ -220,7 +221,8 @@ and `decode_bytes` are the one way pixels come out, and `encode` the one way the
 | `error` | `ImageError` |
 | `pixels` | `Rgba8` (straight alpha), `PremultipliedRgba8`, and the one conversion between them |
 | `orientation` | `ExifOrientation` (a `Mirror` then a clockwise `QuarterTurn`), its tag table and `applied` |
-| `exif` | `ExifFacts`, `Exposure`, `Ratio`: read with `kamadak-exif`; `format` words them; `patch` writes the orientation entry (private) |
+| `exif` | `ExifFacts`, `Exposure`, `Ratio`, `SignedRatio`, `Flash`, `Location`: read with `kamadak-exif` (camera, lens, settings, bias, flash, software, copyright, density, and the GPS block; the body and lens serial numbers are never read); `ExifFacts::camera_facts` are the rows a preview may list; `ExifFacts` holds no place, and `Location::of_file` (read by `picture_facts` alone) is the place, which only the viewer's own Info panel lists; `format` words them; `patch` writes the orientation entry (private) |
+| `picture_facts`, `resolution` | `picture_facts`: the colour, density, camera and location rows of the viewer's Info panel; `Resolution`: dots an inch from EXIF, a PNG `pHYs` chunk or a JPEG's JFIF block |
 | `scale` | `resized` (the export's `Resize`); peek-budget fitting (private) |
 | `decode` | `decode`, `decode_bytes`, `declared_size` (the upright size from the header and EXIF alone), `Decoded` (a still, an `Animation` with its `Plays`, or a `HeldStill` when the frames pass the 256 MiB cap), `Frame`, `FrameCount`, `ColourInfo`; `codec` is the one match on `RasterFormat`; `ceiling` (the peak memory a decode may hold, checked from the header before any pixel is decoded), `stills`, `plays` (loop counts from the container), `frame_count` (frame counts from the container, without decoding), `highrange` (EXR and HDR, tone mapped with extended Reinhard then sRGB), `layered` (Photoshop composite, largest icon of an ICNS), `jxl`, `svg`, `svg_limits` (a drawing's filter work and nested pictures, checked from its tree before it is drawn) and `look` are private |
 | `decode::natural` | `natural_size`: the upright size a picture shows at, read from the first 256 KiB of the file (a header and its EXIF orientation, or an SVG's root tag); nothing is decoded and the claim is not checked against a decode's ceiling |
@@ -420,7 +422,7 @@ the folder peek (a directory has no bytes) and a thumbnail read from the desktop
 | `natural` | `natural_size`: the size a picture or a video shows at, from the first bytes of the file (a picture's header through `anyview-image`, a movie's `moov` or Matroska header up to 8 MiB); any other kind, a path that is not a regular file and a header that does not say give `None` |
 | `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in; facts only without the `pane` feature |
 | `worker` | `PeekWorker`, `WorkerConfig` (`#[non_exhaustive]`, with `with_*` builders): the one thread that looks at the latest file asked for (`ask(input, reply)`), a thread per peek with an 8 MiB stack, the 4 s overrun and the cap on abandoned peeks; it takes no async runtime |
-| `when` | `modified_text`: a modification time as UTC |
+| `when` | `modified_text`: a modification time as the Info panel words it, in the person's zone |
 | `pane` | `Pane`, `Part`, `Parts` (which of the media, the name and the facts it draws; all by default), `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
 `peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
@@ -448,6 +450,7 @@ CPU memory.
 | `export` | `plan_export` (a PDF choice as `ExportJob`s: one for a PDF or a text file, one for each page of page images), `selected`, `write_pages`, `write_text` |
 | `pictures` | `PagePicture` (a JPEG kept as it is, upright pixels, or an SVG drawn as vector paths) and `pdf_of_pictures`: one page for each, the size of its picture and at most an A4 sheet's long side |
 | `bind` | `Bookmark`, `bind`: PDFs joined in order into one, with an outline whose lines go to the first page of a part, or to the first page that shows their words (how the viewer binds a book) |
+| `info` | `PdfDocument::info` and `PdfInfo`: the Info dictionary (or the XMP packet when it lacks a title, author, subject or keywords), the version, the page size named (`A4`, `Letter`, `210 × 297 mm`, `Varies`), pages, protection and what an encrypted file takes away, tagging, attachments and signatures; `PdfInfo::facts` are the Document section's rows. PDF dates are parsed in `date`, XMP read with `roxmltree` in `xmp` |
 | `job` | `PdfBackend` (implements `Backend`), `PdfJob`, `PdfDone` |
 
 A view asks `schedule` for the tiles it needs (the visible ones nearest the middle first, then a margin
@@ -1100,7 +1103,9 @@ The single place a concept lives. Extend it; never write a second one.
 | The "Page 143" a history row shows | `anyview_store::resume_label` |
 | What each format exports, and the sheet's contract | `anyview_core::ExportChoice` and the per-format enums (`export`) |
 | The shared encoders an export becomes | `anyview_core::ExportJob` |
-| Rows of facts a pane lists | `anyview_core::Facts` |
+| Rows of facts a pane lists | `anyview_core::Facts`; a row's section is its `FactGroup` and its weight its `Tier` |
+| What every file has (kind, size, dates, where, where from, permissions) | `anyview_core::Facts::general`, read by `anyview_store::file_details`; the window adds it last to every document's rows |
+| Where a photo was taken | `anyview_image::Location::of_file` and `Location::facts`, in the viewer's Info panel only (`ExifFacts`, and so the peek, never holds it); no preview, list or thumbnail lists it, and serial numbers are never read |
 | The light tier of a format | `anyview_core::Peek` |
 | Which peek a kind has (the light tier's one match on `FormatKind`) | `anyview_peek::visit`, `KindVisitor` (`registry.rs`) |
 | A peek's result with its type erased, and the rows beside it | `anyview_peek::AnyPeeked`, `peek`, `Body` |
