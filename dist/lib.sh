@@ -46,7 +46,8 @@ choose_sudo() {
   fi
 }
 
-# The icon sizes the repo ships: <ICON_DIR>/<px>.png (assets/icons, copied from quire's viewer icons).
+# The icon sizes the repo ships: <ICON_DIR>/<px>.png (assets/icons, Viewer's own icon; the 1024 px master
+# and the Windows .ico are in assets/icon-source, as hicolor has no 1024 size).
 # Prints one pixel size per line; prints nothing (and warns) when the directory is absent.
 icon_sizes() {
   local dir="$1" file
