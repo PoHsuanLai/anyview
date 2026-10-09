@@ -176,10 +176,10 @@ fn every_tool_the_shipped_file_declares_is_worded_and_offered_beside_its_row() {
     // The path every missing-tool screen takes: the sheet is worded from the file, and the row
     // gains the tool to install. One pass over every tool the viewer names, on each family of
     // distributions the file has packages for.
-    let fact = anyview_core::Fact {
-        label: anyview_core::FactLabel::Needs,
-        value: anyview_core::FactValue::text("x"),
-    };
+    let fact = anyview_core::Fact::new(
+        anyview_core::FactLabel::Needs,
+        anyview_core::FactValue::text("x"),
+    );
     for os_release in [
         "ID=fedora\n",
         "ID=ubuntu\nID_LIKE=debian\n",
