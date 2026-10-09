@@ -9,6 +9,13 @@ versioning, with pre-releases while the program is in beta.
 
 - Viewer is built on quire v0.2.33. Tooltips show as soon as the pointer is over a button. Shortcuts written with the command key now also answer to the Super key, as a window reports it. A right-click over a picture, a rendered Markdown page or a book now always opens the menu, and so does one where the hand moved slightly. Rotate Left and Rotate Right have a matching pair of icons. Copy Path reaches the clipboard on a Wayland desktop and stays there. The wheel speeds up when you spin it, the page moves in the same frame as the wheel, a menu or the palette taller than the window scrolls inside it, a long file name in the titlebar keeps its extension, and tooltips show in a real window.
 
+### Menus
+
+- The context menu, the command palette and the capsule list from one declaration. Each kind of file names the actions it has, each stage names what it can do to its file (a picture turns and flips, a PDF turns the page you are on, a recording plays), and a command is listed only where both say yes. Nothing is listed that would do nothing, and a read-only file loses its rotate buttons as well as its menu rows.
+- Open With is gone from the menu, the palette, the keys and the screens of files that cannot be shown. Viewer is the viewer; a file it cannot show says so in words, with Show in Folder where there is a file manager.
+- The Open… dialog starts on "Supported files", the types Viewer can show, with "All files" beside it. The desktop hides the other files rather than greying them out.
+- The desktop entry names the types by the registry's own names (`audio/vnd.wave`, `image/heif`, `image/qoi`…), so file managers offer Viewer for them.
+
 ### Plugins
 
 - The plugin machinery that has nothing to do with what a plugin offers is now bayonet (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0), a library of its own, so other apps can share it: the length-prefixed JSON frames, the manifest's shared fields, discovery in `anyview/plugins`, which plugin wins when manifests collide, the package suggestion, and starting a plugin with its timeouts, cancel and kill. anyview keeps its own capabilities (probe, peek, thumbnail, decode, export, play) and messages on top of it. Nothing changes for you: the manifests, the protocol, the `Needs:` lines and the way a crashed or silent plugin costs one request are as they were.

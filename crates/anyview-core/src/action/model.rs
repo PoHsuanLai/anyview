@@ -10,8 +10,6 @@ use ds_core::word::Word;
 pub enum FileAction {
     /// Open in the viewer.
     Open,
-    /// Open in another program, chosen from a list.
-    OpenWith,
     /// Show the file in the file manager.
     RevealInFolder,
     /// Copy the file itself to the clipboard.

@@ -207,7 +207,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
 | `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, unpack a section of a book, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
 | `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf`, `media`, `book` and `peek_only` (office facts and the document's thumbnail), and `find_bar` (the one find bar, which `text` and `pdf` wrap with their own machine's inputs). The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
-| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, Open With and Show in Folder); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel, the sheets, key events as shortcuts, `stylesheet` |
+| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, and Show in Folder where there is a file manager); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel, the sheets, key events as shortcuts, `stylesheet` |
 
 ## 2c. Modules inside `anyview-image`
 
@@ -292,21 +292,30 @@ desktop ability is a trait the host still holds, answered by a portable stand-in
 | Single instance | `DbusInstance`: the name `org.quire.Anyview1`, with bus activation (the `.service` file starts the viewer for a call) | `LatchkeyInstance`: the per-user socket |
 | Link | `SystemOpen` (`xdg-open`; `linux::XdgOpen` is the same type) | `SystemOpen` (`xdg-open`, `open`, `explorer`) |
 | Show in Folder | `FileManagerReveal` (`FileManager1.ShowItems`, the file selected) | `SystemReveal` (`open -R`, `explorer /select,`, else the folder through `xdg-open`) |
-| Open With | `DesktopApps` | `NoApps`: lists nothing |
 | Share | `MailShare` (`xdg-email`) | `NoShare`: no targets |
 | Print | `PortalPrinter` | `NoPrinter`: `PrintOutcome::NoDialog` |
 | Open... | `PortalPicker` | `NoPicker`: `PickOutcome::NoDialog` (no portable dialog yet; a later lane) |
 | Now playing | `MprisSession` | none: `NowPlaying::Absent` |
 | Thumbnails, window stacking | `FreedesktopThumbnails` and `NoStacking`, re-exported from `linux` | the same, from `portable` |
 
-**What the platform can do, and who hides what it cannot.** `Picker`, `Printer`, `Reveal` and `AppsForType`
-have `present()` (true unless the implementation only answers "not available": `NoPicker`, `NoPrinter`,
-`NoApps`), and `Share` has its `targets()`. `host::Hosting::abilities()` reads them into
-`anyview_ui::PlatformAbilities { pick_files, print, share, open_with, reveal }` (a plain set; `ALL` is the
+**What a file offers, declared once.** The commands of a file are the intersection of four tables, and the
+palette, the context menu, the capsule and the keys all read the result (`views/session.rs` `commands`, then
+`context::entries`, `offered_slots` and `ViewerParams::files`): the kind's actions (`anyview_core::actions_for`,
+which the launcher shares), what the showing stage can do to its file (`Stage::abilities` in
+`stage/abilities.rs`: the edits it carries out and the export it writes), what the file allows (a save in place, an
+edit that can be made, a player) and what the platform has (`PlatformAbilities`). `session::offered` is the one
+match over `FileAction`, so an action added to the vocabulary has to say where it applies. The stage's own
+commands are the ones its dispatch answers (`Stage::input_for`). The context menu only orders and titles; the
+capsule's file buttons are dropped when the file action is not listed. The table tests in `views/session.rs` hold
+kind by command for the palette and the menu.
+
+**What the platform can do, and who hides what it cannot.** `Picker`, `Printer` and `Reveal`
+have `present()` (true unless the implementation only answers "not available": `NoPicker`, `NoPrinter`), and `Share` has its `targets()`. `host::Hosting::abilities()` reads them into
+`anyview_ui::PlatformAbilities { pick_files, print, share, reveal }` (a plain set; `ALL` is the
 default), which the window's `Wiring` gives its `Edge` (`with_platform`). The views read it, never the operating
 system: `views/session.rs` `offered` filters the palette's commands (so the context menu and the file-action keys,
-which derive from them, follow), `keys::Regions::pick_files` unbinds ⌘O, `StageCx::platform` gates the Open With
-and Show in Folder buttons of the card and picture screens, `Offer::of` those of the failure screen, and the
+which derive from them, follow), `keys::Regions::pick_files` unbinds ⌘O, `StageCx::platform` gates the Show in Folder
+button of the card and picture screens, `Offer::of` those of the failure screen, and the
 welcome window drops Open.... The Install... of a missing tool is the host's: `HelperHost::installing_where` is
 quire's `Helpers` capability from `ds-desktop`, probed once in `program::start` (`ds-desktop/dbus` is on with
 `quire-desktop`; without it every capability is absent). `ds-desktop` describes quire's own services, so it is not
@@ -324,7 +333,7 @@ viewer. Linux with `quire-desktop` keeps the bus because activation (a launcher'
 `forward_over` (the launcher's own connection) are the bus's, and latchkey starts nothing by itself. Nothing reads
 `std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`),
 a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
-methods are driven by the caller's runtime and never spawn; blocking ones (Open With, thumbnails)
+methods are driven by the caller's runtime and never spawn; blocking ones (thumbnails)
 run on the caller's worker.
 
 | Module | Holds |
@@ -336,7 +345,6 @@ run on the caller's worker.
 | `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` |
 | `handoff` (private) | a `Handoff` as the fields both wires carry (`Wire`): encoded and parsed once, for the bus and the socket |
 | `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
-| `apps` | `AppsForType`, `AppEntry`, `DesktopId`, `Association` |
 | `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
 | `printer` | `Printer`, `PrintOutcome` (`Printed`, `Cancelled`, `NoDialog`), `JobTitle` |
 | `share` | `Share`, `ShareTarget` |
@@ -356,7 +364,6 @@ generic over it rather than holding a `dyn`):
 | --- | --- |
 | `Instance` | `claim(&Request) -> Result<Claim>`: own `org.quire.Anyview1` (`Claim::Primary`, whose `Primary::next` yields what later launches forwarded) or forward the request to the owner (`Claim::Forwarded`) |
 | `MediaSession` | `publish(&MediaState) -> Result<()>`; `next_control() -> Option<MediaControl>` |
-| `AppsForType` | `apps_for(&Mime) -> Vec<AppEntry>` (default first); `open_with(&DesktopId, &FilePath) -> Result<()>` |
 | `ThumbnailCache` | `lookup(&FilePath, &FileStamp, ThumbSize) -> Result<Option<ThumbPixels>>`; `store(.., &ThumbPixels) -> Result<()>` |
 | `Printer` | `print(&[u8], &JobTitle) -> Result<PrintOutcome>` |
 | `Share` | `targets() -> Vec<ShareTarget>`; `share(&FilePath, ShareTarget) -> Result<()>` |
@@ -1043,7 +1050,7 @@ file. A recording's export (`Transcode`, `MpvScreenshot`) is not a document's an
 2. **`anyview-core` is pure.** Effects (reading files, listing a zip, decoding, playing) belong to
    crates above it, which hand it values: the first 4 KiB of a file, a zip's entry names.
 3. **Every kind of file is mapped from day one.** A kind without a viewer stage is `PeekOnly` (facts
-   plus Open With…), never a stub.
+   only), never a stub.
 4. **No `_` arm on our own enums.** The workspace turns on clippy's `wildcard_enum_match_arm` and
    `match_wildcard_for_single_variants` at `deny`. An input a state ignores is listed by name, so
    adding a variant is a compile error everywhere it matters.
@@ -1147,7 +1154,7 @@ The single place a concept lives. Extend it; never write a second one.
 | What a window's request means to the host | `anyview::host::route` |
 | Telling a window that its file changed on disk | `anyview::host::Watcher` (`WindowWatch`), calling `Edge::changed` |
 | Writing where the person is, not for every scroll | `anyview::host::Remembering` |
-| Carrying out Open With, reveal, share, print, trash, rename, duplicate, the history | `anyview::host::Desktop` (`Hosting::carry_out`) |
+| Carrying out reveal, share, print, trash, rename, duplicate, the history | `anyview::host::Desktop` (`Hosting::carry_out`) |
 | Moving a file to the trash | `anyview::host::Trash`, `SystemTrash` |
 | The one writer of the history and view memory, and the time it stamps | `anyview::host::Store`, `Clock` |
 | A window of the viewer | `anyview::window::open_in_window`, `Seed` |
@@ -1173,7 +1180,6 @@ The single place a concept lives. Extend it; never write a second one.
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
 | One viewer process, and forwarding a launch to it | `anyview_platform::Instance`, `Request` |
 | Now playing and the desktop's media controls | `anyview_platform::MediaSession`, `MediaState`, `MediaControl` |
-| Which applications open a type, and opening with one | `anyview_platform::AppsForType` |
 | The shared thumbnail cache, and a file's `file://` URI | `anyview_platform::ThumbnailCache`, `file_uri` |
 | What a plugin says of itself (the manifest), and its checks | bayonet's `manifest` (the envelope), `anyview_plugin::Manifest`, `PluginError`, `Provision` (the viewer's `[[provides]]` entries) |
 | Which plugin serves a kind and capability, and which wins when manifests collide | bayonet's `registry` (the ranking), `anyview_plugin::Plugins` (`resolve`, `serving`, `route`, `export_targets`) |
@@ -1290,7 +1296,7 @@ pub trait StageView: 'static {
 The window holds a `LoadedDoc` (an `Arc<dyn DocView>` made by `LoadedDoc::of::<S>`), so drawing needs no
 match on the family. `visit(kind, KindVisitor)` in `families/registry.rs` is the one exhaustive match over
 `FormatKind` for the full tier: every kind maps to a view, and the kinds the full tier does not show yet
-map to `PeekOnlyStageView` (facts and Open With…, a real view). `anyview_core::stage_support` says the same in
+map to `PeekOnlyStageView` (facts, a real view). `anyview_core::stage_support` says the same in
 the core's table, and a test holds the two equal. `Workers` (`io/workers.rs`) is the one seam to the
 binary's pool: `fn submit(&self, work: Work)`.
 

@@ -21,7 +21,6 @@ fn reach_says_where_each_action_appears() {
     use Reach::{Both, Launcher, Viewer};
     const CASES: &[(FileAction, Reach)] = &[
         (Open, Launcher),
-        (OpenWith, Both),
         (RevealInFolder, Both),
         (CopyFile, Both),
         (CopyPath, Both),
@@ -68,7 +67,6 @@ fn shortcuts_are_the_standard_ones_or_the_viewers_own() {
     use Want::{Nothing, Own, Standard};
     const CASES: &[(FileAction, Want)] = &[
         (Open, Standard(StandardAction::Open)),
-        (OpenWith, Own(&[Alt, Super, Char('o')])),
         (RevealInFolder, Standard(StandardAction::Reveal)),
         (CopyFile, Standard(StandardAction::Copy)),
         (CopyPath, Own(&[Alt, Super, Char('c')])),

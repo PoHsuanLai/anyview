@@ -1,58 +1,21 @@
-use super::support::{
-    FakeTrash, NOW, PDF, PNG, desktop, desktop_choosing, entry, path, probed, services,
-};
+use super::support::{FakeTrash, NOW, PDF, PNG, desktop, desktop_choosing, path, probed, services};
 use crate::host::{Desktop, Hosting, Outcome, Task};
 use anyview_core::{
     ExportChoice, FileName, FormatKind, PageSelection, PixelLen, PixelSize, RasterExport,
     RasterTarget, Resize, Resume, TextExport, TextExportKind, TextFlavour,
 };
 use anyview_export::DocumentExport;
-use anyview_platform::portable::{NoApps, NoPicker, NoPrinter, NoShare};
+use anyview_platform::ShareTarget;
+use anyview_platform::portable::{NoPicker, NoPrinter, NoShare};
 use anyview_platform::testing::FakeReveal;
-use anyview_platform::{DesktopId, ShareTarget};
 use anyview_store::{HistoryRead, read_history};
 use anyview_ui::PlatformAbilities;
-
-#[tokio::test]
-async fn open_with_skips_the_viewer_itself_and_opens_in_the_next_program() {
-    let dir = tempfile::tempdir().unwrap();
-    let image = probed(dir.path(), "a.png", PNG);
-    let (desktop, fakes) = desktop(
-        dir.path(),
-        vec![
-            entry("org.quire.Anyview.desktop"),
-            entry("org.gnome.eog.desktop"),
-        ],
-    );
-    let outcome = desktop
-        .carry_out(Task::OpenWith(image.clone()))
-        .await
-        .unwrap();
-    assert_eq!(outcome, Outcome::Done);
-    assert_eq!(
-        fakes.apps.opened(),
-        vec![(
-            DesktopId::new("org.gnome.eog.desktop").unwrap(),
-            image.source.path().clone()
-        )]
-    );
-}
-
-#[tokio::test]
-async fn open_with_has_nothing_to_do_when_only_the_viewer_handles_the_type() {
-    let dir = tempfile::tempdir().unwrap();
-    let image = probed(dir.path(), "a.png", PNG);
-    let (desktop, fakes) = desktop(dir.path(), vec![entry("org.quire.Anyview.desktop")]);
-    let outcome = desktop.carry_out(Task::OpenWith(image)).await.unwrap();
-    assert!(matches!(outcome, Outcome::Nothing(_)), "{outcome:?}");
-    assert!(fakes.apps.opened().is_empty());
-}
 
 #[tokio::test]
 async fn reveal_share_and_trash_reach_their_platform_trait_with_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let file = path("/tmp/somewhere/a.png");
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     for task in [
         Task::Reveal(file.clone()),
         Task::Share(file.clone()),
@@ -72,7 +35,7 @@ async fn reveal_share_and_trash_reach_their_platform_trait_with_the_file() {
 async fn print_hands_the_pdf_bytes_and_its_name_to_the_printer() {
     let dir = tempfile::tempdir().unwrap();
     let pdf = probed(dir.path(), "report.pdf", PDF);
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     assert_eq!(
         desktop.carry_out(Task::Print(pdf)).await.unwrap(),
         Outcome::Done
@@ -88,7 +51,7 @@ async fn print_lays_out_a_picture_and_a_document_as_a_pdf_for_the_printer() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", &png());
     let notes = probed(dir.path(), "notes.md", b"# Minutes\n\nWe agreed to ship.\n");
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     for file in [&image, &notes] {
         let outcome = desktop.carry_out(Task::Print(file.clone())).await.unwrap();
         assert_eq!(outcome, Outcome::Done);
@@ -124,7 +87,7 @@ async fn print_lays_out_a_picture_and_a_document_as_a_pdf_for_the_printer() {
 async fn print_of_a_file_that_cannot_be_laid_out_is_a_failure_and_prints_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let broken = probed(dir.path(), "a.png", PNG);
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     let outcome = desktop.carry_out(Task::Print(broken)).await.unwrap();
     assert!(matches!(outcome, Outcome::Failed(_)), "{outcome:?}");
     assert!(fakes.printer.jobs().is_empty());
@@ -135,7 +98,7 @@ async fn an_export_is_written_beside_the_file_and_a_failed_one_leaves_nothing() 
     let dir = tempfile::tempdir().unwrap();
     let notes = probed(dir.path(), "notes.md", b"# Minutes\n\nWe agreed to ship.\n");
     let broken = probed(dir.path(), "broken.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let to_pdf = DocumentExport::Text(TextExport::default_for(TextExportKind::Pdf));
     let outcome = desktop
         .carry_out(Task::ExportDocument {
@@ -183,7 +146,7 @@ fn anyview_pdf_text(bytes: &[u8]) -> String {
 async fn a_view_is_recorded_in_the_history_and_the_place_is_kept_and_found_again() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     desktop
         .carry_out(Task::RecordView(image.clone()))
         .await
@@ -223,7 +186,7 @@ async fn rename_moves_the_file_and_refuses_to_overwrite() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", PNG);
     std::fs::write(dir.path().join("taken.png"), b"x").unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let file = image.source.path().clone();
 
     let refused = desktop
@@ -255,7 +218,7 @@ async fn rename_moves_the_file_and_refuses_to_overwrite() {
 async fn duplicate_writes_the_first_free_copy_name() {
     let dir = tempfile::tempdir().unwrap();
     let image = probed(dir.path(), "a.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     for copy in ["a copy.png", "a copy 2.png"] {
         let outcome = desktop
             .carry_out(Task::Duplicate(image.source.path().clone()))
@@ -273,13 +236,34 @@ async fn duplicate_writes_the_first_free_copy_name() {
 #[tokio::test]
 async fn the_file_dialog_answers_what_was_chosen_and_nothing_when_it_was_closed() {
     let dir = tempfile::tempdir().unwrap();
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     // The fake dialog is closed: no file, and nothing to tell.
     assert_eq!(
         desktop.carry_out(Task::PickFile).await.unwrap(),
         Outcome::Done
     );
     assert_eq!(fakes.picker.asked(), 1);
+    // The dialog starts on what the viewer can show: the types its desktop entry claims, and the
+    // patterns of the formats the registry has no type for. A type it only peeks at is not there.
+    let offered = fakes.picker.offered();
+    let kinds = &offered[0];
+    for want in [
+        "image/png",
+        "application/pdf",
+        "video/mp4",
+        "text/markdown",
+        "audio/vnd.wave",
+    ] {
+        assert!(
+            kinds.mimes.iter().any(|m| m == want),
+            "{want}: {:?}",
+            kinds.mimes
+        );
+    }
+    for left_out in ["application/zip", "font/ttf", "audio/wav"] {
+        assert!(!kinds.mimes.iter().any(|m| m == left_out), "{left_out}");
+    }
+    assert_eq!(kinds.globs, ["*.jsonl", "*.ndjson"]);
 
     let chosen = vec![path("/tmp/somewhere/a.png"), path("/tmp/somewhere/b.png")];
     let (desktop, _) = desktop_choosing(
@@ -301,7 +285,7 @@ async fn the_file_dialog_answers_what_was_chosen_and_nothing_when_it_was_closed(
 #[tokio::test]
 async fn a_link_is_handed_to_the_desktops_handler() {
     let dir = tempfile::tempdir().unwrap();
-    let (desktop, fakes) = desktop(dir.path(), vec![]);
+    let (desktop, fakes) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::OpenLink("https://example.org/a".to_owned()))
         .await
@@ -328,7 +312,7 @@ async fn rename_never_replaces_a_dangling_symlink_and_its_versions_follow() {
         .unwrap()
         .write_in_place()
         .unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
 
     let refused = desktop
         .carry_out(Task::Rename {
@@ -362,7 +346,7 @@ async fn duplicate_skips_a_dangling_symlink_and_leaves_no_hidden_file() {
     let image = probed(dir.path(), "a.png", PNG);
     let elsewhere = dir.path().join("elsewhere");
     std::os::unix::fs::symlink(&elsewhere, dir.path().join("a copy.png")).unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::Duplicate(image.source.path().clone()))
         .await
@@ -389,15 +373,14 @@ async fn duplicate_skips_a_dangling_symlink_and_leaves_no_hidden_file() {
 #[tokio::test]
 async fn a_desktop_says_which_of_its_services_there_are() {
     let dir = tempfile::tempdir().unwrap();
-    let (full, _fakes) = desktop(dir.path(), vec![]);
+    let (full, _fakes) = desktop(dir.path());
     assert_eq!(full.abilities(), PlatformAbilities::ALL);
 
     // The portable parts answer "not available" to the dialogs, the applications and sharing; the
     // opener still shows a file in its folder.
-    let (_, fakes) = desktop(dir.path(), vec![]);
+    let (_, fakes) = desktop(dir.path());
     let portable = Desktop::new(
         tokio::runtime::Handle::current(),
-        NoApps,
         FakeReveal::default(),
         NoShare,
         NoPrinter,

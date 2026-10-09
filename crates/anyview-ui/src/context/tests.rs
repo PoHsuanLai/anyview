@@ -25,7 +25,6 @@ const INFO: PanelTabs = PanelTabs::of(&[PanelTab::Info]);
 
 /// What a still picture's palette lists, in the palette's order.
 const PICTURE: &[Command] = &[
-    run(FileAction::OpenWith),
     run(FileAction::RevealInFolder),
     run(FileAction::CopyPath),
     run(FileAction::Share),
@@ -55,7 +54,6 @@ fn the_rows_follow_the_palettes_commands_in_the_context_order() {
                 RULE,
                 row(FileAction::CopyPath, "Copy Path"),
                 RULE,
-                row(FileAction::OpenWith, "Open With\u{2026}"),
                 row(FileAction::RevealInFolder, "Show in Folder"),
                 INFO_ROW,
                 RULE,
@@ -70,13 +68,11 @@ fn the_rows_follow_the_palettes_commands_in_the_context_order() {
         (
             "a picture whose edit is withheld has no rotate and no rule where it was",
             vec![
-                run(FileAction::OpenWith),
                 run(FileAction::RevealInFolder),
                 run(FileAction::MoveToTrash),
             ],
             INFO,
             vec![
-                row(FileAction::OpenWith, "Open With\u{2026}"),
                 row(FileAction::RevealInFolder, "Show in Folder"),
                 INFO_ROW,
                 RULE,

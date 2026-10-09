@@ -1,6 +1,6 @@
 //! The stages on screen under the harness: a picture is uploaded to the GPU and drawn where the
 //! machine's state says, a pinch and a key zoom it, a turn rotates it, a wheel scrolls a window of
-//! lines, Markdown is a sealed frame, and a file with no stage offers Open With….
+//! lines, Markdown is a sealed frame, and a file with no stage offers Show in Folder.
 
 #![allow(clippy::unwrap_used)]
 
@@ -169,7 +169,7 @@ fn markdown_is_a_page_in_a_sealed_frame_and_v_shows_its_source() {
 }
 
 #[test]
-fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
+fn a_file_with_no_stage_shows_its_facts_and_offers_show_in_folder() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("mystery.bin");
     std::fs::write(&path, [0u8, 159, 146, 150, 0, 1, 2, 3]).unwrap();
@@ -182,10 +182,10 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
         Some("mystery.bin")
     );
     assert!(harness.count(".ds-fact-list") > 0, "its facts are listed");
-    let open_with = harness
+    let reveal = harness
         .centre(".viewer-peek .ds-button")
-        .expect("Open With…");
-    harness.send(Input::click(open_with));
+        .expect("Show in Folder");
+    harness.send(Input::click(reveal));
     harness.advance(Duration::from_millis(100));
     let asked = requests.lock().unwrap();
     let asked: Vec<&HostRequest> = asked
@@ -195,10 +195,10 @@ fn a_file_with_no_stage_shows_its_facts_and_hands_over_with_open_with() {
     assert!(
         matches!(
             asked.as_slice(),
-            [HostRequest::Opened(probed), HostRequest::Run(FileAction::OpenWith)]
+            [HostRequest::Opened(probed), HostRequest::Run(FileAction::RevealInFolder)]
                 if probed.source.path().as_path() == path
         ),
-        "the window told its host which file it shows, then asked to open it with: {asked:?}"
+        "the window told its host which file it shows, then asked to show it in its folder: {asked:?}"
     );
     save(&mut harness, "peek-only.png");
 }

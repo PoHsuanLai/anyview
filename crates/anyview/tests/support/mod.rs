@@ -14,8 +14,8 @@ use anyview::window::{Factory, Opening, Seed, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
-    FakeApps, FakeLinks, FakeMediaHandle, FakeMediaSession, FakePicker, FakePrinter, FakeReveal,
-    FakeShare, FakeStacking, FakeThumbnails, PluginSet, StackingSupport, plugins_with,
+    FakeLinks, FakeMediaHandle, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
+    FakeStacking, FakeThumbnails, PluginSet, StackingSupport, plugins_with,
 };
 use anyview_platform::{PickOutcome, PluginRunner, PrintOutcome};
 use anyview_store::Viewed;
@@ -132,7 +132,6 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
     };
     let desktop = Desktop::new(
         runtime.handle().clone(),
-        FakeApps::default(),
         FakeReveal::default(),
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),
@@ -371,7 +370,6 @@ pub fn desktop(
     let now: Clock = Arc::new(|| Viewed(1_700_000_000));
     Arc::new(Desktop::new(
         runtime.handle().clone(),
-        FakeApps::default(),
         FakeReveal::default(),
         FakeShare::default(),
         FakePrinter::answering(PrintOutcome::Printed),

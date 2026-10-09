@@ -17,7 +17,7 @@ fn renamed_to(typed: &str) -> (tempfile::TempDir, Carry) {
 async fn renaming_a_file_to_its_own_name_is_not_a_name_clash() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::Rename {
             file: file.source.path().clone(),
@@ -49,7 +49,7 @@ async fn a_name_of_only_spaces_is_not_a_file_name() {
 async fn a_very_long_name_fails_without_losing_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", PNG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::Rename {
             file: file.source.path().clone(),
@@ -66,7 +66,7 @@ async fn an_emoji_name_and_an_existing_name() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", PNG);
     std::fs::write(dir.path().join("b.png"), PNG).unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let taken = desktop
         .carry_out(Task::Rename {
             file: file.source.path().clone(),

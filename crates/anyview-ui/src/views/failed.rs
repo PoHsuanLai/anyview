@@ -1,5 +1,5 @@
 //! The screen of a file that did not open: what is wrong in words a person reads, and what can
-//! be done about it (open it with another app, show it in its folder).
+//! be done about it (show it in its folder).
 
 use crate::{LoadFailure, PlatformAbilities};
 use anyview_core::FileAction;
@@ -10,31 +10,19 @@ use ds::prelude::{Button, EmptyState, Icon};
 /// What the screen offers besides its words.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Offer {
-    /// The probe found the file: another app may open it, and its folder may be shown.
-    OpenWithAndReveal,
-    /// The probe found the file and the platform has no file manager: only another app may open it.
-    OpenWithOnly,
-    /// The file is named but unread: only its folder may be shown.
-    RevealOnly,
-    /// The file is not there: nothing is offered.
+    /// The file is there to be found: its folder may be shown.
+    Reveal,
+    /// Nothing but the words.
     Nothing,
 }
 
 impl Offer {
-    /// What a failed file offers: another app opens it where the platform lists applications,
-    /// and its folder shows where there is a file manager.
-    pub(super) fn of(found: bool, named: bool, platform: PlatformAbilities) -> Offer {
-        let apps = platform.offers(FileAction::OpenWith);
-        let folder = platform.offers(FileAction::RevealInFolder);
-        if found {
-            match (apps, folder) {
-                (true, true) => Offer::OpenWithAndReveal,
-                (true, false) => Offer::OpenWithOnly,
-                (false, true) => Offer::RevealOnly,
-                (false, false) => Offer::Nothing,
-            }
-        } else if named && folder {
-            Offer::RevealOnly
+    /// What a failed file offers: its folder, where there is a file manager and the file is named.
+    /// A file the viewer cannot show gets its words and nothing more; there is no list of other
+    /// programs to hand it to.
+    pub(super) fn of(named: bool, platform: PlatformAbilities) -> Offer {
+        if named && platform.offers(FileAction::RevealInFolder) {
+            Offer::Reveal
         } else {
             Offer::Nothing
         }
@@ -85,20 +73,14 @@ pub(super) fn FailedScreen(
     reason: LoadFailure,
     name: String,
     offer: Offer,
-    onopenwith: EventHandler<()>,
     onreveal: EventHandler<()>,
 ) -> Element {
     let (title, description) = words(reason, &name);
     let action = match offer {
         Offer::Nothing => None,
-        Offer::OpenWithAndReveal | Offer::OpenWithOnly | Offer::RevealOnly => Some(rsx! {
+        Offer::Reveal => Some(rsx! {
             div { class: "viewer-failed-actions",
-                if offer != Offer::RevealOnly {
-                    Button { label: "Open With\u{2026}", onclick: move |_| onopenwith.call(()) }
-                }
-                if offer != Offer::OpenWithOnly {
-                    Button { label: "Show in Folder", onclick: move |_| onreveal.call(()) }
-                }
+                Button { label: "Show in Folder", onclick: move |_| onreveal.call(()) }
             }
         }),
     };

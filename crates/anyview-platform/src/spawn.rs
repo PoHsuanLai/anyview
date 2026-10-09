@@ -1,4 +1,4 @@
-//! Starting a program, the one effect Open With and mail sharing need that is not a bus call.
+//! Starting a program, the one effect mail sharing needs that is not a bus call.
 
 use crate::error::PlatformError;
 

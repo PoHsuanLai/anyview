@@ -54,12 +54,6 @@ fn requests_of_a_window(
             )),
         ),
         (
-            "open with hands over the probed file, whose type picks the program",
-            open(image),
-            HostRequest::Run(FileAction::OpenWith),
-            Carry::Desktop(Task::OpenWith(image.clone())),
-        ),
-        (
             "share names the file",
             open(image),
             HostRequest::Run(FileAction::Share),

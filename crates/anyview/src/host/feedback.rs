@@ -23,8 +23,6 @@ pub enum Doing {
     SaveCopy,
     /// Printing.
     Print,
-    /// Opening the file with another app.
-    OpenWith,
     /// Sending the file by mail.
     Share,
     /// Showing the file in the file manager.
@@ -49,7 +47,6 @@ impl Doing {
             Task::ExportDocument { .. } | Task::ExportMedia { .. } => Some(Doing::Export),
             Task::SaveCopy { .. } => Some(Doing::SaveCopy),
             Task::Print(_) => Some(Doing::Print),
-            Task::OpenWith(_) => Some(Doing::OpenWith),
             Task::Share(_) => Some(Doing::Share),
             Task::Reveal(_) => Some(Doing::Reveal),
             Task::PlayInBackground(_) => Some(Doing::Play),
@@ -82,7 +79,6 @@ pub fn subject_of(task: &Task) -> Option<FilePath> {
         | Task::Restore { file, .. }
         | Task::RevertTo { file, .. } => Some(file.clone()),
         Task::Print(probed)
-        | Task::OpenWith(probed)
         | Task::PlayInBackground(probed)
         | Task::ExportDocument { file: probed, .. }
         | Task::ExportMedia { file: probed, .. }
@@ -136,12 +132,6 @@ pub fn notice_of(doing: Doing, subject: Option<&FilePath>, outcome: &Outcome) ->
         (Doing::Print, Outcome::Nothing(_)) => {
             Some(Notice::say("There is no print dialog on this desktop"))
         }
-        (Doing::OpenWith, Outcome::Failed(_)) => Some(Notice::say(format!(
-            "Couldn\u{2019}t open {name} with another app"
-        ))),
-        (Doing::OpenWith, Outcome::Nothing(_)) => {
-            Some(Notice::say("No other app can open this kind of file"))
-        }
         (Doing::Share, Outcome::Failed(_)) => {
             Some(Notice::say(format!("Couldn\u{2019}t share {name}")))
         }
@@ -171,7 +161,6 @@ pub fn notice_of(doing: Doing, subject: Option<&FilePath>, outcome: &Outcome) ->
             | Doing::Export
             | Doing::SaveCopy
             | Doing::Print
-            | Doing::OpenWith
             | Doing::Share
             | Doing::Reveal
             | Doing::Play

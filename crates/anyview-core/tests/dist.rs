@@ -2,7 +2,7 @@
 //! types the viewer opens, and the install and uninstall scripts do what they say in a staging
 //! directory, never on the real system.
 
-use anyview_core::opened_mimes;
+use anyview_core::claimed_mimes;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -24,7 +24,7 @@ fn line<'a>(entry: &'a str, key: &str) -> &'a str {
 
 /// The `MimeType` value the map yields: sorted types, each followed by a semicolon.
 fn expected_mime_line() -> String {
-    opened_mimes()
+    claimed_mimes()
         .iter()
         .map(|mime| format!("{};", mime.as_str()))
         .collect()
@@ -38,6 +38,40 @@ fn the_desktop_entry_claims_what_the_viewer_opens() {
         expected_mime_line(),
         "regenerate the line: cargo test -p anyview-core --test dist print_mime_line -- --ignored --nocapture"
     );
+}
+
+/// The registry's canonical types and aliases on this machine, when shared-mime-info is installed
+/// (a test never needs it: a machine without it skips the check).
+fn registry() -> Option<(Vec<String>, Vec<String>)> {
+    let read = |name: &str| std::fs::read_to_string(Path::new("/usr/share/mime").join(name)).ok();
+    let types = read("types")?;
+    let aliases = read("aliases")?;
+    Some((
+        types.split_whitespace().map(str::to_owned).collect(),
+        aliases
+            .lines()
+            .filter_map(|l| l.split_whitespace().next().map(str::to_owned))
+            .collect(),
+    ))
+}
+
+#[test]
+fn every_type_the_desktop_entry_claims_is_a_canonical_type_of_the_registry() {
+    let Some((types, aliases)) = registry() else {
+        return;
+    };
+    for mime in claimed_mimes() {
+        let text = mime.as_str();
+        assert!(
+            !aliases.iter().any(|alias| alias == text),
+            "{text} is an alias: the registry names it by its canonical type"
+        );
+        // Registries differ by release (Ubuntu 24.04's lacks image/x-hdr, which Fedora 44's
+        // has), so a type this one has never heard of is for a newer registry to judge.
+        if !types.iter().any(|known| known == text) {
+            eprintln!("{text} is not in this machine's registry");
+        }
+    }
 }
 
 #[test]

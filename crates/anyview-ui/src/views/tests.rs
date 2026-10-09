@@ -59,7 +59,6 @@ fn picture_menu() -> Vec<crate::ContextEntry> {
         FileAction::RotateLeft,
         FileAction::RotateRight,
         FileAction::CopyPath,
-        FileAction::OpenWith,
         FileAction::RevealInFolder,
         FileAction::Export,
         FileAction::Share,

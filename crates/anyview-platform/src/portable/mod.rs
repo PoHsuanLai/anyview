@@ -12,7 +12,7 @@ mod open;
 mod stacking;
 mod thumbnails;
 
-pub use absent::{NoApps, NoPicker, NoPrinter, NoShare};
+pub use absent::{NoPicker, NoPrinter, NoShare};
 pub use instance::LatchkeyInstance;
 pub use open::{SystemOpen, SystemReveal};
 pub use stacking::NoStacking;

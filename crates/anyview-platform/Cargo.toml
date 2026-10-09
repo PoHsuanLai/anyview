@@ -1,6 +1,6 @@
 [package]
 name = "anyview-platform"
-description = "The platform edge: single instance, media session, Open With, thumbnail cache, print, share, reveal and window stacking, each a trait with a Linux implementation and a fake."
+description = "The platform edge: single instance, media session, thumbnail cache, print, share, reveal and window stacking, each a trait with a Linux implementation and a fake."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

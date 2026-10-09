@@ -152,8 +152,8 @@ fn a_missing_tool_is_a_row_with_an_install_button_and_no_sheet_of_its_own() {
     assert!(text.contains("Install"), "and gains the button: {text}");
     assert_eq!(
         harness.count(".viewer-peek .viewer-failed-actions .ds-button"),
-        2,
-        "Install… and Open With…"
+        1,
+        "Install… alone"
     );
     assert_eq!(harness.count(".ds-alert"), 0, "nothing asks by itself");
 }
@@ -455,8 +455,8 @@ fn a_row_the_viewer_cannot_install_for_has_no_button() {
     );
     assert_eq!(
         harness.count(".viewer-peek .viewer-failed-actions .ds-button"),
-        2,
-        "Open With… and Show in Folder, as before"
+        1,
+        "Show in Folder"
     );
     assert!(
         !harness

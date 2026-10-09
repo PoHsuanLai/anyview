@@ -38,7 +38,7 @@ async fn four_quarter_turns_of_a_png_give_back_the_same_pixels() {
         let dir = tempfile::tempdir().unwrap();
         let file = probed(dir.path(), "a.png", QUADRANTS);
         let before = pixels(&file);
-        let (desktop, _) = desktop(dir.path(), vec![]);
+        let (desktop, _) = desktop(dir.path());
         apply(&desktop, &file, &[Edit::Rotate(turn); 4]).await;
         assert_eq!(pixels(&file), before, "{turn:?} four times");
     }
@@ -49,7 +49,7 @@ async fn a_turn_right_then_left_and_two_flips_give_back_the_same_pixels() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.png", QUADRANTS);
     let before = pixels(&file);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     apply(
         &desktop,
         &file,
@@ -70,7 +70,7 @@ async fn a_turn_right_then_left_and_two_flips_give_back_the_same_pixels() {
 async fn four_quarter_turns_of_a_jpeg_give_back_its_orientation() {
     let dir = tempfile::tempdir().unwrap();
     let file = probed(dir.path(), "a.jpg", JPEG);
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let before = ExifFacts::read(JPEG).orientation.tag();
     apply(&desktop, &file, &[Edit::Rotate(QuarterTurn::Quarter); 4]).await;
     let bytes = std::fs::read(file.source.path().as_path()).unwrap();

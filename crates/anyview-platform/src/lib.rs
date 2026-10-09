@@ -1,6 +1,6 @@
 //! The platform edge: what the viewer needs from the desktop around it, each as a trait with a
 //! Linux implementation (`linux`) and a fake (`testing`, behind the `testing` feature). The
-//! traits are single instance, the media session, Open With, the thumbnail cache, printing,
+//! traits are single instance, the media session, the thumbnail cache, printing,
 //! sharing, revealing a file, choosing a file, opening a web link and window stacking. This is the
 //! only crate that names D-Bus or the freedesktop file formats; the directories, the session bus
 //! and the way a program is started come in through [`Env`].
@@ -15,7 +15,6 @@
 //! reached through `portable`, `linux` and `testing`. Another platform adds a module beside
 //! `linux` and changes nothing outside this crate.
 
-mod apps;
 mod env;
 mod error;
 mod handoff;
@@ -40,7 +39,6 @@ pub mod portable;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
-pub use apps::{AppEntry, AppsForType, Association, DesktopId};
 pub use env::{BusRoute, Dirs, Env};
 pub use error::{IoOp, PlatformError};
 pub use instance::{Claim, Handoff, Instance, Primary, Request};
@@ -48,7 +46,7 @@ pub use link::OpenLink;
 pub use media::{
     Ability, MediaControl, MediaSession, MediaState, PlaybackStatus, SeekDirection, TrackSerial,
 };
-pub use picker::{PickOutcome, Picker};
+pub use picker::{FileKinds, PickOutcome, Picker};
 pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover};
 pub use printer::{JobTitle, PrintOutcome, Printer};
 pub use reveal::Reveal;

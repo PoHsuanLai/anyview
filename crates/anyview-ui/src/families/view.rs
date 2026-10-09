@@ -83,7 +83,7 @@ pub struct StageCx {
     pub area: Option<Area>,
     /// An input for the stage machine.
     pub send: EventHandler<StageIn>,
-    /// A command from a control the stage drew (the peek-only view's Open With…).
+    /// A command from a control the stage drew (the peek-only view's Show in Folder).
     pub run: EventHandler<Command>,
     /// The lines of a text file last read, newest window.
     pub lines: Option<Held<super::LineWindow>>,

@@ -25,7 +25,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   pixels, `families/pdf/steer.rs`) is what knows them. Ends when a line and a page are asked of the view's
   `Steering` in pixels and the machine only hears where the reader landed.
 - **The portable build has no file chooser, so it has no Open....** The platform abilities set (below) hides
-  Open..., Print, Share and Open With where their service is absent, so the portable build shows none of them
+  Open..., Print and Share where their service is absent, so the portable build shows none of them
   (a launch with files, drag and drop and the command line still open files). Ends when a portable chooser is
   written: `NoPicker` is replaced and its `present()` says yes.
 - **The install offer follows PackageKit as the program started.** `ds-desktop`'s `Helpers` capability is probed
@@ -331,7 +331,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   Ends when pdfrum honours a zero border width or offers a render option without annotations.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
-  facts and Open With…. Ends per type when a family holds it.
+  facts. Ends per type when a family holds it.
 - **`anyview-platform`'s dependencies sit below the pinned block.** `md-5`, `percent-encoding`, `png` and
   `futures-util` are in no pinned list; `zbus` (with `tokio`), `dirs`, `memfd` and `freedesktop-desktop-entry`
   are. Ends at the next change to quire's `docs/workspace-deps.toml`: add the four and copy the block here.
@@ -345,12 +345,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   clients cannot place themselves, and COSMIC's protocol is not bound. Ends when `anyview-platform` binds a
   compositor protocol (the shell's layer or a COSMIC toplevel-management request) and the binary passes a
   window handle to `request`. The mini window asks for it and reports the refusal.
-- **Open With is simple.** `apps_for` matches the exact MIME type: no `mime` subclass or alias (so
-  `text/x-rust` is not offered the editors of `text/plain`), no `OnlyShowIn`, `TryExec` or `Terminal=true`,
-  entries in subdirectories of `applications/` are found by scan but not by id (`kde-foo.desktop`), names are
-  untranslated (`Env` carries no locales), and `%f` receives the path, not a URI. Ends when the shared
-  MIME database is read (`shared-mime-info`'s `subclasses` and `aliases`) and `Env` gains locales.
-- **A started program is not reaped.** `ProcessSpawn` drops the child handle, so an exited Open With or mail
+- **A started program is not reaped.** `ProcessSpawn` drops the child handle, so an exited mail
   program stays a zombie until the viewer exits. Ends when the binary installs a `SIGCHLD` reaper or `Spawn`
   hands the child to a systemd scope.
 - **MPRIS `Position` is not announced.** The spec says clients poll it, so `publish` emits no `Seeked`; a
@@ -489,9 +484,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A renamed file keeps its window and its place.** The host tells the window (`Edge::moved`) and the window opens
   the file again under its new name, where the person is; the folder's list the arrows walk still holds the old
   name until the next listing. After `Trash` the window still shows the file.
-- **Open With opens the default other program.** There is no list to pick from, so `Task::OpenWith` takes the first
-  application that handles the type and is not `org.quire.Anyview*`. Ends when the Open With sheet lists
-  `AppsForType::apps_for`.
 - **Share is mail only and print is a PDF.** `Task::Share` uses the first `ShareTarget` (`Mail`); `Task::Print` hands the
   PDF file's bytes to the portal.
 - **A job that panics leaves its load waiting.** The runner delivers a panic as `JobOutcome::Panicked` and the
@@ -958,3 +950,20 @@ on. It is a reference, not a log: how each was found lives in git history.
   `anyview-peek` stays at 591: it does not reach the plugin crates. The plugin programs take bayonet without
   its `host` feature, so `toml` stays out of their trees. Ends never: this is a package moved out of the
   workspace into its own repo.
+
+- **A drag of files Viewer cannot show is not refused at the cursor.** The protocol allows it: quire's drop board
+  already tells the platform `set_valid_dnd_actions(&[])` for a drag that is not over a target, and the paths of a
+  drag are known before the release (the `Offered` input). What is missing is a way for a target to say no to
+  these paths. `quire.patch` adds `use_file_drop_if(accepts, ondrop)`; with it the window would refuse a drag
+  whose files none of the stages can show. Until then a dropped file Viewer cannot show opens its card or its
+  failure screen, as Preview shows its alert. Ends when quire takes the patch and the window passes the predicate.
+- **The file dialog hides what it does not offer.** The FileChooser portal's `filters` hide non-matching files; a
+  portal has no way to grey them out. The dialog starts on "Supported files" (`claimed_mimes` and `opened_globs`,
+  the same list as the desktop entry's `MimeType`) and keeps "All files" beside it so a card for an archive or a font
+  can still be opened. Ends when a portal can disable files.
+- **Four types the viewer sniffs have no row in shared-mime-info under that name.** `claimed_mimes` renames them
+  (`audio/wav` is `audio/vnd.wave`, `image/heic` is `image/heif`, `video/x-msvideo` is `video/vnd.avi`,
+  `image/x-qoi` is `image/qoi`, and so on) and leaves `.jsonl`/`.ndjson` to a file name pattern, since the registry
+  has no type for them. `crates/anyview-core/tests/dist.rs` checks the line against the registry where it is installed.
+- **Revert To is listed for a picture or a PDF that has no kept version.** Its sheet says there is nothing to go back
+  to. Ends when the window knows the kept versions of the file before it is asked.

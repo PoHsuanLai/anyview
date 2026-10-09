@@ -24,7 +24,7 @@ async fn an_export_into_a_folder_that_cannot_be_written_fails_and_leaves_no_trac
     let scratch = tempfile::tempdir().unwrap();
     let locked = tempfile::tempdir().unwrap();
     let notes = probed(locked.path(), "notes.md", b"# Minutes\n");
-    let (desktop, _) = desktop(scratch.path(), vec![]);
+    let (desktop, _) = desktop(scratch.path());
     std::fs::set_permissions(locked.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
     let before = names(locked.path());
     let outcome = desktop
@@ -45,7 +45,7 @@ async fn exporting_twice_never_overwrites_the_first_export() {
     let dir = tempfile::tempdir().unwrap();
     let notes = probed(dir.path(), "notes.md", b"# Minutes\n");
     std::fs::write(dir.path().join("notes.pdf"), b"precious").unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::ExportDocument {
             file: notes,
@@ -68,7 +68,7 @@ async fn an_export_of_a_file_deleted_meanwhile_fails() {
     let dir = tempfile::tempdir().unwrap();
     let notes = probed(dir.path(), "notes.md", b"# Minutes\n");
     std::fs::remove_file(dir.path().join("notes.md")).unwrap();
-    let (desktop, _) = desktop(dir.path(), vec![]);
+    let (desktop, _) = desktop(dir.path());
     let outcome = desktop
         .carry_out(Task::ExportDocument {
             file: notes,

@@ -69,18 +69,19 @@ fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
         harness.text_of(".viewer")
     );
     assert!(!said.contains("Unsupported"), "{said:?}");
-    assert!(said.contains("Open With"), "{said:?}");
+    assert!(!said.contains("Open With"), "{said:?}");
     assert!(said.contains("Show in Folder"), "{said:?}");
-    let open_with = harness
+    let reveal = harness
         .centre(".viewer-failed .ds-button:first-child")
-        .expect("Open With");
-    harness.send(Input::click(open_with));
+        .expect("Show in Folder");
+    harness.send(Input::click(reveal));
     settle(&mut harness);
     assert!(
-        requests.lock().unwrap().iter().any(|request| matches!(
-            request,
-            HostRequest::Run(anyview_core::FileAction::OpenWith)
-        )),
-        "Open With asks the host"
+        requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|request| matches!(request, HostRequest::Reveal(_))),
+        "Show in Folder asks the host"
     );
 }

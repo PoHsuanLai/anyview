@@ -59,14 +59,6 @@ pub enum PlatformError {
         /// What the operating system reported.
         kind: std::io::ErrorKind,
     },
-    /// A desktop entry's `Exec` line cannot become a command.
-    #[error("the entry {id:?} has no usable Exec line: {reason}")]
-    Exec {
-        /// The entry's id.
-        id: String,
-        /// The parser's description.
-        reason: String,
-    },
     /// A plugin sent nothing for too long and was killed.
     #[error("the plugin {plugin} was silent for {waited:?}")]
     PluginSilent {

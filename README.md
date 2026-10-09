@@ -39,7 +39,7 @@ Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all
 ### Without the Linux desktop's services
 
 The Linux desktop's services (D-Bus single instance with bus activation, the now-playing entry and media
-keys, the print and file-chooser portals, Open With, mail sharing, and Show in Folder through the file
+keys, the print and file-chooser portals, mail sharing, and Show in Folder through the file
 manager) are the cargo feature `quire-desktop` of the `anyview` binary, on by default. Everything else is
 portable. To build the portable viewer:
 
@@ -49,7 +49,7 @@ cargo build --release --locked -p anyview --no-default-features --features audio
 
 (`--no-default-features` drops `audio` too; add it back as above for the built-in audio player.) Such a build
 uses a per-user socket for single instance, opens links and shows files in their folder through the platform's
-opener (`xdg-open`, `open`, `explorer`), and has no Open With, Share, Print, desktop file chooser or
+opener (`xdg-open`, `open`, `explorer`), and has no Share, Print, desktop file chooser or
 now-playing entry: those actions are not offered (the palette, the menus, the buttons and their keys leave them out). Until quire's own portable build lands
 the dependency tree still holds quire's `zbus` and Wayland crates; this is about the viewer's own code.
 Check the portable build with `scripts/check-portable.sh` (quire's two rules: the workspace builds without the feature and no core module names `crate::desktop` or zbus, plus the platform crate's own zbus check).

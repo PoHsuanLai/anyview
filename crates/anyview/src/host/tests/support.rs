@@ -9,9 +9,9 @@ use anyview_core::{
 };
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
-    FakeApps, FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
+    FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
 };
-use anyview_platform::{AppEntry, Association, DesktopId, PickOutcome, PrintOutcome};
+use anyview_platform::{PickOutcome, PrintOutcome};
 use anyview_store::Viewed;
 use anyview_ui::{Probed, StageFamily, family_of};
 use std::path::Path;
@@ -73,7 +73,6 @@ impl Trash for FakeTrash {
 
 /// The fakes a desktop is made of, kept to read what they were asked.
 pub struct Fakes {
-    pub apps: FakeApps,
     pub reveal: FakeReveal,
     pub share: FakeShare,
     pub printer: FakePrinter,
@@ -85,39 +84,29 @@ pub struct Fakes {
 }
 
 pub type TestDesktop =
-    Desktop<FakeApps, FakeReveal, FakeShare, FakePrinter, FakeTrash, FakePicker, FakeLinks>;
-
-pub fn entry(id: &str) -> AppEntry {
-    AppEntry {
-        id: DesktopId::new(id).unwrap(),
-        name: id.to_owned(),
-        association: Association::Default,
-    }
-}
+    Desktop<FakeReveal, FakeShare, FakePrinter, FakeTrash, FakePicker, FakeLinks>;
 
 /// A desktop over fakes on the current runtime, its store under `scratch`.
-pub fn desktop(scratch: &Path, apps: Vec<AppEntry>) -> (TestDesktop, Fakes) {
-    desktop_with(scratch, apps, PickOutcome::Cancelled, None)
+pub fn desktop(scratch: &Path) -> (TestDesktop, Fakes) {
+    desktop_with(scratch, PickOutcome::Cancelled, None)
 }
 
 /// The same, whose missing tools `helpers` installs.
 pub fn desktop_installing(scratch: &Path, helpers: Arc<HelperHost>) -> (TestDesktop, Fakes) {
-    desktop_with(scratch, vec![], PickOutcome::Cancelled, Some(helpers))
+    desktop_with(scratch, PickOutcome::Cancelled, Some(helpers))
 }
 
 /// The same, whose file dialog ends every request in `pick`.
 pub fn desktop_choosing(scratch: &Path, pick: PickOutcome) -> (TestDesktop, Fakes) {
-    desktop_with(scratch, vec![], pick, None)
+    desktop_with(scratch, pick, None)
 }
 
 fn desktop_with(
     scratch: &Path,
-    apps: Vec<AppEntry>,
     pick: PickOutcome,
     helpers: Option<Arc<HelperHost>>,
 ) -> (TestDesktop, Fakes) {
     let fakes = Fakes {
-        apps: FakeApps::offering(apps),
         reveal: FakeReveal::default(),
         share: FakeShare::default(),
         printer: FakePrinter::answering(PrintOutcome::Printed),
@@ -129,7 +118,6 @@ fn desktop_with(
     let services = services(scratch, &fakes, helpers);
     let desktop = Desktop::new(
         tokio::runtime::Handle::current(),
-        fakes.apps.clone(),
         fakes.reveal.clone(),
         fakes.share.clone(),
         fakes.printer.clone(),

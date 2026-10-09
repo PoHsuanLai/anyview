@@ -10,16 +10,14 @@ use super::route::Task;
 use super::saving;
 use super::store::Store;
 use super::trash::Trash;
-use anyview_core::{FileName, FilePath, Resume, Source};
+use anyview_core::{FileName, FilePath, Resume, Source, claimed_mimes, opened_globs};
 #[cfg(feature = "quire-desktop")]
-use anyview_platform::linux::{
-    DesktopApps, FileManagerReveal, MailShare, PortalPicker, PortalPrinter,
-};
+use anyview_platform::linux::{FileManagerReveal, MailShare, PortalPicker, PortalPrinter};
 use anyview_platform::portable::SystemOpen;
 #[cfg(not(feature = "quire-desktop"))]
-use anyview_platform::portable::{NoApps, NoPicker, NoPrinter, NoShare, SystemReveal};
+use anyview_platform::portable::{NoPicker, NoPrinter, NoShare, SystemReveal};
 use anyview_platform::{
-    AppsForType, Env, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
+    Env, FileKinds, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
 use anyview_store::Versions;
 use anyview_ui::{HelperEnd, PlatformAbilities, VersionRow};
@@ -31,9 +29,6 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use super::trash::SystemTrash;
-
-/// The prefix of this program's own desktop entries: Open With never offers the viewer to itself.
-const OWN_ENTRY: &str = "org.quire.Anyview";
 
 /// What a window's host does: the program's end of the requests, object safe so a window holds
 /// one without knowing which platform it runs on.
@@ -63,26 +58,18 @@ pub trait Hosting: Send + Sync + 'static {
 /// The desktop this build runs on: the Linux desktop's services (`quire-desktop`), each over D-Bus or
 /// the freedesktop files.
 #[cfg(feature = "quire-desktop")]
-pub type PlatformDesktop = Desktop<
-    DesktopApps,
-    FileManagerReveal,
-    MailShare,
-    PortalPrinter,
-    SystemTrash,
-    PortalPicker,
-    SystemOpen,
->;
+pub type PlatformDesktop =
+    Desktop<FileManagerReveal, MailShare, PortalPrinter, SystemTrash, PortalPicker, SystemOpen>;
 
 /// The desktop this build runs on: the portable one. Links and Show in Folder go through the
-/// platform's opener and the trash is the system's; Open With, sharing, printing and the file
+/// platform's opener and the trash is the system's; sharing, printing and the file
 /// chooser are absent, and each answers "not available".
 #[cfg(not(feature = "quire-desktop"))]
 pub type PlatformDesktop =
-    Desktop<NoApps, SystemReveal, NoShare, NoPrinter, SystemTrash, NoPicker, SystemOpen>;
+    Desktop<SystemReveal, NoShare, NoPrinter, SystemTrash, NoPicker, SystemOpen>;
 
 /// The platform's parts, shared by every task.
-struct Parts<A, R, S, P, T, F, L> {
-    apps: A,
+struct Parts<R, S, P, T, F, L> {
     reveal: R,
     share: S,
     printer: P,
@@ -110,27 +97,26 @@ pub struct Services {
     pub helpers: Option<Arc<HelperHost>>,
 }
 
-/// The tasks of every window, carried out on `runtime` through the platform's traits `A`
-/// (Open With), `R` (reveal), `S` (share), `P` (print), `T` (trash), `F` (choose a file) and `L`
+/// The tasks of every window, carried out on `runtime` through the platform's traits `R`
+/// (reveal), `S` (share), `P` (print), `T` (trash), `F` (choose a file) and `L`
 /// (open a web link).
-pub struct Desktop<A, R, S, P, T, F, L> {
+pub struct Desktop<R, S, P, T, F, L> {
     runtime: Handle,
-    parts: Arc<Parts<A, R, S, P, T, F, L>>,
+    parts: Arc<Parts<R, S, P, T, F, L>>,
 }
 
-impl<A, R, S, P, T, F, L> std::fmt::Debug for Desktop<A, R, S, P, T, F, L> {
+impl<R, S, P, T, F, L> std::fmt::Debug for Desktop<R, S, P, T, F, L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Desktop").finish_non_exhaustive()
     }
 }
 
-impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
+impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
     /// A desktop made of these parts, running its tasks on `runtime`. One argument for each
     /// platform trait, which is the point of the type: a bundle would only rename them.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         runtime: Handle,
-        apps: A,
         reveal: R,
         share: S,
         printer: P,
@@ -149,7 +135,6 @@ impl<A, R, S, P, T, F, L> Desktop<A, R, S, P, T, F, L> {
         Desktop {
             runtime: runtime.clone(),
             parts: Arc::new(Parts {
-                apps,
                 reveal,
                 share,
                 printer,
@@ -172,7 +157,6 @@ impl PlatformDesktop {
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
         Desktop::new(
             runtime,
-            DesktopApps::new(env.clone()),
             FileManagerReveal::new(env.clone()),
             MailShare::new(env.clone()),
             PortalPrinter::new(env.clone()),
@@ -190,7 +174,6 @@ impl PlatformDesktop {
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
         Desktop::new(
             runtime,
-            NoApps,
             SystemReveal::new(env.clone()),
             NoShare,
             NoPrinter,
@@ -202,9 +185,8 @@ impl PlatformDesktop {
     }
 }
 
-impl<A, R, S, P, T, F, L> Hosting for Desktop<A, R, S, P, T, F, L>
+impl<R, S, P, T, F, L> Hosting for Desktop<R, S, P, T, F, L>
 where
-    A: AppsForType + Send + Sync + 'static,
     R: Reveal + Send + Sync + 'static,
     S: Share + Send + Sync + 'static,
     P: Printer + Send + Sync + 'static,
@@ -239,7 +221,6 @@ where
             pick_files: self.parts.picker.present(),
             print: self.parts.printer.present(),
             share: !self.parts.share.targets().is_empty(),
-            open_with: self.parts.apps.present(),
             reveal: self.parts.reveal.present(),
         }
     }
@@ -249,12 +230,8 @@ where
     }
 }
 
-async fn perform<A, R, S, P, T, F, L>(
-    parts: &Arc<Parts<A, R, S, P, T, F, L>>,
-    task: Task,
-) -> Outcome
+async fn perform<R, S, P, T, F, L>(parts: &Arc<Parts<R, S, P, T, F, L>>, task: Task) -> Outcome
 where
-    A: AppsForType + Send + Sync + 'static,
     R: Reveal + Send + Sync + 'static,
     S: Share + Send + Sync + 'static,
     P: Printer + Send + Sync + 'static,
@@ -274,10 +251,6 @@ where
         Task::Print(probed) => print(parts, probed).await,
         Task::ExportDocument { file, choice } => {
             blocking(move || documents::export(&file, choice)).await
-        }
-        Task::OpenWith(probed) => {
-            let parts = Arc::clone(parts);
-            blocking(move || open_with(&parts, &probed)).await
         }
         Task::RecordView(probed) => {
             let parts = Arc::clone(parts);
@@ -360,26 +333,8 @@ fn failed<E: Display>(what: &str, result: Result<(), E>) -> Outcome {
     }
 }
 
-fn open_with<A: AppsForType, R, S, P, T, F, L>(
-    parts: &Parts<A, R, S, P, T, F, L>,
-    probed: &anyview_ui::Probed,
-) -> Outcome {
-    let others = parts
-        .apps
-        .apps_for(probed.sniffed.mime())
-        .into_iter()
-        .find(|entry| !entry.id.as_str().starts_with(OWN_ENTRY));
-    match others {
-        Some(entry) => failed(
-            "open the file with another program",
-            parts.apps.open_with(&entry.id, probed.source.path()),
-        ),
-        None => Outcome::Nothing("no other program opens this type"),
-    }
-}
-
-async fn share<A, R, S: Share, P, T, F, L>(
-    parts: &Parts<A, R, S, P, T, F, L>,
+async fn share<R, S: Share, P, T, F, L>(
+    parts: &Parts<R, S, P, T, F, L>,
     file: &FilePath,
 ) -> Outcome {
     match parts.share.targets().first() {
@@ -388,8 +343,8 @@ async fn share<A, R, S: Share, P, T, F, L>(
     }
 }
 
-async fn print<A, R, S, P: Printer, T, F, L>(
-    parts: &Parts<A, R, S, P, T, F, L>,
+async fn print<R, S, P: Printer, T, F, L>(
+    parts: &Parts<R, S, P, T, F, L>,
     probed: anyview_ui::Probed,
 ) -> Outcome {
     let title = JobTitle(
@@ -414,9 +369,25 @@ async fn print<A, R, S, P: Printer, T, F, L>(
     }
 }
 
+/// The files the viewer can show, which the desktop's dialog offers first. One list for every way
+/// of asking (Open…, ⌘O and the welcome window's button), made from the same map the desktop
+/// entry's `MimeType` line is.
+pub(super) fn supported_files() -> FileKinds {
+    FileKinds {
+        mimes: claimed_mimes()
+            .iter()
+            .map(|mime| mime.as_str().to_owned())
+            .collect(),
+        globs: opened_globs()
+            .iter()
+            .map(|glob| (*glob).to_owned())
+            .collect(),
+    }
+}
+
 /// The files the person chooses in the desktop's dialog.
-async fn pick<A, R, S, P, T, F: Picker, L>(parts: &Parts<A, R, S, P, T, F, L>) -> Outcome {
-    match parts.picker.pick().await {
+async fn pick<R, S, P, T, F: Picker, L>(parts: &Parts<R, S, P, T, F, L>) -> Outcome {
+    match parts.picker.pick(&supported_files()).await {
         Ok(PickOutcome::Chosen(files)) => Outcome::Picked(files),
         Ok(PickOutcome::Cancelled) => Outcome::Done,
         Ok(PickOutcome::NoDialog) => Outcome::Nothing("the desktop has no file chooser"),
