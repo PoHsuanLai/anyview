@@ -5,6 +5,7 @@
 
 mod avif;
 mod codecs;
+mod icc;
 mod metadata;
 
 use crate::error::ImageError;
@@ -20,7 +21,7 @@ pub fn encode(picture: &Rgba8, target: RasterTarget) -> Result<Vec<u8>, ImageErr
         RasterTarget::Png => codecs::png(picture),
         RasterTarget::Jpeg(quality) => codecs::jpeg(picture, quality),
         RasterTarget::Webp => codecs::webp(picture),
-        RasterTarget::Avif(quality) => avif::encode(picture, quality, None),
+        RasterTarget::Avif(quality) => avif::encode(picture, quality, None, None),
         RasterTarget::Tiff => codecs::tiff(picture),
     }
 }
@@ -31,25 +32,27 @@ pub fn encode_bmp(picture: &Rgba8) -> Result<Vec<u8>, ImageError> {
     codecs::bmp(picture)
 }
 
-/// `picture` encoded as `target`, with the EXIF block and ICC profile of `original` (the file the
-/// picture was decoded from) carried across when `keep` says so and the container can hold them.
-/// The carried EXIF has its orientation reset to upright, because the pixels already are.
+/// `picture` encoded as `target`, with the colour profile of `original` (the file the picture was
+/// decoded from) and, as `keep` says, its EXIF block carried across when the container can hold
+/// them. The profile always travels: the pixels are in its space, and without it a wide-gamut photo
+/// looks washed out. The carried EXIF has its orientation reset to upright, because the pixels
+/// already are.
 pub fn encode_with_metadata(
     picture: &Rgba8,
     target: RasterTarget,
     original: &[u8],
     keep: MetadataCarry,
 ) -> Result<Vec<u8>, ImageError> {
-    match keep {
-        MetadataCarry::Drop => encode(picture, target),
-        MetadataCarry::Keep => match target {
-            RasterTarget::Avif(quality) => {
-                let exif = metadata::exif_of(original);
-                avif::encode(picture, quality, exif.as_deref())
-            }
-            RasterTarget::Png | RasterTarget::Jpeg(_) | RasterTarget::Webp | RasterTarget::Tiff => {
-                metadata::carry_metadata(encode(picture, target)?, original)
-            }
-        },
+    let carried = metadata::Carried::of(original, keep);
+    match target {
+        RasterTarget::Avif(quality) => avif::encode(
+            picture,
+            quality,
+            carried.exif.as_deref(),
+            carried.icc.as_deref(),
+        ),
+        RasterTarget::Png | RasterTarget::Jpeg(_) | RasterTarget::Webp | RasterTarget::Tiff => {
+            carried.into(encode(picture, target)?)
+        }
     }
 }

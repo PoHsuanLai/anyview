@@ -133,6 +133,7 @@ pub(super) fn viewer_params(
             abilities: shelf.media.peek().abilities,
             platform: shelf.platform,
             tool: state.hand.tool,
+            marks: shelf.media.peek().marks,
         },
     )
 }

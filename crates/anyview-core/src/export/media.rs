@@ -17,7 +17,7 @@ pub enum MediaExport {
     AudioOnly(AudioTarget),
 }
 
-/// The entries of the media export pop-up.
+/// The rows of the media export dialog's format list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
 pub enum MediaExportKind {
     /// The current frame as a PNG.

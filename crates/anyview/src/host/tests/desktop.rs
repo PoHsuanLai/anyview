@@ -114,7 +114,11 @@ async fn an_export_is_written_beside_the_file_and_a_failed_one_leaves_nothing() 
     let written = std::fs::read(dir.path().join("notes.pdf")).unwrap();
     assert!(anyview_pdf_text(&written).contains("We agreed to ship"));
 
-    let again = DocumentExport::Raster(RasterExport::Image(RasterTarget::Tiff, Resize::Original));
+    let again = DocumentExport::Raster(RasterExport::Image(
+        RasterTarget::Tiff,
+        Resize::Original,
+        anyview_core::MetadataCarry::Keep,
+    ));
     let outcome = desktop
         .carry_out(Task::ExportDocument {
             file: broken,

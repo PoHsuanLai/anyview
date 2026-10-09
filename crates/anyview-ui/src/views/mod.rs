@@ -8,6 +8,8 @@ mod carry;
 mod chrome;
 mod context;
 mod effects;
+mod export;
+mod export_options;
 mod failed;
 mod keys;
 mod palette;

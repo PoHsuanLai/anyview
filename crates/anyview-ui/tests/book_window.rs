@@ -420,3 +420,27 @@ fn a_book_opens_at_reading_width_and_a_remembered_zoom_wins() {
         "a place left at fit-page stays: {page:?}"
     );
 }
+
+#[test]
+fn the_export_dialog_is_never_offered_for_a_book_though_its_stage_is_the_pdf_stage() {
+    let dir = tempfile::tempdir().unwrap();
+    for scale in [100, 200] {
+        let (mut harness, requests) = opened(&epub(dir.path()), scale, Wiring::default());
+        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+        settle(&mut harness);
+        for letter in "export".chars() {
+            harness.send(Input::key(ShortcutKey::Char(letter)));
+        }
+        settle(&mut harness);
+        harness.send(Input::key(ShortcutKey::Enter));
+        settle(&mut harness);
+        assert_eq!(harness.count(".ds-sheet"), 0, "{scale}: no dialog opens");
+        let exports = requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| matches!(request, HostRequest::Export(_)))
+            .count();
+        assert_eq!(exports, 0, "{scale}: nothing is exported");
+    }
+}

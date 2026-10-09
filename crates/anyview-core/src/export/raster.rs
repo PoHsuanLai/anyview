@@ -2,19 +2,20 @@
 
 use super::choice::ExportChoice;
 use super::extension::ExportExtension;
+use super::payload::MetadataCarry;
 use super::target::{RasterTarget, Resize};
 use ds_core::word::Word;
 
 /// An export of a raster image: re-encoded, or placed on a PDF page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RasterExport {
-    /// Encode the pixels, resized first.
-    Image(RasterTarget, Resize),
+    /// Encode the pixels, resized first, with or without the original's metadata.
+    Image(RasterTarget, Resize, MetadataCarry),
     /// One PDF page holding the image.
     Pdf,
 }
 
-/// The entries of the raster export pop-up.
+/// The rows of the raster export dialog's format list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
 pub enum RasterExportKind {
     /// PNG.
@@ -36,7 +37,7 @@ impl ExportChoice for RasterExport {
 
     fn kind(&self) -> RasterExportKind {
         match self {
-            RasterExport::Image(target, _) => match target {
+            RasterExport::Image(target, ..) => match target {
                 RasterTarget::Png => RasterExportKind::Png,
                 RasterTarget::Jpeg(_) => RasterExportKind::Jpeg,
                 RasterTarget::Webp => RasterExportKind::Webp,
@@ -48,7 +49,8 @@ impl ExportChoice for RasterExport {
     }
 
     fn default_for(kind: RasterExportKind) -> Self {
-        let image = |target| RasterExport::Image(target, Resize::Original);
+        let image =
+            |target| RasterExport::Image(target, Resize::Original, MetadataCarry::default());
         match kind {
             RasterExportKind::Png => image(RasterTarget::Png),
             RasterExportKind::Jpeg => image(RasterTarget::default_jpeg()),
@@ -61,7 +63,7 @@ impl ExportChoice for RasterExport {
 
     fn extension(&self) -> ExportExtension {
         match self {
-            RasterExport::Image(target, _) => target.extension(),
+            RasterExport::Image(target, ..) => target.extension(),
             RasterExport::Pdf => ExportExtension::Pdf,
         }
     }

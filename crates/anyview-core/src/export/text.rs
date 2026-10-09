@@ -14,7 +14,7 @@ pub enum TextExport {
     PlainText,
 }
 
-/// The entries of the text export pop-up.
+/// The rows of the text export dialog's format list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
 pub enum TextExportKind {
     /// A PDF.

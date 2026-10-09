@@ -84,13 +84,17 @@ pub enum TextSource {
     File(FilePath),
 }
 
-/// Whether metadata (EXIF, colour profile) survives a re-encode.
+/// What of a picture's metadata survives a re-encode. The colour profile always does: without it a
+/// wide-gamut photo looks washed out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Word)]
 pub enum MetadataCarry {
-    /// Splice the original's metadata into the output.
-    #[default]
+    /// Splice all of the original's EXIF into the output.
     Keep,
-    /// Write the output with none.
+    /// Splice the original's EXIF without where the picture was taken. The default: a file made to
+    /// be shared must not say where its photo was shot unless the person chooses that.
+    #[default]
+    StripLocation,
+    /// Write the output with no EXIF.
     Drop,
 }
 

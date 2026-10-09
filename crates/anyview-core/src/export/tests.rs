@@ -59,7 +59,8 @@ fn avif() -> RasterTarget {
 #[test]
 fn raster_defaults_keep_the_pixels_and_name_their_extension() {
     use RasterExportKind::*;
-    let image = |target| RasterExport::Image(target, Resize::Original);
+    let image =
+        |target| RasterExport::Image(target, Resize::Original, MetadataCarry::StripLocation);
     let cases = [
         (Png, image(RasterTarget::Png), ExportExtension::Png),
         (Jpeg, image(jpeg()), ExportExtension::Jpg),
@@ -80,11 +81,16 @@ fn a_raster_choice_keeps_its_options_and_reports_its_kind() {
     let resized = RasterExport::Image(
         RasterTarget::Jpeg(Quality::clamped(Percent(40))),
         Resize::LongEdge(PixelLen(1024)),
+        MetadataCarry::Keep,
     );
     assert_eq!(resized.kind(), RasterExportKind::Jpeg);
     assert_eq!(resized.extension(), ExportExtension::Jpg);
     assert_ne!(resized, RasterExport::default_for(RasterExportKind::Jpeg));
-    let scaled = RasterExport::Image(RasterTarget::Png, Resize::Scaled(Permille(500)));
+    let scaled = RasterExport::Image(
+        RasterTarget::Png,
+        Resize::Scaled(Permille(500)),
+        MetadataCarry::Keep,
+    );
     assert_eq!(scaled.kind(), RasterExportKind::Png);
 }
 

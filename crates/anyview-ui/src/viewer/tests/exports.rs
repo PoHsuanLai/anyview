@@ -3,7 +3,7 @@
 
 use super::support::*;
 use crate::command::Command;
-use crate::sheet::{ExportDraft, MediaOffer, Sheet, SheetParams};
+use crate::sheet::{ExportDraft, MediaOffer, PageSpan, Sheet, SheetParams};
 use crate::stage::{Pace, Stage};
 use crate::viewer::{Viewer, ViewerIn, ViewerParams};
 use anyview_core::{
@@ -45,7 +45,10 @@ fn after_export(stage: Stage, offer: MediaOffer) -> Sheet {
 fn an_image_opens_the_sheet_on_its_default_whatever_is_offered() {
     assert_eq!(
         after_export(image(), MediaOffer::default()),
-        Sheet::Export { draft: png() }
+        Sheet::Export {
+            draft: png(),
+            span: PageSpan::All
+        }
     );
 }
 
@@ -60,7 +63,8 @@ fn a_recording_opens_the_sheet_on_the_first_kind_on_offer() {
         Sheet::Export {
             draft: ExportDraft::Media(MediaExport::AudioOnly(AudioTarget::Mp3(
                 AudioTarget::default_bitrate()
-            )))
+            ))),
+            span: PageSpan::All
         }
     );
 }

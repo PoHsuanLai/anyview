@@ -5,14 +5,16 @@
 
 mod support;
 
-use anyview_core::{FormatDetail, PixelLen, RasterExport, RasterFormat, RasterTarget, Resize};
+use anyview_core::{
+    FormatDetail, MetadataCarry, PixelLen, RasterExport, RasterFormat, RasterTarget, Resize,
+};
 use anyview_export::DocumentExport;
 use anyview_image::ExifFacts;
 use anyview_pdf::PdfDocument;
 use support::{exported, fixture, flat, names, opened, size_of, write};
 
 fn image(target: RasterTarget, resize: Resize) -> DocumentExport {
-    DocumentExport::Raster(RasterExport::Image(target, resize))
+    DocumentExport::Raster(RasterExport::Image(target, resize, MetadataCarry::Keep))
 }
 
 fn png_in(dir: &std::path::Path, name: &str) -> std::path::PathBuf {

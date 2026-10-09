@@ -20,7 +20,7 @@ pub enum PdfExport {
     Markdown,
 }
 
-/// The entries of the PDF export pop-up.
+/// The rows of the PDF export dialog's format list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
 pub enum PdfExportKind {
     /// A PDF of some pages.

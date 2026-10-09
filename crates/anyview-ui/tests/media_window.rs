@@ -742,13 +742,19 @@ fn marking_a_start_and_an_end_cuts_the_export_there() {
     settle(&mut harness);
     harness.send(Input::key(ShortcutKey::Enter));
     settle(&mut harness);
-    // The sheet's format control lists the media kinds: pick the sixth, which is the trim.
+    // The sheet's format list has the media kinds: pick the sixth, which is the trim. Marks are
+    // set, so the sheet offers the choice between the whole recording and the marks.
     harness.send(Input::click(
         harness
-            .centre(".ds-segmented-segment:nth-child(6)")
+            .centre(".viewer-sheet .ds-list-item:nth-child(6)")
             .unwrap(),
     ));
     settle(&mut harness);
+    let said = harness.text_of(".viewer-sheet").unwrap_or_default();
+    assert!(
+        said.contains("Range") && said.contains("Trim marks"),
+        "{said}"
+    );
     harness.send(Input::click(
         harness
             .centre(".viewer-sheet-buttons .ds-button:nth-child(2)")
@@ -1030,7 +1036,7 @@ fn the_export_sheet_lists_only_the_formats_on_offer() {
     } = open_answering(Answer::Plays, Some(offer));
     export_from_the_palette(&mut harness);
     assert_eq!(
-        harness.count(".viewer-sheet .ds-segmented-segment"),
+        harness.count(".viewer-sheet .ds-list-item"),
         2,
         "only what the machine can write"
     );
@@ -1314,5 +1320,77 @@ fn a_panel_open_on_a_tab_the_player_then_withholds_shows_the_facts_not_a_blank()
     assert!(
         panel.contains("WebM video"),
         "the file's facts fill the panel once the tab is gone: {panel:?}"
+    );
+}
+
+#[test]
+fn the_dialog_offers_a_bitrate_for_lossy_audio_only_and_a_range_only_where_marks_exist() {
+    let offer = MediaOffer::new(
+        vec![
+            MediaExportKind::ToMp3,
+            MediaExportKind::ToFlac,
+            MediaExportKind::Trim,
+        ],
+        None,
+    );
+    let Opened {
+        mut harness,
+        requests,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    export_from_the_palette(&mut harness);
+    let said = |harness: &Harness| harness.text_of(".viewer-sheet").unwrap_or_default();
+    let click = |harness: &mut Harness, selector: &str| {
+        let at = harness.centre(selector).unwrap();
+        harness.send(Input::click(at));
+        settle(harness);
+    };
+    assert!(
+        said(&harness).contains("Bitrate"),
+        "mp3: {}",
+        said(&harness)
+    );
+    click(
+        &mut harness,
+        ".viewer-sheet [aria-label=\"Bitrate\"] .ds-segmented-segment:nth-child(4)",
+    );
+    click(&mut harness, ".viewer-sheet .ds-list-item:nth-child(3)");
+    assert!(
+        !said(&harness).contains("Bitrate"),
+        "flac: {}",
+        said(&harness)
+    );
+    click(&mut harness, ".viewer-sheet .ds-list-item:nth-child(1)");
+    assert!(
+        !said(&harness).contains("Range"),
+        "no marks: {}",
+        said(&harness)
+    );
+    click(&mut harness, ".viewer-sheet .ds-list-item:nth-child(2)");
+    click(
+        &mut harness,
+        ".viewer-sheet [aria-label=\"Bitrate\"] .ds-segmented-segment:nth-child(4)",
+    );
+    click(
+        &mut harness,
+        ".viewer-sheet-buttons .ds-button:nth-child(2)",
+    );
+    let exported: Vec<ExportDraft> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|request| {
+            if let HostRequest::Export(draft) = request {
+                Some(*draft)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(
+        exported,
+        [ExportDraft::Media(MediaExport::AudioOnly(
+            anyview_core::AudioTarget::Mp3(anyview_core::Bitrate::from_kbps(256))
+        ))]
     );
 }

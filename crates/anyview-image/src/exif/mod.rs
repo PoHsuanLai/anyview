@@ -6,6 +6,7 @@ mod format;
 mod location;
 mod patch;
 mod rows;
+mod strip;
 
 #[cfg(test)]
 mod tests;
@@ -13,6 +14,7 @@ mod tests;
 pub use flash::{Flash, FlashMode, FlashState};
 pub use location::Location;
 pub(crate) use patch::with_orientation;
+pub(crate) use strip::without_location;
 
 use crate::orientation::ExifOrientation;
 use crate::resolution::Resolution;

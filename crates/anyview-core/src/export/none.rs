@@ -9,7 +9,7 @@ use ds_core::word::Word;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoExport {}
 
-/// The kinds of [`NoExport`]: none, so its pop-up lists nothing.
+/// The kinds of [`NoExport`]: none, so its format list is empty.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoExportKind {}
 

@@ -74,7 +74,10 @@ const CASES: &[Case] = &[
         || ViewerIn::Palette(PaletteIn::Enter),
         0,
         || Viewer {
-            sheet: Sheet::Export { draft: png() },
+            sheet: Sheet::Export {
+                draft: png(),
+                span: crate::sheet::PageSpan::All,
+            },
             chrome: menu_pinned(),
             stage: image(),
             ..Viewer::default()

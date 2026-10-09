@@ -39,6 +39,18 @@
 .viewer-sheet{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-16); }
 .viewer-sheet-note{ margin:0; color:var(--ink-faint); }
 .viewer-sheet-buttons{ display:flex; justify-content:flex-end; gap:var(--s-8); }
+/* The export dialog: the formats on one side and the chosen format's options on the other; they stack when the dialog is narrow. */
+.viewer-export{ gap:0; padding:0; }
+.viewer-export-body{ display:flex; flex-wrap:wrap; align-items:flex-start; }
+.viewer-export-formats{ flex:1 1 calc(var(--s-36) * 4); min-width:0; }
+.viewer-export-options{ flex:2 1 calc(var(--s-36) * 6); min-width:0; }
+.viewer-export-slider{ display:flex; align-items:center; gap:var(--s-8); flex:1; min-width:0; }
+.viewer-export-stack{ display:flex; flex-direction:column; align-items:stretch; gap:var(--s-8); flex:1; min-width:0; }
+.viewer-export-readout{ font-family:var(--font-data); font-size:var(--fs-caption); color:var(--ink-faint); }
+.viewer-export-hint{ margin:0; padding:var(--s-20); color:var(--ink-faint); }
+.viewer-export-needs{ padding:0 var(--s-20); }
+.viewer-export-foot{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--s-8); padding:var(--s-12) var(--s-20) var(--s-16); }
+.viewer-export-saved{ flex:1 1 auto; min-width:0; }
 .viewer-peek-facts{ align-self:stretch; }
 .viewer-peek-thumbnail{ max-width:100%; max-height:240px; border-radius:var(--r-small); border:var(--hair) solid var(--line); }
 

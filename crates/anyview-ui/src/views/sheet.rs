@@ -1,25 +1,18 @@
-//! The modal sheets: export, rename, save a copy, revert to a version, the trash question and the install question. The sheet machine says which is open
-//! and what it holds; these draw them and report the person's choices as sheet inputs.
+//! The modal sheets: rename, save a copy, revert to a version, the trash question and the install question. The sheet machine says which is open
+//! and what it holds (the export dialog is `export`); these draw them and report the person's choices as sheet inputs.
 
-use crate::EditCaution;
-use crate::{
-    ExportDraft, ExportKindPick, HelperPhase, HelperWords, MediaOffer, TypedText, VersionKey,
-    VersionList,
-};
+use crate::{EditCaution, HelperPhase, HelperWords, TypedText, VersionKey, VersionList};
 use anyview_core::{Edit, Fact, Helper};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
-use ds::components::controls::segmented::Tracking;
 use ds::components::overlays::alert_model::{AlertButton, AlertRole};
-use ds::prelude::{
-    Alert, Button, Choice, FieldFocus, RadioGroup, SegmentedControl, Sheet, TextField,
-};
+use ds::prelude::{Alert, Button, Choice, FieldFocus, RadioGroup, Sheet, TextField};
 use ds_core::word::Word;
 use ds_shell::helpers::{HelperPhase as Sheeted, HelperSheet};
 
 /// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
 /// alone. A button that answers Escape leaves Return to this.
-fn confirms(event: &KeyboardEvent, onconfirm: EventHandler<()>) {
+pub(super) fn confirms(event: &KeyboardEvent, onconfirm: EventHandler<()>) {
     if event.key() == Key::Enter && !event.is_auto_repeating() {
         event.stop_propagation();
         event.prevent_default();
@@ -153,44 +146,6 @@ pub(super) fn NoVersionsSheet(onclose: EventHandler<()>) -> Element {
                 p { class: "viewer-sheet-note", "This file has no earlier version." }
                 div { class: "viewer-sheet-buttons",
                     Button { label: "OK", answers: Answers::Return, onclick: move |_| onclose.call(()) }
-                }
-            }
-        }
-    }
-}
-
-/// Choosing what to export: the format, then Export or Cancel. Only the media formats `offer`
-/// holds are listed; when more would be there with another package, the sheet says which.
-#[component]
-pub(super) fn ExportSheet(
-    draft: ExportDraft,
-    offer: MediaOffer,
-    onpick: EventHandler<ExportKindPick>,
-    onconfirm: EventHandler<()>,
-    oncancel: EventHandler<()>,
-) -> Element {
-    let choices: Vec<Choice<ExportKindPick>> = draft
-        .choices_within(&offer)
-        .into_iter()
-        .map(|(pick, label)| Choice::new(pick, label))
-        .collect();
-    rsx! {
-        Sheet { label: "Export", onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
-                SegmentedControl::<ExportKindPick> {
-                    label: "Format",
-                    choices,
-                    tracking: Tracking::SelectOne(draft.pick()),
-                    onchange: move |pick: ExportKindPick| onpick.call(pick),
-                }
-                if let Some(needs) = offer.needs() {
-                    p { class: "viewer-sheet-note",
-                        "{needs.label.label()}: {needs.value.as_str()}"
-                    }
-                }
-                div { class: "viewer-sheet-buttons",
-                    Button { label: "Cancel", answers: Answers::Escape, onclick: move |_| oncancel.call(()) }
-                    Button { label: "Export", answers: Answers::Return, onclick: move |_| onconfirm.call(()) }
                 }
             }
         }

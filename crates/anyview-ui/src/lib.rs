@@ -68,8 +68,10 @@ pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{
-    ExportDraft, ExportFamily, ExportKindPick, HelperEnd, HelperPhase, MediaOffer, Sheet, SheetIn,
-    SheetOut, SheetParams, VersionKey, VersionList, VersionRow,
+    ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption, HelperEnd,
+    HelperPhase, MAX_LONG_EDGE, MediaOffer, PageSpan, Sheet, SheetIn, SheetOut, SheetParams,
+    SizePick, TrimSpan, VersionKey, VersionList, VersionRow, format_of, kind_hint, kind_name,
+    quality_of,
 };
 pub use stage::{
     AfterScrub, Animation, ControlOffer, Destination, EndReason, FindHits, FindOut, FrameCount,

@@ -70,5 +70,9 @@ pub(super) fn menu_pinned() -> Chrome {
 }
 
 pub(super) fn png() -> ExportDraft {
-    ExportDraft::Raster(RasterExport::Image(RasterTarget::Png, Resize::Original))
+    ExportDraft::Raster(RasterExport::Image(
+        RasterTarget::Png,
+        Resize::Original,
+        anyview_core::MetadataCarry::default(),
+    ))
 }

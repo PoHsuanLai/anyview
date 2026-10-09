@@ -85,7 +85,7 @@ fn exported_trim(harness: &mut Harness, requests: &Requests) -> Option<TimeRange
     key(harness, ShortcutKey::Enter);
     harness.send(Input::click(
         harness
-            .centre(".ds-segmented-segment:nth-child(6)")
+            .centre(".viewer-sheet .ds-list-item:nth-child(6)")
             .unwrap(),
     ));
     settle(harness);

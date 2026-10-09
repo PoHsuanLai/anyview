@@ -14,13 +14,13 @@ const ENTRY_LEN: usize = 12;
 
 /// How the block's numbers are written.
 #[derive(Clone, Copy)]
-enum Endian {
+pub(super) enum Endian {
     Little,
     Big,
 }
 
 impl Endian {
-    fn u16(self, bytes: &[u8], at: usize) -> Option<u16> {
+    pub(super) fn u16(self, bytes: &[u8], at: usize) -> Option<u16> {
         let pair: [u8; 2] = bytes.get(at..at + 2)?.try_into().ok()?;
         Some(match self {
             Endian::Little => u16::from_le_bytes(pair),
@@ -28,7 +28,7 @@ impl Endian {
         })
     }
 
-    fn u32(self, bytes: &[u8], at: usize) -> Option<u32> {
+    pub(super) fn u32(self, bytes: &[u8], at: usize) -> Option<u32> {
         let quad: [u8; 4] = bytes.get(at..at + 4)?.try_into().ok()?;
         Some(match self {
             Endian::Little => u32::from_le_bytes(quad),
@@ -36,7 +36,7 @@ impl Endian {
         })
     }
 
-    fn put_u16(self, value: u16) -> [u8; 2] {
+    pub(super) fn put_u16(self, value: u16) -> [u8; 2] {
         match self {
             Endian::Little => value.to_le_bytes(),
             Endian::Big => value.to_be_bytes(),

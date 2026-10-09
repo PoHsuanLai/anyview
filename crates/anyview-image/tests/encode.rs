@@ -11,7 +11,8 @@ use anyview_core::{MetadataCarry, Percent, Quality, RasterFormat, RasterTarget};
 use anyview_image::{
     Decoded, ExifFacts, ImageError, Rgba8, decode_bytes, encode, encode_bmp, encode_with_metadata,
 };
-use img_parts::{Bytes, DynImage, ImageICC};
+use exif::{Context, In, Rational, Tag, Value};
+use img_parts::{Bytes, DynImage, ImageEXIF, ImageICC};
 use support::{bytes, sniffed};
 
 fn picture(name: &str) -> Rgba8 {
@@ -157,6 +158,167 @@ fn an_icc_profile_travels_between_containers() {
         .unwrap()
         .icc_profile();
     assert_eq!(carried.as_deref(), Some(profile.as_slice()));
+}
+
+/// A JPEG with a camera, an orientation, a GPS position with a text value that is stored out of
+/// line (so it would stay in the block if only the pointer were removed) and an ICC profile.
+fn located_jpeg(profile: &[u8]) -> Vec<u8> {
+    let rational = |num| Value::Rational(vec![Rational { num, denom: 1 }]);
+    let fields = [
+        field(Tag::Make, Value::Ascii(vec![b"TestCam".to_vec()])),
+        field(Tag::Model, Value::Ascii(vec![b"One".to_vec()])),
+        field(Tag::Orientation, Value::Short(vec![1])),
+        field(Tag::GPSLatitudeRef, Value::Ascii(vec![b"N".to_vec()])),
+        field(Tag::GPSLatitude, rational(37)),
+        field(Tag::GPSMapDatum, Value::Ascii(vec![SECRET.to_vec()])),
+    ];
+    let mut writer = exif::experimental::Writer::new();
+    for f in &fields {
+        writer.push_field(f);
+    }
+    let mut block = std::io::Cursor::new(Vec::new());
+    writer.write(&mut block, false).unwrap();
+    let mut image = DynImage::from_bytes(Bytes::from(bytes("plain.jpg")))
+        .unwrap()
+        .unwrap();
+    image.set_exif(Some(Bytes::from(block.into_inner())));
+    image.set_icc_profile(Some(Bytes::copy_from_slice(profile)));
+    image.encoder().bytes().to_vec()
+}
+
+const SECRET: &[u8] = b"SECRET-PLACE-NAME";
+
+fn field(tag: Tag, value: Value) -> exif::Field {
+    exif::Field {
+        tag,
+        ifd_num: In::PRIMARY,
+        value,
+    }
+}
+
+fn raw_fields(file: &[u8]) -> Vec<exif::Field> {
+    let block = DynImage::from_bytes(Bytes::copy_from_slice(file))
+        .unwrap()
+        .unwrap()
+        .exif()
+        .expect("the file has an EXIF block");
+    exif::Reader::new()
+        .read_raw(block.to_vec())
+        .unwrap()
+        .fields()
+        .cloned()
+        .collect()
+}
+
+fn has_location(fields: &[exif::Field]) -> bool {
+    fields
+        .iter()
+        .any(|f| f.tag.0 == Context::Gps || f.tag == Tag::GPSInfoIFDPointer)
+}
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack.windows(needle.len()).any(|w| w == needle)
+}
+
+#[test]
+fn stripping_the_location_removes_the_gps_directory_and_keeps_the_camera() {
+    let original = located_jpeg(b"profile");
+    assert!(has_location(&raw_fields(&original)), "the fixture has GPS");
+    let upright = back(&original, "o.jpg");
+    for (name, target) in [
+        ("jpeg", RasterTarget::Jpeg(quality(90))),
+        ("png", RasterTarget::Png),
+        ("webp", RasterTarget::Webp),
+    ] {
+        let out = encode_with_metadata(&upright, target, &original, MetadataCarry::StripLocation)
+            .unwrap();
+        let fields = raw_fields(&out);
+        assert!(!has_location(&fields), "{name} has no GPS tag");
+        assert!(!contains(&out, SECRET), "{name} holds no GPS value bytes");
+        assert_eq!(
+            ExifFacts::read(&out).camera().as_deref(),
+            Some("TestCam One"),
+            "{name} keeps the camera"
+        );
+    }
+}
+
+#[test]
+fn keeping_everything_keeps_the_location() {
+    let original = located_jpeg(b"profile");
+    let out = encode_with_metadata(
+        &back(&original, "o.jpg"),
+        RasterTarget::Jpeg(quality(90)),
+        &original,
+        MetadataCarry::Keep,
+    )
+    .unwrap();
+    assert!(has_location(&raw_fields(&out)));
+}
+
+#[test]
+fn the_default_carry_strips_the_location() {
+    assert_eq!(MetadataCarry::default(), MetadataCarry::StripLocation);
+}
+
+#[test]
+fn the_colour_profile_travels_whatever_is_chosen_about_the_rest() {
+    let profile = b"a wide-gamut profile, as bytes".to_vec();
+    let original = located_jpeg(&profile);
+    let pixels = back(&original, "o.jpg");
+    for keep in [
+        MetadataCarry::Keep,
+        MetadataCarry::StripLocation,
+        MetadataCarry::Drop,
+    ] {
+        for (target, file) in [
+            (RasterTarget::Jpeg(quality(80)), "o.jpg"),
+            (RasterTarget::Png, "o.png"),
+            (RasterTarget::Webp, "o.webp"),
+        ] {
+            let out = encode_with_metadata(&pixels, target, &original, keep).unwrap();
+            let icc = DynImage::from_bytes(Bytes::from(out))
+                .unwrap()
+                .unwrap()
+                .icc_profile();
+            assert_eq!(icc.as_deref(), Some(profile.as_slice()), "{keep:?} {file}");
+        }
+    }
+}
+
+#[test]
+fn dropping_still_leaves_no_exif_but_keeps_the_profile() {
+    let original = located_jpeg(b"profile");
+    let out = encode_with_metadata(
+        &back(&original, "o.jpg"),
+        RasterTarget::Png,
+        &original,
+        MetadataCarry::Drop,
+    )
+    .unwrap();
+    assert_eq!(ExifFacts::read(&out), ExifFacts::none());
+    assert!(!contains(&out, SECRET));
+}
+
+#[test]
+fn an_avif_carries_the_profile_and_no_location_unless_asked() {
+    let profile = b"a wide-gamut profile, as bytes".to_vec();
+    let original = located_jpeg(&profile);
+    let pixels = back(&original, "o.jpg");
+    let target = RasterTarget::Avif(quality(40));
+    for keep in [MetadataCarry::StripLocation, MetadataCarry::Drop] {
+        let out = encode_with_metadata(&pixels, target, &original, keep).unwrap();
+        assert!(contains(&out, &profile), "{keep:?} carries the profile");
+        assert!(!contains(&out, SECRET), "{keep:?} has no location");
+        if cfg!(feature = "avif") {
+            assert_eq!(back(&out, "o.avif").size(), pixels.size(), "still decodes");
+        }
+    }
+    let kept = encode_with_metadata(&pixels, target, &original, MetadataCarry::Keep).unwrap();
+    assert!(contains(&kept, SECRET), "Keep means all of it");
+    let stripped =
+        encode_with_metadata(&pixels, target, &original, MetadataCarry::StripLocation).unwrap();
+    assert!(contains(&stripped, b"TestCam"), "the camera stays");
 }
 
 #[test]
