@@ -7,11 +7,17 @@
 #   (b) no module outside a `desktop/` directory or a file named `desktop.rs` names `crate::desktop`
 #       or zbus: the core never reaches the desktop modules or a D-Bus crate. Tests and the platform crate's `testing` support are exempt.
 #       ds-desktop is not a leak: it is quire's probe, and without its `dbus` feature it has no bus.
+#   (c) anyview-peek compiles on its own, headless and with `media` (see below).
 #
 #   scripts/check-portable.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo check --workspace --no-default-features --locked
+# (c) anyview-peek alone, as sill and other embedders take it: a workspace build unifies features, so
+#     a peek that needs a feature only the viewer turns on (anyview-image's `encode`, 2026-10-10)
+#     compiles here but not in a launcher. Built headless, and with `media`, the launcher's set.
+cargo check -p anyview-peek --no-default-features --locked
+cargo check -p anyview-peek --no-default-features --features media --locked
 if cargo tree -p anyview-platform --no-default-features -e normal,build -i zbus 2>/dev/null | grep -q .; then
   echo "check-portable: anyview-platform reaches zbus without quire-desktop" >&2
   exit 1
@@ -25,4 +31,4 @@ if [ -n "$leaks" ]; then
   echo "$leaks" | head -50 >&2
   exit 1
 fi
-echo "check-portable: the workspace builds without quire-desktop, anyview-platform has no zbus and no core module names crate::desktop or zbus"
+echo "check-portable: the workspace builds without quire-desktop, anyview-peek builds alone (headless and with media), anyview-platform has no zbus and no core module names crate::desktop or zbus"
