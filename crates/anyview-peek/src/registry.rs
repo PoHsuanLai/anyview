@@ -53,7 +53,7 @@ pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ds::prelude::Word;
+    use ds_core::word::Word;
 
     /// Reports the kind a peek is registered for, so the table below can compare it with the kind
     /// the registry was asked about.

@@ -67,7 +67,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
-| `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds` (the pane's components), `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
+| `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-image`, `anyview-text`, `ds-core` (`Word`, `Size`, `Scale`); with `pane`, `ds` (the pane's components) and `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
 | `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (a recording's facts from its header when no plugin reads it), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-desktop` (`Desktop::probe`: whether PackageKit answers, for the Install... offer), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
@@ -110,8 +110,11 @@ oniguruma), `pulldown-cmark`, `csv`, `serde_json`, `serde`, `encoding_rs`, `this
 
 `anyview-archive` depends on `zip` (deflate only: the central directory needs no codec, extracting an entry does), `tar`, `flate2` (its pure-Rust back end), `ruzstd`, `lzma-rust2`, `bzip2` (its pure-Rust `libbz2-rs-sys` back end), `sevenz-rust2` (decoders only, no encoder), `thiserror`, `anyview-core` and `ds-core`; no C library. `anyview-book` depends on `anyview-archive`, `roxmltree` (the package documents of an EPUB as a read-only tree), `thiserror`, `anyview-core` and `ds-core`. `anyview-font` depends on `skrifa`, `miniz_oxide` (the zlib streams of a WOFF), `thiserror` and `anyview-core`.
 
-`anyview-peek` depends on the five crates below it, `ds`, `ds-blitz` (feature `pdf`), `dioxus` and
-`thiserror`. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
+`anyview-peek` depends on the five crates below it, `ds-core` and `thiserror`; its `pane` feature adds `ds`,
+`ds-blitz` (feature `pdf`) and `dioxus`. Outside `pane/` (and the PDF raster that feeds it) no module names a type of
+`ds` or dioxus: the PDF page is the peek's own `PageLook` and `PageTrouble`, and the pane converts them to quire's
+`PdfPage` at its boundary (`pane/page.rs`). The headless tree has no dioxus, `ds-motion` or `ds-style`, and
+`scripts/check-boundary.sh` fails if one returns. `wgpu` is not an exception to its rule so much as a fact of `ds-blitz`: `TextureLayer` and the PDF
 thumbnail cache both live there, the launcher is a Blitz window and already links the renderer, and the
 pane reaches the device only through `ds_blitz::use_gpu`, never by naming a `wgpu` type (FINDINGS, "The pane
 and `wgpu`").
@@ -397,8 +400,8 @@ the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futur
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
 are blocking and run on the caller's worker (`worker` is that worker, for a host that has none); only
-`pane` draws. Its `pane` feature (on by default) is everything that draws or rasterises, `dioxus` and
-`ds-blitz`; without it the crate links neither, and a PDF is peeked as facts only.
+`pane` draws. Its `pane` feature (on by default) is everything that draws or rasterises, `ds`, `dioxus` and
+`ds-blitz`; without it the crate links none of them, and a PDF is peeked as facts only.
 
 Every peek reads an `anyview_core::Input`: a path (`&FilePath`, `&Source`) or any bytes a host injects
 (`Input::from((name, bytes))`, or its own `ReadAt`). A back end reads it through `ReadAt` or
@@ -420,10 +423,10 @@ the folder peek (a directory has no bytes) and a thumbnail read from the desktop
 | `book` | `BookPeek`, `BookLook`: an EPUB's title, author, publisher, language and chapters, or a comic's page count, over the cover (the package's cover image, else its first image; a comic's first page), reduced to the budget; a book that cannot be opened still shows its type |
 | `folder` | `FolderPeek`, `FolderSummary`: one level, item count, size and kinds |
 | `natural` | `natural_size`: the size a picture or a video shows at, from the first bytes of the file (a picture's header through `anyview-image`, a movie's `moov` or Matroska header up to 8 MiB); any other kind, a path that is not a regular file and a header that does not say give `None` |
-| `pdf` | `PdfPeek`: the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in; facts only without the `pane` feature |
+| `pdf` | `PdfPeek`, `PdfPeeked`, `PageLook`, `PageTrouble` (a page drawn, blank or failed, in no component's types): the first page, through `ds-blitz`'s thumbnail cache for a file and `pdf_thumb_bytes` for bytes handed in; facts only without the `pane` feature |
 | `worker` | `PeekWorker`, `WorkerConfig` (`#[non_exhaustive]`, with `with_*` builders): the one thread that looks at the latest file asked for (`ask(input, reply)`), a thread per peek with an 8 MiB stack, the 4 s overrun and the cap on abandoned peeks; it takes no async runtime |
 | `when` | `modified_text`: a modification time as the Info panel words it, in the person's zone |
-| `pane` | `Pane`, `Part`, `Parts` (which of the media, the name and the facts it draws; all by default), `STYLE`; `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
+| `pane` | `Pane`, `Part`, `Parts` (which of the media, the name and the facts it draws; all by default), `STYLE`; `page` (a `PageLook` to and from quire's `PdfPage`, the only place the two meet), `picture` (a `TextureLayer`), `lines` (plain and highlighted), `grid` (a table, a tree's top level and an archive's first entries, all as quire's `Table`), `specimen` (a font's sample lines, each an inline SVG of the face's outlines) and `frame` (Markdown in a sealed frame) are private, and `pane.css` is its stylesheet |
 
 `peek(src, sniffed, budget)` never fails: a peek that cannot be made returns a `Body::Unavailable` with the
 reason and the facts the file can still give. The pane draws a `Body` over the file's name and a `FactList`

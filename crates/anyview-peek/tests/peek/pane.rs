@@ -10,13 +10,11 @@ mod golden;
 use crate::support;
 
 use anyview_core::FormatKind;
-use anyview_peek::{AnyPeeked, Body, Pane, PdfPeeked, STYLE, peek};
+use anyview_peek::{AnyPeeked, Body, PageLook, Pane, PdfPeeked, STYLE, peek};
 use anyview_text::{TokenClass, TokenLine, TokenSpan};
 use dioxus::core::VirtualDom;
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
-use ds::components::content::image_source::{ImageSize, ImageSource};
-use ds::components::content::pdf_thumb::PdfPage;
 use ds::prelude::{Appearance, Ds, Material, Word};
 use ds_harness::{Backdrop, Harness, HarnessConfig, Query, Viewport};
 use ds_lint::{LintConfig, Profile, Rule, assert_clean, markup};
@@ -32,12 +30,10 @@ fn peeked(home: Home, name: &str) -> Arc<AnyPeeked> {
 fn page() -> Arc<AnyPeeked> {
     let mut page = (*peeked(Home::Own, "hello.pdf")).clone();
     page.body = Body::Page(PdfPeeked {
-        page: PdfPage::Ready {
-            image: ImageSource("data:image/png;base64,AAAA".to_owned()),
-            sheet: ImageSize {
-                width: 300,
-                height: 200,
-            },
+        page: PageLook::Drawn {
+            source: "data:image/png;base64,AAAA".to_owned(),
+            width: 300,
+            height: 200,
         },
     });
     Arc::new(page)

@@ -4,15 +4,23 @@
 //! worker-side call and the same cache the launcher's `PdfFileThumb` uses, so a page peeked here
 //! is a cache hit when the pane asks for it again at the same size.
 
-use super::PdfPeeked;
+use super::{PageLook, PageTrouble, PdfPeeked};
 use crate::error::PeekError;
+use crate::pane::page::look;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
-use ds::components::content::pdf_thumb::{PdfPage, PdfTrouble};
-use ds::components::lists::preview::content::PANE_MEDIA;
-use ds::prelude::{Scale, Size, Word};
 use ds_blitz::{ThumbRequest, pdf_thumb_blocking, pdf_thumb_bytes};
+use ds_core::geometry::scale::Scale;
+use ds_core::geometry::units::{Px, Size};
+use ds_core::word::Word;
+
+/// The box a page is fitted into: the pane's media box (328 px is a 360 px pane's width inside its
+/// 16 px padding). The pane pins it equal to quire's `PANE_MEDIA`.
+pub(crate) const PANE_MEDIA: Size = Size {
+    width: Px(328.0),
+    height: Px(220.0),
+};
 
 /// The device pixels a page is rasterised for at 2x: the pane's media box twice over.
 const SHARP_AREA: u64 = 656 * 440;
@@ -61,10 +69,10 @@ impl Peek for PdfPeek {
         // A file on disk goes through the page cache, which a pane asks again at the same size;
         // bytes handed in are rasterised from memory, whole, as the budget allows.
         let page = match src.path() {
-            Some(_) => pdf_thumb_blocking(&request),
+            Some(_) => look(pdf_thumb_blocking(&request)),
             None => match src.bytes().read_range(0..budget.bytes.0) {
-                Ok(bytes) => pdf_thumb_bytes(bytes, request.device_box()),
-                Err(_) => PdfPage::Failed(PdfTrouble::Unreadable),
+                Ok(bytes) => look(pdf_thumb_bytes(bytes, request.device_box())),
+                Err(_) => PageLook::Failed(PageTrouble::Unreadable),
             },
         };
         Ok(PdfPeeked { page })
@@ -73,16 +81,14 @@ impl Peek for PdfPeek {
     fn facts(peeked: &PdfPeeked) -> Facts {
         let kind = |text: &str| Facts::empty().with(FactLabel::Kind, FactValue::text(text));
         match &peeked.page {
-            PdfPage::Ready { sheet, .. } => kind("PDF document").with(
+            PageLook::Drawn { width, height, .. } => kind("PDF document").with(
                 FactLabel::Dimensions,
-                FactValue::text(format!("{} × {} pt", sheet.width, sheet.height)),
+                FactValue::text(format!("{width} × {height} pt")),
             ),
-            PdfPage::Empty => {
+            PageLook::Blank => {
                 kind("PDF document").with(FactLabel::Pages, FactValue::text("No pages"))
             }
-            PdfPage::Failed(trouble) => kind(trouble.label()),
-            // A blocking read never answers "still loading"; the arm keeps the match whole.
-            PdfPage::Loading => kind(PdfTrouble::Unreadable.label()),
+            PageLook::Failed(trouble) => kind(trouble.label()),
         }
     }
 }

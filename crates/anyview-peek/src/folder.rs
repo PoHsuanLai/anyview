@@ -9,7 +9,7 @@ use anyview_core::{
     Input, Peek, PeekBudget, SniffStep, Sniffed, ZipEntries, open_regular, sniff, sniff_zip,
 };
 use anyview_text::Tally;
-use ds::prelude::Word;
+use ds_core::word::Word;
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::Path;

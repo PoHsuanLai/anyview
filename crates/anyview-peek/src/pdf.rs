@@ -2,10 +2,10 @@
 //! thumbnail cache (see `raster`); without it a PDF is peeked as facts only, since a headless
 //! build links no renderer.
 
-use ds::components::content::pdf_thumb::PdfPage;
+use ds_core::word::Word;
 
 #[cfg(feature = "pane")]
-mod raster;
+pub(crate) mod raster;
 
 #[cfg(feature = "pane")]
 pub use raster::PdfPeek;
@@ -13,8 +13,37 @@ pub use raster::PdfPeek;
 /// What a peek of a PDF holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PdfPeeked {
-    /// The first page, rasterised, or why it could not be drawn: the pane's `PdfThumb` draws each.
-    pub page: PdfPage,
+    /// The first page, rasterised, or why it could not be drawn: the pane draws each.
+    pub page: PageLook,
+}
+
+/// What a peek of a PDF's first page came to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PageLook {
+    /// The first page, rasterised.
+    Drawn {
+        /// The page's pixels as a `data:` URI or a `file:` URL, ready to be an `<img>`'s `src`.
+        source: String,
+        /// The page's displayed width in points, after rotation; only its ratio is read.
+        width: u32,
+        /// The page's displayed height in points, after rotation.
+        height: u32,
+    },
+    /// A document with no pages.
+    Blank,
+    /// The page could not be drawn.
+    Failed(PageTrouble),
+}
+
+/// Why a PDF's first page could not be drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
+pub enum PageTrouble {
+    /// Not a PDF, damaged past recovery, unreadable, or a page the rasteriser refused.
+    #[word(label = "PDF, no preview")]
+    Unreadable,
+    /// Encrypted with a password that is not the empty one.
+    #[word(label = "Locked PDF")]
+    Locked,
 }
 
 /// The kind `Pdf` as a file with no page to draw.
