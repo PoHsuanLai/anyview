@@ -7,7 +7,7 @@ use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
 use crate::stage::{
     FindHits, MediaIn, MediaStage, PageView, PdfIn, PdfStage, RasterIn, RasterStage, Stage,
-    StageIn, StageParams, TextIn, TextStage, ZoomDir,
+    StageIn, StageParams, TextStage, ZoomDir,
 };
 use crate::typed::TypedText;
 use anyview_core::{DocPoint, DocUnit, PageIndex, Permille};

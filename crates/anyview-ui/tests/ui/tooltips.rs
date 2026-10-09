@@ -125,8 +125,10 @@ fn each_control_says_its_own_words() {
         settle(&mut harness);
         (harness, dir)
     }
-    // row, the window, then the label to hover with the tip's name and key
-    let cases: [(&str, Setup, &[(&str, &str, Option<&str>)]); 3] = [
+    // The label to hover, then the tip's name and key.
+    type Tip = (&'static str, &'static str, Option<&'static str>);
+    // row, the window, then its tips
+    let cases: [(&str, Setup, &[Tip]); 3] = [
         (
             "capsule",
             capsule,
