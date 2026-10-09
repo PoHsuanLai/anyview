@@ -211,7 +211,7 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                 steer.zoom_by(by.0, in_room(at, area));
             }
             Gesture::Scroll { by, at, held, .. } if over(area, at) => {
-                if held.intersects(Modifiers::CONTROL | Modifiers::META) {
+                if ds::prelude::is_command(held) {
                     let turn = (by.y.0 * WHEEL_ZOOM).round() as i32;
                     steer.zoom_by(turn, in_room(at, area));
                 } else {

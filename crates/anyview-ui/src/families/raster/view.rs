@@ -165,7 +165,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         match gesture {
             Gesture::Pinch { by, at, .. } if over(area, at) => zoom_by(by.0, at),
             Gesture::Scroll { by, at, held, .. }
-                if over(area, at) && held.intersects(Modifiers::CONTROL | Modifiers::META) =>
+                if over(area, at) && ds::prelude::is_command(held) =>
             {
                 zoom_by((by.y.0 * WHEEL_ZOOM).round() as i32, at);
             }
