@@ -186,10 +186,11 @@ fn a_different_file_starts_with_a_view_of_its_own_in_every_family() {
                     fresh,
                     "{scale} {name}: the change changed nothing"
                 );
-                // A find palette is not in the way of an arrow: Esc closes it, and the arrow route is
-                // for the keys; a drop is for everything else.
+                // A find palette is put away with Esc before a drop (a drop onto the open palette does not
+                // reach the window).
                 if matches!(how, Arrival::Drop) && *name == "text" {
                     chord(&mut harness, 'f');
+                    press(&mut harness, ShortcutKey::Escape);
                 }
                 next(&mut harness, how, &paths[1]);
                 assert_eq!(

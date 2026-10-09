@@ -128,14 +128,14 @@ fn a_wheel_scrolls_a_text_file_by_whole_lines_and_the_lines_are_highlighted() {
         harness.count(".tok-keyword") > 0,
         "keywords are classed for the stylesheet"
     );
-    harness.send(Input::wheel(centre(), Px(0.0), Px(-54.0)));
+    harness.send(Input::wheel(centre(), Px(0.0), Px(-60.0)));
     harness.advance(Duration::from_millis(300));
     assert_eq!(
         first(&harness).as_deref(),
         Some("4"),
-        "three lines of 18 px"
+        "three lines of 20 px"
     );
-    harness.send(Input::wheel(centre(), Px(0.0), Px(18.0)));
+    harness.send(Input::wheel(centre(), Px(0.0), Px(20.0)));
     harness.advance(Duration::from_millis(300));
     assert_eq!(first(&harness).as_deref(), Some("3"), "one line back");
     save(&mut harness, "code.png");

@@ -343,7 +343,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             SplitView {
                 label: "Viewer",
-                panes: vec![SplitPane::new(PANEL, panel).shown(pane_shown)],
+                // A folded pane leaves the split view altogether: its divider would take a strip at the
+                // stage's left edge (a right-click there, a drag that starts there).
+                panes: match pane_shown {
+                    Shown::Visible => vec![SplitPane::new(PANEL, panel)],
+                    Shown::Hidden => Vec::new(),
+                },
                 on_shown: panel_wanted,
                 common: Common {
                     extra_class: ExtraClass::parse("viewer-split").ok(),
