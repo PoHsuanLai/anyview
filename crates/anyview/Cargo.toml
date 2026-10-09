@@ -22,11 +22,11 @@ quire-desktop = ["anyview-platform/quire-desktop", "ds-desktop/dbus"]
 
 [dependencies]
 anyview-core = { workspace = true }
-anyview-export = { workspace = true }
+anyview-export = { workspace = true, features = ["print"] }
 anyview-image = { workspace = true, features = ["encode"] }
 anyview-media = { workspace = true, features = ["player"] }
 anyview-pdf = { workspace = true }
-anyview-peek = { workspace = true }
+anyview-peek = { workspace = true, features = ["media", "pane"] }
 anyview-platform = { workspace = true }
 anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }

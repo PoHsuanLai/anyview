@@ -2,10 +2,14 @@
 
 use crate::error::ExportError;
 use crate::session::Session;
-use anyview_core::{HtmlDoc, Orientation, PaperSize, PrintLayout};
+use anyview_core::{HtmlDoc, PrintLayout};
+#[cfg(feature = "print")]
+use anyview_core::{Orientation, PaperSize};
+#[cfg(feature = "print")]
 use ds_blitz::{PageSize, PageSpec, Pt};
 
 /// `doc` printed on the paper `layout` names, with quire's margins.
+#[cfg(feature = "print")]
 pub(crate) fn print_html(
     session: &mut Session,
     doc: &HtmlDoc,
@@ -15,7 +19,18 @@ pub(crate) fn print_html(
     Ok(ds_blitz::pdf(&html, page_spec(layout))?)
 }
 
+/// A text document cannot be laid out on paper without the renderer.
+#[cfg(not(feature = "print"))]
+pub(crate) fn print_html(
+    _session: &mut Session,
+    _doc: &HtmlDoc,
+    _layout: PrintLayout,
+) -> Result<Vec<u8>, ExportError> {
+    Err(ExportError::NoRenderer)
+}
+
 /// The page of a layout: the paper, turned on its side for landscape.
+#[cfg(feature = "print")]
 fn page_spec(layout: PrintLayout) -> PageSpec {
     let (across, down) = match layout.paper {
         PaperSize::A4 => (Pt::from_mm(210.0), Pt::from_mm(297.0)),
@@ -33,7 +48,7 @@ fn page_spec(layout: PrintLayout) -> PageSpec {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "print"))]
 mod tests {
     use super::*;
 

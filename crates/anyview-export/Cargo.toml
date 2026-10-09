@@ -8,6 +8,11 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# `print` prints a text document to a PDF through `ds-blitz`, the renderer; without it image, PDF and
+# plain text export need none, and a printout of a text document is refused.
+print = ["dep:ds-blitz"]
+
 [dependencies]
 anyview-core = { workspace = true }
 anyview-image = { workspace = true, features = ["encode"] }
@@ -15,11 +20,13 @@ anyview-pdf = { workspace = true }
 anyview-store = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
-# `pdf`: a Markdown, code or text document printed to a vector PDF.
-ds-blitz = { workspace = true, features = ["pdf"] }
+# The renderer of `print`: a Markdown, code or text document laid out on paper as a vector PDF.
+ds-blitz = { workspace = true, features = ["pdf"], optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# The integration tests print.
+anyview-export = { path = ".", features = ["print"] }
 tempfile = { workspace = true }
 
 [lints]
