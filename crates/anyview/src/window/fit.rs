@@ -8,6 +8,7 @@
 use anyview_core::{FilePath, PixelSize};
 use anyview_peek::{is_audio, natural_size};
 use anyview_ui::{NaturalSize, SizeBasis, audio_window_size};
+use ds::window::tiled::Tiled;
 use ds::window::vocab::{Fullscreen, Maximized, WindowState};
 use ds_blitz::{Extent, Fit, Reserve, ScreenArea, WindowSize, WindowSizer};
 
@@ -137,10 +138,15 @@ impl WindowFit {
     /// A different file has loaded: size the window to its content on the screen it is on (exact
     /// once it is mapped, which it is by now). The size is `natural`, and the default window when
     /// there is none (a text, a table, a failure). A maximized, fullscreen window is never
-    /// resized: its size is the desktop's, and a request would only fight it (Preview and
-    /// Photos do the same). Returns whether it asked for a size.
-    pub(crate) fn loaded(&self, natural: Option<NaturalSize>, window: WindowState) -> bool {
-        if holds_its_size(window) {
+    /// resized, and nor is a tiled one (`tiled.any()`): its size is the desktop's, and a request
+    /// would only fight it (Preview and Photos do the same). Returns whether it asked for a size.
+    pub(crate) fn loaded(
+        &self,
+        natural: Option<NaturalSize>,
+        window: WindowState,
+        tiled: Tiled,
+    ) -> bool {
+        if holds_its_size(window, tiled) {
             return false;
         }
         let screen = self.sizer.screen();
@@ -160,8 +166,8 @@ impl WindowFit {
 }
 
 /// Whether the desktop, not the app, decides the window's size now.
-fn holds_its_size(window: WindowState) -> bool {
-    window.maximized == Maximized::On || window.fullscreen == Fullscreen::On
+fn holds_its_size(window: WindowState, tiled: Tiled) -> bool {
+    window.maximized == Maximized::On || window.fullscreen == Fullscreen::On || tiled.any()
 }
 
 /// What to size a window to for `basis`: the document's own size, else what the header of `file`
@@ -193,6 +199,7 @@ mod tests {
     use super::*;
     use dioxus::prelude::*;
     use ds::prelude::Scale;
+    use ds::window::tiled::TileEdge;
     use ds_blitz::{ScreenOf, WorkBasis};
     use ds_harness::{Clock, Harness, HarnessConfig, Viewport, WindowScreen};
 
@@ -411,7 +418,7 @@ mod tests {
     #[test]
     fn a_load_asks_for_the_size_of_its_content() {
         let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
-        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)));
         // The page fits the 85% of the work area, so it is its own size.
         assert_eq!(harness.window_requests(), vec![Extent::new(612, 792)]);
     }
@@ -419,12 +426,12 @@ mod tests {
     #[test]
     fn each_different_file_sizes_the_window_afresh() {
         let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
-        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)));
         let wide = NaturalSize::Points(PixelSize {
             width: anyview_core::PixelLen(800),
             height: anyview_core::PixelLen(400),
         });
-        assert!(harness.within(|| fit.loaded(Some(wide), WindowState::default())));
+        assert!(harness.within(|| fit.loaded(Some(wide), WindowState::default(), Tiled::NONE)));
         assert_eq!(
             harness.window_requests(),
             vec![Extent::new(612, 792), Extent::new(800, 400)]
@@ -434,14 +441,14 @@ mod tests {
     #[test]
     fn a_file_with_no_natural_size_takes_the_default_window() {
         let (mut harness, fit) = window(area(1000), Extent::new(612, 792));
-        assert!(harness.within(|| fit.loaded(None, WindowState::default())));
+        assert!(harness.within(|| fit.loaded(None, WindowState::default(), Tiled::NONE)));
         assert_eq!(harness.window_requests(), vec![Extent::new(1000, 700)]);
     }
 
     #[test]
     fn a_page_taller_than_the_screen_is_scaled_to_its_cap() {
         let (mut harness, fit) = window(area(900), Extent::new(1000, 700));
-        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)));
         // The work area is 900 less the 32 bar, 85% of it is 737: 612 by 792 scales to 570 by 737.
         assert_eq!(harness.window_requests(), vec![Extent::new(570, 737)]);
     }
@@ -450,36 +457,49 @@ mod tests {
     fn a_window_the_person_resized_follows_the_next_file_as_preview_does() {
         let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
         harness.resize_window(Extent::new(800, 500));
-        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert!(harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)));
         assert_eq!(harness.window_requests(), vec![Extent::new(612, 792)]);
     }
 
     #[test]
-    fn a_maximized_or_fullscreen_window_is_never_resized_by_a_new_file() {
-        for (name, state) in [
+    fn a_maximized_fullscreen_or_tiled_window_is_never_resized_by_a_new_file() {
+        let maximized = WindowState {
+            maximized: Maximized::On,
+            ..WindowState::default()
+        };
+        let fullscreen = WindowState {
+            fullscreen: Fullscreen::On,
+            ..WindowState::default()
+        };
+        for (name, state, tiled) in [
+            ("maximized", maximized, Tiled::NONE),
+            ("fullscreen", fullscreen, Tiled::NONE),
             (
-                "maximized",
-                WindowState {
-                    maximized: Maximized::On,
-                    ..WindowState::default()
-                },
+                "tiled on the left",
+                WindowState::default(),
+                Tiled::NONE.with(TileEdge::Left),
             ),
             (
-                "fullscreen",
-                WindowState {
-                    fullscreen: Fullscreen::On,
-                    ..WindowState::default()
-                },
+                "tiled on all four sides",
+                WindowState::default(),
+                [
+                    TileEdge::Top,
+                    TileEdge::Bottom,
+                    TileEdge::Left,
+                    TileEdge::Right,
+                ]
+                .into_iter()
+                .collect(),
             ),
         ] {
             let (mut harness, fit) = window(area(1000), Extent::new(1000, 700));
             assert!(
-                !harness.within(|| fit.loaded(Some(page()), state)),
+                !harness.within(|| fit.loaded(Some(page()), state, tiled)),
                 "{name}"
             );
             assert!(harness.window_requests().is_empty(), "{name}");
             assert!(
-                harness.within(|| fit.loaded(Some(page()), WindowState::default())),
+                harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)),
                 "{name}: the same window, restored, is sized again"
             );
         }
@@ -542,7 +562,7 @@ mod tests {
     #[test]
     fn a_window_already_that_size_is_not_asked() {
         let (mut harness, fit) = window(area(1000), Extent::new(612, 792));
-        assert!(!harness.within(|| fit.loaded(Some(page()), WindowState::default())));
+        assert!(!harness.within(|| fit.loaded(Some(page()), WindowState::default(), Tiled::NONE)));
         assert!(harness.window_requests().is_empty());
     }
 }

@@ -22,10 +22,7 @@ fn replace(path: &Path, text: &str) {
 }
 
 fn dark_system() -> SystemPrefsSource {
-    SystemPrefsSource::Fixed(SystemPrefs {
-        scheme: Scheme::Dark,
-        ..SystemPrefs::default()
-    })
+    SystemPrefsSource::Fixed(SystemPrefs::default().with_scheme(Scheme::Dark))
 }
 
 #[test]

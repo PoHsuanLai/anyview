@@ -35,12 +35,9 @@ pub(super) fn Titlebar(
                     title,
                     parts: TitleParts::default(),
                     lights: TrafficLights::Shown,
+                    // The family's mode controls (Select | Pan) are part of the bar.
+                    trailing,
                 }
-            }
-            // quire's titlebar has no trailing slot yet, so the family's mode controls sit over
-            // the bar's trailing end.
-            if let Some(modes) = trailing {
-                div { class: "viewer-titlebar-trailing", {modes} }
             }
         }
     }

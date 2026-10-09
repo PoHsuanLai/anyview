@@ -13,12 +13,17 @@ use anyview_ui::{
     LookFeed, MediaHost, PlatformAbilities, Presentation, ResumeSource, VersionRow, VersionSource,
     ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
+use dioxus::prelude::*;
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
+use ds::window::host::{HostWindow, use_window_host_provider};
+use ds::window::vocab::{ResizeEdge, Support, TileError, WindowState, WindowTile, Zoom};
 use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Viewport};
 use ds_harness::{Input, Query};
 use image::RgbaImage;
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -289,6 +294,47 @@ pub struct Wiring {
     pub feed: Option<LookFeed>,
     /// The window's size; `VIEW` when none.
     pub viewport: Option<Viewport>,
+    /// Give the viewer a window host that counts the moves it is asked for ([`window_moves`]).
+    pub record_moves: bool,
+}
+
+thread_local! {
+    static MOVES: Cell<usize> = const { Cell::new(0) };
+}
+
+/// A window host that only counts the interactive moves the viewer asks for.
+struct CountsMoves;
+
+impl HostWindow for CountsMoves {
+    fn begin_move(&self) {
+        MOVES.with(|moves| moves.set(moves.get() + 1));
+    }
+    fn begin_resize(&self, _edge: ResizeEdge) {}
+    fn zoom(&self, _zoom: Zoom) {}
+    fn minimize(&self) {}
+    fn close(&self) {}
+    fn tile(&self, _tile: WindowTile) -> Result<(), TileError> {
+        Err(TileError::Unsupported)
+    }
+    fn supports(&self, _tile: WindowTile) -> Support {
+        Support::No
+    }
+    fn state(&self) -> WindowState {
+        WindowState::default()
+    }
+}
+
+/// The viewer under a window host that counts moves.
+#[allow(non_snake_case)]
+fn MovesRecorded() -> Element {
+    use_window_host_provider(|| Rc::new(CountsMoves));
+    rsx! { ViewerApp {} }
+}
+
+/// How many window moves the viewer has asked for on this thread since [`wired`] built it
+/// with `record_moves`.
+pub fn window_moves() -> usize {
+    MOVES.with(Cell::get)
 }
 
 /// A viewer window opened on `paths[at]` with the whole list to walk.
@@ -364,7 +410,13 @@ pub fn wired(
     if let Some(feed) = wiring.feed {
         config = config.with_context(feed);
     }
-    let mut harness = Harness::new(ViewerApp, config);
+    MOVES.with(|moves| moves.set(0));
+    let app: fn() -> Element = if wiring.record_moves {
+        MovesRecorded
+    } else {
+        ViewerApp
+    };
+    let mut harness = Harness::new(app, config);
     harness.advance(Duration::from_millis(500));
     (harness, requests, edge)
 }

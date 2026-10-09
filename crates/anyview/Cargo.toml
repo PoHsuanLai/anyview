@@ -50,6 +50,7 @@ trash = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+ds-blitz = { workspace = true, features = ["testing"] }
 anyview-platform = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true }
 image = { workspace = true }
