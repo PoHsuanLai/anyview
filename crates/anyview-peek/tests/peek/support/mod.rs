@@ -81,7 +81,7 @@ pub fn pane_budget() -> PeekBudget {
 
 /// The facts as `(label slug, text)` rows, in order.
 pub fn rows(facts: &anyview_core::Facts) -> Vec<(&'static str, String)> {
-    use ds::prelude::Word;
+    use ds_core::word::Word;
     facts
         .rows()
         .iter()

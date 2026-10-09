@@ -8,7 +8,7 @@
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
-use ds::prelude::Word;
+use ds_core::word::Word;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 

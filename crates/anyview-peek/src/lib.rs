@@ -34,7 +34,7 @@ pub use natural::{is_audio, natural_size};
 pub use office::{OfficeLooked, OfficePeek};
 #[cfg(feature = "pane")]
 pub use pane::{Pane, Part, Parts, STYLE};
-pub use pdf::{PdfPeek, PdfPeeked};
+pub use pdf::{PageLook, PageTrouble, PdfPeek, PdfPeeked};
 pub use probe::{Probed, probe};
 pub use registry::{KindVisitor, visit};
 pub use when::modified_text;

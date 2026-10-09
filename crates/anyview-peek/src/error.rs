@@ -1,12 +1,12 @@
 //! The crate's one error.
 
+use crate::pdf::PageTrouble;
 use anyview_archive::ArchiveError;
 use anyview_core::{ByteLen, FormatKind};
 use anyview_font::FontError;
 use anyview_image::ImageError;
 use anyview_text::TextError;
-use ds::components::content::pdf_thumb::PdfTrouble;
-use ds::prelude::Word;
+use ds_core::word::Word;
 use std::convert::Infallible;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -35,7 +35,7 @@ pub enum PeekError {
     Font(#[from] FontError),
     /// The PDF's first page could not be drawn.
     #[error("{}", .0.label())]
-    Pdf(PdfTrouble),
+    Pdf(PageTrouble),
     /// The folder could not be listed.
     #[error("cannot list {path:?}: {kind}")]
     Folder {

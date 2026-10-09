@@ -500,6 +500,7 @@ dependencies = [
  "dioxus-ssr",
  "ds",
  "ds-blitz",
+ "ds-core",
  "ds-harness",
  "ds-lint",
  "matroska-demuxer",

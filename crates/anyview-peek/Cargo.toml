@@ -16,7 +16,7 @@ publish.workspace = true
 [features]
 default = ["media", "pane"]
 media = ["dep:symphonia", "dep:mp4parse", "dep:matroska-demuxer"]
-pane = ["dep:dioxus", "dep:ds-blitz"]
+pane = ["dep:dioxus", "dep:ds", "dep:ds-blitz"]
 
 [dependencies]
 anyview-archive = { workspace = true }
@@ -25,9 +25,11 @@ anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }
 anyview-text = { workspace = true }
-# The `pane` feature: the component, and the PDF page cache.
+ds-core = { workspace = true }
+# The `pane` feature: the component, and the PDF page cache. Nothing outside `pane/` names a type of
+# `ds` or dioxus, so a headless build links neither.
 dioxus = { workspace = true, optional = true }
-ds = { workspace = true }
+ds = { workspace = true, optional = true }
 # `pdf`: `pdf_thumb_blocking`, the first page of a PDF rasterised by pdfrum and cached. pdfrum is
 # reached only through it.
 ds-blitz = { workspace = true, features = ["pdf"], optional = true }
@@ -38,6 +40,7 @@ mp4parse = { workspace = true, optional = true }
 symphonia = { workspace = true, optional = true }
 
 [dev-dependencies]
+ds = { workspace = true }
 # Pins the time zone the expected dates are written in.
 anyview-core = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true, features = ["pdf"] }

@@ -10,6 +10,7 @@
 mod frame;
 mod grid;
 mod lines;
+pub(crate) mod page;
 mod parts;
 mod picture;
 mod specimen;
@@ -29,6 +30,12 @@ use ds::style::icon::render::IconPx;
 use std::sync::Arc;
 
 pub use parts::{Part, Parts};
+
+// The page is rasterised for the box the pane fits it into; the two must stay one size.
+const _: () = {
+    let mine = crate::pdf::raster::PANE_MEDIA;
+    assert!(mine.width.0 == PANE_MEDIA.width.0 && mine.height.0 == PANE_MEDIA.height.0);
+};
 
 /// The pane's stylesheet: the `app` layer, tokens only (`tests/coherence.rs` lints it Strict).
 pub const STYLE: &str = include_str!("pane.css");
@@ -86,7 +93,7 @@ fn media(peeked: &Arc<AnyPeeked>, page_room: Size) -> Element {
             picture::Picture { image: image.clone(), label: peeked.name.clone() }
         },
         Body::Page(page) => rsx! {
-            PdfThumb { page: page.page.clone(), size: page_room, label: peeked.name.clone() }
+            PdfThumb { page: page::thumb(&page.page), size: page_room, label: peeked.name.clone() }
         },
         Body::Plain(plain) => lines::plain(&plain.lines),
         Body::Code(code) => lines::code(&code.lines),

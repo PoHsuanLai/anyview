@@ -32,7 +32,7 @@ cd "$(dirname "$0")/.."
 # anyview-platform is the edge: it alone names the bus and the freedesktop formats (checked for every
 # other crate further down), and it reaches no UI, GPU, decoder, player or highlighter. It runs on
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
-# anyview-peek is the light tier the launcher links: it draws with quire's `ds` and `ds-blitz` (so
+# anyview-peek is the light tier the launcher links: its `pane` feature draws with quire's `ds` and `ds-blitz` (so
 # Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never libmpv or
 # D-Bus, and never libav or libmpv: its `media` feature (default on) reads a recording's facts and
 # cover art with pure-Rust parsers (symphonia, mp4parse, matroska-demuxer), and a video's frame comes
@@ -160,14 +160,16 @@ DIRECT=(
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
-# links to look at a file: 250 packages, with no renderer, no window system and no encoder. It reaches
-# none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
+# links to look at a file: 192 packages (250 while `ds` was a hard dependency and carried dioxus,
+# ds-motion and ds-style along; the PDF page and the pane's size now have headless types of the peek's
+# own and `ds` is the `pane` feature's), with no renderer, no window system, no dioxus and no encoder.
+# It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 571"
   "anyview: 689"
 )
-HEADLESS_BUDGET=250
-HEADLESS_FORBIDDEN=(ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
+HEADLESS_BUDGET=192
+HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
 for rule in "${RULES[@]}"; do
@@ -288,7 +290,7 @@ EDGES=(
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
-  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz"
+  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-book: anyview-archive anyview-core ds-core"
