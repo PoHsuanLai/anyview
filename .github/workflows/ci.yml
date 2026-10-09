@@ -13,11 +13,6 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      # Line tables only: full debug info across blitz, stylo and wgpu made each test binary about
-      # 1.4 GB, and the workspace's tests outgrew the runner's disk. CI runs no debugger; backtraces
-      # keep their file and line.
-      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@v4
 

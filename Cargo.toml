@@ -220,10 +220,10 @@ clap = { version = "4", features = ["derive"] }
 # docket, at the desktop manifest's rev; porter at the rev docket itself pins, with the same URL
 # spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.
-docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "30aa26b81626cac46fd58ee5b09e32a5a6c3eff4", default-features = false, features = ["dbus"] }
-docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "30aa26b81626cac46fd58ee5b09e32a5a6c3eff4" }
-prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
-porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "260a14df80d98dcfde32dc2da909b58482e236f5" }
+docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "557d95de8bf714efb33a31b50c714c726776c392", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "557d95de8bf714efb33a31b50c714c726776c392" }
+prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "13fdda866dcfa6fc338a994a866e5e10f2ffe0f6" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "13fdda866dcfa6fc338a994a866e5e10f2ffe0f6" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "335d7a7c65bc7d196d5f19dfb305896ff3a55958" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
@@ -401,3 +401,9 @@ missing_debug_implementations = "warn"
 unwrap_used = "deny"
 wildcard_enum_match_arm = "deny"
 match_wildcard_for_single_variants = "deny"
+
+# Line tables only, as quire and sill build, locally and in CI: backtraces keep file and line,
+# and a test binary links in a fraction of the memory and disk (full debuginfo made each link about
+# 5.5 GB and one lane's target about 300 GB on the shared machine). `test` inherits `dev`.
+[profile.dev]
+debug = "line-tables-only"
