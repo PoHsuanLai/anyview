@@ -68,22 +68,22 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "592eea9b69
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9f6dd735aae00d6050fde452f2c81f9b72a1b671" }  # v0.2.32
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }  # v0.2.33
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a

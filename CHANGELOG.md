@@ -7,7 +7,7 @@ versioning, with pre-releases while the program is in beta.
 
 ### Design system
 
-- Viewer is built on quire v0.2.32. Shortcuts written with the command key now also answer to the Super key, as a window reports it. A right-click over a picture, a rendered Markdown page or a book now always opens the menu, and so does one where the hand moved slightly. Rotate Left and Rotate Right have a matching pair of icons. Copy Path reaches the clipboard on a Wayland desktop and stays there. The wheel speeds up when you spin it, the page moves in the same frame as the wheel, a menu or the palette taller than the window scrolls inside it, a long file name in the titlebar keeps its extension, and tooltips show in a real window.
+- Viewer is built on quire v0.2.33. Tooltips show as soon as the pointer is over a button. Shortcuts written with the command key now also answer to the Super key, as a window reports it. A right-click over a picture, a rendered Markdown page or a book now always opens the menu, and so does one where the hand moved slightly. Rotate Left and Rotate Right have a matching pair of icons. Copy Path reaches the clipboard on a Wayland desktop and stays there. The wheel speeds up when you spin it, the page moves in the same frame as the wheel, a menu or the palette taller than the window scrolls inside it, a long file name in the titlebar keeps its extension, and tooltips show in a real window.
 
 ### Plugins
 
