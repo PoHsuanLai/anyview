@@ -8,6 +8,7 @@
 //! Every public item is reached from this root, once.
 
 mod attrs;
+mod details;
 mod error;
 mod guard;
 mod history;
@@ -26,6 +27,7 @@ mod viewed;
 mod writer;
 
 pub use attrs::is_read_only;
+pub use details::{file_details, general_facts};
 
 pub use error::{StoreError, StoreOp};
 pub use history::{History, HistoryCap, HistoryEntry, history_after_view};

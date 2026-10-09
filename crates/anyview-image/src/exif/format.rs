@@ -1,6 +1,6 @@
 //! The words a photo's exposure, camera and date are shown as. Pure: integers in, text out.
 
-use super::{Exposure, Ratio};
+use super::{Exposure, Ratio, SignedRatio};
 
 /// The model, with the maker in front unless the model already starts with it (cameras often
 /// write `Canon` and `Canon EOS R5`).
@@ -53,7 +53,7 @@ fn aperture(f_number: Ratio) -> String {
 }
 
 /// `35 mm`, rounded to a whole millimetre.
-fn focal_length(length: Ratio) -> String {
+pub(super) fn focal_length(length: Ratio) -> String {
     let mm = (u64::from(length.numerator) + u64::from(length.denominator) / 2)
         / u64::from(length.denominator);
     format!("{mm} mm")
@@ -92,5 +92,34 @@ pub(super) fn taken(raw: &str) -> String {
             format!("{year}-{month}-{day} {hour}:{minute}")
         }
         _ => raw.to_owned(),
+    }
+}
+
+/// `1/200 s · f/2.8`: the shutter and the aperture, the parts that were recorded.
+pub(super) fn settings(exposure: &Exposure) -> Option<String> {
+    let parts: Vec<String> = [
+        exposure.shutter.map(shutter),
+        exposure.aperture.map(aperture),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    (!parts.is_empty()).then(|| parts.join(" · "))
+}
+
+/// `+0.7 EV`, `-1 EV`, `0 EV`: an exposure bias in stops, to a tenth.
+pub(super) fn bias(bias: SignedRatio) -> String {
+    let tenths = (i64::from(bias.numerator).abs() * 10 + i64::from(bias.denominator).abs() / 2)
+        / i64::from(bias.denominator).abs();
+    let negative = (bias.numerator < 0) != (bias.denominator < 0);
+    match (tenths, negative) {
+        (0, _) => "0 EV".to_owned(),
+        (_, negative) => {
+            let sign = if negative { '-' } else { '+' };
+            match tenths % 10 {
+                0 => format!("{sign}{} EV", tenths / 10),
+                fraction => format!("{sign}{}.{fraction} EV", tenths / 10),
+            }
+        }
     }
 }

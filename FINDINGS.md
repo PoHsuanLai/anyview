@@ -36,6 +36,16 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`Resume::Book` is not written any more.** A book remembers a page and an offset as a PDF does
   (`Resume::Pdf`). The variant stays in `anyview-core` so an old store file still reads (and is ignored), and
   because sill matches the enum exhaustively. Ends with sill's next release that drops it.
+- **File times are shown in UTC.** The General section's Created and Modified read as `2 Oct 2026 at 14:30 UTC`:
+  `anyview-core` reads no clock and no zone database (the same reason `anyview_peek::modified_text` says UTC), so the
+  person's own zone is for the edge to say. Ends when the platform edge reports the zone offset and
+  `FactTime::from_mod_time` takes it. A PDF's dates keep the zone the file wrote; a camera's time has none.
+- **The Info panel has no summary line or chips yet.** `Facts::summary` builds the headline line
+  (`JPEG image · 4032 × 3024 · 3.2 MB`) and `Tier` marks the rows in it, but the card that shows it is design
+  standard lane B; the panel lists every row, by section. Chips (HDR, Animated, Signed...) are not built.
+- **A PDF's forms, embedded fonts, PDF/A claim and linearization are not listed.** `Document::form` needs pdfrum's
+  `forms` feature, which the viewer does not turn on; the others are D-tier in the audit.
+
 - **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
   layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top
   (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A taller panel, or a dock, is covered only by the 85%.

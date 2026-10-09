@@ -21,23 +21,42 @@ use std::sync::Arc;
 /// A loaded document of any family: shared, immutable, handed from the worker that opened it to
 /// the window. Equality is identity, so a prop holding one re-renders only when the document does.
 #[derive(Debug, Clone)]
-pub struct LoadedDoc(Arc<dyn DocView>);
+pub struct LoadedDoc {
+    view: Arc<dyn DocView>,
+    general: Facts,
+}
 
 impl LoadedDoc {
     /// The document, seen without its family.
     pub(crate) fn view(&self) -> &dyn DocView {
-        self.0.as_ref()
+        self.view.as_ref()
     }
 
-    /// `doc` as a loaded document.
+    /// `doc` as a loaded document, with no General section: a folder preloaded for the next
+    /// arrow press has no file to describe.
     pub(crate) fn of<S: StageView>(doc: S::Doc) -> LoadedDoc {
-        LoadedDoc(Arc::new(Loaded::<S> { doc: Arc::new(doc) }))
+        LoadedDoc {
+            view: Arc::new(Loaded::<S> { doc: Arc::new(doc) }),
+            general: Facts::empty(),
+        }
+    }
+
+    /// This document, whose file the General section `general` describes (what any file has:
+    /// kind, size, dates, where it is). Read once, on the worker that opened the file.
+    pub(crate) fn describing(self, general: Facts) -> LoadedDoc {
+        LoadedDoc { general, ..self }
+    }
+
+    /// The rows of the Info tab: the family's own, then the General section. A family row the
+    /// General section also has (its kind as a media type, its size) gives way to it.
+    pub fn facts(&self) -> Facts {
+        self.view.facts().then(self.general.clone())
     }
 }
 
 impl PartialEq for LoadedDoc {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.view, &other.view)
     }
 }
 

@@ -38,7 +38,10 @@ pub use export::{
     PdfPages, PixelSource, PrintLayout, RasterExport, RasterExportKind, RasterTarget, Resize,
     StreamPick, Subtitles, TextExport, TextExportKind, TextFlavour, TextSource,
 };
-pub use facts::{Fact, FactLabel, FactValue, Facts};
+pub use facts::{
+    Coordinate, Fact, FactGroup, FactLabel, FactTime, FactValue, FactZone, Facts, FileDetails,
+    Tier, kind_name,
+};
 pub use helper::Helper;
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,

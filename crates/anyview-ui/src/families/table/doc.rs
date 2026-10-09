@@ -105,7 +105,7 @@ fn workbook(src: &Source, sniffed: &Sniffed, format: OfficeFormat) -> Result<Tab
             if row.label == FactLabel::Sheets {
                 facts
             } else {
-                facts.with(row.label, row.value.clone())
+                facts.with_fact(row.clone())
             }
         },
     );

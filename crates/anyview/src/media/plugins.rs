@@ -216,10 +216,10 @@ impl MediaPlugins {
         let needs = match (&writable, &route) {
             (Some(_), _) => None,
             (None, Route::Missing(missing)) => Some(missing.fact()),
-            (None, Route::Served(_) | Route::Unserved) => Some(Fact {
-                label: FactLabel::Needs,
-                value: FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
-            }),
+            (None, Route::Served(_) | Route::Unserved) => Some(Fact::new(
+                FactLabel::Needs,
+                FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
+            )),
         };
         let offer = MediaOffer::new(kinds, needs);
         // The FFmpeg plugin is installed and its FFmpeg is what is missing: that is a tool to

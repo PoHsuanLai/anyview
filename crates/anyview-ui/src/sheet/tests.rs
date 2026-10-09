@@ -305,10 +305,10 @@ fn enter_confirms_and_escape_cancels_and_letters_mean_nothing() {
 
 #[test]
 fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_writes_nothing() {
-    let needs = anyview_core::Fact {
-        label: anyview_core::FactLabel::Needs,
-        value: anyview_core::FactValue::text("anyview-ffmpeg (to convert it)"),
-    };
+    let needs = anyview_core::Fact::new(
+        anyview_core::FactLabel::Needs,
+        anyview_core::FactValue::text("anyview-ffmpeg (to convert it)"),
+    );
     let (open, outs) = Sheet::Closed.step(
         SheetIn::OpenUnavailable(needs.clone(), None),
         Stamp(0),

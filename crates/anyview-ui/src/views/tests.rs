@@ -78,6 +78,27 @@ fn facts() -> Facts {
         .with(FactLabel::Lines, FactValue::text("120"))
 }
 
+/// A located photo as the Info tab lists it: every section but the document's, General last.
+fn photo_facts() -> Facts {
+    Facts::empty()
+        .with(FactLabel::Dimensions, FactValue::text("4032 × 3024"))
+        .with(FactLabel::Colour, FactValue::text("RGB, 8-bit"))
+        .with(FactLabel::Resolution, FactValue::text("300 dpi"))
+        .with(FactLabel::Camera, FactValue::text("Canon EOS R5"))
+        .with(FactLabel::Exposure, FactValue::text("1/200 s · f/2.8"))
+        .with(FactLabel::Taken, FactValue::text("1 May 2024 at 12:30"))
+        .with(
+            FactLabel::Coordinates,
+            FactValue::text("37.7749° N, 122.4194° W"),
+        )
+        .with(FactLabel::Kind, FactValue::text("JPEG image"))
+        .with(FactLabel::Size, FactValue::text("3.2 MB (3,214,880 bytes)"))
+        .with(
+            FactLabel::Modified,
+            FactValue::text("2 Oct 2026 at 14:31 UTC"),
+        )
+}
+
 const CASES: &[Case] = &[
     Case {
         name: "titlebar-shown",
@@ -129,6 +150,22 @@ const CASES: &[Case] = &[
                     tab: PanelTab::Info,
                     tabs: PanelTabs::of(&[PanelTab::Info]),
                     facts: facts(),
+                    body: None,
+                    onchoose: |_| {},
+                    onclose: |()| {},
+                }
+            })
+        },
+    },
+    Case {
+        name: "panel-info-photo",
+        make: || {
+            root(rsx! {
+                InfoPanel {
+                    shown: Shown::Visible,
+                    tab: PanelTab::Info,
+                    tabs: PanelTabs::of(&[PanelTab::Info]),
+                    facts: photo_facts(),
                     body: None,
                     onchoose: |_| {},
                     onclose: |()| {},

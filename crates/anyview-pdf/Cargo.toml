@@ -16,6 +16,9 @@ pdfrum = { workspace = true, features = ["markdown"] }
 # Page edits and page-range writes go straight to the editor: it has `reorder_pages`, which the
 # facade's `DocEdit` does not. `svg-import` draws an SVG onto a page as vector paths.
 pdfrum-edit = { workspace = true, features = ["svg-import"] }
+# The XMP packet some PDFs keep their title and author in instead of (or as well as) the Info
+# dictionary. Already in the tree through anyview-book.
+roxmltree = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]

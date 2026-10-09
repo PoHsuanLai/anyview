@@ -1,15 +1,21 @@
 //! What a photo's EXIF block says: orientation for decoding, camera, lens, exposure and date for
 //! the facts. Reading goes through `kamadak-exif`; patching the orientation is `patch`.
 
+mod flash;
 mod format;
+mod location;
 mod patch;
+mod rows;
 
 #[cfg(test)]
 mod tests;
 
+pub use flash::{Flash, FlashMode, FlashState};
+pub use location::Location;
 pub(crate) use patch::with_orientation;
 
 use crate::orientation::ExifOrientation;
+use crate::resolution::Resolution;
 use exif::{In, Reader, Tag, Value};
 use std::io::Cursor;
 
@@ -36,6 +42,15 @@ pub struct Exposure {
     pub focal_length: Option<Ratio>,
 }
 
+/// A signed fraction as EXIF stores it, such as an exposure bias in stops.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SignedRatio {
+    /// The numerator.
+    pub numerator: i32,
+    /// The denominator, never zero.
+    pub denominator: i32,
+}
+
 /// The facts of a photo's EXIF block. An image with no EXIF block, or none the reader
 /// understands, has [`ExifFacts::none`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -52,6 +67,19 @@ pub struct ExifFacts {
     pub exposure: Exposure,
     /// The capture time as EXIF writes it, `YYYY:MM:DD HH:MM:SS`.
     pub taken: Option<String>,
+    /// How far the exposure was moved from the metered one, in stops.
+    pub bias: Option<SignedRatio>,
+    /// Whether and how the flash fired.
+    pub flash: Option<Flash>,
+    /// The program that made or last saved the file.
+    pub software: Option<String>,
+    /// The copyright notice.
+    pub copyright: Option<String>,
+    /// The density the picture is meant to be shown at.
+    pub resolution: Option<Resolution>,
+    /// Where the photo was taken. Never listed by a preview: see [`ExifFacts::location_facts`].
+    /// The body and lens serial numbers the block may hold are not read at all.
+    pub location: Option<Location>,
 }
 
 impl ExifFacts {
@@ -64,6 +92,12 @@ impl ExifFacts {
             lens: None,
             exposure: Exposure::default(),
             taken: None,
+            bias: None,
+            flash: None,
+            software: None,
+            copyright: None,
+            resolution: None,
+            location: None,
         }
     }
 
@@ -93,6 +127,14 @@ impl ExifFacts {
             taken: field(Tag::DateTimeOriginal)
                 .or_else(|| field(Tag::DateTime))
                 .and_then(text),
+            bias: field(Tag::ExposureBiasValue).and_then(signed_ratio),
+            flash: field(Tag::Flash)
+                .and_then(|value| value.get_uint(0))
+                .map(Flash::of_field),
+            software: field(Tag::Software).and_then(text),
+            copyright: field(Tag::Copyright).and_then(text),
+            resolution: resolution(&exif),
+            location: Location::read(&exif),
         }
     }
 
@@ -147,4 +189,33 @@ fn ratio(value: &Value) -> Option<Ratio> {
         numerator: first.num,
         denominator: first.denom,
     })
+}
+
+/// The first signed fraction of a value; `None` when the denominator is zero.
+fn signed_ratio(value: &Value) -> Option<SignedRatio> {
+    let Value::SRational(rationals) = value else {
+        return None;
+    };
+    let first = rationals.first()?;
+    (first.denom != 0).then_some(SignedRatio {
+        numerator: first.num,
+        denominator: first.denom,
+    })
+}
+
+/// The dots an inch the block says the picture has, from its X and Y resolution and their unit
+/// (inches unless it says centimetres).
+fn resolution(exif: &exif::Exif) -> Option<Resolution> {
+    let field = |tag| exif.get_field(tag, In::PRIMARY).map(|f| &f.value);
+    let per_unit = |tag| field(tag).and_then(ratio);
+    let centimetres = field(Tag::ResolutionUnit).and_then(|unit| unit.get_uint(0)) == Some(3);
+    Resolution::per_unit(
+        per_unit(Tag::XResolution)?,
+        per_unit(Tag::YResolution)?,
+        if centimetres {
+            crate::resolution::Unit::Centimetre
+        } else {
+            crate::resolution::Unit::Inch
+        },
+    )
 }

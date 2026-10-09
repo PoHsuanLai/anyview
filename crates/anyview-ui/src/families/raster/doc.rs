@@ -10,7 +10,7 @@ use anyview_core::{
 };
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
-    declared_size, decode, fidelity, resized,
+    declared_size, decode, fidelity, picture_facts, resized,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -435,15 +435,35 @@ fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<PixelSize, OpenErr
     Ok(size)
 }
 
+/// How much of a file is read for what it says about itself: the EXIF block of a JPEG, PNG,
+/// WebP or HEIC sits in the first blocks, and a TIFF's in most files.
+const METADATA_READ: u64 = 32 * 1024 * 1024;
+
+/// The rows of the Info tab: the picture's size and frames, then what the file says about its
+/// colour, density, camera and place. The General section (kind, size, dates) is the window's.
 fn facts(source: &Source, sniffed: &Sniffed, size: PixelSize, frames: u32) -> Facts {
-    let facts = Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(kind_words(sniffed)))
-        .with(FactLabel::Dimensions, FactValue::dimensions(size))
-        .with(FactLabel::Size, FactValue::size(source.stamp().len));
-    if frames > 1 {
+    let facts = Facts::empty().with(FactLabel::Dimensions, FactValue::dimensions(size));
+    let facts = if frames > 1 {
         facts.with(FactLabel::Frames, FactValue::text(frames.to_string()))
     } else {
         facts
+    };
+    facts.then(metadata_facts(source, sniffed))
+}
+
+/// Colour, density, camera and location, read from the file's own headers. A file that cannot be
+/// read again, or an SVG, has none.
+fn metadata_facts(source: &Source, sniffed: &Sniffed) -> Facts {
+    use std::io::Read;
+    if sniffed.kind() != FormatKind::Raster {
+        return Facts::empty();
+    }
+    let mut bytes = Vec::new();
+    let read = std::fs::File::open(source.path().as_path())
+        .and_then(|file| file.take(METADATA_READ).read_to_end(&mut bytes));
+    match read {
+        Ok(_) => picture_facts(&bytes, sniffed),
+        Err(_) => Facts::empty(),
     }
 }
 

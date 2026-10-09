@@ -137,7 +137,7 @@ impl StageView for PeekOnlyStageView {
             .facts()
             .rows()
             .iter()
-            .fold(start, |facts, row| facts.with(row.label, row.value.clone()));
+            .fold(start, |facts, row| facts.with_fact(row.clone()));
         Ok(PeekOnlyDoc {
             name,
             kind: sniffed.kind(),

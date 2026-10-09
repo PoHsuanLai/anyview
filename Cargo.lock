@@ -481,6 +481,7 @@ dependencies = [
  "anyview-core",
  "pdfrum",
  "pdfrum-edit",
+ "roxmltree 0.21.1",
  "thiserror 2.0.21",
 ]
 
@@ -632,6 +633,7 @@ dependencies = [
  "anyview-core",
  "anyview-image",
  "anyview-pdf",
+ "anyview-store",
  "anyview-text",
  "dioxus",
  "dioxus-ssr",

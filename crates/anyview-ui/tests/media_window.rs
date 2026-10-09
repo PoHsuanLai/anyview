@@ -971,10 +971,10 @@ fn open_answering(answer: Answer, offer: Option<MediaOffer>) -> Opened {
 }
 
 fn needs(package: &str, purpose: &str) -> Fact {
-    Fact {
-        label: FactLabel::Needs,
-        value: FactValue::text(format!("{package} (to {purpose})")),
-    }
+    Fact::new(
+        FactLabel::Needs,
+        FactValue::text(format!("{package} (to {purpose})")),
+    )
 }
 
 /// The export command from the palette.

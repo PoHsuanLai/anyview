@@ -5,7 +5,7 @@
 use crate::families::view::Area;
 use crate::io::OpenError;
 use crate::{EditCaution, EditOffer};
-use anyview_core::{ByteLen, FactLabel, FactValue, Facts, PageCount, PageIndex, Sniffed, Source};
+use anyview_core::{Facts, PageCount, PageIndex, Sniffed, Source};
 use anyview_pdf::{OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
 use std::io::ErrorKind;
 use std::sync::{Mutex, PoisonError};
@@ -75,26 +75,24 @@ pub struct PdfDoc {
 }
 
 impl PdfDoc {
-    /// The document `document` is, `size` bytes on disk: its outline read, its Info rows made.
-    pub(super) fn of(document: PdfDocument, size: ByteLen) -> PdfDoc {
-        let facts = Facts::empty()
-            .with(FactLabel::Kind, FactValue::text("application/pdf"))
-            .with(FactLabel::Pages, FactValue::pages(document.page_count()))
-            .with(FactLabel::Size, FactValue::size(size));
-        PdfDoc::with_facts(document, facts)
+    /// The document `document` is: its outline read, its Document section made from what the file
+    /// says of itself. The General section (kind, size, dates) is the window's.
+    pub(super) fn of(document: PdfDocument) -> PdfDoc {
+        PdfDoc::with_facts(document.info().facts(), document)
     }
 
-    /// The document a book was bound as, with the rows the book's own Info tab has. Its pages take no edit.
+    /// The document a book was bound as, with the rows the book's own Info tab has (not the bound
+    /// PDF's Info dictionary, which is the binder's). Its pages take no edit.
     pub(super) fn of_book(document: PdfDocument, facts: Facts) -> PdfDoc {
         // The book's pages are a PDF only in the window: no edit of them could be written back.
         PdfDoc {
             offer: EditOffer::Withheld,
             book: true,
-            ..PdfDoc::with_facts(document, facts)
+            ..PdfDoc::with_facts(facts, document)
         }
     }
 
-    fn with_facts(document: PdfDocument, facts: Facts) -> PdfDoc {
+    fn with_facts(facts: Facts, document: PdfDocument) -> PdfDoc {
         let offer = if document.is_signed() {
             EditOffer::Asks(EditCaution::Signed)
         } else {
@@ -155,7 +153,7 @@ impl PdfDoc {
 pub(super) fn open(src: &Source) -> Result<PdfDoc, OpenError> {
     let document = PdfDocument::open(src.path().as_path())
         .map_err(|error| OpenError::Pdf(PdfFailure::of(&error)))?;
-    Ok(PdfDoc::of(document, src.stamp().len))
+    Ok(PdfDoc::of(document))
 }
 
 /// Open the book `src` as the PDF it is bound as. Blocking: reads it and lays it out, unless this

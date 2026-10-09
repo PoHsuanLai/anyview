@@ -207,10 +207,10 @@ fn a_helper_the_file_does_not_declare_is_not_offered() {
                      probe=[\"heif-dec\"]\n";
     let fake = FakeInstaller::new(Installed::Installed);
     let host = host_of(&machine, only_heic, &fake, PluginRegistry::default());
-    let fact = anyview_core::Fact {
-        label: anyview_core::FactLabel::Needs,
-        value: anyview_core::FactValue::text("x"),
-    };
+    let fact = anyview_core::Fact::new(
+        anyview_core::FactLabel::Needs,
+        anyview_core::FactValue::text("x"),
+    );
     assert_eq!(
         host.need(fact.clone(), Helper::HeicDecode).helper,
         Some(Helper::HeicDecode)
@@ -231,10 +231,10 @@ fn a_system_that_cannot_install_offers_no_install_beside_the_row() {
         PluginRegistry::default(),
     )
     .installing_where(false);
-    let fact = anyview_core::Fact {
-        label: anyview_core::FactLabel::Needs,
-        value: anyview_core::FactValue::text("x"),
-    };
+    let fact = anyview_core::Fact::new(
+        anyview_core::FactLabel::Needs,
+        anyview_core::FactValue::text("x"),
+    );
     assert!(!host.offers(Helper::HeicDecode));
     let need = host.need(fact, Helper::HeicDecode);
     assert_eq!(need.helper, None, "the row stays, with no Install...");

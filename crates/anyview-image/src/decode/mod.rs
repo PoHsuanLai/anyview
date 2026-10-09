@@ -48,6 +48,20 @@ pub(crate) const SVG_LONG_EDGE_MIN: u32 = 1024;
 /// An SVG shown in full is drawn with its long edge at most this many pixels.
 pub(crate) const SVG_LONG_EDGE_MAX: u32 = 4096;
 
+/// How the file stores its colour (channels and bits each), read from its header alone, for the
+/// formats the `image` crate decodes; `None` for the others, and for a header it cannot read.
+pub fn colour_of(bytes: &[u8], sniffed: &Sniffed) -> Option<ColourInfo> {
+    match codec_for(sniffed).ok()? {
+        Codec::Image(format) => stills::stored_colour(bytes, format),
+        Codec::HighRange(_)
+        | Codec::Psd
+        | Codec::Icns
+        | Codec::Jxl
+        | Codec::Svg
+        | Codec::RawPreview => None,
+    }
+}
+
 /// One picture of an animation and how long it stays.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {

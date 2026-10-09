@@ -12,7 +12,7 @@ use super::shelf::use_pdf_shelf;
 use crate::families::view::{FrameLook, Held, StageCx};
 use crate::testing::golden;
 use crate::{FindHits, HitCount, HitIndex, PageView, PdfStage, Stage, StageIn, Ticket, TypedText};
-use anyview_core::{ByteLen, PageIndex, Permille, Zoom};
+use anyview_core::{PageIndex, Permille, Zoom};
 use anyview_pdf::{LinkTarget, PdfDocument};
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
@@ -25,7 +25,7 @@ mod fixture;
 
 fn doc() -> Arc<PdfDoc> {
     let document = PdfDocument::from_bytes(fixture::fixture_bytes()).unwrap();
-    Arc::new(PdfDoc::of(document, ByteLen(4096)))
+    Arc::new(PdfDoc::of(document))
 }
 
 fn view() -> PageView {

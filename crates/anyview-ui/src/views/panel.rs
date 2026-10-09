@@ -6,17 +6,32 @@ use anyview_core::Facts;
 use dioxus::prelude::*;
 use ds::components::controls::segmented::Tracking;
 use ds::components::fields::fact_list::{Fact, FactList};
-use ds::prelude::{Choice, Common, SegmentedControl, Shown, SidePanel};
+use ds::prelude::{Choice, Common, SectionHeader, SegmentedControl, Shown, SidePanel};
 use ds::root::pass_through::ExtraClass;
 use ds_core::word::Word;
 
-/// The rows of `facts` as the panel lists them.
-fn rows(facts: &Facts) -> Vec<Fact> {
-    facts
-        .rows()
-        .iter()
+/// The rows of one section as the panel lists them.
+fn rows(rows: &[&anyview_core::Fact]) -> Vec<Fact> {
+    rows.iter()
         .map(|row| Fact::new(row.label.label(), row.value.as_str()))
         .collect()
+}
+
+/// The Info tab's body: a header and a list for each section of `facts`, in display order with
+/// the General section last. A file with a single section lists it without a header.
+fn sections(facts: &Facts) -> Element {
+    let sections = facts.sections();
+    let titled = sections.len() > 1;
+    rsx! {
+        for (group , group_rows) in sections {
+            Fragment { key: "{group.slug()}",
+                if titled {
+                    SectionHeader { title: group.label().to_string() }
+                }
+                FactList { facts: rows(&group_rows) }
+            }
+        }
+    }
 }
 
 /// The panel: `shown` is the machine's, `tab` the tab it is on, `tabs` those the file has.
@@ -55,7 +70,7 @@ pub(super) fn InfoPanel(
                 }
             },
             match tab {
-                PanelTab::Info => rsx! { FactList { facts: rows(&facts) } },
+                PanelTab::Info => sections(&facts),
                 PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Tracks => rsx! {},
             }
             if let Some(body) = body {
