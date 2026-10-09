@@ -34,7 +34,8 @@ fn two(scale: u16, wiring: Wiring) -> (tempfile::TempDir, Vec<PathBuf>, Harness,
 fn panel(harness: &Harness) -> String {
     harness
         .attr(".ds-split-pane", "data-shown")
-        .unwrap_or_default()
+        // A folded panel is not in the split view at all.
+        .unwrap_or_else(|| "hidden".to_owned())
 }
 
 fn closes(requests: &Requests) -> usize {
