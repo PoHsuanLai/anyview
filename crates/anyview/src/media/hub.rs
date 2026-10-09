@@ -92,7 +92,25 @@ impl Entry {
     }
 }
 
-type ShotWaiter = (SessionId, FilePath, oneshot::Sender<Result<(), String>>);
+/// Why a frame was not saved.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum ShotError {
+    /// No window is playing the file.
+    #[error("no window is playing the file")]
+    NoWindow,
+    /// The player ended before it saved the frame.
+    #[error("the player ended before it saved the frame")]
+    PlayerEnded,
+    /// The player said nothing within the wait.
+    #[error("the player did not save the frame in time")]
+    TimedOut,
+    /// The player could not save the frame, for the reason it gave.
+    #[error("{0}")]
+    Player(String),
+}
+
+type ShotWaiter = (SessionId, FilePath, oneshot::Sender<Result<(), ShotError>>);
 
 /// The shared state of the hub.
 pub(super) struct Inner {
@@ -170,7 +188,7 @@ impl Inner {
     }
 
     /// A saved frame's outcome, for the export waiting on it.
-    pub(super) fn shot_done(&self, id: SessionId, to: &FilePath, result: Result<(), String>) {
+    pub(super) fn shot_done(&self, id: SessionId, to: &FilePath, result: Result<(), ShotError>) {
         let waiter = {
             let mut shots = locked(&self.shots);
             let at = shots
@@ -377,7 +395,7 @@ impl MediaHub {
         file: &FilePath,
         to: FilePath,
         content: ShotContent,
-    ) -> Result<(), String> {
+    ) -> Result<(), ShotError> {
         let (tell, heard) = oneshot::channel();
         {
             let sessions = locked(&self.inner.sessions);
@@ -385,15 +403,15 @@ impl MediaHub {
                 .iter()
                 .find(|entry| entry.home() == Home::Window && &entry.file == file)
             else {
-                return Err("no window is playing the file".to_owned());
+                return Err(ShotError::NoWindow);
             };
             locked(&self.inner.shots).push((entry.id, to.clone(), tell));
             entry.send(MediaCommand::Screenshot { to, content });
         }
         match tokio::time::timeout(SHOT_WAIT, heard).await {
             Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err("the player ended before it saved the frame".to_owned()),
-            Err(_) => Err("the player did not save the frame in time".to_owned()),
+            Ok(Err(_)) => Err(ShotError::PlayerEnded),
+            Err(_) => Err(ShotError::TimedOut),
         }
     }
 

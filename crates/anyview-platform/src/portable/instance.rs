@@ -6,7 +6,7 @@
 //! Unlike the bus, nothing starts the viewer when a request arrives and none runs: the launch
 //! that finds nobody home is the viewer itself.
 
-use super::frame::{self, MAX_LINE};
+use super::frame::{self, FrameError, MAX_LINE};
 use crate::error::PlatformError;
 use crate::instance::{Claim, Instance, Primary, Request};
 use latchkey::{Agent, Error as Latch, Listening, Stream};
@@ -219,13 +219,10 @@ fn serve(stream: Stream, sender: &UnboundedSender<Request>) {
     let mut line = String::new();
     let read = (&mut reader).take(MAX_LINE).read_line(&mut line);
     let result = match read {
-        Ok(_) if line.ends_with('\n') => frame::decode(line.trim_end()).and_then(|request| {
-            sender
-                .send(request)
-                .map_err(|_| "the viewer is closing".to_owned())
-        }),
-        Ok(_) => Err("the request was cut short or too long".to_owned()),
-        Err(error) => Err(format!("the request could not be read: {error}")),
+        Ok(_) if line.ends_with('\n') => frame::decode(line.trim_end())
+            .and_then(|request| sender.send(request).map_err(|_| FrameError::Closing)),
+        Ok(_) => Err(FrameError::CutShort),
+        Err(error) => Err(FrameError::Unreadable(error.to_string())),
     };
     let mut answer = frame::answer(&result);
     answer.push('\n');

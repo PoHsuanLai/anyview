@@ -26,10 +26,7 @@ pub(crate) fn list(
     let mut tally = Tally::new(limit);
     let mut seen = Seen::All;
     for entry in &archive.archive().files {
-        let kind = match entry.is_directory() {
-            true => EntryKind::Directory,
-            false => EntryKind::File,
-        };
+        let kind = kind_of(entry.is_directory());
         let item = Entry {
             path: entry.name().to_owned(),
             kind,
@@ -68,7 +65,7 @@ pub(crate) fn extract(src: &Input, name: &str, allowed: ByteLen) -> Result<Vec<u
             return Ok(true);
         }
         found = Some(read_entry(
-            entry.is_directory(),
+            kind_of(entry.is_directory()),
             entry.size(),
             reader,
             allowed,
@@ -84,13 +81,22 @@ pub(crate) fn extract(src: &Input, name: &str, allowed: ByteLen) -> Result<Vec<u
     }
 }
 
+/// A directory flag of the header as the kind it names.
+fn kind_of(is_directory: bool) -> EntryKind {
+    if is_directory {
+        EntryKind::Directory
+    } else {
+        EntryKind::File
+    }
+}
+
 fn read_entry(
-    is_directory: bool,
+    kind: EntryKind,
     size: u64,
     reader: &mut dyn Read,
     allowed: ByteLen,
 ) -> Result<Vec<u8>, ArchiveError> {
-    if is_directory {
+    if kind != EntryKind::File {
         return Err(ArchiveError::NotAFile);
     }
     if size > allowed.0 {

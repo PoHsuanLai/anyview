@@ -4,7 +4,7 @@
 //! what ends a session.
 
 use super::engine::Engine;
-use super::hub::{Inner, SessionId};
+use super::hub::{Inner, SessionId, ShotError};
 use super::map::{Opened, notices_of};
 use super::orders::Home;
 use super::snapshot::{Change, Snapshot};
@@ -94,7 +94,7 @@ impl MediaActor {
         match (event, hub) {
             (MediaEvent::ShotSaved(to), Some(hub)) => hub.shot_done(self.id, to, Ok(())),
             (MediaEvent::ShotFailed { to, reason }, Some(hub)) => {
-                hub.shot_done(self.id, to, Err(reason.clone()));
+                hub.shot_done(self.id, to, Err(ShotError::Player(reason.clone())));
             }
             (MediaEvent::Refused(reason), _) => eprintln!("anyview: the player refused: {reason}"),
             (MediaEvent::Ended(EndReason::Eof) | MediaEvent::Failed(_), Some(hub)) => {

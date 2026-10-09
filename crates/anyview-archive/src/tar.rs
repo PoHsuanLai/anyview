@@ -7,17 +7,14 @@ use anyview_core::{ArchiveFormat, ByteLen, Input};
 use std::io::{BufReader, Read, Seek};
 use tar::{Archive, EntryType};
 
-/// Lists the entries of `archive` into `tally` and says how far it got; the error is the
-/// parser's words for why it could not go on.
+/// Lists the entries of `archive` into `tally` and says how far it got; the error is
+/// the reader's reason it could not go on.
 pub(crate) fn fill<R: Read + Seek>(
     archive: &mut Archive<R>,
     tally: &mut Tally,
-) -> Result<Seen, String> {
-    let entries = archive
-        .entries_with_seek()
-        .map_err(|error| error.to_string())?;
-    for entry in entries {
-        let entry = entry.map_err(|error| error.to_string())?;
+) -> std::io::Result<Seen> {
+    for entry in archive.entries_with_seek()? {
+        let entry = entry?;
         let kind = kind_of(entry.header().entry_type());
         let item = Entry {
             path: path_of(&entry),

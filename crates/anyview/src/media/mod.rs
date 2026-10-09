@@ -19,6 +19,6 @@ mod snapshot;
 
 pub use exports::{ExportEnd, ExportHandle, Exports, PluginExport};
 pub use host::PlayerHost;
-pub use hub::MediaHub;
+pub use hub::{MediaHub, ShotError};
 pub use now_playing::NowPlaying;
 pub use plugins::{ExportTool, MediaPlugins, PlayRoute, Playing, Reading, WriteRoute};

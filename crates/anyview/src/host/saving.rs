@@ -5,7 +5,9 @@
 use super::outcome::Outcome;
 use anyview_core::{FilePath, FormatKind};
 use anyview_pdf::{PdfDocument, apply, page_op};
-use anyview_store::{DEFAULT_KEEP, Durability, Pending, SavedAt, VersionId, Versions, Written};
+use anyview_store::{
+    DEFAULT_KEEP, Durability, Pending, SavedAt, StoreError, VersionId, Versions, Written,
+};
 use anyview_ui::{EditRequest, Probed, VersionKey, VersionRow};
 
 /// Why an edit could not be made into the bytes of a new file.
@@ -19,6 +21,19 @@ enum EditError {
     Pdf(#[from] anyview_pdf::PdfError),
     #[error("a file of this kind has no edit to save")]
     NoEdit,
+}
+
+/// Why a save or a restore did not write the file; the words are the person's.
+#[derive(Debug, thiserror::Error)]
+enum SaveError {
+    #[error("cannot save the edit: {0}")]
+    Edit(#[from] EditError),
+    #[error("cannot keep the original before saving: {0}")]
+    KeepOriginal(StoreError),
+    #[error("cannot save the file: {0}")]
+    Write(StoreError),
+    #[error("cannot go back to that version: {0}")]
+    Restore(StoreError),
 }
 
 /// The bytes `file` becomes under `request`.
@@ -57,7 +72,7 @@ pub(super) fn save_edit(
 ) -> Outcome {
     let path = file.source.path();
     let result = edited(file, request)
-        .map_err(|error| format!("cannot save the edit: {error}"))
+        .map_err(SaveError::from)
         .and_then(|bytes| written(versions, at, path, bytes));
     outcome_of(result, path)
 }
@@ -68,15 +83,15 @@ fn written(
     at: SavedAt,
     path: &FilePath,
     bytes: Vec<u8>,
-) -> Result<VersionId, String> {
+) -> Result<VersionId, SaveError> {
     let pending = Pending::new(path.as_path(), bytes);
     let backed_up = versions
         .back_up(pending, at)
-        .map_err(|error| format!("cannot keep the original before saving: {error}"))?;
+        .map_err(SaveError::KeepOriginal)?;
     backed_up
         .write_in_place()
         .map(kept_of)
-        .map_err(|error| format!("cannot save the file: {error}"))
+        .map_err(SaveError::Write)
 }
 
 /// The version a save kept. A save whose folder could not be synced is still a save: the bytes
@@ -101,7 +116,7 @@ pub(super) fn restore(
     let result = versions
         .restore(version, at)
         .map(kept_of)
-        .map_err(|error| format!("cannot go back to that version: {error}"));
+        .map_err(SaveError::Restore);
     outcome_of(result, path)
 }
 
@@ -124,13 +139,13 @@ pub(super) fn revert(
     }
 }
 
-fn outcome_of(result: Result<VersionId, String>, path: &FilePath) -> Outcome {
+fn outcome_of(result: Result<VersionId, SaveError>, path: &FilePath) -> Outcome {
     match result {
         Ok(kept) => Outcome::Written {
             file: path.clone(),
             kept,
         },
-        Err(why) => Outcome::NotWritten(why),
+        Err(why) => Outcome::NotWritten(why.to_string()),
     }
 }
 

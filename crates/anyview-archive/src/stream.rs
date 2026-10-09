@@ -2,6 +2,7 @@
 //! the prefix holds (a tar, or one file) is the caller's to say.
 
 use crate::container::Codec;
+use crate::entry::Seen;
 use crate::error::ArchiveError;
 use anyview_core::{ArchiveFormat, Input};
 use std::io::{BufReader, Read};
@@ -11,8 +12,8 @@ use std::io::{BufReader, Read};
 pub(crate) struct Unpacked {
     /// At most the cap's bytes.
     pub bytes: Vec<u8>,
-    /// Whether the stream ended inside the cap, so `bytes` is all of it.
-    pub whole: bool,
+    /// `All` when the stream ended inside the cap, so `bytes` is all of it.
+    pub seen: Seen,
 }
 
 /// The first `cap` bytes of what the stream `src` unpacks to.
@@ -49,9 +50,11 @@ fn read_capped(
         .take(cap.saturating_add(1))
         .read_to_end(&mut bytes)
         .map_err(|error| ArchiveError::malformed(format, error))?;
-    let whole = bytes.len() as u64 <= cap;
-    if !whole {
+    let seen = if bytes.len() as u64 <= cap {
+        Seen::All
+    } else {
         bytes.truncate(usize::try_from(cap).unwrap_or(usize::MAX));
-    }
-    Ok(Unpacked { bytes, whole })
+        Seen::Start
+    };
+    Ok(Unpacked { bytes, seen })
 }

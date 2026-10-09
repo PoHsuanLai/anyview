@@ -190,7 +190,8 @@ impl Service {
             results,
             entries,
         };
-        let handed = handoff::decode(&wire).map_err(fdo::Error::InvalidArgs)?;
+        let handed =
+            handoff::decode(&wire).map_err(|error| fdo::Error::InvalidArgs(error.to_string()))?;
         self.hand_over(Request::Handoff(handed))
     }
 }

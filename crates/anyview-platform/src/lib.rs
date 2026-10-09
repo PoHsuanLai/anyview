@@ -8,7 +8,7 @@
 //! Two implementation modules. `portable` is built everywhere and calls no desktop service: single
 //! instance over a per-user socket, the platform's opener, the thumbnail cache, and the traits'
 //! "not available" answers. `linux` is the Linux desktop's own services over D-Bus and the
-//! freedesktop formats, built on Linux with the `quire-desktop` feature (on by default); without
+//! freedesktop formats, built on Linux with the `quire-desktop` feature (opt-in); without
 //! the feature this crate does not depend on zbus.
 //!
 //! Every public item is reached from this root once, except the implementations, which are

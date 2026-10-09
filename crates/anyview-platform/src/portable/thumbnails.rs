@@ -83,9 +83,9 @@ impl ThumbnailCache for FreedesktopThumbnails {
             mtime: mtime_seconds(stamp),
             len: stamp.len.0,
         };
-        let png = encode(pixels, &tags).map_err(|reason| PlatformError::Thumbnail {
+        let png = encode(pixels, &tags).map_err(|error| PlatformError::Thumbnail {
             path: path.clone(),
-            reason,
+            reason: error.to_string(),
         })?;
         write_atomically(&path, &png)
     }
@@ -99,7 +99,7 @@ struct Tags {
 }
 
 /// `pixels` as a PNG with the spec's text chunks before the image data.
-fn encode(pixels: &ThumbPixels, tags: &Tags) -> Result<Vec<u8>, String> {
+fn encode(pixels: &ThumbPixels, tags: &Tags) -> Result<Vec<u8>, png::EncodingError> {
     let size = pixels.size();
     let mut out = Vec::new();
     let mut encoder = png::Encoder::new(&mut out, size.width.0, size.height.0);
@@ -110,15 +110,11 @@ fn encode(pixels: &ThumbPixels, tags: &Tags) -> Result<Vec<u8>, String> {
         (MTIME_KEY, tags.mtime.to_string()),
         (SIZE_KEY, tags.len.to_string()),
     ] {
-        encoder
-            .add_text_chunk(key.to_owned(), value)
-            .map_err(|error| error.to_string())?;
+        encoder.add_text_chunk(key.to_owned(), value)?;
     }
-    let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
-    writer
-        .write_image_data(pixels.rgba())
-        .map_err(|error| error.to_string())?;
-    writer.finish().map_err(|error| error.to_string())?;
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(pixels.rgba())?;
+    writer.finish()?;
     Ok(out)
 }
 
