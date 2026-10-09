@@ -73,22 +73,22 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "592eea9b69
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }  # v0.3.1
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "d97d1909719156a001749fa9eaf7e78f4558d496" }  # v0.3.2
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -184,17 +184,17 @@ peniko = "0.6"
 # (github.com/PoHsuanLai/pdfrum, MIT OR Apache-2.0). `pdfrum-anyrender` is the anyrender painter
 # (scenes as vector PDF pages); it writes through pdfrum-edit (glyph-run fonts subset and
 # instanced, gradients, JPEG and PNG passthrough; `variable-fonts` lets the subsetter instance
-# variable and CFF2 faces). Every pdfrum crate is taken from one git rev so the tree holds one
-# copy of each; the rev is master after #102 (stop flag, owned page) and #103 (link border).
-pdfrum-anyrender = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "e21b9352e0e070e4572ad67d16a309c570df2b83" }
-pdfrum-edit = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "e21b9352e0e070e4572ad67d16a309c570df2b83", features = ["variable-fonts"] }
-pdfrum-object = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "e21b9352e0e070e4572ad67d16a309c570df2b83" }
-pdfrum-common = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "e21b9352e0e070e4572ad67d16a309c570df2b83" }
+# variable and CFF2 faces). Every pdfrum crate comes from crates.io at one minor (0.5), so the tree holds
+# one copy of each (as quire's own manifest does).
+pdfrum-anyrender = "0.5"
+pdfrum-edit = { version = "0.5", features = ["variable-fonts"] }
+pdfrum-object = "0.5"
+pdfrum-common = "0.5"
 # Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
 # the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
 skrifa = "0.44"
 # Reading PDFs back in tests (text, fonts, images, a rasterised page): dev-dependency only.
-pdfrum = { git = "https://github.com/PoHsuanLai/pdfrum", rev = "e21b9352e0e070e4572ad67d16a309c570df2b83", default-features = false, features = ["vello-cpu"] }
+pdfrum = { version = "0.5", default-features = false, features = ["vello-cpu"] }
 # The print portal's fd, from a sealed anonymous file (ds-blitz's `print` feature, Linux only).
 memfd = "0.6"
 # Spellchecking (ds-blitz's `spell` feature): a pure-Rust Hunspell-compatible checker,
@@ -220,8 +220,8 @@ nucleo-matcher = "0.3.1"
 fend-core = "1.5.8"
 clap = { version = "4", features = ["derive"] }
 # Single instance without D-Bus: one agent per user over a Unix socket or a named pipe, found by an
-# advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as the pdfrum
-# crates are; `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
+# advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as docket and porter are;
+# `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
 # docket, at the desktop manifest's rev; porter at the rev docket itself pins, with the same URL
 # spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `prov` is the label and name vocabulary its signatures use.

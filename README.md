@@ -23,7 +23,7 @@ cargo build --release --locked
 target/release/anyview --version
 ```
 
-quire (the design system), blitz-kit, the Blitz, vello and anyrender forks and pdfrum are git dependencies
+quire (the design system), blitz-kit, the Blitz, vello and anyrender forks are git dependencies
 pinned by revision in `Cargo.toml` and `Cargo.lock`: cargo fetches them, and nothing needs to sit next to this
 checkout. The pins live in `[workspace.dependencies]`; the quire crates (`ds`, `ds-core`, `ds-blitz`,
 `ds-settings`, `ds-harness`, `ds-lint`) are the lines that name quire's rev.
