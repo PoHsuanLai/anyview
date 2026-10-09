@@ -10,12 +10,11 @@ use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
-use anyview_core::RasterTarget;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, MediaContainer, Peek,
     PeekBudget, PixelArea, PixelSize, Sniffed,
 };
-use anyview_image::{ImagePeek, encode};
+use anyview_image::{ImagePeek, encode_png};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
@@ -118,7 +117,7 @@ pub fn audio_cover(
     // A parser fed a hostile header may panic: that is no cover, not a dead worker.
     catch_unwind(AssertUnwindSafe(|| {
         let cover = look(&src, sniffed, budget).ok()?.cover?;
-        let png = encode(&cover.picture, RasterTarget::Png).ok()?;
+        let png = encode_png(&cover.picture).ok()?;
         Some(AudioCover {
             png,
             size: cover.source_size,

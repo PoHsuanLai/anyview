@@ -1,11 +1,11 @@
-//! The encoders the `image` crate provides: PNG, JPEG, lossless WebP, TIFF and BMP.
+//! The encoders the `image` crate provides: PNG (written by `crate::png`, which needs no feature),
+//! JPEG, lossless WebP, TIFF and BMP.
 
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use anyview_core::Quality;
 use image::codecs::bmp::BmpEncoder;
 use image::codecs::jpeg::JpegEncoder;
-use image::codecs::png::PngEncoder;
 use image::codecs::tiff::TiffEncoder;
 use image::codecs::webp::WebPEncoder;
 use image::{ExtendedColorType, ImageEncoder};
@@ -23,12 +23,7 @@ fn dimensions(picture: &Rgba8) -> (u32, u32) {
 }
 
 pub(super) fn png(picture: &Rgba8) -> Result<Vec<u8>, ImageError> {
-    let (width, height) = dimensions(picture);
-    let mut out = Vec::new();
-    PngEncoder::new(&mut out)
-        .write_image(picture.bytes(), width, height, ExtendedColorType::Rgba8)
-        .map_err(encode_error)?;
-    Ok(out)
+    crate::png::encode_png(picture)
 }
 
 /// The pixels over white, three bytes each: JPEG has no alpha.

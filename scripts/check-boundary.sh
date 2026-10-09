@@ -200,6 +200,13 @@ for dep in "${HEADLESS_FORBIDDEN[@]}"; do
     fail=1
   fi
 done
+# With `media` (what a launcher adds, for audio covers and a movie's size) it still links no encoder.
+for dep in rav1e ravif img-parts; do
+  if cargo tree -p anyview-peek --no-default-features --features media -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    echo "LEAK: anyview-peek --no-default-features --features media depends on $dep"
+    fail=1
+  fi
+done
 headless=$(cargo tree -p anyview-peek --no-default-features -e normal,build --prefix none --format '{p}' 2>/dev/null \
   | sed 's/ (\*)$//' | sort -u | grep -c .)
 if [ "$headless" -gt "$HEADLESS_BUDGET" ]; then
