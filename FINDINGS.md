@@ -45,6 +45,21 @@ on. It is a reference, not a log: how each was found lives in git history.
   standard lane B; the panel lists every row, by section. Chips (HDR, Animated, Signed...) are not built.
 - **A PDF's forms, embedded fonts, PDF/A claim and linearization are not listed.** `Document::form` needs pdfrum's
   `forms` feature, which the viewer does not turn on; the others are D-tier in the audit.
+- **The Select | Pan control sits over the titlebar, not in it.** quire v0.2.33 has no titlebar trailing slot
+  (`WindowTitlebar` draws the lights and the title area only) and `CapsuleSlot` has no `Modes` variant (items,
+  readouts, dividers, a scrub and a level), nor an icon for a hand or a pointer, so a Select | Pan pair cannot be
+  a capsule mode group. `views/chrome.rs` puts the family's `StageView::modes` element in
+  `.viewer-titlebar-trailing`, absolutely placed at the bar's trailing end with token spacing, fading with the
+  bar. Ends when quire offers a titlebar trailing slot: the element moves into it unchanged (also what the
+  Preview | Source control of the design standard needs).
+- **A tiled window is still resized by a new file.** `WindowFit::loaded` leaves a maximized or fullscreen window
+  alone (`WindowState`), but quire's `WindowState` has no tiled flag and winit reports none on Wayland, and
+  `WindowSizer::request_size` never refuses: the compositor answers with its own size. Ends when quire's
+  `WindowState` carries the tiled edges (a `quire.patch` request: `Tiled` beside `Maximized`/`Fullscreen`, from
+  xdg_toplevel's tiled states), so `holds_its_size` can include them.
+- **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
+  a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
+  pure `hand` machine's cases and the viewer step, not by a held key in the harness.
 
 - **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
   layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top

@@ -7,6 +7,7 @@ use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
 use crate::context::{ContextIn, ContextOut, ContextPick};
+use crate::hand::HandIn;
 use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
@@ -77,27 +78,52 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Navigate(input) => navigate(viewer, input, at, params),
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
+        ViewerIn::Hand(input) => (hand(viewer, input), vec![]),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
         ViewerIn::Elapsed => elapsed(viewer, at, params),
     }
 }
 
-/// Start loading `path`: the load takes a new ticket, and whatever stage showed the file before
-/// goes, so nothing of it answers inputs meant for the next one.
-fn begin(viewer: Viewer, path: &FilePath, at: Stamp, _params: &ViewerParams) -> Step {
-    let (viewer, outs) = restart(viewer, path, at, |ticket, path| ViewerOut::Probe {
+/// Start loading `path`: the load takes a new ticket, and whatever showed the file before goes,
+/// so a different file opens as the first did and nothing of the last answers inputs meant for the
+/// next one. The stage (its zoom, place, turn and find), the sheet, the palette and the context
+/// menu are all about the file left. The side panel stays up, as a sidebar does in Preview.
+fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerParams) -> Step {
+    let (viewer, mut outs) = restart(viewer, path, at, |ticket, path| ViewerOut::Probe {
         ticket,
         path,
     });
-    (
-        Viewer {
-            stage: Stage::NoStage,
-            trashing: Trashing::Not,
-            ..viewer
-        },
-        outs,
-    )
+    let viewer = Viewer {
+        stage: Stage::NoStage,
+        trashing: Trashing::Not,
+        // The tool is the person's choice and carries to the next file; a held Space and the
+        // picture's place are about the file left.
+        hand: viewer.hand.step(HandIn::SpaceUp),
+        ..viewer
+    };
+    let (viewer, more) = sheet(viewer, SheetIn::Cancel, at, params);
+    outs.extend(more);
+    let (viewer, more) = palette(viewer, PaletteIn::Close, at, params);
+    outs.extend(more);
+    let (viewer, more) = context(viewer, ContextIn::Close, at, params);
+    outs.extend(more);
+    (viewer, outs)
+}
+
+/// The pan tool or Space moved. Only a picture has one to move; Space coming up is always heard, so
+/// a hold is never left behind.
+pub(super) fn hand(viewer: Viewer, input: HandIn) -> Viewer {
+    let pans_here = matches!(viewer.stage, Stage::Raster(_));
+    match (input, pans_here) {
+        (HandIn::SpaceUp, _) | (HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown, true) => {
+            Viewer {
+                hand: viewer.hand.step(input),
+                ..viewer
+            }
+        }
+        (HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown, false) => viewer,
+    }
 }
 
 /// Load `path` again after it changed: the stage stays, so the new copy opens where the old one
@@ -152,10 +178,7 @@ fn dropped(viewer: Viewer, paths: Vec<FilePath>, at: Stamp, params: &ViewerParam
     let Some(first) = paths.first().cloned() else {
         return (viewer, vec![]);
     };
-    // A sheet is about the file it was opened on: the new file is not what it would apply to.
-    let (viewer, mut outs) = sheet(viewer, SheetIn::Cancel, at, params);
-    let (viewer, more) = navigate(viewer, NavigateIn::Leave, at, params);
-    outs.extend(more);
+    let (viewer, mut outs) = navigate(viewer, NavigateIn::Leave, at, params);
     let (viewer, more) = begin(viewer, &first, at, params);
     outs.extend(more);
     match NonEmpty::from_vec(paths) {
@@ -362,6 +385,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Rewind(rewind) => (viewer, vec![ViewerOut::Rewind(rewind)]),
         Route::Dismiss => dismissed(viewer),
         Route::Stage(input) => stage(viewer, input, at, params),
+        Route::Hand(input) => (hand(viewer, input), vec![]),
         Route::Navigate(input) => navigate(viewer, input, at, params),
         Route::Chrome(input) => chrome(viewer, input, at, params),
         Route::Ignored => file_key(viewer, key, at, params),

@@ -96,6 +96,8 @@ pub struct Area {
 pub struct StageCx {
     /// The stage machine's state.
     pub stage: Stage,
+    /// The pan tool: whether a drag on a picture pans it.
+    pub hand: crate::Hand,
     /// The load this document belongs to.
     pub ticket: Ticket,
     /// The room, once measured.
@@ -211,6 +213,11 @@ pub trait StageView: 'static {
     ) -> Vec<ds::components::chrome::capsule::priority::RankedSlot<Command>>;
     /// The panel's body for `tab`, when this family has something for it beyond the facts.
     fn panel(doc: &Arc<Self::Doc>, tab: PanelTab, cx: &StageCx) -> Option<Element>;
+    /// The controls on the titlebar's trailing side, for a family with a mode to choose (a
+    /// picture's Select | Pan). The titlebar fades and returns with the capsule.
+    fn modes(_doc: &Arc<Self::Doc>, _cx: &StageCx) -> Option<Element> {
+        None
+    }
     /// The job that reads `rows` lines from `first`, for a family that shows lines.
     fn lines(_doc: &Arc<Self::Doc>, _ticket: Ticket, _first: LineIndex, _rows: u32) -> Option<Job> {
         None
@@ -253,6 +260,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn stage(&self, cx: &StageCx) -> Element;
     fn slots(&self, cx: &StageCx) -> Vec<RankedSlot<Command>>;
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
+    fn modes(&self, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
     fn leaving(&self) -> Leaving;
@@ -311,6 +319,10 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element> {
         S::panel(&self.doc, tab, cx)
+    }
+
+    fn modes(&self, cx: &StageCx) -> Option<Element> {
+        S::modes(&self.doc, cx)
     }
 
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job> {

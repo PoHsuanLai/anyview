@@ -120,6 +120,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     remember_on_leaving(c);
     keep_the_one_left(c);
     shelf.wanted.set(Some(path.clone()));
+    shelf.sizing.set(Some(ticket));
     shelf.loaded.set(None);
     shelf.peeked.set(None);
     shelf.lines.set(None);

@@ -505,19 +505,23 @@ is the whole output), the fixed `DEFAULT_SCREEN` (1920 by 1200) before the event
 window), or `ANYVIEW_WINDOW_SCREEN=WIDTHxHEIGHT` (for tests). A PDF's page is `NaturalSize::Points`: a point is a
 logical pixel on any screen, so it is not divided by the scale.
 
-Content whose size only the loaded document knows is sized after load. The first file of a window, once its full
-open has landed, tells the host its natural size (`StageView::natural`: a PDF's first page as displayed, at
-100%, from pdfrum's crop box and rotation; a picture's decoded size, which a plugin's HEIC or camera raw only
-has then) as `HostRequest::SizeWindow`, once: the shelf's `FirstLoad` is spent by the first load that lands, so
-the next file, a reload and a failed first file never send it. The window routes it to `WindowTask::Size`,
-and `WindowFit::loaded` calls quire's `WindowSizer::request_size(fitted)` unless `origin()` is `Person` (the person
-resized the window, or the compositor did), the window already is that size, or it asked before. It fits to
-`WindowSizer::screen()`, which is exact once the window is mapped (its own output and fractional scale), so a
-first window that opened before the screen was known is corrected here. A request nobody answers expires in
-quire after 500 ms and is not retried. A test runs the harness's window (`SizerAck`, `WindowScreen`,
-`Harness::window_requests`). The mini window is never resized. So moving to the next file keeps the window (Preview's habit), a window a person resized is never
-changed, and a file opened into a new window (a second launch, the welcome window's pick, the mini window made a
-window again) gets its own. The mini and welcome windows keep their own constants.
+Every different file sizes the window, as Preview does. When a file's full open has landed, the window tells the host
+what to size to as `HostRequest::SizeWindow(SizeBasis)`: `Natural` when the document knows (`StageView::natural`: a
+PDF's first page as displayed, at 100%, from pdfrum's crop box and rotation; a picture's decoded size, which a
+plugin's HEIC or camera raw only has then), `Header` when it knows none (a recording's picture, a picture whose
+plugin is missing), and `Default` when the file failed to load, so that it is sized as any file with no natural
+size and not left at the last file's size. The shelf's `sizing` ticket is set by each different file's `Open`
+and spent by the first of its landing or failing, so a reload of the same file, and a file the person has left,
+send nothing. The window routes it to `WindowTask::Size`, which reads a `Header` with
+`anyview_peek::natural_size` on a blocking thread (a video's is a probe of the file; never the UI thread) and drops
+the answer if the window has moved to another file by then. `WindowFit::loaded` then calls quire's
+`WindowSizer::request_size(fitted)` unless the window is maximized or fullscreen (its size is the desktop's, so
+a request would only fight it; `WindowState` has no tiled state, see FINDINGS), or already is that size. The size a
+person gave a window does not hold against the next file: Preview and Photos size each document, and so does
+this. It fits to `WindowSizer::screen()`, which is exact once the window is mapped (its own output and fractional
+scale), so a first window that opened before the screen was known is corrected here. A request nobody answers
+expires in quire after 500 ms and is not retried. A test runs the harness's window (`SizerAck`, `WindowScreen`,
+`Harness::window_requests`). The mini window is never resized. The mini and welcome windows keep their own constants.
 
 A wheel's detents reach the PDF, picture and text views as `WheelDelivery::Eased` gestures: one
 `Gesture::Scroll` per frame whose shares sum to 60 px a detent over at most 200 ms (design/11 §11.3.11). A touchpad's
@@ -1394,7 +1398,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `TreeStage` | `Browsing { open }`, `Selected { open, row }` | `Toggle`, `Open`, `Close`, `CollapseAll`, `Select`, `Deselect` | none |
 | `TextStage` | `Reading`, `Finding { query, hits }` | `Scroll`, `Step` (a line, a page, the start, the end), `Find`, `Results`, `NextHit`, `ToggleSource`, `ToggleWrap`, `Restore` | `Remember`, `ScrollTo`, `Show(view)`, `Find(..)` |
 | `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Table`, `Tree` | one family's input each | each family's output, lifted |
-| `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens, and a sheet up is cancelled; one's folder or the several are the list), `Chosen` (the same, once the file chooser ends, with no files when it was cancelled; one chooser is asked for at a time), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
+| `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens, and the walk ends; one's folder or the several are the list. `begin`, which every different file goes through, is what cancels a sheet, closes the palette and the context menu, and gives the stage and a held Space back; the pointer tool and the side panel stay), `Chosen` (the same, once the file chooser ends, with no files when it was cancelled; one chooser is asked for at a time), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
 **Why the machines and the views share a crate.** The machines are the part that must stay pure, and
 they are: each `model.rs` and `step.rs` names only `anyview-core` and `ds-core`, which the script

@@ -4,6 +4,7 @@ use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::region::{Step, presentation, sheet, stage};
 use crate::command::Command;
 use crate::edits::{EditOffer, EditRequest};
+use crate::hand::HandIn;
 use crate::presentation::PresentationIn;
 use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
 use crate::stage::Stage;
@@ -17,6 +18,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
             None => (viewer, vec![]),
         },
         Command::File(action) => file_action(viewer, action, at, params),
+        Command::UseTool(tool) => (super::step::hand(viewer, HandIn::Use(tool)), vec![]),
         Command::OpenFile => super::step::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }

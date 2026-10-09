@@ -14,6 +14,7 @@ mod command;
 mod context;
 mod edits;
 mod families;
+mod hand;
 mod io;
 mod keys;
 mod load;
@@ -47,12 +48,13 @@ pub use families::{
     TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size, family_of,
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
+pub use hand::{Hand, HandIn, Space, Tool};
 pub use io::{
     Backend, Done, Edge, FileAccess, FileCard, FileCards, FileLocks, FirstFrameSource,
     HelperSource, HelperWords, HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice,
     MediaPlayback, MediaStart, MediaStarted, MediaWake, NaturalSize, Need, Notice, OpenError,
     OpenLink, PlatformAbilities, PluginPicture, Preloaded, Probed, Readable, Reply, ResumeSource,
-    SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    SizeBasis, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{

@@ -190,7 +190,7 @@ fn a_file_with_no_stage_shows_its_facts_and_offers_show_in_folder() {
     let asked = requests.lock().unwrap();
     let asked: Vec<&HostRequest> = asked
         .iter()
-        .filter(|request| !matches!(request, HostRequest::Watch(_)))
+        .filter(|request| !matches!(request, HostRequest::Watch(_) | HostRequest::SizeWindow(_)))
         .collect();
     assert!(
         matches!(

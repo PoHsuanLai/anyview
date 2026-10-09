@@ -23,7 +23,7 @@ use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
-    ChromeIn, Command, ContextIn, ContextMenu, Launch, Load, LoadFailure, NavigateIn,
+    ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, NavigateIn,
     Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn,
     Spot, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
 };
@@ -33,6 +33,7 @@ use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
 use ds::machine::{use_machine_in, use_machine_state};
 use ds::prelude::*;
+use ds::window::vocab::Activation;
 use ds_blitz::use_gpu;
 use ds_core::vocab::ShortcutKey;
 use ds_core::word::Word;
@@ -85,6 +86,17 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         dispatch.send(ViewerIn::Open(first.file.clone()));
     });
 
+    // A window that stops being the active one never hears Space come up, and `onblur` on the root
+    // does not bubble from a child that held the focus: the host's activation is what says so.
+    let activation = window.clone();
+    use_effect(move || {
+        if let Some(host) = &activation
+            && host.state().activated == Activation::Inactive
+        {
+            dispatch.send(ViewerIn::Hand(HandIn::SpaceUp));
+        }
+    });
+
     // What workers made comes back through the mailbox, one input at a time.
     let mailbox = edge.clone();
     let arriving = carry.clone();
@@ -130,6 +142,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let helper_edge = carry.edge.clone();
     let cx = StageCx {
         stage: state.stage.clone(),
+        hand: state.hand,
         ticket,
         area: area(),
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
@@ -217,6 +230,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let body = current
         .as_ref()
         .and_then(|(_, doc)| doc.view().panel(panel_tab, &cx));
+    let trailing = match failure {
+        Some(_) => None,
+        None => current.as_ref().and_then(|(_, doc)| doc.view().modes(&cx)),
+    };
     let rows = machine_params.palette.rows;
     let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
@@ -257,6 +274,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     dispatch.send(ViewerIn::Key(key));
                 }
             },
+            // Space coming up lets the hand go; so does the window losing the keyboard, since the
+            // key-up then goes elsewhere.
+            onkeyup: move |event: KeyboardEvent| {
+                if shortcut_of(&event).is_some_and(|key| key.keys() == [ShortcutKey::Space]) {
+                    dispatch.send(ViewerIn::Hand(HandIn::SpaceUp));
+                }
+            },
+            onblur: move |_| dispatch.send(ViewerIn::Hand(HandIn::SpaceUp)),
             onpointermove: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerMoved(zone()))),
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             div {
@@ -310,6 +335,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         Titlebar {
                             title,
                             shown: chrome,
+                            trailing,
                             onpointerenter: move |()| zone.set(Zone::Capsule),
                             onpointerleave: move |()| zone.set(Zone::Content),
                         }

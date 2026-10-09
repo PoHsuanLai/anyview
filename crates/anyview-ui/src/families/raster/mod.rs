@@ -202,4 +202,18 @@ impl StageView for RasterStageView {
     fn panel(_doc: &Arc<RasterDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
         None
     }
+
+    fn modes(doc: &Arc<RasterDoc>, cx: &StageCx) -> Option<Element> {
+        if doc.needs.is_some() {
+            return None;
+        }
+        let run = cx.run;
+        Some(rsx! {
+            view::PointerModes {
+                tool: cx.hand.tool,
+                still: !doc.plays(),
+                onpick: move |tool| run.call(Command::UseTool(tool)),
+            }
+        })
+    }
 }

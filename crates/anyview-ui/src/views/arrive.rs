@@ -3,9 +3,8 @@
 
 use super::carry::Carry;
 use super::session::Probe;
-use super::shelf::FirstLoad;
 use crate::families::{FoundHits, Held};
-use crate::io::{Done, HostRequest, Job, Notice};
+use crate::io::{Done, HostRequest, Job, Notice, SizeBasis};
 use crate::{
     Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, Sheet, SheetIn, Stage, StageIn, TextIn,
     TextStage, Ticket, TypedText, VersionList, ViewerIn, freshness,
@@ -246,7 +245,10 @@ fn send(c: &Carry, input: ViewerIn) {
     }
 }
 
+/// A file that would not load is still a different file: it sizes the window as any new file
+/// with no natural size does (the default window), rather than leaving the last file's size.
 fn failed(c: &Carry, ticket: Ticket, error: &crate::OpenError) {
+    size_window(c, ticket, SizeBasis::Default);
     send(
         c,
         ViewerIn::Load(LoadIn::Failed {
@@ -317,7 +319,15 @@ fn opened(c: &Carry, ticket: Ticket, result: Result<crate::LoadedDoc, crate::Ope
 /// document says of itself (an animation moves, a find already up asks again).
 pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     send(c, ViewerIn::Load(LoadIn::Opened { ticket }));
-    size_window(c, ticket, doc);
+    // The panel stays open from file to file; its tab stays too when the new file has it.
+    send(c, ViewerIn::Panel(crate::PanelIn::TabsChanged));
+    size_window(
+        c,
+        ticket,
+        doc.view()
+            .natural()
+            .map_or(SizeBasis::Header, SizeBasis::Natural),
+    );
     for input in told_of(c, doc) {
         send(c, ViewerIn::Stage(input));
     }
@@ -325,17 +335,16 @@ pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     drain_media(c);
 }
 
-/// The window's first file has loaded: tell the host how big its content naturally is, once, so
-/// it can size the window. A later file, or the first one loaded again, never does.
-fn size_window(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
-    let mut first = c.shelf.first;
-    if *first.peek() != FirstLoad::Is(ticket) {
+/// A different file has loaded: tell the host how big its content naturally is, once, so it can
+/// size the window to the file as it did for the first. The same file loaded again (a reload) never
+/// does, and nor does a file the person has already left.
+fn size_window(c: &Carry, ticket: Ticket, basis: SizeBasis) {
+    let mut sizing = c.shelf.sizing;
+    if *sizing.peek() != Some(ticket) {
         return;
     }
-    first.set(FirstLoad::Past);
-    if let Some(natural) = doc.view().natural() {
-        c.edge.request(HostRequest::SizeWindow(natural));
-    }
+    sizing.set(None);
+    c.edge.request(HostRequest::SizeWindow(basis));
 }
 
 /// The inputs the stage is given now that `doc` is on screen.
