@@ -307,3 +307,43 @@ fn a_matroska_header_that_loops_is_given_up_on() {
         .expect("the peek ends");
     assert_eq!(slug, "unavailable");
 }
+
+/// Every container that can hold a picture hands it over: ID3 `APIC`, FLAC `PICTURE`, MP4 `covr`
+/// and Vorbis `METADATA_BLOCK_PICTURE`. The files are made by `fixtures/audio/make.sh`.
+#[test]
+fn each_audio_container_hands_over_the_cover_it_carries() {
+    for name in ["art.mp3", "art.flac", "art.m4a", "art.ogg"] {
+        let audio = peeked(Home::Own, &format!("audio/{name}"));
+        let Body::Picture(cover) = &audio.body else {
+            panic!("{name}: expected the cover, got {}", audio.body.slug());
+        };
+        assert_eq!(
+            (cover.source_size.width.0, cover.source_size.height.0),
+            (64, 64),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn each_audio_container_without_a_cover_is_facts_only() {
+    for name in ["plain.mp3", "plain.flac", "plain.m4a"] {
+        let audio = peeked(Home::Own, &format!("audio/{name}"));
+        assert_eq!(audio.body.slug(), "facts", "{name}");
+    }
+}
+
+/// A cover comes from the bytes handed in, with no file behind them.
+#[test]
+fn a_cover_is_read_from_bytes_that_are_no_file() {
+    let path = support::path(Home::Own, "audio/art.flac");
+    let bytes = std::fs::read(&path).unwrap();
+    let input = anyview_core::Input::from((
+        anyview_core::FileName::new("art.flac").unwrap(),
+        bytes.clone(),
+    ));
+    let sniffed = support::sniffed(&bytes, "art.flac");
+    let cover = anyview_peek::audio_cover(&input, &sniffed, &pane_budget()).unwrap();
+    assert_eq!((cover.size.width.0, cover.size.height.0), (64, 64));
+    assert!(anyview_peek::is_audio(&input));
+}

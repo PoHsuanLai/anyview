@@ -188,7 +188,9 @@ impl MediaLive {
                 | PlayerEvent::SeekDone
                 | PlayerEvent::TracksChanged,
             )
-            | MediaNotice::Failed(_) => {}
+            | MediaNotice::Failed(_)
+            | MediaNotice::Next
+            | MediaNotice::Previous => {}
         }
     }
 

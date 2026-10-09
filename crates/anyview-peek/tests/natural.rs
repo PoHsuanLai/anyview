@@ -7,7 +7,7 @@
 mod support;
 
 use anyview_core::{FilePath, PixelLen, PixelSize, QuarterTurn};
-use anyview_peek::natural_size;
+use anyview_peek::{is_audio, natural_size};
 use std::time::{Duration, Instant};
 use support::{Home, path};
 
@@ -145,4 +145,16 @@ fn a_header_is_read_from_the_start_of_a_large_file_only() {
     let began = Instant::now();
     assert_eq!(natural_at(&file), size(48, 32));
     assert!(began.elapsed() < Duration::from_secs(5));
+}
+
+#[test]
+fn only_audio_files_are_audio() {
+    let is = |home, name: &str| is_audio(&FilePath::new(path(home, name)).unwrap());
+    for name in ["art.mp3", "art.flac", "art.m4a", "art.ogg", "plain.mp3"] {
+        assert!(is(Home::Own, &format!("audio/{name}")), "{name}");
+    }
+    assert!(!is(Home::Own, "hello.pdf"));
+    assert!(!is(Home::Own, "clip.mp4"));
+    let dir = tempfile::tempdir().unwrap();
+    assert!(!is_audio(&FilePath::new(dir.path()).unwrap()));
 }

@@ -6,6 +6,7 @@
 
 #[cfg(feature = "media")]
 mod audio;
+mod cover;
 #[cfg(feature = "media")]
 mod matroska;
 #[cfg(feature = "media")]
@@ -15,7 +16,7 @@ mod peek;
 #[cfg(feature = "media")]
 mod recording;
 #[cfg(feature = "media")]
-pub use peek::{AudioPeek, MediaLook, VideoPeek, video_size};
+pub use peek::{AudioPeek, MediaLook, VideoPeek, audio_cover, video_size};
 
 /// A stream over `src` at its start, once its first byte has read: a missing file, a FIFO or a
 /// failing source is [`PeekError::Unreadable`] here, not a parser's complaint later.
@@ -33,4 +34,6 @@ fn opened(src: &anyview_core::Input) -> Result<anyview_core::ReadAtStream, crate
 #[cfg(not(feature = "media"))]
 mod absent;
 #[cfg(not(feature = "media"))]
-pub use absent::{AudioPeek, MediaLook, VideoPeek, video_size};
+pub use absent::{AudioPeek, MediaLook, VideoPeek, audio_cover, video_size};
+
+pub use cover::AudioCover;

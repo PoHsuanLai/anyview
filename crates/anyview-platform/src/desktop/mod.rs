@@ -6,6 +6,7 @@
 //! The parts of the old Linux module that call no desktop service (the thumbnail cache, `xdg-open`,
 //! window stacking) now live in `portable` and are re-exported here under their old names.
 
+mod art;
 mod env;
 mod instance;
 mod intents;

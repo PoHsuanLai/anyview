@@ -3,7 +3,7 @@
 
 use super::hub::{Inner, SessionId};
 use super::map;
-use crate::runtime::{Actor, Mailbox};
+use crate::runtime::{Actor, Mailbox, Outbox};
 use anyview_media::{MediaCommand, PictureSlot};
 use anyview_ui::{MediaLine, MediaNotice, PlayerCommand, SlotPixels};
 use std::sync::Weak;
@@ -13,6 +13,8 @@ pub(super) struct LiveLine {
     // Dropped after `drop` has told the hub, which joins the thread.
     pub(super) actor: Actor<MediaCommand>,
     pub(super) mailbox: Mailbox<MediaNotice>,
+    /// The posting end of the mailbox, for the news the program itself has for the window.
+    pub(super) outbox: Outbox<MediaNotice>,
     pub(super) id: SessionId,
     pub(super) hub: Weak<Inner>,
 }
@@ -26,6 +28,11 @@ impl std::fmt::Debug for LiveLine {
 }
 
 impl LiveLine {
+    /// Tell the window something no player said (a media key's walk to the next file).
+    pub(super) fn tell(&self, notice: MediaNotice) {
+        self.outbox.send(notice);
+    }
+
     /// Tell the player. A player whose thread has ended takes nothing, and nobody is waiting.
     pub(super) fn command(&self, command: MediaCommand) {
         let _ended = self.actor.send(command);

@@ -39,3 +39,17 @@ pub fn natural_size(src: impl Into<Input>) -> Option<PixelSize> {
     .ok()
     .flatten()
 }
+
+/// Whether `src` (a path, or any bytes a host injects) is an audio file, by its head. Only the
+/// first bytes are read, nothing is decoded and no tag is parsed, so it is cheap for any caller.
+/// `false` for anything else, a path that is not a regular file, and bytes that cannot be read.
+pub fn is_audio(src: impl Into<Input>) -> bool {
+    let src = src.into();
+    let Ok(head) = src.bytes().read_range(0..FileHead::MAX.0) else {
+        return false;
+    };
+    matches!(
+        sniff(&FileHead::new(&head), src.name()),
+        SniffStep::Done(sniffed) if sniffed.kind() == FormatKind::Audio
+    )
+}

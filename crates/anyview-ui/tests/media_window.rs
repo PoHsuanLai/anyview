@@ -790,7 +790,20 @@ fn a_cover_or_a_video_is_the_players_picture_and_a_file_with_none_is_a_card() {
         MediaNotice::Picture(VideoPresence::Absent),
     ]);
     settle(&mut harness);
-    assert_eq!(harness.count(".viewer-media-card"), 1, "no picture: a card");
+    assert_eq!(
+        harness.count(".viewer-media-sleeve"),
+        1,
+        "no picture: the title"
+    );
+    assert_eq!(
+        harness.count(".viewer-media-tile"),
+        1,
+        "an audio file with no cover: the music tile"
+    );
+    assert_eq!(
+        harness.count(".viewer-media-art img, img.viewer-media-art"),
+        0
+    );
     assert!(
         harness
             .text_of(".viewer-media-title")
@@ -801,11 +814,40 @@ fn a_cover_or_a_video_is_the_players_picture_and_a_file_with_none_is_a_card() {
     line.say(&[MediaNotice::Picture(VideoPresence::CoverArt)]);
     settle(&mut harness);
     assert_eq!(
-        harness.count(".viewer-media-card"),
+        harness.count(".viewer-media-sleeve"),
         0,
         "a cover is the picture"
     );
     assert_eq!(harness.count(".ds-texture-layer"), 1);
+}
+
+#[test]
+fn an_audio_file_with_a_cover_shows_it_and_a_window_of_its_own_size() {
+    let (_dir, paths) = folder(FILES);
+    let cover = ds::components::content::image_source::ImageSource::png(b"cover");
+    let player = FakePlayer::answering(Answer::Plays).covered(cover.clone());
+    let (mut harness, _, _) = wired(
+        &paths,
+        1,
+        Appearance::default(),
+        Wiring {
+            player: Some(Arc::clone(&player)),
+            ..Wiring::default()
+        },
+    );
+    let line = player.latest().unwrap();
+    line.say(&[
+        MediaNotice::Player(PlayerEvent::Loaded { length: LENGTH }),
+        MediaNotice::Picture(VideoPresence::Absent),
+    ]);
+    settle(&mut harness);
+    assert_eq!(harness.count("img.viewer-media-art"), 1, "the cover");
+    assert_eq!(
+        harness.count(".viewer-media-tile"),
+        0,
+        "no tile beside a cover"
+    );
+    assert!(harness.html().contains(&cover.0), "the cover is the image");
 }
 
 #[test]
@@ -837,10 +879,14 @@ fn a_tagged_file_is_titled_by_its_tags_in_its_own_accent() {
         Some("Blue Train")
     );
     assert_eq!(
-        harness.text_of(".viewer-media-artist").as_deref(),
-        Some("John Coltrane")
+        harness.text_of(".viewer-media-byline").as_deref(),
+        Some("John Coltrane \u{b7} Blue Train")
     );
-    assert!(harness.attr(".viewer-media", "data-accent").is_some());
+    assert_eq!(
+        harness.attr(".viewer-media", "data-accent"),
+        None,
+        "no colour of its own"
+    );
     if let Some(path) = shot("media-audio-card.png") {
         harness.render().unwrap().save(path).unwrap();
     }
@@ -1246,4 +1292,27 @@ fn the_capsule_thins_out_at_quires_thresholds_as_the_window_narrows() {
             );
         }
     }
+}
+
+#[test]
+fn a_panel_open_on_a_tab_the_player_then_withholds_shows_the_facts_not_a_blank() {
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open();
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    settle(&mut harness);
+    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    settle(&mut harness);
+    // A player that offers everything opens the panel on its first tab, the chapters.
+    assert!(harness.html().contains("viewer-chapters") || harness.html().contains("no chapters"));
+    line.say(&[basics_only()]);
+    settle(&mut harness);
+    let panel = harness.text_of(".viewer-side-panel").unwrap_or_default();
+    assert!(
+        panel.contains("video/"),
+        "the file's facts fill the panel once the tab is gone: {panel:?}"
+    );
 }

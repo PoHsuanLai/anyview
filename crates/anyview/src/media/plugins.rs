@@ -5,10 +5,11 @@
 
 use crate::host::{HelperHost, PluginRegistry};
 use anyview_core::{
-    ByteLen, Fact, FactLabel, FactValue, Facts, Helper, MediaTags, PeekBudget, PixelArea, Sniffed,
-    Source,
+    ByteLen, Fact, FactLabel, FactValue, Facts, FormatKind, Helper, MediaTags, PeekBudget,
+    PixelArea, Sniffed, Source,
 };
 use anyview_media::{MpvHost, offered_kinds, target_of};
+use anyview_peek::{AudioCover, audio_cover};
 use anyview_platform::{PluginFacts, PluginRunner};
 use anyview_plugin::{Installed, MissingPlugin, Plugins, Provision, Route, Subject};
 use anyview_plugin_protocol::Capability;
@@ -119,6 +120,9 @@ pub struct Reading {
     pub facts: Facts,
     /// The title, artist and album the recording says.
     pub tags: MediaTags,
+    /// The cover an audio file carries, read by the pure-Rust reader of its header (a plugin's
+    /// facts have no picture).
+    pub cover: Option<AudioCover>,
 }
 
 /// Which program writes a recording's exports.
@@ -167,7 +171,10 @@ impl MediaPlugins {
             artist: text(FactLabel::Author),
             album: text(FactLabel::Album),
         };
-        Reading { facts, tags }
+        let cover = (sniffed.kind() == FormatKind::Audio)
+            .then(|| audio_cover(source, sniffed, &HEADER_BUDGET))
+            .flatten();
+        Reading { facts, tags, cover }
     }
 
     /// The writer of `subject`'s exports.

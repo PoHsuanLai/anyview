@@ -4,6 +4,7 @@ use crate::MediaOffer;
 use crate::Ticket;
 use crate::io::{MediaLine, MediaPlayback, OpenError, OpenLink};
 use anyview_core::{FactLabel, FactValue, Facts, FormatKind, MediaTags, Sniffed, Source};
+use ds::components::content::image_source::ImageSource;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
 
@@ -21,6 +22,7 @@ pub struct MediaDoc {
     pub(super) offer: MediaOffer,
     pub(super) texture: TextureHandle,
     pub(super) facts: Facts,
+    pub(super) cover: Option<ImageSource>,
 }
 
 impl MediaDoc {
@@ -38,6 +40,11 @@ impl MediaDoc {
             MediaPlayback::Line(_) => None,
             MediaPlayback::Missing(needs) => Some(needs),
         }
+    }
+
+    /// The picture an audio file carries, when it carries one.
+    pub fn cover(&self) -> Option<&ImageSource> {
+        self.cover.as_ref()
     }
 
     /// The exports on offer for the recording.
@@ -86,5 +93,6 @@ pub(super) fn open(
         offer: started.offer,
         texture: link.texture.clone(),
         facts,
+        cover: started.cover,
     })
 }

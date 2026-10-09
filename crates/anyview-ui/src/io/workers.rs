@@ -145,6 +145,9 @@ pub enum NaturalSize {
     Pixels(PixelSize),
     /// Logical pixels as they are: a PDF's page at 100%, where a point is a logical pixel.
     Points(PixelSize),
+    /// Logical pixels as they are, for a window that holds a player and little else (an audio
+    /// file): it may be smaller than the least a picture's window is.
+    Compact(PixelSize),
 }
 
 /// What the window asks of the binary that hosts it: the things the viewer decides to do but

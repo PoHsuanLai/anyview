@@ -160,6 +160,9 @@ pub(super) fn drain_media(c: &Carry) {
         if let Some(input) = stage_input_of(notice) {
             send(c, ViewerIn::Stage(StageIn::Media(input)));
         }
+        if let Some(walk) = walk_of(notice) {
+            send(c, ViewerIn::Navigate(walk));
+        }
     }
     remember_place(c);
 }
@@ -174,7 +177,25 @@ fn stage_input_of(notice: &crate::MediaNotice) -> Option<crate::MediaIn> {
         | crate::MediaNotice::Chapters(_)
         | crate::MediaNotice::Speed(_)
         | crate::MediaNotice::Abilities(_)
-        | crate::MediaNotice::Picture(_) => None,
+        | crate::MediaNotice::Picture(_)
+        | crate::MediaNotice::Next
+        | crate::MediaNotice::Previous => None,
+    }
+}
+
+/// The walk along the folder's files that the player's news asks for, if it asks.
+fn walk_of(notice: &crate::MediaNotice) -> Option<crate::NavigateIn> {
+    match notice {
+        crate::MediaNotice::Next => Some(crate::NavigateIn::Next),
+        crate::MediaNotice::Previous => Some(crate::NavigateIn::Previous),
+        crate::MediaNotice::Player(_)
+        | crate::MediaNotice::Position(_)
+        | crate::MediaNotice::Tracks(_)
+        | crate::MediaNotice::Chapters(_)
+        | crate::MediaNotice::Speed(_)
+        | crate::MediaNotice::Abilities(_)
+        | crate::MediaNotice::Picture(_)
+        | crate::MediaNotice::Failed(_) => None,
     }
 }
 

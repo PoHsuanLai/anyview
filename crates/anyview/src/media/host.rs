@@ -10,9 +10,10 @@ use super::sink::WindowSink;
 use super::snapshot::Snapshot;
 use crate::runtime::{Actor, Mailbox, UiWaker};
 use anyview_core::{Facts, MediaTags};
-use anyview_platform::TrackSerial;
+use anyview_platform::{Ability, Artwork, TrackSerial};
 use anyview_plugin::Subject;
 use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, Need, OpenError};
+use ds::components::content::image_source::ImageSource;
 use std::sync::Arc;
 
 /// Starts a player on its own media thread for each window that asks.
@@ -42,7 +43,7 @@ impl MediaHost for PlayerHost {
         let plugins = self.hub.plugins();
         // What the file says of itself. A recording the plugin cannot read may still play, so
         // facts that cannot be had are a recording with fewer rows.
-        let Reading { facts, tags } = plugins.reading(&start.source, &start.sniffed);
+        let Reading { facts, tags, cover } = plugins.reading(&start.source, &start.sniffed);
         let subject = Subject {
             kind: start.sniffed.kind(),
             mime: Some(start.sniffed.mime()),
@@ -97,7 +98,10 @@ impl MediaHost for PlayerHost {
             }
         };
         let id: SessionId = self.hub.inner.next_id();
-        let snapshot = Snapshot::new(&start.file, &tags, TrackSerial(id.0));
+        let art = cover.as_ref().map(|cover| Artwork {
+            png: Arc::from(cover.png.as_slice()),
+        });
+        let snapshot = Snapshot::new(&start.file, &tags, art, Ability::Can, TrackSerial(id.0));
         let plan = Plan {
             engine,
             file: start.file.clone(),
@@ -107,6 +111,7 @@ impl MediaHost for PlayerHost {
             home: Home::Window,
         };
         let (mailbox, outbox) = Mailbox::new(WakeWindow(start.wake));
+        let posting = outbox.clone();
         let actor = Actor::spawn("anyview-media", outbox, move |wake| {
             MediaActor::start(plan, &wake)
         })
@@ -114,6 +119,7 @@ impl MediaHost for PlayerHost {
         let line = Arc::new(LiveLine {
             actor,
             mailbox,
+            outbox: posting,
             id,
             hub: Arc::downgrade(&self.hub.inner),
         });
@@ -124,6 +130,7 @@ impl MediaHost for PlayerHost {
             tags,
             facts,
             length: None,
+            cover: cover.map(|cover| ImageSource::png(&cover.png)),
         })
     }
 }
@@ -142,5 +149,6 @@ fn unplayed(
         tags,
         facts,
         length: None,
+        cover: None,
     }
 }

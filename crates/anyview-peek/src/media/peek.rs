@@ -3,17 +3,20 @@
 //! `audio`, `mp4` and `matroska`) and a cover picture is reduced to the pane's size. No library of
 //! codecs and no player is in this crate's tree.
 
+use super::cover::AudioCover;
 use super::recording::{CoverArt, CoverCodec, Recording};
 use super::{audio, matroska, mp4};
 use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
+use anyview_core::RasterTarget;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, MediaContainer, Peek,
     PeekBudget, PixelArea, PixelSize, Sniffed,
 };
-use anyview_image::ImagePeek;
+use anyview_image::{ImagePeek, encode};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 /// What a peek of a recording holds: how the file is described, what its header says, and the
@@ -101,6 +104,28 @@ fn cover_peek(cover: &CoverArt, budget: &PeekBudget) -> Option<ImagePeek> {
         CoverCodec::Jpeg => "cover.jpg",
     };
     cover_picture(&cover.bytes, name, budget)
+}
+
+/// The cover of the audio file `src` (a path, or any bytes a host injects) as PNG bytes, reduced
+/// to `budget`: ID3 `APIC`, FLAC `PICTURE`, MP4 `covr` or Vorbis `METADATA_BLOCK_PICTURE`. `None`
+/// for a file with no picture, one that will not decode, or one that cannot be read.
+pub fn audio_cover(
+    src: impl Into<Input>,
+    sniffed: &Sniffed,
+    budget: &PeekBudget,
+) -> Option<AudioCover> {
+    let src = src.into();
+    // A parser fed a hostile header may panic: that is no cover, not a dead worker.
+    catch_unwind(AssertUnwindSafe(|| {
+        let cover = look(&src, sniffed, budget).ok()?.cover?;
+        let png = encode(&cover.picture, RasterTarget::Png).ok()?;
+        Some(AudioCover {
+            png,
+            size: cover.source_size,
+        })
+    }))
+    .ok()
+    .flatten()
 }
 
 /// The most of a movie's header read for the size of its picture: past it the movie opens at the

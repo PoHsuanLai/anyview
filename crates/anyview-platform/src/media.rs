@@ -5,6 +5,7 @@ use crate::error::PlatformError;
 use anyview_core::{FilePath, MediaLength, MediaTime, Volume};
 use ds_core::word::Word;
 use std::future::Future;
+use std::sync::Arc;
 
 /// Whether the recording is moving.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
@@ -31,6 +32,14 @@ pub enum Ability {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct TrackSerial(pub u32);
 
+/// The picture of the recording playing, the cover of an album: the desktop shows it beside the
+/// title.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Artwork {
+    /// The picture as PNG bytes.
+    pub png: Arc<[u8]>,
+}
+
 /// What the desktop is told about the player.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MediaState {
@@ -46,6 +55,8 @@ pub struct MediaState {
     pub artist: Option<String>,
     /// The album tag.
     pub album: Option<String>,
+    /// The cover the recording carries.
+    pub art: Option<Artwork>,
     /// How long the recording runs, once known.
     pub length: Option<MediaLength>,
     /// Where playback is.
@@ -68,6 +79,7 @@ impl MediaState {
             title: None,
             artist: None,
             album: None,
+            art: None,
             length: None,
             position: MediaTime::default(),
             volume: Volume::clamped(anyview_core::Percent(100)),

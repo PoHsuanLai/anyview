@@ -6,7 +6,8 @@
 //! size, and a window a person resized is theirs.
 
 use anyview_core::{FilePath, PixelSize};
-use anyview_ui::NaturalSize;
+use anyview_peek::{is_audio, natural_size};
+use anyview_ui::{NaturalSize, audio_window_size};
 use ds_blitz::{Extent, Fit, Reserve, ScreenArea, SizeOrigin, WindowSize, WindowSizer};
 
 /// The window of a file with no natural size (text, code, a table, a book, a folder, a failure): 1000
@@ -17,6 +18,10 @@ pub(crate) const WINDOW: WindowSize = WindowSize::new(1000, 700);
 /// 270) and a little taller, and narrower and shorter than the welcome window (520 by 380), so a
 /// picture smaller than this stays centred on the background with room for the titlebar and capsule.
 pub(crate) const LEAST: Extent = Extent::new(480, 320);
+
+/// The least the window of an audio file is resized to: 320 by 240. A player's window holds a
+/// cover or a symbol and a capsule, so it may be smaller than a picture's.
+pub(crate) const COMPACT_LEAST: Extent = Extent::new(320, 240);
 
 /// The screen when none is known (the first window opens before the event loop runs): 1920 by
 /// 1200 logical pixels, so the 85% cap is 1632 by 1020.
@@ -62,12 +67,29 @@ fn parse_screen(text: &str) -> Option<Extent> {
 /// The window a viewer opens on `file` on a `screen`: its content's natural size by its header,
 /// fitted.
 pub(crate) fn window_for(file: &FilePath, screen: Option<ScreenArea>) -> WindowSize {
-    let natural = anyview_peek::natural_size(file).map(NaturalSize::Pixels);
+    let natural = natural_of(file);
     fitted(
         natural.map(|natural| logical_of(natural, screen)),
         work_for(screen),
-        LEAST,
+        natural.map_or(LEAST, least_of),
     )
+}
+
+/// What the file's header gives its window: a picture's or a movie's size, or an audio file's
+/// compact window.
+fn natural_of(file: &FilePath) -> Option<NaturalSize> {
+    if let Some(size) = natural_size(file) {
+        return Some(NaturalSize::Pixels(size));
+    }
+    is_audio(file).then(|| NaturalSize::Compact(audio_window_size()))
+}
+
+/// The least a window of `natural` content is resized to.
+fn least_of(natural: NaturalSize) -> Extent {
+    match natural {
+        NaturalSize::Pixels(_) | NaturalSize::Points(_) => LEAST,
+        NaturalSize::Compact(_) => COMPACT_LEAST,
+    }
 }
 
 fn extent_of(size: PixelSize) -> Extent {
@@ -80,7 +102,9 @@ fn extent_of(size: PixelSize) -> Extent {
 fn logical_of(natural: NaturalSize, screen: Option<ScreenArea>) -> Extent {
     match (natural, screen) {
         (NaturalSize::Pixels(size), Some(area)) => area.logical_for_pixels(extent_of(size)),
-        (NaturalSize::Pixels(size) | NaturalSize::Points(size), _) => extent_of(size),
+        (NaturalSize::Pixels(size) | NaturalSize::Points(size) | NaturalSize::Compact(size), _) => {
+            extent_of(size)
+        }
     }
 }
 
@@ -121,7 +145,12 @@ impl WindowFit {
             return false;
         }
         let screen = self.sizer.screen();
-        let wanted = fitted(Some(logical_of(natural, screen)), work_for(screen), LEAST).start();
+        let wanted = fitted(
+            Some(logical_of(natural, screen)),
+            work_for(screen),
+            least_of(natural),
+        )
+        .start();
         // The window already is that size (the header gave it): nothing to ask.
         if wanted == self.sizer.size() {
             return false;
@@ -274,6 +303,42 @@ mod tests {
             "a point is a logical pixel, on any screen"
         );
         assert_eq!(logical_of(pixels(1200, 800), None), Extent::new(1200, 800));
+    }
+
+    #[test]
+    fn an_audio_file_opens_a_small_window_below_a_pictures_least() {
+        let compact = NaturalSize::Compact(audio_window_size());
+        let wanted = fitted(Some(logical_of(compact, None)), SCREEN, least_of(compact));
+        assert_eq!(start(wanted), (360, 460), "narrower than a picture's 480");
+        let on_retina = output(Extent::new(3840, 2160), Scale(240));
+        assert_eq!(
+            logical_of(compact, Some(on_retina)),
+            Extent::new(360, 460),
+            "logical pixels on any screen"
+        );
+        assert_eq!(least_of(NaturalSize::Points(audio_window_size())), LEAST);
+    }
+
+    #[test]
+    fn an_audio_file_is_found_by_its_header_and_a_picture_is_not_audio() {
+        let dir = tempfile::tempdir().unwrap();
+        let song = dir.path().join("song.mp3");
+        std::fs::copy(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../anyview-peek/tests/fixtures/audio/plain.mp3"
+            ),
+            &song,
+        )
+        .unwrap();
+        let song = FilePath::new(song).unwrap();
+        assert_eq!(
+            natural_of(&song),
+            Some(NaturalSize::Compact(audio_window_size()))
+        );
+        let text = dir.path().join("a.txt");
+        std::fs::write(&text, "hello").unwrap();
+        assert_eq!(natural_of(&FilePath::new(text).unwrap()), None);
     }
 
     #[test]

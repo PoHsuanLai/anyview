@@ -1,29 +1,30 @@
 //! Video and audio: the media stage's view. The player is the binary's (`io::media`); the window
 //! holds a line to it, sends it the stage machine's commands and shows what it reports. A video
-//! is a `TextureLayer` of the picture the player draws; an audio file is its cover, or a card of
-//! an accent colour and a large title.
+//! is a `TextureLayer` of the picture the player draws; an audio file is its cover, or a music
+//! symbol over its title.
 
-mod audio;
 mod capsule;
 mod doc;
 mod live;
 mod panel;
 mod shelf;
 mod view;
+mod window;
 
 pub(crate) use capsule::{level_to_volume, place_to_time};
 pub use doc::MediaDoc;
 pub(crate) use live::tabs_offered;
 pub use live::{MediaLive, MediaPlace, TrimMarks};
 pub use shelf::{MediaShelf, use_media_shelf};
+pub use window::audio_window_size;
 
 use crate::families::view::{Area, Held, Leaving, StageCx, StageView};
-use crate::io::{MediaLine, OpenError, OpenLink};
+use crate::io::{MediaLine, NaturalSize, OpenError, OpenLink};
 use crate::{
     Command, MediaIn, MediaOffer, PanelTab, PanelTabs, Stage, StageFamily, StageIn, StageParams,
     Ticket,
 };
-use anyview_core::{Facts, Resume, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use std::sync::Arc;
@@ -56,6 +57,12 @@ impl StageView for MediaStageView {
             Some(_) => PanelTabs::of(&[PanelTab::Info]),
             None => PanelTabs::of(&[PanelTab::Info, PanelTab::Tracks, PanelTab::Contents]),
         }
+    }
+
+    fn natural(doc: &MediaDoc) -> Option<NaturalSize> {
+        // A video is sized from its header before it opens; only a played audio file is sized here.
+        let plays = doc.line().is_some();
+        (doc.kind == FormatKind::Audio && plays).then(|| NaturalSize::Compact(audio_window_size()))
     }
 
     fn params(_doc: &MediaDoc, _stage: &Stage, _area: Option<Area>) -> StageParams {

@@ -23,6 +23,10 @@ pub(super) enum Order {
     End,
     /// End the viewer.
     Quit,
+    /// Walk the window's folder to the file after this one.
+    Next,
+    /// Walk the window's folder to the file before this one.
+    Previous,
 }
 
 /// The instructions for `control` pressed against `state`.
@@ -63,8 +67,16 @@ pub(super) fn orders_for(control: MediaControl, state: &MediaState, home: Home) 
         MediaControl::SeekTo(to) => vec![send(MediaCommand::Seek(to))],
         MediaControl::SetVolume(volume) => vec![send(MediaCommand::SetVolume(volume))],
         MediaControl::Quit => vec![Order::Quit],
-        // Skipping walks the sequence, which belongs to a window; the entry says it cannot.
-        MediaControl::Next | MediaControl::Previous | MediaControl::Raise => Vec::new(),
+        // Skipping walks the folder, which belongs to a window; with none the entry says it cannot.
+        MediaControl::Next => match home {
+            Home::Window => vec![Order::Next],
+            Home::Background => Vec::new(),
+        },
+        MediaControl::Previous => match home {
+            Home::Window => vec![Order::Previous],
+            Home::Background => Vec::new(),
+        },
+        MediaControl::Raise => Vec::new(),
     }
 }
 
@@ -191,6 +203,13 @@ mod tests {
                 C::Next,
                 state(PlaybackStatus::Playing, 4),
                 Home::Window,
+                vec![Order::Next],
+            ),
+            (
+                "next with no window has no folder to walk",
+                C::Next,
+                state(PlaybackStatus::Playing, 4),
+                Home::Background,
                 vec![],
             ),
             (
@@ -198,7 +217,7 @@ mod tests {
                 C::Previous,
                 state(PlaybackStatus::Playing, 4),
                 Home::Window,
-                vec![],
+                vec![Order::Previous],
             ),
             (
                 "raise",
