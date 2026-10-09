@@ -20,6 +20,7 @@ fn zoomed(scale: u16) -> (tempfile::TempDir, Harness) {
             height: 600,
             scale_percent: scale,
         }),
+        record_moves: true,
         ..support::Wiring::default()
     };
     let (mut harness, _, _) = support::wired(&paths, 0, Appearance::default(), wiring);
@@ -53,7 +54,7 @@ fn drag(harness: &mut Harness) {
     settle(harness);
 }
 
-const SEGMENTS: &str = ".viewer-titlebar-trailing .ds-segmented-segment";
+const SEGMENTS: &str = ".ds-titlebar-trailing .ds-segmented-segment";
 
 fn choose(harness: &mut Harness, which: usize) {
     let at = harness
@@ -130,13 +131,13 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
             "{scale}: nothing floats over the picture"
         );
         assert_eq!(
-            harness.count(".viewer-titlebar .viewer-titlebar-trailing"),
+            harness.count(".viewer-titlebar .ds-titlebar-trailing"),
             1,
             "{scale}: the control is in the titlebar"
         );
         assert_eq!(harness.count(SEGMENTS), 2, "{scale}: Select and Pan");
         let bar = harness.rect(".viewer-titlebar").unwrap();
-        let control = harness.rect(".viewer-titlebar-trailing").unwrap();
+        let control = harness.rect(".ds-titlebar-trailing").unwrap();
         let window = harness.rect(".viewer").unwrap();
         assert!(
             control.origin.x.0 > window.origin.x.0 + window.size.width.0 / 2.0,
@@ -152,6 +153,20 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
         assert_eq!(mode(&harness).as_deref(), Some("off"), "{scale}: Select");
         choose(&mut harness, 2);
         assert_eq!(mode(&harness).as_deref(), Some("on"), "{scale}: Pan");
+        assert_eq!(
+            support::window_moves(),
+            0,
+            "{scale}: clicking a segment does not move the window"
+        );
+        // A press that travels over the control is the control's own, not a window move.
+        let at = harness.centre(&format!("{SEGMENTS}:nth-child(1)")).unwrap();
+        harness.send(Input::drag(at, point(at.x.0 - 40.0, at.y.0 + 3.0), 5));
+        settle(&mut harness);
+        assert_eq!(
+            support::window_moves(),
+            0,
+            "{scale}: a drag over the control begins no window move"
+        );
     }
 }
 

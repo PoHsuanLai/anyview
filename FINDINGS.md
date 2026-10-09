@@ -45,18 +45,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   standard lane B; the panel lists every row, by section. Chips (HDR, Animated, Signed...) are not built.
 - **A PDF's forms, embedded fonts, PDF/A claim and linearization are not listed.** `Document::form` needs pdfrum's
   `forms` feature, which the viewer does not turn on; the others are D-tier in the audit.
-- **The Select | Pan control sits over the titlebar, not in it.** quire v0.2.33 has no titlebar trailing slot
-  (`WindowTitlebar` draws the lights and the title area only) and `CapsuleSlot` has no `Modes` variant (items,
-  readouts, dividers, a scrub and a level), nor an icon for a hand or a pointer, so a Select | Pan pair cannot be
-  a capsule mode group. `views/chrome.rs` puts the family's `StageView::modes` element in
-  `.viewer-titlebar-trailing`, absolutely placed at the bar's trailing end with token spacing, fading with the
-  bar. Ends when quire offers a titlebar trailing slot: the element moves into it unchanged (also what the
-  Preview | Source control of the design standard needs).
-- **A tiled window is still resized by a new file.** `WindowFit::loaded` leaves a maximized or fullscreen window
-  alone (`WindowState`), but quire's `WindowState` has no tiled flag and winit reports none on Wayland, and
-  `WindowSizer::request_size` never refuses: the compositor answers with its own size. Ends when quire's
-  `WindowState` carries the tiled edges (a `quire.patch` request: `Tiled` beside `Maximized`/`Fullscreen`, from
-  xdg_toplevel's tiled states), so `holds_its_size` can include them.
+- **A tiled window is still resized by a new file, until the blitz fork patches winit.** `WindowFit::loaded`
+  leaves a maximized, fullscreen or tiled window alone: `holds_its_size` is `maximized || fullscreen ||
+  tiled.any()`, with the tiled edges read from `WindowHost::tiled()` (quire v0.3.1's `Tiled` and `TileEdge`).
+  The check is wired, but ds-blitz always reports `Tiled::NONE` because winit does not expose xdg_toplevel's
+  tiled states, so on a real desktop a snapped window is still resized (the compositor answers with its own
+  size). It starts working when the blitz fork patches winit to report them. The unit test covers it
+  through the vocabulary: a window told it is tiled on any edge is never asked for a size.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
   a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
   pure `hand` machine's cases and the viewer step, not by a held key in the harness.

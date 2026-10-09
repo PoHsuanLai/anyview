@@ -209,7 +209,9 @@ fn Window(seed: Seed) -> Element {
                             if let Some(fit) = fit.as_ref() {
                                 let state =
                                     window.as_ref().map(WindowHost::state).unwrap_or_default();
-                                fit.loaded(natural, state);
+                                let tiled =
+                                    window.as_ref().map(WindowHost::tiled).unwrap_or_default();
+                                fit.loaded(natural, state, tiled);
                             }
                         });
                     }

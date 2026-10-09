@@ -237,8 +237,11 @@ fn show(
         .with_app_id(AppId(APP_ID.to_owned()))
         .with_decorations(Decorations::Client)
         .with_last_window(LastWindowClosed::StayFor(WARM_FOR))
-        .with_handle(app);
-    launch_idle(config);
+        .with_handle(app)
+        .with_runtime(runtime.handle().clone());
+    // The loop ends with the program's last window; a host that cannot run one is reported like
+    // any other failure to start, after the same tidying, and the exit code says so.
+    let launched = launch_idle(config);
     // The places still waiting to be kept are written before the runtime that waits on them ends,
     // and a player with no window ends with the program.
     hosting.flush();
@@ -246,7 +249,13 @@ fn show(
     drop(workforce);
     // The relay and the report task wait on channels that never close; end them with the process.
     runtime.shutdown_background();
-    ExitCode::SUCCESS
+    match launched {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("anyview: cannot show a window: {error}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// The tools the plugins run and what installs them, from the file the viewer ships
