@@ -36,6 +36,10 @@ pub fn video_size(_src: &Input, _sniffed: &Sniffed) -> Option<PixelSize> {
 }
 
 /// Without the header readers an audio file has no cover to give.
-pub fn audio_cover(_src: &Input, _sniffed: &Sniffed, _budget: &PeekBudget) -> Option<AudioCover> {
+pub fn audio_cover(
+    _src: impl Into<Input>,
+    _sniffed: &Sniffed,
+    _budget: &PeekBudget,
+) -> Option<AudioCover> {
     None
 }

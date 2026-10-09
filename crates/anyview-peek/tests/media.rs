@@ -332,3 +332,18 @@ fn each_audio_container_without_a_cover_is_facts_only() {
         assert_eq!(audio.body.slug(), "facts", "{name}");
     }
 }
+
+/// A cover comes from the bytes handed in, with no file behind them.
+#[test]
+fn a_cover_is_read_from_bytes_that_are_no_file() {
+    let path = support::path(Home::Own, "audio/art.flac");
+    let bytes = std::fs::read(&path).unwrap();
+    let input = anyview_core::Input::from((
+        anyview_core::FileName::new("art.flac").unwrap(),
+        bytes.clone(),
+    ));
+    let sniffed = support::sniffed(&bytes, "art.flac");
+    let cover = anyview_peek::audio_cover(&input, &sniffed, &pane_budget()).unwrap();
+    assert_eq!((cover.size.width.0, cover.size.height.0), (64, 64));
+    assert!(anyview_peek::is_audio(&input));
+}

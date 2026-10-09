@@ -106,13 +106,18 @@ fn cover_peek(cover: &CoverArt, budget: &PeekBudget) -> Option<ImagePeek> {
     cover_picture(&cover.bytes, name, budget)
 }
 
-/// The cover of the audio file at `src` as PNG bytes, reduced to `budget`: ID3 `APIC`, FLAC
-/// `PICTURE`, MP4 `covr` or Vorbis `METADATA_BLOCK_PICTURE`. `None` for a file with no picture, one
-/// that will not decode, or one that cannot be read.
-pub fn audio_cover(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Option<AudioCover> {
+/// The cover of the audio file `src` (a path, or any bytes a host injects) as PNG bytes, reduced
+/// to `budget`: ID3 `APIC`, FLAC `PICTURE`, MP4 `covr` or Vorbis `METADATA_BLOCK_PICTURE`. `None`
+/// for a file with no picture, one that will not decode, or one that cannot be read.
+pub fn audio_cover(
+    src: impl Into<Input>,
+    sniffed: &Sniffed,
+    budget: &PeekBudget,
+) -> Option<AudioCover> {
+    let src = src.into();
     // A parser fed a hostile header may panic: that is no cover, not a dead worker.
     catch_unwind(AssertUnwindSafe(|| {
-        let cover = look(src, sniffed, budget).ok()?.cover?;
+        let cover = look(&src, sniffed, budget).ok()?.cover?;
         let png = encode(&cover.picture, RasterTarget::Png).ok()?;
         Some(AudioCover {
             png,
