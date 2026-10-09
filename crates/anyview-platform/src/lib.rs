@@ -19,9 +19,9 @@
 //!
 //! # async fn start() -> Result<(), PlatformError> {
 //! match LatchkeyInstance::new().claim(&Request::Open(Vec::new())).await? {
-//!     Claim::Primary(mut primary) => {
+//!     Claim::Primary(primary) => {
 //!         // Blocks; an async program reads it on a thread of its own.
-//!         while let Some(request) = primary.next() {
+//!         for request in primary {
 //!             println!("{request:?}");
 //!         }
 //!     }

@@ -97,12 +97,12 @@ pub async fn relay(primary: Primary, arrivals: UnboundedSender<Arrival>) {
 }
 
 /// The requests `primary` hears, read on a thread of their own because it waits for them.
-fn requests_of(mut primary: Primary) -> tokio::sync::mpsc::UnboundedReceiver<Request> {
+fn requests_of(primary: Primary) -> tokio::sync::mpsc::UnboundedReceiver<Request> {
     let (sender, requests) = tokio::sync::mpsc::unbounded_channel();
     let reader = std::thread::Builder::new()
         .name("anyview-requests".to_owned())
         .spawn(move || {
-            while let Some(request) = primary.next() {
+            for request in primary {
                 if sender.send(request).is_err() {
                     return;
                 }

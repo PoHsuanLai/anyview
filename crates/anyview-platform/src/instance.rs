@@ -49,16 +49,20 @@ impl Primary {
         }
     }
 
-    /// The next request another launch forwarded, waiting for it, or `None` when nothing can
-    /// arrive any more. It blocks the calling thread: an async program reads it from a thread of
-    /// its own.
-    pub fn next(&mut self) -> Option<Request> {
-        self.requests.recv().ok()
-    }
-
     /// The next request, or `None` when none arrived within `wait` or nothing can arrive any more.
     pub fn next_within(&mut self, wait: Duration) -> Option<Request> {
         self.requests.recv_timeout(wait).ok()
+    }
+}
+
+/// The requests other launches forward, in order: `next` waits for the next one and is `None` when
+/// nothing can arrive any more. It blocks the calling thread, so an async program reads it from a
+/// thread of its own.
+impl Iterator for Primary {
+    type Item = Request;
+
+    fn next(&mut self) -> Option<Request> {
+        self.requests.recv().ok()
     }
 }
 
