@@ -3,7 +3,8 @@
 
 use crate::support;
 
-use anyview_core::{FilePath, FormatKind};
+use anyview_core::{FilePath, FormatKind, Input};
+use anyview_fs::OnDisk;
 use anyview_peek::{Body, peek, probe};
 use std::io::Write;
 use std::path::Path;
@@ -20,7 +21,7 @@ const PNG: &[u8] = &[
 
 const CORE: &[u8] = br#"<?xml version="1.0"?><cp:coreProperties xmlns:cp="c" xmlns:dc="d"><dc:title>Plans</dc:title><dc:creator>Ann</dc:creator></cp:coreProperties>"#;
 
-fn docx(dir: &Path, extra: &[(&str, &[u8])]) -> FilePath {
+fn docx(dir: &Path, extra: &[(&str, &[u8])]) -> Input {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options = zip::write::SimpleFileOptions::default();
     let base: [(&str, &[u8]); 3] = [
@@ -34,7 +35,7 @@ fn docx(dir: &Path, extra: &[(&str, &[u8])]) -> FilePath {
     }
     let file = dir.join("plans.docx");
     std::fs::write(&file, writer.finish().unwrap().into_inner()).unwrap();
-    FilePath::new(file).unwrap()
+    FilePath::new(file).unwrap().on_disk()
 }
 
 #[test]

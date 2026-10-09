@@ -2,7 +2,7 @@
 
 use crate::support;
 
-use anyview_core::{FactLabel, FormatKind, Input, Peek, PixelLen, PixelSize};
+use anyview_core::{FactLabel, FormatKind, Peek, PixelLen, PixelSize};
 use anyview_image::{FrameCount, ImageError, RasterPeek, VectorPeek};
 use support::{budget, fixture};
 
@@ -30,7 +30,7 @@ fn expected(rows: &[(&'static str, &str)]) -> Vec<(&'static str, String)> {
 #[test]
 fn a_png_is_reduced_to_the_pixel_budget_with_its_proportions() {
     let (src, sniffed) = fixture("quadrants.png");
-    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(100)).unwrap();
+    let peeked = RasterPeek::peek(&src, &sniffed, &budget(100)).unwrap();
     assert_eq!(peeked.picture.size(), size(12, 8));
     assert_eq!(peeked.source_size, size(48, 32));
     assert_eq!(peeked.frames, FrameCount(1));
@@ -47,7 +47,7 @@ fn a_png_is_reduced_to_the_pixel_budget_with_its_proportions() {
 #[test]
 fn a_budget_larger_than_the_image_leaves_it_whole() {
     let (src, sniffed) = fixture("quadrants.png");
-    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+    let peeked = RasterPeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
     assert_eq!(peeked.picture.size(), size(48, 32));
 }
 
@@ -56,7 +56,7 @@ fn the_byte_budget_limits_the_picture_as_well_as_the_pixel_budget() {
     let (src, sniffed) = fixture("quadrants.png");
     let mut tight = budget(1_000_000);
     tight.bytes = anyview_core::ByteLen(400);
-    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &tight).unwrap();
+    let peeked = RasterPeek::peek(&src, &sniffed, &tight).unwrap();
     assert_eq!(peeked.picture.size(), size(12, 8));
     assert!(peeked.picture.bytes().len() <= 400);
 }
@@ -64,7 +64,7 @@ fn the_byte_budget_limits_the_picture_as_well_as_the_pixel_budget() {
 #[test]
 fn an_exif_photo_peeks_upright_with_its_camera_facts() {
     let (src, sniffed) = fixture("rotated.jpg");
-    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+    let peeked = RasterPeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
     assert_eq!(peeked.picture.size(), size(32, 48), "orientation applied");
     assert_eq!(
         rows::<RasterPeek>(&peeked),
@@ -83,7 +83,7 @@ fn an_exif_photo_peeks_upright_with_its_camera_facts() {
 #[test]
 fn an_animation_peeks_as_its_first_frame_and_a_frame_count() {
     let (src, sniffed) = fixture("spin.gif");
-    let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+    let peeked = RasterPeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
     assert_eq!(peeked.frames, FrameCount(3));
     assert_eq!(
         &peeked.picture.bytes()[..4],
@@ -105,7 +105,7 @@ fn an_animation_peeks_as_its_first_frame_and_a_frame_count() {
 fn a_jpeg_xl_and_a_webp_report_their_formats() {
     for (name, kind) in [("photo.jxl", "JXL image"), ("lossy.webp", "WEBP image")] {
         let (src, sniffed) = fixture(name);
-        let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+        let peeked = RasterPeek::peek(&src, &sniffed, &budget(1_000_000)).unwrap();
         let facts = RasterPeek::facts(&peeked);
         assert_eq!(
             facts.value(FactLabel::Kind).map(|v| v.as_str()),
@@ -119,7 +119,7 @@ fn a_jpeg_xl_and_a_webp_report_their_formats() {
 #[test]
 fn an_svg_is_drawn_inside_the_budget_and_reports_its_own_size() {
     let (src, sniffed) = fixture("logo.svg");
-    let peeked = VectorPeek::peek(&Input::from(&src), &sniffed, &budget(200)).unwrap();
+    let peeked = VectorPeek::peek(&src, &sniffed, &budget(200)).unwrap();
     assert_eq!(peeked.source_size, size(64, 32));
     assert_eq!(peeked.picture.size(), size(20, 10));
     assert_eq!(
@@ -133,14 +133,14 @@ fn an_svg_is_drawn_inside_the_budget_and_reports_its_own_size() {
 fn a_peek_refuses_another_kind_and_an_empty_budget() {
     let (svg, svg_sniffed) = fixture("logo.svg");
     assert_eq!(
-        RasterPeek::peek(&Input::from(&svg), &svg_sniffed, &budget(100)),
+        RasterPeek::peek(&svg, &svg_sniffed, &budget(100)),
         Err(ImageError::WrongKind {
             kind: FormatKind::Vector
         })
     );
     let (png, png_sniffed) = fixture("quadrants.png");
     assert_eq!(
-        RasterPeek::peek(&Input::from(&png), &png_sniffed, &budget(0)),
+        RasterPeek::peek(&png, &png_sniffed, &budget(0)),
         Err(ImageError::NoBudget)
     );
 }

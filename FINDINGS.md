@@ -109,7 +109,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   unpack of a section and a window of highlighted lines run to their end, and a hung decoder there still
   holds its pool thread. Ends when the decoders take a `Stop` (or run in a plugin process).
 - **A peek refuses a picture, font, book or office file over the budget's bytes.** The check is in
-  `anyview_peek::peek_with`, ahead of the peeks that read the file whole; a very large camera RAW file shows
+  `anyview_peek::peek` (`look` runs it), ahead of the peeks that read the file whole; a very large camera RAW file shows
   its facts card in the launcher until the image peek reads only the preview it needs.
 - **A PDF's page count and title are not known to a peek.** pdfrum is reached only through `ds-blitz`, whose
   thumbnail answers the first page's raster and size; the facts list the page size in points, and the
@@ -125,8 +125,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   libav, no libmpv and no `anyview-media` is in its tree. The viewer uses the same parsers for a recording's facts when
   the FFmpeg plugin is not installed. What it cannot do:
   - **AVI, WMV, FLV, MPEG-TS, MPEG and Ogg video get facts only** (type, size, date): nothing here parses them.
-  - **A video has a frame only from the desktop's thumbnail cache.** The host passes a `VideoFrames` to
-    `peek_with`; with none, or no cached thumbnail for this version of the file, the pane shows the facts card.
+  - **A video has a frame only from the desktop's thumbnail cache.** The host passes a `StillSource` to
+    `Peeking::with_stills` (`look` takes the `Peeking`); with none, or no cached thumbnail for this version of the file, the pane shows the facts card.
   - **A Matroska cover is not read**: `matroska-demuxer` has no attachment accessor. A WebM or MKV shows its
     cached thumbnail or its facts. An MP4's `covr` cover is read.
   - **HEVC is named by scanning the movie box for its sample-entry code**, since `mp4parse` has no codec type
@@ -323,11 +323,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   Blitz's and untested here. Ends if quire offers the frame's token block alone.
 - **The viewer's chords treat Control and Command as one.** `views/keys.rs` folds both to `Super` (⌘), so
   Ctrl+K opens the palette on Linux. A person's own keymap is the settings item above.
-- **The viewer's own probe does not look inside a zip.** `anyview_peek::probe` does (through
-  `anyview_archive::zip_entries`), but `anyview-ui`'s `io/probe.rs` answers `Unrecognised` for a zip, so a
-  zip-based file a launcher hands over opens a window that says so, while its pane showed the listing. Ends
-  when the probe moves below `anyview-ui` (into a crate both it and `anyview-peek` may name) and the viewer
-  calls the same one.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
@@ -794,14 +789,25 @@ on. It is a reference, not a log: how each was found lives in git history.
   bounds), so a generic body can turn any peek's result into the one value the pane draws without a
   second match over kinds. Every peek in this crate and in `anyview-image` and `anyview-text` qualifies by
   a blanket impl; a peek that does not has no arm in the registry.
-- **`peek` never fails.** A peek that errors is `Body::Unavailable(reason)` with the file's kind, size and
+- **`peek` and `look` never fail.** A peek that errors is `Body::Unavailable(reason)` (an `Unavailable`:
+  `Missing`, `Unreadable`, `TooBig` or `Damaged(why)`) with the file's kind, size and
   date, so the launcher always has something to draw; `JsonOverBudget`, an undecodable image and an
   unreadable folder are shown that way. A PDF that pdfrum cannot read is not an error: ds-blitz answers
   with a page that says so (`PdfPage::Failed`), and `PdfThumb` draws the glyph plate.
+- **A path is opened in `anyview-fs`, not in `anyview-core` or `anyview-store`.** Core does no I/O, so
+  `Input::from(&FilePath)` is `FilePath::on_disk()` (the `OnDisk` trait). The adapter is its own crate because
+  `anyview-store` reads extended attributes and cannot build on Windows, and the headless peek must; and a
+  module of `anyview-peek` would be out of reach of `anyview-text`, which opens a window of lines by offset.
+- **The launcher and the viewer sniff a zip with one window.** The peek's probe reads 8 MiB of a zip's central
+  directory (it read 256 KiB, the viewer's own 8 MiB), so a comic or a book with many thousands of entries is
+  a comic or a book in both, and the viewer's `io::probe` is `anyview_peek::probe`.
+- **`TooBig`'s words name the byte counts.** The pane says "the file is 621 bytes and the preview may read
+  100", the wording the golden `unavailable.html` holds. Ends when the owner words it without the limit (UX
+  follows mature apps: no technical limits shown).
 - **`FormatKind`'s labels are variant names** (`Pdf`, `PlainText` reads `Plain text`), so a folder's kinds read
   `2 plain text, 1 raster` and a facts-only kind with no format shows its media type, not a word. Ends if
   `FormatKind` gets `#[word(label = ..)]` attributes.
-- **What sill consumes in phase C.** `anyview_peek::peek` on a worker for the sniffed file (the `Sniffed`
+- **What sill consumes in phase C.** `anyview_peek::look` on a worker (`PeekWorker::looking`; it probes the file and peeks at it as sniffed: the `Sniffed`
   replaces `Preview`'s `Image`, `TextFile`, `Pdf` and file-facts variants: a picture is `Body::Picture`, a text
   file `Body::Plain` or `Body::Code`, a PDF `Body::Page`, any other file or a folder `Body::FactsOnly` or
   `Body::Folder`), `anyview_peek::Pane` to draw the `Arc<AnyPeeked>` it gets back, and `PeekBudget` from

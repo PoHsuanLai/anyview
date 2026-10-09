@@ -3,6 +3,7 @@
 use crate::support;
 
 use anyview_core::{MediaTime, PixelLen, PixelSize};
+use anyview_fs::OnDisk;
 use anyview_image::{Decoded, ImageError, Rgba8, declared_size, decode, decode_bytes};
 use support::{bytes, fixture, sniffed};
 
@@ -188,7 +189,8 @@ fn a_missing_file_names_its_path() {
     let missing = anyview_core::Source::new(
         anyview_core::FilePath::new("/nonexistent/photo.jpg").unwrap(),
         src.stamp(),
-    );
+    )
+    .on_disk();
     let result = decode(&missing, &sniffed);
     assert!(matches!(result, Err(ImageError::Read { .. })), "{result:?}");
 }

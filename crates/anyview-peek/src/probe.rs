@@ -1,5 +1,6 @@
 //! Probing: what a file is. It reads the file's first 4 KiB and sniffs it, looking inside a zip
-//! for what kind of zip it is; the answer is what [`peek`](crate::peek) takes.
+//! for what kind of zip it is; the answer is what [`peek`](crate::peek) takes. [`look`](crate::look)
+//! does both.
 
 use crate::error::PeekError;
 use anyview_archive::zip_entries;
@@ -9,8 +10,11 @@ use anyview_core::{
 use std::io::{Error, ErrorKind};
 
 /// The most of a zip's central directory sniffing reads to tell a document from an archive; a
-/// zip with a larger one is sniffed as a plain archive.
-const ZIP_INDEX: ByteLen = ByteLen(256 * 1024);
+/// zip with a larger one is sniffed as a plain archive. It is 8 MiB so that a book or a comic with
+/// many thousands of entries is still a book or a comic: what a file is must not depend on which
+/// window asks (the viewer's own probe used to read this much and this one 256 KiB, so the same
+/// file sniffed differently in the launcher and in the viewer).
+const ZIP_INDEX: ByteLen = ByteLen(8 * 1024 * 1024);
 
 /// A file that was looked at: the file as it was then, and what it is.
 #[derive(Debug, Clone, PartialEq, Eq)]

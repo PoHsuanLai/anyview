@@ -22,6 +22,8 @@ thiserror = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]
+# `OnDisk`: the input of a file in the scratch folder (core opens no file).
+anyview-fs = { workspace = true }
 # Builds the .xz fixtures the tests read.
 lzma-rs = { workspace = true }
 sevenz-rust2 = { workspace = true, features = ["compress"] }

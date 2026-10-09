@@ -1,9 +1,11 @@
-//! The seam for a video's frame. Showing a picture of a video would take a decoder, and the launcher
-//! links none; but the desktop's thumbnail cache usually holds one that the file manager or a
-//! thumbnailer made, and reading it is the host's business (the cache sits behind D-Bus-free but
-//! platform-specific paths that `anyview-platform` owns, which this crate may not name). So the host
-//! hands [`peek_with`](crate::peek_with) a [`VideoFrames`], and a video whose header gave no cover
-//! shows its frame; without one, or without a cached thumbnail, the pane shows the facts card.
+//! The seam for a picture the peek does not decode. Showing a video would take a decoder, and the
+//! launcher links none; but the desktop's thumbnail cache usually holds a picture that the file
+//! manager or a thumbnailer made, and reading it is the host's business (the cache sits behind
+//! platform-specific paths that `anyview-platform` owns, which this crate may not name). So the
+//! host hands [`Peeking`](crate::Peeking) a [`StillSource`], and a video whose header gave no
+//! cover shows its still; without one, or without a cached thumbnail, the pane shows the facts
+//! card. The viewer's window lends the same source as the first frame of a picture while it
+//! decodes.
 
 use anyview_core::{
     FileHead, FileName, FormatDetail, Input, PeekBudget, PixelLen, RasterFormat, Resize, SniffStep,
@@ -14,19 +16,20 @@ use anyview_image::{
 };
 use std::fmt::Debug;
 
-/// Where the host finds a picture of a video it did not decode.
-pub trait VideoFrames: Debug + Send + Sync {
-    /// The small picture of `source` as it is now (a cached thumbnail made for this very version of
-    /// the file; `source.path()` says where it is, when it is a file at all), upright, or `None` when the host has none. Blocking: it reads a file.
-    fn frame(&self, source: &Input) -> Option<Rgba8>;
+/// Where the host finds a small picture of a file it did not decode.
+pub trait StillSource: Debug + Send + Sync {
+    /// The small picture of `source` as it is now (a cached thumbnail made for this very version
+    /// of the file; `source.path()` says where it is, when it is a file at all), upright, or
+    /// `None` when the host has none. Blocking: it reads a file.
+    fn still(&self, source: &Input) -> Option<Rgba8>;
 }
 
 /// No host source: every video without a cover shows its facts.
 #[derive(Debug, Clone, Copy)]
-pub struct NoFrames;
+pub struct NoStills;
 
-impl VideoFrames for NoFrames {
-    fn frame(&self, _: &Input) -> Option<Rgba8> {
+impl StillSource for NoStills {
+    fn still(&self, _: &Input) -> Option<Rgba8> {
         None
     }
 }

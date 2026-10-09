@@ -1,7 +1,8 @@
 //! Where text bytes come from: a file read in ranges (any other source is `anyview_core::ReadAt`).
 
 use crate::error::TextError;
-use anyview_core::{ByteLen, ReadAt, Source, open_regular};
+use anyview_core::{ByteLen, ReadAt, Source};
+use anyview_fs::OpenFile;
 use std::io::Result as IoResult;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
@@ -56,7 +57,7 @@ impl ReadAt for FileBytes {
         // Opened afresh for each read; a read past the length the source was given reads nothing.
         let room = self.len.0.saturating_sub(offset);
         let take = buf.len().min(usize::try_from(room).unwrap_or(usize::MAX));
-        let (file, _) = open_regular(&self.path)?;
+        let file = OpenFile::open(&self.path)?;
         file.read_at(offset, &mut buf[..take])
     }
 }

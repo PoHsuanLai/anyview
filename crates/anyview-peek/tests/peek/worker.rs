@@ -4,13 +4,14 @@
 use crate::support;
 
 use anyview_core::{FileName, FilePath, Input};
-use anyview_peek::{AnyPeeked, Body, NoFrames, PeekWorker, WorkerConfig};
-use std::sync::{Arc, mpsc};
+use anyview_fs::OnDisk;
+use anyview_peek::{AnyPeeked, Body, PeekWorker, Unavailable, WorkerConfig};
+use std::sync::mpsc;
 use std::time::Duration;
-use support::pane_budget;
+use support::pane_looking;
 
 fn worker() -> PeekWorker<AnyPeeked> {
-    PeekWorker::looking(WorkerConfig::default(), pane_budget(), Arc::new(NoFrames))
+    PeekWorker::looking(WorkerConfig::default(), pane_looking())
 }
 
 fn card(worker: &PeekWorker<AnyPeeked>, input: Input) -> AnyPeeked {
@@ -34,10 +35,10 @@ fn bytes_are_looked_at_and_a_missing_file_is_an_unavailable_card() {
 
     let dir = tempfile::tempdir().unwrap();
     let gone = FilePath::new(dir.path().join("gone.txt")).unwrap();
-    let missing = card(&worker, Input::from(&gone));
+    let missing = card(&worker, gone.on_disk());
     assert_eq!(missing.name, "gone.txt");
     assert!(
-        matches!(missing.body, Body::Unavailable(_)),
+        matches!(missing.body, Body::Unavailable(Unavailable::Missing)),
         "{:?}",
         missing.body
     );

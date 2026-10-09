@@ -11,6 +11,22 @@ use crate::source::FileName;
 /// UTF-8, or starts with a UTF-16 byte-order mark; the name then picks Markdown, a table, a tree,
 /// SVG, a syntax or plain text. Any other head is binary, and the name picks among the binary
 /// families or leaves it `Other`. A zip is not decided here: the answer asks for its entries.
+///
+/// ```no_run
+/// use anyview_core::{FileHead, FileName, SniffStep, sniff};
+///
+/// # fn main() -> Result<(), anyview_core::CoreError> {
+/// // The first 4 KiB of the file, read by whoever owns the I/O, and its name.
+/// let head = FileHead::new(b"%PDF-1.7\n");
+/// let name = FileName::new("report.pdf")?;
+/// match sniff(&head, &name) {
+///     SniffStep::Done(sniffed) => println!("{:?}", sniffed.kind()),
+///     SniffStep::LookInside(_) => println!("a zip: list its entries and `sniff_zip` them"),
+/// }
+/// # Ok(())
+/// # }
+/// ```
+#[must_use]
 pub fn sniff(head: &FileHead, name: &FileName) -> SniffStep {
     match magic::identify(head) {
         Some(Magic::Zip) => SniffStep::LookInside(ZipProbe::new(name.clone())),

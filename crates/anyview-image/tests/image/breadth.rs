@@ -7,6 +7,7 @@ use crate::support;
 use anyview_core::{
     ByteLen, FilePath, FileStamp, Input, MediaTime, ModTime, Peek, PixelLen, PixelSize, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_image::{Decoded, FrameCount, Plays, RasterPeek, Rgba8, decode_bytes};
 use image::codecs::gif::{GifEncoder, Repeat};
 use image::{Delay, DynamicImage, Frame, ImageFormat, Rgb, Rgb32FImage, RgbaImage};
@@ -235,14 +236,14 @@ fn an_icon_family_decodes_to_its_largest_picture() {
     assert_eq!(at(&picture, 0, 0), [90; 4]);
 }
 
-fn on_disk(dir: &tempfile::TempDir, name: &str, bytes: &[u8]) -> Source {
+fn on_disk(dir: &tempfile::TempDir, name: &str, bytes: &[u8]) -> Input {
     let path = dir.path().join(name);
     std::fs::write(&path, bytes).unwrap();
     let stamp = FileStamp {
         len: ByteLen(bytes.len() as u64),
         modified: ModTime(0),
     };
-    Source::new(FilePath::new(path).unwrap(), stamp)
+    Source::new(FilePath::new(path).unwrap(), stamp).on_disk()
 }
 
 #[test]
@@ -261,8 +262,7 @@ fn a_peek_of_each_new_format_is_its_first_picture_and_an_animation_peeks_one_fra
     ];
     for (name, bytes, frames, whole) in files {
         let src = on_disk(&dir, name, &bytes);
-        let peeked =
-            RasterPeek::peek(&Input::from(&src), &sniffed(&bytes, name), &budget(10_000)).unwrap();
+        let peeked = RasterPeek::peek(&src, &sniffed(&bytes, name), &budget(10_000)).unwrap();
         assert_eq!(peeked.source_size, whole, "{name}");
         assert_eq!(peeked.picture.size(), whole, "{name}: one still frame");
         assert_eq!(peeked.frames, FrameCount(frames), "{name}");

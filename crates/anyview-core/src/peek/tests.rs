@@ -4,7 +4,7 @@ use super::*;
 use crate::facts::{FactLabel, FactValue, Facts};
 use crate::kind::FormatKind;
 use crate::sniff::{FileHead, SniffStep, Sniffed, sniff};
-use crate::source::{ByteLen, FileName, FilePath, FileStamp, Input, ModTime, Source};
+use crate::source::{ByteLen, FileName, FileStamp, Input, ModTime};
 use crate::units::PixelArea;
 use std::time::Duration;
 
@@ -60,8 +60,10 @@ fn text_file(len: u64) -> (Input, Sniffed) {
         len: ByteLen(len),
         modified: ModTime(0),
     };
-    let source = Source::new(FilePath::new("/notes.txt").unwrap(), stamp);
-    (Input::from(&source), sniffed)
+    (
+        Input::new(name, stamp, std::sync::Arc::new(Vec::new())),
+        sniffed,
+    )
 }
 
 #[test]

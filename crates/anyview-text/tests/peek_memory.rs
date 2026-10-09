@@ -9,7 +9,8 @@
 #[path = "text/support/mod.rs"]
 mod support;
 
-use anyview_core::{Input, Peek, PeekBudget};
+use anyview_core::{Peek, PeekBudget};
+use anyview_fs::OnDisk;
 use anyview_text::{PlainPeek, TablePeek, TreePeek};
 use support::{budget, written};
 
@@ -66,21 +67,21 @@ fn peeks_of_files_made_of_one_byte_rows_hold_a_small_multiple_of_the_file() {
         let budget = budget_of(FILE_BYTES + 16);
         let peak = peak_of(|| match file {
             "nl.txt" => {
-                let peeked = PlainPeek::peek(&Input::from(&src), &sniffed, &budget).unwrap();
+                let peeked = PlainPeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
                 assert_eq!(peeked.lines.len(), 40, "{name}");
             }
             "rows.csv" => {
-                let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget).unwrap();
+                let peeked = TablePeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
                 assert_eq!(peeked.rows.len(), 40, "{name}");
             }
             "values.jsonl" => {
-                let peeked = TreePeek::peek(&Input::from(&src), &sniffed, &budget).unwrap();
+                let peeked = TreePeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
                 assert_eq!(peeked.top.len(), 40, "{name}");
             }
             _ => {
                 // Over the size a document is parsed at: refused, and refused cheaply.
                 assert!(
-                    TreePeek::peek(&Input::from(&src), &sniffed, &budget).is_err(),
+                    TreePeek::peek(&src.on_disk(), &sniffed, &budget).is_err(),
                     "{name}"
                 );
             }

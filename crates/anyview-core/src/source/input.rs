@@ -1,8 +1,6 @@
 //! `Input`: what a peek reads. A path is the built-in one; a host injects any other bytes.
 
-use super::{ByteLen, FileName, FilePath, FileStamp, ModTime, ReadAt, ReadAtStream, Source};
-use std::fs::File;
-use std::io::{ErrorKind, Result};
+use super::{FileName, FilePath, FileStamp, ModTime, ReadAt, ReadAtStream};
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
@@ -12,7 +10,8 @@ use std::sync::{Arc, OnceLock};
 ///
 /// Back ends that can only read a path (a PDF rasteriser, a folder listing) use [`Input::path`]
 /// and refuse cleanly when there is none, unless the caller spools the bytes to a file first.
-/// [`Source`] stays the serialisable identity of a file at a path.
+/// [`Source`](super::Source) stays the serialisable identity of a file at a path. This crate does
+/// no I/O, so an input of a file on disk is made by `anyview-fs` (`OnDisk::on_disk`).
 #[derive(Debug, Clone)]
 pub struct Input {
     name: FileName,
@@ -27,6 +26,17 @@ impl Input {
         Input {
             name,
             stamp: Stamped::Known(stamp),
+            bytes,
+            path: None,
+        }
+    }
+
+    /// `bytes` called `name`, whose stamp is read from the bytes ([`ReadAt::stamp`]) the first time
+    /// it is asked for, and is a length with no date when they have none.
+    pub fn measured(name: FileName, bytes: Arc<dyn ReadAt>) -> Self {
+        Input {
+            name,
+            stamp: Stamped::Measured(OnceLock::new()),
             bytes,
             path: None,
         }
@@ -49,7 +59,12 @@ impl Input {
     pub fn stamp(&self) -> FileStamp {
         match &self.stamp {
             Stamped::Known(stamp) => *stamp,
-            Stamped::OfPath(path, stamp) => *stamp.get_or_init(|| stamp_of(path)),
+            Stamped::Measured(stamp) => *stamp.get_or_init(|| {
+                self.bytes.stamp().unwrap_or_else(|| FileStamp {
+                    len: self.bytes.len(),
+                    modified: ModTime(0),
+                })
+            }),
         }
     }
 
@@ -77,81 +92,12 @@ impl Input {
     }
 }
 
-/// The stamp of an input: given, or read from the file the first time it is asked for, so
+/// The stamp of an input: given, or read from the bytes the first time it is asked for, so
 /// making an input of a path costs nothing and the stat happens on the worker that peeks.
 #[derive(Debug, Clone)]
 enum Stamped {
     Known(FileStamp),
-    OfPath(FilePath, OnceLock<FileStamp>),
-}
-
-/// A file at a path, opened on first read: a missing file or a FIFO is an error then, not at
-/// construction. The length is the one the open file has.
-#[derive(Debug)]
-struct PathBytes {
-    path: FilePath,
-    file: OnceLock<std::result::Result<File, ErrorKind>>,
-}
-
-impl PathBytes {
-    fn file(&self) -> Result<&File> {
-        self.file
-            .get_or_init(|| {
-                super::open_regular(self.path.as_path())
-                    .map(|(file, _)| file)
-                    .map_err(|e| e.kind())
-            })
-            .as_ref()
-            .map_err(|kind| (*kind).into())
-    }
-}
-
-impl ReadAt for PathBytes {
-    fn len(&self) -> ByteLen {
-        self.file().map_or(ByteLen(0), |file| file.len())
-    }
-
-    fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        self.file()?.read_at(offset, buf)
-    }
-}
-
-fn stamp_of(path: &FilePath) -> FileStamp {
-    let meta = std::fs::metadata(path.as_path());
-    FileStamp {
-        len: ByteLen(meta.as_ref().map_or(0, |meta| meta.len())),
-        modified: meta
-            .and_then(|meta| meta.modified())
-            .map_or(ModTime(0), ModTime::from_system_time),
-    }
-}
-
-fn at_path(path: &FilePath, stamp: Stamped) -> Input {
-    let name = path.file_name().unwrap_or_else(FileName::unnamed);
-    let bytes = Arc::new(PathBytes {
-        path: path.clone(),
-        file: OnceLock::new(),
-    });
-    Input {
-        name,
-        stamp,
-        bytes,
-        path: Some(path.clone()),
-    }
-}
-
-/// The file at `path` as it is now.
-impl From<&FilePath> for Input {
-    fn from(path: &FilePath) -> Self {
-        at_path(path, Stamped::OfPath(path.clone(), OnceLock::new()))
-    }
-}
-
-/// The file `source` names, with the stamp it had when it was probed.
-impl From<&Source> for Input {
-    fn from(source: &Source) -> Self {
-        at_path(source.path(), Stamped::Known(source.stamp()))
-    }
+    Measured(OnceLock<FileStamp>),
 }
 
 /// `bytes` called `name`, in memory, with no clock.
@@ -187,48 +133,50 @@ impl From<&Input> for Input {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::ByteLen;
     use std::io::Read;
 
-    #[test]
-    fn a_path_reads_as_its_file_and_bytes_read_as_themselves() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("a.txt");
-        std::fs::write(&file, b"hello").unwrap();
-        let path = FilePath::new(&file).unwrap();
-        let held = Input::from((FileName::new("a.txt").unwrap(), b"hello".to_vec()));
-        for (name, input) in [("path", Input::from(&path)), ("held", held)] {
-            let mut text = String::new();
-            input.reader().read_to_string(&mut text).unwrap();
-            assert_eq!(text, "hello", "{name}");
-            assert_eq!(input.bytes().len(), ByteLen(5), "{name}");
-            assert_eq!(input.stamp().len, ByteLen(5), "{name}");
-            assert_eq!(input.name().as_str(), "a.txt", "{name}");
+    /// Bytes that know their own stamp, as a file does.
+    #[derive(Debug)]
+    struct Dated(Vec<u8>);
+
+    impl ReadAt for Dated {
+        fn len(&self) -> ByteLen {
+            ReadAt::len(&self.0)
         }
-        assert!(Input::from(&path).path().is_some());
+
+        fn read_at(&self, offset: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+            self.0.read_at(offset, buf)
+        }
+
+        fn stamp(&self) -> Option<FileStamp> {
+            Some(FileStamp {
+                len: ByteLen(99),
+                modified: ModTime(7),
+            })
+        }
     }
 
     #[test]
-    fn a_missing_file_or_a_folder_fails_when_read_and_a_source_keeps_its_stamp() {
-        let dir = tempfile::tempdir().unwrap();
-        let gone = FilePath::new(dir.path().join("gone.txt")).unwrap();
-        let folder = FilePath::new(dir.path()).unwrap();
-        let mut one = [0u8; 1];
-        let missing = Input::from(&gone);
-        assert_eq!(
-            missing.bytes().read_at(0, &mut one).unwrap_err().kind(),
-            ErrorKind::NotFound
-        );
-        let refused = Input::from(&folder);
-        assert_eq!(
-            refused.bytes().read_at(0, &mut one).unwrap_err().kind(),
-            ErrorKind::InvalidInput
-        );
-        let stamp = FileStamp {
-            len: ByteLen(3),
-            modified: ModTime(1),
-        };
-        let source = Source::new(gone, stamp);
-        assert_eq!(Input::from(&source).stamp(), stamp);
-        assert_eq!(Input::from(&source).bytes().len(), ByteLen(0));
+    fn held_and_measured_bytes_read_as_themselves_and_stamp_as_they_say() {
+        let name = || FileName::new("a.txt").unwrap();
+        let held = Input::from((name(), b"hello".to_vec()));
+        let measured = Input::measured(name(), Arc::new(Dated(b"hello".to_vec())));
+        let undated = Input::measured(name(), Arc::new(b"hello".to_vec()));
+        // name, input, the stamp it gives
+        let cases = [
+            ("held", held, (5, 0)),
+            ("measured by the bytes", measured, (99, 7)),
+            ("measured, bytes with no clock", undated, (5, 0)),
+        ];
+        for (case, input, (len, modified)) in cases {
+            let mut text = String::new();
+            input.reader().read_to_string(&mut text).unwrap();
+            assert_eq!(text, "hello", "{case}");
+            assert_eq!(input.stamp().len, ByteLen(len), "{case}");
+            assert_eq!(input.stamp().modified, ModTime(modified), "{case}");
+            assert_eq!(input.name().as_str(), "a.txt", "{case}");
+            assert!(input.path().is_none(), "{case}");
+        }
     }
 }

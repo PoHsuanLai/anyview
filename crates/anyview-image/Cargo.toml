@@ -35,6 +35,8 @@ resvg = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# `OnDisk`: the input of a fixture on disk (core opens no file).
+anyview-fs = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

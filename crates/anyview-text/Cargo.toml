@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+# `OpenFile`, the one way a path is opened (core does no I/O).
+anyview-fs = { workspace = true }
 ds-core = { workspace = true }
 calamine = { workspace = true }
 csv = { workspace = true }

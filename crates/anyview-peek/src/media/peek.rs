@@ -159,7 +159,7 @@ fn rows(look: &MediaLook) -> Facts {
 }
 
 /// The peek of a video file: its header's facts, and a picture only when the file carries a cover
-/// (the host may add a frame from the thumbnail cache, see `VideoFrames`).
+/// (the host may add a frame from the thumbnail cache, see `StillSource`).
 #[derive(Debug, Clone, Copy)]
 pub struct VideoPeek;
 

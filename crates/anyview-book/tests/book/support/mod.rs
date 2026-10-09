@@ -3,7 +3,8 @@
 // Helpers in an integration test crate are not `#[test]` functions, so clippy.toml does not cover them.
 #![allow(dead_code)]
 
-use anyview_core::FilePath;
+use anyview_core::{FilePath, Input};
+use anyview_fs::OnDisk;
 use std::io::Write;
 use zip::write::SimpleFileOptions;
 
@@ -16,7 +17,7 @@ pub const PNG: &[u8] = &[
     0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
 ];
 
-pub fn write_zip(dir: &std::path::Path, name: &str, entries: &[(&str, &[u8])]) -> FilePath {
+pub fn write_zip(dir: &std::path::Path, name: &str, entries: &[(&str, &[u8])]) -> Input {
     let path = dir.join(name);
     let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
     for (entry, bytes) in entries {
@@ -25,7 +26,7 @@ pub fn write_zip(dir: &std::path::Path, name: &str, entries: &[(&str, &[u8])]) -
         zip.write_all(bytes).unwrap();
     }
     zip.finish().unwrap();
-    FilePath::new(path).unwrap()
+    FilePath::new(path).unwrap().on_disk()
 }
 
 const CONTAINER: &str = r#"<?xml version="1.0"?>
@@ -64,7 +65,7 @@ const ONE: &str = r#"<html xmlns="http://www.w3.org/1999/xhtml"><head><title>x</
 
 const TWO: &str = "<html><body><p>Second&nbsp;chapter</p></body></html>";
 
-pub fn epub(dir: &std::path::Path) -> FilePath {
+pub fn epub(dir: &std::path::Path) -> Input {
     write_zip(
         dir,
         "book.epub",
@@ -86,7 +87,7 @@ pub fn epub(dir: &std::path::Path) -> FilePath {
 }
 
 /// Pages named so that natural order differs from the zip's own and from plain text order.
-pub fn comic(dir: &std::path::Path) -> FilePath {
+pub fn comic(dir: &std::path::Path) -> Input {
     write_zip(
         dir,
         "comic.cbz",
