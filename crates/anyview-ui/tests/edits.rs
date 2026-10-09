@@ -151,6 +151,8 @@ fn control_z_undoes_and_shift_control_z_redoes() {
 
 #[test]
 fn revert_to_lists_the_kept_versions_newest_first_and_choosing_one_asks_for_it() {
+    // The expected dates are in UTC, whatever zone the machine is in.
+    anyview_core::LocalZone::pin(0);
     let versions = vec![
         row("k/new", 1_790_000_000, 2_048),
         row("k/old", 1_780_000_000, 1_024),
@@ -164,9 +166,10 @@ fn revert_to_lists_the_kept_versions_newest_first_and_choosing_one_asks_for_it()
     );
     let listed = harness.text_of(".viewer-sheet").unwrap_or_default();
     assert!(
-        listed.find("2026-09-21").unwrap() < listed.find("2026-05-").unwrap(),
+        listed.find("21 Sep 2026 at 14:13").unwrap() < listed.find("28 May 2026 at 20:26").unwrap(),
         "newest first: {listed}"
     );
+    assert!(!listed.contains("UTC"), "no zone is named: {listed}");
     assert!(
         listed.contains("2.0 kB"),
         "and each row says its size: {listed}"
