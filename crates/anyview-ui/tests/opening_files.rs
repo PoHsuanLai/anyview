@@ -45,10 +45,6 @@ fn picks(requests: &Requests) -> usize {
         .count()
 }
 
-fn drop_files(harness: &mut Harness, files: Vec<PathBuf>) {
-    drop_files_at(harness, files, middle());
-}
-
 /// Drop `files` on the window at `point`.
 fn drop_files_at(harness: &mut Harness, files: Vec<PathBuf>, point: Point) {
     for step in [
@@ -147,30 +143,6 @@ fn a_chosen_list_is_the_list_the_arrows_walk_not_the_folder() {
 }
 
 #[test]
-fn a_drop_while_a_rename_sheet_is_up_does_not_leave_the_sheet_over_the_new_file() {
-    for scale in SCALES {
-        let (_dir, files) = folder_of(&["a.txt", "b.txt"]);
-        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), viewport(scale));
-        settle(&mut harness);
-        palette(&mut harness, "rename");
-        harness.send(Input::key(ShortcutKey::Enter));
-        settle(&mut harness);
-        assert_eq!(
-            harness.count(".viewer-sheet"),
-            1,
-            "{scale}: the sheet is up"
-        );
-        drop_files(&mut harness, vec![files[1].clone()]);
-        assert_eq!(title(&harness).as_deref(), Some("b.txt"), "{scale}");
-        assert_eq!(
-            harness.count(".viewer-sheet"),
-            0,
-            "{scale}: a name typed for a.txt must not be applied to b.txt"
-        );
-    }
-}
-
-#[test]
 fn the_menus_open_row_asks_the_host_for_a_chooser_at_both_scales() {
     for scale in SCALES {
         let (_dir, files) = folder_of(&["a.txt", "b.txt"]);
@@ -199,24 +171,42 @@ fn the_menus_open_row_asks_the_host_for_a_chooser_at_both_scales() {
     }
 }
 
+/// A sheet over a file must not stay over the next one. Rows: the palette words that raise the
+/// sheet, and where the file is dropped (the export dialog stands in the middle and takes the
+/// pointer there, as a dialog does: the file goes onto the window beside it).
 #[test]
-fn a_drop_while_the_export_sheet_is_up_does_not_leave_it_over_the_new_file() {
-    for scale in SCALES {
-        let (_dir, files) = folder_of(&["a.txt", "b.txt"]);
-        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), viewport(scale));
-        settle(&mut harness);
-        palette(&mut harness, "export");
-        harness.send(Input::key(ShortcutKey::Enter));
-        settle(&mut harness);
-        assert_eq!(harness.count(".viewer-sheet"), 1, "{scale}");
-        // The export dialog stands in the middle and takes the pointer there, as a dialog does:
-        // the file goes onto the window beside it.
-        let corner = Point {
-            x: Px(8.0),
-            y: Px(8.0),
-        };
-        drop_files_at(&mut harness, vec![files[1].clone()], corner);
-        assert_eq!(title(&harness).as_deref(), Some("b.txt"), "{scale}");
-        assert_eq!(harness.count(".viewer-sheet"), 0, "{scale}");
+fn a_drop_while_a_sheet_is_up_does_not_leave_it_over_the_new_file() {
+    let beside = Point {
+        x: Px(8.0),
+        y: Px(8.0),
+    };
+    for (row, words, at) in [
+        ("rename sheet", "rename", middle()),
+        ("export sheet", "export", beside),
+    ] {
+        for scale in SCALES {
+            let (_dir, files) = folder_of(&["a.txt", "b.txt"]);
+            let (mut harness, _, _) = wired(&files, 0, Appearance::default(), viewport(scale));
+            settle(&mut harness);
+            palette(&mut harness, words);
+            harness.send(Input::key(ShortcutKey::Enter));
+            settle(&mut harness);
+            assert_eq!(
+                harness.count(".viewer-sheet"),
+                1,
+                "{row} at {scale}: the sheet is up"
+            );
+            drop_files_at(&mut harness, vec![files[1].clone()], at);
+            assert_eq!(
+                title(&harness).as_deref(),
+                Some("b.txt"),
+                "{row} at {scale}"
+            );
+            assert_eq!(
+                harness.count(".viewer-sheet"),
+                0,
+                "{row} at {scale}: a name typed for a.txt must not be applied to b.txt"
+            );
+        }
     }
 }

@@ -111,7 +111,11 @@ fn a_recording_starts_a_player_and_its_news_brings_the_capsule_to_life() {
     } = open();
     let line = player.latest().expect("the window started a player");
     assert_eq!(line.file.as_path(), paths[0].as_path());
-    assert_eq!(player.starts(), 1);
+    assert_eq!(
+        player.starts(),
+        1,
+        "only the open file has a player: preloading the next recording would play it unseen"
+    );
     assert!(
         harness
             .text_of(".viewer-media-status")
@@ -405,16 +409,6 @@ fn walking_to_another_file_ends_the_player_and_walking_back_starts_another() {
 }
 
 #[test]
-fn a_neighbour_is_never_played_ahead_of_time() {
-    let Opened { player, .. } = open();
-    assert_eq!(
-        player.starts(),
-        1,
-        "only the open file has a player: preloading the next recording would play it unseen"
-    );
-}
-
-#[test]
 fn a_player_that_cannot_start_is_an_open_that_failed() {
     let (_dir, paths) = folder(FILES);
     let player = FakePlayer::answering(Answer::Refuses);
@@ -432,21 +426,48 @@ fn a_player_that_cannot_start_is_an_open_that_failed() {
     assert!(player.alive().is_empty());
 }
 
+/// A player that fails after the window opened says so in the status: (row, a position it had
+/// reached before it failed, what it reports, the words the status then shows, exact or contained).
 #[test]
-fn a_player_that_gives_up_shows_it() {
-    let Opened {
-        mut harness,
-        player,
-        ..
-    } = open();
-    let line = player.latest().unwrap();
-    line.say(&[MediaNotice::Failed(MediaError::OpenFailed)]);
-    settle(&mut harness);
-    assert!(
-        harness
-            .text_of(".viewer-media-status")
-            .is_some_and(|word| word.contains("cannot be played"))
-    );
+fn a_player_that_fails_says_so_in_its_own_words() {
+    let cases: [(&str, Option<u64>, MediaError, &str, bool); 2] = [
+        (
+            "gives up on opening",
+            None,
+            MediaError::OpenFailed,
+            "cannot be played",
+            false,
+        ),
+        (
+            "stops mid recording",
+            Some(10),
+            MediaError::PlaybackFailed,
+            "The player stopped",
+            true,
+        ),
+    ];
+    for (row, reached, error, words, exact) in cases {
+        let Opened {
+            mut harness,
+            player,
+            ..
+        } = open();
+        let line = player.latest().unwrap();
+        if let Some(secs) = reached {
+            playing(&line, secs);
+        }
+        line.say(&[MediaNotice::Failed(error)]);
+        settle(&mut harness);
+        let status = harness.text_of(".viewer-media-status").unwrap_or_default();
+        assert!(
+            if exact {
+                status == words
+            } else {
+                status.contains(words)
+            },
+            "row {row}: the status {status:?} lacks {words:?}"
+        );
+    }
 }
 
 #[test]
@@ -1105,24 +1126,6 @@ fn with_nothing_on_offer_the_sheet_says_which_package_adds_the_exports_and_write
             .iter()
             .all(|request| !matches!(request, HostRequest::Export(_))),
         "nothing was asked of the host"
-    );
-}
-
-#[test]
-fn a_player_that_stops_mid_recording_is_said_to_have_stopped() {
-    let Opened {
-        mut harness,
-        player,
-        ..
-    } = open();
-    let line = player.latest().unwrap();
-    playing(&line, 10);
-    line.say(&[MediaNotice::Failed(MediaError::PlaybackFailed)]);
-    settle(&mut harness);
-    assert!(
-        harness
-            .text_of(".viewer-media-status")
-            .is_some_and(|word| word == "The player stopped")
     );
 }
 

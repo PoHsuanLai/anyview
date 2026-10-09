@@ -187,35 +187,46 @@ fn return_confirms_the_export_and_the_save_a_copy_sheets() {
 }
 
 #[test]
-fn what_the_host_says_of_a_task_is_a_toast_and_an_export_offers_the_folder() {
-    let (dir, paths) = folder(&[("anyview-image", "quadrants.png", "quadrants.png")]);
-    let (mut harness, requests, edge) = wired(&paths, 0, Appearance::default(), Wiring::default());
-    settle(&mut harness);
-    let made = FilePath::new(dir.path().join("quadrants 2.png")).unwrap();
-    edge.notify(Notice::say("Exported as \u{201c}quadrants 2.png\u{201d}").revealing(made.clone()));
-    harness.advance(Duration::from_millis(600));
-    let toast = harness.text_of(".ds-toast").unwrap_or_default();
-    assert!(toast.contains("Exported as"), "{toast}");
-    assert!(toast.contains("Show in Folder"), "{toast}");
-    let button = harness.centre(".ds-toast-action").expect("the action");
-    harness.send(Input::click(button));
-    settle(&mut harness);
-    assert_eq!(asked(&requests), [HostRequest::Reveal(made)]);
-}
-
-#[test]
-fn a_notice_with_no_file_offers_no_button() {
-    let (_dir, paths) = folder(&[("anyview-image", "quadrants.png", "quadrants.png")]);
-    let (mut harness, _, edge) = wired(&paths, 0, Appearance::default(), Wiring::default());
-    edge.notify(Notice::say("Couldn\u{2019}t move the file to the Trash"));
-    harness.advance(Duration::from_millis(600));
-    assert!(
-        harness
-            .text_of(".ds-toast")
-            .unwrap_or_default()
-            .contains("Trash")
-    );
-    assert_eq!(harness.count(".ds-toast-action"), 0);
+fn what_the_host_says_of_a_task_is_a_toast_and_only_a_file_offers_the_folder() {
+    // row, whether the notice names a file to reveal, the words of the notice, the words the toast shows
+    for (row, revealing, said, shown) in [
+        (
+            "an export",
+            true,
+            "Exported as \u{201c}quadrants 2.png\u{201d}",
+            "Exported as",
+        ),
+        (
+            "a failure with no file",
+            false,
+            "Couldn\u{2019}t move the file to the Trash",
+            "Trash",
+        ),
+    ] {
+        let (dir, paths) = folder(&[("anyview-image", "quadrants.png", "quadrants.png")]);
+        let (mut harness, requests, edge) =
+            wired(&paths, 0, Appearance::default(), Wiring::default());
+        settle(&mut harness);
+        let made = FilePath::new(dir.path().join("quadrants 2.png")).unwrap();
+        let notice = Notice::say(said);
+        edge.notify(if revealing {
+            notice.revealing(made.clone())
+        } else {
+            notice
+        });
+        harness.advance(Duration::from_millis(600));
+        let toast = harness.text_of(".ds-toast").unwrap_or_default();
+        assert!(toast.contains(shown), "row {row}: {toast}");
+        if revealing {
+            assert!(toast.contains("Show in Folder"), "row {row}: {toast}");
+            let button = harness.centre(".ds-toast-action").expect("the action");
+            harness.send(Input::click(button));
+            settle(&mut harness);
+            assert_eq!(asked(&requests), [HostRequest::Reveal(made)], "row {row}");
+        } else {
+            assert_eq!(harness.count(".ds-toast-action"), 0, "row {row}: no button");
+        }
+    }
 }
 
 #[test]

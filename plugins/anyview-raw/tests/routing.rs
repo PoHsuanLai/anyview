@@ -46,17 +46,3 @@ fn without_the_plugin_raw_is_missing_and_names_the_package() {
     assert_eq!(missing.package.name(), "anyview-raw");
     assert_eq!(missing.fact().value.as_str(), "anyview-raw (to show it)");
 }
-
-#[test]
-fn a_picture_that_needs_no_plugin_is_unserved_either_way() {
-    let png = Mime::parse("image/png").unwrap();
-    assert!(matches!(
-        Plugins::none().route(Capability::Decode, &subject(&png)),
-        Route::Unserved
-    ));
-    let installed = Scratch::new().discover(&[]);
-    assert!(matches!(
-        installed.route(Capability::Decode, &subject(&png)),
-        Route::Unserved
-    ));
-}

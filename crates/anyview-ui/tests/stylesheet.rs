@@ -11,11 +11,7 @@ fn strict() -> LintConfig {
 }
 
 #[test]
-fn the_window_stylesheet_is_clean() {
+fn the_window_and_the_rendered_page_stylesheets_are_clean() {
     assert_clean(&anyview_ui::stylesheet(), &strict());
-}
-
-#[test]
-fn the_rendered_page_stylesheet_is_clean() {
     assert_clean(include_str!("../src/families/text/page.css"), &strict());
 }

@@ -35,10 +35,11 @@ fn row(slug: &'static str, text: &str) -> (&'static str, String) {
 /// the bitrate is the file's size over its length.
 #[test]
 fn each_format_lists_what_its_header_says() {
-    let cases: Vec<(&str, Home, Rows)> = vec![
+    let cases: Vec<(&str, Home, bool, Rows)> = vec![
         (
             "clip.mkv",
             Home::Media,
+            true,
             vec![
                 row("duration", "0:03"),
                 row("dimensions", "64 × 48"),
@@ -53,6 +54,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "clip.mp4",
             Home::Own,
+            true,
             vec![
                 row("duration", "0:01"),
                 row("dimensions", "64 × 48"),
@@ -70,6 +72,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tone.flac",
             Home::Media,
+            false,
             vec![
                 row("duration", "0:02"),
                 row("codec", "flac"),
@@ -81,6 +84,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tagged.mp3",
             Home::Own,
+            false,
             vec![
                 row("duration", "0:01"),
                 row("codec", "mp3"),
@@ -96,6 +100,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tone.ogg",
             Home::Own,
+            false,
             vec![
                 row("duration", "0:01"),
                 row("codec", "vorbis"),
@@ -111,6 +116,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tone.opus",
             Home::Own,
+            false,
             vec![
                 row("duration", "0:01"),
                 row("codec", "opus"),
@@ -126,6 +132,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tone.wav",
             Home::Own,
+            false,
             vec![
                 row("duration", "0:01"),
                 row("codec", "pcm"),
@@ -137,6 +144,7 @@ fn each_format_lists_what_its_header_says() {
         (
             "tone.aiff",
             Home::Own,
+            false,
             vec![
                 row("duration", "0:01"),
                 row("codec", "pcm"),
@@ -146,33 +154,48 @@ fn each_format_lists_what_its_header_says() {
                 row("title", "Aiff Tone"),
             ],
         ),
+        (
+            "song.m4a",
+            Home::Own,
+            false,
+            vec![
+                row("duration", "0:01"),
+                row("codec", "aac"),
+                row("sample-rate", "8 kHz"),
+                row("channels", "mono"),
+                row("bitrate", "32 kbit/s"),
+                row("title", "M4A Tone"),
+                row("author", "Quire"),
+                row("album", "Fixtures"),
+                row("track-number", "2"),
+            ],
+        ),
     ];
-    for (name, home, want) in cases {
-        assert_eq!(header_rows(&peeked(home, name)), want, "{name}");
+
+    for (name, home, is_video, want) in cases {
+        let got = peeked(home, name);
+        assert_eq!(header_rows(&got), want, "{name}");
+        // A video draws no picture of its own: its body is the facts.
+        if is_video {
+            assert_eq!(got.kind, FormatKind::Video, "{name}");
+            assert_eq!(got.body.slug(), "facts", "{name}");
+            assert!(rows(&got.facts)[0].1.starts_with("Video ("), "{name}");
+        }
     }
 }
 
-#[test]
-fn a_video_draws_no_picture_of_its_own() {
-    for name in ["clip.mkv", "clip.mp4"] {
-        let home = if name == "clip.mkv" {
-            Home::Media
-        } else {
-            Home::Own
-        };
-        let video = peeked(home, name);
-        assert_eq!(video.kind, FormatKind::Video, "{name}");
-        assert_eq!(video.body.slug(), "facts", "{name}");
-        assert!(rows(&video.facts)[0].1.starts_with("Video ("), "{name}");
-    }
-}
-
+/// The cover of `cover.mp3`, at two budgets: a small cover is not enlarged, and one larger than
+/// the pixel budget is reduced.
 #[test]
 fn an_audio_file_with_a_cover_shows_the_cover_reduced_to_the_budget() {
+    // step 1: the pane's budget
     let audio = peeked(Home::Media, "cover.mp3");
     assert_eq!(audio.kind, FormatKind::Audio);
     let Body::Picture(cover) = &audio.body else {
-        panic!("expected the cover, got {}", audio.body.slug());
+        panic!(
+            "step pane budget: expected the cover, got {}",
+            audio.body.slug()
+        );
     };
     assert_eq!(
         (cover.source_size.width.0, cover.source_size.height.0),
@@ -181,67 +204,26 @@ fn an_audio_file_with_a_cover_shows_the_cover_reduced_to_the_budget() {
     assert_eq!(
         cover.picture.size(),
         cover.source_size,
-        "a small cover is not enlarged"
+        "step pane budget: a small cover is not enlarged"
     );
     let rows = rows(&audio.facts);
     assert_eq!(rows[0].1, "Audio (MP3)");
     assert_eq!(rows[1], ("duration", "0:02".to_owned()));
     assert_eq!(rows[2], ("codec", "mp3".to_owned()));
-}
 
-#[test]
-fn an_m4a_shows_its_tags_and_its_cover() {
-    let audio = peeked(Home::Own, "song.m4a");
-    let Body::Picture(cover) = &audio.body else {
-        panic!("expected the cover, got {}", audio.body.slug());
-    };
-    assert_eq!(
-        (cover.source_size.width.0, cover.source_size.height.0),
-        (64, 64)
-    );
-    assert_eq!(
-        header_rows(&audio),
-        vec![
-            row("duration", "0:01"),
-            row("codec", "aac"),
-            row("sample-rate", "8 kHz"),
-            row("channels", "mono"),
-            row("bitrate", "32 kbit/s"),
-            row("title", "M4A Tone"),
-            row("author", "Quire"),
-            row("album", "Fixtures"),
-            row("track-number", "2"),
-        ]
-    );
-}
-
-#[test]
-fn a_cover_larger_than_the_pixel_budget_is_reduced() {
+    // step 2: a budget of 256 pixels
     let (src, sniffed) = fixture(Home::Media, "cover.mp3");
     let small = support::budget(4_000_000, 256);
     let audio = peek(&src, &sniffed, &small);
     let Body::Picture(cover) = &audio.body else {
-        panic!("expected the cover");
+        panic!("step small budget: expected the cover");
     };
     assert!(
         cover.picture.size().area().0 <= 256,
-        "{:?}",
+        "step small budget: {:?}",
         cover.picture.size()
     );
-    assert_eq!(cover.source_size.width.0, 64);
-}
-
-#[test]
-fn audio_with_no_cover_is_facts_only_and_a_broken_file_says_why() {
-    let flac = peeked(Home::Media, "tone.flac");
-    assert_eq!(flac.body.slug(), "facts");
-    assert_eq!(rows(&flac.facts)[1], ("duration", "0:02".to_owned()));
-    let dir = tempfile::tempdir().unwrap();
-    let broken = dir.path().join("broken.mp3");
-    std::fs::write(&broken, vec![0_u8; 64]).unwrap();
-    let (src, sniffed) = support::on_disk(&broken, 0);
-    let result = peek(&src, &sniffed, &pane_budget());
-    assert_eq!(result.body.slug(), "unavailable");
+    assert_eq!(cover.source_size.width.0, 64, "step small budget");
 }
 
 /// The recordings no parser here reads show what any file shows: its type, size and date.
@@ -271,12 +253,13 @@ fn a_damaged_recording_says_why_whichever_parser_reads_it() {
     let mkv = std::fs::read(support::path(Home::Media, "clip.mkv")).unwrap();
     let flac = std::fs::read(support::path(Home::Media, "tone.flac")).unwrap();
     let m4a = std::fs::read(support::path(Home::Own, "song.m4a")).unwrap();
-    let cases: [(&str, Vec<u8>); 5] = [
+    let cases: [(&str, Vec<u8>); 6] = [
         ("cut.mp4", whole[..whole.len() / 2].to_vec()),
         ("cut.mkv", mkv[..40].to_vec()),
         ("cut.flac", flac[..10].to_vec()),
         ("cut.m4a", m4a[..60].to_vec()),
         ("noise.ogg", vec![0; 300]),
+        ("broken.mp3", vec![0; 64]),
     ];
     for (name, bytes) in cases {
         let path = dir.path().join(name);
@@ -309,27 +292,34 @@ fn a_matroska_header_that_loops_is_given_up_on() {
 }
 
 /// Every container that can hold a picture hands it over: ID3 `APIC`, FLAC `PICTURE`, MP4 `covr`
-/// and Vorbis `METADATA_BLOCK_PICTURE`. The files are made by `fixtures/audio/make.sh`.
+/// and Vorbis `METADATA_BLOCK_PICTURE`; the same containers without one are facts only. The files
+/// are made by `fixtures/audio/make.sh`.
 #[test]
-fn each_audio_container_hands_over_the_cover_it_carries() {
-    for name in ["art.mp3", "art.flac", "art.m4a", "art.ogg"] {
+fn each_audio_container_hands_over_the_cover_it_carries_or_shows_facts_only() {
+    // file, whether it carries a cover
+    let cases = [
+        ("art.mp3", true),
+        ("art.flac", true),
+        ("art.m4a", true),
+        ("art.ogg", true),
+        ("plain.mp3", false),
+        ("plain.flac", false),
+        ("plain.m4a", false),
+    ];
+    for (name, has_cover) in cases {
         let audio = peeked(Home::Own, &format!("audio/{name}"));
-        let Body::Picture(cover) = &audio.body else {
-            panic!("{name}: expected the cover, got {}", audio.body.slug());
-        };
-        assert_eq!(
-            (cover.source_size.width.0, cover.source_size.height.0),
-            (64, 64),
-            "{name}"
-        );
-    }
-}
-
-#[test]
-fn each_audio_container_without_a_cover_is_facts_only() {
-    for name in ["plain.mp3", "plain.flac", "plain.m4a"] {
-        let audio = peeked(Home::Own, &format!("audio/{name}"));
-        assert_eq!(audio.body.slug(), "facts", "{name}");
+        if has_cover {
+            let Body::Picture(cover) = &audio.body else {
+                panic!("{name}: expected the cover, got {}", audio.body.slug());
+            };
+            assert_eq!(
+                (cover.source_size.width.0, cover.source_size.height.0),
+                (64, 64),
+                "{name}"
+            );
+        } else {
+            assert_eq!(audio.body.slug(), "facts", "{name}");
+        }
     }
 }
 

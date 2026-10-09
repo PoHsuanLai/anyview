@@ -232,34 +232,35 @@ fn the_welcome_window_asks_for_a_file_only_where_there_is_a_chooser() {
 const OPEN: &str = "Open\u{2026}";
 
 #[test]
-fn open_is_in_the_palette_and_the_menu_where_there_is_a_chooser() {
-    let (mut harness, _) = picture(PlatformAbilities::ALL);
-    let listed = palette(&mut harness);
-    assert!(listed.contains(OPEN), "Open… is listed: {listed}");
-    let menu = context_menu(&mut harness);
-    let open = menu
-        .iter()
-        .position(|row| row == OPEN)
-        .expect("Open… in the menu");
-    let reveal = menu
-        .iter()
-        .position(|row| row == "Show in Folder")
-        .expect("Show in Folder in the menu");
-    assert_eq!(
-        open + 1,
-        reveal,
-        "Open… sits just before Show in Folder: {menu:?}"
-    );
-}
-
-#[test]
-fn open_is_in_neither_the_palette_nor_the_menu_without_a_chooser() {
-    let (mut harness, _) = picture(PlatformAbilities {
-        pick_files: false,
-        ..PlatformAbilities::ALL
-    });
-    let listed = palette(&mut harness);
-    assert!(!listed.contains(OPEN), "{listed}");
-    let menu = context_menu(&mut harness);
-    assert!(!menu.iter().any(|row| row == OPEN), "{menu:?}");
+fn open_is_in_the_palette_and_the_menu_only_where_there_is_a_chooser() {
+    for (row, pick_files) in [("with a chooser", true), ("without a chooser", false)] {
+        let (mut harness, _) = picture(PlatformAbilities {
+            pick_files,
+            ..PlatformAbilities::ALL
+        });
+        let listed = palette(&mut harness);
+        let menu = context_menu(&mut harness);
+        if pick_files {
+            assert!(
+                listed.contains(OPEN),
+                "row {row}: Open… is listed: {listed}"
+            );
+            let open = menu
+                .iter()
+                .position(|r| r == OPEN)
+                .unwrap_or_else(|| panic!("row {row}: Open… in the menu"));
+            let reveal = menu
+                .iter()
+                .position(|r| r == "Show in Folder")
+                .unwrap_or_else(|| panic!("row {row}: Show in Folder in the menu"));
+            assert_eq!(
+                open + 1,
+                reveal,
+                "row {row}: Open… sits just before Show in Folder: {menu:?}"
+            );
+        } else {
+            assert!(!listed.contains(OPEN), "row {row}: {listed}");
+            assert!(!menu.iter().any(|r| r == OPEN), "row {row}: {menu:?}");
+        }
+    }
 }

@@ -104,11 +104,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_table_is_well_formed() {
-        crate::kind::family::tests::assert_well_formed::<OfficeFormat>();
-    }
-
-    #[test]
     fn only_the_spreadsheets_are_tables() {
         // name, format, kind
         const CASES: &[(&str, OfficeFormat, FormatKind)] = &[

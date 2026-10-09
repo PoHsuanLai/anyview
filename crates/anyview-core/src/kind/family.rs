@@ -52,4 +52,28 @@ pub(crate) mod tests {
             }
         }
     }
+
+    /// Every family's table, named on failure.
+    #[test]
+    fn every_family_table_is_well_formed() {
+        use crate::kind::{
+            ArchiveFormat, BookFormat, Delimiter, FontFormat, MediaContainer, OfficeFormat,
+            RasterFormat, TreeFormat,
+        };
+        let families: [(&str, fn()); 8] = [
+            ("ArchiveFormat", assert_well_formed::<ArchiveFormat>),
+            ("BookFormat", assert_well_formed::<BookFormat>),
+            ("Delimiter", assert_well_formed::<Delimiter>),
+            ("FontFormat", assert_well_formed::<FontFormat>),
+            ("MediaContainer", assert_well_formed::<MediaContainer>),
+            ("OfficeFormat", assert_well_formed::<OfficeFormat>),
+            ("RasterFormat", assert_well_formed::<RasterFormat>),
+            ("TreeFormat", assert_well_formed::<TreeFormat>),
+        ];
+        for (name, check) in families {
+            if std::panic::catch_unwind(check).is_err() {
+                panic!("the table of {name} is not well formed (see the message above)");
+            }
+        }
+    }
 }

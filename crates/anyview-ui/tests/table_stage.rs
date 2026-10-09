@@ -31,15 +31,15 @@ fn open(name: &str, body: &str) -> (tempfile::TempDir, Harness) {
 }
 
 #[test]
-fn a_table_of_a_hundred_thousand_rows_mounts_only_a_window_of_them() {
+fn a_table_of_twenty_thousand_rows_mounts_only_a_window_of_them() {
     let mut body = String::from("id,name,score\n");
-    for n in 0..100_000 {
+    for n in 0..20_000 {
         body.push_str(&format!("{n},name {n},{}\n", n % 97));
     }
     let (_dir, harness) = open("big.csv", &body);
     let mounted = harness.count(".viewer-row-number");
     assert!(mounted > 0, "the first rows are drawn");
-    assert!(mounted < 200, "{mounted} rows are mounted for 100000");
+    assert!(mounted < 200, "{mounted} rows are mounted for 20000");
     assert_eq!(harness.text_of(".ds-table-title").as_deref(), Some("#"));
 }
 

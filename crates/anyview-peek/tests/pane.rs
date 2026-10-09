@@ -22,7 +22,7 @@ use ds::components::content::pdf_thumb::PdfPage;
 use ds::prelude::{Appearance, Ds, Material, Word};
 use ds_harness::{Backdrop, Harness, HarnessConfig, Query, Viewport};
 use ds_lint::{LintConfig, Profile, Rule, assert_clean, markup};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use support::{Home, fixture, pane_budget};
 
 fn peeked(home: Home, name: &str) -> Arc<AnyPeeked> {
@@ -102,26 +102,54 @@ fn pane(peeked: &Arc<AnyPeeked>) -> String {
     html[start..end].to_owned()
 }
 
+/// Every body the pane draws, peeked once for the whole binary: the goldens, the lint and the two
+/// harness tests all look at the same ones.
+fn body(name: &str) -> Arc<AnyPeeked> {
+    static BODIES: OnceLock<Vec<(&str, Arc<AnyPeeked>)>> = OnceLock::new();
+    let all = BODIES.get_or_init(|| {
+        vec![
+            ("picture", peeked(Home::Image, "quadrants.png")),
+            ("page", page()),
+            ("plain", peeked(Home::Text, "notes.txt")),
+            ("code", peeked(Home::Text, "sample.rs")),
+            ("every token class", every_token_class()),
+            ("table", peeked(Home::Text, "people.csv")),
+            ("tree", peeked(Home::Text, "config.json")),
+            ("markdown", peeked(Home::Text, "readme.md")),
+            ("archive", archive()),
+            ("font", peeked(Home::Font, "blocks.ttf")),
+            ("font-fallback", peeked(Home::Font, "circled.ttf")),
+            ("unavailable", pdf_over_budget()),
+            ("facts", facts_only()),
+        ]
+    });
+    all.iter()
+        .find(|(known, _)| *known == name)
+        .unwrap_or_else(|| panic!("no body called {name}"))
+        .1
+        .clone()
+}
+
 #[test]
 fn each_body_is_drawn_as_its_golden() {
-    // name, what was peeked
-    let cases: Vec<(&str, Arc<AnyPeeked>)> = vec![
-        ("picture", peeked(Home::Image, "quadrants.png")),
-        ("page", page()),
-        ("plain", peeked(Home::Text, "notes.txt")),
-        ("code", peeked(Home::Text, "sample.rs")),
-        ("table", peeked(Home::Text, "people.csv")),
-        ("tree", peeked(Home::Text, "config.json")),
-        ("archive", archive()),
-        ("font", peeked(Home::Font, "blocks.ttf")),
-        ("font-fallback", peeked(Home::Font, "circled.ttf")),
-        ("unavailable", pdf_over_budget()),
+    // name; the facts row is a kind without a back end, a plate and facts
+    let names = [
+        "picture",
+        "page",
+        "plain",
+        "code",
+        "table",
+        "tree",
+        "archive",
+        "font",
+        "font-fallback",
+        "unavailable",
+        "facts",
     ];
-    let failures: Vec<String> = cases
+    assert_eq!(body("facts").kind, FormatKind::Other);
+    let failures: Vec<String> = names
         .iter()
-        .filter_map(|(name, peeked)| {
-            golden::check(&format!("pane/{name}.html"), &pane(peeked)).err()
-        })
+        .filter_map(|name| golden::check(&format!("pane/{name}.html"), &pane(&body(name))).err())
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -156,15 +184,6 @@ fn facts_only() -> Arc<AnyPeeked> {
 }
 
 #[test]
-fn a_kind_without_a_back_end_is_a_plate_and_facts() {
-    let peeked = facts_only();
-    assert_eq!(peeked.kind, FormatKind::Other);
-    if let Err(diff) = golden::check("pane/facts.html", &pane(&peeked)) {
-        panic!("{diff}");
-    }
-}
-
-#[test]
 fn the_stylesheet_uses_design_system_tokens_only() {
     assert_clean(
         STYLE,
@@ -185,18 +204,19 @@ fn is_texture_layer(offence: &ds_lint::Offence) -> bool {
 fn every_class_the_pane_draws_is_styled_and_nothing_is_raw_markup() {
     let css = format!("{}\n{STYLE}", ds::stylesheet());
     let all = [
-        peeked(Home::Image, "quadrants.png"),
-        page(),
-        peeked(Home::Text, "notes.txt"),
-        every_token_class(),
-        peeked(Home::Text, "people.csv"),
-        peeked(Home::Text, "config.json"),
-        peeked(Home::Text, "readme.md"),
-        archive(),
-        peeked(Home::Font, "blocks.ttf"),
-        facts_only(),
-        pdf_over_budget(),
-    ];
+        "picture",
+        "page",
+        "plain",
+        "every token class",
+        "table",
+        "tree",
+        "markdown",
+        "archive",
+        "font",
+        "facts",
+        "unavailable",
+    ]
+    .map(body);
     for peeked in &all {
         let html = render(peeked);
         let offences = markup(&html, &css, &LintConfig::new(&ds::kits()));
@@ -238,35 +258,11 @@ fn harness(peeked: Arc<AnyPeeked>) -> Harness {
 fn the_pane_in_a_real_document_lists_the_file_and_its_facts() {
     // name, what was peeked, lines or rows drawn, facts listed
     let cases: Vec<(&str, Arc<AnyPeeked>, &str, usize, usize)> = vec![
-        (
-            "code",
-            peeked(Home::Text, "sample.rs"),
-            ".anyview-line",
-            16,
-            5,
-        ),
-        (
-            "plain",
-            peeked(Home::Text, "notes.txt"),
-            ".anyview-line",
-            40,
-            5,
-        ),
-        (
-            "table",
-            peeked(Home::Text, "people.csv"),
-            ".ds-table-cell",
-            40 * 3,
-            6,
-        ),
-        ("archive", archive(), ".ds-table-cell", 3 * 2, 4),
-        (
-            "font",
-            peeked(Home::Font, "blocks.ttf"),
-            ".anyview-specimen-line",
-            3,
-            6,
-        ),
+        ("code", body("code"), ".anyview-line", 16, 5),
+        ("plain", body("plain"), ".anyview-line", 40, 5),
+        ("table", body("table"), ".ds-table-cell", 40 * 3, 6),
+        ("archive", body("archive"), ".ds-table-cell", 3 * 2, 4),
+        ("font", body("font"), ".anyview-specimen-line", 3, 6),
     ];
     for (name, peeked, selector, drawn, facts) in cases {
         let file = peeked.name.clone();
@@ -283,7 +279,7 @@ fn the_pane_in_a_real_document_lists_the_file_and_its_facts() {
 
 #[test]
 fn the_specimen_is_inked_in_a_real_document_with_the_panes_ink() {
-    let mut harness = harness(peeked(Home::Font, "blocks.ttf"));
+    let mut harness = harness(body("font"));
     let shot = harness.render_over(Backdrop::Clear).unwrap();
     let rect = harness.rect(".anyview-specimen-line").unwrap();
     assert!(
@@ -329,19 +325,11 @@ fn hosted() -> Element {
 
 #[test]
 fn the_pane_fits_the_box_it_is_given_and_shows_its_name_and_every_fact() {
-    let cases: Vec<(&str, Arc<AnyPeeked>)> = vec![
-        ("picture", peeked(Home::Image, "quadrants.png")),
-        ("page", page()),
-        ("plain", peeked(Home::Text, "notes.txt")),
-        ("code", peeked(Home::Text, "sample.rs")),
-        ("table", peeked(Home::Text, "people.csv")),
-        ("tree", peeked(Home::Text, "config.json")),
-        ("markdown", peeked(Home::Text, "readme.md")),
-        ("archive", archive()),
-        ("font", peeked(Home::Font, "blocks.ttf")),
-        ("facts", facts_only()),
+    let names = [
+        "picture", "page", "plain", "code", "table", "tree", "markdown", "archive", "font", "facts",
     ];
-    for (name, peeked) in cases {
+    for name in names {
+        let peeked = body(name);
         let config = HarnessConfig::new(Viewport {
             width: 360,
             height: 700,

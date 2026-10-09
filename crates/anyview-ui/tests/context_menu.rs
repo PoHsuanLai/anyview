@@ -12,10 +12,10 @@ use anyview_core::{Edit, FileAction, QuarterTurn};
 use anyview_ui::{Command, EditRequest, HostRequest, StageCommand};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_core::press::PointerButton;
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Driver, Harness, Input, Query, Viewport};
 use std::path::PathBuf;
 use support::{
-    Answer, FakeLine, FakePlayer, Requests, Wiring, folder, settle, text_file, window, wired,
+    Answer, FakeLine, FakePlayer, Requests, VIEW, Wiring, folder, settle, text_file, window, wired,
 };
 
 const RULE: &str = "---";
@@ -105,21 +105,6 @@ fn assert_the_palette_lists(lines: &[String], rows: &[(&str, Option<Command>)], 
 
 const fn file(action: FileAction) -> Option<Command> {
     Some(Command::File(action))
-}
-
-#[test]
-fn a_right_click_opens_the_menu_at_the_pointer() {
-    let (_dir, mut harness, _) = picture();
-    assert_eq!(harness.count(".ds-menu"), 0, "no menu before the click");
-    let pointer = at(300.0, 200.0);
-    right_click(&mut harness, pointer);
-    let rect = harness.rect(".ds-menu").expect("the menu is drawn");
-    assert!(
-        (rect.origin.x.0 - pointer.x.0).abs() <= 2.0
-            && (rect.origin.y.0 - pointer.y.0).abs() <= 2.0,
-        "the menu's corner {:?} is at the pointer {pointer:?}",
-        rect.origin
-    );
 }
 
 #[test]
@@ -238,26 +223,50 @@ fn the_chrome_stays_while_the_menu_is_open_and_hides_after() {
     );
 }
 
+/// The menu key at each scale a desktop runs at: the menu opens at the middle of the content
+/// (sliding up when it is too tall for the room below) and wholly inside the window.
 #[test]
-fn the_menu_key_opens_it_at_the_middle_of_the_content() {
-    let (_dir, mut harness, _) = picture();
-    harness.send(Input::key(ShortcutKey::ContextMenu));
-    settle(&mut harness);
-    let rect = harness.rect(".ds-menu").expect("the menu is drawn");
-    let stage = harness.rect(".viewer-stage").expect("the stage");
-    let middle = (
-        stage.origin.x.0 + stage.size.width.0 / 2.0,
-        stage.origin.y.0 + stage.size.height.0 / 2.0,
-    );
-    // A menu too tall for the room below slides up to stay on screen.
-    let bottom = rect.origin.y.0 + rect.size.height.0;
-    let slid = bottom >= stage.origin.y.0 + stage.size.height.0 - 8.0;
-    let at_middle = (rect.origin.y.0 - middle.1).abs() <= 2.0;
-    assert!(
-        (rect.origin.x.0 - middle.0).abs() <= 2.0 && (at_middle || slid),
-        "the menu's corner {:?} is at the middle {middle:?}",
-        rect.origin
-    );
+fn the_menu_key_opens_it_at_the_middle_of_the_content_on_screen_at_every_scale() {
+    for scale in [100, 150, 200] {
+        let (_dir, paths) = folder(&[("anyview-image", "quadrants.png", "quadrants.png")]);
+        let wiring = Wiring {
+            viewport: Some(Viewport {
+                scale_percent: scale,
+                ..VIEW
+            }),
+            ..Wiring::default()
+        };
+        let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), wiring);
+        settle(&mut harness);
+        harness.send(Input::key(ShortcutKey::ContextMenu));
+        settle(&mut harness);
+        let rect = harness
+            .rect(".ds-menu")
+            .unwrap_or_else(|| panic!("{scale}%: the menu is not drawn"));
+        let stage = harness.rect(".viewer-stage").expect("the stage");
+        let middle = (
+            stage.origin.x.0 + stage.size.width.0 / 2.0,
+            stage.origin.y.0 + stage.size.height.0 / 2.0,
+        );
+        // A menu too tall for the room below slides up to stay on screen.
+        let bottom = rect.origin.y.0 + rect.size.height.0;
+        let slid = bottom >= stage.origin.y.0 + stage.size.height.0 - 8.0;
+        let at_middle = (rect.origin.y.0 - middle.1).abs() <= 2.0;
+        assert!(
+            (rect.origin.x.0 - middle.0).abs() <= 2.0 && (at_middle || slid),
+            "{scale}%: the menu's corner {:?} is at the middle {middle:?}",
+            rect.origin
+        );
+        assert!(
+            rect.origin.x.0 >= 0.0
+                && rect.origin.y.0 >= 0.0
+                && rect.origin.x.0 + rect.size.width.0 <= VIEW.width as f32
+                && bottom <= VIEW.height as f32,
+            "{scale}%: the menu {rect:?} leaves the {}x{} window",
+            VIEW.width,
+            VIEW.height
+        );
+    }
 }
 
 #[test]

@@ -1,30 +1,14 @@
 //! Every kind of file is mapped to a view, and the registry agrees with the core's table of which
 //! kinds have a stage: a kind with no stage is shown as facts, never left out.
 
-use anyview_core::{FormatKind, StageSupport, stage_support};
+use anyview_core::{FormatKind, OfficeFormat, StageSupport, stage_support};
 use anyview_ui::{StageFamily, family_of};
 use ds_core::word::Word;
 
 #[test]
-fn every_kind_has_a_view_and_the_registry_agrees_with_the_core() {
-    for kind in FormatKind::ALL {
-        let shown = match family_of(*kind) {
-            StageFamily::PeekOnly => StageSupport::PeekOnly,
-            StageFamily::Raster
-            | StageFamily::Pdf
-            | StageFamily::Media
-            | StageFamily::Text
-            | StageFamily::Table
-            | StageFamily::Tree => StageSupport::Stage,
-        };
-        assert_eq!(shown, stage_support(*kind), "{kind:?}");
-    }
-}
-
-#[test]
-fn the_kinds_the_viewer_shows_land_on_their_families() {
+fn every_kind_lands_on_its_family_and_the_registry_agrees_with_the_core() {
     // name, kind, family
-    const CASES: &[(&str, FormatKind, StageFamily)] = &[
+    let mut cases: Vec<(String, FormatKind, StageFamily)> = [
         ("a photo", FormatKind::Raster, StageFamily::Raster),
         ("an svg", FormatKind::Vector, StageFamily::Raster),
         ("a pdf", FormatKind::Pdf, StageFamily::Pdf),
@@ -42,25 +26,37 @@ fn the_kinds_the_viewer_shows_land_on_their_families() {
         ),
         ("a book", FormatKind::Book, StageFamily::Pdf),
         ("an archive", FormatKind::Archive, StageFamily::PeekOnly),
+        ("a font", FormatKind::Font, StageFamily::PeekOnly),
         ("a folder", FormatKind::Folder, StageFamily::PeekOnly),
         ("something else", FormatKind::Other, StageFamily::PeekOnly),
-    ];
-    for (name, kind, family) in CASES {
-        assert_eq!(family_of(*kind), *family, "{name}");
-    }
-}
-
-#[test]
-fn spreadsheets_are_tables_and_other_office_files_are_facts() {
-    use anyview_core::OfficeFormat;
+    ]
+    .into_iter()
+    .map(|(name, kind, family)| (name.to_owned(), kind, family))
+    .collect();
+    // Spreadsheets are tables and other office files are facts.
     for format in [OfficeFormat::Xlsx, OfficeFormat::Ods, OfficeFormat::Xls] {
-        assert_eq!(family_of(format.kind()), StageFamily::Table, "{format:?}");
+        cases.push((format!("{format:?}"), format.kind(), StageFamily::Table));
     }
     for format in [OfficeFormat::Docx, OfficeFormat::Pptx, OfficeFormat::Odt] {
-        assert_eq!(
-            family_of(format.kind()),
-            StageFamily::PeekOnly,
-            "{format:?}"
+        cases.push((format!("{format:?}"), format.kind(), StageFamily::PeekOnly));
+    }
+    for kind in FormatKind::ALL {
+        assert!(
+            cases.iter().any(|(_, k, _)| k == kind),
+            "{kind:?} has no row: every kind has a view"
         );
+    }
+    for (name, kind, family) in &cases {
+        assert_eq!(family_of(*kind), *family, "row {name}: its family");
+        let shown = match family_of(*kind) {
+            StageFamily::PeekOnly => StageSupport::PeekOnly,
+            StageFamily::Raster
+            | StageFamily::Pdf
+            | StageFamily::Media
+            | StageFamily::Text
+            | StageFamily::Table
+            | StageFamily::Tree => StageSupport::Stage,
+        };
+        assert_eq!(shown, stage_support(*kind), "row {name}: the core agrees");
     }
 }

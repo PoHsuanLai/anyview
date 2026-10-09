@@ -59,38 +59,62 @@ fn on_screen(rect: Rect) -> bool {
         && rect.origin.y.0 + rect.size.height.0 <= HEIGHT as f32
 }
 
-/// The middle of the picture: a texture layer is a custom widget, and Blitz hands a widget its
-/// pointer events and returns before it makes the click and the contextmenu out of a release
-/// (blitz-dom events/mod.rs, "Handle event forwarding for custom widget"), so no menu comes.
-fn over_the_picture(name: &str, fixture: &str) {
-    for scale in SCALES {
-        let (mut harness, _dir) = opened(support::fixture("anyview-image", fixture), scale);
-        let picture = harness.rect(".viewer-raster-picture").unwrap();
-        let middle = at(
-            picture.origin.x.0 + picture.size.width.0 / 2.0,
-            picture.origin.y.0 + picture.size.height.0 / 2.0,
-        );
-        let menu = right_click(&mut harness, middle, 0.0);
-        assert!(
-            menu.is_some(),
-            "{name} at {scale}%: a right-click at {middle:?}, inside the picture {picture:?}, opens no menu"
-        );
+/// Where a row's right-click lands.
+#[derive(Clone, Copy)]
+enum How {
+    /// The middle of the window, over whatever the content draws there.
+    Middle,
+    /// The middle of the picture: a texture layer is a custom widget, and Blitz hands a widget its
+    /// pointer events and returns before it makes the click and the contextmenu out of a release
+    /// (blitz-dom events/mod.rs, "Handle event forwarding for custom widget"), so no menu comes.
+    OverThePicture,
+}
+
+/// Every kind of file the viewer claims: (row name, fixture folder, fixture, where the click lands).
+/// The folder `formats` is this crate's own.
+const CASES: &[(&str, &str, &str, How)] = &[
+    ("png", "anyview-image", "quadrants.png", How::OverThePicture),
+    ("gif", "anyview-image", "spin.gif", How::OverThePicture),
+    ("svg", "anyview-image", "logo.svg", How::OverThePicture),
+    ("svg without a size", "formats", "nosize.svg", How::Middle),
+    ("pdf", "formats", "multi.pdf", How::Middle),
+    ("csv", "formats", "ragged.csv", How::Middle),
+    ("json", "formats", "a.json", How::Middle),
+    // A rendered Markdown page and an EPUB chapter are frames: the right-click has to come out of
+    // the frame's document to reach the window's menu.
+    ("md", "formats", "r.md", How::Middle),
+    ("epub", "formats", "book.epub", How::Middle),
+];
+
+#[test]
+fn a_right_click_over_each_kind_opens_the_menu() {
+    for &(name, home, file, how) in CASES {
+        let path = if home == "formats" {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/formats")
+                .join(file)
+        } else {
+            support::fixture(home, file)
+        };
+        for scale in SCALES {
+            let (mut harness, _dir) = opened(path.clone(), scale);
+            let at = match how {
+                How::Middle => at(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
+                How::OverThePicture => {
+                    let picture = harness.rect(".viewer-raster-picture").unwrap();
+                    at(
+                        picture.origin.x.0 + picture.size.width.0 / 2.0,
+                        picture.origin.y.0 + picture.size.height.0 / 2.0,
+                    )
+                }
+            };
+            let menu = right_click(&mut harness, at, 0.0);
+            assert!(
+                menu.is_some(),
+                "row {name} ({file}) at {scale}%: a right-click at {at:?} opens no menu"
+            );
+        }
     }
-}
-
-#[test]
-fn a_right_click_over_a_png_opens_the_menu() {
-    over_the_picture("png", "quadrants.png");
-}
-
-#[test]
-fn a_right_click_over_a_gif_opens_the_menu() {
-    over_the_picture("gif", "spin.gif");
-}
-
-#[test]
-fn a_right_click_over_an_svg_opens_the_menu() {
-    over_the_picture("svg", "logo.svg");
 }
 
 #[test]
@@ -121,33 +145,21 @@ fn a_menu_near_any_edge_or_corner_stays_on_screen_at_every_scale() {
     let dir = tempfile::tempdir().unwrap();
     let path = text(dir.path());
     for scale in SCALES {
+        let (mut harness, _keep) = opened(path.clone(), scale);
         for (x, y) in spots {
-            let (mut harness, _keep) = opened(path.clone(), scale);
             let rect = right_click(&mut harness, at(x, y), 0.0);
             let rect = rect.unwrap_or_else(|| panic!("{scale}%: no menu at ({x},{y})"));
             assert!(
                 on_screen(rect),
                 "{scale}%: the menu {rect:?} from ({x},{y}) leaves the {WIDTH}x{HEIGHT} window"
             );
+            harness.send(Input::key(ShortcutKey::Escape));
+            settle(&mut harness);
+            assert!(
+                harness.rect(".ds-menu").is_none(),
+                "{scale}%: Escape leaves the menu from ({x},{y}) open"
+            );
         }
-    }
-}
-
-#[test]
-fn the_menu_key_opens_a_menu_on_screen_at_every_scale() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = text(dir.path());
-    for scale in SCALES {
-        let (mut harness, _keep) = opened(path.clone(), scale);
-        harness.send(Input::key(ShortcutKey::ContextMenu));
-        settle(&mut harness);
-        let rect = harness
-            .rect(".ds-menu")
-            .unwrap_or_else(|| panic!("{scale}%: no menu"));
-        assert!(
-            on_screen(rect),
-            "{scale}%: the menu {rect:?} leaves the window"
-        );
     }
 }
 

@@ -256,12 +256,3 @@ fn a_peek_refuses_another_kind_and_an_empty_budget() {
     );
     assert_eq!(peek::<PlainPeek>("notes.txt", 0), Err(TextError::NoBudget));
 }
-
-#[test]
-fn each_peek_is_for_one_kind() {
-    assert_eq!(PlainPeek::KIND, FormatKind::PlainText);
-    assert_eq!(CodePeek::KIND, FormatKind::Code);
-    assert_eq!(MarkdownPeek::KIND, FormatKind::Markdown);
-    assert_eq!(TablePeek::KIND, FormatKind::Table);
-    assert_eq!(TreePeek::KIND, FormatKind::Tree);
-}

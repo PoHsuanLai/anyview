@@ -26,13 +26,54 @@ fn natural_at(file: &std::path::Path) -> Option<PixelSize> {
     natural_size(&FilePath::new(file).unwrap())
 }
 
+/// Where a row's file comes from: a shared fixture, or bytes written under the row's name.
+enum Of {
+    Fixture(Home, &'static str),
+    Written(&'static str, &'static [u8]),
+}
+
+/// The size a file's start gives, row by row: (row, the file, the size or none).
 #[test]
-fn each_raster_format_gives_its_header_size() {
-    assert_eq!(natural(Home::Image, "quadrants.png"), size(48, 32));
-    assert_eq!(natural(Home::Image, "plain.jpg"), size(48, 32));
-    assert_eq!(natural(Home::Image, "lossy.webp"), size(48, 32));
-    assert_eq!(natural(Home::Image, "anim.webp"), size(32, 24));
-    assert_eq!(natural(Home::Image, "spin.gif"), size(32, 24));
+fn each_kind_gives_its_header_size_or_none() {
+    let cases: [(&str, Of, Option<PixelSize>); 13] = [
+        (
+            "png",
+            Of::Fixture(Home::Image, "quadrants.png"),
+            size(48, 32),
+        ),
+        ("jpeg", Of::Fixture(Home::Image, "plain.jpg"), size(48, 32)),
+        ("webp", Of::Fixture(Home::Image, "lossy.webp"), size(48, 32)),
+        (
+            "animated webp",
+            Of::Fixture(Home::Image, "anim.webp"),
+            size(32, 24),
+        ),
+        ("gif", Of::Fixture(Home::Image, "spin.gif"), size(32, 24)),
+        ("svg", Of::Fixture(Home::Image, "logo.svg"), size(64, 32)),
+        ("mp4", Of::Fixture(Home::Own, "clip.mp4"), size(64, 48)),
+        ("mkv", Of::Fixture(Home::Media, "clip.mkv"), size(64, 48)),
+        ("pdf has none", Of::Fixture(Home::Own, "hello.pdf"), None),
+        ("wav has none", Of::Fixture(Home::Own, "tone.wav"), None),
+        ("mp3 has none", Of::Fixture(Home::Media, "cover.mp3"), None),
+        ("ttf has none", Of::Fixture(Home::Font, "blocks.ttf"), None),
+        (
+            "a picture extension on other contents",
+            Of::Written("notes.png", b"just some words, not a picture"),
+            None,
+        ),
+    ];
+    let dir = tempfile::tempdir().unwrap();
+    for (row, of, want) in cases {
+        let got = match of {
+            Of::Fixture(home, name) => natural(home, name),
+            Of::Written(name, bytes) => {
+                let file = dir.path().join(name);
+                std::fs::write(&file, bytes).unwrap();
+                natural_at(&file)
+            }
+        };
+        assert_eq!(got, want, "row {row}");
+    }
 }
 
 #[test]
@@ -52,29 +93,6 @@ fn a_jpeg_turned_a_quarter_by_its_exif_swaps_its_sides() {
 }
 
 #[test]
-fn an_svg_gives_the_size_it_declares() {
-    assert_eq!(natural(Home::Image, "logo.svg"), size(64, 32));
-}
-
-#[test]
-fn a_video_gives_its_resolution_from_the_header() {
-    assert_eq!(natural(Home::Own, "clip.mp4"), size(64, 48));
-    assert_eq!(natural(Home::Media, "clip.mkv"), size(64, 48));
-}
-
-#[test]
-fn kinds_with_no_natural_size_give_none() {
-    for (home, name) in [
-        (Home::Own, "hello.pdf"),
-        (Home::Own, "tone.wav"),
-        (Home::Media, "cover.mp3"),
-        (Home::Font, "blocks.ttf"),
-    ] {
-        assert_eq!(natural(home, name), None, "{name}");
-    }
-}
-
-#[test]
 fn a_folder_a_missing_file_and_an_empty_one_give_none() {
     let dir = tempfile::tempdir().unwrap();
     assert_eq!(natural_at(dir.path()), None);
@@ -89,14 +107,6 @@ fn a_folder_a_missing_file_and_an_empty_one_give_none() {
         std::fs::write(dir.path().join(name), b"").unwrap();
         assert_eq!(natural_at(&dir.path().join(name)), None, "{name}");
     }
-}
-
-#[test]
-fn a_file_with_a_picture_extension_and_other_contents_gives_none() {
-    let dir = tempfile::tempdir().unwrap();
-    let file = dir.path().join("notes.png");
-    std::fs::write(&file, b"just some words, not a picture").unwrap();
-    assert_eq!(natural_at(&file), None);
 }
 
 #[cfg(unix)]

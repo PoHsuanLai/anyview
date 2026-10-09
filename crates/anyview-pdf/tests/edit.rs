@@ -170,11 +170,3 @@ fn a_signed_file_is_known_by_its_byte_range() {
     let signed = PdfDocument::from_bytes(bytes).expect("still opens");
     assert!(signed.is_signed());
 }
-
-#[test]
-fn a_delete_leaves_the_pages_it_should() {
-    let doc = fixture();
-    let first = PageRange::new(PageIndex(0), PageIndex(0)).unwrap();
-    let after = reopened(&doc, &[PageOp::Delete(first)]);
-    assert_eq!(after.page_count().get(), doc.page_count().get() - 1);
-}

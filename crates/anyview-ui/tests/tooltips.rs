@@ -61,16 +61,6 @@ fn a_capsule_button_shows_its_name_as_soon_as_the_pointer_is_over_it() {
 }
 
 #[test]
-fn each_capsule_button_says_its_own_words() {
-    let (mut harness, _dir) = opened(900, 600, 100);
-    for label in ["Zoom out", "Zoom in", "Rotate left", "Rotate right"] {
-        hover(&mut harness, label);
-        harness.advance(Duration::from_millis(1300));
-        assert_eq!(harness.text_of(TIP).as_deref(), Some(label));
-    }
-}
-
-#[test]
 fn moving_away_hides_the_tip() {
     for scale in SCALES {
         let (mut harness, _dir) = opened(900, 600, scale);
@@ -115,17 +105,44 @@ fn a_tip_stays_inside_a_small_window() {
     }
 }
 
+/// Each button says its own words: (row, a window with those buttons up, their labels).
 #[test]
-fn the_find_bar_buttons_have_tips() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = support::text_file(dir.path(), "notes.txt", "word", 200);
-    let (mut harness, _, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
-    settle(&mut harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
-    settle(&mut harness);
-    for label in ["Previous match", "Next match", "Close find"] {
-        hover(&mut harness, label);
-        harness.advance(Duration::from_millis(1300));
-        assert_eq!(harness.text_of(TIP).as_deref(), Some(label));
+fn each_button_says_its_own_words() {
+    type Setup = fn() -> (Harness, tempfile::TempDir);
+    fn capsule() -> (Harness, tempfile::TempDir) {
+        opened(900, 600, 100)
+    }
+    fn find_bar() -> (Harness, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = support::text_file(dir.path(), "notes.txt", "word", 200);
+        let (mut harness, _, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
+        settle(&mut harness);
+        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+        settle(&mut harness);
+        (harness, dir)
+    }
+    let cases: [(&str, Setup, &[&str]); 2] = [
+        (
+            "capsule",
+            capsule,
+            &["Zoom out", "Zoom in", "Rotate left", "Rotate right"],
+        ),
+        (
+            "find bar",
+            find_bar,
+            &["Previous match", "Next match", "Close find"],
+        ),
+    ];
+    for (row, setup, labels) in cases {
+        let (mut harness, _dir) = setup();
+        for label in labels {
+            hover(&mut harness, label);
+            harness.advance(Duration::from_millis(1300));
+            assert_eq!(
+                harness.text_of(TIP).as_deref(),
+                Some(*label),
+                "row {row}: the tip of the {label} button"
+            );
+        }
     }
 }

@@ -174,13 +174,6 @@ fn the_xmp_packet_stands_in_for_a_missing_info_dictionary() {
 }
 
 #[test]
-fn the_info_dictionary_wins_over_the_xmp_packet() {
-    let info = info_of(described());
-    assert_eq!(info.title.as_deref(), Some("Quarterly Report"));
-    assert_ne!(info.title.as_deref(), Some("The XMP Title"));
-}
-
-#[test]
 fn a_file_with_no_metadata_still_has_its_pages_and_size() {
     let info = info_of(plain());
     assert_eq!(

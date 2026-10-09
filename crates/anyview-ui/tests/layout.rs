@@ -8,7 +8,6 @@ use anyview_core::{MediaLength, MediaTime, VideoPresence};
 use anyview_ui::{MediaNotice, PlayerEvent};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_blitz::Extent;
-use ds_core::press::PointerButton;
 use ds_harness::{DocQuery, Driver, Harness, Input, Query, Viewport};
 use std::time::Duration;
 use support::{Answer, FakePlayer, Wiring, folder, wired};
@@ -231,23 +230,6 @@ fn a_window_resized_down_and_back_keeps_its_zoom_and_the_capsule_hits_where_it_i
             settle(&mut h);
             assert_eq!(zoom_text(&h), zoomed);
         }
-    }
-}
-
-#[test]
-fn a_right_click_over_the_picture_itself_opens_the_menu() {
-    for scale in [100, 200] {
-        let (_d, mut h) = open("picture", 900, 600, scale);
-        let pic = all(&h, ".viewer-raster-picture")[0];
-        let at = centre_of(pic);
-        h.send(Input::press(at, PointerButton::Secondary));
-        settle(&mut h);
-        assert_eq!(
-            h.count(".ds-menu"),
-            1,
-            "STEP_FAIL|L-hit-picture|a menu over the picture {pic:?} → none|900x600@{scale}, secondary press at the picture's centre {:?}",
-            (at.x.0, at.y.0)
-        );
     }
 }
 

@@ -17,14 +17,23 @@ fn peeked(home: Home, name: &str) -> AnyPeeked {
 
 #[test]
 fn every_fixture_peeks_into_the_body_of_its_kind() {
-    // name, home, file, kind, body word
-    const CASES: &[(&str, Home, &str, FormatKind, &str)] = &[
+    // name, home, file, kind, body word, a check on the body that the word does not make
+    type Case = (
+        &'static str,
+        Home,
+        &'static str,
+        FormatKind,
+        &'static str,
+        Option<fn(&Body) -> bool>,
+    );
+    const CASES: &[Case] = &[
         (
             "png",
             Home::Image,
             "quadrants.png",
             FormatKind::Raster,
             "picture",
+            Some(|body| matches!(body, Body::Picture(p) if p.picture.size().width.0 == 48)),
         ),
         (
             "jpeg",
@@ -32,6 +41,7 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "plain.jpg",
             FormatKind::Raster,
             "picture",
+            None,
         ),
         (
             "webp",
@@ -39,6 +49,7 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "anim.webp",
             FormatKind::Raster,
             "picture",
+            None,
         ),
         (
             "gif",
@@ -46,6 +57,7 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "spin.gif",
             FormatKind::Raster,
             "picture",
+            None,
         ),
         (
             "jxl",
@@ -53,6 +65,7 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "photo.jxl",
             FormatKind::Raster,
             "picture",
+            None,
         ),
         (
             "svg",
@@ -60,40 +73,86 @@ fn every_fixture_peeks_into_the_body_of_its_kind() {
             "logo.svg",
             FormatKind::Vector,
             "picture",
+            None,
         ),
-        ("pdf", Home::Own, "hello.pdf", FormatKind::Pdf, "page"),
-        ("font", Home::Font, "blocks.ttf", FormatKind::Font, "font"),
+        ("pdf", Home::Own, "hello.pdf", FormatKind::Pdf, "page", None),
+        (
+            "font",
+            Home::Font,
+            "blocks.ttf",
+            FormatKind::Font,
+            "font",
+            None,
+        ),
         (
             "text",
             Home::Text,
             "notes.txt",
             FormatKind::PlainText,
             "plain",
+            Some(|body| matches!(body, Body::Plain(p) if p.lines.len() == 40)),
         ),
-        ("code", Home::Text, "sample.rs", FormatKind::Code, "code"),
+        (
+            "code",
+            Home::Text,
+            "sample.rs",
+            FormatKind::Code,
+            "code",
+            None,
+        ),
         (
             "markdown",
             Home::Text,
             "readme.md",
             FormatKind::Markdown,
             "markdown",
+            None,
         ),
-        ("csv", Home::Text, "people.csv", FormatKind::Table, "table"),
-        ("tsv", Home::Text, "scores.tsv", FormatKind::Table, "table"),
-        ("json", Home::Text, "config.json", FormatKind::Tree, "tree"),
+        (
+            "csv",
+            Home::Text,
+            "people.csv",
+            FormatKind::Table,
+            "table",
+            Some(|body| matches!(body, Body::Table(t) if t.header.is_some() && t.rows.len() == 40)),
+        ),
+        (
+            "tsv",
+            Home::Text,
+            "scores.tsv",
+            FormatKind::Table,
+            "table",
+            None,
+        ),
+        (
+            "json",
+            Home::Text,
+            "config.json",
+            FormatKind::Tree,
+            "tree",
+            None,
+        ),
         (
             "json lines",
             Home::Text,
             "events.jsonl",
             FormatKind::Tree,
             "tree",
+            None,
         ),
     ];
-    for (name, home, file, kind, body) in CASES {
+    for (name, home, file, kind, body, check) in CASES {
         let peeked = peeked(*home, file);
         assert_eq!(peeked.kind, *kind, "{name}");
         assert_eq!(peeked.body.slug(), *body, "{name}");
         assert_eq!(peeked.name, *file, "{name}");
+        if let Some(check) = check {
+            // The picture is 48 wide, a table has a header and 40 rows, plain text has 40 lines.
+            assert!(
+                check(&peeked.body),
+                "{name}: the body holds what its peek does"
+            );
+        }
     }
 }
 
@@ -185,23 +244,6 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
         let want: Vec<(&str, String)> = want.iter().map(|(l, v)| (*l, (*v).to_owned())).collect();
         assert_eq!(rows(&peeked(*home, file).facts), want, "{name}");
     }
-}
-
-#[test]
-fn the_text_bodies_hold_what_their_peeks_do() {
-    let Body::Plain(plain) = peeked(Home::Text, "notes.txt").body else {
-        panic!("plain text peeks to a Plain body");
-    };
-    assert_eq!(plain.lines.len(), 40);
-    let Body::Table(table) = peeked(Home::Text, "people.csv").body else {
-        panic!("a csv peeks to a Table body");
-    };
-    assert_eq!(table.rows.len(), 40);
-    assert!(table.header.is_some());
-    let Body::Picture(image) = peeked(Home::Image, "quadrants.png").body else {
-        panic!("a png peeks to a Picture body");
-    };
-    assert_eq!(image.picture.size().width.0, 48);
 }
 
 #[test]

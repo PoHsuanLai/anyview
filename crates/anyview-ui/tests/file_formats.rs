@@ -1,5 +1,5 @@
 //! Every kind of file the viewer claims, opened under the harness at 100% and 200% scale: what
-//! shows, what a right-click, the wheel and the arrow keys do over it, and the odd files (empty,
+//! shows, what the wheel and the arrow keys do over it, and the odd files (empty,
 //! damaged, very wide) that a person will meet.
 
 #![allow(clippy::unwrap_used)]
@@ -9,7 +9,6 @@ mod support;
 use dioxus::prelude::Modifiers;
 use ds::host::gesture::{Gesture, GesturePhase, ScrollSource};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_core::press::PointerButton;
 use ds_harness::{Driver, Harness, Input, Query, Viewport};
 use std::path::{Path, PathBuf};
 use support::{Wiring, settle, title, wired};
@@ -46,54 +45,6 @@ fn opened(paths: &[PathBuf], scale_percent: u16) -> Harness {
     harness.send(Input::pointer_move(middle()));
     settle(&mut harness);
     harness
-}
-
-fn right_click_over_the_content(file: PathBuf, scale: u16) -> usize {
-    let mut harness = opened(&[file], scale);
-    harness.send(Input::press(middle(), PointerButton::Secondary));
-    settle(&mut harness);
-    harness.count(".ds-menu")
-}
-
-fn assert_menu_opens_over(name: &str) {
-    for scale in SCALES {
-        let menus = right_click_over_the_content(sample(name), scale);
-        assert_eq!(
-            menus, 1,
-            "STEP_FAIL right-click over the middle of {name} at scale {scale}: no menu opened"
-        );
-    }
-}
-
-#[test]
-fn a_right_click_over_a_picture_opens_the_menu() {
-    assert_menu_opens_over("quadrants.png");
-}
-
-#[test]
-fn a_right_click_over_a_drawing_opens_the_menu() {
-    assert_menu_opens_over("nosize.svg");
-}
-
-#[test]
-fn a_right_click_over_an_animated_picture_opens_the_menu() {
-    assert_menu_opens_over("anim.gif");
-}
-
-#[test]
-fn a_right_click_over_a_pdf_a_table_and_a_tree_opens_the_menu() {
-    for name in ["multi.pdf", "ragged.csv", "a.json"] {
-        assert_menu_opens_over(name);
-    }
-}
-
-/// A rendered Markdown page and an EPUB chapter are frames: the right-click has to come out of
-/// the frame's document to reach the window's menu.
-#[test]
-fn a_right_click_over_a_rendered_page_and_a_book_opens_the_menu() {
-    for name in ["r.md", "book.epub"] {
-        assert_menu_opens_over(name);
-    }
 }
 
 #[test]

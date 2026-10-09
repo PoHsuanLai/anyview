@@ -226,11 +226,3 @@ fn every_view_lints_clean_against_both_stylesheets() {
         assert!(offences.is_empty(), "{}: {offences:#?}", case.name);
     }
 }
-
-#[test]
-fn the_cases_are_distinct() {
-    let mut names: Vec<_> = CASES.iter().map(|case| case.name).collect();
-    names.sort_unstable();
-    names.dedup();
-    assert_eq!(names.len(), CASES.len());
-}

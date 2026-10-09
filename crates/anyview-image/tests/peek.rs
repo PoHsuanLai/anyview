@@ -147,9 +147,3 @@ fn a_peek_refuses_another_kind_and_an_empty_budget() {
         Err(ImageError::NoBudget)
     );
 }
-
-#[test]
-fn kinds_are_what_the_trait_says() {
-    assert_eq!(RasterPeek::KIND, FormatKind::Raster);
-    assert_eq!(VectorPeek::KIND, FormatKind::Vector);
-}

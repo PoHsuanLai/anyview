@@ -199,7 +199,15 @@ fn a_header_announcing_more_pixels_than_asked_for_is_refused_before_they_arrive(
     scratch.install(Where::User, "fake", 1, &["--fault", "huge-payload"]);
     let path = scratch.book("a.book", "x");
     let started = Instant::now();
-    let error = quick()
+    // Timeouts of five seconds: a wait for the payload would end after all of them, so ending
+    // well before is the refusal, whatever the load of the machine.
+    let patient = PluginRunner::new(
+        Timeouts::default()
+            .with_hello(Duration::from_secs(5))
+            .with_silence(Duration::from_secs(5))
+            .with_cancel_grace(Duration::from_secs(5)),
+    );
+    let error = patient
         .thumbnail(&scratch.plugin("fake"), &path, PixelLen(8))
         .unwrap_err();
     // A protocol error, not the silence a wait for the payload would end in.
@@ -207,7 +215,7 @@ fn a_header_announcing_more_pixels_than_asked_for_is_refused_before_they_arrive(
         matches!(error, PlatformError::PluginProtocol { .. }),
         "{error:?}"
     );
-    assert!(started.elapsed() < Duration::from_millis(350));
+    assert!(started.elapsed() < Duration::from_secs(4));
 }
 
 #[test]

@@ -34,19 +34,22 @@ fn fifo_in(dir: &Path) -> FilePath {
 }
 
 #[test]
-fn a_fifo_is_refused_by_the_probe_instead_of_blocking_it() {
-    let dir = tempfile::tempdir().unwrap();
-    let error = probe_within(fifo_in(dir.path())).unwrap_err();
-    assert!(matches!(error, PeekError::Unreadable { .. }), "{error:?}");
-}
-
-#[test]
-fn a_device_behind_a_link_is_refused_by_the_probe() {
+fn a_fifo_and_a_device_behind_a_link_are_refused_by_the_probe_instead_of_blocking_it() {
+    // row, a path that is nasty in its own way
     let dir = tempfile::tempdir().unwrap();
     let link = dir.path().join("zero.png");
     std::os::unix::fs::symlink("/dev/zero", &link).unwrap();
-    let error = probe_within(FilePath::new(link).unwrap()).unwrap_err();
-    assert!(matches!(error, PeekError::Unreadable { .. }), "{error:?}");
+    let cases = [
+        ("a fifo", fifo_in(dir.path())),
+        ("a device behind a link", FilePath::new(link).unwrap()),
+    ];
+    for (row, file) in cases {
+        let error = probe_within(file).unwrap_err();
+        assert!(
+            matches!(error, PeekError::Unreadable { .. }),
+            "row {row}: {error:?}"
+        );
+    }
 }
 
 #[test]

@@ -104,51 +104,55 @@ fn exported_trim(harness: &mut Harness, requests: &Requests) -> Option<TimeRange
     })
 }
 
+/// A recording's marks, in two steps (each opens the recording afresh): the marks of an earlier
+/// visit are gone when it is opened again, and an end mark before the start mark does not export
+/// the whole recording quietly.
 #[test]
-fn marks_set_on_a_recording_are_gone_when_it_is_opened_again() {
+fn marks_belong_to_one_visit_and_a_backwards_pair_is_not_the_whole_recording() {
     for scale in SCALES {
-        let Opened {
-            mut harness,
-            player,
-            requests,
-            _dir,
-            ..
-        } = open(scale);
-        say_at(&player.latest().unwrap(), 10);
-        settle(&mut harness);
-        mark(&mut harness, &player, &[('i', 10)]);
-        key(&mut harness, ShortcutKey::Right);
-        key(&mut harness, ShortcutKey::Left);
-        settle(&mut harness);
-        mark(&mut harness, &player, &[('o', 25)]);
-        let range = exported_trim(&mut harness, &requests);
-        assert_eq!(
-            range,
-            Some(TimeRange::new(MediaTime::from_secs(0), Some(MediaTime::from_secs(25))).unwrap()),
-            "{scale}: the start mark of the earlier visit is not this visit's"
-        );
-    }
-}
-
-#[test]
-fn an_end_mark_before_the_start_mark_does_not_export_the_whole_recording_quietly() {
-    for scale in SCALES {
-        let Opened {
-            mut harness,
-            player,
-            requests,
-            _dir,
-            ..
-        } = open(scale);
-        say_at(&player.latest().unwrap(), 10);
-        settle(&mut harness);
-        mark(&mut harness, &player, &[('i', 40), ('o', 20)]);
-        let range = exported_trim(&mut harness, &requests);
-        assert_ne!(
-            range,
-            Some(TimeRange::WHOLE),
-            "{scale}: start 40s, end 20s: the cut is not the whole recording"
-        );
+        {
+            let Opened {
+                mut harness,
+                player,
+                requests,
+                _dir,
+                ..
+            } = open(scale);
+            say_at(&player.latest().unwrap(), 10);
+            settle(&mut harness);
+            mark(&mut harness, &player, &[('i', 10)]);
+            key(&mut harness, ShortcutKey::Right);
+            key(&mut harness, ShortcutKey::Left);
+            settle(&mut harness);
+            mark(&mut harness, &player, &[('o', 25)]);
+            let range = exported_trim(&mut harness, &requests);
+            assert_eq!(
+                range,
+                Some(
+                    TimeRange::new(MediaTime::from_secs(0), Some(MediaTime::from_secs(25)))
+                        .unwrap()
+                ),
+                "step marks of an earlier visit, {scale}: the start mark of the earlier visit is not this visit's"
+            );
+        }
+        {
+            let Opened {
+                mut harness,
+                player,
+                requests,
+                _dir,
+                ..
+            } = open(scale);
+            say_at(&player.latest().unwrap(), 10);
+            settle(&mut harness);
+            mark(&mut harness, &player, &[('i', 40), ('o', 20)]);
+            let range = exported_trim(&mut harness, &requests);
+            assert_ne!(
+                range,
+                Some(TimeRange::WHOLE),
+                "step end before start, {scale}: start 40s, end 20s: the cut is not the whole recording"
+            );
+        }
     }
 }
 

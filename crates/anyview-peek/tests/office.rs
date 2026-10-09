@@ -41,31 +41,42 @@ fn docx(dir: &Path, extra: &[(&str, &[u8])]) -> FilePath {
 }
 
 #[test]
-fn a_document_with_a_thumbnail_shows_it() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = docx(dir.path(), &[("docProps/thumbnail.png", PNG)]);
-    let probed = probe(&path).unwrap();
-    assert_eq!(probed.sniffed.kind(), FormatKind::Office);
-    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
-    assert!(matches!(peeked.body, Body::Picture(_)), "{:?}", peeked.body);
-    let facts = rows(&peeked.facts);
-    assert!(facts.contains(&("title", "Plans".to_owned())), "{facts:?}");
-    assert!(facts.contains(&("author", "Ann".to_owned())), "{facts:?}");
-}
-
-#[test]
-fn a_document_without_a_thumbnail_shows_its_facts() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = docx(dir.path(), &[]);
-    let probed = probe(&path).unwrap();
-    let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
-    assert!(
-        matches!(peeked.body, Body::FactsOnly(_)),
-        "{:?}",
-        peeked.body
-    );
-    assert!(
-        rows(&peeked.facts).contains(&("title", "Plans".to_owned())),
-        "the facts still list the title"
-    );
+fn a_document_shows_its_thumbnail_if_it_has_one_and_its_facts_if_not() {
+    // row, the extra parts of the zip, whether the body is the thumbnail
+    type Extra = &'static [(&'static str, &'static [u8])];
+    let cases: [(&str, Extra, bool); 2] = [
+        ("with a thumbnail", &[("docProps/thumbnail.png", PNG)], true),
+        ("without a thumbnail", &[], false),
+    ];
+    for (row, extra, thumbnail) in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let path = docx(dir.path(), extra);
+        let probed = probe(&path).unwrap();
+        assert_eq!(probed.sniffed.kind(), FormatKind::Office, "row {row}");
+        let peeked = peek(&probed.input, &probed.sniffed, &pane_budget());
+        if thumbnail {
+            assert!(
+                matches!(peeked.body, Body::Picture(_)),
+                "row {row}: {:?}",
+                peeked.body
+            );
+        } else {
+            assert!(
+                matches!(peeked.body, Body::FactsOnly(_)),
+                "row {row}: {:?}",
+                peeked.body
+            );
+        }
+        let facts = rows(&peeked.facts);
+        assert!(
+            facts.contains(&("title", "Plans".to_owned())),
+            "row {row}: {facts:?}"
+        );
+        if thumbnail {
+            assert!(
+                facts.contains(&("author", "Ann".to_owned())),
+                "row {row}: {facts:?}"
+            );
+        }
+    }
 }

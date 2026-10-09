@@ -134,16 +134,23 @@ fn an_animated_webp_decodes_to_its_frames() {
 }
 
 #[test]
-fn a_still_webp_decodes_as_a_still() {
-    let picture = still("lossy.webp");
-    assert_eq!(picture.size(), size(48, 32));
-}
-
-#[test]
-fn a_jpeg_xl_file_decodes_to_the_pixels_it_was_made_from() {
-    let picture = still("photo.jxl");
-    assert_eq!(picture.size(), size(48, 32));
-    assert_eq!(corners(&picture), [[255, 0, 0, 128], GREEN, YELLOW, BLUE]);
+fn a_still_webp_and_a_jpeg_xl_file_decode_as_stills() {
+    // row, file, the corners it was made with (none: only the size is asserted)
+    let cases = [
+        ("a still webp", "lossy.webp", None),
+        (
+            "a jpeg xl file",
+            "photo.jxl",
+            Some([[255, 0, 0, 128], GREEN, YELLOW, BLUE]),
+        ),
+    ];
+    for (row, file, want) in cases {
+        let picture = still(file);
+        assert_eq!(picture.size(), size(48, 32), "row {row}");
+        if let Some(want) = want {
+            assert_eq!(corners(&picture), want, "row {row}");
+        }
+    }
 }
 
 #[test]

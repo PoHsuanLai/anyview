@@ -46,12 +46,9 @@ fn render(parts: Option<Parts>) -> String {
 }
 
 #[test]
-fn the_default_pane_is_every_part() {
-    assert_eq!(render(None), render(Some(Parts::ALL)));
-}
-
-#[test]
 fn each_part_is_drawn_only_when_asked_for() {
+    // The default pane is every part.
+    assert_eq!(render(None), render(Some(Parts::ALL)));
     // name, parts, media box, title, facts
     let cases: [(&str, Parts, bool, bool, bool); 4] = [
         ("all", Parts::ALL, true, true, true),

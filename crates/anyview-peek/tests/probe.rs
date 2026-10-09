@@ -39,11 +39,8 @@ fn a_file_is_sniffed_from_its_head_and_stamped_as_it_is() {
     std::fs::write(&text, "hello\nworld\n").unwrap();
     let probed = probe(&FilePath::new(&text).unwrap()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::PlainText);
-}
 
-#[test]
-fn a_folder_is_a_folder() {
-    let dir = tempfile::tempdir().unwrap();
+    // A folder is a folder.
     let probed = probe(&FilePath::new(dir.path()).unwrap()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Folder);
 }
@@ -72,41 +69,44 @@ fn a_zip_is_told_from_a_document_by_what_is_inside() {
         "bundle.zip",
         &[("a.txt", b"a"), ("b.txt", b"b")],
     );
-    // name, path, kind, detail
+    // A zip that cannot be opened is a plain archive for the peek to report on.
+    let broken = dir.path().join("broken.docx");
+    std::fs::write(&broken, b"PK\x03\x04 then nothing a zip would hold").unwrap();
+    let broken = FilePath::new(&broken).unwrap();
+    // name, path, kind, detail (None: the row asserts only the kind)
     let cases = [
         (
             "docx",
             docx,
             FormatKind::Office,
-            FormatDetail::Office(OfficeFormat::Docx),
+            Some(FormatDetail::Office(OfficeFormat::Docx)),
         ),
         (
             "epub",
             epub,
             FormatKind::Book,
-            FormatDetail::Book(BookFormat::Epub),
+            Some(FormatDetail::Book(BookFormat::Epub)),
         ),
         (
             "plain zip",
             plain,
             FormatKind::Archive,
-            FormatDetail::Archive(anyview_core::ArchiveFormat::Zip),
+            Some(FormatDetail::Archive(anyview_core::ArchiveFormat::Zip)),
+        ),
+        (
+            "a zip that cannot be opened",
+            broken,
+            FormatKind::Archive,
+            None,
         ),
     ];
     for (name, file, kind, detail) in cases {
         let probed = probe(&file).unwrap();
         assert_eq!(probed.sniffed.kind(), kind, "{name}");
-        assert_eq!(probed.sniffed.detail(), &detail, "{name}");
+        if let Some(detail) = detail {
+            assert_eq!(probed.sniffed.detail(), &detail, "{name}");
+        }
     }
-}
-
-#[test]
-fn a_zip_that_cannot_be_opened_is_a_plain_archive_for_the_peek_to_report_on() {
-    let dir = tempfile::tempdir().unwrap();
-    let broken = dir.path().join("broken.docx");
-    std::fs::write(&broken, b"PK\x03\x04 then nothing a zip would hold").unwrap();
-    let probed = probe(&FilePath::new(&broken).unwrap()).unwrap();
-    assert_eq!(probed.sniffed.kind(), FormatKind::Archive);
 }
 
 #[test]
