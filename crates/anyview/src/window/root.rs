@@ -7,8 +7,8 @@ use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
 use crate::host::{
-    Carry, Doing, HandedResume, Listening, Outcome, PeekCards, Shown, StoreLocks, WindowTask,
-    WindowWatch, route, subject_of, tell, tell_declined, tell_problem,
+    Carry, Doing, HandedResume, Listening, Outcome, Shown, StoreLocks, WindowTask, WindowWatch,
+    route, subject_of, tell, tell_declined, tell_problem,
 };
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
@@ -93,7 +93,6 @@ impl Wiring {
         .with_first_frames(Arc::clone(&seed.factory.first_frames))
         .with_media(Arc::clone(&seed.factory.media))
         .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
-        .with_cards(Arc::new(PeekCards))
         .with_locks(Arc::new(StoreLocks))
         .with_platform(seed.factory.hosting.abilities());
         let edge = match &seed.factory.helpers {

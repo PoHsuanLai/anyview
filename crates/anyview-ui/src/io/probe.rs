@@ -5,41 +5,20 @@ use super::job::Probed;
 use super::seams::FileAccess;
 use crate::StageFamily;
 use crate::families::family_of;
-use anyview_archive::zip_entries;
-use anyview_core::{
-    ByteLen, FileHead, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, ZipEntries,
-    open_regular, sniff, sniff_folder, sniff_zip,
-};
-use std::io::Read;
+use anyview_core::{ByteLen, FilePath, FileStamp, FormatKind, ModTime, Resume, Source};
+use anyview_fs::OnDisk;
+use anyview_peek::PeekError;
+use std::io::ErrorKind;
 
-/// The most bytes of a zip's central directory that telling what it is may read.
-const ZIP_INDEX: ByteLen = ByteLen(8 * 1024 * 1024);
-
-/// Look at the file `path` names: stat it, read its head, sniff it. Blocking.
+/// Look at the file `path` names: stat it, read its head, sniff it. Blocking. The sniffing is the
+/// light tier's (`anyview_peek::probe`), so the viewer and the launcher's pane tell a zip document
+/// from an archive by the same rule.
 pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
-    let meta = std::fs::metadata(path.as_path()).map_err(|e| OpenError::Read(e.kind()))?;
-    let stamp = stamp_from(&meta);
-    let sniffed = if meta.is_dir() {
-        sniff_folder()
-    } else {
-        let mut head = Vec::new();
-        // A FIFO, device or socket is refused here, so no later read of the file can hang on it.
-        open_regular(path.as_path())
-            .and_then(|(file, _)| file.take(FileHead::MAX.0).read_to_end(&mut head))
-            .map_err(|e| OpenError::Read(e.kind()))?;
-        let name = path.file_name().ok_or(OpenError::Unrecognised)?;
-        match sniff(&FileHead::new(&head), &name) {
-            SniffStep::Done(sniffed) => sniffed,
-            SniffStep::LookInside(inside) => {
-                // A zip that cannot be listed is a plain archive.
-                let entries = zip_entries(path, ZIP_INDEX)
-                    .unwrap_or_else(|_| ZipEntries::new(Vec::<String>::new(), None));
-                sniff_zip(inside, &entries)
-            }
-        }
-    };
-    let family = family_of(sniffed.kind());
-    if stamp.len == ByteLen(0) && !meta.is_dir() && !holds_text(family) {
+    let probed = anyview_peek::probe(path.on_disk()).map_err(open_error)?;
+    let stamp = probed.input.stamp();
+    let family = family_of(probed.sniffed.kind());
+    let folder = probed.sniffed.kind() == FormatKind::Folder;
+    if stamp.len == ByteLen(0) && !folder && !holds_text(family) {
         return Err(OpenError::Empty);
     }
     Ok(Probed {
@@ -47,8 +26,27 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
         access: FileAccess::Writable,
         family,
         source: Source::new(path.clone(), stamp),
-        sniffed,
+        sniffed: probed.sniffed,
     })
+}
+
+/// What a probe that failed means to the load machine: the probe fails only for a path that is not
+/// there or cannot be read.
+fn open_error(error: PeekError) -> OpenError {
+    match error {
+        PeekError::Missing { .. } => OpenError::Read(ErrorKind::NotFound),
+        PeekError::Unreadable { kind, .. } | PeekError::Folder { kind, .. } => {
+            OpenError::Read(kind)
+        }
+        PeekError::Image(_)
+        | PeekError::Text(_)
+        | PeekError::Media { .. }
+        | PeekError::Archive(_)
+        | PeekError::Font(_)
+        | PeekError::Pdf(_)
+        | PeekError::OverBudget { .. }
+        | PeekError::WrongKind { .. } => OpenError::Unrecognised,
+    }
 }
 
 /// Whether a file of `family` can be a blank document: only text can, and a picture, a document

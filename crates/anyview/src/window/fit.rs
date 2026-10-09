@@ -6,6 +6,7 @@
 //! else resizes the window.
 
 use anyview_core::{FilePath, PixelSize};
+use anyview_fs::OnDisk;
 use anyview_peek::{is_audio, natural_size};
 use anyview_ui::{NaturalSize, SizeBasis, audio_window_size};
 use ds::window::tiled::Tiled;
@@ -73,10 +74,10 @@ pub(crate) fn window_for(
 /// What the file's header gives its window: a picture's or a movie's size, or an audio file's
 /// compact window.
 fn natural_of(file: &FilePath) -> Option<NaturalSize> {
-    if let Some(size) = natural_size(file) {
+    if let Some(size) = natural_size(file.on_disk()) {
         return Some(NaturalSize::Pixels(size));
     }
-    is_audio(file).then(|| NaturalSize::Compact(audio_window_size()))
+    is_audio(file.on_disk()).then(|| NaturalSize::Compact(audio_window_size()))
 }
 
 /// The least a window of `natural` content is resized to.

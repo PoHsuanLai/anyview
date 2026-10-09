@@ -7,10 +7,12 @@ use crate::io::{OpenError, OpenLink, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
 use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
 use anyview_core::{
-    FactLabel, FactValue, Facts, FileAction, FileHead, FileName, FormatDetail, FormatKind,
-    RasterTarget, SniffStep, Sniffed, Source, sniff,
+    ByteLen, FactLabel, FactValue, Facts, FileAction, FileHead, FileName, FormatDetail, FormatKind,
+    PeekBudget, PixelArea, RasterTarget, SniffStep, Sniffed, Source, sniff,
 };
+use anyview_fs::OnDisk;
 use anyview_image::{Decoded, decode_bytes, encode};
+use anyview_peek::{Body, peek};
 use dioxus::prelude::*;
 use ds::components::content::image_source::ImageSource;
 use ds::components::content::text_runs::TextLine;
@@ -20,6 +22,14 @@ use ds::components::overlays::empty_state::EmptyState;
 use ds::prelude::Icon;
 use ds_core::word::Word;
 use std::sync::Arc;
+use std::time::Duration;
+
+/// What a card may spend: a listing of an archive reads inside it, and nothing else here is big.
+const CARD_BUDGET: PeekBudget = PeekBudget {
+    bytes: ByteLen(16 << 20),
+    pixels: PixelArea(1_000_000),
+    time: Duration::from_secs(2),
+};
 
 /// What a file shows when the viewer has no stage for it.
 #[derive(Debug, Clone, PartialEq)]
@@ -56,6 +66,60 @@ fn thumbnail_of(look: &OfficeLook) -> Option<ImageSource> {
     encode(&picture, RasterTarget::Png)
         .ok()
         .map(|png| ImageSource::png(&png))
+}
+
+/// What the light tier makes of a file the viewer has no stage for.
+struct Card {
+    /// The rows: a friendly kind, the size, and what the format itself says (a font's family, an
+    /// archive's entry count, a folder's tally).
+    facts: Facts,
+    /// The entries of an archive, one line each, in the archive's own order.
+    listing: Vec<String>,
+    /// Whether the file's contents could be read: it looks damaged when they could not.
+    readable: Readable,
+}
+
+/// The peek of `src`, a file of `sniffed`'s type, as a card. Blocking. The sniffing is the probe's:
+/// `anyview_peek::look` would sniff the file a second time.
+fn card_of(src: &Source, sniffed: &Sniffed) -> Card {
+    let peeked = peek(src.on_disk(), sniffed, &CARD_BUDGET);
+    let (listing, readable) = match &peeked.body {
+        Body::Archive(archive) => (
+            archive
+                .listing
+                .entries
+                .iter()
+                .map(|entry| line_of(&entry.path, entry.kind.slug(), entry.size))
+                .collect(),
+            Readable::Yes,
+        ),
+        Body::Unavailable(_) => (Vec::new(), Readable::No),
+        Body::Picture(_)
+        | Body::Page(_)
+        | Body::Plain(_)
+        | Body::Code(_)
+        | Body::Markdown(_)
+        | Body::Table(_)
+        | Body::Tree(_)
+        | Body::Font(_)
+        | Body::Folder(_)
+        | Body::FactsOnly(_) => (Vec::new(), Readable::Yes),
+    };
+    Card {
+        facts: peeked.facts,
+        listing,
+        readable,
+    }
+}
+
+/// One line of a listing: the entry's path, a slash after a folder's, and the size of a file
+/// when it is known. `kind` is the entry kind's slug.
+fn line_of(path: &str, kind: &str, size: Option<ByteLen>) -> String {
+    match (kind, size) {
+        ("directory", _) => format!("{path}/"),
+        ("file", Some(size)) => format!("{path}   {}", FactValue::size(size).as_str()),
+        _ => path.to_owned(),
+    }
 }
 
 /// The line under a file's name: what the viewer does for the kind, in words that never say the
@@ -103,7 +167,7 @@ impl StageView for PeekOnlyStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        _link: &OpenLink,
     ) -> Result<PeekOnlyDoc, OpenError> {
         let name = src
             .path()
@@ -113,7 +177,7 @@ impl StageView for PeekOnlyStageView {
             .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
             .with(FactLabel::Size, FactValue::size(src.stamp().len));
         let look = match sniffed.detail() {
-            FormatDetail::Office(format) => office_look(src.path(), *format).unwrap_or_default(),
+            FormatDetail::Office(format) => office_look(src.on_disk(), *format).unwrap_or_default(),
             FormatDetail::None
             | FormatDetail::Raster(_)
             | FormatDetail::Code(_)
@@ -125,9 +189,9 @@ impl StageView for PeekOnlyStageView {
             | FormatDetail::Archive(_)
             | FormatDetail::Book(_) => OfficeLook::default(),
         };
-        // The host's card says what the launcher's pane says of the file: its friendly kind and
-        // what the format holds. Without one the viewer lists the kind and size it knows.
-        let card = link.cards.card(src, sniffed).unwrap_or_default();
+        // The light tier's card says what the launcher's pane says of the file: its friendly kind
+        // and what the format holds. A card with no rows leaves the kind and size the viewer knows.
+        let card = card_of(src, sniffed);
         let start = if card.facts.rows().is_empty() {
             base
         } else {
@@ -144,7 +208,7 @@ impl StageView for PeekOnlyStageView {
             facts,
             thumbnail: thumbnail_of(&look),
             listing: card.listing,
-            readable: card.unreadable,
+            readable: card.readable,
         })
     }
 

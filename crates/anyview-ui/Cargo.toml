@@ -12,8 +12,13 @@ publish.workspace = true
 anyview-archive = { workspace = true }
 anyview-book = { workspace = true }
 anyview-core = { workspace = true }
+# `OnDisk`: a path as the input the readers take (core does no I/O).
+anyview-fs = { workspace = true }
 anyview-image = { workspace = true, features = ["encode"] }
 anyview-pdf = { workspace = true }
+# The one probe and the card of a file no stage shows; no `pane` and no `media`: the window draws
+# and plays with its own parts, and the host that links the peek turns both on.
+anyview-peek = { workspace = true }
 # The file's own details (dates, folder, permissions, where it came from) for the General section.
 anyview-store = { workspace = true }
 anyview-text = { workspace = true }

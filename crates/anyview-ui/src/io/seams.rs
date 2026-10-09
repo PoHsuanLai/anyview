@@ -1,11 +1,12 @@
-//! What the binary lends the window to read from: where a file was left last time, and the small
-//! picture the host already has for it. Both are blocking (a file read, a cache lookup), so a
-//! worker calls them, never the UI thread; both are read-only, and what the window wants kept
-//! goes out as a `HostRequest`.
+//! What the binary lends the window to read from: where a file was left last time, the plugins'
+//! pictures, the permissions of a file and the versions kept of it. All are blocking (a file read,
+//! a cache lookup), so a worker calls them, never the UI thread; all are read-only, and what the
+//! window wants kept goes out as a `HostRequest`. The small picture the host already has for a file
+//! is `anyview_peek::StillSource`, which the launcher lends its pane as well.
 
 use super::helpers::Need;
 use crate::sheet::VersionRow;
-use anyview_core::{Facts, FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
+use anyview_core::{FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;
 
@@ -14,14 +15,6 @@ pub trait ResumeSource: Debug + Send + Sync + 'static {
     /// What was remembered for `path` when its file looked like `stamp`; `Resume::Nothing` when
     /// nothing was, the file changed since, or the record cannot be read. Blocking.
     fn recall(&self, path: &FilePath, stamp: FileStamp) -> Resume;
-}
-
-/// The cheap first frame of a picture the host has to hand (the thumbnail cache), shown while
-/// the file decodes.
-pub trait FirstFrameSource: Debug + Send + Sync + 'static {
-    /// The small picture of `source` as it is now, upright, or `None` when the host has none
-    /// for this version of the file. Blocking.
-    fn picture(&self, source: &Source) -> Option<Rgba8>;
 }
 
 /// What asking the plugins for a picture of a file came to.
@@ -46,20 +39,7 @@ pub trait ImagePlugins: Debug + Send + Sync + 'static {
     fn decode(&self, source: &Source, sniffed: &Sniffed, max_area: PixelArea) -> PluginPicture;
 }
 
-/// What the host's light tier makes of a file the viewer has no stage for: the rows it lists for
-/// the file in the launcher's pane, and what is inside it when it holds things.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct FileCard {
-    /// The rows: a friendly kind, the size, and what the format itself says (a font's family, an
-    /// archive's entry count, a folder's tally).
-    pub facts: Facts,
-    /// The entries of an archive, one line each, in the archive's own order.
-    pub listing: Vec<String>,
-    /// Whether the file's contents could not be read: it looks damaged.
-    pub unreadable: Readable,
-}
-
-/// Whether a card's contents could be read.
+/// Whether the contents of a file shown as a card could be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Readable {
     /// They could, or the format has none to read.
@@ -67,24 +47,6 @@ pub enum Readable {
     Yes,
     /// They could not.
     No,
-}
-
-/// The light tier the host links (`anyview-peek`), lent to the views as cards for the files they
-/// have no stage for, so a font, an archive or a folder shows what its peek shows.
-pub trait FileCards: Debug + Send + Sync + 'static {
-    /// The card of `source`, a file of `sniffed`'s type, or `None` when the host has none.
-    /// Blocking.
-    fn card(&self, source: &Source, sniffed: &Sniffed) -> Option<FileCard>;
-}
-
-/// The default `FileCards`: the host has none, so the views list what they know themselves.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct NoCards;
-
-impl FileCards for NoCards {
-    fn card(&self, _source: &Source, _sniffed: &Sniffed) -> Option<FileCard> {
-        None
-    }
 }
 
 /// Whether the window may write a file in place.
@@ -129,16 +91,6 @@ pub(crate) struct Forgetful;
 impl ResumeSource for Forgetful {
     fn recall(&self, _path: &FilePath, _stamp: FileStamp) -> Resume {
         Resume::Nothing
-    }
-}
-
-/// The default `FirstFrameSource`: the host has no pictures, so a file shows once it is open.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct NoPictures;
-
-impl FirstFrameSource for NoPictures {
-    fn picture(&self, _source: &Source) -> Option<Rgba8> {
-        None
     }
 }
 

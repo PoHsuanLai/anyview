@@ -13,7 +13,8 @@ use super::tree::TreeStageView;
 use super::view::{LoadedDoc, StageView};
 use crate::io::{OpenError, OpenLink};
 use crate::{LoadFlow, StageFamily, Ticket};
-use anyview_core::{Facts, FormatKind, Input, Sniffed, Source};
+use anyview_core::{Facts, FormatKind, Sniffed, Source};
+use anyview_fs::OnDisk;
 use anyview_store::general_facts as general_of;
 
 /// Something done with the view that shows a kind, without naming it.
@@ -60,7 +61,7 @@ pub fn family_of(kind: FormatKind) -> StageFamily {
 
 /// The General section of the file `src`: what the file system says of it. Blocking.
 fn general_facts(src: &Source, sniffed: &Sniffed) -> Facts {
-    general_of(&Input::from(src), sniffed)
+    general_of(&src.on_disk(), sniffed)
 }
 
 struct Opener<'a> {

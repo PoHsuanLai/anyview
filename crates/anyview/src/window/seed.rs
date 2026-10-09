@@ -5,10 +5,9 @@ use super::opening::Opening;
 use crate::host::{
     Appearances, HelperHost, HostedResume, HostedVersions, Hosting, ImageHost, Watcher,
 };
+use anyview_peek::StillSource;
 use anyview_platform::WindowStacking;
-use anyview_ui::{
-    FirstFrameSource, ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers,
-};
+use anyview_ui::{ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers};
 use ds_blitz::Extent;
 use std::sync::Arc;
 
@@ -25,7 +24,7 @@ pub struct Factory {
     /// The kept versions of a file, listed for the Revert To sheet.
     pub versions: Arc<dyn VersionSource>,
     /// The small pictures shown while a file opens.
-    pub first_frames: Arc<dyn FirstFrameSource>,
+    pub first_frames: Arc<dyn StillSource>,
     /// The program's one file watcher, when the system has one.
     pub watcher: Option<Arc<Watcher>>,
     /// How the windows look, and how that changes while they are open.
@@ -62,7 +61,7 @@ impl Factory {
     pub fn new(
         workers: Arc<dyn Workers>,
         hosting: Arc<dyn Hosting>,
-        first_frames: Arc<dyn FirstFrameSource>,
+        first_frames: Arc<dyn StillSource>,
         watcher: Option<Arc<Watcher>>,
         appearances: Appearances,
         media: Arc<dyn MediaHost>,

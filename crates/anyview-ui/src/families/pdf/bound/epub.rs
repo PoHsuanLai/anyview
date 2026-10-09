@@ -5,6 +5,7 @@
 use crate::io::OpenError;
 use anyview_book::{BookError, Epub};
 use anyview_core::{FactLabel, FactValue, Facts, FilePath, SectionIndex};
+use anyview_fs::OnDisk;
 use anyview_pdf::{Bookmark, bind as bind_parts};
 use ds_blitz::{Margins, PageSize, PageSpec, Pt};
 use std::collections::HashMap;
@@ -47,7 +48,7 @@ fn text_row(facts: Facts, label: FactLabel, text: Option<&String>) -> Facts {
 /// The EPUB at `path` as the bytes of one PDF, and the rows of its Info tab (`base` with the
 /// package's).
 pub(super) fn bind(path: &FilePath, base: Facts) -> Result<(Vec<u8>, Facts), OpenError> {
-    let epub = Epub::open(path)?;
+    let epub = Epub::open(path.on_disk())?;
     let meta = epub.meta();
     let facts = text_row(base, FactLabel::Title, meta.title.as_ref());
     let facts = text_row(facts, FactLabel::Author, meta.author.as_ref());

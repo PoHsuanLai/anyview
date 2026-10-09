@@ -5,9 +5,10 @@
 use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenLink, PluginPicture, Stop};
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Input, Peek,
-    PeekBudget, PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
+    PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
     declared_size, decode_bytes, fidelity, file_bytes, picture_facts, resized,
@@ -142,7 +143,7 @@ impl Backend for RasterBackend {
 
 fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
     // The file is read once: the decoder, the facts and the edit offer share these bytes.
-    let bytes = file_bytes(&Input::from(&target.source))?;
+    let bytes = file_bytes(&target.source.on_disk())?;
     let mut doc = decoded(target, &bytes)?;
     doc.offer = offer_of(&target.source, &target.sniffed, &bytes);
     Ok(doc)
@@ -390,14 +391,14 @@ fn cheap_picture(
     sniffed: &Sniffed,
     link: &OpenLink,
 ) -> Result<Option<Cheap>, OpenError> {
-    if let Some(picture) = link.first_frames.picture(src) {
-        let size = declared_size(src, sniffed)?.unwrap_or_else(|| picture.size());
+    if let Some(picture) = link.first_frames.still(&src.on_disk()) {
+        let size = declared_size(src.on_disk(), sniffed)?.unwrap_or_else(|| picture.size());
         let facts = facts(size, 1).then(file_metadata_facts(src, sniffed));
         return Ok(Some((picture, size, 1, facts)));
     }
     let (peeked, facts): (ImagePeek, Facts) = match (sniffed.kind(), sniffed.detail()) {
         (FormatKind::Vector, _) => {
-            let peeked = VectorPeek::peek(&Input::from(src), sniffed, &FIRST_FRAME)?;
+            let peeked = VectorPeek::peek(&src.on_disk(), sniffed, &FIRST_FRAME)?;
             let facts = VectorPeek::facts(&peeked);
             (peeked, facts)
         }
@@ -406,7 +407,7 @@ fn cheap_picture(
             FormatKind::Raster,
             FormatDetail::Raster(RasterFormat::Gif | RasterFormat::Webp | RasterFormat::Raw),
         ) => {
-            let peeked = RasterPeek::peek(&Input::from(src), sniffed, &FIRST_FRAME)?;
+            let peeked = RasterPeek::peek(&src.on_disk(), sniffed, &FIRST_FRAME)?;
             let facts = RasterPeek::facts(&peeked);
             (peeked, facts)
         }

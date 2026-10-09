@@ -22,6 +22,8 @@ quire-desktop = ["anyview-platform/quire-desktop", "ds-desktop/dbus"]
 
 [dependencies]
 anyview-core = { workspace = true }
+# `OnDisk`: a path as the input the light tier reads (core does no I/O).
+anyview-fs = { workspace = true }
 anyview-export = { workspace = true, features = ["print"] }
 anyview-image = { workspace = true, features = ["encode"] }
 anyview-media = { workspace = true, features = ["player"] }

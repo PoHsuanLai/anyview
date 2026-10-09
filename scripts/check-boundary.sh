@@ -157,6 +157,8 @@ DIRECT=(
 # The person's own time zone adds two to all three: jiff and jiff-core, which anyview-core's `LocalZone` asks for
 # the system zone (std has no local time; every file, PDF and EXIF time is shown in the person's zone). The peek is
 # 571, the headless peek 250 and the viewer 689.
+# anyview-fs (the one place a path is opened, so anyview-core does no I/O; it depends on core alone) is one package
+# more in each: the peek is 572, the headless peek 193 and the viewer 690.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -165,10 +167,10 @@ DIRECT=(
 # own and `ds` is the `pane` feature's), with no renderer, no window system, no dioxus and no encoder.
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
-  "anyview-peek: 571"
-  "anyview: 689"
+  "anyview-peek: 572"
+  "anyview: 690"
 )
-HEADLESS_BUDGET=192
+HEADLESS_BUDGET=193
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
@@ -300,14 +302,15 @@ done
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-export anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
+  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
-  "anyview-ui: anyview-archive anyview-book anyview-core anyview-image anyview-pdf anyview-store anyview-text ds ds-blitz ds-core ds-shell"
+  "anyview-fs: anyview-core"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
-  "anyview-text: anyview-core ds-core"
+  "anyview-text: anyview-core anyview-fs ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
-  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-image anyview-text ds ds-blitz ds-core"
+  "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-book: anyview-archive anyview-core ds-core"
