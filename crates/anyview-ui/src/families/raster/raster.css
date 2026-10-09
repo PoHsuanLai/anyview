@@ -1,0 +1,9 @@
+/* The picture stage: the picture fitted in the room and what the pointer does to it. Tokens only. */
+
+.viewer-raster{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
+.viewer-raster[*|data-pan=on]{ cursor:grab; }
+.viewer-raster[*|data-pan=on][*|data-drag=on]{ cursor:grabbing; }
+.viewer-raster-picture{ position:absolute; }
+/* A picture has no text to select. Blitz starts a selection drag once a held button moves more than two pixels and then drops the
+   contextmenu event on release, so a secondary click with the slightest hand movement would open no menu. */
+.viewer-raster, .viewer-raster-picture, .viewer-raster-picture *{ user-select:none; }

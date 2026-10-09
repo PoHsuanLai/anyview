@@ -26,7 +26,13 @@ pub struct Launch {
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
 pub fn stylesheet() -> String {
     [
-        include_str!("style.css"),
+        include_str!("window.css"),
+        include_str!("peek.css"),
+        include_str!("sheets.css"),
+        include_str!("welcome.css"),
+        crate::families::RASTER_CSS,
+        crate::families::TEXT_CSS,
+        crate::families::DATA_CSS,
         crate::families::TOKEN_CSS,
         crate::families::PDF_CSS,
         crate::families::MEDIA_CSS,

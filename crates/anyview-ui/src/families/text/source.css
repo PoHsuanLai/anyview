@@ -1,0 +1,16 @@
+/* The text stage: the source lines, the marks of a find on them, and the frame of a rendered page.
+   Tokens only. */
+
+.viewer-text{ position:absolute; inset:0; overflow:hidden; font-family:var(--font-code); font-size:var(--fs-mono); }
+.viewer-text[*|data-view=rendered]{ font-family:var(--font-ui); }
+.viewer-line{ display:flex; box-sizing:border-box; height:var(--s-18); line-height:var(--s-18); white-space:pre; overflow:hidden; }
+.viewer-lineno{ flex:none; box-sizing:border-box; width:var(--s-36); padding-right:var(--s-8); text-align:right; color:var(--ink-faint); font-variant-numeric:tabular-nums; user-select:none; }
+.viewer-code{ flex:1 1 auto; min-width:0; padding-left:var(--s-8); }
+.viewer-line[*|data-wrap=on]{ height:auto; min-height:var(--s-18); white-space:pre-wrap; overflow:visible; }
+.viewer-line[*|data-wrap=on] .viewer-code{ white-space:pre-wrap; overflow-wrap:anywhere; }
+.viewer-hit{ background:var(--accent-soft); border-radius:var(--r-micro); }
+.viewer-hit-current{ background:var(--accent); color:var(--accent-ink); }
+.viewer-find{ position:absolute; top:var(--s-36); right:var(--s-16); z-index:var(--z-raise); display:flex; align-items:center; gap:var(--s-6); padding:var(--s-6); background:var(--surface); border-radius:var(--r-menu); box-shadow:var(--shadow-pop); font-family:var(--font-ui); font-size:var(--fs-small); color:var(--ink-soft); }
+.viewer-find-standing{ white-space:nowrap; min-width:var(--s-36); text-align:center; }
+.viewer-find-standing[*|data-standing=none]{ color:var(--danger); }
+.viewer-frame{ position:absolute; inset:0; width:100%; height:100%; border:0; }

@@ -41,3 +41,12 @@ pub const MEDIA_CSS: &str = include_str!("media/media.css");
 
 /// The PDF stage's stylesheet: the pages, the marks over them, the find bar, the panel's lists.
 pub const PDF_CSS: &str = include_str!("pdf/pdf.css");
+
+/// The picture stage's stylesheet.
+pub(crate) const RASTER_CSS: &str = include_str!("raster/raster.css");
+
+/// The text stage's stylesheet: the source lines and the marks of a find.
+pub(crate) const TEXT_CSS: &str = include_str!("text/source.css");
+
+/// The table and tree stages' stylesheet.
+pub(crate) const DATA_CSS: &str = include_str!("table/data.css");
