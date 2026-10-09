@@ -12,9 +12,8 @@ use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
 use ds::components::fields::fact_list::FactList;
 use ds::components::overlays::empty_state::EmptyState;
-use ds::prelude::{ExternalIcon, Icon, IconSource, IconView};
+use ds::prelude::{Icon, IconSource, IconView};
 use ds::style::icon::render::{IconPx, IconSize};
-use ds::style::icon::url::IconUrl;
 use ds_blitz::{Sampling, TextureFit, TextureLayer};
 use ds_core::word::Word;
 use std::num::NonZeroU32;
@@ -27,12 +26,6 @@ fn slot_of(area: Area) -> Option<SlotPixels> {
         height: pixels(area.size.height.0)?,
     })
 }
-
-/// Lucide `music`, drawn as a mask in the text colour. It moves to quire's `Icon::Music` once the
-/// design system has one (`quire.patch` of the audio lane).
-const MUSIC_SVG: &str = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' \
-stroke='#000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'>\
-<path d='M9 18V5l12-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='18' cy='16' r='3'/></svg>";
 
 /// The side of the music symbol on the tile of an audio file with no cover, in logical pixels.
 const SYMBOL_SIDE: u8 = 64;
@@ -113,10 +106,8 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
                         } else {
                             div { class: "viewer-media-art viewer-media-tile",
                                 IconView {
-                                    source: IconSource::Symbolic(ExternalIcon {
-                                        url: IconUrl::svg(MUSIC_SVG),
-                                        size: IconSize::Px(IconPx(SYMBOL_SIDE)),
-                                    }),
+                                    source: IconSource::from(Icon::Music),
+                                    size: IconSize::Px(IconPx(SYMBOL_SIDE)),
                                 }
                             }
                         }

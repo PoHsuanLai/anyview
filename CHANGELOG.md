@@ -16,6 +16,10 @@ versioning, with pre-releases while the program is in beta.
 - The Open… dialog starts on "Supported files", the types Viewer can show, with "All files" beside it. The desktop hides the other files rather than greying them out.
 - The desktop entry names the types by the registry's own names (`audio/vnd.wave`, `image/heif`, `image/qoi`…), so file managers offer Viewer for them.
 
+### Audio
+
+- An audio file shows its cover art: ID3, FLAC, MP4 and Ogg pictures are all read. A file with no cover shows a plain music tile. Audio opens in a small window, and the side panel is never blank for it. Now Playing on the desktop shows the track with its cover, and the media keys skip between tracks.
+
 ### Plugins
 
 - The plugin machinery that has nothing to do with what a plugin offers is now bayonet (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0), a library of its own, so other apps can share it: the length-prefixed JSON frames, the manifest's shared fields, discovery in `anyview/plugins`, which plugin wins when manifests collide, the package suggestion, and starting a plugin with its timeouts, cancel and kill. anyview keeps its own capabilities (probe, peek, thumbnail, decode, export, play) and messages on top of it. Nothing changes for you: the manifests, the protocol, the `Needs:` lines and the way a crashed or silent plugin costs one request are as they were.
