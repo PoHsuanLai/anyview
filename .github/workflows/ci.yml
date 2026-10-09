@@ -13,8 +13,20 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      # Line tables only: full debug info across blitz, stylo and wgpu made each test binary about
+      # 1.4 GB, and the workspace's tests outgrew the runner's disk. CI runs no debugger; backtraces
+      # keep their file and line.
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@v4
+
+      # The runner ships toolchains this build never uses; removing them leaves room for the
+      # workspace's test binaries.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
 
       # System libraries the build links (fontconfig, freetype, harfbuzz, libxml2, libpng, ...)
       # and the tools the install test and the notices script use. libdav1d is only for the
