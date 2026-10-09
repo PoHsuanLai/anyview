@@ -19,35 +19,53 @@ struct Entry {
     facts: Facts,
 }
 
-static KEPT: Mutex<Vec<Entry>> = Mutex::new(Vec::new());
+/// A set of bound books, newest use last. The session has one, [`KEPT`]; a test makes its own,
+/// so tests running side by side do not let each other's books go.
+struct Kept(Mutex<Vec<Entry>>);
+
+static KEPT: Kept = Kept::new();
+
+impl Kept {
+    const fn new() -> Kept {
+        Kept(Mutex::new(Vec::new()))
+    }
+
+    fn get(&self, src: &Source) -> Option<(Arc<[u8]>, Facts)> {
+        let mut kept = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        let at = kept.iter().position(|entry| &entry.source == src)?;
+        // The newest use goes last, so the oldest is the first to go.
+        let entry = kept.remove(at);
+        let found = (Arc::clone(&entry.bytes), entry.facts.clone());
+        kept.push(entry);
+        Some(found)
+    }
+
+    fn put(&self, src: &Source, bytes: Vec<u8>, facts: &Facts) -> Arc<[u8]> {
+        let bytes: Arc<[u8]> = bytes.into();
+        let mut kept = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        kept.retain(|entry| entry.source.path() != src.path());
+        kept.push(Entry {
+            source: src.clone(),
+            bytes: Arc::clone(&bytes),
+            facts: facts.clone(),
+        });
+        while kept.len() > BOOKS
+            || (kept.len() > 1 && kept.iter().map(|entry| entry.bytes.len()).sum::<usize>() > BYTES)
+        {
+            kept.remove(0);
+        }
+        bytes
+    }
+}
 
 /// The bound book kept for this version of `src`.
 pub(super) fn get(src: &Source) -> Option<(Arc<[u8]>, Facts)> {
-    let mut kept = KEPT.lock().unwrap_or_else(PoisonError::into_inner);
-    let at = kept.iter().position(|entry| &entry.source == src)?;
-    // The newest use goes last, so the oldest is the first to go.
-    let entry = kept.remove(at);
-    let found = (Arc::clone(&entry.bytes), entry.facts.clone());
-    kept.push(entry);
-    Some(found)
+    KEPT.get(src)
 }
 
 /// Keep `bytes` as the bound book of `src`, and hand back the shared copy.
 pub(super) fn put(src: &Source, bytes: Vec<u8>, facts: &Facts) -> Arc<[u8]> {
-    let bytes: Arc<[u8]> = bytes.into();
-    let mut kept = KEPT.lock().unwrap_or_else(PoisonError::into_inner);
-    kept.retain(|entry| entry.source.path() != src.path());
-    kept.push(Entry {
-        source: src.clone(),
-        bytes: Arc::clone(&bytes),
-        facts: facts.clone(),
-    });
-    while kept.len() > BOOKS
-        || (kept.len() > 1 && kept.iter().map(|entry| entry.bytes.len()).sum::<usize>() > BYTES)
-    {
-        kept.remove(0);
-    }
-    bytes
+    KEPT.put(src, bytes, facts)
 }
 
 #[cfg(test)]
@@ -67,25 +85,25 @@ mod tests {
     #[test]
     fn a_book_is_found_again_until_the_file_changes() {
         let (a, changed) = (source("a.epub", 10), source("a.epub", 11));
-        let facts = Facts::empty();
-        put(&a, vec![1, 2, 3], &facts);
+        let (kept, facts) = (Kept::new(), Facts::empty());
+        kept.put(&a, vec![1, 2, 3], &facts);
         assert_eq!(
-            get(&a).map(|(bytes, _)| bytes.to_vec()),
+            kept.get(&a).map(|(bytes, _)| bytes.to_vec()),
             Some(vec![1, 2, 3])
         );
-        assert!(get(&changed).is_none(), "a new stamp is a new book");
+        assert!(kept.get(&changed).is_none(), "a new stamp is a new book");
     }
 
     #[test]
     fn the_oldest_book_goes_first() {
-        let facts = Facts::empty();
+        let (kept, facts) = (Kept::new(), Facts::empty());
         let names: Vec<Source> = (0..BOOKS + 1)
             .map(|at| source(&format!("lru-{at}.epub"), 1))
             .collect();
         for src in &names {
-            put(src, vec![0], &facts);
+            kept.put(src, vec![0], &facts);
         }
-        assert!(get(&names[0]).is_none(), "the first was let go");
-        assert!(get(&names[BOOKS]).is_some(), "the last is kept");
+        assert!(kept.get(&names[0]).is_none(), "the first was let go");
+        assert!(kept.get(&names[BOOKS]).is_some(), "the last is kept");
     }
 }
