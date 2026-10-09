@@ -68,7 +68,7 @@ anyview-tool-kit = { path = "plugins/anyview-tool-kit" }
 # handling), generic over the capability type. No default features: a crate that
 # only speaks the wire (the plugin programs) gets serde and nothing else, and the crates that run
 # plugins ask for `host`.
-bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "592eea9b69aea9bb9e4d6694d09322595f8e8e0a", default-features = false }
+bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "a295145be669417e01ba8e501b89de5a5a160dcf", default-features = false }
 # quire, the design system, pinned by git rev: this is the one place to bump it (all six lines, and
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
