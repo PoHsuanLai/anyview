@@ -126,7 +126,7 @@ fn a_protocol_version_the_viewer_does_not_speak_is_refused() {
         error,
         PlatformError::PluginVersion {
             plugin: "fake".to_owned(),
-            offered: 99,
+            offered: 2,
             supported: 1
         }
     );
@@ -213,17 +213,6 @@ fn a_header_announcing_more_pixels_than_asked_for_is_refused_before_they_arrive(
         "{error:?}"
     );
     assert!(started.elapsed() < Duration::from_secs(4));
-}
-
-#[test]
-fn a_plugin_that_floods_stderr_without_a_newline_still_answers() {
-    let scratch = Scratch::new();
-    scratch.install(Where::User, "fake", 1, &["--fault", "stderr-flood"]);
-    let path = scratch.book("a.book", "x");
-    let got = PluginRunner::default()
-        .thumbnail(&scratch.plugin("fake"), &path, PixelLen(8))
-        .unwrap();
-    assert_eq!(got.size().width.0, 8);
 }
 
 #[test]

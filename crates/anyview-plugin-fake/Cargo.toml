@@ -1,6 +1,6 @@
 [package]
 name = "anyview-plugin-fake"
-description = "A tiny plugin that speaks protocol v1 for one invented kind, for the tests of discovery and the host. Also the shortest example of a plugin, using nothing of the viewer's but the protocol crate."
+description = "A tiny plugin that speaks protocol v1 for one invented kind, for the tests of discovery and the host. Also the shortest example of a plugin: the protocol crate and bayonet's fake plugin."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyview-plugin-protocol = { workspace = true }
+bayonet = { workspace = true, features = ["testing"] }
 
 [dev-dependencies]
 anyview-core = { workspace = true }
