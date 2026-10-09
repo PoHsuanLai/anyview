@@ -10,7 +10,7 @@ mod kept;
 
 use crate::io::OpenError;
 use anyview_book::BookError;
-use anyview_core::{BookFormat, FactLabel, FactValue, Facts, FormatDetail, Sniffed, Source};
+use anyview_core::{BookFormat, Facts, FormatDetail, Sniffed, Source};
 use anyview_pdf::PdfDocument;
 
 /// The document a book is bound as, and the rows of its Info tab.
