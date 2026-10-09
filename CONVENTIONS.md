@@ -69,7 +69,7 @@ quietly.
 - **Unique, specific names.** No two public types share a name in one crate (`Placement`,
   `Layers`, `Ground`, `Held` each existed twice). No bare generic names at a crate root
   (`Level`, `Filter`, `Step`, `Key`, `Text`, `Run`): qualify them (`OsdLevel`, `SearchFilter`).
-- **Test helpers are not API.** They live in `tests/support/`, a `testing` feature, or a dev
+- **Test helpers are not API.** They live in `tests/<name>/support/`, a `testing` feature, or a dev
   crate; never plain `pub` in the lib. Dry-run backends, scripts and demo drivers are test or
   dev code.
 - **An API change updates every caller in the same change.** No deprecated alias, no "kept
@@ -173,8 +173,10 @@ remembers.
 
 - **Name tests after behaviour:** `row_leaves_and_rows_below_heal`, not `fixes_3`.
 - **Unit tests beside the code** (`#[cfg(test)] mod tests`, or the concept's `tests.rs`) for
-  private behaviour; **integration tests** in `crates/<crate>/tests/<topic>.rs` for the public
-  surface.
+  private behaviour; **integration tests** in `crates/<crate>/tests/<name>/<topic>.rs` for the public
+  surface, all modules of the one binary `tests/<name>/main.rs` (a crate's tests link once; a
+  guard test in `main.rs` fails on a stray `tests/*.rs`; only a test that needs a process of
+  its own, like a panic hook or a memory high-water mark, stays a file of `tests/` and says why).
 - **Pure functions get table tests.** One table per function, a `const CASES: &[(Input,
   Expected)]` and one loop; each row names its case, and a failure names the row.
 - **Behaviour tests go through the real shape**: a surface test drives the surface through the

@@ -1,5 +1,7 @@
 //! A panic on another thread writes its report into the state folder it was told, and into no
 //! other: the folder is a scratch one.
+//!
+//! Its own binary, run in a process of its own: it installs the panic hook, which is process-global, so a panic on another test's thread would write a report into its scratch folder.
 
 use anyview::crash::{crash_dir, install};
 

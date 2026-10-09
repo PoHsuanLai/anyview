@@ -964,8 +964,8 @@ offers a codec, through quire's shared missing-helper parts and never through an
   plugins' hellos are asked afresh on every request already) and then tells every window (`Edge::available`): a window
   whose file lacked that tool reopens it, a sheet that was asking closes, and held neighbours that lacked it are let go.
 - **Tests** use `Installer::Fake` only: the sheet's phases (`sheet/tests.rs`), a window under the harness
-  (`anyview-ui/tests/missing_helpers.rs`), the host (`host/tests/helpers.rs`) and the real HEIF plugin end to end
-  (`anyview/tests/missing_helpers.rs`).
+  (`anyview-ui/tests/ui/missing_helpers.rs`), the host (`host/tests/helpers.rs`) and the real HEIF plugin end to end
+  (`anyview/tests/anyview/missing_helpers.rs`).
 
 ## 2m. Processes, and what to install
 
@@ -1537,7 +1537,7 @@ row. Stored types (`Resume`, `FileAction`, `Zoom`, `Edit`, `FilePath`, …) have
 against the exact JSON, and a stored `Word` enum is checked against its serde form with
 `ds_core::testing::word_matches_serde`. Fixtures are small byte literals of real file signatures,
 in the test that uses them; where a decoder needs a real file, a fixture under
-`crates/<crate>/tests/fixtures/` (each under 50 KB) is loaded through `tests/support/mod.rs`, which
+`crates/<crate>/tests/fixtures/` (each under 50 KB) is loaded through the crate's `tests/<name>/support/mod.rs`, which
 builds the `Source` and sniffs it the way the viewer does (`anyview-peek` reuses the image and text
 fixtures and adds one PDF). The pane is checked three ways: server-side renders kept as goldens under
 `tests/snapshots/` (`DS_BLESS=1` rewrites them; read the diff), quire's stylesheet and markup lint, and a
@@ -1550,31 +1550,31 @@ trait.
 The command line, the routing of requests and the platform tasks are table tests and `#[tokio::test]`s over the
 platform's fakes (`FakeInstance`, `FakeApps`, `FakeReveal`, `FakeShare`, `FakePrinter`) and a recording `Trash`:
 no bus, no desktop, no real trash. `Env::isolated` stands in where the real `DbusInstance` must report that
-there is no bus. `crates/anyview/tests/open_image.rs` runs a window's real root under `ds_harness`
+there is no bus. `crates/anyview/tests/anyview/open_image.rs` runs a window's real root under `ds_harness`
 with the runtime's pool and a desktop of fakes, opens a picture, reads back the pixels it drew and the history
 file it wrote. `tests/launch.rs` holds the launch budget (ignored; FINDINGS, "The launch budget"). The media tests use the real
-player on `anyview-media`'s fixtures with `ao=null` and a device with no window: `tests/media_hub.rs` (a window's
+player on `anyview-media`'s fixtures with `ao=null` and a device with no window: `tests/anyview/media_hub.rs` (a window's
 session, the desktop's entry and its controls, a session with no window, the exports and the frame),
-`tests/mpris_bus.rs` (the real `MprisSession` on a private bus), `tests/media_thread.rs` (the thread the
+`tests/anyview/mpris_bus.rs` (the real `MprisSession` on a private bus), `tests/media_thread.rs` (the thread the
 player is polled on); they skip, saying so, where there is no graphics adapter or no `dbus-daemon`. The
 fake desktop's `FakeMediaSession` has a clonable `FakeMediaHandle` to read what was published and press a
 control once the session is given to the hub.
 
 ## 7a. Testing the views
 
-The window is tested through `ds_harness` on the virtual clock (`crates/anyview-ui/tests/viewer_window.rs`):
+The window is tested through `ds_harness` on the virtual clock (`crates/anyview-ui/tests/ui/viewer_window.rs`):
 the pointer brings the chrome and rest takes it away, ⌘K lists the shared actions, the arrow keys walk the
-folder; the PDF window is driven the same way (`tests/pdf_window.rs`): the fixture is the one
+folder; the PDF window is driven the same way (`tests/ui/pdf_window.rs`): the fixture is the one
 `anyview-pdf`'s tests build in memory (`#[path]`-included, not copied), its tiles are real textures on the
 harness's hybrid painter, ⌘F with the next hit moves the page, and the pixels it draws are saved when
 `ANYVIEW_SHOTS` is set. Workers there run each job where it is submitted, so a result is in the mailbox by the time the
-harness looks (`tests/support/mod.rs`). A view component's markup is an SSR golden
+harness looks (`tests/ui/support/mod.rs`). A view component's markup is an SSR golden
 (`crates/anyview-ui/tests/snapshots/`, rewritten with `DS_BLESS=1`) and the viewer's stylesheet and the
-markup the harness renders go through `ds_lint`. Behaviour over time (`tests/behaviour.rs`, `text_stage.rs`,
+markup the harness renders go through `ds_lint`. Behaviour over time (`tests/ui/behaviour.rs`, `text_stage.rs`,
 `animation.rs`) wires a window to a `Gate` that holds the jobs of chosen kinds until the test lets them go and logs
 every job with its lane, a `Memory` that stands for the host's store (it hears the window's requests and answers its
-reads), and the host's small pictures (`tests/support/mod.rs`), so a first frame is seen while the open is still
-out and a result for a file left behind is released late. The media window is driven the same way (`tests/media_window.rs`) with a scripted player (`tests/support/player.rs`:
+reads), and the host's small pictures (`tests/ui/support/mod.rs`), so a first frame is seen while the open is still
+out and a result for a file left behind is released late. The media window is driven the same way (`tests/ui/media_window.rs`) with a scripted player (`tests/ui/support/player.rs`:
 a `MediaHost` that records what the window sends and says what the test makes it say, and uploads a gradient
 for the picture). The registry has a test that every `FormatKind` is mapped
 and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests save a PNG of what they drew.
@@ -1594,7 +1594,7 @@ switch repaints text; the viewer runs no frame loop of its own.
 `dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, `DBusActivatable=false`: the bus name
 `org.quire.Anyview1` has its own interface, not `org.freedesktop.Application`). Its `MimeType` line is
 `anyview_core::opened_mimes()`: the media types of the kinds with `StageSupport::Stage`, the one kind-to-MIME
-map; `crates/anyview-core/tests/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
+map; `crates/anyview-core/tests/anyview-core/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
 `cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
 `dist/uninstall.sh` (sharing `dist/lib.sh`; install records a receipt, uninstall removes only what it names) take `--dry-run` and `--prefix`, honour `DESTDIR`, and install the
 binary, the entry, the service file (Exec rewritten to the installed binary) and the icons from
@@ -1603,7 +1603,7 @@ leftover; section 2m). A plugin whose tool is missing is still installed, since 
 until the tool is there. The mpv plugin is skipped with one warning, and the rest installs, when there is no git, network or build; with no `mpv` it still installs, naming `/usr/bin/mpv` (a warning says so), so the plugin works the moment mpv is installed. The helpers file `dist/helpers/anyview.toml` installs to `<prefix>/share/quire/helpers/anyview.toml`. The mpv plugin's manifest template is
 `dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
 C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
-`cargo test -p anyview-core --test dist`) runs both in a scratch HOME with shimmed registration tools and a shim `cargo`, and fetches mpv-wgpu only from a local repository.
+`cargo test -p anyview-core --test anyview-core dist::`) runs both in a scratch HOME with shimmed registration tools and a shim `cargo`, and fetches mpv-wgpu only from a local repository.
 
 ## 8. Repo rules
 

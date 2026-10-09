@@ -99,7 +99,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   the way it draws any picture.
 - **quire's markup lint flags quire's own `TextureLayer`.** The `object.ds-texture-layer` it renders has a
   class no stylesheet rule defines (it styles itself inline), so `ds_lint::markup` reports
-  `UnstyledClass` for any page that shows one. `tests/pane.rs` skips exactly that selector. Ends when quire
+  `UnstyledClass` for any page that shows one. `crates/anyview-peek/tests/peek/pane.rs` skips exactly that selector. Ends when quire
   gives the class a rule or the lint an allowance for it.
 - **A peek's time budget stops only the loops that look at it, and a viewer job stops only between its steps.**
   `PeekBudget::time` is a `Deadline` the folder peek asks about; a decoder that does not return is not
@@ -441,7 +441,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The media thread is proven headless, and the window's texture is fed by it.** `crates/anyview/tests/media_thread.rs`
   runs the real `anyview_media::Driver` on an actor thread of the runtime, builds a device with no
   surface and samples the picture on the test thread in its own render pass (11 frames, 9 distinct, none
-  black, every poll on one thread that is not the UI thread). `crates/anyview/tests/media_hub.rs` runs
+  black, every poll on one thread that is not the UI thread). `crates/anyview/tests/anyview/media_hub.rs` runs
   `PlayerHost` against a `Gpu` made on such a device: the media thread's sink calls
   `TextureHandle::replace_view` and `redraw`, and the handle's size becomes the player's slot. The window
   itself (`TextureLayer` of that handle) is drawn in the real binary (the `ANYVIEW_SHOTS` pictures of
@@ -653,7 +653,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`dev/media-acceptance.sh` was not run for this change.** It starts the real binary, whose event loop needs
   a display, and the plugins now have to be installed in the scratch data directory (the script writes the mpv
   manifest from `MPV_WGPU_MPV` and `MPV_WGPU_CPLUGIN`). The same checks run against a private bus in
-  `crates/anyview/tests/mpris_bus.rs`.
+  `crates/anyview/tests/anyview/mpris_bus.rs`.
 - **The viewer links `anyview-peek` for header facts.** The binary's tree is now the launcher's plus the window:
   667 packages against a budget of 667 (660 before the built-in audio player and 664 before single instance over a socket: latchkey, interprocess and its proc macro doctest-file), with no libmpv or libav in it. Ends if the header readers move to a crate
   of their own that the binary and the peek both link.
@@ -867,7 +867,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **pdfrum's enums are non-exhaustive** (`LinkTarget`, `Error`), and the workspace denies wildcard arms.
   The crate matches the one or two cases it names with `matches!` and `if let` and sends the rest to
   `Other` or `PdfError::Pdf`, rather than writing a wildcard arm.
-- **The test fixture is built in memory.** `tests/support/mod.rs` writes a three-page PDF (text on each
+- **The test fixture is built in memory.** `crates/anyview-pdf/tests/pdf/support/mod.rs` writes a three-page PDF (text on each
   page, an outline of four entries, a link to a page and a link to a web address, a filled rectangle) with
   a correct cross-reference table, about 2.5 KB; no binary fixture is committed.
 - **`Player::poll` works from a thread that does not present** (PLAN section 4b, "prove early").
@@ -1019,6 +1019,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Four types the viewer sniffs have no row in shared-mime-info under that name.** `claimed_mimes` renames them
   (`audio/wav` is `audio/vnd.wave`, `image/heic` is `image/heif`, `video/x-msvideo` is `video/vnd.avi`,
   `image/x-qoi` is `image/qoi`, and so on) and leaves `.jsonl`/`.ndjson` to a file name pattern, since the registry
-  has no type for them. `crates/anyview-core/tests/dist.rs` checks the line against the registry where it is installed.
+  has no type for them. `crates/anyview-core/tests/anyview-core/dist.rs` checks the line against the registry where it is installed.
 - **Revert To is listed for a picture or a PDF that has no kept version.** Its sheet says there is nothing to go back
   to. Ends when the window knows the kept versions of the file before it is asked.

@@ -1,9 +1,12 @@
 //! Compressed streams that unpack to far more than the cap stay inside a small memory bound.
 //! This file holds one test: it measures the process's resident memory while a stream is
 //! unpacked, so nothing else may run beside it.
+//!
+//! Its own binary, in a process of its own: it resets the kernel's high-water mark of the process's memory, so no other test may run beside it.
 
 #![allow(clippy::unwrap_used)]
 
+#[path = "archive/support/mod.rs"]
 mod support;
 
 use anyview_archive::{ExtractLimits, extract};

@@ -20,7 +20,7 @@ use ds::prelude::*;
 use ds_lint::{LintConfig, markup};
 use std::sync::Arc;
 
-#[path = "../../../../anyview-pdf/tests/support/mod.rs"]
+#[path = "../../../../anyview-pdf/tests/pdf/support/mod.rs"]
 mod fixture;
 
 fn doc() -> Arc<PdfDoc> {

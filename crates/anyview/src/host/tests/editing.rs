@@ -9,7 +9,7 @@ use anyview_pdf::PdfDocument;
 use anyview_store::{SavedAt, VersionId, Versions};
 use anyview_ui::{EditRequest, HostRequest, Probed, Rewind, TypedText};
 
-#[path = "../../../../anyview-pdf/tests/support/mod.rs"]
+#[path = "../../../../anyview-pdf/tests/pdf/support/mod.rs"]
 #[allow(clippy::unwrap_used)]
 mod pdf_fixture;
 
