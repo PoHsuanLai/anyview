@@ -48,7 +48,7 @@ pub use media::{
     TrackSerial,
 };
 pub use picker::{FileKinds, PickOutcome, Picker};
-pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover};
+pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover, discover_in};
 pub use printer::{JobTitle, PrintOutcome, Printer};
 pub use reveal::Reveal;
 pub use share::{Share, ShareTarget};

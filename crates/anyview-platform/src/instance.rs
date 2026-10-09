@@ -4,7 +4,8 @@ use crate::error::PlatformError;
 use anyview_core::{FilePath, Resume, Sequence};
 use std::any::Any;
 use std::future::Future;
-use tokio::sync::mpsc::UnboundedReceiver;
+use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
 /// What a launch asks of the viewer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,22 +36,29 @@ pub struct Handoff {
 /// The right to be the viewer: the requests other launches forward arrive here, and dropping it
 /// gives the name up.
 pub struct Primary {
-    requests: UnboundedReceiver<Request>,
+    requests: Receiver<Request>,
     /// The registration that keeps the name; opaque so a fake holds nothing.
     _held: Box<dyn Any + Send>,
 }
 
 impl Primary {
-    pub(crate) fn new(requests: UnboundedReceiver<Request>, held: Box<dyn Any + Send>) -> Self {
+    pub(crate) fn new(requests: Receiver<Request>, held: Box<dyn Any + Send>) -> Self {
         Primary {
             requests,
             _held: held,
         }
     }
 
-    /// The next request another launch forwarded, or `None` when nothing can arrive any more.
-    pub async fn next(&mut self) -> Option<Request> {
-        self.requests.recv().await
+    /// The next request another launch forwarded, waiting for it, or `None` when nothing can
+    /// arrive any more. It blocks the calling thread: an async program reads it from a thread of
+    /// its own.
+    pub fn next(&mut self) -> Option<Request> {
+        self.requests.recv().ok()
+    }
+
+    /// The next request, or `None` when none arrived within `wait` or nothing can arrive any more.
+    pub fn next_within(&mut self, wait: Duration) -> Option<Request> {
+        self.requests.recv_timeout(wait).ok()
     }
 }
 

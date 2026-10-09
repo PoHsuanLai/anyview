@@ -100,9 +100,7 @@ async fn over_the_per_user_socket_the_second_launch_forwards_and_the_first_recei
     let second = LatchkeyInstance::under(scratch.path().to_owned());
     let role = claim_role(&second, &request).await;
     assert!(matches!(role, Role::Forwarded), "{role:?}");
-    let arrived = tokio::time::timeout(Duration::from_secs(10), primary.next())
-        .await
-        .unwrap();
+    let arrived = primary.next_within(Duration::from_secs(10));
     assert_eq!(arrived, Some(request));
 }
 

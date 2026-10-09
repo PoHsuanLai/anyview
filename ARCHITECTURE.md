@@ -336,7 +336,7 @@ leaves nothing to clean: the kernel drops the lock, and the next launch removes 
 Nothing starts the viewer when none runs, which the bus does; the launch that finds nobody home is the
 viewer. Linux with `quire-desktop` keeps the bus because activation (a launcher's call starts the viewer) and
 `forward_over` (the launcher's own connection) are the bus's, and latchkey starts nothing by itself. Nothing reads
-`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`),
+`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`, then `with_dirs`, `with_session`, `with_spawn`, `with_audio_output`; `Env` is `#[non_exhaustive]`),
 a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
 methods are driven by the caller's runtime and never spawn; blocking ones (thumbnails)
 run on the caller's worker.
@@ -347,7 +347,7 @@ run on the caller's worker.
 | `env` | `Env` (`dirs`, `session`, `spawn`, `audio_output`: `ANYVIEW_AUDIO_OUTPUT`, as written), `Dirs`, `BusRoute` (`Usual`, `Address`, `Absent`) |
 | `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
 | `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
-| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` |
+| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` (std channel: `next` blocks, `next_within(Duration)` gives up; an async program reads it on a thread of its own, as `program::relay` does) |
 | `handoff` (private) | a `Handoff` as the fields both wires carry (`Wire`): encoded and parsed once, for the bus and the socket |
 | `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
 | `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
@@ -356,7 +356,7 @@ run on the caller's worker.
 | `reveal` | `Reveal` |
 | `picker` | `Picker`, `PickOutcome` (`Chosen`, `Cancelled`, `NoDialog`): the desktop's file dialog |
 | `link` | `OpenLink`: a web or mail address handed to the desktop's handler |
-| `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts` (bayonet's), `PluginFacts`; the `Wire` that tells bayonet the viewer's messages is private |
+| `plugin` | `discover` and `discover_in` (the same with a folder in place of the person's data directory) (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts` (bayonet's), `PluginFacts`; the `Wire` that tells bayonet the viewer's messages is private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
 | `portable` | built everywhere, no desktop service: `LatchkeyInstance` (`new`, `under(dir)` for tests; the `frame` module is its line of JSON), `SystemOpen`, `SystemReveal`, `FreedesktopThumbnails`, `NoStacking`, and the absent abilities `NoApps`, `NoShare`, `NoPrinter`, `NoPicker` |
 | `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection; it also serves docket's `IntentProvider1`, `intents`, section 2n), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |

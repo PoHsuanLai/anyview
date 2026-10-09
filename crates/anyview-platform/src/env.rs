@@ -83,8 +83,10 @@ pub enum BusRoute {
     Absent,
 }
 
-/// The seams every implementation is built with.
+/// The seams every implementation is built with: start from [`Env::from_process`] or
+/// [`Env::isolated`] and change a seam with a `with_*` method.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Env {
     /// The person's directories.
     pub dirs: Dirs,
@@ -118,6 +120,29 @@ impl Env {
             session: BusRoute::Absent,
             spawn: Arc::new(RefuseSpawn),
             audio_output: None,
+        }
+    }
+
+    /// The same environment with the person's directories `dirs`.
+    pub fn with_dirs(self, dirs: Dirs) -> Env {
+        Env { dirs, ..self }
+    }
+
+    /// The same environment reaching the session bus by `session`.
+    pub fn with_session(self, session: BusRoute) -> Env {
+        Env { session, ..self }
+    }
+
+    /// The same environment starting programs with `spawn`.
+    pub fn with_spawn(self, spawn: Arc<dyn Spawn>) -> Env {
+        Env { spawn, ..self }
+    }
+
+    /// The same environment with the audio driver the person asked for, as they wrote it.
+    pub fn with_audio_output(self, audio_output: Option<String>) -> Env {
+        Env {
+            audio_output,
+            ..self
         }
     }
 }

@@ -107,8 +107,8 @@ mod tests {
 
     fn recording() -> (Env, RecordingSpawn) {
         let spawn = RecordingSpawn::default();
-        let mut env = Env::isolated(std::path::Path::new("/nonexistent"));
-        env.spawn = Arc::new(spawn.clone());
+        let env =
+            Env::isolated(std::path::Path::new("/nonexistent")).with_spawn(Arc::new(spawn.clone()));
         (env, spawn)
     }
 
