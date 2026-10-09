@@ -18,8 +18,8 @@ use anyview_ui::{
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{
-    AppEnded, AppHandle, Decorations, ScreenArea, WindowSize, WindowSizer, WindowSpec, clipboard,
-    use_window_sizer,
+    AppEnded, AppHandle, Decorations, Extent, ScreenArea, WindowSize, WindowSizer, WindowSpec,
+    clipboard, use_window_sizer,
 };
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
@@ -56,9 +56,10 @@ pub(super) fn spec_for(seed: &Seed, screen: Option<ScreenArea>) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
         Presentation::Mini => WindowSpec::new(title, MINI).with_decorations(Decorations::Client),
-        Presentation::Window | Presentation::Peek | Presentation::Background => {
-            WindowSpec::new(title, window_for(&seed.opening.file, screen))
-        }
+        Presentation::Window | Presentation::Peek | Presentation::Background => WindowSpec::new(
+            title,
+            window_for(&seed.opening.file, screen, seed.factory.window_screen),
+        ),
     }
 }
 
@@ -144,7 +145,7 @@ fn Window(seed: Seed) -> Element {
     let window = use_hook(try_consume_context::<WindowHost>);
     let app = ds_blitz::use_app_handle();
     let sizer = use_window_sizer();
-    let fit = use_hook(|| fit_of(seed.presentation, sizer));
+    let fit = use_hook(|| fit_of(seed.presentation, sizer, seed.factory.window_screen));
     let shown = use_hook(|| Rc::new(RefCell::new(Shown::default())));
     let hosting = Arc::clone(&seed.factory.hosting);
     let watching = use_hook(|| Rc::new(watch_for(&seed, &wiring.edge)));
@@ -253,12 +254,16 @@ fn Window(seed: Seed) -> Element {
 }
 
 /// The window's resize after load, through quire's sizer. The small window is never resized.
-fn fit_of(presentation: Presentation, sizer: Option<WindowSizer>) -> Rc<Option<WindowFit>> {
+fn fit_of(
+    presentation: Presentation,
+    sizer: Option<WindowSizer>,
+    replaced: Option<Extent>,
+) -> Rc<Option<WindowFit>> {
     let sizer = match presentation {
         Presentation::Mini => None,
         Presentation::Window | Presentation::Peek | Presentation::Background => sizer,
     };
-    Rc::new(sizer.map(WindowFit::new))
+    Rc::new(sizer.map(|sizer| WindowFit::new(sizer, replaced)))
 }
 
 /// The seed of the window made again for `file` in `presentation`.

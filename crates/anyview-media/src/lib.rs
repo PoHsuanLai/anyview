@@ -9,6 +9,18 @@
 //! and the exports on its pool.
 //!
 //! Every public item is reached from this root, once.
+//!
+//! Planning needs neither feature:
+//!
+//! ```
+//! use anyview_core::{ExportJob, FilePath, MediaExport, RasterTarget};
+//! use anyview_media::plan_export;
+//!
+//! let movie = FilePath::new("/home/me/clip.mkv")?;
+//! let jobs = plan_export(&movie, MediaExport::CurrentFrame(RasterTarget::Png));
+//! assert!(matches!(jobs.as_slice(), [ExportJob::MpvScreenshot { .. }]));
+//! # Ok::<(), anyview_core::CoreError>(())
+//! ```
 
 mod command;
 mod error;

@@ -1,5 +1,6 @@
 //! What every window of the program shares, and what makes one window its own.
 
+use super::fit::parse_screen;
 use super::opening::Opening;
 use crate::host::{
     Appearances, HelperHost, HostedResume, HostedVersions, Hosting, ImageHost, Watcher,
@@ -8,6 +9,7 @@ use anyview_platform::WindowStacking;
 use anyview_ui::{
     FirstFrameSource, ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers,
 };
+use ds_blitz::Extent;
 use std::sync::Arc;
 
 /// The wiring all windows share: the workers their jobs run on and the host their requests go
@@ -37,6 +39,8 @@ pub struct Factory {
     pub helpers: Option<Arc<HelperHost>>,
     /// Keeping the small window above the others, where the desktop lets a program ask.
     pub stacking: Arc<dyn StackingAsk>,
+    /// The screen windows are fitted to in place of the desktop's, in logical pixels (for tests).
+    pub(crate) window_screen: Option<Extent>,
 }
 
 /// Asks the desktop to keep a window above the others. Object safe, so the factory holds one
@@ -76,6 +80,16 @@ impl Factory {
             image_plugins: Arc::new(ImageHost::without_plugins()),
             helpers: None,
             stacking,
+            window_screen: None,
+        }
+    }
+
+    /// The same wiring fitting windows to the screen `text` names, as `WIDTHxHEIGHT` logical
+    /// pixels, in place of the desktop's: for tests. Text that names no screen is ignored.
+    pub fn with_window_screen(self, text: Option<&str>) -> Factory {
+        Factory {
+            window_screen: text.and_then(parse_screen),
+            ..self
         }
     }
 

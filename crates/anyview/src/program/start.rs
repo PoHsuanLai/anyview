@@ -22,7 +22,7 @@ use ds_blitz::{
 };
 use ds_settings::{AppName, ConfigRoot, SystemPrefsSource};
 use futures_channel::mpsc::unbounded;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::num::NonZeroUsize;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -179,7 +179,7 @@ fn show(
     // A tool the person installs with a package manager of their own is noticed as it appears.
     let _tools = helpers
         .as_ref()
-        .and_then(|helpers| watch_tools(&runtime, helpers));
+        .and_then(|helpers| watch_tools(&runtime, helpers, &env.tool_path));
     let hub = MediaHub::start(
         runtime.handle(),
         move || async move { NowPlaying::register(&for_bus).await },
@@ -224,6 +224,7 @@ fn show(
         Arc::new(PlayerHost::new(hub.clone())),
         Arc::new(NoStacking),
     )
+    .with_window_screen(env.window_screen.as_deref())
     .with_image_plugins(Arc::new(image_host));
     let factory = match helpers {
         Some(helpers) => factory.with_helpers(helpers),
@@ -293,11 +294,10 @@ fn can_install(runtime: &Runtime) -> bool {
 
 /// Follow the tools: the windows are told when one appears, and the folders programs are found in
 /// are watched so a package installed in a terminal is noticed. `None` when they cannot be watched.
-fn watch_tools(runtime: &Runtime, helpers: &Arc<HelperHost>) -> Option<PathWatch> {
+fn watch_tools(runtime: &Runtime, helpers: &Arc<HelperHost>, path: &OsStr) -> Option<PathWatch> {
     runtime.spawn(helpers.following());
     let again = Arc::clone(helpers);
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    PathWatch::start(&path, PATH_SETTLE, move || again.look_again())
+    PathWatch::start(path, PATH_SETTLE, move || again.look_again())
         .inspect_err(|error| eprintln!("anyview: installed tools will not be noticed: {error}"))
         .ok()
 }

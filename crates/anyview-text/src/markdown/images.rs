@@ -328,15 +328,9 @@ mod tests {
         let file = |name: &str| FilePath::new(dir.path().join(name)).unwrap();
         std::fs::write(file("pic.png").as_path(), PNG).unwrap();
         std::fs::create_dir(file("folder").as_path()).unwrap();
-        let pipe = file("pipe.png");
-        let made = std::process::Command::new("mkfifo")
-            .arg(pipe.as_path())
-            .status()
-            .unwrap();
-        assert!(made.success());
         let zero = FilePath::new("/dev/zero").unwrap();
         // name, path, most, bytes
-        let cases: Vec<(&str, FilePath, usize, Option<Vec<u8>>)> = vec![
+        let mut cases: Vec<(&str, FilePath, usize, Option<Vec<u8>>)> = vec![
             ("a file", file("pic.png"), MAX_INLINE, Some(PNG.to_vec())),
             (
                 "a file exactly at the limit",
@@ -351,7 +345,6 @@ mod tests {
                 None,
             ),
             ("a folder", file("folder"), MAX_INLINE, None),
-            ("a named pipe", pipe, MAX_INLINE, None),
             ("a device that never ends", zero, MAX_INLINE, None),
             (
                 "a path that is not there",
@@ -360,6 +353,18 @@ mod tests {
                 None,
             ),
         ];
+        // rustix has no mkfifo on Apple platforms; Linux is where the pipe is tried.
+        #[cfg(target_os = "linux")]
+        {
+            let pipe = file("pipe.png");
+            rustix::fs::mkfifoat(
+                rustix::fs::CWD,
+                pipe.as_path(),
+                rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR,
+            )
+            .unwrap();
+            cases.push(("a named pipe", pipe, MAX_INLINE, None));
+        }
         for (name, path, most, want) in cases {
             assert_eq!(DiskFiles.read(&path, most), want, "{name}");
         }

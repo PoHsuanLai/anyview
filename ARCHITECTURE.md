@@ -354,7 +354,7 @@ leaves nothing to clean: the kernel drops the lock, and the next launch removes 
 Nothing starts the viewer when none runs, which the bus does; the launch that finds nobody home is the
 viewer. Linux with `quire-desktop` keeps the bus because activation (a launcher's call starts the viewer) and
 `forward_over` (the launcher's own connection) are the bus's, and latchkey starts nothing by itself. Nothing reads
-`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`, then `with_dirs`, `with_session`, `with_spawn`, `with_audio_output`; `Env` is `#[non_exhaustive]`),
+`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`, then `with_dirs`, `with_session`, `with_spawn`, `with_audio_output`, `with_tool_path`, `with_window_screen`; `PATH`, `ANYVIEW_AUDIO_OUTPUT` and `ANYVIEW_WINDOW_SCREEN` are read there and nowhere else; `Env` is `#[non_exhaustive]`),
 a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
 methods are driven by the caller's runtime and never spawn; blocking ones (thumbnails)
 run on the caller's worker.

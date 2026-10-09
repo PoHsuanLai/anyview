@@ -11,6 +11,26 @@
 //! freedesktop formats, built on Linux with the `quire-desktop` feature (opt-in); without
 //! the feature this crate does not depend on zbus.
 //!
+//! A viewer claims the name once at start; a second launch forwards its request and leaves:
+//!
+//! ```no_run
+//! use anyview_platform::portable::LatchkeyInstance;
+//! use anyview_platform::{Claim, Instance, PlatformError, Request};
+//!
+//! # async fn start() -> Result<(), PlatformError> {
+//! match LatchkeyInstance::new().claim(&Request::Open(Vec::new())).await? {
+//!     Claim::Primary(mut primary) => {
+//!         // Blocks; an async program reads it on a thread of its own.
+//!         while let Some(request) = primary.next() {
+//!             println!("{request:?}");
+//!         }
+//!     }
+//!     Claim::Forwarded => {}
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! Every public item is reached from this root once, except the implementations, which are
 //! reached through `portable`, `linux` and `testing`. Another platform adds a module beside
 //! `linux` and changes nothing outside this crate.
