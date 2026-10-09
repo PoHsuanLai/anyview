@@ -57,7 +57,6 @@ impl StageView for TableStageView {
             | Stage::Pdf(_)
             | Stage::Media(_)
             | Stage::Text(_)
-            | Stage::Book(_)
             | Stage::Tree(_) => 0,
         };
         StageParams {
@@ -88,7 +87,6 @@ impl StageView for TableStageView {
             | Stage::Pdf(_)
             | Stage::Media(_)
             | Stage::Text(_)
-            | Stage::Book(_)
             | Stage::Tree(_) => SheetNo(0),
         };
         let name = doc

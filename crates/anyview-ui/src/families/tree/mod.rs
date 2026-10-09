@@ -51,7 +51,6 @@ impl StageView for TreeStageView {
             | Stage::Pdf(_)
             | Stage::Media(_)
             | Stage::Text(_)
-            | Stage::Book(_)
             | Stage::Table(_) => 0,
         };
         StageParams {

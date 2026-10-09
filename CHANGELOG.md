@@ -20,6 +20,10 @@ versioning, with pre-releases while the program is in beta.
 
 - An audio file shows its cover art: ID3, FLAC, MP4 and Ogg pictures are all read. A file with no cover shows a plain music tile. Audio opens in a small window, and the side panel is never blank for it. Now Playing on the desktop shows the track with its cover, and the media keys skip between tracks.
 
+### Books
+
+- EPUB and CBZ open in the PDF view. A book's chapters are laid out on reading pages and bound into one PDF with the chapters as its outline, so a book scrolls, zooms, finds and prints as a PDF does. A book opens at reading width, as Books and Preview do, unless you left it somewhere else. Its pages cannot be edited, because they are not a file.
+
 ### Plugins
 
 - The plugin machinery that has nothing to do with what a plugin offers is now bayonet (`github.com/PoHsuanLai/bayonet`, MIT OR Apache-2.0), a library of its own, so other apps can share it: the length-prefixed JSON frames, the manifest's shared fields, discovery in `anyview/plugins`, which plugin wins when manifests collide, the package suggestion, and starting a plugin with its timeouts, cancel and kill. anyview keeps its own capabilities (probe, peek, thumbnail, decode, export, play) and messages on top of it. Nothing changes for you: the manifests, the protocol, the `Needs:` lines and the way a crashed or silent plugin costs one request are as they were.

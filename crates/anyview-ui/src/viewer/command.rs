@@ -93,12 +93,9 @@ fn edit(viewer: Viewer, edit: Edit, action: FileAction, at: Stamp, params: &View
     let asked = match &viewer.stage {
         Stage::Raster(_) => Some(EditRequest::of_picture(edit)),
         Stage::Pdf(stage) => Some(EditRequest::on_page(edit, stage.place().page)),
-        Stage::NoStage
-        | Stage::Media(_)
-        | Stage::Text(_)
-        | Stage::Book(_)
-        | Stage::Table(_)
-        | Stage::Tree(_) => None,
+        Stage::NoStage | Stage::Media(_) | Stage::Text(_) | Stage::Table(_) | Stage::Tree(_) => {
+            None
+        }
     };
     match (asked, params.sheet.edit) {
         (Some(_), EditOffer::Withheld) => (viewer, vec![]),

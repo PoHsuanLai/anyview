@@ -63,7 +63,7 @@ impl Stage {
             Stage::Pdf(_) => PDF,
             Stage::Media(_) => MEDIA,
             Stage::Text(_) => TEXT,
-            Stage::NoStage | Stage::Book(_) | Stage::Table(_) | Stage::Tree(_) => READ_ONLY,
+            Stage::NoStage | Stage::Table(_) | Stage::Tree(_) => READ_ONLY,
         }
     }
 }

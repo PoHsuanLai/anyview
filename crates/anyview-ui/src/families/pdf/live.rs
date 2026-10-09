@@ -263,7 +263,6 @@ pub(super) fn page_view(stage: &Stage) -> Option<PageView> {
         Stage::NoStage
         | Stage::Raster(_)
         | Stage::Media(_)
-        | Stage::Book(_)
         | Stage::Text(_)
         | Stage::Table(_)
         | Stage::Tree(_) => None,

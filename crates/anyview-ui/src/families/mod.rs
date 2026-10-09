@@ -1,7 +1,6 @@
 //! The viewer's full tier: one view per family of formats, the trait they implement, and the
 //! registry that maps every kind of file to one of them.
 
-mod book;
 mod find_bar;
 mod media;
 mod pdf;
@@ -14,7 +13,6 @@ mod text;
 mod tree;
 mod view;
 
-pub use book::{BookDoc, BookStageView, Layout, SectionPage};
 pub use media::{
     MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, audio_window_size,
     use_media_shelf,

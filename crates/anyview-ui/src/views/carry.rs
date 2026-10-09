@@ -123,7 +123,6 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     shelf.loaded.set(None);
     shelf.peeked.set(None);
     shelf.lines.set(None);
-    shelf.section.set(None);
     shelf.hits.set(None);
     shelf.pdf.reset();
     shelf.media.reset();

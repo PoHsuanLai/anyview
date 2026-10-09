@@ -55,8 +55,6 @@ fn cx(stage: Stage) -> StageCx {
         ask_lines: EventHandler::new(|_| {}),
         typing: EventHandler::new(|_| {}),
         hits: None,
-        section: None,
-        ask_section: EventHandler::new(|_| {}),
         work: EventHandler::new(|_| {}),
         request: EventHandler::new(|_| {}),
         pdf: use_pdf_shelf(),

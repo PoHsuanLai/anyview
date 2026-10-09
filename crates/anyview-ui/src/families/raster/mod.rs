@@ -109,7 +109,6 @@ impl StageView for RasterStageView {
             | Stage::Pdf(_)
             | Stage::Media(_)
             | Stage::Text(_)
-            | Stage::Book(_)
             | Stage::Table(_)
             | Stage::Tree(_) => return Vec::new(),
         };

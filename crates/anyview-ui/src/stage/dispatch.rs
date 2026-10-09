@@ -1,7 +1,6 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
-use super::book::BookIn;
 use super::media::{
     ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
 };
@@ -29,7 +28,6 @@ impl Stage {
             Stage::Text(_) => text(command).map(StageIn::Text),
             Stage::Table(_) => table(command).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
-            Stage::Book(_) => book(command).map(StageIn::Book),
         }
     }
 
@@ -45,7 +43,6 @@ impl Stage {
             | Stage::Pdf(_)
             | Stage::Media(_)
             | Stage::Text(_)
-            | Stage::Book(_)
             | Stage::Table(TableStage::Browsing { .. })
             | Stage::Tree(TreeStage::Browsing { .. }) => false,
         }
@@ -59,7 +56,6 @@ impl Stage {
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Book(_)
             | Stage::Text(TextStage::Reading { .. })
             | Stage::Table(_)
             | Stage::Tree(_) => false,
@@ -89,7 +85,7 @@ impl Stage {
                 | MediaStage::Failed(_),
             ) => None,
             Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::CloseFind)),
-            Stage::Text(TextStage::Reading { .. }) | Stage::Book(_) => None,
+            Stage::Text(TextStage::Reading { .. }) => None,
             Stage::Table(TableStage::Selected { .. }) => Some(StageIn::Table(TableIn::Deselect)),
             Stage::Tree(TreeStage::Selected { .. }) => Some(StageIn::Tree(TreeIn::Deselect)),
             Stage::Table(TableStage::Browsing { .. }) | Stage::Tree(TreeStage::Browsing { .. }) => {
@@ -184,9 +180,13 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         ))),
         StageCommand::ScrollToStart => Some(PdfIn::GoTo(start())),
         StageCommand::ScrollToEnd => Some(PdfIn::GoTo(end(params.pages))),
-        StageCommand::DeletePage => Some(PdfIn::DeletePage),
-        StageCommand::MovePageEarlier => Some(PdfIn::MovePage(StepDirection::Backward)),
-        StageCommand::MovePageLater => Some(PdfIn::MovePage(StepDirection::Forward)),
+        StageCommand::DeletePage if params.edits => Some(PdfIn::DeletePage),
+        StageCommand::MovePageEarlier if params.edits => {
+            Some(PdfIn::MovePage(StepDirection::Backward))
+        }
+        StageCommand::MovePageLater if params.edits => {
+            Some(PdfIn::MovePage(StepDirection::Forward))
+        }
         StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
@@ -205,6 +205,9 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::MarkTrimEnd
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
+        | StageCommand::DeletePage
+        | StageCommand::MovePageEarlier
+        | StageCommand::MovePageLater
         | StageCommand::CollapseAll => None,
     }
 }
@@ -393,44 +396,5 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet => None,
-    }
-}
-
-fn book(command: StageCommand) -> Option<BookIn> {
-    match command {
-        StageCommand::NextPage | StageCommand::NextChapter => Some(BookIn::Next),
-        StageCommand::PreviousPage | StageCommand::PreviousChapter => Some(BookIn::Previous),
-        StageCommand::ScrollToStart => Some(BookIn::First),
-        StageCommand::ScrollToEnd => Some(BookIn::Last),
-        StageCommand::ZoomIn
-        | StageCommand::ZoomOut
-        | StageCommand::ZoomToFit
-        | StageCommand::ZoomToWidth
-        | StageCommand::ZoomToActual
-        | StageCommand::Find
-        | StageCommand::FindNext
-        | StageCommand::FindPrevious
-        | StageCommand::ToggleSource
-        | StageCommand::ToggleWrap
-        | StageCommand::TogglePlayback
-        | StageCommand::SeekBack
-        | StageCommand::SeekForward
-        | StageCommand::LineUp
-        | StageCommand::LineDown
-        | StageCommand::SlowDown
-        | StageCommand::SpeedUp
-        | StageCommand::NormalSpeed
-        | StageCommand::NextAudioTrack
-        | StageCommand::NextSubtitles
-        | StageCommand::StepFrameForward
-        | StageCommand::StepFrameBack
-        | StageCommand::MarkTrimStart
-        | StageCommand::MarkTrimEnd
-        | StageCommand::DeletePage
-        | StageCommand::MovePageEarlier
-        | StageCommand::MovePageLater
-        | StageCommand::NextSheet
-        | StageCommand::PreviousSheet
-        | StageCommand::CollapseAll => None,
     }
 }
