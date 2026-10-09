@@ -157,7 +157,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=ccf5a9d28956c9eb25df58257f55e4d4159f81e7#ccf5a9d28956c9eb25df58257f55e4d4159f81e7"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f#7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f"
 dependencies = [
  "porter-core",
  "prov",
@@ -2312,7 +2312,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2348,7 +2348,7 @@ dependencies = [
 [[package]]
 name = "docket-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=abbb62ccae1d988dfaf04b50176e7e943bf43b5a#abbb62ccae1d988dfaf04b50176e7e943bf43b5a"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=1b905edc5303c9f2241f8a5f6358968ece8dde36#1b905edc5303c9f2241f8a5f6358968ece8dde36"
 dependencies = [
  "docket-core",
  "docket-dbus",
@@ -2363,7 +2363,7 @@ dependencies = [
 [[package]]
 name = "docket-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=abbb62ccae1d988dfaf04b50176e7e943bf43b5a#abbb62ccae1d988dfaf04b50176e7e943bf43b5a"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=1b905edc5303c9f2241f8a5f6358968ece8dde36#1b905edc5303c9f2241f8a5f6358968ece8dde36"
 dependencies = [
  "almanac-core",
  "cua-action",
@@ -2378,7 +2378,7 @@ dependencies = [
 [[package]]
 name = "docket-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=abbb62ccae1d988dfaf04b50176e7e943bf43b5a#abbb62ccae1d988dfaf04b50176e7e943bf43b5a"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=1b905edc5303c9f2241f8a5f6358968ece8dde36#1b905edc5303c9f2241f8a5f6358968ece8dde36"
 dependencies = [
  "docket-core",
  "porter-dbus",
@@ -2755,7 +2755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5846,7 +5846,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7#55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=b12886e4d047d9763a4dccfa9fa3ce92084483ca#b12886e4d047d9763a4dccfa9fa3ce92084483ca"
 dependencies = [
  "serde",
  "serde_json",
@@ -5857,7 +5857,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7#55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=b12886e4d047d9763a4dccfa9fa3ce92084483ca#b12886e4d047d9763a4dccfa9fa3ce92084483ca"
 dependencies = [
  "porter-core",
  "serde",
@@ -5950,7 +5950,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7#55d1ade9e4135e68cb0ca7d38c0fe526b4b54be7"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=b12886e4d047d9763a4dccfa9fa3ce92084483ca#b12886e4d047d9763a4dccfa9fa3ce92084483ca"
 dependencies = [
  "porter-core",
  "serde",
@@ -6382,7 +6382,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6755,7 +6755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7317,10 +7317,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7338,7 +7338,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8c27177b12a6399ffc08b98f76f7c9a1f4fe9fc967c784c5a071fa8d93cf7e1"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7661,7 +7661,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8505,7 +8505,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
