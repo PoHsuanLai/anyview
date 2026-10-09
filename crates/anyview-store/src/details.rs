@@ -35,11 +35,18 @@ pub fn file_details(path: &Path) -> FileDetails {
 
 /// The General section of the file `input` is: its kind, size, dates, folder, where it came from
 /// and permissions. Blocking, as [`file_details`] is. Bytes a host handed in, with no file of
-/// their own, have none: there is no file whose dates or folder they could be.
+/// their own, have only the kind and the size: there is no file whose dates or folder they could
+/// be.
 pub fn general_facts(input: &Input, sniffed: &Sniffed) -> Facts {
     match input.path() {
         Some(path) => Facts::general(sniffed, &file_details(path.as_path())),
-        None => Facts::empty(),
+        None => Facts::general(
+            sniffed,
+            &FileDetails {
+                len: Some(input.stamp().len),
+                ..FileDetails::default()
+            },
+        ),
     }
 }
 
@@ -89,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn bytes_with_no_file_have_no_general_section() {
+    fn bytes_with_no_file_have_only_a_kind_and_a_size() {
         use anyview_core::{FileHead, FileName, FilePath, FileStamp, SniffStep, sniff};
         let name = FileName::new("a.txt").unwrap();
         let SniffStep::Done(sniffed) = sniff(&FileHead::new(b"hello"), &name) else {
@@ -100,7 +107,19 @@ mod tests {
             modified: ModTime(0),
         };
         let bytes = Input::new(name, stamp, std::sync::Arc::new(b"hello".to_vec()));
-        assert!(general_facts(&bytes, &sniffed).rows().is_empty());
+        let facts = general_facts(&bytes, &sniffed);
+        let rows: Vec<_> = facts
+            .rows()
+            .iter()
+            .map(|row| (row.label, row.value.as_str()))
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (anyview_core::FactLabel::Kind, "Plain text"),
+                (anyview_core::FactLabel::Size, "5 B"),
+            ]
+        );
 
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("a.txt");

@@ -78,7 +78,7 @@ fn an_exif_photo_peeks_upright_with_its_camera_facts() {
             ("camera", "TestCam One"),
             ("lens", "TestLens 35mm f/2"),
             ("exposure", "1/200 s · f/2.8 · ISO 100 · 35 mm"),
-            ("taken", "2024-05-01 12:30"),
+            ("taken", "1 May 2024 at 12:30"),
         ])
     );
 }

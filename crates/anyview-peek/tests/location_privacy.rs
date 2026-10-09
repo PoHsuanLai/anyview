@@ -12,8 +12,18 @@ use anyview_peek::peek;
 use support::{Home, fixture, pane_budget};
 
 /// What no preview says of a located photo.
-const WITHHELD: [&str; 7] = [
-    "37.7749", "122.4194", "37.77", "°", "SN-BODY", "SN-LENS", "123456",
+const WITHHELD: [&str; 11] = [
+    "37.7749",
+    "122.4194",
+    "37.77",
+    "°",
+    "37774900",
+    "122419400",
+    "Coordinate",
+    "location",
+    "SN-BODY",
+    "SN-LENS",
+    "123456",
 ];
 
 #[test]
@@ -37,7 +47,9 @@ fn the_peek_lists_the_camera_but_neither_the_place_nor_a_serial_number() {
                 row.label
             );
         }
-        let everything = format!("{:?}", peeked.facts);
+        // The whole value a worker hands to sill, mailo and temor: the body's picture and its
+        // EXIF too, not only the rows.
+        let everything = format!("{peeked:?}");
         for needle in WITHHELD {
             assert!(
                 !everything.contains(needle),

@@ -38,6 +38,8 @@ mp4parse = { workspace = true, optional = true }
 symphonia = { workspace = true, optional = true }
 
 [dev-dependencies]
+# Pins the time zone the expected dates are written in.
+anyview-core = { workspace = true, features = ["testing"] }
 ds-harness = { workspace = true, features = ["pdf"] }
 ds-lint = { workspace = true }
 dioxus-ssr = { workspace = true }

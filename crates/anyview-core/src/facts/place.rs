@@ -56,17 +56,6 @@ impl FactValue {
             format!("{metres} m")
         })
     }
-
-    /// `1.7`, `2.0.1`: the numbers of a format's version, joined by points.
-    pub fn version(parts: &[u32]) -> Self {
-        FactValue::text(
-            parts
-                .iter()
-                .map(u32::to_string)
-                .collect::<Vec<_>>()
-                .join("."),
-        )
-    }
 }
 
 #[cfg(test)]
@@ -107,12 +96,9 @@ mod tests {
     }
 
     #[test]
-    fn altitudes_and_versions_read_naturally() {
+    fn altitudes_read_naturally() {
         assert_eq!(FactValue::altitude(12).as_str(), "12 m");
         assert_eq!(FactValue::altitude(0).as_str(), "0 m");
         assert_eq!(FactValue::altitude(-3).as_str(), "3 m below sea level");
-        assert_eq!(FactValue::version(&[1, 7]).as_str(), "1.7");
-        assert_eq!(FactValue::version(&[2]).as_str(), "2");
-        assert_eq!(FactValue::version(&[]).as_str(), "");
     }
 }

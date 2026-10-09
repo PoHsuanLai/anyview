@@ -68,7 +68,7 @@ pub struct PdfInfo {
     pub creator: Option<String>,
     /// The program that wrote the PDF.
     pub producer: Option<String>,
-    /// When the document was made, from its Info dictionary.
+    /// When the document was made, from its Info dictionary or else the XMP packet.
     pub created: Option<FactTime>,
     /// When it was last changed, from the same.
     pub modified: Option<FactTime>,
@@ -118,15 +118,26 @@ impl PdfDocument {
             .page(0)
             .ok()
             .is_some_and(|first| first.structure().is_some());
+        // An empty `/Title ()` is no title: it must not hide the packet's.
+        let said = |value: Option<String>| {
+            value
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        };
+        let dated = |info: Option<String>, packet: Option<String>| {
+            said(info)
+                .and_then(|text| date::parse(&text))
+                .or_else(|| packet.and_then(|text| date::parse(&text)))
+        };
         PdfInfo {
-            title: meta.title.or(xmp.title),
-            author: meta.author.or(xmp.author),
-            subject: meta.subject.or(xmp.subject),
-            keywords: meta.keywords.or(xmp.keywords),
-            creator: meta.creator,
-            producer: meta.producer,
-            created: meta.creation_date.as_deref().and_then(date::parse),
-            modified: meta.modification_date.as_deref().and_then(date::parse),
+            title: said(meta.title).or(xmp.title),
+            author: said(meta.author).or(xmp.author),
+            subject: said(meta.subject).or(xmp.subject),
+            keywords: said(meta.keywords).or(xmp.keywords),
+            creator: said(meta.creator),
+            producer: said(meta.producer),
+            created: dated(meta.creation_date, xmp.created),
+            modified: dated(meta.modification_date, xmp.modified),
             version: doc.version().map(|v| FormatVersion {
                 major: v.major,
                 minor: v.minor,

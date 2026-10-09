@@ -1,20 +1,27 @@
 //! The Document section's rows for a PDF.
 
 use super::{PdfInfo, Protection, Restriction, Tagging};
-use anyview_core::{Fact, FactGroup, FactLabel, FactValue, Facts};
+use anyview_core::{Fact, FactGroup, FactLabel, FactTime, FactValue, Facts, LocalZone};
 
 impl PdfInfo {
     /// The rows of the Document section, each only when the file has it: title, author, subject,
     /// keywords, created, modified, creator, producer, version, page size, pages, security,
     /// tagging, attachments and signatures.
     pub fn facts(&self) -> Facts {
+        self.facts_in(&LocalZone::system())
+    }
+
+    /// [`PdfInfo::facts`] with the dates shown in `zone`.
+    pub fn facts_in(&self, zone: &LocalZone) -> Facts {
         let text = |label: FactLabel, value: &Option<String>| {
             value
                 .as_ref()
                 .map(|value| Fact::new(label, FactValue::text(value.clone())))
         };
-        let date = |label: FactLabel, when: Option<anyview_core::FactTime>| {
-            when.map(|when| Fact::new(label, FactValue::date(when)).in_group(FactGroup::Document))
+        let date = |label: FactLabel, when: Option<FactTime>| {
+            when.map(|when| {
+                Fact::new(label, FactValue::date_in(when, zone)).in_group(FactGroup::Document)
+            })
         };
         let rows = [
             text(FactLabel::Title, &self.title),

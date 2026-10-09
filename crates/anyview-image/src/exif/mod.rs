@@ -51,7 +51,8 @@ pub struct SignedRatio {
     pub denominator: i32,
 }
 
-/// The facts of a photo's EXIF block. An image with no EXIF block, or none the reader
+/// The facts of a photo's EXIF block. Never a place (see [`Location`], which only the viewer's
+/// own Info panel reads) and never the body and lens serial numbers, which are not read at all. An image with no EXIF block, or none the reader
 /// understands, has [`ExifFacts::none`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExifFacts {
@@ -67,6 +68,9 @@ pub struct ExifFacts {
     pub exposure: Exposure,
     /// The capture time as EXIF writes it, `YYYY:MM:DD HH:MM:SS`.
     pub taken: Option<String>,
+    /// The minutes east of UTC the capture time was written in, when the block says
+    /// (`OffsetTimeOriginal`, `OffsetTime`). A camera clock with no offset is the owner's own.
+    pub taken_offset: Option<i16>,
     /// How far the exposure was moved from the metered one, in stops.
     pub bias: Option<SignedRatio>,
     /// Whether and how the flash fired.
@@ -77,9 +81,6 @@ pub struct ExifFacts {
     pub copyright: Option<String>,
     /// The density the picture is meant to be shown at.
     pub resolution: Option<Resolution>,
-    /// Where the photo was taken. Never listed by a preview: see [`ExifFacts::location_facts`].
-    /// The body and lens serial numbers the block may hold are not read at all.
-    pub location: Option<Location>,
 }
 
 impl ExifFacts {
@@ -92,12 +93,12 @@ impl ExifFacts {
             lens: None,
             exposure: Exposure::default(),
             taken: None,
+            taken_offset: None,
             bias: None,
             flash: None,
             software: None,
             copyright: None,
             resolution: None,
-            location: None,
         }
     }
 
@@ -113,6 +114,15 @@ impl ExifFacts {
             .and_then(|tag| u16::try_from(tag).ok())
             .and_then(ExifOrientation::from_tag)
             .unwrap_or(ExifOrientation::UPRIGHT);
+        // An offset belongs to the clock it was written beside.
+        let (taken, offset) = match field(Tag::DateTimeOriginal) {
+            Some(original) => (text(original), field(Tag::OffsetTimeOriginal)),
+            None => (field(Tag::DateTime).and_then(text), field(Tag::OffsetTime)),
+        };
+        let taken_offset = offset
+            .and_then(text)
+            .as_deref()
+            .and_then(format::offset_minutes);
         ExifFacts {
             orientation,
             make: field(Tag::Make).and_then(text),
@@ -124,9 +134,8 @@ impl ExifFacts {
                 iso: field(Tag::PhotographicSensitivity).and_then(|v| v.get_uint(0)),
                 focal_length: field(Tag::FocalLength).and_then(ratio),
             },
-            taken: field(Tag::DateTimeOriginal)
-                .or_else(|| field(Tag::DateTime))
-                .and_then(text),
+            taken,
+            taken_offset,
             bias: field(Tag::ExposureBiasValue).and_then(signed_ratio),
             flash: field(Tag::Flash)
                 .and_then(|value| value.get_uint(0))
@@ -134,7 +143,6 @@ impl ExifFacts {
             software: field(Tag::Software).and_then(text),
             copyright: field(Tag::Copyright).and_then(text),
             resolution: resolution(&exif),
-            location: Location::read(&exif),
         }
     }
 
@@ -160,11 +168,6 @@ impl ExifFacts {
     /// `1/200 s · f/2.8 · ISO 100 · 35 mm`, the parts that were recorded.
     pub fn exposure_text(&self) -> Option<String> {
         format::exposure(&self.exposure)
-    }
-
-    /// `2024-05-01 12:30`, or the raw text when it is not a date EXIF would write.
-    pub fn taken_text(&self) -> Option<String> {
-        self.taken.as_deref().map(format::taken)
     }
 }
 

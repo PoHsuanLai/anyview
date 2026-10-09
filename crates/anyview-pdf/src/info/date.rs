@@ -1,4 +1,5 @@
-//! PDF dates: `D:YYYYMMDDHHmmSSOHH'mm'`, every part after the year optional.
+//! PDF dates: `D:YYYYMMDDHHmmSSOHH'mm'`, every part after the year optional. Writers that got it
+//! wrong write ISO 8601 (`D:2026-10-09`), and an XMP packet always does: both are read too.
 
 use anyview_core::{FactTime, FactZone};
 
@@ -7,9 +8,14 @@ use anyview_core::{FactTime, FactZone};
 pub(super) fn parse(text: &str) -> Option<FactTime> {
     let text = text.trim();
     let text = text.strip_prefix("D:").unwrap_or(text);
+    if text.as_bytes().get(4) == Some(&b'-') {
+        return iso(text);
+    }
     let digits = |from: usize, len: usize| -> Option<Option<u32>> {
         match text.get(from..from + len) {
             Some(part) if part.bytes().all(|b| b.is_ascii_digit()) => Some(part.parse().ok()),
+            // A part that starts with the zone (`Z`, `+`, `-`) means the digits ended before it.
+            Some(part) if !part.as_bytes()[0].is_ascii_digit() => Some(None),
             Some(_) => None,
             None => Some(None),
         }
@@ -27,15 +33,50 @@ pub(super) fn parse(text: &str) -> Option<FactTime> {
     let Some(hour) = hour else {
         return Some(date);
     };
-    // Seconds are read past, then the zone: `Z`, or `+HH'mm'` / `-HH'mm'` (the quotes optional).
-    let zone = text.get(12..).map_or(FactZone::Unstated, |rest| {
-        let rest = rest.trim_start_matches(|c: char| c.is_ascii_digit());
-        zone(rest)
-    });
+    // The seconds are read past, then the zone: `Z`, or `+HH'mm'` / `-HH'mm'` (the quotes
+    // optional). It follows whatever digits there are, so `D:2026100914Z` has its zone too.
+    let zone = zone(text.trim_start_matches(|c: char| c.is_ascii_digit()));
     date.at(
         u8::try_from(hour).ok()?,
         u8::try_from(minute.unwrap_or(0)).ok()?,
         zone,
+    )
+}
+
+/// `2026-10-09`, `2026-10-09T14:05`, `2026-10-09T14:05:30.5+02:00`, `2026-10-09 14:05Z`: ISO 8601
+/// with every part after the year optional.
+fn iso(text: &str) -> Option<FactTime> {
+    let number = |part: Option<&str>, len: usize| -> Option<Option<u32>> {
+        match part {
+            None => Some(None),
+            Some(part) if part.len() == len && part.bytes().all(|b| b.is_ascii_digit()) => {
+                Some(part.parse().ok())
+            }
+            Some(_) => None,
+        }
+    };
+    let (date, time) = match text.split_once(['T', 't', ' ']) {
+        Some((date, time)) => (date, Some(time)),
+        None => (text, None),
+    };
+    let mut parts = date.split('-');
+    let year = i32::try_from(number(parts.next(), 4)??).ok()?;
+    let month = number(parts.next(), 2)?.unwrap_or(1);
+    let day = number(parts.next(), 2)?.unwrap_or(1);
+    let day = FactTime::date(year, u8::try_from(month).ok()?, u8::try_from(day).ok()?)?;
+    let Some(time) = time else {
+        return Some(day);
+    };
+    let clock_end = time.find(['Z', 'z', '+', '-']).unwrap_or(time.len());
+    let (clock, rest) = time.split_at(clock_end);
+    let clock = clock.split('.').next().unwrap_or("");
+    let mut clock = clock.split(':');
+    let hour = number(clock.next(), 2)??;
+    let minute = number(clock.next(), 2)?.unwrap_or(0);
+    day.at(
+        u8::try_from(hour).ok()?,
+        u8::try_from(minute).ok()?,
+        zone(rest),
     )
 }
 
@@ -70,7 +111,7 @@ fn zone(rest: &str) -> FactZone {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyview_core::FactValue;
+    use anyview_core::{FactValue, LocalZone};
 
     #[test]
     fn pdf_dates_read_with_their_zone() {
@@ -79,18 +120,18 @@ mod tests {
             (
                 "full with offset",
                 "D:20261009140500+02'00'",
-                Some("9 Oct 2026 at 14:05 +02:00"),
+                Some("9 Oct 2026 at 12:05"),
             ),
-            ("utc", "D:20261009140500Z", Some("9 Oct 2026 at 14:05 UTC")),
+            ("utc", "D:20261009140500Z", Some("9 Oct 2026 at 14:05")),
             (
                 "negative half hour",
                 "D:20261009140500-03'30'",
-                Some("9 Oct 2026 at 14:05 -03:30"),
+                Some("9 Oct 2026 at 17:35"),
             ),
             (
                 "offset without quotes",
                 "D:20261009140500+0100",
-                Some("9 Oct 2026 at 14:05 +01:00"),
+                Some("9 Oct 2026 at 13:05"),
             ),
             ("no zone", "D:20261009140500", Some("9 Oct 2026 at 14:05")),
             (
@@ -101,17 +142,44 @@ mod tests {
             ("date only", "D:20261009", Some("9 Oct 2026")),
             ("year and month", "D:202610", Some("1 Oct 2026")),
             ("year", "D:2026", Some("1 Jan 2026")),
+            ("no prefix", "20261009140500Z", Some("9 Oct 2026 at 14:05")),
+            ("hour then Z", "D:2026100914Z", Some("9 Oct 2026 at 14:00")),
             (
-                "no prefix",
-                "20261009140500Z",
-                Some("9 Oct 2026 at 14:05 UTC"),
+                "hour then offset",
+                "D:2026100914+02'00'",
+                Some("9 Oct 2026 at 12:00"),
             ),
+            ("iso date", "D:2026-10-09", Some("9 Oct 2026")),
+            ("iso month", "2026-10", Some("1 Oct 2026")),
+            ("iso year", "2026", Some("1 Jan 2026")),
+            (
+                "iso to the minute, no zone",
+                "2026-10-09T14:05",
+                Some("9 Oct 2026 at 14:05"),
+            ),
+            (
+                "iso with seconds and offset",
+                "2026-10-09T14:05:30+02:00",
+                Some("9 Oct 2026 at 12:05"),
+            ),
+            (
+                "iso with a space and Z",
+                "2026-10-09 14:05:30Z",
+                Some("9 Oct 2026 at 14:05"),
+            ),
+            (
+                "iso with fractional seconds",
+                "2026-10-09T14:05:30.25Z",
+                Some("9 Oct 2026 at 14:05"),
+            ),
+            ("iso month 13", "2026-13-09", None),
             ("not a date", "yesterday", None),
             ("month 13", "D:20261309", None),
             ("empty", "", None),
         ];
         for (name, raw, want) in CASES {
-            let got = parse(raw).map(|time| FactValue::date(time).as_str().to_owned());
+            let zone = LocalZone::fixed(0);
+            let got = parse(raw).map(|time| FactValue::date_in(time, &zone).as_str().to_owned());
             assert_eq!(got.as_deref(), *want, "{name}");
         }
     }

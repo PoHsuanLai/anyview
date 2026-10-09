@@ -73,26 +73,24 @@ pub(super) fn exposure(exposure: &Exposure) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// `2024:05:01 12:30:45` as `2024-05-01 12:30`; anything else comes back as it was.
-pub(super) fn taken(raw: &str) -> String {
-    let digits = |s: &str, len: usize| s.len() == len && s.bytes().all(|b| b.is_ascii_digit());
-    let Some((date, time)) = raw.split_once(' ') else {
-        return raw.to_owned();
-    };
-    let date_parts: Vec<&str> = date.split(':').collect();
-    let time_parts: Vec<&str> = time.split(':').collect();
-    match (date_parts.as_slice(), time_parts.as_slice()) {
-        ([year, month, day], [hour, minute, ..])
-            if digits(year, 4)
-                && digits(month, 2)
-                && digits(day, 2)
-                && digits(hour, 2)
-                && digits(minute, 2) =>
-        {
-            format!("{year}-{month}-{day} {hour}:{minute}")
-        }
-        _ => raw.to_owned(),
+/// `+02:00`, `-05:30`, `Z` as the minutes east of UTC; `None` for anything else.
+pub(super) fn offset_minutes(raw: &str) -> Option<i16> {
+    let raw = raw.trim();
+    if raw.eq_ignore_ascii_case("z") {
+        return Some(0);
     }
+    let sign = match raw.as_bytes().first()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let (hours, minutes) = raw[1..].split_once(':')?;
+    let digits = |s: &str| s.len() == 2 && s.bytes().all(|b| b.is_ascii_digit());
+    if !digits(hours) || !digits(minutes) {
+        return None;
+    }
+    let (hours, minutes) = (hours.parse::<i16>().ok()?, minutes.parse::<i16>().ok()?);
+    (hours < 24 && minutes < 60).then_some(sign * (hours * 60 + minutes))
 }
 
 /// `1/200 s · f/2.8`: the shutter and the aperture, the parts that were recorded.

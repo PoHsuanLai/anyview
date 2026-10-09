@@ -1,10 +1,10 @@
-//! The rows of a photo's EXIF block for the viewer's Info panel. A preview pane lists
-//! [`ExifFacts::camera_facts`] at most, and never [`ExifFacts::location_facts`]; neither lists a
-//! serial number, because none is read.
+//! The rows of a photo's EXIF block for the viewer's Info panel. `ExifFacts` holds no place, so
+//! no preview can list one (see `Location`), and none lists a serial number, because none is
+//! read.
 
 use super::{ExifFacts, Flash, format};
 use crate::resolution::Resolution;
-use anyview_core::{FactLabel, FactTime, FactValue, Facts};
+use anyview_core::{FactLabel, FactTime, FactValue, FactZone, Facts, LocalZone};
 
 impl ExifFacts {
     /// The camera, lens, settings, flash, capture time and software, and the copyright notice,
@@ -41,27 +41,85 @@ impl ExifFacts {
             })
     }
 
-    /// Where the photo was taken: coordinates and altitude, as text. Only the viewer's own Info
-    /// panel calls this: a preview pane, a list or a thumbnail may be shared or screenshotted,
-    /// and must not say where a photo was taken. Nothing here looks the place up.
-    pub fn location_facts(&self) -> Facts {
-        let Some(location) = self.location else {
-            return Facts::empty();
+    /// The capture time as a date value in the person's own zone: `1 May 2024 at 12:30`. A time
+    /// with no offset is the person's own already and is shown as written. `None` when the block
+    /// has none or it is not a time EXIF would write (cameras without a clock write `0000:00:00
+    /// 00:00:00` or blanks).
+    pub(crate) fn taken_value(&self) -> Option<FactValue> {
+        self.taken_value_in(&LocalZone::system())
+    }
+
+    fn taken_value_in(&self, zone: &LocalZone) -> Option<FactValue> {
+        let when = FactTime::parse_exif(self.taken.as_deref()?)?;
+        let when = match self.taken_offset {
+            Some(minutes) => when.in_zone(FactZone::Offset(minutes)),
+            None => when,
         };
-        let facts = Facts::empty().with(
-            FactLabel::Coordinates,
-            FactValue::coordinate(location.place),
-        );
-        match location.altitude {
-            Some(metres) => facts.with(FactLabel::Altitude, FactValue::altitude(metres)),
-            None => facts,
+        Some(FactValue::date_in(when, zone))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn taken(raw: &str, offset: Option<i16>) -> ExifFacts {
+        ExifFacts {
+            taken: Some(raw.to_owned()),
+            taken_offset: offset,
+            ..ExifFacts::none()
         }
     }
 
-    /// The capture time as a date value: `1 May 2024 at 12:30`, or the raw text when it is not a
-    /// time EXIF would write.
-    fn taken_value(&self) -> Option<FactValue> {
-        let raw = self.taken.as_deref()?;
-        Some(FactTime::parse_exif(raw).map_or_else(|| FactValue::text(raw), FactValue::date))
+    #[test]
+    fn capture_times_without_an_offset_are_shown_as_written() {
+        let zone = LocalZone::fixed(-480);
+        let shown = |raw: &str, offset| {
+            taken(raw, offset)
+                .taken_value_in(&zone)
+                .map(|value| value.as_str().to_owned())
+        };
+        assert_eq!(
+            shown("2024:05:01 12:30:45", None).as_deref(),
+            Some("1 May 2024 at 12:30")
+        );
+        assert_eq!(
+            shown("2024:05:01 12:30", None).as_deref(),
+            Some("1 May 2024 at 12:30")
+        );
+        // An offset tag converts: 12:30 at +02:00 is 02:30 at -08:00.
+        assert_eq!(
+            shown("2024:05:01 12:30:45", Some(120)).as_deref(),
+            Some("1 May 2024 at 02:30")
+        );
+        assert_eq!(
+            shown("2024:05:01 03:30:45", Some(-480)).as_deref(),
+            Some("1 May 2024 at 03:30")
+        );
+    }
+
+    #[test]
+    fn capture_times_that_are_not_times_are_dropped() {
+        for bad in [
+            "0000:00:00 00:00:00",
+            "    :  :     :  :  ",
+            "",
+            "   ",
+            "2024-05-01 12:30:45",
+            "2024:05:01",
+            "yesterday",
+            "2024:13:01 12:00:00",
+        ] {
+            let facts = taken(bad, None);
+            assert_eq!(facts.taken_value(), None, "{bad:?}");
+            assert!(
+                facts
+                    .camera_facts()
+                    .rows()
+                    .iter()
+                    .all(|row| row.label != FactLabel::Taken),
+                "{bad:?}"
+            );
+        }
     }
 }

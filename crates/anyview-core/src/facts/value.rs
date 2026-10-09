@@ -100,6 +100,17 @@ impl FactValue {
         FactValue(format!("{} ({grouped} bytes)", short.0))
     }
 
+    /// `1.7`, `2.0.1`: the numbers of a format's version, joined by points.
+    pub fn version(parts: &[u32]) -> Self {
+        FactValue::text(
+            parts
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join("."),
+        )
+    }
+
     /// The text.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -128,6 +139,13 @@ mod tests {
         for (name, bytes, want) in CASES {
             assert_eq!(FactValue::size(ByteLen(*bytes)).as_str(), *want, "{name}");
         }
+    }
+
+    #[test]
+    fn versions_join_their_numbers_with_points() {
+        assert_eq!(FactValue::version(&[1, 7]).as_str(), "1.7");
+        assert_eq!(FactValue::version(&[2]).as_str(), "2");
+        assert_eq!(FactValue::version(&[]).as_str(), "");
     }
 
     #[test]

@@ -10,7 +10,7 @@ use anyview_core::{
 };
 use anyview_image::{
     Animation, Decoded, Fidelity, ImageError, ImagePeek, Plays, RasterPeek, Rgba8, VectorPeek,
-    declared_size, decode, fidelity, picture_facts, resized,
+    declared_size, decode_bytes, fidelity, file_bytes, picture_facts, resized,
 };
 use ds_blitz::{PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -141,47 +141,46 @@ impl Backend for RasterBackend {
 }
 
 fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
-    let mut doc = decoded(target)?;
-    doc.offer = offer_of(&target.source, &target.sniffed);
+    // The file is read once: the decoder, the facts and the edit offer share these bytes.
+    let bytes = file_bytes(&Input::from(&target.source))?;
+    let mut doc = decoded(target, &bytes)?;
+    doc.offer = offer_of(&target.source, &target.sniffed, &bytes);
     Ok(doc)
 }
 
 /// What saving a turn or flip of the file costs, read from its headers. A file too large to read
 /// whole for this is asked about nothing: the edit's own limits answer.
-fn offer_of(source: &Source, sniffed: &Sniffed) -> EditOffer {
+fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8]) -> EditOffer {
     const LIMIT: u64 = 512 * 1024 * 1024;
     if source.stamp().len.0 > LIMIT {
         return EditOffer::Plain;
     }
-    let Ok(bytes) = std::fs::read(source.path().as_path()) else {
-        return EditOffer::Plain;
-    };
-    match fidelity(&bytes, sniffed) {
+    match fidelity(bytes, sniffed) {
         Fidelity::Intact => EditOffer::Plain,
         Fidelity::Loses(loss) => EditOffer::Asks(EditCaution::Loses(loss.sentence())),
         Fidelity::Impossible => EditOffer::Withheld,
     }
 }
 
-fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
+fn decoded(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
     if matches!(
         target.sniffed.detail(),
         FormatDetail::Raster(RasterFormat::Raw)
     ) {
-        return raw_into(target);
+        return raw_into(target, bytes);
     }
-    match decode(&target.source, &target.sniffed) {
+    match decode_bytes(bytes, &target.sniffed) {
         Ok(Decoded::Still(picture)) => {
             let held = upload(&target.texture, &picture)?;
             Ok(holding(
-                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
                 held,
             ))
         }
         Ok(Decoded::HeldStill { picture, frames }) => {
             let held = upload(&target.texture, &picture)?;
             let mut doc = holding(
-                doc_of(target, picture.size(), frames.0, None, Runs::Forever),
+                doc_of(target, bytes, picture.size(), frames.0, None, Runs::Forever),
                 held,
             );
             doc.facts = doc.facts.with(
@@ -202,7 +201,7 @@ fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
                 Plays::Times(times) => Runs::Times(times),
             };
             Ok(holding(
-                doc_of(target, first, count, Some(Arc::new(strip)), runs),
+                doc_of(target, bytes, first, count, Some(Arc::new(strip)), runs),
                 held,
             ))
         }
@@ -214,14 +213,18 @@ fn decoded(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
             | ImageError::NotCompiledIn {
                 format: RasterFormat::Avif,
             }),
-        ) => plugin_into(target, error),
+        ) => plugin_into(target, bytes, error),
         Err(error) => Err(error.into()),
     }
 }
 
 /// A picture only a plugin can decode: its pixels, or the facts and the row naming the package.
 /// `unserved` is what the viewer says when no plugin is installed and none is known.
-fn plugin_into(target: &RasterTarget, unserved: ImageError) -> Result<RasterDoc, OpenError> {
+fn plugin_into(
+    target: &RasterTarget,
+    bytes: &[u8],
+    unserved: ImageError,
+) -> Result<RasterDoc, OpenError> {
     match target
         .plugins
         .decode(&target.source, &target.sniffed, PLUGIN_AREA)
@@ -229,11 +232,11 @@ fn plugin_into(target: &RasterTarget, unserved: ImageError) -> Result<RasterDoc,
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
             Ok(holding(
-                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
                 held,
             ))
         }
-        PluginPicture::Missing(needs) => Ok(blank_doc(target, needs)),
+        PluginPicture::Missing(needs) => Ok(blank_doc(target, bytes, needs)),
         PluginPicture::Unserved => Err(unserved.into()),
         PluginPicture::Failed(reason) => Err(OpenError::Plugin(reason)),
     }
@@ -242,7 +245,7 @@ fn plugin_into(target: &RasterTarget, unserved: ImageError) -> Result<RasterDoc,
 /// A camera raw file: the plugin's full development when one is installed and works; else the
 /// preview inside the file, with a row offering the plugin for the full picture; else, for a file
 /// with no readable preview, the facts and that row.
-fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
+fn raw_into(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
     let developed = target
         .plugins
         .decode(&target.source, &target.sniffed, PLUGIN_AREA);
@@ -250,7 +253,7 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
             return Ok(holding(
-                doc_of(target, picture.size(), 1, None, Runs::Forever),
+                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
                 held,
             ));
         }
@@ -261,10 +264,13 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
         }
         PluginPicture::Unserved => None,
     };
-    match decode(&target.source, &target.sniffed) {
+    match decode_bytes(bytes, &target.sniffed) {
         Ok(Decoded::Still(picture)) => {
             let held = upload(&target.texture, &picture)?;
-            let mut doc = holding(doc_of(target, picture.size(), 1, None, Runs::Forever), held);
+            let mut doc = holding(
+                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
+                held,
+            );
             if let Some(needs) = needs {
                 doc.facts = doc.facts.with(needs.fact.label, needs.fact.value);
                 doc.lacking = needs.helper;
@@ -273,7 +279,7 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
         }
         Ok(Decoded::Animated(_) | Decoded::HeldStill { .. }) => Err(OpenError::Unrecognised),
         Err(ImageError::NoPreview) => match needs {
-            Some(needs) => Ok(blank_doc(target, needs)),
+            Some(needs) => Ok(blank_doc(target, bytes, needs)),
             None => Err(ImageError::NoPreview.into()),
         },
         Err(error) => Err(error.into()),
@@ -281,12 +287,12 @@ fn raw_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
 }
 
 /// A document with no picture: the facts of the file and the row naming what would show it.
-fn blank_doc(target: &RasterTarget, needs: Need) -> RasterDoc {
+fn blank_doc(target: &RasterTarget, bytes: &[u8], needs: Need) -> RasterDoc {
     let one = PixelSize {
         width: PixelLen(1),
         height: PixelLen(1),
     };
-    let mut doc = doc_of(target, one, 1, None, Runs::Forever);
+    let mut doc = doc_of(target, bytes, one, 1, None, Runs::Forever);
     doc.facts = Facts::empty()
         .with(
             FactLabel::Kind,
@@ -307,6 +313,7 @@ fn holding(doc: RasterDoc, held: PixelSize) -> RasterDoc {
 
 fn doc_of(
     target: &RasterTarget,
+    bytes: &[u8],
     size: PixelSize,
     frames: u32,
     strip: Option<Arc<FrameStrip>>,
@@ -317,7 +324,7 @@ fn doc_of(
         size,
         held: size,
         frames,
-        facts: facts(&target.source, &target.sniffed, size, frames),
+        facts: facts(size, frames).then(metadata_facts(bytes, &target.sniffed)),
         needs: None,
         lacking: None,
         offer: EditOffer::Plain,
@@ -385,7 +392,7 @@ fn cheap_picture(
 ) -> Result<Option<Cheap>, OpenError> {
     if let Some(picture) = link.first_frames.picture(src) {
         let size = declared_size(src, sniffed)?.unwrap_or_else(|| picture.size());
-        let facts = facts(src, sniffed, size, 1);
+        let facts = facts(size, 1).then(file_metadata_facts(src, sniffed));
         return Ok(Some((picture, size, 1, facts)));
     }
     let (peeked, facts): (ImagePeek, Facts) = match (sniffed.kind(), sniffed.detail()) {
@@ -435,34 +442,40 @@ fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<PixelSize, OpenErr
     Ok(size)
 }
 
-/// How much of a file is read for what it says about itself: the EXIF block of a JPEG, PNG,
-/// WebP or HEIC sits in the first blocks, and a TIFF's in most files.
-const METADATA_READ: u64 = 32 * 1024 * 1024;
-
-/// The rows of the Info tab: the picture's size and frames, then what the file says about its
-/// colour, density, camera and place. The General section (kind, size, dates) is the window's.
-fn facts(source: &Source, sniffed: &Sniffed, size: PixelSize, frames: u32) -> Facts {
+/// The rows of the Info tab that need no file: the picture's size and, for an animation, its
+/// frames. The General section (kind, size, dates) is the window's.
+fn facts(size: PixelSize, frames: u32) -> Facts {
     let facts = Facts::empty().with(FactLabel::Dimensions, FactValue::dimensions(size));
-    let facts = if frames > 1 {
+    if frames > 1 {
         facts.with(FactLabel::Frames, FactValue::text(frames.to_string()))
     } else {
         facts
-    };
-    facts.then(metadata_facts(source, sniffed))
+    }
 }
 
-/// Colour, density, camera and location, read from the file's own headers. A file that cannot be
-/// read again, or an SVG, has none.
-fn metadata_facts(source: &Source, sniffed: &Sniffed) -> Facts {
-    use std::io::Read;
-    if sniffed.kind() != FormatKind::Raster {
-        return Facts::empty();
+/// Colour, density, camera and location, read from the file's own headers in `bytes`. An SVG has
+/// none.
+fn metadata_facts(bytes: &[u8], sniffed: &Sniffed) -> Facts {
+    if sniffed.kind() == FormatKind::Raster {
+        picture_facts(bytes, sniffed)
+    } else {
+        Facts::empty()
     }
+}
+
+/// How much of a file the cheap first look reads for what it says about itself: the EXIF block of
+/// a JPEG, PNG, WebP or HEIC sits in the first blocks, and a TIFF's in most files.
+const FIRST_LOOK_METADATA_READ: u64 = 32 * 1024 * 1024;
+
+/// [`metadata_facts`] of the start of the file at `source`, for the first look that has not read
+/// the file whole. A file that cannot be read has none.
+fn file_metadata_facts(source: &Source, sniffed: &Sniffed) -> Facts {
+    use std::io::Read;
     let mut bytes = Vec::new();
     let read = std::fs::File::open(source.path().as_path())
-        .and_then(|file| file.take(METADATA_READ).read_to_end(&mut bytes));
+        .and_then(|file| file.take(FIRST_LOOK_METADATA_READ).read_to_end(&mut bytes));
     match read {
-        Ok(_) => picture_facts(&bytes, sniffed),
+        Ok(_) => metadata_facts(&bytes, sniffed),
         Err(_) => Facts::empty(),
     }
 }

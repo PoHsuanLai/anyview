@@ -100,3 +100,50 @@ fn a_section_can_be_withheld() {
     assert_eq!(facts.rows().len(), 1);
     assert_eq!(facts.value(FactLabel::Coordinates), None);
 }
+
+#[test]
+fn a_needs_row_ends_the_general_section() {
+    let facts = Facts::empty()
+        .with(
+            FactLabel::Needs,
+            FactValue::text("anyview-heif (to show it)"),
+        )
+        .with(FactLabel::Kind, FactValue::text("HEIC image"))
+        .with(FactLabel::Size, FactValue::text("1 MB"))
+        .with(FactLabel::Camera, FactValue::text("Canon"))
+        .with(FactLabel::Modified, FactValue::text("today"));
+    let sections = facts.sections();
+    let (group, rows) = sections.last().unwrap();
+    assert_eq!(*group, FactGroup::General);
+    let labels: Vec<_> = rows.iter().map(|row| row.label).collect();
+    assert_eq!(
+        labels,
+        [
+            FactLabel::Kind,
+            FactLabel::Size,
+            FactLabel::Modified,
+            FactLabel::Needs
+        ]
+    );
+}
+
+#[test]
+fn value_of_modified_is_the_files_own_date_not_the_documents() {
+    let facts = Facts::empty()
+        .with_fact(
+            Fact::new(FactLabel::Modified, FactValue::text("PDF's own"))
+                .in_group(FactGroup::Document),
+        )
+        .with(FactLabel::Modified, FactValue::text("the file's"));
+    assert_eq!(
+        facts.value(FactLabel::Modified),
+        Some(&FactValue::text("the file's"))
+    );
+    let only_document = Facts::empty().with_fact(
+        Fact::new(FactLabel::Modified, FactValue::text("PDF's own")).in_group(FactGroup::Document),
+    );
+    assert_eq!(
+        only_document.value(FactLabel::Modified),
+        Some(&FactValue::text("PDF's own"))
+    );
+}

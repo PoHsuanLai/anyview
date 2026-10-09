@@ -93,10 +93,7 @@ fn photo_facts() -> Facts {
         )
         .with(FactLabel::Kind, FactValue::text("JPEG image"))
         .with(FactLabel::Size, FactValue::text("3.2 MB (3,214,880 bytes)"))
-        .with(
-            FactLabel::Modified,
-            FactValue::text("2 Oct 2026 at 14:31 UTC"),
-        )
+        .with(FactLabel::Modified, FactValue::text("2 Oct 2026 at 14:31"))
 }
 
 const CASES: &[Case] = &[

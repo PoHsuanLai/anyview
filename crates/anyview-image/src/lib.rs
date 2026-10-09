@@ -23,7 +23,7 @@ mod scale;
 
 pub use decode::{
     Animation, ColourInfo, ColourModel, Decoded, Frame, FrameCount, Plays, colour_of,
-    declared_size, decode, decode_bytes, natural_size,
+    declared_size, decode, decode_bytes, file_bytes, natural_size,
 };
 #[cfg(feature = "encode")]
 pub use edit::{Fidelity, Loss, edited, fidelity};

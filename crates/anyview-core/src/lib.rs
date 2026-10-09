@@ -40,7 +40,7 @@ pub use export::{
 };
 pub use facts::{
     Coordinate, Fact, FactGroup, FactLabel, FactTime, FactValue, FactZone, Facts, FileDetails,
-    Tier, kind_name,
+    LocalZone, Tier, kind_name,
 };
 pub use helper::Helper;
 pub use kind::{

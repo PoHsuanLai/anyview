@@ -7,6 +7,8 @@ pub enum FlashState {
     Fired,
     /// It did not.
     NotFired,
+    /// The camera has no flash.
+    Absent,
 }
 
 /// How the camera was told to use the flash.
@@ -32,10 +34,13 @@ pub struct Flash {
 }
 
 impl Flash {
-    /// The flash the EXIF field value `field` describes: bit 0 is fired, bits 3 and 4 the mode.
+    /// The flash the EXIF field value `field` describes: bit 0 is fired, bits 3 and 4 the mode,
+    /// and bit 5 says the camera has no flash function at all.
     pub(super) fn of_field(field: u32) -> Self {
         Flash {
-            state: if field & 1 == 1 {
+            state: if field & 0x20 != 0 {
+                FlashState::Absent
+            } else if field & 1 == 1 {
                 FlashState::Fired
             } else {
                 FlashState::NotFired
@@ -49,9 +54,10 @@ impl Flash {
         }
     }
 
-    /// `Fired`, `Did not fire`, `Auto, fired`, `Off, did not fire`.
+    /// `Fired`, `Did not fire`, `Auto, fired`, `Off, did not fire`, `No flash`.
     pub fn text(self) -> String {
         let state = match self.state {
+            FlashState::Absent => return "No flash".to_owned(),
             FlashState::Fired => "fired",
             FlashState::NotFired => "did not fire",
         };
@@ -87,6 +93,8 @@ mod tests {
             ("auto not fired", 0x18, "Auto, did not fire"),
             ("forced on", 0x09, "On, fired"),
             ("forced off", 0x10, "Off, did not fire"),
+            ("no flash function", 0x20, "No flash"),
+            ("no flash function, off", 0x30, "No flash"),
             (
                 "fired with red-eye reduction and no mode bits",
                 0x41,

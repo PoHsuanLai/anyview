@@ -2,7 +2,7 @@
 //! what the EXIF block says of the camera and of the place.
 
 use crate::decode::colour_of;
-use crate::exif::ExifFacts;
+use crate::exif::{ExifFacts, Location};
 use crate::resolution::of_header;
 use anyview_core::{FactLabel, FactValue, Facts, Sniffed};
 
@@ -27,5 +27,5 @@ pub fn picture_facts(bytes: &[u8], sniffed: &Sniffed) -> Facts {
         .rows()
         .iter()
         .fold(facts, |facts, row| facts.with_fact(row.clone()))
-        .then(exif.location_facts())
+        .then(Location::of_file(bytes).map_or_else(Facts::empty, Location::facts))
 }

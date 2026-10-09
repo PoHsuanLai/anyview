@@ -105,7 +105,7 @@ pub struct FrameCount(pub u32);
 /// The picture or animation in the file `src` points at, whose type `sniffed` established.
 /// Blocking: reads and decodes the whole file.
 pub fn decode(src: impl Into<Input>, sniffed: &Sniffed) -> Result<Decoded, ImageError> {
-    let bytes = read(&src.into())?;
+    let bytes = file_bytes(&src.into())?;
     decode_bytes(&bytes, sniffed)
 }
 
@@ -156,7 +156,7 @@ pub fn declared_size(
     src: impl Into<Input>,
     sniffed: &Sniffed,
 ) -> Result<Option<PixelSize>, ImageError> {
-    declared_size_of(&read(&src.into())?, sniffed)
+    declared_size_of(&file_bytes(&src.into())?, sniffed)
 }
 
 /// [`declared_size`] of a file already read.
@@ -197,8 +197,9 @@ fn animated(frames: Vec<Frame>, plays: Plays) -> Result<Decoded, ImageError> {
     }
 }
 
-/// The file's bytes.
-pub(crate) fn read(src: &Input) -> Result<Vec<u8>, ImageError> {
+/// The file's bytes, for a caller that decodes them with [`decode_bytes`] and reads the file's
+/// facts from the same bytes rather than reading the file twice.
+pub fn file_bytes(src: &Input) -> Result<Vec<u8>, ImageError> {
     src.bytes()
         .read_range(0..src.bytes().len().0)
         .map_err(|e| ImageError::Read {

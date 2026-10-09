@@ -1,7 +1,7 @@
 //! The General section: what every file has, whatever it holds. The file system is read at the
 //! edge (`anyview-store`); this turns what it said into rows.
 
-use super::{FactTime, FactValue, Facts, kind_name};
+use super::{FactTime, FactValue, Facts, LocalZone, kind_name};
 use crate::facts::FactLabel;
 use crate::kind::FormatKind;
 use crate::sniff::Sniffed;
@@ -29,7 +29,12 @@ impl Facts {
     /// The General section of the file `sniffed` is, as the file system describes it: kind, size
     /// with its exact bytes, created, modified, where, where from and permissions, in that order.
     pub fn general(sniffed: &Sniffed, details: &FileDetails) -> Facts {
-        let date = |time: ModTime| FactValue::date(FactTime::from_mod_time(time));
+        Facts::general_in(sniffed, details, &LocalZone::system())
+    }
+
+    /// [`Facts::general`] with the dates shown in `zone`.
+    pub fn general_in(sniffed: &Sniffed, details: &FileDetails, zone: &LocalZone) -> Facts {
+        let date = |time: ModTime| FactValue::date_in(FactTime::from_mod_time(time), zone);
         let mut facts = Facts::empty().with(FactLabel::Kind, FactValue::text(kind_name(sniffed)));
         // A folder's size is what its contents add up to, which only its own peek knows.
         if let Some(len) = details.len
@@ -191,7 +196,11 @@ mod tests {
             origin: Some("https://example.com/p.jpg?sig=1".to_owned()),
             mode: Some(0o644),
         };
-        let facts = Facts::general(&sniffed("p.jpg", b"\xFF\xD8\xFF\xE0\0\x10JFIF\0"), &details);
+        let facts = Facts::general_in(
+            &sniffed("p.jpg", b"\xFF\xD8\xFF\xE0\0\x10JFIF\0"),
+            &details,
+            &LocalZone::fixed(330),
+        );
         let rows: Vec<(FactLabel, &str)> = facts
             .rows()
             .iter()
@@ -202,8 +211,8 @@ mod tests {
             [
                 (FactLabel::Kind, "JPEG image"),
                 (FactLabel::Size, "3.2 MB (3,214,880 bytes)"),
-                (FactLabel::Created, "2 Oct 2026 at 14:30 UTC"),
-                (FactLabel::Modified, "2 Oct 2026 at 14:31 UTC"),
+                (FactLabel::Created, "2 Oct 2026 at 20:00"),
+                (FactLabel::Modified, "2 Oct 2026 at 20:01"),
                 (FactLabel::Where, "/home/me/Pictures"),
                 (FactLabel::WhereFrom, "example.com/p.jpg"),
                 (FactLabel::Permissions, "Read and write (rw-r--r--)"),

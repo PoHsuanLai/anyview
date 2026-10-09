@@ -8,10 +8,15 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# `LocalZone::pin`, for tests whose expected text names a time: a time zone every machine shares.
+testing = []
+
 [dependencies]
 ds-core = { workspace = true }
 infer = { workspace = true }
 serde = { workspace = true }
+jiff = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]

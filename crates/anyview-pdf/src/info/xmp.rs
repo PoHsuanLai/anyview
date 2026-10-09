@@ -10,9 +10,14 @@ pub(super) struct Xmp {
     pub author: Option<String>,
     pub subject: Option<String>,
     pub keywords: Option<String>,
+    /// `xmp:CreateDate`, as ISO 8601 text.
+    pub created: Option<String>,
+    /// `xmp:ModifyDate`, as ISO 8601 text.
+    pub modified: Option<String>,
 }
 
 const DC: &str = "http://purl.org/dc/elements/1.1/";
+const XAP: &str = "http://ns.adobe.com/xap/1.0/";
 const PDF: &str = "http://ns.adobe.com/pdf/1.3/";
 
 /// The fields of the packet `bytes`, empty when it is not well-formed XML.
@@ -44,6 +49,8 @@ pub(super) fn read(bytes: &[u8]) -> Xmp {
         author: property(DC, "creator"),
         subject: property(DC, "description"),
         keywords: property(PDF, "Keywords"),
+        created: property(XAP, "CreateDate"),
+        modified: property(XAP, "ModifyDate"),
     }
 }
 
@@ -82,6 +89,19 @@ mod tests {
         assert_eq!(got.author.as_deref(), Some("First Author"));
         assert_eq!(got.subject.as_deref(), Some("About it"));
         assert_eq!(got.keywords.as_deref(), Some("alpha, beta"));
+        assert_eq!((got.created, got.modified), (None, None));
+    }
+
+    #[test]
+    fn the_packet_gives_its_dates_as_attributes_or_elements() {
+        let packet = r#"<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF
+            xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description
+            xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:CreateDate="2026-10-09T14:05:00+02:00">
+            <xmp:ModifyDate>2026-10-10T08:15:00Z</xmp:ModifyDate>
+            </rdf:Description></rdf:RDF></x:xmpmeta>"#;
+        let got = read(packet.as_bytes());
+        assert_eq!(got.created.as_deref(), Some("2026-10-09T14:05:00+02:00"));
+        assert_eq!(got.modified.as_deref(), Some("2026-10-10T08:15:00Z"));
     }
 
     #[test]

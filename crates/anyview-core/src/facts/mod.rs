@@ -16,7 +16,7 @@ pub use kind_name::kind_name;
 pub use label::FactLabel;
 pub use place::Coordinate;
 pub use value::FactValue;
-pub use when::{FactTime, FactZone};
+pub use when::{FactTime, FactZone, LocalZone};
 
 /// One row: a label and its value, in a section, at a tier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -98,12 +98,16 @@ impl Facts {
         &self.0
     }
 
-    /// The value of the first row labelled `label`.
+    /// The value of the row labelled `label` in the label's own section, else of the first row
+    /// with that label. So `Modified` is the file's own date even when a document also lists the
+    /// date it says it was modified.
     pub fn value(&self, label: FactLabel) -> Option<&FactValue> {
-        self.0
-            .iter()
-            .find(|fact| fact.label == label)
-            .map(|fact| &fact.value)
+        self.value_in(label.group(), label).or_else(|| {
+            self.0
+                .iter()
+                .find(|fact| fact.label == label)
+                .map(|fact| &fact.value)
+        })
     }
 
     /// The value of the first row labelled `label` in `group`.
@@ -115,7 +119,8 @@ impl Facts {
     }
 
     /// The rows by section, sections in display order (General last) and each section's rows in
-    /// the order they were given. A section with no rows is absent.
+    /// the order they were given, except that a `Needs` row, which is about the viewer and not the
+    /// file, ends the General section. A section with no rows is absent.
     pub fn sections(&self) -> Vec<(FactGroup, Vec<&Fact>)> {
         let mut sections: Vec<(FactGroup, Vec<&Fact>)> = Vec::new();
         for row in &self.0 {
@@ -125,6 +130,9 @@ impl Facts {
             }
         }
         sections.sort_by_key(|(group, _)| *group);
+        for (_, rows) in &mut sections {
+            rows.sort_by_key(|row| row.label == FactLabel::Needs);
+        }
         sections
     }
 }
