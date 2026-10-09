@@ -52,7 +52,7 @@ fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
 fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let handed_over = |viewer: Viewer| (viewer, vec![ViewerOut::Run(action)]);
     match action {
-        // Converting is exporting: the sheet's pop-up is where the format is chosen.
+        // Converting is exporting: the export dialog is where the format is chosen.
         FileAction::Export | FileAction::ConvertTo => export(viewer, at, params),
         FileAction::Rename => (viewer, vec![ViewerOut::NameRename]),
         FileAction::MoveToTrash => sheet(viewer, SheetIn::AskTrash, at, params),

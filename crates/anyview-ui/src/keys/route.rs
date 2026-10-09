@@ -24,7 +24,7 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
     let keys = key.keys();
     let keys = keys.as_slice();
     match regions.sheet {
-        Sheet::Export { draft: _ }
+        Sheet::Export { draft: _, span: _ }
         | Sheet::Unavailable {
             needs: _,
             helper: _,

@@ -6,8 +6,8 @@
 mod support;
 
 use anyview_core::{
-    ExportChoice, PageSelection, PdfExport, RasterExport, RasterTarget, Resize, TextExport,
-    TextExportKind,
+    ExportChoice, MetadataCarry, PageSelection, PdfExport, RasterExport, RasterTarget, Resize,
+    TextExport, TextExportKind,
 };
 use anyview_export::{DocumentExport, ExportError, export, printout};
 use support::{fixture, flat, names, opened, write};
@@ -22,7 +22,11 @@ fn a_file_that_cannot_be_decoded_leaves_nothing_beside_it() {
     let error = export(
         &file,
         &sniffed,
-        DocumentExport::Raster(RasterExport::Image(RasterTarget::Tiff, Resize::Original)),
+        DocumentExport::Raster(RasterExport::Image(
+            RasterTarget::Tiff,
+            Resize::Original,
+            MetadataCarry::Keep,
+        )),
     )
     .unwrap_err();
     assert!(matches!(error, ExportError::Image(_)), "{error}");

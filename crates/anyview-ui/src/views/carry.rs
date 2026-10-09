@@ -61,8 +61,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),
         ViewerOut::Stage(out) => staged(c, &out),
         ViewerOut::Sheet(SheetOut::Export(draft)) => {
-            let marks = c.shelf.media.peek().marks;
-            c.edge.request(HostRequest::Export(marks.applied_to(draft)));
+            c.edge.request(HostRequest::Export(draft));
         }
         ViewerOut::Sheet(SheetOut::Edit(request)) => c.edge.request(HostRequest::Edit(request)),
         ViewerOut::Sheet(SheetOut::Trash) => c.edge.request(HostRequest::Trash),

@@ -1,15 +1,18 @@
 use super::*;
 use crate::typed::TypedText;
 use anyview_core::{
-    ByteLen, Helper, PageSelection, PdfExport, PdfExportKind, RasterExport, RasterExportKind,
-    RasterTarget, Resize, TextExport,
+    ByteLen, Helper, MetadataCarry, PageSelection, PdfExport, PdfExportKind, RasterExport,
+    RasterExportKind, RasterTarget, Resize, TextExport,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::ShortcutKey;
 
-const PNG: ExportDraft =
-    ExportDraft::Raster(RasterExport::Image(RasterTarget::Png, Resize::Original));
+const PNG: ExportDraft = ExportDraft::Raster(RasterExport::Image(
+    RasterTarget::Png,
+    Resize::Original,
+    MetadataCarry::StripLocation,
+));
 const RASTER_PDF: ExportDraft = ExportDraft::Raster(RasterExport::Pdf);
 const PDF_PAGES: ExportDraft = ExportDraft::Pdf(PdfExport::Pdf(PageSelection::All));
 const PDF_TEXT: ExportDraft = ExportDraft::Pdf(PdfExport::PlainText);
@@ -43,7 +46,10 @@ const fn copying(name: &'static str) -> Sheet {
     }
 }
 const fn export(draft: ExportDraft) -> Sheet {
-    Sheet::Export { draft }
+    Sheet::Export {
+        draft,
+        span: PageSpan::All,
+    }
 }
 const fn rename(name: &'static str) -> Sheet {
     Sheet::Rename {
@@ -276,7 +282,9 @@ const CASES: &[Case] = &[
 #[test]
 fn every_row_of_the_table_steps_as_written() {
     for (name, from, input, state, outs) in CASES {
-        let (next, out) = from.clone().step(input.clone(), Stamp(0), &(), &());
+        let (next, out) = from
+            .clone()
+            .step(input.clone(), Stamp(0), &SheetParams::default(), &());
         assert_eq!(next, *state, "{name}: state");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: a sheet keeps no timer");
@@ -312,7 +320,7 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
     let (open, outs) = Sheet::Closed.step(
         SheetIn::OpenUnavailable(needs.clone(), None),
         Stamp(0),
-        &(),
+        &SheetParams::default(),
         &(),
     );
     assert_eq!(
@@ -324,13 +332,18 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
     );
     assert_eq!(outs, [SheetOut::Opened]);
     for (name, input) in [("Enter", SheetIn::Confirm), ("Escape", SheetIn::Cancel)] {
-        let (closed, outs) = open.clone().step(input, Stamp(0), &(), &());
+        let (closed, outs) = open
+            .clone()
+            .step(input, Stamp(0), &SheetParams::default(), &());
         assert_eq!(closed, Sheet::Closed, "{name}");
         assert_eq!(outs, [SheetOut::Closed], "{name}: no export is written");
     }
-    let (still, outs) = open
-        .clone()
-        .step(SheetIn::OpenExport(PNG), Stamp(0), &(), &());
+    let (still, outs) = open.clone().step(
+        SheetIn::OpenExport(PNG),
+        Stamp(0),
+        &SheetParams::default(),
+        &(),
+    );
     assert_eq!(still, open, "a sheet that is up ignores another");
     assert!(outs.is_empty());
 }
@@ -478,8 +491,10 @@ fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
         ),
     ];
     for (name, before, input, after, outs) in rows {
-        let (now, out) = before.step(input, Stamp(0), &(), &());
+        let (now, out) = before.step(input, Stamp(0), &SheetParams::default(), &());
         assert_eq!(now, after, "{name}");
         assert_eq!(out, outs, "{name}");
     }
 }
+
+mod tuning;

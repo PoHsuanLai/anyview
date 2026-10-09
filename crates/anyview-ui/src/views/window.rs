@@ -9,6 +9,7 @@ use super::carry::{Carry, carry_out};
 use super::chrome::{Controls, Titlebar};
 use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
+use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
 use super::keys::{keys_of, shortcut_of};
 use super::palette::Palette;
@@ -16,8 +17,7 @@ use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, offered_slots};
 use super::sheet::{
-    EditSheet, ExportSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet,
-    UnavailableSheet,
+    EditSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::FrameLook;
@@ -235,6 +235,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         None => current.as_ref().and_then(|(_, doc)| doc.view().modes(&cx)),
     };
     let rows = machine_params.palette.rows;
+    let export_facts = machine_params.sheet.export;
     let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
     let palette_open = matches!(state.palette, PaletteState::Open { .. });
@@ -448,11 +449,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     },
                     None => rsx! {},
                 },
-                Sheet::Export { draft } => rsx! {
+                Sheet::Export { draft, span } => rsx! {
                     ExportSheet {
                         draft: *draft,
+                        span: *span,
+                        facts: export_facts,
                         offer: offer.clone(),
+                        name: title_of(&shelf.probe.read()).unwrap_or_default(),
                         onpick: move |pick| dispatch.send(ViewerIn::Sheet(SheetIn::PickKind(pick))),
+                        ontune: move |option| dispatch.send(ViewerIn::Sheet(SheetIn::Tune(option))),
                         onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }

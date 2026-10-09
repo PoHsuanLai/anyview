@@ -1,8 +1,10 @@
 //! The sheet's states, inputs and outputs.
 
 use super::draft::{ExportDraft, ExportKindPick};
+use super::facts::ExportFacts;
 use super::helper::{HelperEnd, HelperPhase};
 use super::offer::MediaOffer;
+use super::option::{ExportOption, PageSpan};
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditOffer, EditRequest};
 use crate::typed::TypedText;
@@ -16,6 +18,8 @@ pub struct SheetParams {
     pub media: MediaOffer,
     /// What an edit of the open file costs.
     pub edit: EditOffer,
+    /// What the open file is, for the options the export sheet offers.
+    pub export: ExportFacts,
 }
 
 /// Which sheet is up, with what it holds.
@@ -24,8 +28,8 @@ pub enum Sheet {
     /// None.
     #[default]
     Closed,
-    /// Choosing an export.
-    Export { draft: ExportDraft },
+    /// Choosing an export: the draft, and which pages the page choice stands for.
+    Export { draft: ExportDraft, span: PageSpan },
     /// An export the viewer cannot offer: the row says which package adds it.
     Unavailable {
         needs: Fact,
@@ -78,10 +82,12 @@ pub enum SheetIn {
     HelperEnded(Helper, HelperEnd),
     /// The list chose a version.
     PickVersion(VersionKey),
-    /// The format pop-up chose a kind.
+    /// A row of the format list was chosen.
     PickKind(ExportKindPick),
     /// An option of the export changed; the draft must stay in its format.
     Change(ExportDraft),
+    /// One option of the export changed: the sheet checks it against the draft and the file.
+    Tune(ExportOption),
     /// The name field now holds this text.
     Typed(TypedText),
     /// The sheet's default button.

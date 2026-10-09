@@ -14,17 +14,17 @@ use anyview_core::{
 };
 
 /// The jobs that write `choice` for the image `file`. A re-encode keeps the original's EXIF and
-/// ICC profile (a vector image has none to keep; its encoder drops nothing it holds); a PDF puts
+/// ICC profile unless the choice drops them (a vector image has none to keep); a PDF puts
 /// the image on one page.
 pub fn plan_export(file: &FilePath, choice: RasterExport) -> Vec<ExportJob> {
     match choice {
-        RasterExport::Image(target, resize) => vec![ExportJob::EncodeRaster {
+        RasterExport::Image(target, resize, keep) => vec![ExportJob::EncodeRaster {
             pixels: PixelSource::Image {
                 file: file.clone(),
                 resize,
             },
             target,
-            keep: MetadataCarry::Keep,
+            keep,
         }],
         RasterExport::Pdf => vec![ExportJob::WritePdf {
             pages: PdfPages::Images(NonEmpty::new(file.clone(), Vec::new())),
@@ -122,7 +122,10 @@ mod tests {
         let file = FilePath::new("/pics/photo.jpg").unwrap();
         let resize = Resize::LongEdge(PixelLen(800));
         assert_eq!(
-            plan_export(&file, RasterExport::Image(RasterTarget::Tiff, resize)),
+            plan_export(
+                &file,
+                RasterExport::Image(RasterTarget::Tiff, resize, MetadataCarry::Keep)
+            ),
             [ExportJob::EncodeRaster {
                 pixels: PixelSource::Image {
                     file: file.clone(),
@@ -133,12 +136,18 @@ mod tests {
             }]
         );
         let jpeg = RasterTarget::Jpeg(Quality::clamped(anyview_core::Percent(70)));
-        let [ExportJob::EncodeRaster { target, .. }] =
-            plan_export(&file, RasterExport::Image(jpeg, Resize::Original))[..]
-        else {
+        let [ExportJob::EncodeRaster { target, keep, .. }] = plan_export(
+            &file,
+            RasterExport::Image(jpeg, Resize::Original, MetadataCarry::Drop),
+        )[..] else {
             panic!("one encode")
         };
         assert_eq!(target, jpeg, "the options travel with the target");
+        assert_eq!(
+            keep,
+            MetadataCarry::Drop,
+            "so does leaving the metadata out"
+        );
         assert_eq!(
             plan_export(&file, RasterExport::Pdf),
             [ExportJob::WritePdf {

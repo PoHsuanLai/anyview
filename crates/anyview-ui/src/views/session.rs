@@ -4,7 +4,8 @@
 
 use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
-use crate::io::Probed;
+use crate::io::{NaturalSize, Probed};
+use crate::sheet::ExportFacts;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, MediaOffer, Motion, PaletteParams,
     PanelParams, PlatformAbilities, PresentationParams, SheetParams, Spot, Stage, StageAbilities,
@@ -122,6 +123,8 @@ pub(super) struct Live {
     pub platform: PlatformAbilities,
     /// The pointer tool in use.
     pub tool: crate::Tool,
+    /// What the person marked to keep of the recording.
+    pub marks: crate::TrimMarks,
 }
 
 /// What the open file allows and offers, as the commands' filters read it.
@@ -265,6 +268,7 @@ pub(super) fn params(
         abilities,
         platform,
         tool,
+        marks,
     } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
@@ -336,9 +340,38 @@ pub(super) fn params(
         sheet: SheetParams {
             media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
             edit: offer,
+            export: export_facts(stage, doc, &measured, marks),
         },
         stage: measured,
     }
+}
+
+/// What the export sheet is told of the open file: the pages of a document and where the reader
+/// is in it, the size of a picture, and the part of a recording marked to keep.
+fn export_facts(
+    stage: &Stage,
+    doc: Option<&LoadedDoc>,
+    measured: &StageParams,
+    marks: crate::TrimMarks,
+) -> ExportFacts {
+    let mut facts = ExportFacts::default();
+    match stage {
+        Stage::Pdf(pdf) => {
+            facts.pages = Some(measured.pdf.pages);
+            facts.page = pdf.place().page;
+        }
+        Stage::Raster(_) => {
+            facts.image = doc.and_then(|doc| match doc.view().natural() {
+                Some(NaturalSize::Pixels(size)) => Some(size),
+                Some(NaturalSize::Points(_) | NaturalSize::Compact(_)) | None => None,
+            });
+        }
+        Stage::Media(_) => {
+            facts.marks = marks.is_set().then(|| marks.range());
+        }
+        Stage::NoStage | Stage::Text(_) | Stage::Table(_) | Stage::Tree(_) => {}
+    }
+    facts
 }
 
 /// The middle of the content, where a menu opened by a key goes: the window's own middle until

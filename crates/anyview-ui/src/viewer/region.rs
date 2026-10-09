@@ -43,9 +43,9 @@ pub(super) fn sheet(
     viewer: Viewer,
     input: crate::sheet::SheetIn,
     at: Stamp,
-    _params: &ViewerParams,
+    params: &ViewerParams,
 ) -> Step {
-    let (sheet, outs) = stepped(viewer.sheet, input, at, &(), ViewerOut::Sheet);
+    let (sheet, outs) = stepped(viewer.sheet, input, at, &params.sheet, ViewerOut::Sheet);
     (Viewer { sheet, ..viewer }, outs)
 }
 

@@ -48,18 +48,9 @@ impl TrimMarks {
         }
     }
 
-    /// `draft` with its trim, if it is one, cut where the marks say; any other draft as it is.
-    pub fn applied_to(self, draft: crate::ExportDraft) -> crate::ExportDraft {
-        use anyview_core::MediaExport;
-        match draft {
-            crate::ExportDraft::Media(MediaExport::Trim(_)) => {
-                crate::ExportDraft::Media(MediaExport::Trim(self.range()))
-            }
-            crate::ExportDraft::Media(MediaExport::CurrentFrame(_) | MediaExport::AudioOnly(_))
-            | crate::ExportDraft::Raster(_)
-            | crate::ExportDraft::Pdf(_)
-            | crate::ExportDraft::Text(_) => draft,
-        }
+    /// Whether the person marked a start or an end.
+    pub fn is_set(self) -> bool {
+        self.start.is_some() || self.end.is_some()
     }
 
     /// The part of the recording the marks keep: all of it when none is set.

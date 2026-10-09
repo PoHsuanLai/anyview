@@ -172,6 +172,11 @@ pub fn plan(
         | Target::Opus => push(&["-vn", "-sn", "-dn"]),
     }
     push(&["-map_metadata", "0"]);
+    // A recording made to be shared must not say where it was shot: blank every tag the
+    // containers keep a position in (an empty value removes the tag).
+    for key in LOCATION_TAGS {
+        push(&["-metadata", &format!("{key}=")]);
+    }
     args.push(temp.as_os_str().to_owned());
     let whole = end.or_else(|| probed.duration());
     Ok(Plan {
@@ -179,6 +184,15 @@ pub fn plan(
         total: whole.map_or(Micros(0), |whole| whole.minus(cut.origin)),
     })
 }
+
+/// The metadata keys that hold a position: MP4's and QuickTime's `location`, its language-tagged
+/// form, and the keys Apple's cameras and Android write.
+const LOCATION_TAGS: [&str; 4] = [
+    "location",
+    "location-eng",
+    "com.apple.quicktime.location.ISO6709",
+    "com.android.location",
+];
 
 #[cfg(test)]
 mod tests {
@@ -242,8 +256,24 @@ mod tests {
             text.contains("-ss 1.231999 -i /in.mkv -t 1.268000 -map 0:V? -map 0:a? -map 0:s? -c copy -copypriorss 0"),
             "{text}"
         );
-        assert!(text.ends_with("-map_metadata 0 /.part-out.x"), "{text}");
+        assert!(
+            text.contains("-map_metadata 0 -metadata location= "),
+            "{text}"
+        );
+        assert!(text.ends_with(" /.part-out.x"), "{text}");
         assert_eq!(planned.total, Micros(1_268_000));
+    }
+
+    #[test]
+    fn every_export_blanks_the_location_tags_after_carrying_the_rest() {
+        for (name, target) in [("trim", Target::Trim), ("m4a", Target::M4a)] {
+            let text = line(&make(&request(name), target, Cut::at(Micros(0))).unwrap());
+            let carried = text.find("-map_metadata 0").unwrap();
+            for key in LOCATION_TAGS {
+                let blanked = text.find(&format!("-metadata {key}= ")).unwrap_or(0);
+                assert!(blanked > carried, "{name} blanks {key}: {text}");
+            }
+        }
     }
 
     #[test]

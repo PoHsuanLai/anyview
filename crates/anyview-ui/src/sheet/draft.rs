@@ -7,6 +7,7 @@
 //! generic function below does for each of them what the trait is for.
 
 use super::offer::MediaOffer;
+use super::option::requality;
 use anyview_core::{
     ExportChoice, MediaExport, MediaExportKind, PdfExport, PdfExportKind, RasterExport,
     RasterExportKind, TextExport, TextExportKind,
@@ -39,7 +40,7 @@ pub enum ExportFamily {
     Media,
 }
 
-/// An entry chosen in the sheet's format pop-up.
+/// A row chosen in the dialog's list of formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExportKindPick {
     /// An image export kind.
@@ -75,12 +76,13 @@ impl ExportDraft {
         }
     }
 
-    /// The draft after the pop-up chose `pick`, with that kind's default options; `None` when
-    /// the pick belongs to another format.
+    /// The draft after the list's row for `pick` was chosen, with that kind's default options; a
+    /// picture keeps its size, its metadata choice and the quality it had, since only the
+    /// format changed. `None` when the pick belongs to another format.
     pub fn picked(self, pick: ExportKindPick) -> Option<ExportDraft> {
         match (self, pick) {
-            (ExportDraft::Raster(_), ExportKindPick::Raster(kind)) => {
-                Some(ExportDraft::Raster(default_of(kind)))
+            (ExportDraft::Raster(before), ExportKindPick::Raster(kind)) => {
+                Some(ExportDraft::Raster(carried(before, default_of(kind))))
             }
             (ExportDraft::Pdf(_), ExportKindPick::Pdf(kind)) => {
                 Some(ExportDraft::Pdf(default_of(kind)))
@@ -88,8 +90,8 @@ impl ExportDraft {
             (ExportDraft::Text(_), ExportKindPick::Text(kind)) => {
                 Some(ExportDraft::Text(default_of(kind)))
             }
-            (ExportDraft::Media(_), ExportKindPick::Media(kind)) => {
-                Some(ExportDraft::Media(default_of(kind)))
+            (ExportDraft::Media(before), ExportKindPick::Media(kind)) => {
+                Some(ExportDraft::Media(frame_quality(before, default_of(kind))))
             }
             (
                 ExportDraft::Raster(_),
@@ -112,7 +114,7 @@ impl ExportDraft {
 }
 
 impl ExportDraft {
-    /// The kind this draft is, as the pop-up's current entry.
+    /// The kind this draft is, as the list's current row.
     pub fn pick(self) -> ExportKindPick {
         match self {
             ExportDraft::Raster(choice) => ExportKindPick::Raster(choice.kind()),
@@ -122,8 +124,9 @@ impl ExportDraft {
         }
     }
 
-    /// Every kind the pop-up lists for this draft's format, with its words.
-    pub fn choices(self) -> Vec<(ExportKindPick, &'static str)> {
+    /// Every kind the dialog lists for this draft's format; the words are
+    /// [`kind_name`](super::words::kind_name) and [`kind_hint`](super::words::kind_hint).
+    pub fn choices(self) -> Vec<ExportKindPick> {
         match self {
             ExportDraft::Raster(_) => listed::<RasterExport>(ExportKindPick::Raster),
             ExportDraft::Pdf(_) => listed::<PdfExport>(ExportKindPick::Pdf),
@@ -136,10 +139,10 @@ impl ExportDraft {
 impl ExportDraft {
     /// [`ExportDraft::choices`] without the media kinds `offer` does not hold; another format's
     /// list is whole.
-    pub fn choices_within(self, offer: &MediaOffer) -> Vec<(ExportKindPick, &'static str)> {
+    pub fn choices_within(self, offer: &MediaOffer) -> Vec<ExportKindPick> {
         self.choices()
             .into_iter()
-            .filter(|(pick, _)| match pick {
+            .filter(|pick| match pick {
                 ExportKindPick::Media(kind) => offer.offers(*kind),
                 ExportKindPick::Raster(_) | ExportKindPick::Pdf(_) | ExportKindPick::Text(_) => {
                     true
@@ -149,13 +152,30 @@ impl ExportDraft {
     }
 }
 
-fn listed<E: ExportChoice>(
-    wrap: fn(E::Kind) -> ExportKindPick,
-) -> Vec<(ExportKindPick, &'static str)> {
-    E::kinds()
-        .iter()
-        .map(|kind| (wrap(*kind), kind.label()))
-        .collect()
+fn listed<E: ExportChoice>(wrap: fn(E::Kind) -> ExportKindPick) -> Vec<ExportKindPick> {
+    E::kinds().iter().map(|kind| wrap(*kind)).collect()
+}
+
+/// `next`, a picture's export in a newly chosen format, with the size and metadata choice of
+/// `before` and its quality where both are lossy.
+fn carried(before: RasterExport, next: RasterExport) -> RasterExport {
+    match (before, next) {
+        (RasterExport::Image(was, resize, keep), RasterExport::Image(target, ..)) => {
+            RasterExport::Image(requality(target, was), resize, keep)
+        }
+        (RasterExport::Image(..) | RasterExport::Pdf, next) => next,
+    }
+}
+
+/// `next`, a recording's export in a newly chosen kind, with the quality of the frame `before`
+/// was when both are frames in a lossy format.
+fn frame_quality(before: MediaExport, next: MediaExport) -> MediaExport {
+    match (before, next) {
+        (MediaExport::CurrentFrame(was), MediaExport::CurrentFrame(target)) => {
+            MediaExport::CurrentFrame(requality(target, was))
+        }
+        (_, next) => next,
+    }
 }
 
 fn first<E: ExportChoice>() -> Option<E> {

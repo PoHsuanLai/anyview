@@ -36,7 +36,7 @@ impl MediaOffer {
         self.helper
     }
 
-    /// The kinds on offer, in the order the pop-up lists them.
+    /// The kinds on offer, in the order the dialog lists them.
     pub fn kinds(&self) -> &[MediaExportKind] {
         &self.kinds
     }

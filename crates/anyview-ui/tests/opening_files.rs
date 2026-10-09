@@ -46,12 +46,15 @@ fn picks(requests: &Requests) -> usize {
 }
 
 fn drop_files(harness: &mut Harness, files: Vec<PathBuf>) {
+    drop_files_at(harness, files, middle());
+}
+
+/// Drop `files` on the window at `point`.
+fn drop_files_at(harness: &mut Harness, files: Vec<PathBuf>, point: Point) {
     for step in [
-        FileDragInput::Entered {
-            point: Some(middle()),
-        },
+        FileDragInput::Entered { point: Some(point) },
         FileDragInput::Offered(Offer::Files(files)),
-        FileDragInput::Moved { point: middle() },
+        FileDragInput::Moved { point },
         FileDragInput::Dropped,
     ] {
         harness.send(Input::FileDrag(step));
@@ -206,7 +209,13 @@ fn a_drop_while_the_export_sheet_is_up_does_not_leave_it_over_the_new_file() {
         harness.send(Input::key(ShortcutKey::Enter));
         settle(&mut harness);
         assert_eq!(harness.count(".viewer-sheet"), 1, "{scale}");
-        drop_files(&mut harness, vec![files[1].clone()]);
+        // The export dialog stands in the middle and takes the pointer there, as a dialog does:
+        // the file goes onto the window beside it.
+        let corner = Point {
+            x: Px(8.0),
+            y: Px(8.0),
+        };
+        drop_files_at(&mut harness, vec![files[1].clone()], corner);
         assert_eq!(title(&harness).as_deref(), Some("b.txt"), "{scale}");
         assert_eq!(harness.count(".viewer-sheet"), 0, "{scale}");
     }

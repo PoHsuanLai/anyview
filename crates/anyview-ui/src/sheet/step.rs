@@ -2,7 +2,8 @@
 
 use super::draft::ExportDraft;
 use super::helper::{HelperEnd, HelperPhase};
-use super::model::{Sheet, SheetIn, SheetOut};
+use super::model::{Sheet, SheetIn, SheetOut, SheetParams};
+use super::option::PageSpan;
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditRequest};
 use crate::typed::TypedText;
@@ -15,13 +16,13 @@ type Step = (Sheet, Vec<SheetOut>);
 impl Machine for Sheet {
     type In = SheetIn;
     type Out = SheetOut;
-    type Params = ();
+    type Params = SheetParams;
     type Ctx = ();
 
-    fn step(self, input: SheetIn, _at: Stamp, _params: &(), _cx: &()) -> Step {
+    fn step(self, input: SheetIn, _at: Stamp, params: &SheetParams, _cx: &()) -> Step {
         match self {
-            Sheet::Closed => closed(input),
-            Sheet::Export { draft } => export(draft, input),
+            Sheet::Closed => closed(input, params),
+            Sheet::Export { draft, span } => export(draft, span, input, params),
             Sheet::Unavailable { needs, helper } => unavailable(needs, helper, input),
             Sheet::ConfirmTrash => confirm_trash(input),
             Sheet::ConfirmEdit { request, caution } => confirm_edit(request, caution, input),
@@ -36,7 +37,7 @@ impl Machine for Sheet {
     fn wake(&self) -> Option<Stamp> {
         match self {
             Sheet::Closed
-            | Sheet::Export { draft: _ }
+            | Sheet::Export { draft: _, span: _ }
             | Sheet::Unavailable {
                 needs: _,
                 helper: _,
@@ -73,9 +74,12 @@ fn cancelled() -> Step {
     (Sheet::Closed, vec![SheetOut::Closed])
 }
 
-fn closed(input: SheetIn) -> Step {
+fn closed(input: SheetIn, params: &SheetParams) -> Step {
     match input {
-        SheetIn::OpenExport(draft) => opened(Sheet::Export { draft }),
+        SheetIn::OpenExport(draft) => opened(Sheet::Export {
+            draft: draft.seeded(&params.export),
+            span: PageSpan::All,
+        }),
         SheetIn::OpenUnavailable(needs, helper) => opened(Sheet::Unavailable { needs, helper }),
         SheetIn::OfferHelper(helper) => opened(Sheet::Helper {
             helper,
@@ -93,6 +97,7 @@ fn closed(input: SheetIn) -> Step {
         SheetIn::HelperEnded(_, _)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Confirm
@@ -101,11 +106,18 @@ fn closed(input: SheetIn) -> Step {
     }
 }
 
-fn export(draft: ExportDraft, input: SheetIn) -> Step {
-    let keep = |draft| (Sheet::Export { draft }, vec![]);
+fn export(draft: ExportDraft, span: PageSpan, input: SheetIn, params: &SheetParams) -> Step {
+    let keep = |draft, span| (Sheet::Export { draft, span }, vec![]);
     match input {
-        SheetIn::PickKind(pick) => keep(draft.picked(pick).unwrap_or(draft)),
-        SheetIn::Change(changed) if changed.family() == draft.family() => keep(changed),
+        SheetIn::PickKind(pick) => match draft.picked(pick) {
+            Some(picked) => keep(picked.seeded(&params.export), PageSpan::All),
+            None => keep(draft, span),
+        },
+        SheetIn::Change(changed) if changed.family() == draft.family() => keep(changed, span),
+        SheetIn::Tune(option) => {
+            let (tuned, span) = draft.tuned(option, &params.export, span);
+            keep(tuned, span)
+        }
         SheetIn::Confirm => closing(SheetOut::Export(draft)),
         SheetIn::Cancel => cancelled(),
         SheetIn::Change(_)
@@ -120,7 +132,7 @@ fn export(draft: ExportDraft, input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::Typed(_)
-        | SheetIn::Elapsed => keep(draft),
+        | SheetIn::Elapsed => keep(draft, span),
     }
 }
 
@@ -148,6 +160,7 @@ fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::Unavailable { needs, helper }, vec![]),
@@ -169,6 +182,7 @@ fn confirm_trash(input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::ConfirmTrash, vec![]),
@@ -192,6 +206,7 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Elapsed => (Sheet::Rename { name }, vec![]),
     }
@@ -214,6 +229,7 @@ fn save_copy(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Elapsed => (Sheet::SaveCopy { name }, vec![]),
     }
@@ -243,6 +259,7 @@ fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
         | SheetIn::AskSaveCopy(_)
         | SheetIn::OpenRevert(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::Revert { versions, chosen }, vec![]),
@@ -264,6 +281,7 @@ fn no_versions(input: SheetIn) -> Step {
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::NoVersions, vec![]),
@@ -285,6 +303,7 @@ fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> S
         | SheetIn::OpenRevert(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
+        | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
         | SheetIn::Elapsed => (Sheet::ConfirmEdit { request, caution }, vec![]),
@@ -334,6 +353,7 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
             | SheetIn::OpenRevert(_)
             | SheetIn::PickVersion(_)
             | SheetIn::PickKind(_)
+            | SheetIn::Tune(_)
             | SheetIn::Change(_)
             | SheetIn::Typed(_)
             | SheetIn::Confirm
