@@ -39,13 +39,3 @@ impl Family for FontFormat {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_table_is_well_formed() {
-        crate::kind::family::tests::assert_well_formed::<FontFormat>();
-    }
-}

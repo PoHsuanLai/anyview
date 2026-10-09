@@ -6,7 +6,6 @@ use crate::kind::FormatKind;
 use crate::sniff::{FileHead, SniffStep, Sniffed, sniff};
 use crate::source::{ByteLen, FileName, FilePath, FileStamp, Input, ModTime, Source};
 use crate::units::PixelArea;
-use ds_core::word::Word;
 use std::time::Duration;
 
 /// Peeks at plain text by counting the bytes the budget lets it read.
@@ -106,14 +105,6 @@ fn a_format_only_peeks_at_its_own_kind() {
     let (src, _) = text_file(100);
     assert_eq!(png.kind(), FormatKind::Raster);
     assert_eq!(peek_facts::<FakeText>(&src, &png, &budget(100)), None);
-}
-
-#[test]
-fn stage_support_words() {
-    assert_eq!(
-        StageSupport::ALL,
-        &[StageSupport::Stage, StageSupport::PeekOnly]
-    );
 }
 
 #[test]

@@ -8,6 +8,8 @@
 //!
 //! Ignored by default: it needs a wgpu adapter, an `mpv` and mpv-wgpu's C plugin (`MPV_WGPU_MPV`,
 //! `MPV_WGPU_CPLUGIN`) (`cargo test -p anyview --test media_thread -- --ignored --nocapture`). The fixture is the media crate's own.
+//!
+//! Its own binary: a manual rig that needs a real wgpu adapter and mpv's C plugin and samples a texture across threads.
 
 use anyview::runtime::{Actor, ActorBody, ActorWake, Flow, Mailbox, Outbox, UiWaker};
 use anyview_core::{FilePath, MediaTime};

@@ -14,9 +14,12 @@
 //! executable's start and the compositor's present, which the third test (the bare process) puts a
 //! number on. The warm figure is the arrow key in an open window: the next file's probe, decode,
 //! upload and first frame drawn, on a pool and a device that are already running.
+//!
+//! Its own binary: the timing budgets mean something only alone, in a release build on a quiet machine, run with `--ignored --test-threads=1`.
 
 #![allow(clippy::unwrap_used)]
 
+#[path = "anyview/support/mod.rs"]
 mod support;
 
 use ds::prelude::ShortcutKey;

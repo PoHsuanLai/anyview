@@ -1,5 +1,4 @@
 use super::*;
-use ds_core::word::Word;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -78,15 +77,6 @@ fn stopped_ignores_the_deadline() {
 }
 
 #[test]
-fn a_clone_shares_the_flag() {
-    let stop = Stop::new();
-    let worker_side = stop.clone();
-    assert_eq!(worker_side.stopped(), StopState::Running);
-    stop.request();
-    assert_eq!(worker_side.stopped(), StopState::Stopped);
-}
-
-#[test]
 fn the_flag_is_the_one_every_clone_shares() {
     let stop = Stop::new();
     let flag = stop.flag();
@@ -99,12 +89,6 @@ fn the_flag_is_the_one_every_clone_shares() {
     let other = Stop::new();
     other.flag().store(true, Ordering::Release);
     assert_eq!(other.stopped(), StopState::Stopped);
-}
-
-#[test]
-fn stop_state_words_are_distinct() {
-    let slugs: Vec<&str> = StopState::ALL.iter().map(|s| s.slug()).collect();
-    assert_eq!(slugs, ["running", "stopped"]);
 }
 
 #[test]

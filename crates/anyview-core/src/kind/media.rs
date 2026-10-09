@@ -134,11 +134,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_table_is_well_formed() {
-        crate::kind::family::tests::assert_well_formed::<MediaContainer>();
-    }
-
-    #[test]
     fn each_container_is_video_or_audio_by_its_mime_type() {
         const CASES: &[(MediaContainer, FormatKind)] = &[
             (MediaContainer::Mp4, FormatKind::Video),

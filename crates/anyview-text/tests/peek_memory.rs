@@ -1,9 +1,12 @@
 //! A peek of a large text file holds a small multiple of the bytes it read, not a multiple of the
 //! rows or values in them. This file holds one test, which measures the process's resident memory,
 //! so nothing else may run beside it.
+//!
+//! Its own binary, in a process of its own: it resets the kernel's high-water mark of the process's memory, so no other test may run beside it.
 
 #![allow(clippy::unwrap_used)]
 
+#[path = "text/support/mod.rs"]
 mod support;
 
 use anyview_core::{Input, Peek, PeekBudget};
