@@ -325,7 +325,7 @@ fn dragging_the_page_scrolls_it_with_the_pointer() {
 }
 
 #[test]
-fn the_markup_of_a_pdf_with_a_find_bar_lints_clean() {
+fn the_markup_of_a_pdf_with_the_find_palette_open_lints_clean() {
     let (_dir, mut harness, _) = opened();
     harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
     settle(&mut harness);

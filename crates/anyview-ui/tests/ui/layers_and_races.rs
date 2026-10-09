@@ -30,10 +30,10 @@ fn two(scale: u16, wiring: Wiring) -> (tempfile::TempDir, Vec<PathBuf>, Harness,
     (dir, files, harness, requests)
 }
 
-/// What the side panel's stage says of itself.
+/// What the panel's pane says of itself.
 fn panel(harness: &Harness) -> String {
     harness
-        .attr(".ds-side-panel-stage", "data-shown")
+        .attr(".ds-split-pane", "data-shown")
         .unwrap_or_default()
 }
 

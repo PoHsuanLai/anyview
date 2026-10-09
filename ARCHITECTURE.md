@@ -218,7 +218,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | --- | --- |
 | `chrome` | `Chrome`, `PinReasons` (a never-empty set), `ChromeParams` |
 | `panel` | `Panel`, `PanelTab`, `PanelTabs` |
-| `palette` | `Palette`, `PaletteParams` (the ranked rows) |
+| `palette` | `Palette` (closed, or open with its text, highlight and `PaletteScope`: the commands the text names, or, as a find, the file's hits first), `PaletteParams` (the ranked rows: commands, and for a find `Command::FindHit` rows and "Show All") |
 | `context` | `ContextMenu` (closed, or open with its corner), `ContextParams` (the rows and where a key opens it), `ContextPick`, `ContextEntry`, `Spot`, and `entries`: which of the palette's commands a Mac's context menu shows, in what order, under what titles, with its rules |
 | `sheet` | `Sheet`, `ExportDraft` (one format's export choice), and the install question for a missing tool: `Sheet::Helper` with `HelperPhase` (`Ask`, `Installing`, `Failed`, `NotFound`, `Unsupported`), `SheetIn::OfferHelper` and `HelperEnded(Helper, HelperEnd)`, `SheetOut::Provide` and `Reopen` |
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
