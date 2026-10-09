@@ -1,0 +1,18 @@
+# Builds the syntax set anyview-text loads: syntect's default syntaxes plus the .sublime-syntax files
+# under crates/anyview-text/syntaxes, as one packed dump. A tool of its own, outside the workspace
+# (its YAML loader is why), so that nothing it needs is in the viewer's dependency tree.
+#
+#     dev/syntax-dump/build.sh
+[package]
+name = "syntax-dump"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Keep this syntect version and its regex engine (regex-fancy) the same as the workspace's
+# Cargo.toml (anyview-text): a dump made by another version or engine fails to load, and then every
+# file is shown plain. The `> 90 syntaxes` test in anyview-text (code/tests.rs) is the guard.
+[dependencies]
+syntect = { version = "5", default-features = false, features = ["parsing", "default-syntaxes", "yaml-load", "dump-create", "regex-fancy"] }
+
+[workspace]

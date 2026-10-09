@@ -184,9 +184,17 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **`CodePeek` builds the highlighter's syntax set on every call.** `Peek::peek` takes no state to keep it
   in, and a global is not allowed. `syntect` loads syntaxes lazily, so a call costs the one syntax it
   uses. Ends if `Peek` gains an environment argument.
-- **syntect's default syntaxes lack TypeScript, Kotlin, Swift, TOML, INI, SCSS and Dockerfile.**
-  TypeScript is highlighted as JavaScript, Kotlin as Java, SCSS as CSS, and the rest are plain. Ends when
-  a bundled syntax pack (Sublime syntax files) is added to `Highlighter::new`.
+- **The syntax set is a committed dump, rebuilt by hand.** `Highlighter::new` loads
+  `crates/anyview-text/src/code/syntaxes.packdump`: syntect's default syntaxes plus the Sublime syntax
+  files under `crates/anyview-text/syntaxes` (TOML, TypeScript and TSX, Kotlin, SCSS and Sass, Dockerfile,
+  CMake, Protocol Buffers, Zig, Terraform and HCL, Nix, Swift, Dart, PowerShell, `.env`, INI), packed by
+  `dev/syntax-dump/build.sh`. That tool is outside the workspace because it needs syntect's YAML loader,
+  which the viewer's tree must not carry (anyview-peek's package budget); CI rebuilds the dump and fails if
+  it differs. Each source and licence is in `syntaxes/sources.toml` and `THIRD-PARTY-NOTICES.md`. Syntect's
+  regex engine (fancy-regex) has no subroutine calls and its loader no `extends`, so two upstream files are
+  patched or taken at an older commit (see `sources.toml`). Still plain: Vue, Svelte, GraphQL (WTFPL), Less, Julia,
+  Elixir, Ninja, Jinja, Lean, Racket and others in bat's set; each needs a licence check or a
+  `.sublime-syntax` that syntect can load. Ends if the highlighter moves to tree-sitter (research/arborium).
 - **Fenced code in rendered Markdown is highlighted only when the caller passes a `Highlighter`.** The
   `tok-<class>` classes need a stylesheet in the sealed frame that maps them to colour tokens. Ends when
   the Markdown stage's stylesheet lands in `anyview-ui`.

@@ -130,8 +130,8 @@ fn every_window_equals_the_same_lines_of_a_whole_pass() {
 
 #[test]
 fn a_language_without_a_syntax_is_shown_plain() {
-    let (h, mut c) = code("answer = 42\nother\n", "swift");
-    assert_eq!(h.syntax(&SyntaxName::new("swift").unwrap()), None);
+    let (h, mut c) = code("answer = 42\nother\n", "vue");
+    assert_eq!(h.syntax(&SyntaxName::new("vue").unwrap()), None);
     let lines = highlight(&h, &mut c, 0, 2);
     assert_eq!(lines.len(), 2);
     assert_eq!(
@@ -155,17 +155,23 @@ fn a_very_long_line_is_one_plain_span_and_does_not_disturb_the_next() {
 }
 
 #[test]
-fn syntax_names_find_the_default_syntaxes_with_aliases_where_the_names_differ() {
+fn syntax_names_find_the_syntaxes_with_aliases_where_the_names_differ() {
     // name, syntax name, found
     const CASES: &[(&str, &str, bool)] = &[
         ("same name", "rust", true),
         ("different case in the set", "javascript", true),
         ("shell alias", "shell", true),
-        ("typescript uses javascript", "typescript", true),
+        ("typescript has its own", "typescript", true),
+        ("tsx alias", "tsx", true),
+        ("kotlin has its own", "kotlin", true),
+        ("scss has its own", "scss", true),
+        ("protobuf alias", "protobuf", true),
+        ("hcl alias", "hcl", true),
         ("markdown", "markdown", true),
         ("makefile", "makefile", true),
-        ("toml has none", "toml", false),
-        ("swift has none", "swift", false),
+        ("toml", "toml", true),
+        ("swift", "swift", true),
+        ("vue is not in the set", "vue", false),
         ("unknown", "klingon", false),
     ];
     let h = Highlighter::new();
@@ -205,4 +211,239 @@ fn a_range_past_the_end_is_cut() {
     assert_eq!(highlight(&h, &mut c, 1, 50).len(), 1);
     assert_eq!(highlight(&h, &mut c, 5, 9).len(), 0);
     assert_eq!(c.text().line_count().0, 2);
+}
+
+#[test]
+fn the_added_languages_highlight_with_the_right_classes() {
+    use TokenClass::*;
+    // case, syntax name, source, (text, class) pairs that must appear in the first lines
+    type Wanted = &'static [(&'static str, TokenClass)];
+    const CASES: &[(&str, &str, &str, Wanted)] = &[
+        (
+            "toml",
+            "toml",
+            "# note\n[package]\nname = \"a\"\nn = 3\nok = true\n",
+            &[
+                ("# note", Comment),
+                ("\"a\"", String),
+                ("3", Number),
+                ("true", Constant),
+            ],
+        ),
+        (
+            "typescript",
+            "typescript",
+            "interface A { x: number }\nconst f = (a: string): void => { return; }\n",
+            &[
+                ("interface", Keyword),
+                ("A", Type),
+                ("number", Type),
+                ("const", Keyword),
+                ("f", Function),
+                ("return", Keyword),
+            ],
+        ),
+        (
+            "tsx",
+            "tsx",
+            "const e = <div className=\"a\">{x}</div>;\n",
+            &[
+                ("const", Keyword),
+                ("<div", Tag),
+                ("className", Attribute),
+                ("\"a\"", String),
+                ("</div>", Tag),
+            ],
+        ),
+        (
+            "kotlin",
+            "kotlin",
+            "fun main(args: Array<String>) {\n    val x = 1 // one\n}\n",
+            &[
+                ("fun", Keyword),
+                ("main", Function),
+                ("Array", Type),
+                ("val", Keyword),
+                ("1", Number),
+                ("// one", Comment),
+            ],
+        ),
+        (
+            "scss",
+            "scss",
+            "$c: #fff; /* base */\n// line\n.a { &:hover { margin: 0 } }\n",
+            &[
+                ("/* base */", Comment),
+                ("// line", Comment),
+                ("c", Variable),
+                ("fff", Constant),
+                ("0", Number),
+            ],
+        ),
+        (
+            "dockerfile",
+            "dockerfile",
+            "FROM rust:1\nRUN cargo build\n",
+            &[("FROM", Keyword), ("RUN", Keyword)],
+        ),
+        (
+            "cmake",
+            "cmake",
+            "cmake_minimum_required(VERSION 3.0)\nproject(x)\n",
+            &[
+                ("cmake_minimum_required", Function),
+                ("project", Function),
+                ("VERSION", Variable),
+            ],
+        ),
+        (
+            "protobuf",
+            "protobuf",
+            "syntax = \"proto3\";\nmessage A { int32 x = 1; }\n",
+            &[
+                ("syntax", Keyword),
+                ("\"proto3\"", String),
+                ("message", Keyword),
+                ("A", Type),
+                ("1", Number),
+            ],
+        ),
+        (
+            "zig",
+            "zig",
+            "const std = @import(\"std\");\npub fn main() void {}\n",
+            &[
+                ("const", Keyword),
+                ("@import", Keyword),
+                ("\"std\"", String),
+                ("main", Function),
+            ],
+        ),
+        (
+            "terraform",
+            "terraform",
+            "resource \"a\" \"b\" {\n  x = 1\n}\n",
+            &[("resource", Keyword), ("1", Number)],
+        ),
+        (
+            "nix",
+            "nix",
+            "{ pkgs }: pkgs.mkShell { a = 1; }\n",
+            &[("1", Number), ("a", Attribute)],
+        ),
+        (
+            "swift",
+            "swift",
+            "func f(a: Int) -> String { return \"x\" }\n",
+            &[
+                ("func", Keyword),
+                ("Int", Type),
+                ("return", Keyword),
+                ("\"x\"", String),
+            ],
+        ),
+        (
+            "dart",
+            "dart",
+            "void main() { var x = 1; }\n",
+            &[
+                ("void", Keyword),
+                ("main", Function),
+                ("var", Keyword),
+                ("1", Number),
+            ],
+        ),
+        (
+            "powershell",
+            "powershell",
+            "function Get-X { Write-Host \"hi\" }\n",
+            &[
+                ("function", Keyword),
+                ("Get-X", Function),
+                ("Write-Host", Function),
+                ("\"hi\"", String),
+            ],
+        ),
+        (
+            "dotenv",
+            "dotenv",
+            "# c\nKEY=value\n",
+            &[("# c", Comment), ("KEY", Variable)],
+        ),
+        (
+            "ini",
+            "ini",
+            "; c\n[sec]\nkey = \"v\"\nn = 3\n",
+            &[
+                ("; c", Comment),
+                ("key", Variable),
+                ("\"v\"", String),
+                ("3", Number),
+            ],
+        ),
+        (
+            "makefile (default set)",
+            "makefile",
+            "all: a.o\n\tcc -o a a.o\n",
+            &[("all", Function)],
+        ),
+    ];
+    let h = Highlighter::new();
+    for (case, syntax, source, wanted) in CASES {
+        let id = h.syntax(&SyntaxName::new(syntax).unwrap());
+        assert!(id.is_some(), "{case}: the syntax is missing");
+        let lines = h.snippet(id, source);
+        for (text, class) in *wanted {
+            let got = lines.iter().find_map(|line| class_of_text(line, text));
+            assert_eq!(got, Some(*class), "{case}: {text}");
+        }
+    }
+}
+
+#[test]
+fn a_typescript_file_highlights_the_same_in_any_window() {
+    let source: String = (0..400)
+        .map(|n| format!("export const value{n}: number = {n}; /* a\n   comment */\n"))
+        .collect();
+    let (h, mut whole) = code(&source, "typescript");
+    let all = highlight(&h, &mut whole, 0, 800);
+    let (h, mut windowed) = code(&source, "typescript");
+    let tail = highlight(&h, &mut windowed, 700, 720);
+    assert_eq!(tail, all[700..720]);
+    assert_eq!(
+        class_of_text(&tail[1], "comment */"),
+        Some(TokenClass::Comment)
+    );
+    assert_eq!(class_of_text(&all[0], "export"), Some(TokenClass::Keyword));
+}
+
+#[test]
+fn fenced_labels_find_the_added_languages() {
+    let h = Highlighter::new();
+    for label in [
+        "toml",
+        "ts",
+        "typescript",
+        "tsx",
+        "kt",
+        "scss",
+        "dockerfile",
+        "cmake",
+        "zig",
+        "swift",
+        "dart",
+        "ps1",
+        "proto",
+        "nix",
+        "tf",
+        "ini",
+    ] {
+        assert!(h.syntax_by_token(label).is_some(), "{label}");
+    }
+}
+
+#[test]
+fn the_packed_syntax_set_loads_with_the_default_and_the_added_syntaxes() {
+    let h = Highlighter::new();
+    assert!(h.set.syntaxes().len() > 90, "the dump did not load");
 }

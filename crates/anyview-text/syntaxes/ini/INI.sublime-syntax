@@ -1,0 +1,69 @@
+%YAML 1.2
+---
+# Written for anyview (MIT OR Apache-2.0, as the rest of the repository): INI files, .properties,
+# desktop entries and the like. Comments start a line with ; or #, sections are [names], and a
+# value is quoted or runs to the end of the line.
+name: INI
+file_extensions:
+  - ini
+  - inf
+  - cfg
+  - conf
+  - properties
+  - desktop
+  - service
+  - socket
+  - timer
+  - mount
+  - editorconfig
+  - gitconfig
+scope: source.ini
+contexts:
+  main:
+    - match: ^\s*([;#])
+      captures:
+        1: punctuation.definition.comment.ini
+      push:
+        - meta_scope: comment.line.ini
+        - match: $\n?
+          pop: true
+    - match: ^\s*(\[)([^\]\n]*)(\])
+      captures:
+        1: punctuation.definition.section.begin.ini
+        2: entity.name.section.ini
+        3: punctuation.definition.section.end.ini
+    - match: ^\s*([^=:;#\[\s][^=:\n]*?)\s*([=:])
+      captures:
+        1: variable.other.key.ini
+        2: keyword.operator.assignment.ini
+      push: value
+  value:
+    - meta_content_scope: meta.value.ini
+    - match: $\n?
+      pop: true
+    - match: '"'
+      scope: punctuation.definition.string.begin.ini
+      push:
+        - meta_scope: string.quoted.double.ini
+        - match: \\.
+          scope: constant.character.escape.ini
+        - match: '"'
+          scope: punctuation.definition.string.end.ini
+          pop: true
+        - match: $
+          pop: true
+    - match: "'"
+      scope: punctuation.definition.string.begin.ini
+      push:
+        - meta_scope: string.quoted.single.ini
+        - match: "'"
+          scope: punctuation.definition.string.end.ini
+          pop: true
+        - match: $
+          pop: true
+    - match: \b(?i:true|false|yes|no|on|off)\b
+      scope: constant.language.boolean.ini
+    - match: '[-+]?\b\d+(\.\d+)?\b'
+      scope: constant.numeric.ini
+    - match: \s[;#].*$
+      scope: comment.line.ini

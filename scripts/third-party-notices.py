@@ -13,9 +13,11 @@ import json
 import pathlib
 import subprocess
 import sys
+import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET = "x86_64-unknown-linux-gnu"
+SYNTAXES = "crates/anyview-text/syntaxes"
 LICENCE_NAMES = ("license", "licence", "copying", "notice", "unlicense")
 
 
@@ -78,7 +80,8 @@ def main():
         "anyview is MIT OR Apache-2.0 (see LICENSE-MIT and LICENSE-APACHE). It is built from the",
         "open source crates listed below, each under the licence shown. The licence texts follow the",
         "list. The text-highlighting grammars of syntect's default set (Sublime Packages) are compiled",
-        "in under their own permissive licences, listed in the syntect crate's repository.",
+        "in under their own permissive licences, listed in the syntect crate's repository. The",
+        "further grammars anyview-text adds to it are listed under Syntax definitions below.",
         "",
         "The program also loads system libraries of the machine it runs on, dynamically and not",
         "bundled; among them libasound (ALSA), LGPL-2.1, which only the built-in audio player uses",
@@ -109,13 +112,44 @@ def main():
     for label, licence in missing:
         for digest in by_expression.get(licence, []):
             texts[digest][1].append(label + " (standard text)")
+    syntaxes = pathlib.Path(ROOT / SYNTAXES)
+    sources = tomllib.loads((syntaxes / "sources.toml").read_text())["source"]
+    lines += [
+        "",
+        f"## Syntax definitions ({len(sources)})",
+        "",
+        "Sublime syntax files compiled into the viewer's highlighter (crates/anyview-text/syntaxes,",
+        "packed by dev/syntax-dump). Each is under the licence shown; the text follows with the",
+        "licence texts. Where a grammar was only published as .tmLanguage, the file is bat's",
+        "conversion of it (bat is MIT OR Apache-2.0) and the licence is the original grammar's.",
+        "",
+    ]
+    for source in sources:
+        label = f"{source['languages']} syntax"
+        origin = f", converted by {source['origin']}" if "origin" in source else ""
+        lines.append(
+            f"- {source['languages']}: {source['licence']} ({source['repository']}"
+            + (f" at {source['commit']}" if "commit" in source else "")
+            + f"{origin})"
+        )
+        licence = syntaxes / source["dir"] / "LICENSE"
+        if licence.is_file():
+            data = licence.read_text(errors="replace").strip()
+            digest = hashlib.sha256(data.encode()).hexdigest()
+            texts.setdefault(digest, (data, []))[1].append(label)
+    bat = [s for s in sources if "origin" in s]
+    if bat:
+        data = (syntaxes / "BAT-LICENSE-MIT").read_text(errors="replace").strip()
+        digest = hashlib.sha256(data.encode()).hexdigest()
+        names = ", ".join(s["languages"] for s in bat)
+        texts.setdefault(digest, (data, []))[1].append(f"bat, which converted the {names} syntaxes (MIT)")
     lines += ["", f"## Licence texts ({len(texts)})", ""]
     for index, (data, users) in enumerate(
         sorted(texts.values(), key=lambda item: item[1][0]), start=1
     ):
         lines += [f"### {index}. Used by: {', '.join(users)}", "", "```text", data, "```", ""]
     out_path.write_text("\n".join(lines))
-    print(f"{out_path}: {len(packages)} crates, {len(texts)} distinct licence texts")
+    print(f"{out_path}: {len(packages)} crates, {len(sources)} syntax sets, {len(texts)} distinct licence texts")
 
 
 main()

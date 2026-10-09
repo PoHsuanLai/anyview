@@ -1,0 +1,118 @@
+# Where each syntax definition under this folder comes from, and under what licence. The
+# THIRD-PARTY-NOTICES generator (scripts/third-party-notices.py) lists these and prints each
+# LICENSE file; add an entry here whenever a folder is added. A "bat" origin is bat's converted
+# .sublime-syntax (https://github.com/sharkdp/bat, assets/syntaxes/02_Extra, MIT OR Apache-2.0) of
+# a grammar that was only published as .tmLanguage; the licence is the original grammar's.
+
+[[source]]
+dir = "toml"
+languages = "TOML"
+repository = "https://github.com/jasonwilliams/sublime_toml_highlighting"
+commit = "f3a8d6eb3c5fb9587ed992e384131b84c9619d6a"
+licence = "MIT"
+
+[[source]]
+dir = "typescript"
+languages = "TypeScript, TSX"
+repository = "https://github.com/Microsoft/TypeScript-Sublime-Plugin"
+commit = "5ccdac26d58a692d3fbcb491d62599e515ee6f0c"
+licence = "Apache-2.0"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "kotlin"
+languages = "Kotlin"
+repository = "https://github.com/guille/sublime-kotlin"
+commit = "8c44d40c94610bd2cbe8a9d6b9c33cf478e6cabb"
+licence = "Unlicense"
+
+[[source]]
+dir = "scss"
+languages = "SCSS, Sass"
+repository = "https://github.com/braver/SublimeSass"
+commit = "d3d94046409db6fbbc9d51dea52b589ecc9d3d48"
+licence = "MIT"
+note = "the last version before it extended Sublime Text 4 CSS, which syntect cannot load"
+
+[[source]]
+dir = "dockerfile"
+languages = "Dockerfile"
+repository = "https://github.com/asbjornenge/Docker.tmbundle"
+commit = "c001fb280561d7c16f0f2837d76af493cf6c3bf8"
+licence = "MIT"
+
+[[source]]
+dir = "cmake"
+languages = "CMake"
+repository = "https://github.com/zyxar/Sublime-CMakeLists"
+commit = "2560a080b3b7dcdb05e17ee85b2171776e84b8c1"
+licence = "MIT"
+
+[[source]]
+dir = "protobuf"
+languages = "Protocol Buffers"
+repository = "https://github.com/VcamX/protobuf-syntax-highlighting"
+commit = "1365331580b0e4bb86f74d0c599dccc87e7bdacb"
+licence = "MIT"
+
+[[source]]
+dir = "zig"
+languages = "Zig"
+repository = "https://codeberg.org/ziglang/sublime-zig-language"
+commit = "d3816b6d851f3c10ac74474e24b6414ce5b9ec0c"
+licence = "MIT"
+
+[[source]]
+dir = "hcl"
+languages = "Terraform, HCL"
+repository = "https://github.com/alexlouden/Terraform.tmLanguage"
+commit = "6a31694f28ecca8a478fd9420a74955aa87e8c6c"
+licence = "MIT"
+patched = "hcl added to file_extensions of Terraform.sublime-syntax (its HCL.sublime-syntax needs Sublime Text 4 `extends`)"
+
+[[source]]
+dir = "nix"
+languages = "Nix"
+repository = "https://github.com/wmertens/sublime-nix"
+commit = "48c497c709c66a2fb118c534a8de8e4e1c4c401d"
+licence = "MIT"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "swift"
+languages = "Swift"
+repository = "https://github.com/quiqueg/Swift-Sublime-Package"
+commit = "fef17119ceef28a3c4b8cf72268d6192b595365d"
+licence = "MIT"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "dart"
+languages = "Dart"
+repository = "https://github.com/elMuso/Dartlight"
+commit = "2734901b014191f5a7f71c3f48678adf31239098"
+licence = "MIT"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "powershell"
+languages = "PowerShell"
+repository = "https://github.com/PowerShell/EditorSyntax"
+commit = "23eed76d483c887a1608609e9dd57e09666411cc"
+licence = "MIT"
+patched = "a \\g<1> subroutine call in the \\u escape regex written out, since syntect's regex engine has none"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "dotenv"
+languages = ".env"
+repository = "https://github.com/zaynali53/DotENV"
+commit = "556c58df40b4a8ad7fb22eeb26878deffa3e9065"
+licence = "MIT"
+origin = "bat d9559c69f541873f8c47ac8ad81d985f4441edf6"
+
+[[source]]
+dir = "ini"
+languages = "INI"
+repository = "https://github.com/PoHsuanLai/anyview"
+licence = "MIT OR Apache-2.0"
