@@ -420,8 +420,11 @@ fn a_pdf_opens_its_panel_on_the_pages_and_a_closed_panel_stays_closed_for_the_ne
             harness.count(".viewer-panel .ds-segmented") > 0,
             "{scale}: the pages tab is one of several"
         );
-        let on_pages = harness.attr(".viewer-panel [aria-checked=true]", "aria-label");
-        assert!(on_pages.is_some(), "{scale}: a tab is chosen");
+        let on_pages = harness.text_of(".viewer-panel [data-selected=selected]");
+        assert!(
+            on_pages.is_some_and(|label| !label.is_empty()),
+            "{scale}: a tab is chosen"
+        );
         press(&mut harness, ShortcutKey::Escape);
         assert_eq!(
             harness.attr(".ds-split-pane", "data-shown"),
