@@ -26,6 +26,8 @@
 //! # Ok::<(), anyview_store::StoreError>(())
 //! ```
 
+#![warn(missing_docs)]
+
 mod attrs;
 mod details;
 mod error;

@@ -11,6 +11,7 @@ use anyview_core::{FactLabel, FactValue, Facts, Sniffed};
 ///
 /// This is for the viewer's own Info panel: it includes the Location section. A preview pane
 /// calls [`ExifFacts::camera_facts`] or the peek's facts instead, which never carry a place.
+#[must_use]
 pub fn picture_facts(bytes: &[u8], sniffed: &Sniffed) -> Facts {
     let exif = ExifFacts::read(bytes);
     let mut facts = Facts::empty();

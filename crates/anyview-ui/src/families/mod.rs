@@ -21,12 +21,12 @@ pub use media::{
 };
 pub(crate) use media::{level_to_volume, place_to_time, tabs_offered as media_tabs};
 pub use pdf::{
-    Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask,
-    ReadyTile, use_pdf_shelf,
+    Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfOrigin, PdfShelf, PdfStageView,
+    PdfTask, ReadyTile, use_pdf_shelf,
 };
 pub use peek_only::{PeekOnlyDoc, PeekOnlyStageView};
-pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView, RasterTarget};
-pub use registry::{KindVisitor, family_of, flow_of, visit};
+pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen, RasterStageView};
+pub use registry::{FamilyVisitor, family_of, flow_of, visit};
 pub(crate) use registry::{open_for, peek_for};
 pub use table::{SheetDoc, TableDoc, TableStageView};
 pub(crate) use text::top_for;

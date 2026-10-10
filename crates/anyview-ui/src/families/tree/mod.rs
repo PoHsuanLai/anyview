@@ -7,7 +7,7 @@ mod view;
 pub use doc::TreeDoc;
 
 use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{OpenError, OpenPort};
 use crate::{
     Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, Ticket, TreeParams,
 };
@@ -30,7 +30,7 @@ impl StageView for TreeStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<TreeDoc, OpenError> {
         doc::open(src, sniffed)
     }

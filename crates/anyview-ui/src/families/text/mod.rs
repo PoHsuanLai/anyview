@@ -14,7 +14,7 @@ pub use find::FoundHits;
 pub(crate) use find::top_for;
 
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
-use crate::io::{Job, OpenError, OpenLink};
+use crate::io::{Job, OpenError, OpenPort};
 use crate::{
     Command, HitIndex, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand,
     StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews,
@@ -50,7 +50,7 @@ impl StageView for TextStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<Option<TextDoc>, OpenError> {
         doc::first_frame(src, sniffed, link)
     }
@@ -59,7 +59,7 @@ impl StageView for TextStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<TextDoc, OpenError> {
         doc::open(src, sniffed, link)
     }

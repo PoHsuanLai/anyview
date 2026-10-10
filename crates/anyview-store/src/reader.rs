@@ -40,6 +40,7 @@ impl HistoryRead {
 
 /// Reads the history in the store at `root`. Safe while the viewer writes: the file is replaced
 /// by rename, so this sees the old history or the new one, never a mixture.
+#[must_use]
 pub fn read_history(root: &Path) -> HistoryRead {
     match io::read_json::<History>(&root.join(HISTORY_FILE)) {
         Ok(Some(history)) => HistoryRead::Loaded(history),

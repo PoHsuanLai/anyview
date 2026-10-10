@@ -34,6 +34,7 @@ pub struct StoreWriter {
 
 impl StoreWriter {
     /// A writer for the store at `root` (created on first write) that keeps `cap` files.
+    #[must_use]
     pub fn new(root: impl Into<PathBuf>, cap: HistoryCap) -> StoreWriter {
         StoreWriter {
             root: root.into(),

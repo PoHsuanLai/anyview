@@ -9,6 +9,27 @@
 //! headless peek does (the store reads extended attributes, which Windows has no call for).
 //!
 //! Every public item is reached from this root, once.
+//!
+//! A regular file is opened and read by offset, and any other kind of file is refused:
+//!
+//! ```
+//! use anyview_core::{ByteLen, ReadAt};
+//! use anyview_fs::OpenFile;
+//!
+//! let dir = tempfile::tempdir()?;
+//! let path = dir.path().join("note.txt");
+//! std::fs::write(&path, b"hello")?;
+//!
+//! let file = OpenFile::open(&path)?;
+//! assert_eq!(file.len(), ByteLen(5));
+//! let mut tail = [0u8; 3];
+//! assert_eq!(file.read_at(2, &mut tail)?, 3);
+//! assert_eq!(&tail, b"llo");
+//! assert!(OpenFile::open(dir.path()).is_err(), "a folder is not a regular file");
+//! # Ok::<(), std::io::Error>(())
+//! ```
+
+#![warn(missing_docs)]
 
 use anyview_core::{ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, Source};
 use std::fs::{File, Metadata};

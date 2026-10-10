@@ -7,7 +7,9 @@
 use crate::support;
 
 use anyview_core::FileAction;
-use anyview_ui::{Edge, HostRequest, PlatformAbilities, WelcomeApp, Workers};
+use anyview_ui::{
+    DesktopService, Edge, HostRequest, PlatformAbilities, Services, WelcomeApp, Workers,
+};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_core::press::PointerButton;
 use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Input, Query};
@@ -165,10 +167,7 @@ fn a_card_draws_the_buttons_of_the_services_there_are_and_none_of_those_there_ar
         ("all", PlatformAbilities::ALL, 1),
         (
             "no file manager",
-            PlatformAbilities {
-                reveal: false,
-                ..PlatformAbilities::ALL
-            },
+            PlatformAbilities::ALL.without(DesktopService::FileManager),
             0,
         ),
         ("none", PlatformAbilities::NONE, 0),
@@ -188,8 +187,10 @@ fn welcome(platform: PlatformAbilities) -> (Harness, Requests) {
     let requests: Requests = Arc::default();
     let seen = Arc::clone(&requests);
     let workers: Arc<dyn Workers> = Arc::new(support::Inline);
-    let edge = Edge::new(workers, move |request| seen.lock().unwrap().push(request))
-        .with_platform(platform);
+    let edge = Edge::new(
+        Services::new(workers, move |request| seen.lock().unwrap().push(request))
+            .with_platform(platform),
+    );
     let config = HarnessConfig::new(VIEW)
         .with_clock(Clock::Virtual)
         .with_backend(Backend::Hybrid)
@@ -212,10 +213,8 @@ fn the_welcome_window_asks_for_a_file_only_where_there_is_a_chooser() {
     settle(&mut harness);
     assert!(asked(&requests).contains(&HostRequest::PickFile));
 
-    let (mut harness, requests) = welcome(PlatformAbilities {
-        pick_files: false,
-        ..PlatformAbilities::ALL
-    });
+    let (mut harness, requests) =
+        welcome(PlatformAbilities::ALL.without(DesktopService::FileChooser));
     assert_eq!(
         harness.count(".ds-empty-state-action .ds-button"),
         0,
@@ -232,10 +231,12 @@ const OPEN: &str = "Open\u{2026}";
 #[test]
 fn open_is_in_the_palette_and_the_menu_only_where_there_is_a_chooser() {
     for (row, pick_files) in [("with a chooser", true), ("without a chooser", false)] {
-        let (mut harness, _) = picture(PlatformAbilities {
-            pick_files,
-            ..PlatformAbilities::ALL
-        });
+        let platform = if pick_files {
+            PlatformAbilities::ALL
+        } else {
+            PlatformAbilities::ALL.without(DesktopService::FileChooser)
+        };
+        let (mut harness, _) = picture(platform);
         let listed = palette(&mut harness);
         let menu = context_menu(&mut harness);
         if pick_files {

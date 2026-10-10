@@ -22,6 +22,7 @@ pub enum SequenceMove {
 /// `seq` after `mv`. A sequence stops at its ends: `Next` on the last entry and `Previous` on the
 /// first leave it where it is, as the Finder does. `To` a position past the end goes to the last
 /// entry.
+#[must_use]
 pub fn moved(seq: Sequence, mv: SequenceMove) -> Sequence {
     let here = seq.at().index();
     let target = match mv {
@@ -47,6 +48,7 @@ pub enum Heading {
 /// `seq` without the file it is on, now on the file that follows it (the one before when it was
 /// last); with `Heading::Back`, on the one before it (the one after when it was first). `None`
 /// when it was the only file.
+#[must_use]
 pub fn without_current(seq: Sequence, heading: Heading) -> Option<Sequence> {
     let here = seq.at().index();
     let kept: Vec<FilePath> = seq
@@ -77,6 +79,7 @@ pub struct Neighbours {
 }
 
 /// The entries next to where `seq` points.
+#[must_use]
 pub fn neighbours(seq: &Sequence) -> Neighbours {
     let here = seq.at().index();
     let entry = |index: usize| seq.entries().get(index).cloned();

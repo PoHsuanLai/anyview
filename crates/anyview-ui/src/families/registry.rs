@@ -11,14 +11,14 @@ use super::table::TableStageView;
 use super::text::TextStageView;
 use super::tree::TreeStageView;
 use super::view::{LoadedDoc, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{OpenError, OpenPort};
 use crate::{LoadFlow, StageFamily, Ticket};
 use anyview_core::{Facts, FormatKind, Sniffed, Source};
 use anyview_fs::OnDisk;
 use anyview_store::general_facts as general_of;
 
 /// Something done with the view that shows a kind, without naming it.
-pub trait KindVisitor {
+pub trait FamilyVisitor {
     /// What it makes.
     type Out;
     /// Do it for the view `S`.
@@ -26,7 +26,7 @@ pub trait KindVisitor {
 }
 
 /// Run `visitor` for the view that shows `kind`.
-pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
+pub fn visit<V: FamilyVisitor>(kind: FormatKind, visitor: V) -> V::Out {
     match kind {
         FormatKind::Raster | FormatKind::Vector => visitor.visit::<RasterStageView>(),
         FormatKind::Markdown | FormatKind::Code | FormatKind::PlainText => {
@@ -46,7 +46,7 @@ pub fn visit<V: KindVisitor>(kind: FormatKind, visitor: V) -> V::Out {
 
 struct FamilyOf;
 
-impl KindVisitor for FamilyOf {
+impl FamilyVisitor for FamilyOf {
     type Out = StageFamily;
 
     fn visit<S: StageView>(self) -> StageFamily {
@@ -68,10 +68,10 @@ struct Opener<'a> {
     ticket: Ticket,
     src: &'a Source,
     sniffed: &'a Sniffed,
-    link: &'a OpenLink,
+    link: &'a OpenPort,
 }
 
-impl KindVisitor for Opener<'_> {
+impl FamilyVisitor for Opener<'_> {
     type Out = Result<LoadedDoc, OpenError>;
 
     fn visit<S: StageView>(self) -> Self::Out {
@@ -86,7 +86,7 @@ pub(crate) fn open_for(
     ticket: Ticket,
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<LoadedDoc, OpenError> {
     visit(
         sniffed.kind(),
@@ -101,7 +101,7 @@ pub(crate) fn open_for(
 
 struct FlowOf;
 
-impl KindVisitor for FlowOf {
+impl FamilyVisitor for FlowOf {
     type Out = LoadFlow;
 
     fn visit<S: StageView>(self) -> LoadFlow {
@@ -118,10 +118,10 @@ struct FirstFrame<'a> {
     ticket: Ticket,
     src: &'a Source,
     sniffed: &'a Sniffed,
-    link: &'a OpenLink,
+    link: &'a OpenPort,
 }
 
-impl KindVisitor for FirstFrame<'_> {
+impl FamilyVisitor for FirstFrame<'_> {
     type Out = Result<Option<LoadedDoc>, OpenError>;
 
     fn visit<S: StageView>(self) -> Self::Out {
@@ -137,7 +137,7 @@ pub(crate) fn peek_for(
     ticket: Ticket,
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<Option<LoadedDoc>, OpenError> {
     visit(
         sniffed.kind(),

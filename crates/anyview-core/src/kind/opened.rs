@@ -49,6 +49,7 @@ fn mimes_of(kind: FormatKind) -> Vec<&'static str> {
 /// The media types of every kind the viewer has a stage for (`StageSupport::Stage`), sorted and
 /// without repeats: what a desktop entry claims the viewer opens. A kind the viewer only peeks
 /// at is left out, since claiming it would make the viewer the answer to a file it cannot show.
+#[must_use]
 pub fn opened_mimes() -> Vec<Mime> {
     opened_texts().into_iter().map(Mime::known).collect()
 }
@@ -88,6 +89,7 @@ const UNREGISTERED_GLOBS: &[&str] = &["*.jsonl", "*.ndjson"];
 /// What a desktop entry claims and a file chooser offers as "supported": the types of
 /// [`opened_mimes`] under the names the registry knows, sorted and without repeats. A format the
 /// registry has no type for is left out here and named by [`opened_globs`] instead.
+#[must_use]
 pub fn claimed_mimes() -> Vec<Mime> {
     let mut texts: Vec<&'static str> = opened_texts()
         .into_iter()

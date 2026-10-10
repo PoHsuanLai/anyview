@@ -23,6 +23,7 @@ pub struct Discovery {
 /// Reads every manifest in `$XDG_DATA_HOME/anyview/plugins` (the person's) and in each of
 /// `$XDG_DATA_DIRS` (the system's, most important first), as `env` names them. A file that is
 /// not a usable manifest is listed in `rejected` and skipped; nothing here fails.
+#[must_use]
 pub fn discover(env: &Env) -> Discovery {
     discover_in(env, &env.dirs.data)
 }
@@ -30,6 +31,7 @@ pub fn discover(env: &Env) -> Discovery {
 /// [`discover`] with `folder` as the person's data directory, whose `anyview/plugins` is read
 /// first: a host that keeps its plugins elsewhere (a development tree, a portable install) names
 /// the folder, and `env`'s system directories still follow.
+#[must_use]
 pub fn discover_in(env: &Env, folder: &Path) -> Discovery {
     let found = bayonet::discover::<Provision>(&Search::new(
         "anyview",

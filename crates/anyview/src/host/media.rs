@@ -10,7 +10,7 @@ use anyview_core::{
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
 use anyview_plugin::Subject;
 use anyview_store::free_beside;
-use anyview_ui::Probed;
+use anyview_ui::Opened;
 use ds::prelude::Word;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ impl std::fmt::Debug for Media {
 }
 
 /// Start the file playing with no window, from where it was left. Blocking.
-pub(super) fn play_in_background(media: &Media, probed: &Probed) -> Outcome {
+pub(super) fn play_in_background(media: &Media, probed: &Opened) -> Outcome {
     let resume: &Resume = &probed.resume;
     match media
         .hub
@@ -45,7 +45,7 @@ pub(super) fn play_in_background(media: &Media, probed: &Probed) -> Outcome {
 }
 
 /// Write `choice` for the recording `file` beside it.
-pub(super) async fn export(media: &Media, file: &Probed, choice: MediaExport) -> Outcome {
+pub(super) async fn export(media: &Media, file: &Opened, choice: MediaExport) -> Outcome {
     let jobs = anyview_media::plan_export(file.source.path(), choice);
     let mut outcome = Outcome::Nothing("there is nothing to write");
     for job in jobs {
@@ -57,7 +57,7 @@ pub(super) async fn export(media: &Media, file: &Probed, choice: MediaExport) ->
     outcome
 }
 
-async fn run(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
+async fn run(media: &Media, file: &Opened, job: ExportJob) -> Outcome {
     match job {
         ExportJob::Transcode { .. } => transcode(media, file, job).await,
         ExportJob::MpvScreenshot { target, subtitles } => {
@@ -72,7 +72,7 @@ async fn run(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
 
 /// A cut or a track, written by the FFmpeg plugin on a pool worker, next to the source under a
 /// free name. Without that plugin the answer says which package adds it.
-async fn transcode(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
+async fn transcode(media: &Media, file: &Opened, job: ExportJob) -> Outcome {
     let source = file.source.path();
     let subject = Subject {
         kind: file.sniffed.kind(),
@@ -113,7 +113,7 @@ async fn transcode(media: &Media, file: &Probed, job: ExportJob) -> Outcome {
 /// What the name of the file depends on: the container the recording is in, and for a copy of
 /// its sound the codec the track has, which the plugin says (a plugin that does not say leaves
 /// the name to the container).
-fn hints_of(tool: &ExportTool, file: &Probed, job: &ExportJob) -> NameHints {
+fn hints_of(tool: &ExportTool, file: &Opened, job: &ExportJob) -> NameHints {
     let container = if let FormatDetail::Media(container) = file.sniffed.detail() {
         Some(*container)
     } else {

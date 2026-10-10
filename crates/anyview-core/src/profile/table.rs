@@ -182,6 +182,7 @@ pub fn actions_for(kind: FormatKind) -> &'static [FileAction] {
 /// A media type a file of `kind` has, for a row that knows only the kind (a recently viewed
 /// file the history names): the commonest type of the kind. `kind_of_mime` of it is `kind`, except
 /// that code and plain text share `text/plain`, which names plain text.
+#[must_use]
 pub fn mime_for(kind: FormatKind) -> Mime {
     Mime::known(profile_of(kind).mime)
 }
@@ -193,6 +194,7 @@ pub fn edits_for(kind: FormatKind) -> &'static [EditKind] {
 
 /// Whether the viewer has a full stage for `kind` or shows only the light tier. Every kind is
 /// answered: a kind without a stage says `PeekOnly` and offers facts.
+#[must_use]
 pub fn stage_support(kind: FormatKind) -> StageSupport {
     profile_of(kind).stage
 }

@@ -5,18 +5,18 @@ use super::support::{desktop, probed};
 use crate::host::{Hosting, Outcome, Task};
 use anyview_core::{Axis, Edit, QuarterTurn};
 use anyview_image::ExifFacts;
-use anyview_ui::{EditRequest, Probed};
+use anyview_ui::{EditRequest, Opened};
 
 const JPEG: &[u8] = include_bytes!("../../../../anyview-image/tests/fixtures/rotated.jpg");
 const QUADRANTS: &[u8] = include_bytes!("../../../../anyview-image/tests/fixtures/quadrants.png");
 
-fn pixels(file: &Probed) -> image::RgbaImage {
+fn pixels(file: &Opened) -> image::RgbaImage {
     image::open(file.source.path().as_path())
         .unwrap()
         .to_rgba8()
 }
 
-async fn apply(desktop: &super::support::TestDesktop, file: &Probed, edits: &[Edit]) {
+async fn apply(desktop: &super::support::TestDesktop, file: &Opened, edits: &[Edit]) {
     for edit in edits {
         let outcome = desktop
             .carry_out(Task::Edit {

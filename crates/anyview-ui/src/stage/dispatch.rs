@@ -6,7 +6,7 @@ use super::media::{
     ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
 };
 use super::model::{Stage, StageIn, StageParams};
-use super::pdf::{LineDir, PdfIn, PdfParams, PdfStage, end, nudged, start};
+use super::pdf::{LineDir, PageEdits, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
 use super::row::RowStep;
 use super::table::{TableIn, TableStage};
@@ -224,11 +224,13 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         ))),
         StageCommand::ScrollToStart => Some(PdfIn::GoTo(start())),
         StageCommand::ScrollToEnd => Some(PdfIn::GoTo(end(params.pages))),
-        StageCommand::DeletePage if params.edits => Some(PdfIn::DeletePage),
-        StageCommand::MovePageEarlier if params.edits => {
+        StageCommand::DeletePage if params.page_edits == PageEdits::Allowed => {
+            Some(PdfIn::DeletePage)
+        }
+        StageCommand::MovePageEarlier if params.page_edits == PageEdits::Allowed => {
             Some(PdfIn::MovePage(StepDirection::Backward))
         }
-        StageCommand::MovePageLater if params.edits => {
+        StageCommand::MovePageLater if params.page_edits == PageEdits::Allowed => {
             Some(PdfIn::MovePage(StepDirection::Forward))
         }
         StageCommand::ToggleSource

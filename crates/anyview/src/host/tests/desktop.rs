@@ -9,7 +9,7 @@ use anyview_platform::ShareTarget;
 use anyview_platform::portable::{NoPicker, NoPrinter, NoShare};
 use anyview_platform::testing::FakeReveal;
 use anyview_store::{HistoryRead, read_history};
-use anyview_ui::PlatformAbilities;
+use anyview_ui::{DesktopService, PlatformAbilities};
 
 #[tokio::test]
 async fn reveal_share_and_trash_reach_their_platform_trait_with_the_file() {
@@ -395,9 +395,6 @@ async fn a_desktop_says_which_of_its_services_there_are() {
     );
     assert_eq!(
         portable.abilities(),
-        PlatformAbilities {
-            reveal: true,
-            ..PlatformAbilities::NONE
-        }
+        PlatformAbilities::of([DesktopService::FileManager])
     );
 }

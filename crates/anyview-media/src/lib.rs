@@ -22,6 +22,8 @@
 //! # Ok::<(), anyview_core::CoreError>(())
 //! ```
 
+#![warn(missing_docs)]
+
 mod command;
 mod error;
 mod event;

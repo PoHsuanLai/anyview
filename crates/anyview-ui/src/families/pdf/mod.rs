@@ -22,12 +22,12 @@ mod tests;
 mod view;
 mod work;
 
-pub use doc::{PdfDoc, PdfFailure};
+pub use doc::{PdfDoc, PdfFailure, PdfOrigin};
 pub use shelf::{PdfShelf, use_pdf_shelf};
 pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
-use crate::io::{NaturalSize, OpenError, OpenLink};
+use crate::io::{NaturalSize, OpenError, OpenPort};
 use crate::{
     PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
     Viewport,
@@ -49,7 +49,7 @@ impl StageView for PdfStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<PdfDoc, OpenError> {
         if sniffed.kind() == FormatKind::Book {
             doc::open_book(src, sniffed)
@@ -73,7 +73,11 @@ impl StageView for PdfStageView {
     fn params(doc: &PdfDoc, stage: &Stage, area: Option<Area>) -> StageParams {
         let mut pdf = PdfParams {
             pages: doc.pages(),
-            edits: doc.offer != crate::EditOffer::Withheld,
+            page_edits: if doc.offer == crate::EditOffer::Withheld {
+                crate::PageEdits::Barred
+            } else {
+                crate::PageEdits::Allowed
+            },
             ..PdfParams::default()
         };
         if let (Some(view), Some(area)) = (live::page_view(stage), doc::room_of(area)) {
@@ -107,7 +111,7 @@ impl StageView for PdfStageView {
         match stage.restoring(left_at) {
             Some(restore) => vec![restore],
             // A book opens at reading width, as Books and Preview do; a place left wins.
-            None if doc.book => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fill))],
+            None if doc.origin == PdfOrigin::Book => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fill))],
             None => Vec::new(),
         }
     }

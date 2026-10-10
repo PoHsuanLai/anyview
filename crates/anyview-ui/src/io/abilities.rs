@@ -1,47 +1,68 @@
 //! What the platform the viewer runs on can do for the person: the file actions that need a
-//! service of the desktop (a file chooser, a print dialog, a way to share, a file manager). The binary says which it has, from the platform parts it was built with; the
-//! views offer an action only when its ability is there, so no control is shown that can do
-//! nothing. The views never ask which operating system they run on, only this data.
+//! service of the desktop (a file chooser, a print dialog, a way to share, a file manager). The
+//! binary says which it has, from the platform parts it was built with; the views offer an
+//! action only when its service is there, so no control is shown that can do nothing. The views
+//! never ask which operating system they run on, only this data.
 
 use anyview_core::FileAction;
+use ds_core::word::Word;
 
-/// The desktop services behind the file actions, each there or not.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlatformAbilities {
+/// One service of the desktop that a file action stands on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
+pub enum DesktopService {
     /// A dialog to choose files with: Open… and ⌘O, and the welcome window's Open….
-    pub pick_files: bool,
+    FileChooser,
     /// A print dialog: Print… and ⌘P.
-    pub print: bool,
+    PrintDialog,
     /// A way to send a file to someone: Share….
-    pub share: bool,
+    Sharing,
     /// A file manager to show a file in: Show in Folder.
-    pub reveal: bool,
+    FileManager,
 }
 
-impl PlatformAbilities {
-    /// Every ability: the default, and what a desktop with all its services has.
-    pub const ALL: PlatformAbilities = PlatformAbilities {
-        pick_files: true,
-        print: true,
-        share: true,
-        reveal: true,
-    };
+/// The desktop services the platform has, a set of [`DesktopService`]. The default is all of them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PlatformAbilities(u8);
 
-    /// No ability: a platform with none of the desktop's services.
-    pub const NONE: PlatformAbilities = PlatformAbilities {
-        pick_files: false,
-        print: false,
-        share: false,
-        reveal: false,
-    };
+impl PlatformAbilities {
+    /// Every service: the default, and what a desktop with all its services has.
+    pub const ALL: PlatformAbilities = PlatformAbilities(0b1111);
+
+    /// No service: a platform with none of the desktop's services.
+    pub const NONE: PlatformAbilities = PlatformAbilities(0);
+
+    /// Just `services`.
+    #[must_use]
+    pub fn of(services: impl IntoIterator<Item = DesktopService>) -> PlatformAbilities {
+        services
+            .into_iter()
+            .fold(PlatformAbilities::NONE, PlatformAbilities::with)
+    }
+
+    /// Whether `service` is there.
+    pub fn has(self, service: DesktopService) -> bool {
+        self.0 & bit(service) != 0
+    }
+
+    /// The same set with `service` in it.
+    #[must_use]
+    pub fn with(self, service: DesktopService) -> PlatformAbilities {
+        PlatformAbilities(self.0 | bit(service))
+    }
+
+    /// The same set without `service`.
+    #[must_use]
+    pub fn without(self, service: DesktopService) -> PlatformAbilities {
+        PlatformAbilities(self.0 & !bit(service))
+    }
 
     /// Whether `action` can be done here. An action no desktop service stands behind always can.
     pub fn offers(self, action: FileAction) -> bool {
         match action {
-            FileAction::Open => self.pick_files,
-            FileAction::Print => self.print,
-            FileAction::Share => self.share,
-            FileAction::RevealInFolder => self.reveal,
+            FileAction::Open => self.has(DesktopService::FileChooser),
+            FileAction::Print => self.has(DesktopService::PrintDialog),
+            FileAction::Share => self.has(DesktopService::Sharing),
+            FileAction::RevealInFolder => self.has(DesktopService::FileManager),
             FileAction::CopyFile
             | FileAction::CopyPath
             | FileAction::Rename
@@ -61,6 +82,16 @@ impl PlatformAbilities {
     }
 }
 
+/// The bit that stands for `service` in a set.
+fn bit(service: DesktopService) -> u8 {
+    match service {
+        DesktopService::FileChooser => 0b0001,
+        DesktopService::PrintDialog => 0b0010,
+        DesktopService::Sharing => 0b0100,
+        DesktopService::FileManager => 0b1000,
+    }
+}
+
 impl Default for PlatformAbilities {
     fn default() -> PlatformAbilities {
         PlatformAbilities::ALL
@@ -70,36 +101,38 @@ impl Default for PlatformAbilities {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ds_core::word::Word;
 
     #[test]
-    fn each_desktop_action_follows_its_own_ability_and_the_rest_always_stand() {
-        // action, the ability taken away from a full set
-        type TakeAway = fn(&mut PlatformAbilities);
-        const BEHIND: &[(FileAction, TakeAway)] = &[
-            (FileAction::Open, |a| a.pick_files = false),
-            (FileAction::Print, |a| a.print = false),
-            (FileAction::Share, |a| a.share = false),
-            (FileAction::RevealInFolder, |a| a.reveal = false),
+    fn each_desktop_action_follows_its_own_service_and_the_rest_always_stand() {
+        // action, the service it stands on
+        const BEHIND: &[(FileAction, DesktopService)] = &[
+            (FileAction::Open, DesktopService::FileChooser),
+            (FileAction::Print, DesktopService::PrintDialog),
+            (FileAction::Share, DesktopService::Sharing),
+            (FileAction::RevealInFolder, DesktopService::FileManager),
         ];
+        assert_eq!(
+            PlatformAbilities::of(DesktopService::ALL.iter().copied()),
+            PlatformAbilities::ALL
+        );
         for action in FileAction::ALL {
             assert!(PlatformAbilities::ALL.offers(*action), "{action:?}");
             let behind = BEHIND.iter().any(|(a, _)| a == action);
             assert_eq!(
                 PlatformAbilities::NONE.offers(*action),
                 !behind,
-                "{action:?} with no ability"
+                "{action:?} with no service"
             );
         }
-        for (gone, take_away) in BEHIND {
-            let mut without = PlatformAbilities::ALL;
-            take_away(&mut without);
+        for (gone, service) in BEHIND {
+            let without = PlatformAbilities::ALL.without(*service);
             let lost: Vec<FileAction> = FileAction::ALL
                 .iter()
                 .copied()
                 .filter(|action| !without.offers(*action))
                 .collect();
             assert_eq!(lost, [*gone]);
+            assert_eq!(without.with(*service), PlatformAbilities::ALL);
         }
     }
 }

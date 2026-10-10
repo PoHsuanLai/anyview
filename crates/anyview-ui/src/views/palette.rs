@@ -4,7 +4,7 @@
 //! Enter runs; this draws its rows and hands the keys it takes (arrows, Enter, Esc, ⌘K, ⌘F) to the
 //! root as they arrive, so the machine is the one place they mean anything.
 
-use crate::{Command, HitLine, PaletteScope, RowIndex, TypedText};
+use crate::{Command, HitLine, PaletteIndex, PaletteScope, TypedText};
 use anyview_core::shortcut;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
@@ -70,12 +70,12 @@ fn is_find(keys: &[ShortcutKey]) -> bool {
 pub(super) fn Palette(
     query: TypedText,
     rows: Vec<Command>,
-    selection: RowIndex,
+    selection: PaletteIndex,
     scope: PaletteScope,
     hits: Vec<HitLine>,
     found: u32,
     ontyped: EventHandler<TypedText>,
-    onpick: EventHandler<RowIndex>,
+    onpick: EventHandler<PaletteIndex>,
     onkey: EventHandler<KeyboardEvent>,
     onclose: EventHandler<()>,
 ) -> Element {
@@ -129,7 +129,7 @@ pub(super) fn Palette(
             selected: Some(selection.0),
             initial_caret: caret,
             oninput: move |text: String| ontyped.call(TypedText::new(text)),
-            onpick: move |index: usize| onpick.call(RowIndex(index)),
+            onpick: move |index: usize| onpick.call(PaletteIndex(index)),
             onclose: move |()| onclose.call(()),
             claim: Callback::new(move |key: FieldKey| {
                 // The keys the palette machine reads are the machine's: they never reach the

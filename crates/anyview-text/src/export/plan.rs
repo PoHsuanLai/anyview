@@ -8,6 +8,7 @@ use anyview_core::{
 /// The jobs that write `choice` for the text file `file`: a PDF is its page laid out (a source
 /// file is printed highlighted), plain text is the file as it is. A kind that has no text
 /// document (a picture, a recording) has no jobs.
+#[must_use]
 pub fn plan_export(file: &FilePath, sniffed: &Sniffed, choice: TextExport) -> Vec<ExportJob> {
     match choice {
         TextExport::Pdf(layout) => printed(file, sniffed, layout),
@@ -28,6 +29,7 @@ pub fn plan_export(file: &FilePath, sniffed: &Sniffed, choice: TextExport) -> Ve
 }
 
 /// The jobs that make the PDF a text file is printed from, on the default paper.
+#[must_use]
 pub fn plan_print(file: &FilePath, sniffed: &Sniffed) -> Vec<ExportJob> {
     printed(file, sniffed, PrintLayout::default())
 }

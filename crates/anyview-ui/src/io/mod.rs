@@ -12,14 +12,15 @@ mod media;
 mod notice;
 mod probe;
 mod seams;
+mod services;
 mod workers;
 
-pub use abilities::PlatformAbilities;
+pub use abilities::{DesktopService, PlatformAbilities};
 pub use anyview_core::work::{Backend, Stop};
 pub use error::OpenError;
 pub use folder::folder_sequence;
 pub use helpers::{HelperSource, HelperWords, Need};
-pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};
+pub use job::{Done, Job, OpenPort, Opened, Preloaded, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{
     MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake,
@@ -30,4 +31,5 @@ pub(crate) use probe::probe;
 pub use seams::{
     FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeSource, VersionSource,
 };
+pub use services::Services;
 pub use workers::{Edge, HostRequest, NaturalSize, Reply, SizeBasis, Work, WorkKind, Workers};

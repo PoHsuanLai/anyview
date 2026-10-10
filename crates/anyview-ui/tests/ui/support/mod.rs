@@ -11,8 +11,8 @@ pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
     Edge, FileAccess, FileLocks, HelperSource, HostRequest, ImagePlugins, Launch, LookFeed,
-    MediaHost, PlatformAbilities, Presentation, ResumeSource, VersionRow, VersionSource, ViewerApp,
-    Work, WorkKind, WorkLane, Workers,
+    MediaHost, PlatformAbilities, Presentation, ResumeSource, Services, VersionRow, VersionSource,
+    ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use dioxus::prelude::*;
 use ds::prelude::Appearance;
@@ -367,36 +367,37 @@ pub fn wired(
     let seen = Arc::clone(&requests);
     let memory = wiring.memory.clone();
     let workers: Arc<dyn Workers> = wiring.workers.unwrap_or_else(|| Arc::new(Inline));
-    let mut edge = Edge::new(workers, move |request| {
+    let mut services = Services::new(workers, move |request| {
         if let Some(memory) = &memory {
             memory.hear(&request);
         }
         seen.lock().unwrap().push(request);
     });
     if let Some(memory) = wiring.memory {
-        edge = edge.with_resume_source(memory);
+        services = services.with_resume_source(memory);
     }
     if let Some(versions) = wiring.versions {
-        edge = edge.with_version_source(versions);
+        services = services.with_version_source(versions);
     }
     if let Some(pictures) = wiring.pictures {
-        edge = edge.with_first_frames(pictures);
+        services = services.with_first_frames(pictures);
     }
     if let Some(locks) = wiring.locks {
-        edge = edge.with_locks(locks);
+        services = services.with_locks(locks);
     }
     if let Some(plugins) = wiring.image_plugins {
-        edge = edge.with_image_plugins(plugins);
+        services = services.with_image_plugins(plugins);
     }
     if let Some(helpers) = wiring.helpers {
-        edge = edge.with_helpers(helpers);
+        services = services.with_helpers(helpers);
     }
     if let Some(platform) = wiring.platform {
-        edge = edge.with_platform(platform);
+        services = services.with_platform(platform);
     }
     if let Some(player) = wiring.player {
-        edge = edge.with_media(player as Arc<dyn MediaHost>);
+        services = services.with_media(player as Arc<dyn MediaHost>);
     }
+    let edge = Edge::new(services);
     let launch = Launch {
         file: current,
         sequence: Some(sequence),

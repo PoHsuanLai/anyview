@@ -13,7 +13,8 @@ use crate::host::{
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{
-    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, ViewerApp,
+    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, Services,
+    ViewerApp,
 };
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
@@ -84,7 +85,7 @@ impl Wiring {
     fn new(seed: &Seed) -> Wiring {
         let (send, receive) = unbounded();
         let again = send.clone();
-        let edge = Edge::new(Arc::clone(&seed.factory.workers), move |request| {
+        let services = Services::new(Arc::clone(&seed.factory.workers), move |request| {
             // A window that closed has no receiver, and nobody is left to ask.
             let _gone = send.unbounded_send(request);
         })
@@ -95,10 +96,11 @@ impl Wiring {
         .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
         .with_locks(Arc::new(StoreLocks))
         .with_platform(seed.factory.hosting.abilities());
-        let edge = match &seed.factory.helpers {
-            Some(helpers) => edge.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
-            None => edge,
+        let services = match &seed.factory.helpers {
+            Some(helpers) => services.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
+            None => services,
         };
+        let edge = Edge::new(services);
         let launch = Launch {
             file: seed.opening.file.clone(),
             sequence: seed.opening.sequence.clone(),
@@ -291,7 +293,7 @@ pub(super) fn stacking_for(
 /// finds it. The new window is opened through the app's handle, which only a real app has.
 fn reopen(
     seed: &Seed,
-    shown: Option<&anyview_ui::Probed>,
+    shown: Option<&anyview_ui::Opened>,
     app: Option<&AppHandle>,
     presentation: Presentation,
     edge: &Edge,

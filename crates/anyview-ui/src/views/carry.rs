@@ -185,7 +185,7 @@ fn keep_the_one_left(c: &Carry) {
         | Resume::Book { .. }) => placed,
     };
     shelf.preloads.write().stash(Preloaded {
-        probed: crate::io::Probed { resume, ..probed },
+        probed: crate::io::Opened { resume, ..probed },
         doc,
     });
 }

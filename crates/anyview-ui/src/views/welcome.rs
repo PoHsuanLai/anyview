@@ -5,7 +5,7 @@
 
 use super::app::use_look;
 use super::keys::shortcut_of;
-use crate::io::{Done, HostRequest};
+use crate::io::{DesktopService, Done, HostRequest};
 use crate::{Edge, Look, stylesheet};
 use anyview_core::FilePath;
 use dioxus::prelude::*;
@@ -79,7 +79,7 @@ fn Welcome() -> Element {
         }
     });
     // Without a file chooser Open… and ⌘O are not there; dropping a file still opens it.
-    let can_pick = edge.platform().pick_files;
+    let can_pick = edge.platform().has(DesktopService::FileChooser);
     let (pick, key) = (edge.clone(), edge);
     rsx! {
         div {

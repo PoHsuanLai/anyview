@@ -42,6 +42,7 @@ pub struct Sequence {
 
 impl Sequence {
     /// A sequence of `entries` pointing at the first.
+    #[must_use]
     pub fn new(entries: NonEmpty<FilePath>, origin: SequenceOrigin) -> Self {
         Sequence {
             entries,

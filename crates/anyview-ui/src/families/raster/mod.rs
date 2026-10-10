@@ -6,10 +6,10 @@ mod doc;
 mod geometry;
 mod view;
 
-pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterTarget};
+pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen};
 
 use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{NaturalSize, OpenError, OpenLink};
+use crate::io::{NaturalSize, OpenError, OpenPort};
 use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
     StageIn, StageParams, Ticket,
@@ -38,7 +38,7 @@ impl StageView for RasterStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<Option<RasterDoc>, OpenError> {
         doc::first_frame(src, sniffed, link)
     }
@@ -47,9 +47,9 @@ impl StageView for RasterStageView {
         ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<RasterDoc, OpenError> {
-        let target = RasterTarget {
+        let target = RasterOpen {
             source: src.clone(),
             sniffed: sniffed.clone(),
             texture: link.texture.clone(),

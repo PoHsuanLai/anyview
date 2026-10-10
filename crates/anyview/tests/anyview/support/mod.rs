@@ -330,14 +330,14 @@ pub fn plugins_with_args(play: bool, ffmpeg: bool, args: &[String]) -> Option<Ar
 
 /// `file` as the viewer's probe makes it: its type from its first bytes, as a recording needs no
 /// look inside.
-pub fn probed(file: &FilePath) -> anyview_ui::Probed {
+pub fn probed(file: &FilePath) -> anyview_ui::Opened {
     let bytes = std::fs::read(file.as_path()).unwrap();
     let name = anyview_core::FileName::new(file.file_name().unwrap().as_str()).unwrap();
     let head = anyview_core::FileHead::new(&bytes[..bytes.len().min(4096)]);
     let anyview_core::SniffStep::Done(sniffed) = anyview_core::sniff(&head, &name) else {
         panic!("a recording needs no look inside");
     };
-    anyview_ui::Probed {
+    anyview_ui::Opened {
         source: anyview_core::Source::new(
             file.clone(),
             anyview_core::FileStamp {

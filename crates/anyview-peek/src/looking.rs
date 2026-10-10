@@ -35,6 +35,7 @@ impl Peeking {
     /// What the launcher's pane asks: it reads a PDF whole (up to 64 MiB), fits a picture to a
     /// pane's worth of pixels (a million), takes half a second, and draws a page into 328 by 220
     /// px.
+    #[must_use]
     pub fn pane() -> Self {
         Peeking {
             budget: PeekBudget {
@@ -48,16 +49,19 @@ impl Peeking {
     }
 
     /// This look spending no more than `budget`.
+    #[must_use]
     pub fn with_budget(self, budget: PeekBudget) -> Self {
         Peeking { budget, ..self }
     }
 
     /// This look drawing a page to fit `fit`.
+    #[must_use]
     pub fn with_fit(self, fit: PixelSize) -> Self {
         Peeking { fit, ..self }
     }
 
     /// This look taking a video's picture from `stills` when the file carries none.
+    #[must_use]
     pub fn with_stills(self, stills: Arc<dyn StillSource>) -> Self {
         Peeking { stills, ..self }
     }

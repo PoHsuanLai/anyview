@@ -25,6 +25,7 @@ impl Parts {
     pub const ALL: Parts = Parts(0b111);
 
     /// Just `parts`.
+    #[must_use]
     pub fn of(parts: impl IntoIterator<Item = Part>) -> Self {
         Parts(parts.into_iter().fold(0, |bits, part| bits | bit(part)))
     }

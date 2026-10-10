@@ -4,6 +4,7 @@ use crate::chrome::ChromeIn;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
 use crate::hand::HandIn;
+use crate::io::PlatformAbilities;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn};
@@ -25,8 +26,8 @@ pub struct Regions<'a> {
     pub stage: &'a Stage,
     /// What the stage needs to turn a command into an input.
     pub stage_params: &'a StageParams,
-    /// Whether the platform has a file chooser: ⌘O is a chord only then.
-    pub pick_files: bool,
+    /// The desktop services there are: ⌘O is a chord only where there is a file chooser.
+    pub platform: PlatformAbilities,
 }
 
 /// Where a key goes, with the input the region is to be given. Precedence is the order of the

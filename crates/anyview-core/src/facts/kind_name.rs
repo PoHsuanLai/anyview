@@ -8,6 +8,7 @@ use crate::kind::{
 use crate::sniff::Sniffed;
 
 /// `JPEG image`, `PDF document`, `Rust source`: what `sniffed` is, in a person's words.
+#[must_use]
 pub fn kind_name(sniffed: &Sniffed) -> String {
     match (sniffed.kind(), sniffed.detail()) {
         (FormatKind::Pdf, _) => "PDF document".to_owned(),

@@ -7,7 +7,7 @@ use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail
 use anyview_export::DocumentExport;
 use anyview_store::VersionId;
 use anyview_ui::{
-    EditRequest, ExportDraft, HostRequest, Presentation, Probed, SizeBasis, VersionKey,
+    EditRequest, ExportDraft, HostRequest, Opened, Presentation, SizeBasis, VersionKey,
 };
 
 /// The file a window shows, as the host last heard of it.
@@ -16,7 +16,7 @@ use anyview_ui::{
 /// belong to one file, so a window that shows another starts a new trail.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Shown {
-    pub(super) file: Option<Probed>,
+    pub(super) file: Option<Opened>,
     pub(super) trail: Trail<VersionId>,
     /// Edits and undos asked for while a save was being written, in the order they came: each
     /// is asked again when the save ends.
@@ -25,12 +25,12 @@ pub struct Shown {
 
 impl Shown {
     /// What the window shows, once it has told the host.
-    pub fn file(&self) -> Option<&Probed> {
+    pub fn file(&self) -> Option<&Opened> {
         self.file.as_ref()
     }
 
     /// The window shows `probed` now: the same file again keeps its trail, another starts one.
-    fn showing(self, probed: Probed) -> Shown {
+    fn showing(self, probed: Opened) -> Shown {
         let same = self
             .file
             .as_ref()
@@ -45,7 +45,7 @@ impl Shown {
     /// The window is now at `resume` in its file, as the last request said.
     pub fn remembering(self, resume: Resume) -> Shown {
         Shown {
-            file: self.file.map(|probed| Probed { resume, ..probed }),
+            file: self.file.map(|probed| Opened { resume, ..probed }),
             ..self
         }
     }
@@ -105,7 +105,7 @@ pub enum WindowTask {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Task {
     /// Add the file to the recently viewed.
-    RecordView(Probed),
+    RecordView(Opened),
     /// Keep where the person is in the file.
     Remember { source: Source, resume: Resume },
     /// Show the file in the file manager.
@@ -117,7 +117,7 @@ pub enum Task {
     /// Send the file by mail.
     Share(FilePath),
     /// Hand the file to the print dialog: a PDF as it is, anything else laid out as a PDF first.
-    Print(Probed),
+    Print(Opened),
     /// Move the file to the trash.
     Trash(FilePath),
     /// Give the file another name in its folder.
@@ -125,19 +125,19 @@ pub enum Task {
     /// Copy the file beside itself under a free name.
     Duplicate(FilePath),
     /// Play the file with no window, from where the person left it.
-    PlayInBackground(Probed),
+    PlayInBackground(Opened),
     /// Write an export of an image, a PDF or a text document beside it.
     ExportDocument {
-        file: Probed,
+        file: Opened,
         choice: DocumentExport,
     },
     /// Write a media export of the file beside it: a cut, the audio, or the frame on screen.
     ExportMedia {
-        file: Probed,
+        file: Opened,
         choice: anyview_core::MediaExport,
     },
     /// Save the file in place with this change, after keeping the original.
-    Edit { file: Probed, request: EditRequest },
+    Edit { file: Opened, request: EditRequest },
     /// Put a kept version back as the file; what it is now is kept first.
     Restore { file: FilePath, version: VersionId },
     /// Put back the kept version this key names.
@@ -209,7 +209,7 @@ fn named(typed: &str) -> Option<FileName> {
 
 /// A file action the viewer left to its host.
 fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
-    let path = |probed: &Probed| probed.source.path().clone();
+    let path = |probed: &Opened| probed.source.path().clone();
     match action {
         FileAction::Open => declined_with_file(shown, Declined::AlreadyOpen),
         FileAction::RevealInFolder => {
@@ -262,7 +262,7 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
 /// every other format's by the export crate.
 fn export(shown: Shown, draft: ExportDraft) -> (Shown, Carry) {
     let document = |choice| {
-        move |probed: &Probed| {
+        move |probed: &Opened| {
             Carry::Desktop(Task::ExportDocument {
                 file: probed.clone(),
                 choice,
@@ -302,7 +302,7 @@ fn declined_with_file(shown: Shown, why: Declined) -> (Shown, Carry) {
 }
 
 /// `carry` for the file shown, or a refusal when there is none.
-fn about_file(shown: Shown, carry: impl FnOnce(&Probed) -> Carry) -> (Shown, Carry) {
+fn about_file(shown: Shown, carry: impl FnOnce(&Opened) -> Carry) -> (Shown, Carry) {
     let carry = match shown.file() {
         Some(probed) => carry(probed),
         None => Carry::Declined(Declined::NoFileShown),

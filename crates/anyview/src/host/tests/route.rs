@@ -17,15 +17,15 @@ fn first<E: ExportChoice>() -> E {
 }
 
 fn requests_of_a_window(
-    image: &anyview_ui::Probed,
-    pdf: &anyview_ui::Probed,
-    notes: &anyview_ui::Probed,
-    recording: &anyview_ui::Probed,
+    image: &anyview_ui::Opened,
+    pdf: &anyview_ui::Opened,
+    notes: &anyview_ui::Opened,
+    recording: &anyview_ui::Opened,
 ) -> Vec<(&'static str, Shown, HostRequest, Carry)> {
-    let open = |probed: &anyview_ui::Probed| {
+    let open = |probed: &anyview_ui::Opened| {
         route(Shown::default(), HostRequest::Opened(probed.clone())).0
     };
-    let path = |probed: &anyview_ui::Probed| probed.source.path().clone();
+    let path = |probed: &anyview_ui::Opened| probed.source.path().clone();
     vec![
         (
             "a newly shown file is recorded as viewed",

@@ -31,6 +31,7 @@ const CODE: &[&str] = &[
 /// `image/*`, `video/*`, `audio/*` and `font/*` name theirs, and text is plain unless it is
 /// source. A type that names nothing the viewer knows is [`FormatKind::Other`]. The bytes can
 /// say more (`sniff` is the authority once a file is open); this is for a row that has none.
+#[must_use]
 pub fn kind_of_mime(mime: &Mime) -> FormatKind {
     let text = mime.as_str();
     if let Some(kind) = exact(text) {

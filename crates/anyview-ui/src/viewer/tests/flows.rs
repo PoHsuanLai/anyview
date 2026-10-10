@@ -139,7 +139,7 @@ fn command_f_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_
         viewer.palette,
         Palette::Open {
             query: TypedText::EMPTY,
-            selection: RowIndex(0),
+            selection: PaletteIndex(0),
             scope: PaletteScope::Find(HitList::Brief),
         }
     );
@@ -195,7 +195,7 @@ fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_ste
         }),
         palette: Palette::Open {
             query: TypedText::new("fox"),
-            selection: RowIndex(0),
+            selection: PaletteIndex(0),
             scope: PaletteScope::Find(HitList::Brief),
         },
         ..Viewer::default()

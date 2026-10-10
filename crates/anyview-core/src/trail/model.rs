@@ -30,9 +30,19 @@ pub enum Trail<V> {
     /// A save is being written; it will keep the version of what it replaces.
     Saving(TrailStacks<V>),
     /// `taken`, the newest of `done`, is being put back.
-    Undoing { stacks: TrailStacks<V>, taken: V },
+    Undoing {
+        /// The trail without `taken`.
+        stacks: TrailStacks<V>,
+        /// The version being put back.
+        taken: V,
+    },
     /// `taken`, the newest of `undone`, is being put back.
-    Redoing { stacks: TrailStacks<V>, taken: V },
+    Redoing {
+        /// The trail without `taken`.
+        stacks: TrailStacks<V>,
+        /// The version being put back.
+        taken: V,
+    },
 }
 
 impl<V> Default for Trail<V> {

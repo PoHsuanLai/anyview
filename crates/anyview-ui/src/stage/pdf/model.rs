@@ -127,8 +127,19 @@ pub struct PdfParams {
     pub viewport: Viewport,
     /// A zoom step's factor in thousandths (setting `viewer.zoom.step`).
     pub step: Permille,
-    /// Whether the pages can be edited: not those of a book, which is a PDF only in the window.
-    pub edits: bool,
+    /// Whether the pages can be edited.
+    pub page_edits: PageEdits,
+}
+
+/// Whether the pages of the open PDF take an edit: the pages of a book do not, since it is a PDF
+/// only in the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PageEdits {
+    /// Pages can be deleted and moved.
+    #[default]
+    Allowed,
+    /// The pages stay as they are.
+    Barred,
 }
 
 impl Default for PdfParams {
@@ -140,7 +151,7 @@ impl Default for PdfParams {
                 fit: Permille::WHOLE,
             },
             step: Permille(1250),
-            edits: true,
+            page_edits: PageEdits::Allowed,
         }
     }
 }

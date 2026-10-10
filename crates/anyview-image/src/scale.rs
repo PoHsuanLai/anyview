@@ -92,6 +92,7 @@ pub(crate) enum Resampling {
 }
 
 /// `picture` resized the way an export asked.
+#[must_use]
 pub fn resized(picture: &Rgba8, resize: Resize) -> Rgba8 {
     resampled(
         picture,

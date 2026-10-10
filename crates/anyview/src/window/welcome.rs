@@ -6,7 +6,7 @@ use super::root::open_in_window;
 use super::seed::{Factory, Seed};
 use crate::host::{Doing, Outcome, Task, tell};
 use anyview_core::FilePath;
-use anyview_ui::{Edge, HostRequest, Presentation, WelcomeApp};
+use anyview_ui::{Edge, HostRequest, Presentation, Services, WelcomeApp};
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{AppEnded, AppHandle, WindowSize, WindowSpec};
@@ -52,10 +52,13 @@ pub fn welcomed_root() -> Element {
 fn Welcome(seed: WelcomeSeed) -> Element {
     let (send, receive) = unbounded();
     let edge = use_hook(|| {
-        Edge::new(Arc::clone(&seed.factory.workers), move |request| {
-            // A window that closed has no receiver, and nobody is left to ask.
-            let _gone = send.unbounded_send(request);
-        })
+        Edge::new(Services::new(
+            Arc::clone(&seed.factory.workers),
+            move |request| {
+                // A window that closed has no receiver, and nobody is left to ask.
+                let _gone = send.unbounded_send(request);
+            },
+        ))
     });
     let taken = use_hook(|| std::rc::Rc::new(std::cell::RefCell::new(Some(receive))));
     let provided = edge.clone();

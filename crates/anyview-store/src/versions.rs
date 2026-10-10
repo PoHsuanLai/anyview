@@ -137,6 +137,7 @@ pub struct Versions {
 
 impl Versions {
     /// The store at `root`, created on the first version.
+    #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Versions {
         Versions {
             root: root.into(),
@@ -145,11 +146,13 @@ impl Versions {
     }
 
     /// The same store with room for `cap` bytes of versions instead of [`DEFAULT_CAP`].
+    #[must_use]
     pub fn with_cap(self, cap: ByteLen) -> Versions {
         Versions { cap, ..self }
     }
 
     /// The store under a person's state directory (`<state>/anyview/versions`).
+    #[must_use]
     pub fn under_state(state: &Path) -> Versions {
         Versions::new(state.join(crate::STORE_FOLDER).join(VERSIONS_FOLDER))
     }

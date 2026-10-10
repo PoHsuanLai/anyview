@@ -56,6 +56,7 @@ pub struct History {
 /// `history` after viewing `entry`: any earlier entry for the same path is dropped, `entry` goes
 /// first, and only the newest `cap` entries stay. The order is the order of recording, so a
 /// clock that stepped back does not reorder the list.
+#[must_use]
 pub fn history_after_view(history: &History, entry: HistoryEntry, cap: HistoryCap) -> History {
     let entries = std::iter::once(entry.clone())
         .chain(

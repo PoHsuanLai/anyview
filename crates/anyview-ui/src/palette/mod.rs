@@ -6,5 +6,5 @@ mod step;
 mod tests;
 
 pub use model::{
-    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteScope, RowIndex,
+    HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
 };

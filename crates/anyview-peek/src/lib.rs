@@ -8,7 +8,10 @@
 //! are an input as they are. [`probe`] and [`peek`] are the two halves, for a caller that holds the
 //! probe between them; [`PeekWorker`] runs `look` off the UI thread.
 //!
-//! Every public item is reached from this root, once.
+//! Every public item is reached from this root, once, except that [`prelude`] names the front doors
+//! a second time for a glob import.
+
+#![warn(missing_docs)]
 
 mod any;
 mod body;
@@ -24,6 +27,7 @@ mod office;
 #[cfg(feature = "pane")]
 mod pane;
 mod pdf;
+pub mod prelude;
 mod probe;
 mod registry;
 mod unavailable;

@@ -22,6 +22,7 @@ pub struct Source {
 
 impl Source {
     /// The file at `path` as it stood at `stamp`.
+    #[must_use]
     pub fn new(path: FilePath, stamp: FileStamp) -> Self {
         Source { path, stamp }
     }

@@ -15,6 +15,7 @@ use pdfrum_edit::EditDoc;
 /// file, one per page for page images (a range that starts past the end has none). The jobs are
 /// independent, so a pool may run them in parallel. Page images carry no metadata: a page has
 /// none to keep.
+#[must_use]
 pub fn plan_export(file: &FilePath, export: PdfExport, count: PageCount) -> Vec<ExportJob> {
     let text = |pages, flavour| ExportJob::WriteText {
         text: TextSource::Pdf {
