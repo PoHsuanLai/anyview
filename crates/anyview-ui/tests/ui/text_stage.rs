@@ -309,12 +309,16 @@ fn a_text_is_edited_in_place_saved_and_asked_about_before_the_window_closes() {
     assert_eq!(harness.count(".ds-titlebar-edited"), 1);
     chord(&mut harness, 'w');
     assert!(
-        harness.html().contains("Save changes to"),
+        harness
+            .html()
+            .contains("Do you want to save the changes made to"),
         "closing asks what to do with the changes"
     );
     press(&mut harness, ShortcutKey::Escape);
     assert!(
-        !harness.html().contains("Save changes to"),
+        !harness
+            .html()
+            .contains("Do you want to save the changes made to"),
         "Cancel keeps the person where they were"
     );
     assert_eq!(harness.count(".ds-edit"), 1, "still editing");
