@@ -1,47 +1,49 @@
-//! The viewer: its pure state machines, and the views that draw them.
+//! The viewer: the views that draw its state machines, and the effects that feed them.
 //!
 //! Every region of the viewer (chrome, panel, palette, sheet, navigation, presentation, loading,
-//! the four stages) is a [`ds_core::machine::Machine`]: it takes an input and the time it
-//! happened, and returns its next state and the effects it wants as data. Those modules read no
-//! clock, touch no file and draw nothing (`scripts/check-boundary.sh` holds them to it). The
-//! effects are carried out by `io` (blocking work for a pool the binary owns, never a thread of
-//! this library), and what the machines say is drawn by `families` and `views`.
+//! the stages) is a [`ds_core::machine::Machine`], and those live in `anyview-machines`, which has
+//! no Dioxus and no window: they take an input and the time it happened, and return their next
+//! state and the effects they want as data. This crate re-exports them, so a caller names
+//! `anyview_ui::Viewer` as ever. The effects are carried out by `io` (blocking work for a pool the
+//! binary owns, never a thread of this library), and what the machines say is drawn by `families`
+//! and `views`.
 //!
 //! Every public item is reached from this root, once, except that [`prelude`] names the front doors
 //! a second time for a glob import.
 
-mod chrome;
-mod command;
-mod context;
-mod edits;
 mod families;
-mod hand;
 mod io;
-mod keys;
-mod load;
 mod look;
-mod navigate;
-mod palette;
-mod panel;
-mod picture;
 pub mod prelude;
-mod presentation;
-mod sheet;
-mod stage;
-mod time;
-mod typed;
-mod viewer;
-mod views;
-
 #[cfg(test)]
 mod testing;
+mod views;
 
-pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
-pub use command::{Command, PictureCommand, StageCommand};
-pub use context::{
-    ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams, ContextPick, Spot,
+pub use anyview_machines::{
+    Act, AfterScrub, Animation, Changes, Choosing, Chrome, ChromeIn, ChromeOut, ChromeParams,
+    Command, ContentClass, ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams,
+    ContextPick, ControlOffer, CropAspect, CropBox, CropGrip, CropLean, CropShape, Departure,
+    Destination, EditCaution, EditFind, EditOffer, EditRequest, Editable, Edited, EndReason,
+    ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption, FindHits,
+    FindOut, FrameCount, FrameDelays, FrameIndex, Freshness, Hand, HandIn, HelperEnd, HelperPhase,
+    HitCount, HitCursor, HitIndex, HitList, HitStep, LineTotal, Load, LoadFailure, LoadFlow,
+    LoadIn, LoadOut, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaAbilities, MediaError, MediaIn,
+    MediaOffer, MediaOut, MediaParams, MediaStage, Motion, Navigate, NavigateIn, NavigateOut,
+    Outside, Pace, PageEdits, PageLines, PageSpan, PageView, Palette, PaletteIn, PaletteIndex,
+    PaletteMove, PaletteOut, PaletteParams, PaletteScope, Panel, PanelIn, PanelOut, PanelParams,
+    PanelSay, PanelTab, PanelTabs, PdfIn, PdfOut, PdfParams, PdfStage, PeekFrame, PictureCommand,
+    PictureEditIn, PictureEditing, PictureEdits, PictureSheet, PictureSheetIn, PictureSheetOut,
+    PinReason, PinReasons, PlayerCommand, PlayerEvent, Playing, Presentation, PresentationIn,
+    PresentationOut, PresentationParams, Press, RasterIn, RasterOut, RasterParams, RasterStage,
+    Regions, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit, Rewind, Route, RowNo,
+    RowStep, Runs, Sheet, SheetIn, SheetNo, SheetOut, SheetParams, SheetTotal, SizePick, Space,
+    Spot, Stage, StageAbilities, StageCommand, StageFamily, StageIn, StageOut, StageParams,
+    StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent, TextIn, TextOut,
+    TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Ticket, Tool, TrackKind,
+    Trashing, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, TrimSpan, TypedText, VersionKey,
+    VersionList, VersionRow, Viewer, ViewerIn, ViewerOut, ViewerParams, Viewport, Wrap, Zone,
+    ZoomDir, format_of, freshness, kind_hint, kind_name, quality_of, route,
 };
-pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
     Area, FamilyVisitor, Finish, FlightId, FoundHits, FrameLook, Held, HitLine, Leaving,
     LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView,
@@ -51,7 +53,6 @@ pub use families::{
     TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size, family_of,
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
-pub use hand::{Hand, HandIn, Space, Tool};
 pub use io::{
     Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,
     HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart,
@@ -60,40 +61,5 @@ pub use io::{
     SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work, WorkKind, WorkLane, Workers,
     folder_sequence,
 };
-pub use keys::{Act, Press, Regions, Route, route};
-pub use load::{
-    Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
-};
 pub use look::{Look, LookFeed};
-pub use navigate::{Navigate, NavigateIn, NavigateOut};
-pub use palette::{
-    HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
-};
-pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
-pub use picture::{
-    CropAspect, CropBox, CropGrip, CropLean, CropShape, PictureEditIn, PictureEditing, PictureEdits,
-};
-pub use presentation::{
-    ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
-};
-pub use sheet::{
-    Departure, ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption,
-    HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
-    PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
-    Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList, VersionRow,
-    format_of, kind_hint, kind_name, quality_of,
-};
-pub use stage::{
-    AfterScrub, Animation, Changes, ControlOffer, Destination, EditFind, Editable, Edited,
-    EndReason, FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor,
-    HitIndex, HitStep, LineTotal, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
-    MediaStage, Motion, Outside, Pace, PageEdits, PageLines, PageView, PdfIn, PdfOut, PdfParams,
-    PdfStage, PlayerCommand, PlayerEvent, Playing, RasterIn, RasterOut, RasterParams, RasterStage,
-    RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage, StageAbilities, StageFamily, StageIn,
-    StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent,
-    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind,
-    TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
-};
-pub use typed::TypedText;
-pub use viewer::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 pub use views::{Launch, ViewerApp, WelcomeApp, stylesheet};

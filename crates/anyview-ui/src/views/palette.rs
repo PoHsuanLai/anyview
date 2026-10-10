@@ -5,9 +5,8 @@
 //! root as they arrive, so the machine is the one place they mean anything.
 
 use super::press::press_of;
-use crate::keys::Act;
 use crate::{
-    Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText,
+    Act, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText,
 };
 use anyview_core::shortcut;
 use chordkit::Context;

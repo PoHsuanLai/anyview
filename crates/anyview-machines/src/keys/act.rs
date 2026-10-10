@@ -176,17 +176,17 @@ impl Act {
 const FORGONE: &[StandardAction] = &[StandardAction::Italic];
 
 /// The viewer's name in the keymap, or `None` if it does not read (a test rules that out).
-pub(crate) fn app() -> Option<AppId> {
+pub fn app() -> Option<AppId> {
     AppId::new(APP).ok()
 }
 
 /// What the viewer registers before any action: the standard actions it forgoes.
-pub(crate) fn standing(app: &AppId) -> Registration {
+pub fn standing(app: &AppId) -> Registration {
     Registration::new(app).forgo_all(FORGONE.iter().copied())
 }
 
 /// Every action the viewer declares with its default chord: its own and those of the file.
-pub(crate) fn rows() -> Vec<(AppAction, DefaultChord)> {
+pub fn rows() -> Vec<(AppAction, DefaultChord)> {
     let own = OWN.iter().filter_map(|(_, id, chord)| {
         Some((
             AppAction::new(id).ok()?,

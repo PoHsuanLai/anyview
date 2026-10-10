@@ -5,7 +5,6 @@ use crate::command::Command;
 use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
 use crate::hand::{Hand, HandIn};
-use crate::io::{PlatformAbilities, SaveEnd};
 use crate::keys::Press;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
@@ -15,6 +14,7 @@ use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Changes, Stage, StageIn, StageOut, StageParams};
+use crate::{PlatformAbilities, SaveEnd};
 use anyview_core::{FileAction, FilePath};
 
 /// One window's viewer: a state per region. Regions are independent machines; what couples them
@@ -90,7 +90,7 @@ pub enum Trashing {
 impl Viewer {
     /// Whether going away from the file shown would lose changes that are not saved: a picture's
     /// edits, or a text's.
-    pub(crate) fn unsaved(&self) -> bool {
+    pub fn unsaved(&self) -> bool {
         let picture = self.picture.is_edited() && matches!(self.stage, Stage::Raster(_));
         let text = self
             .stage

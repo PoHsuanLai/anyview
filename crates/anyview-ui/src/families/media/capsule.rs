@@ -5,8 +5,7 @@
 use super::doc::MediaDoc;
 use super::panel::{clock_text, speed_text};
 use crate::families::view::StageCx;
-use crate::stage::AfterScrub;
-use crate::{Command, ControlOffer, MediaStage, Stage, StageCommand};
+use crate::{AfterScrub, Command, ControlOffer, MediaStage, Stage, StageCommand};
 use anyview_core::{FileAction, FormatKind, MediaLength, MediaTime, Volume};
 use ds::components::chrome::capsule::model::{CapsuleSlot, LevelSlot, ScrubSlot};
 use ds::components::chrome::capsule::priority::RankedSlot;

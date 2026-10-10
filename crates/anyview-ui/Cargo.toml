@@ -1,6 +1,6 @@
 [package]
 name = "anyview-ui"
-description = "The viewer's pure state machines (chrome, panel, palette, sheet, navigation, presentation, loading, the four stages, key routing, the root) and the Dioxus views and stages that draw them."
+description = "The viewer's window: the Dioxus views and stages that draw the state machines of anyview-machines (re-exported here), and the effects that feed them."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,6 +15,8 @@ anyview-core = { workspace = true }
 # `OnDisk`: a path as the input the readers take (core does no I/O).
 anyview-fs = { workspace = true }
 anyview-image = { workspace = true, features = ["encode"] }
+# The state machines the views draw (re-exported from this crate's root).
+anyview-machines = { workspace = true }
 anyview-pdf = { workspace = true }
 # The one probe and the card of a file no stage shows; no `pane` and no `media`: the window draws
 # and plays with its own parts, and the host that links the peek turns both on.

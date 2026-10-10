@@ -3,7 +3,6 @@
 //! implementation for. A seam left alone does nothing (nothing is remembered, no recording
 //! plays), so a host or a test names only what it has.
 
-use super::abilities::PlatformAbilities;
 use super::helpers::{HelperSource, NoHelpers};
 use super::media::{MediaHost, NoPlayer};
 use super::seams::{
@@ -11,6 +10,7 @@ use super::seams::{
     VersionSource,
 };
 use super::workers::{HostRequest, Workers};
+use anyview_machines::PlatformAbilities;
 use anyview_peek::{NoStills, StillSource};
 use std::sync::Arc;
 

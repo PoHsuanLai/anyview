@@ -2,12 +2,12 @@
 
 use super::act::Act;
 use super::model::{Press, Regions, Route};
+use crate::DesktopService;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
 use crate::hand::{HandIn, Tool};
-use crate::io::DesktopService;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn, PanelTab};

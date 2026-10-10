@@ -7,11 +7,11 @@ use super::carry::Carry;
 use super::shelf::{Doc, Settle};
 use crate::families::{Held, found_in};
 use crate::io::{HostRequest, Job, SaveEnd, TextSave};
-use crate::stage::WrapChoices;
 use crate::{
     Changes, Freshness, Outside, Stage, StageIn, TextIn, Ticket, TypedText, ViewerIn, freshness,
 };
 use anyview_core::{FilePath, FileStamp, LineIndex, Source};
+use anyview_machines::seam::WrapChoices;
 use anyview_text::{EditRefusal, EditText, Needle, Session};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastAction;

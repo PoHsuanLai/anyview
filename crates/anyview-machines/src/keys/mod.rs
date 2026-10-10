@@ -8,6 +8,6 @@ mod route;
 mod tests;
 
 pub use act::Act;
-pub(crate) use act::{app, rows, standing};
+pub use act::{app, rows, standing};
 pub use model::{Press, Regions, Route};
 pub use route::route;

@@ -1,11 +1,11 @@
 //! The regions a key can go to, and the states that decide it.
 
 use super::act::Act;
+use crate::PlatformAbilities;
 use crate::chrome::ChromeIn;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
 use crate::hand::HandIn;
-use crate::io::PlatformAbilities;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn};

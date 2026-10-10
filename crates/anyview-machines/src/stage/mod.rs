@@ -33,7 +33,7 @@ pub use raster::{
 };
 pub use row::{RowNo, RowStep};
 pub use table::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
-pub(crate) use text::WrapChoices;
+pub use text::WrapChoices;
 pub use text::{
     Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,
     TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,

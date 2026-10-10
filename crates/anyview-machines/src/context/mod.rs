@@ -8,7 +8,7 @@ mod step;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use entries::entries;
+pub use entries::entries;
 pub use model::{
     ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams, ContextPick, Spot,
 };

@@ -113,6 +113,9 @@ jobs:
       - name: Peek builds headless
         run: cargo check -p anyview-peek --no-default-features --locked
 
+      - name: Machines build
+        run: cargo check -p anyview-machines --locked
+
   peek-windows:
     runs-on: windows-latest
     timeout-minutes: 45
@@ -127,3 +130,6 @@ jobs:
 
       - name: Peek builds headless
         run: cargo check -p anyview-peek --no-default-features --locked
+
+      - name: Machines build
+        run: cargo check -p anyview-machines --locked

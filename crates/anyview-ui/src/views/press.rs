@@ -2,7 +2,8 @@
 //! that resolves to an action of the viewer's is that action, and a key with no command modifier is
 //! the key itself. Which modifier is Command or Ctrl is never decided here.
 
-use crate::keys::{Act, Press, app, rows, standing};
+use crate::{Act, Press};
+use anyview_machines::seam::{app, rows, standing};
 use chordkit::{Context, DefaultChord, Modifier, Platform, PrimaryUse};
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::{Key, KeyboardEvent, Modifiers, use_hook};

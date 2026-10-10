@@ -8,9 +8,9 @@ use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
     use_pdf_shelf,
 };
-use crate::stage::WrapChoices;
 use crate::{PlatformAbilities, Ticket, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
+use anyview_machines::seam::WrapChoices;
 use dioxus::prelude::*;
 use ds::host::measure::use_rect;
 use ds::machine::MachineRef;

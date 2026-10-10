@@ -7,12 +7,10 @@ use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::notice::Notice;
 use super::seams::{FileAccess, FileLocks, ImagePlugins, ResumeSource, VersionSource};
-use super::workers::SaveEnd;
 use crate::families::{
     FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
-use crate::sheet::VersionRow;
-use crate::{StageFamily, Ticket, TypedText};
+use crate::{SaveEnd, StageFamily, Ticket, TypedText, VersionRow};
 use anyview_core::work::Stop;
 use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_peek::StillSource;
