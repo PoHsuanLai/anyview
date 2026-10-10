@@ -98,6 +98,10 @@ pub struct StageCx {
     pub stage: Stage,
     /// The pan tool: whether a drag on a picture pans it.
     pub hand: crate::Hand,
+    /// What has been done to the open picture and not saved, and the crop rectangle being drawn.
+    pub picture: crate::PictureEdits,
+    /// An input for the picture's edits (the crop rectangle's grips and buttons).
+    pub edit: EventHandler<crate::PictureEditIn>,
     /// The load this document belongs to.
     pub ticket: Ticket,
     /// The room, once measured.

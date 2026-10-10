@@ -2,12 +2,16 @@ use crate::chrome::{Chrome, ChromeOut, PinReason, PinReasons};
 use crate::command::{Command, StageCommand};
 use crate::palette::{Palette, PaletteIndex, PaletteParams, PaletteScope};
 use crate::panel::{PanelParams, PanelTab, PanelTabs};
+use crate::picture::{PictureEditIn, PictureEditing, PictureEdits};
 use crate::presentation::{ContentClass, PresentationParams};
 use crate::sheet::ExportDraft;
 use crate::stage::{MediaStage, Pace, RasterStage, Stage};
 use crate::typed::TypedText;
 use crate::viewer::{ViewerOut, ViewerParams};
-use anyview_core::{FileAction, MediaLength, MediaTime, RasterExport, RasterTarget, Resize};
+use anyview_core::{
+    DocPoint, FileAction, MediaLength, MediaTime, PixelLen, PixelSize, RasterExport, RasterTarget,
+    Resize, Resume, Zoom,
+};
 use ds_core::vocab::Shown;
 use std::time::Duration;
 
@@ -41,6 +45,27 @@ pub(super) fn params() -> ViewerParams {
 
 pub(super) fn image() -> Stage {
     Stage::Raster(RasterStage::default())
+}
+
+/// A picture that has landed and can be saved with changes: 400 by 300 pixels.
+pub(super) fn editable() -> PictureEdits {
+    PictureEdits::default().step(PictureEditIn::Landed {
+        size: Some(PixelSize {
+            width: PixelLen(400),
+            height: PixelLen(300),
+        }),
+        editing: PictureEditing::Allowed,
+    })
+}
+
+/// What the stage says when it is brought back to fitting the window after the picture changed.
+pub(super) fn refitted() -> ViewerOut {
+    ViewerOut::Stage(crate::stage::StageOut::Raster(
+        crate::stage::RasterOut::Remember(Resume::Raster {
+            zoom: Zoom::Fit,
+            centre: DocPoint::default(),
+        }),
+    ))
 }
 
 pub(super) fn length() -> MediaLength {

@@ -7,3 +7,18 @@
 /* A picture has no text to select. Blitz starts a selection drag once a held button moves more than two pixels and then drops the
    contextmenu event on release, so a secondary click with the slightest hand movement would open no menu. */
 .viewer-raster, .viewer-raster-picture, .viewer-raster-picture *{ user-select:none; }
+
+/* The crop tool: the picture dimmed outside the rectangle, its frame with eight handles, the guides that cut it in thirds
+   while a grip is held, and the bar of shapes below. The pieces over the picture take no pointer (the stage's own press
+   finds the grip); the bar does. Tokens only. */
+.viewer-raster[*|data-crop=on]{ cursor:crosshair; }
+.viewer-crop{ position:absolute; inset:0; pointer-events:none; }
+.viewer-crop-dim{ position:absolute; background:var(--scrim); pointer-events:none; }
+.viewer-crop-frame{ position:absolute; box-sizing:border-box; border:var(--hair) solid var(--accent-ink); pointer-events:none; }
+.viewer-crop-guide{ position:absolute; border-style:solid; border-color:var(--lock-ink-soft); border-width:0; pointer-events:none; }
+.viewer-crop-guide[*|data-axis=column]{ border-left-width:var(--hair); }
+.viewer-crop-guide[*|data-axis=row]{ border-top-width:var(--hair); }
+.viewer-crop[*|data-dragging=off] .viewer-crop-guide{ display:none; }
+.viewer-crop-handle{ position:absolute; box-sizing:border-box; width:var(--s-12); height:var(--s-12); margin:calc(var(--s-12) / -2) 0 0 calc(var(--s-12) / -2); border-radius:var(--r-micro); background:var(--accent-ink); box-shadow:var(--shadow-handle); pointer-events:none; }
+.viewer-crop-dock{ position:absolute; left:0; right:0; bottom:calc(var(--s-48) * 2); display:flex; justify-content:center; pointer-events:none; }
+.viewer-crop-bar{ display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-8); border-radius:var(--r-card); background:var(--raise); box-shadow:var(--shadow-pop); pointer-events:auto; }

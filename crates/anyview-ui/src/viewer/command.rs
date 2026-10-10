@@ -1,10 +1,12 @@
 //! What a palette row does: the root decides which region a command belongs to.
 
 use super::model::{Viewer, ViewerOut, ViewerParams};
+use super::picture::{adjust_size, picture, save};
 use super::region::{Step, presentation, sheet, stage};
-use crate::command::{Command, StageCommand};
+use crate::command::{Command, PictureCommand, StageCommand};
 use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
+use crate::picture::PictureEditIn;
 use crate::presentation::PresentationIn;
 use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
 use crate::stage::{Stage, StageIn, TextIn};
@@ -21,6 +23,8 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
         },
         Command::File(action) => file_action(viewer, action, at, params),
         Command::UseTool(tool) => (super::step::hand(viewer, HandIn::Use(tool)), vec![]),
+        Command::Picture(PictureCommand::AdjustSize) => adjust_size(viewer, at, params),
+        Command::Picture(PictureCommand::Save) => save(viewer, at, params),
         Command::FindHit(hit) => match viewer.stage.hit_input(hit) {
             Some(input) => stage(viewer, input, at, params),
             None => (viewer, vec![]),
@@ -50,7 +54,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
 
 /// The export sheet for what the stage shows. A recording's depends on what is installed: with
 /// nothing on offer the sheet says which package adds the exports.
-fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
+pub(super) fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     let opening = match viewer.stage.abilities().export {
         None => None,
         Some(ExportFamily::Media) => {
@@ -116,12 +120,18 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
 /// has no such edit, and the host says so. An edit that loses something is asked about first, and
 /// one the file cannot take at all does nothing.
 fn edit(viewer: Viewer, edit: Edit, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
+    // A picture's edits wait in the viewer until the person saves them.
+    if matches!(viewer.stage, Stage::Raster(_)) {
+        return picture_edit(viewer, edit, at, params);
+    }
     let asked = match &viewer.stage {
-        Stage::Raster(_) => Some(EditRequest::of_picture(edit)),
         Stage::Pdf(stage) => Some(EditRequest::on_page(edit, stage.place().page)),
-        Stage::NoStage | Stage::Media(_) | Stage::Text(_) | Stage::Table(_) | Stage::Tree(_) => {
-            None
-        }
+        Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Media(_)
+        | Stage::Text(_)
+        | Stage::Table(_)
+        | Stage::Tree(_) => None,
     };
     match (asked, params.sheet.edit) {
         (Some(_), EditOffer::Withheld) => (viewer, vec![]),
@@ -131,4 +141,16 @@ fn edit(viewer: Viewer, edit: Edit, action: FileAction, at: Stamp, params: &View
         (Some(request), EditOffer::Plain) => (viewer, vec![ViewerOut::Edit(request)]),
         (None, _) => (viewer, vec![ViewerOut::Run(action)]),
     }
+}
+
+/// A turn or a mirror of the picture: it is part of what is shown now and saved with ⌘S.
+fn picture_edit(viewer: Viewer, edit: Edit, at: Stamp, params: &ViewerParams) -> Step {
+    let input = match edit {
+        Edit::Rotate(turn) => PictureEditIn::Turn(turn),
+        Edit::Flip(axis) => PictureEditIn::Flip(axis),
+        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) => {
+            return (viewer, vec![]);
+        }
+    };
+    picture(viewer, input, at, params)
 }

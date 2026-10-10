@@ -2,20 +2,23 @@
 //! crosses regions.
 
 use super::command::run;
-use super::model::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+use super::model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+use super::picture::{answered, crop_key, crop_synced, leaving, picture, picture_in, save, walks};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
 use crate::context::{ContextIn, ContextOut, ContextPick};
-use crate::hand::HandIn;
+use crate::edits::Rewind;
+use crate::hand::{HandIn, Tool};
 use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
 use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope};
-use crate::panel::{PanelIn, PanelTab};
+use crate::panel::{Panel, PanelIn, PanelOut, PanelTab};
+use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::Presentation;
-use crate::sheet::{Sheet, SheetIn, SheetOut};
+use crate::sheet::{PictureDeparture, Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn};
 use crate::typed::TypedText;
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
@@ -35,7 +38,7 @@ impl Machine for Viewer {
         let (viewer, mut outs) = apply(self, input, at, params);
         let (viewer, pinned) = synced(viewer, &before, at, params);
         outs.extend(pinned);
-        (viewer, outs)
+        (crop_synced(viewer), outs)
     }
 
     /// The earliest wake of any region; only the chrome keeps a timer, so a viewer at rest runs
@@ -60,15 +63,20 @@ impl Machine for Viewer {
 
 fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> Step {
     match input {
-        ViewerIn::Open(path) => begin(viewer, &path, at, params),
+        ViewerIn::Open(path) => leaving(viewer, PictureDeparture::Open(path), at, params),
         ViewerIn::Reload(path) => reload(viewer, &path, at),
-        ViewerIn::Dropped(paths) => dropped(viewer, paths, at, params),
+        ViewerIn::Dropped(paths) if paths.is_empty() => (viewer, vec![]),
+        ViewerIn::Dropped(paths) => leaving(viewer, PictureDeparture::Dropped(paths), at, params),
         ViewerIn::Chosen(paths) => {
             let viewer = Viewer {
                 choosing: Choosing::Not,
                 ..viewer
             };
-            dropped(viewer, paths, at, params)
+            if paths.is_empty() {
+                (viewer, vec![])
+            } else {
+                leaving(viewer, PictureDeparture::Chosen(paths), at, params)
+            }
         }
         ViewerIn::Load(input) => load(viewer, input, at, params),
         ViewerIn::Chrome(input) => chrome(viewer, input, at, params),
@@ -80,6 +88,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Presentation(input) => presentation(viewer, input, at, params),
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
         ViewerIn::Hand(input) => (hand(viewer, input), vec![]),
+        ViewerIn::Picture(input) => picture_in(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
         ViewerIn::Elapsed => elapsed(viewer, at, params),
@@ -90,17 +99,23 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
 /// so a different file opens as the first did and nothing of the last answers inputs meant for the
 /// next one. The stage (its zoom, place, turn and find), the sheet, the palette and the context
 /// menu are all about the file left. The side panel stays up, as a sidebar does in Preview.
-fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerParams) -> Step {
+pub(super) fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerParams) -> Step {
     let (viewer, mut outs) = restart(viewer, path, at, |ticket, path| ViewerOut::Probe {
         ticket,
         path,
     });
+    // The tool is the person's choice and carries to the next file, except the crop tool, which is
+    // about the picture left; a held Space and the picture's place are about the file left too.
+    let mut hand = viewer.hand.step(HandIn::SpaceUp);
+    if hand.tool == Tool::Crop {
+        hand.tool = Tool::Pan;
+    }
     let viewer = Viewer {
         stage: Stage::NoStage,
         trashing: Trashing::Not,
-        // The tool is the person's choice and carries to the next file; a held Space and the
-        // picture's place are about the file left.
-        hand: viewer.hand.step(HandIn::SpaceUp),
+        hand,
+        picture: PictureEdits::default(),
+        after_save: None,
         ..viewer
     };
     let (viewer, more) = sheet(viewer, SheetIn::Cancel, at, params);
@@ -117,6 +132,8 @@ fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerParams) -> S
 pub(super) fn hand(viewer: Viewer, input: HandIn) -> Viewer {
     let pans_here = matches!(viewer.stage, Stage::Raster(_));
     match (input, pans_here) {
+        // Only a picture that can be saved with changes has a crop tool.
+        (HandIn::Use(Tool::Crop), _) if !(pans_here && viewer.picture.can_edit()) => viewer,
         (HandIn::SpaceUp, _) | (HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown, true) => {
             Viewer {
                 hand: viewer.hand.step(input),
@@ -175,7 +192,12 @@ pub(super) fn choose(viewer: Viewer) -> Step {
 
 /// Files dropped on the window, or chosen in a file chooser. The first opens and the walk is over until a list for it exists:
 /// one file's list is its folder (asked of the window), many files are the list.
-fn dropped(viewer: Viewer, paths: Vec<FilePath>, at: Stamp, params: &ViewerParams) -> Step {
+pub(super) fn dropped(
+    viewer: Viewer,
+    paths: Vec<FilePath>,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
     let Some(first) = paths.first().cloned() else {
         return (viewer, vec![]);
     };
@@ -230,12 +252,23 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
                 .map_or(viewer.stage.clone(), |family| {
                     kept_or_new(&viewer.stage, family, params)
                 });
-            let outs = outs.into_iter().map(ViewerOut::Load).collect();
+            let family = outs.iter().find_map(|out| match out {
+                LoadOut::UseStage(family) => Some(*family),
+                LoadOut::Probe(_)
+                | LoadOut::Peek(_)
+                | LoadOut::Open(_)
+                | LoadOut::Cancel(_)
+                | LoadOut::ShowFirstFrame(_)
+                | LoadOut::ShowFull(_) => None,
+            });
+            let mut outs: Vec<ViewerOut> = outs.into_iter().map(ViewerOut::Load).collect();
             let viewer = Viewer {
                 load,
                 stage,
                 ..viewer
             };
+            let (viewer, opened) = paged(viewer, family);
+            outs.extend(opened);
             if vanished {
                 gone(viewer, at, params)
             } else {
@@ -243,6 +276,27 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
             }
         }
     }
+}
+
+/// A PDF or a book opens the side panel on its pages, as Preview does, until the person has said
+/// what they want of the panel in this window. (The tab is set directly: the file's tabs are not
+/// known until it lands, and the window shows the first tab the file has when this one is not.)
+fn paged(viewer: Viewer, family: Option<StageFamily>) -> Step {
+    let opens = family == Some(StageFamily::Pdf)
+        && viewer.panel_said == PanelSay::Unsaid
+        && viewer.panel == Panel::Hidden;
+    if !opens {
+        return (viewer, vec![]);
+    }
+    (
+        Viewer {
+            panel: Panel::Shown {
+                tab: PanelTab::Thumbnails,
+            },
+            ..viewer
+        },
+        vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Thumbnails))],
+    )
 }
 
 /// The file on screen is not on disk. With others in the list the walk moves on and the file
@@ -274,6 +328,18 @@ fn sheet_in(
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
+    // Backing out of the question about a save that loses something leaves the person where they
+    // were: nothing is waiting on that save any more.
+    let after_save =
+        if matches!(viewer.sheet, Sheet::ConfirmEdit { .. }) && input == SheetIn::Cancel {
+            None
+        } else {
+            viewer.after_save.clone()
+        };
+    let viewer = Viewer {
+        after_save,
+        ..viewer
+    };
     let (viewer, outs) = sheet(viewer, input, at, params);
     let trashed = outs
         .iter()
@@ -283,7 +349,7 @@ fn sheet_in(
     } else {
         viewer.trashing
     };
-    (Viewer { trashing, ..viewer }, outs)
+    answered(Viewer { trashing, ..viewer }, outs, at, params)
 }
 
 /// The stage for a file of `family`: the one showing when it is already of that family (a reload
@@ -441,6 +507,20 @@ fn can_open_context(viewer: &Viewer) -> bool {
 
 /// A move along the sequence; landing on a file begins loading it.
 fn navigate(viewer: Viewer, input: NavigateIn, at: Stamp, params: &ViewerParams) -> Step {
+    if walks(&input) {
+        leaving(viewer, PictureDeparture::Walk(input), at, params)
+    } else {
+        navigate_now(viewer, input, at, params)
+    }
+}
+
+/// A move along the sequence that goes ahead whatever is unsaved.
+pub(super) fn navigate_now(
+    viewer: Viewer,
+    input: NavigateIn,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
     let (navigate, outs) = viewer.navigate.clone().step(input, at, &(), &());
     let viewer = Viewer { navigate, ..viewer };
     outs.into_iter()
@@ -458,6 +538,9 @@ fn navigate(viewer: Viewer, input: NavigateIn, at: Stamp, params: &ViewerParams)
 }
 
 fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> Step {
+    if let Some(input) = crop_key(&viewer, key.keys().as_slice()) {
+        return picture(viewer, input, at, params);
+    }
     let routed = route(
         key,
         Regions {
@@ -478,10 +561,11 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Context(input) => context(viewer, input, at, params),
         Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),
-        Route::CloseWindow => (viewer, vec![ViewerOut::CloseWindow]),
+        Route::CloseWindow => leaving(viewer, PictureDeparture::Close, at, params),
+        Route::Save => save(viewer, at, params),
         Route::OpenFile => choose(viewer),
-        Route::Rewind(rewind) => (viewer, vec![ViewerOut::Rewind(rewind)]),
-        Route::Dismiss => dismissed(viewer),
+        Route::Rewind(rewind) => rewound(viewer, rewind, at, params),
+        Route::Dismiss => dismissed(viewer, at, params),
         Route::Stage(input) => stage(viewer, input, at, params),
         Route::Hand(input) => (hand(viewer, input), vec![]),
         Route::Navigate(input) => navigate(viewer, input, at, params),
@@ -506,11 +590,25 @@ fn file_key(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) ->
     }
 }
 
+/// ⌘Z and ⇧⌘Z: an edit of the picture that is not saved is taken back or done again first; with
+/// none, it is the file's last save that is.
+fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> Step {
+    let input = match rewind {
+        Rewind::Undo if viewer.picture.can_undo() => Some(PictureEditIn::Undo),
+        Rewind::Redo if viewer.picture.can_redo() => Some(PictureEditIn::Redo),
+        Rewind::Undo | Rewind::Redo => None,
+    };
+    match input {
+        Some(input) => picture(viewer, input, at, params),
+        None => (viewer, vec![ViewerOut::Rewind(rewind)]),
+    }
+}
+
 /// Esc with nothing open: a quick look closes; a window, a mini window and a background session
 /// stay.
-fn dismissed(viewer: Viewer) -> Step {
+fn dismissed(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.presentation {
-        Presentation::Peek => (viewer, vec![ViewerOut::CloseWindow]),
+        Presentation::Peek => leaving(viewer, PictureDeparture::Close, at, params),
         Presentation::Window | Presentation::Mini | Presentation::Background => (viewer, vec![]),
     }
 }

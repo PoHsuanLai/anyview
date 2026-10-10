@@ -6,6 +6,27 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **The window's own close button does not ask about unsaved picture edits.** ⌘W, a quick look's Esc, opening
+  another file and the arrow keys ask Save, Don't Save or Cancel (`viewer/picture.rs` `leaving`); the traffic
+  light and the window manager's close reach quire's `CloseRequested` (`ds-blitz/window_shell.rs`) with no hook
+  for the app to answer. Ends when quire lets a window hold a close request until the app has answered.
+- **A picture's edits are saved in its own format only where anyview-image has a writer.** A cut or a resize of a
+  JPEG is encoded again at quality 92 (a turn or a mirror alone stays lossless through the orientation tag); a
+  PNG or TIFF with 16-bit samples or a palette comes back as 8-bit RGBA when it is cut or resized (the save asks
+  first when the file's headers say something would be lost); a GIF, an icon, an AVIF and the rest have no writer,
+  so their edit tools are not offered and ⌘S offers the Export dialog. Ends when an `Adjust` can be exported
+  (`PixelSource` takes one), so that a picture with no writer can be edited and exported.
+- **Adjust Size does not estimate the file's new size, and a resized picture is not drawn at its new size.** The
+  dialog says the new width and height; the stage keeps showing the kept part at its own pixels until it is saved
+  and read again. Ends when the size of the encoded file can be had cheaply (a lossless estimate from the area
+  ratio is what Preview shows).
+- **The crop rectangle's grips are found with the pointer events of the picture's root.** A press outside the
+  rectangle and farther than 10 logical pixels from an edge takes nothing (a new rectangle cannot be drawn
+  from scratch, as Photos does not either); the guides are drawn at whole pixels of the picture.
+- **A mirror is drawn with `scaleX(-1)` on the texture's box, and the turn with `rotate`.** The headless
+  harness renders both, but nothing has measured the transform on a GPU texture layer on a real desktop yet;
+  `RasterStage::turn` stays unused (the edits hold the turn). The harness tests (`tests/ui/edits.rs`) read the
+  pixels of a turn and a flip; ends when a screenshot of each has been looked at on a real output.
 - **A book is bound as a PDF all at once, on the open worker.** `families/pdf/bound` lays every chapter out
   before the window shows the first page, behind the load skeleton. Measured in a release build on a loaded
   machine (load 80): a novel of 117 000 words (30 chapters, 209 pages) is laid out in 1.0 s, an omnibus of
@@ -61,9 +82,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   `ToolbarItem` has no key to give a button, so the capsule says the name alone ("Zoom In"); the mode controls
   in the titlebar (`Pointer Tool  H`, `View Mode  V`) carry theirs. `~/av-wt/design/quire-capsule-shortcut.patch`
   adds `ToolbarItem::shortcut`. Ends when quire takes it.
-- **The panel is not open by default for a PDF or a book.** The design standard opens the thumbnails for them;
-  the panel machine starts closed for every file and stays as the person left it from file to file. Ends when
-  the open-by-default rule is wanted.
 - **The Data modality is not built.** Tables are still a header and quire `Row`s in a `VirtualList` with guessed column
   widths, and no sticky header rule, resizable columns or sort. It needs quire's virtual-row `Table` (lane Q).
 - **The text view's wrap is on for every text file.** The standard has it on for plain text and off for code;

@@ -7,12 +7,11 @@ use crate::command::Command;
 use crate::context::{
     ContextEntry, ContextIn, ContextMenu, ContextParams, ContextPick, Spot, entries,
 };
-use crate::edits::EditRequest;
 use crate::load::{Load, Ticket};
 use crate::panel::{Panel, PanelTab};
 use crate::sheet::Sheet;
 use crate::viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
-use anyview_core::{Edit, FileAction, QuarterTurn};
+use anyview_core::{Adjust, FileAction, QuarterTurn};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::{Shortcut, ShortcutKey};
@@ -114,13 +113,20 @@ fn the_menu_does_not_open_over_a_sheet_the_palette_or_a_file_that_is_not_showing
 
 #[test]
 fn a_picked_row_runs_as_the_palettes_row_does() {
-    let (viewer, _) = step(showing(), ViewerIn::Context(ContextIn::Open(HERE)));
+    let editing = Viewer {
+        picture: editable(),
+        ..showing()
+    };
+    let (viewer, _) = step(editing, ViewerIn::Context(ContextIn::Open(HERE)));
     let (viewer, outs) = step(viewer, ViewerIn::Context(ContextIn::Pick(ROTATE)));
     assert_eq!(
         outs,
-        vec![ViewerOut::Edit(EditRequest::of_picture(Edit::Rotate(
-            QuarterTurn::ThreeQuarter
-        )))]
+        vec![refitted()],
+        "the turn waits for a save, and the picture fits the window again"
+    );
+    assert_eq!(
+        viewer.picture.adjust(),
+        Adjust::NONE.turned(QuarterTurn::ThreeQuarter)
     );
     // The menu fades out before it closes, so a pick leaves it up until the close arrives.
     assert_eq!(viewer.context, ContextMenu::Open { at: HERE });

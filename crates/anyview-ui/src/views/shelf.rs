@@ -3,7 +3,7 @@
 //! field is a signal, so the shelf is `Copy` and any handler or effect can take it.
 
 use super::preloads::Preloads;
-use super::session::{Live, Probe, params};
+use super::session::{Live, PictureOffer, Probe, params};
 use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
     use_pdf_shelf,
@@ -131,6 +131,14 @@ pub(super) fn viewer_params(
             platform: shelf.platform,
             tool: state.hand.tool,
             marks: shelf.media.peek().marks,
+            picture: if state.picture.is_edited() {
+                PictureOffer::Edited
+            } else if state.picture.can_edit() {
+                PictureOffer::Pristine
+            } else {
+                PictureOffer::Unavailable
+            },
+            adjust: state.picture.adjust(),
         },
     )
 }

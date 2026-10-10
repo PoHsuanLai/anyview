@@ -3,7 +3,9 @@
 
 use super::support::{desktop, path, probed};
 use crate::host::{Carry, Declined, Hosting, Outcome, Shown, Task, route};
-use anyview_core::{Axis, Edit, FilePath, PageIndex, PageRange, QuarterTurn};
+use anyview_core::{
+    Adjust, Axis, Edit, FilePath, PageIndex, PageRange, PixelLen, PixelRect, PixelSize, QuarterTurn,
+};
 use anyview_image::ExifFacts;
 use anyview_pdf::PdfDocument;
 use anyview_store::{SavedAt, VersionId, Versions};
@@ -425,4 +427,45 @@ async fn a_save_that_wrote_nothing_drops_what_waited_for_it() {
         .after(&Outcome::NotWritten("the disk is full".to_owned()))
         .next_queued();
     assert_eq!(again, None, "the file is as it was: nothing to undo");
+}
+
+#[tokio::test]
+async fn a_cut_jpeg_is_saved_in_place_upright_with_its_original_kept() {
+    // The fixture is 48 by 32 stored and orientation 6, so 32 by 48 as it is shown.
+    let dir = tempfile::tempdir().unwrap();
+    let file = probed(dir.path(), "a.jpg", JPEG);
+    let (desktop, _) = desktop(dir.path());
+    let adjust = Adjust {
+        crop: Some(PixelRect {
+            left: PixelLen(0),
+            top: PixelLen(0),
+            size: PixelSize {
+                width: PixelLen(16),
+                height: PixelLen(24),
+            },
+        }),
+        ..Adjust::NONE
+    };
+    let outcome = desktop
+        .carry_out(Task::Edit {
+            file: file.clone(),
+            request: EditRequest::of_picture(Edit::Adjust(adjust)),
+        })
+        .await
+        .unwrap();
+    kept_of(&outcome);
+    let saved = bytes_of(&file);
+    assert_eq!(
+        tag(&saved),
+        1,
+        "the turn is in the pixels, so the tag is upright"
+    );
+    let after = image::load_from_memory(&saved).unwrap();
+    assert_eq!(
+        (after.width(), after.height()),
+        (16, 24),
+        "the file holds the cut"
+    );
+    let kept = versions_of(dir.path(), &file);
+    assert_eq!(kept.len(), 1, "the original was kept first");
 }

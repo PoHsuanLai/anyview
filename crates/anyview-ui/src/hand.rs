@@ -1,6 +1,7 @@
-//! The pointer tool: whether a drag on a zoomed picture pans it. Pan is the default, as in Preview,
-//! Photos and Loupe; Select is the other choice of Preview's tool control, and holding Space pans
-//! for as long as the key is down. The wheel and the touchpad pan whatever the tool says.
+//! The pointer tool: whether a drag on a zoomed picture pans it, or draws a crop. Pan is the
+//! default, as in Preview, Photos and Loupe; Select is the other choice of Preview's tool control,
+//! Crop is the third (a mode with its own rectangle, as in Photos), and holding Space pans for as
+//! long as the key is down. The wheel and the touchpad pan whatever the tool says.
 
 /// The tool, set by its control, its key or its palette row. It carries from file to file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -10,13 +11,15 @@ pub enum Tool {
     /// A drag pans.
     #[default]
     Pan,
+    /// A drag moves the corners and edges of a crop rectangle.
+    Crop,
 }
 
 impl Tool {
-    /// The other tool.
+    /// The other of Select and Pan, which H switches between; Crop goes back to Pan.
     pub fn other(self) -> Tool {
         match self {
-            Tool::Select => Tool::Pan,
+            Tool::Select | Tool::Crop => Tool::Pan,
             Tool::Pan => Tool::Select,
         }
     }
@@ -26,6 +29,7 @@ impl Tool {
         match self {
             Tool::Select => "Select",
             Tool::Pan => "Pan",
+            Tool::Crop => "Crop",
         }
     }
 }
@@ -131,6 +135,24 @@ mod tests {
                 ],
                 false,
                 Tool::Select,
+            ),
+            (
+                "crop chosen holds nothing out",
+                &[HandIn::Use(Tool::Crop)],
+                false,
+                Tool::Crop,
+            ),
+            (
+                "the other tool from crop is pan",
+                &[HandIn::Use(Tool::Crop), HandIn::Toggle],
+                true,
+                Tool::Pan,
+            ),
+            (
+                "space held over crop pans for as long as it is down",
+                &[HandIn::Use(Tool::Crop), HandIn::SpaceDown],
+                true,
+                Tool::Crop,
             ),
             (
                 "a repeated key is one hold",

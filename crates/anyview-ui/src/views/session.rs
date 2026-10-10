@@ -12,7 +12,7 @@ use crate::{
     PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams,
     TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
 };
-use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
+use anyview_core::{Adjust, FileAction, FormatKind, Reach, actions_for, reach};
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::MotionLevel;
@@ -138,6 +138,21 @@ pub(super) struct Live {
     pub tool: crate::Tool,
     /// What the person marked to keep of the recording.
     pub marks: crate::TrimMarks,
+    /// What the open picture can be changed with.
+    pub picture: PictureOffer,
+    /// What has been done to the open picture.
+    pub adjust: Adjust,
+}
+
+/// What editing the open picture offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PictureOffer {
+    /// The file is not a picture that can be saved with changes.
+    Unavailable,
+    /// It can be, and nothing has been done to it.
+    Pristine,
+    /// It can be, and there are changes that are not saved.
+    Edited,
 }
 
 /// What the open file allows and offers, as the commands' filters read it.
@@ -216,6 +231,26 @@ pub(super) fn commands(
         .collect()
 }
 
+/// The commands for editing the open picture: the crop tool, a new size, and saving what has been
+/// done. They are listed when the picture can be saved with changes; Save only once there are some.
+fn picture_commands(stage: &Stage, offer: PictureOffer, tool: crate::Tool) -> Vec<Command> {
+    if !matches!(stage, Stage::Raster(_)) {
+        return Vec::new();
+    }
+    match offer {
+        PictureOffer::Unavailable => Vec::new(),
+        PictureOffer::Pristine | PictureOffer::Edited => {
+            let crop = (tool != crate::Tool::Crop).then_some(Command::UseTool(crate::Tool::Crop));
+            let save = (offer == PictureOffer::Edited)
+                .then_some(Command::Picture(crate::PictureCommand::Save));
+            crop.into_iter()
+                .chain([Command::Picture(crate::PictureCommand::AdjustSize)])
+                .chain(save)
+                .collect()
+        }
+    }
+}
+
 /// Whether `command` changes the pages of the PDF it is run on.
 fn edits_pages(command: StageCommand) -> bool {
     matches!(
@@ -239,6 +274,7 @@ pub(super) fn offered_slots(
                 Command::Stage(_)
                 | Command::OpenFile
                 | Command::UseTool(_)
+                | Command::Picture(_)
                 | Command::ShowView(_)
                 | Command::FindHit(_)
                 | Command::ShowAllHits
@@ -356,6 +392,8 @@ pub(super) fn params(
         platform,
         tool,
         marks,
+        picture,
+        adjust,
     } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
@@ -376,6 +414,13 @@ pub(super) fn params(
             ..StageParams::default()
         },
     };
+    if let (Stage::Raster(raster), Some(area), Some(doc), false) =
+        (stage, area, doc, adjust.is_none())
+        && let Some(NaturalSize::Pixels(base)) = doc.view().natural()
+    {
+        measured.raster =
+            crate::families::adjusted_raster(measured.raster.clone(), raster, base, adjust, area);
+    }
     measured.media.abilities = abilities;
     measured.raster.motion = match level {
         MotionLevel::Reduced => Motion::Reduced,
@@ -400,7 +445,8 @@ pub(super) fn params(
         platform,
         tool,
     };
-    let listed = commands(kind, stage, &measured, offers);
+    let mut listed = commands(kind, stage, &measured, offers);
+    listed.extend(picture_commands(stage, picture, tool));
     let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
     if matches!(stage, Stage::Media(_)) {
         panel.tabs = crate::families::media_tabs(panel.tabs, abilities);
@@ -413,6 +459,7 @@ pub(super) fn params(
             Command::Stage(_)
             | Command::OpenFile
             | Command::UseTool(_)
+            | Command::Picture(_)
             | Command::ShowView(_)
             | Command::FindHit(_)
             | Command::ShowAllHits
@@ -839,5 +886,32 @@ mod tests {
         for (name, label, query, want) in CASES {
             assert_eq!(names(label, query), *want, "{name}");
         }
+    }
+    #[test]
+    fn a_picture_that_can_be_saved_lists_crop_adjust_size_and_save_once_it_has_changes() {
+        let picture = Stage::for_family(family_of(FormatKind::Raster), TextViews::default());
+        let pdf = Stage::for_family(family_of(FormatKind::Pdf), TextViews::default());
+        let words = |stage: &Stage, offer, tool| {
+            picture_commands(stage, offer, tool)
+                .iter()
+                .map(Command::label)
+                .collect::<Vec<_>>()
+        };
+        let pan = crate::Tool::Pan;
+        assert_eq!(
+            words(&picture, PictureOffer::Pristine, pan),
+            ["Crop", "Adjust Size\u{2026}"]
+        );
+        assert_eq!(
+            words(&picture, PictureOffer::Edited, pan),
+            ["Crop", "Adjust Size\u{2026}", "Save"]
+        );
+        assert_eq!(
+            words(&picture, PictureOffer::Edited, crate::Tool::Crop),
+            ["Adjust Size\u{2026}", "Save"],
+            "the tool already chosen is not offered"
+        );
+        assert!(words(&picture, PictureOffer::Unavailable, pan).is_empty());
+        assert!(words(&pdf, PictureOffer::Edited, pan).is_empty());
     }
 }

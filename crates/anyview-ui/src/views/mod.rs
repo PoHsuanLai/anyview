@@ -15,10 +15,12 @@ mod keys;
 mod palette;
 mod panel;
 mod preloads;
+mod resize;
 mod scrub;
 mod session;
 mod sheet;
 mod shelf;
+mod unsaved;
 mod welcome;
 mod window;
 

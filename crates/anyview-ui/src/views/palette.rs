@@ -4,7 +4,7 @@
 //! Enter runs; this draws its rows and hands the keys it takes (arrows, Enter, Esc, ⌘K, ⌘F) to the
 //! root as they arrive, so the machine is the one place they mean anything.
 
-use crate::{Command, HitLine, PaletteIndex, PaletteScope, TypedText};
+use crate::{Command, HitLine, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText};
 use anyview_core::shortcut;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
@@ -19,7 +19,16 @@ fn keys_of(command: &Command) -> Option<Shortcut> {
         Command::File(action) => shortcut(*action),
         Command::Stage(command) => Some(command.shortcut()),
         Command::OpenFile => Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')])),
-        Command::UseTool(_) => Some(Shortcut(vec![ShortcutKey::Char('h')])),
+        Command::UseTool(tool) => match tool {
+            Tool::Crop => Some(Shortcut(vec![ShortcutKey::Char('c')])),
+            Tool::Select | Tool::Pan => Some(Shortcut(vec![ShortcutKey::Char('h')])),
+        },
+        Command::Picture(command) => match command {
+            PictureCommand::Save => {
+                Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('s')]))
+            }
+            PictureCommand::AdjustSize => None,
+        },
         Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
         Command::FindHit(_) | Command::ShowAllHits | Command::Install(_) => None,
     }
@@ -92,6 +101,7 @@ pub(super) fn Palette(
             | Command::Stage(_)
             | Command::OpenFile
             | Command::UseTool(_)
+            | Command::Picture(_)
             | Command::ShowView(_)
             | Command::Install(_) => commands.push(PaletteRow {
                 chord: keys_of(command).map(RowChord::always).unwrap_or_default(),

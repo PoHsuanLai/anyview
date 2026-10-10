@@ -1,10 +1,10 @@
 use super::support::*;
 use crate::chrome::*;
 use crate::command::Command;
-use crate::edits::EditRequest;
 use crate::load::*;
 use crate::palette::*;
 use crate::panel::*;
+use crate::picture::PictureEditIn;
 use crate::presentation::*;
 use crate::sheet::*;
 use crate::stage::*;
@@ -47,9 +47,76 @@ const CASES: &[Case] = &[
             panel: Panel::Shown {
                 tab: PanelTab::Info,
             },
+            panel_said: PanelSay::Said,
             ..Viewer::default()
         },
         || vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Info))],
+    ),
+    (
+        "a PDF's probe opens the panel on its pages until the person has said otherwise",
+        || Viewer {
+            load: Load::Probing { ticket: Ticket(1) },
+            ..Viewer::default()
+        },
+        || {
+            ViewerIn::Load(LoadIn::Probed {
+                ticket: Ticket(1),
+                flow: LoadFlow::PeekThenOpen,
+                stage: StageFamily::Pdf,
+            })
+        },
+        0,
+        || Viewer {
+            load: Load::Peeking {
+                ticket: Ticket(1),
+                frame: PeekFrame::Pending,
+            },
+            stage: Stage::Pdf(PdfStage::default()),
+            panel: Panel::Shown {
+                tab: PanelTab::Thumbnails,
+            },
+            ..Viewer::default()
+        },
+        || {
+            vec![
+                ViewerOut::Load(LoadOut::UseStage(StageFamily::Pdf)),
+                ViewerOut::Load(LoadOut::Peek(Ticket(1))),
+                ViewerOut::Load(LoadOut::Open(Ticket(1))),
+                ViewerOut::Panel(PanelOut::Show(PanelTab::Thumbnails)),
+            ]
+        },
+    ),
+    (
+        "a PDF's probe leaves a panel the person closed closed",
+        || Viewer {
+            load: Load::Probing { ticket: Ticket(1) },
+            panel_said: PanelSay::Said,
+            ..Viewer::default()
+        },
+        || {
+            ViewerIn::Load(LoadIn::Probed {
+                ticket: Ticket(1),
+                flow: LoadFlow::PeekThenOpen,
+                stage: StageFamily::Pdf,
+            })
+        },
+        0,
+        || Viewer {
+            load: Load::Peeking {
+                ticket: Ticket(1),
+                frame: PeekFrame::Pending,
+            },
+            stage: Stage::Pdf(PdfStage::default()),
+            panel_said: PanelSay::Said,
+            ..Viewer::default()
+        },
+        || {
+            vec![
+                ViewerOut::Load(LoadOut::UseStage(StageFamily::Pdf)),
+                ViewerOut::Load(LoadOut::Peek(Ticket(1))),
+                ViewerOut::Load(LoadOut::Open(Ticket(1))),
+            ]
+        },
     ),
     (
         "opening the palette holds the chrome up",
@@ -113,22 +180,20 @@ const CASES: &[Case] = &[
         },
     ),
     (
-        "a command from a control asks the host to save the turn, like the palette's row does",
+        "a turn from a control waits in the picture's edits for a save, like the palette's row does",
         || Viewer {
             stage: image(),
+            picture: editable(),
             ..Viewer::default()
         },
         || ViewerIn::Run(Command::File(FileAction::RotateRight)),
         0,
         || Viewer {
             stage: image(),
+            picture: editable().step(PictureEditIn::Turn(QuarterTurn::Quarter)),
             ..Viewer::default()
         },
-        || {
-            vec![ViewerOut::Edit(EditRequest::of_picture(Edit::Rotate(
-                QuarterTurn::Quarter,
-            )))]
-        },
+        || vec![refitted()],
     ),
     (
         "a palette row for export on a file with no stage does nothing but close",
@@ -178,11 +243,12 @@ const CASES: &[Case] = &[
         },
     ),
     (
-        "a palette turn on an image asks the host to save the turn",
+        "a palette turn on an image turns the picture and keeps the turn for a save",
         || Viewer {
             palette: palette_on(3),
             chrome: menu_pinned(),
             stage: image(),
+            picture: editable(),
             ..Viewer::default()
         },
         || ViewerIn::Palette(PaletteIn::Enter),
@@ -193,14 +259,10 @@ const CASES: &[Case] = &[
                 hide_at: Stamp(3000),
             },
             stage: image(),
+            picture: editable().step(PictureEditIn::Turn(QuarterTurn::Quarter)),
             ..Viewer::default()
         },
-        || {
-            vec![
-                ViewerOut::Edit(EditRequest::of_picture(Edit::Rotate(QuarterTurn::Quarter))),
-                ViewerOut::Palette(PaletteOut::Closed),
-            ]
-        },
+        || vec![refitted(), ViewerOut::Palette(PaletteOut::Closed)],
     ),
     (
         "a palette row for the mini window shrinks a media window",

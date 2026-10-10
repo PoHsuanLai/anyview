@@ -51,6 +51,7 @@ pub(super) fn EditSheet(
     let (title, verb) = match (edit, caution) {
         (_, EditCaution::Signed) => ("Change this document?", "Change Pages"),
         (Edit::Flip(_), EditCaution::Loses(_)) => ("Flip this picture?", "Flip"),
+        (Edit::Adjust(_), EditCaution::Loses(_)) => ("Save the changes to this picture?", "Save"),
         (_, EditCaution::Loses(_)) => ("Rotate this picture?", "Rotate"),
     };
     let message = match caution {

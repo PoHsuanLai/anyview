@@ -5,6 +5,7 @@ use super::facts::ExportFacts;
 use super::helper::{HelperEnd, HelperPhase};
 use super::offer::MediaOffer;
 use super::option::{ExportOption, PageSpan};
+use super::picture::{PictureSheet, PictureSheetIn, PictureSheetOut};
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditOffer, EditRequest};
 use crate::typed::TypedText;
@@ -56,6 +57,8 @@ pub enum Sheet {
     NoVersions,
     /// Asking to install a tool the open file needs, and then following the install.
     Helper { helper: Helper, phase: HelperPhase },
+    /// Editing a picture: its new size, or what to do with changes that are not saved.
+    Picture(PictureSheet),
 }
 
 /// What moves the sheet.
@@ -78,6 +81,10 @@ pub enum SheetIn {
     OpenRevert(Option<VersionList>),
     /// Ask whether to install this tool, which the open file needs.
     OfferHelper(Helper),
+    /// Open a sheet of editing a picture.
+    AskPicture(PictureSheet),
+    /// The open sheet of editing a picture changed.
+    Picture(PictureSheetIn),
     /// Asking the system to install this tool ended like this.
     HelperEnded(Helper, HelperEnd),
     /// The list chose a version.
@@ -139,4 +146,6 @@ pub enum SheetOut {
     Provide(Helper),
     /// Open the file again: a tool it needed is installed.
     Reopen,
+    /// A sheet of editing a picture was answered.
+    Picture(PictureSheetOut),
 }

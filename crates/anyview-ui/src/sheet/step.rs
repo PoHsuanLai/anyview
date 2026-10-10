@@ -4,6 +4,7 @@ use super::draft::ExportDraft;
 use super::helper::{HelperEnd, HelperPhase};
 use super::model::{Sheet, SheetIn, SheetOut, SheetParams};
 use super::option::PageSpan;
+use super::picture::{PictureSheet, PictureSheetIn, PictureSheetOut};
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditRequest};
 use crate::typed::TypedText;
@@ -31,6 +32,7 @@ impl Machine for Sheet {
             Sheet::Revert { versions, chosen } => revert(versions, chosen, input),
             Sheet::NoVersions => no_versions(input),
             Sheet::Helper { helper, phase } => helping(helper, phase, input),
+            Sheet::Picture(sheet) => picture(sheet, input),
         }
     }
 
@@ -57,7 +59,8 @@ impl Machine for Sheet {
             | Sheet::Helper {
                 helper: _,
                 phase: _,
-            } => None,
+            }
+            | Sheet::Picture(_) => None,
         }
     }
 }
@@ -86,6 +89,7 @@ fn closed(input: SheetIn, params: &SheetParams) -> Step {
             phase: HelperPhase::Ask,
         }),
         SheetIn::AskTrash => opened(Sheet::ConfirmTrash),
+        SheetIn::AskPicture(sheet) => opened(Sheet::Picture(sheet)),
         SheetIn::AskEdit(request, caution) => opened(Sheet::ConfirmEdit { request, caution }),
         SheetIn::AskRename(name) => opened(Sheet::Rename { name }),
         SheetIn::AskSaveCopy(name) => opened(Sheet::SaveCopy { name }),
@@ -95,6 +99,7 @@ fn closed(input: SheetIn, params: &SheetParams) -> Step {
         },
         SheetIn::OpenRevert(None) => opened(Sheet::NoVersions),
         SheetIn::HelperEnded(_, _)
+        | SheetIn::Picture(_)
         | SheetIn::PickVersion(_)
         | SheetIn::PickKind(_)
         | SheetIn::Tune(_)
@@ -126,6 +131,8 @@ fn export(draft: ExportDraft, span: PageSpan, input: SheetIn, params: &SheetPara
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -154,6 +161,8 @@ fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -176,6 +185,8 @@ fn confirm_trash(input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -200,6 +211,8 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -223,6 +236,8 @@ fn save_copy(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -254,6 +269,8 @@ fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -275,6 +292,8 @@ fn no_versions(input: SheetIn) -> Step {
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -297,6 +316,8 @@ fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> S
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::Picture(_)
         | SheetIn::AskEdit(..)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -347,6 +368,8 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
             | SheetIn::OfferHelper(_)
             | SheetIn::HelperEnded(_, _)
             | SheetIn::AskTrash
+            | SheetIn::AskPicture(_)
+            | SheetIn::Picture(_)
             | SheetIn::AskEdit(_, _)
             | SheetIn::AskRename(_)
             | SheetIn::AskSaveCopy(_)
@@ -373,5 +396,46 @@ fn ended_with(helper: Helper, end: HelperEnd) -> Step {
         HelperEnd::NotFound(package) => phase(HelperPhase::NotFound(package)),
         HelperEnd::Unsupported(program) => phase(HelperPhase::Unsupported(program)),
         HelperEnd::Failed(reason) => phase(HelperPhase::Failed(reason)),
+    }
+}
+
+/// A sheet of editing a picture. Adjust Size keeps the sizes being chosen and Return takes them;
+/// the question asked on leaving is Save (Return), Don't Save and Cancel (Esc).
+fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
+    match (sheet, input) {
+        (PictureSheet::Resize(draft), SheetIn::Confirm) => {
+            closing(SheetOut::Picture(PictureSheetOut::Resize(draft.size())))
+        }
+        (PictureSheet::Resize(draft), SheetIn::Picture(PictureSheetIn::Resize(change))) => (
+            Sheet::Picture(PictureSheet::Resize(draft.changed(change))),
+            vec![],
+        ),
+        (PictureSheet::Unsaved(then), SheetIn::Confirm) => {
+            closing(SheetOut::Picture(PictureSheetOut::Save(then)))
+        }
+        (PictureSheet::Unsaved(then), SheetIn::Picture(PictureSheetIn::Decline)) => {
+            closing(SheetOut::Picture(PictureSheetOut::Discard(then)))
+        }
+        (_, SheetIn::Cancel) => cancelled(),
+        (
+            sheet,
+            SheetIn::OpenExport(_)
+            | SheetIn::OpenUnavailable(_, _)
+            | SheetIn::OfferHelper(_)
+            | SheetIn::HelperEnded(_, _)
+            | SheetIn::AskTrash
+            | SheetIn::AskPicture(_)
+            | SheetIn::Picture(_)
+            | SheetIn::AskEdit(_, _)
+            | SheetIn::AskRename(_)
+            | SheetIn::AskSaveCopy(_)
+            | SheetIn::OpenRevert(_)
+            | SheetIn::PickVersion(_)
+            | SheetIn::PickKind(_)
+            | SheetIn::Tune(_)
+            | SheetIn::Change(_)
+            | SheetIn::Typed(_)
+            | SheetIn::Elapsed,
+        ) => (Sheet::Picture(sheet), vec![]),
     }
 }

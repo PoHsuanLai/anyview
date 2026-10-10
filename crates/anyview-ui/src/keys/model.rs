@@ -57,6 +57,8 @@ pub enum Route {
     Panel(PanelIn),
     /// ⌘W: close the window.
     CloseWindow,
+    /// ⌘S on a picture: write the changes made to it into the file.
+    Save,
     /// ⌘O: choose another file to open.
     OpenFile,
     /// Esc with nothing open to close: the viewer decides what that means for how it is shown

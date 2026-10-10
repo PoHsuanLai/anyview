@@ -2,6 +2,7 @@
 //! placed by pure arithmetic over the stage machine's state (`geometry`), and drawn by a
 //! `TextureLayer` that shows the visible texels (`view`).
 
+mod crop;
 mod doc;
 mod geometry;
 mod view;
@@ -12,9 +13,9 @@ use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenPort};
 use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
-    StageIn, StageParams, Ticket,
+    StageIn, StageParams, Ticket, Tool,
 };
-use anyview_core::{Facts, Permille, Resume, Sniffed, Source};
+use anyview_core::{Adjust, Facts, Permille, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -24,6 +25,28 @@ use std::sync::Arc;
 /// How soon each control goes when the capsule is too wide for the stage (quire's capsule).
 const RANK_ROTATE: u8 = 2;
 const RANK_ZOOM: u8 = 1;
+
+/// The stage's parameters for a picture the person has changed: the room it fits is the kept part
+/// of `base`, turned, since that is what is shown. The timing and the rest are `timing`'s.
+pub(crate) fn adjusted_raster(
+    timing: crate::RasterParams,
+    raster: &crate::RasterStage,
+    base: PixelSize,
+    adjust: Adjust,
+    area: Area,
+) -> crate::RasterParams {
+    let kept = adjust.kept(base).size;
+    let turn = geometry::turn_of(raster).then(adjust.turn);
+    let fit = geometry::fit(kept, turn, area);
+    crate::RasterParams {
+        viewport: crate::Viewport {
+            shown: geometry::scale_of(raster, fit),
+            fit,
+        },
+        centre: geometry::centre_of(raster, kept, turn),
+        ..timing
+    }
+}
 
 /// Raster and vector images.
 #[derive(Debug, Clone, Copy)]
@@ -90,7 +113,7 @@ impl StageView for RasterStageView {
         StageParams {
             raster: crate::RasterParams {
                 viewport: crate::Viewport { shown, fit },
-                centre: geometry::centre_of(raster, doc.size),
+                centre: geometry::centre_of(raster, doc.size, turn),
                 ..timing
             },
             ..StageParams::default()
@@ -150,8 +173,9 @@ impl StageView for RasterStageView {
         use anyview_core::FileAction::{RotateLeft, RotateRight};
         let percent = match (&cx.stage, cx.area) {
             (Stage::Raster(raster), Some(area)) => {
-                let turn = geometry::turn_of(raster);
-                let fit = geometry::fit(doc.size, turn, area);
+                let adjust = cx.picture.adjust();
+                let turn = geometry::turn_of(raster).then(adjust.turn);
+                let fit = geometry::fit(adjust.kept(doc.size).size, turn, area);
                 geometry::scale_of(raster, fit)
             }
             _ => Permille::WHOLE,
@@ -208,9 +232,16 @@ impl StageView for RasterStageView {
             return None;
         }
         let run = cx.run;
+        // Crop is a tool only of a picture that can be saved with changes.
+        let tools = if cx.picture.can_edit() {
+            vec![Tool::Select, Tool::Pan, Tool::Crop]
+        } else {
+            vec![Tool::Select, Tool::Pan]
+        };
         Some(rsx! {
             view::PointerModes {
                 tool: cx.hand.tool,
+                tools,
                 onpick: move |tool| run.call(Command::UseTool(tool)),
             }
         })
