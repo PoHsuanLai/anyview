@@ -112,7 +112,7 @@ A camera raw file shows its embedded preview with no plugin at all. `dist/instal
 
 ## Embedding
 
-`anyview-pane` draws the viewer in a region of another quire app's window, with no D-Bus, player or file chooser: the app owns the keyboard chords, its own palette and its own sheets. The pane asks the app for what it cannot do itself (close, open elsewhere, rename, move to the trash) through `PaneRequest`, and lends the app's palette its commands.
+`anyview-pane` draws the viewer in a region of another quire app's window, with no D-Bus, player or file chooser: the app owns the keyboard chords, its own palette and its own sheets. The pane asks the app for what it cannot do itself (close, open elsewhere, rename, move to the trash) through `PaneRequest`, and lends the app's palette its commands and its find.
 
 ```rust
 use anyview_pane::{PaneEdge, ViewerPane, use_pane_handle};
@@ -124,6 +124,10 @@ fn Preview(file: FilePath, workers: Arc<dyn Workers>, store_root: PathBuf, focus
     let edge = use_hook(|| PaneEdge::portable(workers).with_store(store_root));
     // In the app's palette: `handle.commands()` is a `PaletteGroup<PaneCommand>`, and a picked
     // row is `handle.run(command)`.
+    // Find belongs to the app too: its ⌘F opens its palette in a "find in pane" mode, which feeds
+    // each query to `handle.find(query)` (an empty one ends the find), lists `handle.hits(list)`
+    // (`HitList::Brief`, or `Whole` once the row for `PaneCommand::ShowAllHits` is picked) and
+    // runs a picked hit with `handle.run(command)`. Closing the mode is `handle.end_find()`.
     rsx! {
         ViewerPane {
             file,

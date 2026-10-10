@@ -15,13 +15,14 @@ use ds::host::caret::InitialCaret;
 use ds::prelude::{CommandPalette, RunTone, TextLine, TextRun, use_keys};
 
 /// The row of one hit: the words around it with the match marked, and where it is. A hit whose
-/// words were not kept is listed by where it is.
-fn hit_row(index: usize, line: Option<&HitLine>) -> PaletteRow<usize> {
+/// words were not kept is listed by where it is. `value` is what picking the row yields, and
+/// `index` the hit's place in the find (for the row of a hit that has no words).
+pub(super) fn hit_row<T>(value: T, index: usize, line: Option<&HitLine>) -> PaletteRow<T> {
     let Some(line) = line else {
-        return PaletteRow::new(index, format!("Match {}", index + 1));
+        return PaletteRow::new(value, format!("Match {}", index + 1));
     };
     if line.context.is_empty() {
-        return PaletteRow::new(index, line.place.clone());
+        return PaletteRow::new(value, line.place.clone());
     }
     let (context, matched) = (&line.context, &line.matched);
     let marked = matched.start < matched.end
@@ -43,7 +44,7 @@ fn hit_row(index: usize, line: Option<&HitLine>) -> PaletteRow<usize> {
     };
     PaletteRow {
         detail: Some(TextLine::from(line.place.clone())),
-        ..PaletteRow::new(index, TextLine::Runs(runs))
+        ..PaletteRow::new(value, TextLine::Runs(runs))
     }
 }
 
@@ -69,7 +70,9 @@ pub(super) fn Palette(
     let mut commands: Vec<PaletteRow<usize>> = Vec::new();
     for (index, command) in rows.iter().enumerate() {
         match command {
-            Command::FindHit(hit) => in_file.push(hit_row(index, hits.get(hit.0 as usize))),
+            Command::FindHit(hit) => {
+                in_file.push(hit_row(index, hit.0 as usize, hits.get(hit.0 as usize)))
+            }
             Command::ShowAllHits => {
                 in_file.push(PaletteRow::new(index, format!("Show All {found}")));
             }

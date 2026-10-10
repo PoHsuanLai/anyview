@@ -790,11 +790,14 @@ on. It is a reference, not a log: how each was found lives in git history.
   surface boxes every run of text between a selection's ends, the gutter's included; `families/text/edit`
   drops the boxes left of the text. quire's `edit_tree` can leave unmarked text out itself (a small patch to
   `ds-blitz`'s `edit_tree.rs`, not in v0.3.1); nothing here waits for it.
-- **Find does not work in a pane.** Find is the palette's (⌘F opens it as a find), and a pane draws no palette, so the
-  pane lists no Find command and the capsule has no Find button; a find already running on the stage still closes on
-  Esc. Ends when the find is data a host can show (the palette machine is now quire's, generic over its rows and
-  below the renderer in `ds_core::palette`, and anyview's palette runs on it; what remains is the find's hits as rows
-  of the host's own palette), so that the host's palette can be the pane's find.
+- **Find in a pane is the host's palette, fed through the handle.** A pane draws no palette and lists no Find command
+  (the host owns ⌘F), and its capsule has no Find button. The host opens its palette in a find mode, feeds each query
+  to `PaneHandle::find` (the link sends the stage's own `find_input`, as the window's palette does through
+  `find_synced`), lists `PaneHandle::hits` (`Command::FindHit` rows from the family's `hit_lines`, a few and then
+  "Show All", which the host answers with `HitList::Whole`), runs a picked row with `run`, and calls `end_find`
+  (the stage's `dismissal`) when it closes the mode. Picking a hit leaves the find up with its marks, so the host
+  must end it; Esc in the pane ends it too. The hit rows are kept as the stage's find has them, so a document
+  that changes under a find needs `find` sent again (see "Find hits are addressed by index").
 - **The palette's scope is not in quire's machine.** `PaletteState<Command>` holds the query and the highlight only;
   whether the palette lists commands or a find's hits is `Viewer::palette_scope`, stepped with it by `step_with_scope`,
   which handles the three inputs that change the scope (opening as a find, the Find row, "Show All") and hands the rest

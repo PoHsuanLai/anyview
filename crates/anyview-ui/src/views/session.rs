@@ -360,7 +360,7 @@ pub(super) fn ranked(commands: Vec<Command>, query: &TypedText) -> Vec<Command> 
 }
 
 /// How many hits "In This File" lists before "Show All".
-const BRIEF_HITS: u32 = 8;
+pub(super) const BRIEF_HITS: u32 = 8;
 
 /// The most hits "Show All" lists: a palette is a list to glance down, not the whole document.
 pub(super) const WHOLE_HITS: u32 = 200;
@@ -491,7 +491,7 @@ pub(super) fn params(
     let mut listed = commands(kind, stage, &measured, offers);
     listed.extend(picture_commands(stage, picture, tool));
     if pane {
-        // Finding is the palette's, and a pane draws none.
+        // Finding is the palette's, and a pane draws none: its host starts one (`PaneLink::find`).
         listed.retain(|command| *command != Command::Stage(StageCommand::Find));
     }
     let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());

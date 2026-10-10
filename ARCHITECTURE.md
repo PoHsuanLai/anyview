@@ -1521,7 +1521,7 @@ machines and the one view that draws them, not a fork:
   `palette`), so no command can open one that is not drawn. What would have asked a question is handed over:
   `file_action` turns every file action into `ViewerOut::Run`, which the host hears as
   `PaneRequest::File(FileRequest::Run(..))` and carries out or declines. A pane is read-only: its access is
-  `ReadOnly`, a text is not editable, no picture edit is offered, and Find is not listed (it lives in the palette).
+  `ReadOnly`, a text is not editable, no picture edit is offered, and Find is not listed (the host's ⌘F opens a find mode in its own palette, below).
 - *Requests:* `PaneRequest::from_host` is the one total function from `HostRequest`; the mapping table is
   in the module and tested by `tests/pane/mapping.rs`, which fails to compile when a request is added without a row.
 - *Commands:* the host makes a `PaneHandle` (`use_pane_handle`) and passes it as the pane's `handle`. The window
@@ -1530,6 +1530,14 @@ machines and the one view that draws them, not a fork:
   `PaneHandle::commands()` is a `PaletteGroup<PaneCommand>` (one group titled with the file's name, each row with
   its keys) for the host's own `CommandPalette`; `run` is the pick. The host owns the handle (as it owns a quire
   `EditHandle`) because its palette is the pane's sibling, and a handle it already holds can be read in any render.
+- *Find:* the link also holds a finder and the find's hits. The window serves a finder that turns a query into the
+  stage's own `find_input` (an empty one, or `None`, into `dismissal` while a find is up) and sends it as
+  `ViewerIn::Stage`, the input `find_synced` sends for the window's palette, so text and PDF search by the same
+  stage machines and the file marks its hits; the palette stays closed. While a find is up in a pane the window
+  computes the family's `hit_lines` and publishes them with the count; `PaneLink::hits(HitList)` builds rows from
+  them with the palette's `hit_row` (`Command::FindHit(i)`, then `ShowAllHits` for `Brief`), and `PaneHandle::hits`
+  groups them as "In This File". Running a `FindHit` row is the ordinary `ViewerIn::Run`. The host drives it:
+  `find(query)`, `hits(list)`, `run(row)`, `end_find()`; the host's ⌘F and its palette's mode are its own.
 - *Edge:* `PaneEdge::portable(workers)` wraps `Services` with every seam absent and `PlatformAbilities::NONE`; the
   `with_*` builders add the host's seams, and two edges are equal when they are the same `Arc`. The pane owns the
   request handler (a channel into a task that calls the host's `on_request`), so the `Edge` is built inside the pane.

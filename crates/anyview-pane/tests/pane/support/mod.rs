@@ -5,9 +5,11 @@
 
 use anyview_core::Source;
 use anyview_pane::{
-    FilePath, NonEmpty, PaneEdge, PaneRequest, Sequence, SequenceOrigin, ViewerPane, Work, Workers,
+    FilePath, HitList, NonEmpty, PaneCommand, PaneEdge, PaneRequest, Sequence, SequenceOrigin,
+    ViewerPane, Work, Workers, use_pane_handle,
 };
 use dioxus::prelude::*;
+use ds::components::menus::palette::palette_group::{GroupEntries, PaletteGroup};
 use ds::prelude::{Appearance, Ds, Material};
 use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Input, Query, Viewport};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -44,9 +46,34 @@ pub struct Heard {
     pub taken: bool,
 }
 
+/// What the host's palette asks of the first pane's handle.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Call {
+    Find(String),
+    EndFind,
+    Run(PaneCommand),
+}
+
+/// The rows the host's palette would list for the find that is up: the first few hits with a
+/// Show All row, and every hit. Each is the value picking the row yields.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Listed {
+    pub brief: Vec<PaneCommand>,
+    pub whole: Vec<PaneCommand>,
+}
+
+fn values(group: PaletteGroup<PaneCommand>) -> Vec<PaneCommand> {
+    match group.entries {
+        GroupEntries::List(rows) => rows.into_iter().map(|row| row.value).collect(),
+        GroupEntries::Grid(_) => Vec::new(),
+    }
+}
+
 /// What the host under test holds and the test reads.
 #[derive(Clone)]
 pub struct Rig {
+    calls: Arc<Mutex<Option<UnboundedReceiver<Call>>>>,
+    listed: Arc<Mutex<Listed>>,
     panes: Vec<(FilePath, Option<Sequence>)>,
     edge: PaneEdge,
     requests: Arc<Mutex<Vec<PaneRequest>>>,
@@ -64,9 +91,33 @@ pub struct Host {
     /// The pool every pane shares.
     pub workers: Arc<Counting>,
     focus: UnboundedSender<bool>,
+    calls: UnboundedSender<Call>,
+    listed: Arc<Mutex<Listed>>,
 }
 
 impl Host {
+    /// Ask the first pane's handle for something, as the host's palette would.
+    pub fn ask(&mut self, call: Call) {
+        self.calls.unbounded_send(call).unwrap();
+        self.settle();
+    }
+
+    /// Feed the first pane's find a query typed in the host's palette, and let the search answer.
+    pub fn find(&mut self, query: &str) {
+        self.ask(Call::Find(query.to_owned()));
+        self.settle();
+    }
+
+    /// The hit rows the host's palette lists now.
+    pub fn listed(&self) -> Listed {
+        self.listed.lock().unwrap().clone()
+    }
+
+    /// The number of the first line the first pane shows.
+    pub fn first_line(&self) -> Option<u32> {
+        self.harness.text_of(".viewer-lineno")?.trim().parse().ok()
+    }
+
     /// Give the panes the keyboard, or take it back.
     pub fn focus(&mut self, focused: bool) {
         self.focus.unbounded_send(focused).unwrap();
@@ -168,6 +219,26 @@ fn Row() -> Element {
             }
         }
     });
+    let handle = use_pane_handle();
+    let calls = rig.calls.clone();
+    use_future(move || {
+        let taken = calls.lock().unwrap().take();
+        async move {
+            let Some(mut calls) = taken else { return };
+            while let Some(call) = calls.next().await {
+                match call {
+                    Call::Find(query) => handle.find(query),
+                    Call::EndFind => handle.end_find(),
+                    Call::Run(command) => handle.run(command),
+                }
+            }
+        }
+    });
+    // Reading the hits subscribes the host, as its palette would be.
+    *rig.listed.lock().unwrap() = Listed {
+        brief: values(handle.hits(HitList::Brief)),
+        whole: values(handle.hits(HitList::Whole)),
+    };
     let heard = rig.heard.clone();
     let panes: Vec<Element> = rig
         .panes
@@ -182,6 +253,7 @@ fn Row() -> Element {
                         file,
                         sequence,
                         edge: rig.edge.clone(),
+                        handle: (index == 0).then_some(handle),
                         focused: ReadSignal::new(focused),
                         on_request: move |request: PaneRequest| requests.lock().unwrap().push(request),
                     }
@@ -246,7 +318,11 @@ pub fn hosted_over(
     let (focus, changes) = unbounded();
     let requests = Arc::new(Mutex::new(Vec::new()));
     let heard = Arc::new(Mutex::new(Vec::new()));
+    let (calls, asked) = unbounded();
+    let listed = Arc::new(Mutex::new(Listed::default()));
     let rig = Rig {
+        calls: Arc::new(Mutex::new(Some(asked))),
+        listed: listed.clone(),
         panes: panes
             .into_iter()
             .map(|(path, sequence)| (FilePath::new(path).unwrap(), sequence))
@@ -268,6 +344,8 @@ pub fn hosted_over(
         heard,
         workers,
         focus,
+        calls,
+        listed,
     };
     host.settle();
     host

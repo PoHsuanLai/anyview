@@ -3,8 +3,11 @@
 //! which the host reads the pane's commands and runs one. The window itself is `window.rs`, drawn
 //! with `Presentation::Pane`; nothing here decides what the viewer does.
 
-use crate::Command;
+use super::palette::hit_row;
+use super::session::{BRIEF_HITS, WHOLE_HITS};
+use crate::{Command, HitIndex, HitLine, HitList, TypedText};
 use dioxus::prelude::*;
+use ds::components::menus::palette::palette_group::PaletteRow;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -24,13 +27,23 @@ pub enum PaneChrome {
 }
 
 /// What the pane has to say to its host and what the host can ask of it: the commands the open
-/// file offers, and a way to run one. The host makes one with [`use_pane_link`] and hands it to
-/// the pane; the pane fills it in. Reading [`PaneLink::commands`] in a component subscribes it, so
-/// the host's palette follows the stage as the file changes.
+/// file offers, a way to run one, and a find in the file with its hits. The host makes one with
+/// [`use_pane_link`] and hands it to the pane; the pane fills it in. Reading
+/// [`PaneLink::commands`] or [`PaneLink::hits`] in a component subscribes it, so the host's
+/// palette follows the stage as the file changes and the search answers.
 #[derive(Clone, Copy, PartialEq)]
 pub struct PaneLink {
     listed: Signal<PaneListing>,
     runner: Signal<Option<Callback<Command>>>,
+    found: Signal<PaneHits>,
+    finder: Signal<Option<Callback<Option<TypedText>>>>,
+}
+
+/// The hits of the find that is up: how many, and the words around the first of them.
+#[derive(Debug, Clone, PartialEq, Default)]
+struct PaneHits {
+    total: u32,
+    lines: Vec<HitLine>,
 }
 
 /// The commands the pane lists, under the open file's name.
@@ -52,6 +65,8 @@ pub fn use_pane_link() -> PaneLink {
     PaneLink {
         listed: use_signal(PaneListing::default),
         runner: use_signal(|| None),
+        found: use_signal(PaneHits::default),
+        finder: use_signal(|| None),
     }
 }
 
@@ -79,6 +94,73 @@ impl PaneLink {
         }
     }
 
+    /// Search the open file for `query`, marking the hits in the pane and going to the one nearest
+    /// the place shown; the hits arrive as [`PaneLink::hits`] once the search has run. A new query
+    /// replaces the last, and an empty one ends the find. Nothing happens for a file that cannot be
+    /// searched (a picture) or when no pane is showing.
+    pub fn find(&self, query: &TypedText) {
+        let finder = self.finder.try_peek().ok().and_then(|held| *held);
+        if let Some(finder) = finder {
+            finder.call((!query.is_empty()).then(|| query.clone()));
+        }
+    }
+
+    /// Put the find away: its marks leave the file and [`PaneLink::hits`] lists none. Nothing
+    /// happens when no find is up.
+    pub fn end_find(&self) {
+        let finder = self.finder.try_peek().ok().and_then(|held| *held);
+        if let Some(finder) = finder {
+            finder.call(None);
+        }
+    }
+
+    /// The hits of the find that is up as rows of a palette, each yielding `Command::FindHit` for
+    /// [`PaneLink::run`] (which makes it the current hit): the words around the match with the
+    /// match marked, and where it is (`Line 42`, `Page 7`). `HitList::Brief` lists the first few
+    /// and, when there are more, a `Command::ShowAllHits` row that run does nothing with: the host
+    /// lists `HitList::Whole` (at most 200) in answer. None while no find is up or nothing was
+    /// found. Reading it subscribes the component.
+    #[must_use]
+    pub fn hits(&self, list: HitList) -> Vec<PaletteRow<Command>> {
+        let held = self.found.read();
+        let shown = match list {
+            HitList::Brief => held.total.min(BRIEF_HITS),
+            HitList::Whole => held.total.min(WHOLE_HITS),
+        };
+        let more = list == HitList::Brief && held.total > BRIEF_HITS;
+        let mut rows: Vec<PaletteRow<Command>> = (0..shown)
+            .map(|hit| {
+                let at = hit as usize;
+                hit_row(Command::FindHit(HitIndex(hit)), at, held.lines.get(at))
+            })
+            .collect();
+        if more {
+            rows.push(PaletteRow::new(
+                Command::ShowAllHits,
+                format!("Show All {}", held.total),
+            ));
+        }
+        rows
+    }
+
+    /// Replace the hits listed; the same hits wake nobody.
+    pub(super) fn publish_hits(self, total: u32, lines: Vec<HitLine>) {
+        let mut found = self.found;
+        let same = {
+            let held = found.peek();
+            held.total == total && held.lines == lines
+        };
+        if !same {
+            found.set(PaneHits { total, lines });
+        }
+    }
+
+    /// The pane is showing: `finder` searches for a query, or ends the find for none.
+    pub(super) fn serve_find(self, finder: Callback<Option<TypedText>>) {
+        let mut slot = self.finder;
+        slot.set(Some(finder));
+    }
+
     /// Replace what is listed; a list that is the same wakes nobody.
     pub(super) fn publish(self, title: String, commands: Vec<Command>) {
         let mut listed = self.listed;
@@ -101,8 +183,15 @@ impl PaneLink {
     /// which is why this does not insist.
     pub(super) fn withdraw(self) {
         let (mut runner, mut listed) = (self.runner, self.listed);
+        let (mut finder, mut found) = (self.finder, self.found);
         if let Ok(mut slot) = runner.try_write() {
             *slot = None;
+        }
+        if let Ok(mut slot) = finder.try_write() {
+            *slot = None;
+        }
+        if let Ok(mut held) = found.try_write() {
+            *held = PaneHits::default();
         }
         if let Ok(mut held) = listed.try_write() {
             *held = PaneListing::default();
