@@ -799,9 +799,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   in-process only and a library cannot spawn the thread a blocking write needs. `PaneRequest::Remember` is passed
   through, and `PaneEdge::with_resume_source` reads. Ends when the store lane lands the cross-process merge and a `Job`
   kind the pool can run for the write.
-- **A recording in a pane opens a viewer window instead.** `PlayerHost`, `MediaHub` and `MediaActor` live in
-  `crates/anyview/src/media`; the pane asks its host for `OpenElsewhere`. Ends when they are extracted into a library
-  behind `anyview-media`'s `player` feature. One audio source at a time across panes comes with it.
 - **The pane's focus is the host's word, and nothing tells the host when the pane lost it.** The window takes the
   keyboard when `focused` turns true and handles nothing while it is false; a blur inside the pane (Tab out, a click
   elsewhere in the host) sends no `FocusLost`, and `HostSignals.activity` is not set by the pane. Ends when temor's
@@ -809,6 +806,15 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Two panes on one GPU device are untested.** `TextureLayer` and `use_gpu` use the quire window's device, which the
   host's renderer shares; whether one queue and one `TextureHandle` namespace hold with two panes and the host's
   terminal is unmeasured (the harness tests run the Hybrid backend). Ends with a run on a real output.
+
+- **A recording plays in a pane only where a host gave the pane a player, and nothing has run one in a real pane yet.**
+  `PaneEdge::with_player` (feature `player`) and `with_media` start the player of `anyview-media-host`, and the pane then
+  stops handing recordings to its host as `OpenElsewhere`. The tests cover the hub's choice of whom to pause, the
+  boundary and the manifests; none starts mpv in a pane or has two panes play at once. A pane has no desktop
+  now-playing entry (`MediaHub::standalone` shows none), no facts of its own for a recording (`FixedMpv` reads none, so
+  the info panel shows what the file says of itself) and no built-in audio player (a sound card is not in the pane's
+  tree): with no mpv a recording shows the row that names it. Ends when temor has played a video and two panes in one
+  window, and the facts and the entry are wanted.
 
 ## Standing facts
 
@@ -1050,6 +1056,23 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A row picked in a table or a tree keeps Left and Right.** The arrow keys, Page Up and Down, Home and End move
   the cursor (`RowStep`); while a row is picked Left and Right walk nothing, and Esc puts the cursor away so they
   walk the folder again.
+## One home for the player (anyview-media-host)
+
+- **The player is two crates and a thread rule.** `anyview-media` is the session and the driver over the person's mpv
+  (child process; a memfd ring on Linux through `mpv-wgpu-protocol`); `anyview-media-host` runs it for the views
+  (`PlayerHost`, `MediaHub`, the media thread), and is the only library that starts a thread, through
+  `anyview-runtime`'s `Actor`. It was `anyview/src/media` until a pane needed it: a library cannot depend on the
+  binary, and `anyview-media` cannot hold it (that crate names neither the views nor the platform crate nor tokio).
+- **One source of sound is the hub's policy, and the viewer's windows do not use it.** `AudioFocus::Exclusive` pauses
+  every other session when one starts playing; a window of the viewer is `Shared`, as Preview and QuickTime windows
+  are. A pane hub (`MediaHub::standalone`) is `Exclusive`. A session paused this way is ignored if it reports
+  `Playing` once more before it reports the pause (`focus.rs`).
+- **Licences.** The crates are MIT OR Apache-2.0 and link neither libmpv nor libav: mpv runs as a child process, so
+  its GPL is the person's own program's and not the crates'. `deny.toml` needs no change (no GPL crate enters the
+  tree; `symphonia` and `cpal`, behind `audio`, are MPL-2.0 and Apache-2.0). What is not a crate's concern is
+  shipping mpv's C plugin (`mpv-wgpu-cplugin`, MIT OR Apache-2.0), which is loaded into the person's mpv: a package
+  that ships it beside mpv is the packager's to review.
+
 ## Tables
 
 - **A `VirtualTable` has no scroll-edge of its own.** Its header sits above its `Scroller`, so it stays put, but the

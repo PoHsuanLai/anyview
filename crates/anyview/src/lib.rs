@@ -7,6 +7,7 @@ pub mod crash;
 pub mod host;
 pub mod media;
 pub mod program;
-pub mod runtime;
+/// The threads of the program (`anyview-runtime`), under the name the binary's modules use.
+pub use anyview_runtime as runtime;
 pub mod seam;
 pub mod window;

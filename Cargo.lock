@@ -315,11 +315,13 @@ dependencies = [
  "anyview-fs",
  "anyview-image",
  "anyview-media",
+ "anyview-media-host",
  "anyview-pdf",
  "anyview-peek",
  "anyview-platform",
  "anyview-plugin",
  "anyview-plugin-protocol",
+ "anyview-runtime",
  "anyview-store",
  "anyview-ui",
  "dioxus",
@@ -499,10 +501,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-media-host"
+version = "0.1.0-beta.1"
+dependencies = [
+ "anyview-core",
+ "anyview-media",
+ "anyview-platform",
+ "anyview-plugin",
+ "anyview-plugin-protocol",
+ "anyview-runtime",
+ "anyview-ui",
+ "ds",
+ "ds-blitz",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "anyview-pane"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "anyview-media",
+ "anyview-media-host",
  "anyview-peek",
  "anyview-ui",
  "dioxus",
@@ -624,6 +645,14 @@ dependencies = [
  "anyview-tool-kit",
  "image",
  "tempfile",
+]
+
+[[package]]
+name = "anyview-runtime"
+version = "0.1.0-beta.1"
+dependencies = [
+ "anyview-core",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

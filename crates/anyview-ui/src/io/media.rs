@@ -130,10 +130,27 @@ pub struct MediaStarted {
     pub cover: Option<ImageSource>,
 }
 
-/// Starts players. The binary implements it over its media thread.
+/// Whether a host starts players at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MediaSupport {
+    /// It starts a player for a recording it is given.
+    Plays,
+    /// It has none: a window shows the recording as its facts, and a pane in another application's
+    /// window asks that application to open the recording elsewhere.
+    Absent,
+}
+
+/// Starts players. The binary implements it over its media thread; a host that embeds a pane
+/// implements it, or takes the one in `anyview-media-host`.
 pub trait MediaHost: Debug + Send + Sync + 'static {
     /// Start playing `start.file`. Blocking, briefly: it makes a thread and a player.
     fn start(&self, start: MediaStart) -> Result<MediaStarted, OpenError>;
+
+    /// Whether this host starts players. A pane plays a recording itself when it does, and hands
+    /// the recording to its own host when it does not.
+    fn support(&self) -> MediaSupport {
+        MediaSupport::Plays
+    }
 }
 
 /// The host a window has until the binary lends it a real one: it cannot play.
@@ -141,6 +158,10 @@ pub trait MediaHost: Debug + Send + Sync + 'static {
 pub(crate) struct NoPlayer;
 
 impl MediaHost for NoPlayer {
+    fn support(&self) -> MediaSupport {
+        MediaSupport::Absent
+    }
+
     fn start(&self, _start: MediaStart) -> Result<MediaStarted, OpenError> {
         Err(OpenError::Media("this window has no player".to_owned()))
     }

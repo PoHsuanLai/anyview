@@ -22,8 +22,8 @@ pub use helpers::{HelperSource, HelperWords, Need};
 pub use job::{Done, Job, OpenPort, Opened, Preloaded, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{
-    MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake,
-    SlotPixels,
+    MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaSupport,
+    MediaWake, SlotPixels,
 };
 pub use notice::Notice;
 pub(crate) use probe::probe;

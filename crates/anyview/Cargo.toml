@@ -17,7 +17,7 @@ publish.workspace = true
 # `--no-default-features` is the portable build, whose single instance is a per-user socket and whose desktop abilities are absent.
 [features]
 default = ["audio", "quire-desktop"]
-audio = ["anyview-media/audio"]
+audio = ["anyview-media/audio", "anyview-media-host/audio"]
 quire-desktop = ["anyview-platform/quire-desktop", "ds-desktop/dbus"]
 
 [dependencies]
@@ -27,11 +27,14 @@ anyview-fs = { workspace = true }
 anyview-export = { workspace = true, features = ["print"] }
 anyview-image = { workspace = true, features = ["encode"] }
 anyview-media = { workspace = true, features = ["player"] }
+# The player host and the hub of sessions, which the pane links too.
+anyview-media-host = { workspace = true }
 anyview-pdf = { workspace = true }
 anyview-peek = { workspace = true, features = ["media", "pane"] }
 anyview-platform = { workspace = true }
 anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
+anyview-runtime = { workspace = true }
 anyview-store = { workspace = true }
 anyview-ui = { workspace = true }
 dioxus = { workspace = true }

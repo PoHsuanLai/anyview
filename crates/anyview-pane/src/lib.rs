@@ -8,10 +8,11 @@
 //! file) arrives as a [`PaneRequest`]; what it can do arrives as commands the host lists in its
 //! own palette ([`PaneHandle::commands`]) and runs ([`PaneHandle::run`]).
 //!
-//! The pane never asks the OS for anything: no D-Bus, no player, no file chooser. The platform
-//! abilities of a [`PaneEdge::portable`] edge are none, so Open, Print, Share, Open With and Show
-//! in Folder are simply not there. A recording opens in a viewer window of its own, which the
-//! host hears as [`PaneRequest::OpenElsewhere`].
+//! The pane never asks the OS for anything: no D-Bus, no file chooser. The platform abilities of a
+//! [`PaneEdge::portable`] edge are none, so Open, Print, Share, Open With and Show in Folder are
+//! simply not there. A recording opens in a viewer window of its own, which the host hears as
+//! [`PaneRequest::OpenElsewhere`], unless the host gave the edge a player ([`PaneEdge::with_media`],
+//! or [`PaneEdge::with_player`] with the feature `player`): then it plays in the pane.
 //!
 //! ```ignore
 //! let focused = use_signal(|| true);
@@ -46,9 +47,14 @@ pub use request::{FileRequest, PaneRequest};
 
 // The seams and the vocabulary a host names to wire a pane, so it depends on this crate alone.
 pub use anyview_core::{FilePath, NonEmpty, Resume, Sequence, SequenceOrigin};
+#[cfg(feature = "player")]
+pub use anyview_media::{AudioDriver, MpvHost};
+#[cfg(feature = "player")]
+pub use anyview_media_host::{AudioFocus, FixedMpv, MediaHub, PlayerHost, PlayerPlugins};
 pub use anyview_peek::StillSource;
 pub use anyview_ui::{
     DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, ImagePlugins,
-    Look, LookFeed, MediaHost, NaturalSize, Opened, PaneChrome, PlatformAbilities, ResumeSource,
-    Rewind, TextSave, TypedText, VersionKey, VersionSource, Work, WorkKind, WorkLane, Workers,
+    Look, LookFeed, MediaHost, MediaSupport, NaturalSize, Opened, PaneChrome, PlatformAbilities,
+    ResumeSource, Rewind, TextSave, TypedText, VersionKey, VersionSource, Work, WorkKind, WorkLane,
+    Workers,
 };

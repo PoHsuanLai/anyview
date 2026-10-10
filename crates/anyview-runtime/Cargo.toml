@@ -1,0 +1,16 @@
+[package]
+name = "anyview-runtime"
+description = "The threads of the viewer: a bounded worker pool, the runner that puts a back end's results in a window's mailbox, and the actors that own what cannot be shared (the media player)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
