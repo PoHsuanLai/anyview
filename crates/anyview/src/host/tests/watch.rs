@@ -6,8 +6,10 @@ use std::path::Path;
 use std::sync::mpsc::{Receiver, channel};
 use std::time::Duration;
 
-/// Short, so a test waits little; the burst logic is the same at any length.
-const SETTLE: Duration = Duration::from_millis(60);
+/// The burst logic is the same at any length, so this is only as long as a loaded CI runner needs:
+/// at 60 ms the two writes of one burst, or the events they make, sometimes arrived apart and read
+/// as two changes.
+const SETTLE: Duration = Duration::from_millis(400);
 const PATIENCE: Duration = Duration::from_secs(5);
 
 fn told_by(watcher: &Watcher) -> (crate::host::WindowWatch, Receiver<FilePath>) {
