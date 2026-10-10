@@ -82,13 +82,15 @@ impl Host {
             .lock()
             .unwrap()
             .iter()
-            .filter_map(|request| match request {
-                PaneRequest::Opened(opened) => opened
+            .filter_map(|request| {
+                let PaneRequest::Opened(opened) = request else {
+                    return None;
+                };
+                opened
                     .source
                     .path()
                     .file_name()
-                    .map(|name| name.as_str().to_owned()),
-                _ => None,
+                    .map(|name| name.as_str().to_owned())
             })
             .collect()
     }
