@@ -34,7 +34,7 @@ mod xml_depth;
 pub const APP_NAME: &str = "Viewer";
 
 pub use action::{FileAction, Reach, reach, shortcut};
-pub use edit::{Edit, EditKind};
+pub use edit::{Adjust, Edit, EditKind, PixelRect, Reflection};
 pub use error::CoreError;
 pub use export::{
     AudioTarget, ExportChoice, ExportExtension, ExportJob, HtmlDoc, MediaExport, MediaExportKind,

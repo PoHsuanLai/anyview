@@ -7,6 +7,7 @@
 //! palette, pages, text, resolution and colour profile. A file that cannot be written back that
 //! way is not edited: [`editable`] says so before anything is offered.
 
+mod adjust;
 mod bmp;
 mod place;
 mod png;
@@ -148,6 +149,7 @@ pub fn edited(bytes: &[u8], sniffed: &Sniffed, edit: Edit) -> Result<Vec<u8>, Im
             turn: QuarterTurn::None,
             axis: Some(axis),
         },
+        Edit::Adjust(adjust) => return adjust::adjusted(bytes, sniffed, adjust),
         Edit::DeletePages(_) | Edit::MovePage { .. } => {
             return Err(ImageError::NotAnImageEdit { kind: edit.kind() });
         }

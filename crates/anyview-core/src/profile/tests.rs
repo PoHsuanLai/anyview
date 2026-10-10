@@ -68,7 +68,7 @@ const CASES: &[Row] = &[
             FileAction::FlipHorizontal,
             FileAction::FlipVertical,
         ],
-        &[EditKind::Rotate, EditKind::Flip],
+        &[EditKind::Rotate, EditKind::Flip, EditKind::Adjust],
         StageSupport::Stage,
     ),
     row(
