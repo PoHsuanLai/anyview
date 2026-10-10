@@ -13,7 +13,7 @@ fn writer(root: &std::path::Path) -> StoreWriter {
     StoreWriter::new(root, HistoryCap::new(10_000).unwrap())
 }
 
-fn at_line(line: u64) -> Resume {
+fn at_line(line: u32) -> Resume {
     Resume::Text {
         line: LineIndex(line),
     }
@@ -38,7 +38,7 @@ fn writers_on_different_files_keep_each_others_entries() {
             scope.spawn(move || {
                 let writer = writer(root); // its own instance, as in its own process
                 for (k, (path, stamp)) in (0_u64..).zip(mine) {
-                    let at = at_line(k + 1);
+                    let at = at_line(u32::try_from(k + 1).unwrap());
                     let seen = Viewed(who * 1000 + k);
                     // In the history first: another writer's prune keeps what the history names.
                     writer
