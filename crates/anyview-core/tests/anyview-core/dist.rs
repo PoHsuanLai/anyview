@@ -84,6 +84,8 @@ fn the_desktop_entry_names_the_app_the_window_carries() {
     assert_eq!(line(&entry, "StartupWMClass"), "org.quire.Anyview");
     // The bus name is `org.quire.Anyview1` with its own interface, not org.freedesktop.Application.
     assert_eq!(line(&entry, "DBusActivatable"), "false");
+    // sill hands this to keycap, which keeps Command as Super for an app resolving keys by keymap.
+    assert_eq!(line(&entry, "X-Keycap-Profile"), "keymap-aware");
 }
 
 /// Prints the line to paste into the desktop entry.
