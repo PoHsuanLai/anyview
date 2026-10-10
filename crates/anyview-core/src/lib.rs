@@ -3,7 +3,8 @@
 //! memory a file keeps. No I/O, no clock, no renderer: effects belong to the crates above.
 //!
 //! Every public item is reached from this root, once, except the contract with the threads, which
-//! is reached through its one public module, `work`.
+//! is reached through its one public module, `work`, and the front doors, which [`prelude`] names
+//! a second time for a glob import.
 
 mod action;
 mod edit;
@@ -14,6 +15,7 @@ mod helper;
 mod kind;
 mod media;
 mod peek;
+pub mod prelude;
 mod profile;
 mod resume;
 mod sequence;

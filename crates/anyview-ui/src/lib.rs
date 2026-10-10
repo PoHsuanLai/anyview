@@ -7,7 +7,8 @@
 //! effects are carried out by `io` (blocking work for a pool the binary owns, never a thread of
 //! this library), and what the machines say is drawn by `families` and `views`.
 //!
-//! Every public item is reached from this root, once.
+//! Every public item is reached from this root, once, except that [`prelude`] names the front doors
+//! a second time for a glob import.
 
 mod chrome;
 mod command;
@@ -22,6 +23,7 @@ mod look;
 mod navigate;
 mod palette;
 mod panel;
+pub mod prelude;
 mod presentation;
 mod sheet;
 mod stage;
