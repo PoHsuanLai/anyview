@@ -185,7 +185,7 @@ named below.
 | `label` | `ResumeLabel` and `resume_label`, the row subtitle derived from a `Resume` |
 | `history` | `HistoryCap`, `HistoryEntry`, `History` and the pure `history_after_view` |
 | `record` | the per-file record, its hashed file name, `applicable` and `prune_decision` (private) |
-| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary, among them `Provide`: install this tool), `Need` (a `Needs` row with the tool that would answer it), `HelperSource` and `HelperWords` (what the host lends the sheet to word it), `ResumeSource` and `FileLocks` (what the binary lends it to read; the small picture it lends for a first frame is `anyview_peek::StillSource`), `folder_sequence`, `Backend` and `Stop` |
+| `io` | the effects: `Job` and `Done` (probe a file, make its first frame, open it, read a window of lines, search it, open a neighbour ahead, read a stamp, list a folder), `Workers` (the pool the binary owns), `Work` (with its `WorkLane` and `WorkKind`), `Reply`, `Services` (the pool, the request handler and the seams one window is built over, with `with_*` builders; `#[non_exhaustive]`) and `Edge` (what one window is wired to, made by `Edge::new(services)`), `HostRequest` (what it asks of the binary, among them `Provide`: install this tool), `Need` (a `Needs` row with the tool that would answer it), `HelperSource` and `HelperWords` (what the host lends the sheet to word it), `ResumeSource` and `FileLocks` (what the binary lends it to read; the small picture it lends for a first frame is `anyview_peek::StillSource`), `folder_sequence`, `Backend` and `Stop` |
 | `reader` | `read_history`, `HistoryRead`: the API the launcher links |
 | `writer` | `StoreWriter`: `record_view`, `save_resume`, `load_resume` |
 | `save` | the save pipeline: `Pending`, `BackedUp` (consumed by `write_in_place`), `Written`, `Durability` |
@@ -229,7 +229,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `viewer` | `Viewer`, `ViewerIn`, `ViewerOut`: the root |
 | `command` | `Command` (a file action or a stage command), `StageCommand` and its keys |
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
-| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Edge` (what one window is wired to), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
+| `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Services` (the pool, the request handler and the seams one window is built over, with `with_*` builders; `#[non_exhaustive]`) and `Edge` (what one window is wired to, made by `Edge::new(services)`), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
 | `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf` (and, in `pdf/bound`, a book bound as a PDF), `media` and `peek_only` (office facts and the document's thumbnail), `card` (`InfoCard`, the one file card: the Info panel's Info tab and the facts-only stage draw it) and `found` (the capsule's part of a find: the `3 of 17` readout and the steps; finding itself is the palette's, below). A family's `hit_lines` gives the palette the places the find found, as `HitLine`s. The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
 | `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, and Show in Folder where there is a file manager); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel (the body of the window's left `SplitView` pane, never quire's `SidePanel`: it shrinks the stage, not the window, and its width is the split view's), the sheets, key events as shortcuts, `stylesheet` (one sheet for each concept: `window.css`, `peek.css`, `sheets.css`, `welcome.css`, and one beside each family's view) |
 
@@ -336,10 +336,10 @@ kind by command for the palette and the menu.
 
 **What the platform can do, and who hides what it cannot.** `Picker`, `Printer` and `Reveal`
 have `present()` (true unless the implementation only answers "not available": `NoPicker`, `NoPrinter`), and `Share` has its `targets()`. `host::Hosting::abilities()` reads them into
-`anyview_ui::PlatformAbilities { pick_files, print, share, reveal }` (a plain set; `ALL` is the
-default), which the window's `Wiring` gives its `Edge` (`with_platform`). The views read it, never the operating
+`anyview_ui::PlatformAbilities` (a set of `DesktopService::{FileChooser, PrintDialog, Sharing,
+FileManager}`; `ALL` is the default), which the window's `Wiring` gives its `Services` (`with_platform`). The views read it, never the operating
 system: `views/session.rs` `offered` filters the palette's commands (so the context menu and the file-action keys,
-which derive from them, follow), `keys::Regions::pick_files` unbinds ⌘O, `StageCx::platform` gates the Show in Folder
+which derive from them, follow), `keys::Regions::platform` unbinds ⌘O, `StageCx::platform` gates the Show in Folder
 button of the card and picture screens, `Offer::of` those of the failure screen, and the
 welcome window drops Open.... The Install... of a missing tool is the host's: `HelperHost::installing_where` is
 quire's `Helpers` capability from `ds-desktop`, probed once in `program::start` (`ds-desktop/dbus` is on with
@@ -945,7 +945,7 @@ host sends `Cancel` or closes its pipe (the host also kills the plugin's process
 
 Acceptance of both against real tools is still to do: the tests run stand-in scripts for the tools.
 
-**How the viewer routes a decode.** `anyview_ui::ImagePlugins` is the seam (`Edge::with_image_plugins`, carried
+**How the viewer routes a decode.** `anyview_ui::ImagePlugins` is the seam (`Services::with_image_plugins`, carried
 on `OpenPort`); the binary's `host::ImageHost` implements it over the registry: `Plugins::route(Decode, subject)`
 is `Served` (it asks the plugin with `PluginRunner::decode`, on the worker that opens the file, never the UI
 thread), `Missing` (a `Needs` row naming the package) or `Unserved`. A plugin that is installed whose tools are

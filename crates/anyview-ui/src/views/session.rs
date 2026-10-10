@@ -4,11 +4,11 @@
 
 use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
-use crate::io::{NaturalSize, Opened};
+use crate::io::{DesktopService, NaturalSize, Opened};
 use crate::sheet::ExportFacts;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, HitIndex, HitList, MediaOffer,
-    Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities,
+    Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities, Playing,
     PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams,
     TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
 };
@@ -69,6 +69,16 @@ pub(super) enum Playback {
     Unplayable,
 }
 
+/// Whether the Export sheet has anything to write: a recording with no export on offer and no
+/// package to name has none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Exports {
+    /// The sheet has a format to write.
+    Offered,
+    /// The sheet would be empty.
+    Nothing,
+}
+
 /// Whether the open file takes `action`, from what the showing stage declares it can do
 /// (`Stage::abilities`), what the file allows and what the platform has. One match, so a file
 /// action added to the vocabulary has to say where it applies, and nothing is listed that would do
@@ -80,7 +90,7 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
         playback,
         edit,
         access,
-        exportable,
+        exports,
         platform,
         tool: _,
     } = offers;
@@ -91,7 +101,7 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
     match action {
         FileAction::CopyFile => false,
         FileAction::PlayInMiniWindow | FileAction::PlayInBackground => {
-            ability.plays && playback == Playback::Playable
+            ability.playing == Playing::Plays && playback == Playback::Playable
         }
         FileAction::RotateLeft
         | FileAction::RotateRight
@@ -100,7 +110,9 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
             ability.edits.contains(&action) && edit != EditOffer::Withheld && writable
         }
         FileAction::RevertTo => !ability.edits.is_empty() && writable,
-        FileAction::Export | FileAction::ConvertTo => ability.export.is_some() && exportable,
+        FileAction::Export | FileAction::ConvertTo => {
+            ability.export.is_some() && exports == Exports::Offered
+        }
         FileAction::Open
         | FileAction::RevealInFolder
         | FileAction::CopyPath
@@ -137,9 +149,8 @@ pub(super) struct Offers {
     pub edit: EditOffer,
     /// Whether the file takes a save in place.
     pub access: FileAccess,
-    /// Whether the Export sheet has anything to write: a recording with no export on offer and
-    /// no package to name has none.
-    pub exportable: bool,
+    /// Whether the Export sheet has anything to write.
+    pub exports: Exports,
     /// The desktop services there are for the file actions that need one.
     pub platform: PlatformAbilities,
     /// The pointer tool in use: the palette lists the other.
@@ -191,7 +202,10 @@ pub(super) fn commands(
             _,
         ) => None,
     };
-    let open = offers.platform.pick_files.then_some(Command::OpenFile);
+    let open = offers
+        .platform
+        .has(DesktopService::FileChooser)
+        .then_some(Command::OpenFile);
     let pan = (offers.playback == Playback::Playable && matches!(stage, Stage::Raster(_)))
         .then_some(Command::UseTool(offers.tool.other()));
     open.into_iter()
@@ -367,18 +381,22 @@ pub(super) fn params(
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
     };
-    let exportable = match (stage, doc) {
+    let exports = match (stage, doc) {
         (Stage::Media(_), Some(doc)) => {
             let media = doc.view().media_offer();
-            media.first().is_some() || media.needs().is_some()
+            if media.first().is_some() || media.needs().is_some() {
+                Exports::Offered
+            } else {
+                Exports::Nothing
+            }
         }
-        _ => true,
+        _ => Exports::Offered,
     };
     let offers = Offers {
         playback,
         edit: offer,
         access,
-        exportable,
+        exports,
         platform,
         tool,
     };
@@ -490,7 +508,7 @@ mod tests {
             playback: Playback::Playable,
             edit: EditOffer::Plain,
             access: FileAccess::Writable,
-            exportable: true,
+            exports: Exports::Offered,
             platform: PlatformAbilities::ALL,
             tool: crate::Tool::default(),
         }
@@ -661,7 +679,7 @@ mod tests {
             ..plain()
         };
         let unexportable = Offers {
-            exportable: false,
+            exports: Exports::Nothing,
             ..plain()
         };
         let no_desktop = Offers {

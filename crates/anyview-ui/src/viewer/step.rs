@@ -467,7 +467,7 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
             panel: &viewer.panel,
             stage: &viewer.stage,
             stage_params: &params.stage,
-            pick_files: params.platform.pick_files,
+            platform: params.platform,
         },
     );
     match routed {

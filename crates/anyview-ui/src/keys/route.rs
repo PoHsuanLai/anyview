@@ -6,6 +6,7 @@ use crate::command::StageCommand;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
 use crate::hand::HandIn;
+use crate::io::DesktopService;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn, PanelTab};
@@ -94,7 +95,11 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
             Some(Route::Panel(info_toggle(regions.panel)))
         }
         [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
-        [ShortcutKey::Super, ShortcutKey::Char('o')] if regions.pick_files => Some(Route::OpenFile),
+        [ShortcutKey::Super, ShortcutKey::Char('o')]
+            if regions.platform.has(DesktopService::FileChooser) =>
+        {
+            Some(Route::OpenFile)
+        }
         [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
         [ShortcutKey::Escape] => Some(escape(regions)),
         keys => rewind(keys).map(Route::Rewind),

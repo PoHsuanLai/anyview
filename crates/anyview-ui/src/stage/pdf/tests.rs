@@ -15,7 +15,7 @@ fn params() -> PdfParams {
             fit: Permille(800),
         },
         step: Permille(1250),
-        edits: true,
+        page_edits: PageEdits::Allowed,
     }
 }
 const CAT: TypedText = TypedText::from_static("cat");

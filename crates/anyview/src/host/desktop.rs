@@ -20,7 +20,7 @@ use anyview_platform::{
     Env, FileKinds, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
 use anyview_store::Versions;
-use anyview_ui::{HelperEnd, PlatformAbilities, VersionRow};
+use anyview_ui::{DesktopService, HelperEnd, PlatformAbilities, VersionRow};
 use ds::prelude::Word;
 use std::fmt::Display;
 use std::path::Path;
@@ -217,12 +217,20 @@ where
     }
 
     fn abilities(&self) -> PlatformAbilities {
-        PlatformAbilities {
-            pick_files: self.parts.picker.present(),
-            print: self.parts.printer.present(),
-            share: !self.parts.share.targets().is_empty(),
-            reveal: self.parts.reveal.present(),
-        }
+        let there = [
+            (DesktopService::FileChooser, self.parts.picker.present()),
+            (DesktopService::PrintDialog, self.parts.printer.present()),
+            (
+                DesktopService::Sharing,
+                !self.parts.share.targets().is_empty(),
+            ),
+            (DesktopService::FileManager, self.parts.reveal.present()),
+        ];
+        PlatformAbilities::of(
+            there
+                .into_iter()
+                .filter_map(|(service, present)| present.then_some(service)),
+        )
     }
 
     fn flush(&self) {

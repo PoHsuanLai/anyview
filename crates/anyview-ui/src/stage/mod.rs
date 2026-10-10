@@ -18,7 +18,7 @@ mod text;
 mod tree;
 mod zoom;
 
-pub use abilities::StageAbilities;
+pub use abilities::{Playing, StageAbilities};
 pub use family::StageFamily;
 pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep};
 pub use media::{
@@ -26,7 +26,7 @@ pub use media::{
     MediaParams, MediaStage, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge,
 };
 pub use model::{Stage, StageIn, StageOut, StageParams};
-pub use pdf::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+pub use pdf::{Destination, PageEdits, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub use raster::{
     Animation, FrameCount, FrameDelays, FrameIndex, Motion, RasterIn, RasterOut, RasterParams,
     RasterStage, Runs,

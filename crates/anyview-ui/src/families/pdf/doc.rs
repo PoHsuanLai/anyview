@@ -58,6 +58,15 @@ impl PdfFailure {
     }
 }
 
+/// Where an opened PDF came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PdfOrigin {
+    /// A PDF file.
+    File,
+    /// A book bound as a PDF in the window, which opens at reading width and takes no page edit.
+    Book,
+}
+
 /// An opened PDF. Shared in an `Arc` by the window and every job; nothing in it changes.
 #[derive(Debug)]
 pub struct PdfDoc {
@@ -69,8 +78,8 @@ pub struct PdfDoc {
     pub facts: Facts,
     /// A signed document asks before a page edit rewrites it.
     pub offer: EditOffer,
-    /// Whether this is a book bound as a PDF, which opens at reading width.
-    pub book: bool,
+    /// Whether this is a PDF file or a book bound as one.
+    pub origin: PdfOrigin,
     scratch: Mutex<Vec<PdfWorker>>,
 }
 
@@ -87,7 +96,7 @@ impl PdfDoc {
         // The book's pages are a PDF only in the window: no edit of them could be written back.
         PdfDoc {
             offer: EditOffer::Withheld,
-            book: true,
+            origin: PdfOrigin::Book,
             ..PdfDoc::with_facts(facts, document)
         }
     }
@@ -100,7 +109,7 @@ impl PdfDoc {
         };
         PdfDoc {
             offer,
-            book: false,
+            origin: PdfOrigin::File,
             outline: outline(&document),
             document,
             facts,

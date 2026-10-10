@@ -4,7 +4,7 @@ use super::super::find::{FindHits, FindOut};
 use super::super::media::StepDirection;
 use super::super::zoom::stepped;
 use super::finding::finding;
-use super::model::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+use super::model::{Destination, PageEdits, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 use crate::edits::EditRequest;
 use crate::typed::TypedText;
 use anyview_core::{Edit, PageIndex, PageRange, Permille, Resume, Zoom};
@@ -133,7 +133,7 @@ pub(super) fn search(query: &TypedText) -> PdfOut {
 /// the document would be left with no page, or the page is already at the end it moves towards.
 pub(super) fn page_edit(page: PageIndex, input: &PdfIn, params: &PdfParams) -> Vec<PdfOut> {
     let edit = match input {
-        PdfIn::DeletePage | PdfIn::MovePage(_) if !params.edits => None,
+        PdfIn::DeletePage | PdfIn::MovePage(_) if params.page_edits == PageEdits::Barred => None,
         PdfIn::DeletePage if params.pages.get() > 1 => {
             PageRange::new(page, page).map(Edit::DeletePages).ok()
         }

@@ -5,23 +5,22 @@
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
 use super::abilities::PlatformAbilities;
-use super::helpers::{HelperSource, NoHelpers};
+use super::helpers::HelperSource;
 use super::job::{Done, Job, OpenPort, Opened, WorkLane};
-use super::media::{MediaHost, MediaPort, NoPlayer};
+use super::media::{MediaHost, MediaPort};
 use super::notice::Notice;
-use super::seams::{
-    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoVersions, ResumeSource,
-    VersionSource,
-};
+use super::seams::{FileLocks, ImagePlugins, ResumeSource, VersionSource};
+use super::services::Services;
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
-use anyview_peek::{NoStills, StillSource};
+use anyview_peek::StillSource;
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
+use std::ops::{Deref, DerefMut};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -233,6 +232,35 @@ pub struct Edge {
     held: Arc<Mutex<Held>>,
 }
 
+/// The receiving end of an edge's results, held by one task at a time and given back to the edge
+/// when it is dropped.
+pub(crate) struct Mailbox {
+    home: Arc<Mutex<Option<UnboundedReceiver<Done>>>>,
+    receiver: UnboundedReceiver<Done>,
+}
+
+impl Deref for Mailbox {
+    type Target = UnboundedReceiver<Done>;
+
+    fn deref(&self) -> &UnboundedReceiver<Done> {
+        &self.receiver
+    }
+}
+
+impl DerefMut for Mailbox {
+    fn deref_mut(&mut self) -> &mut UnboundedReceiver<Done> {
+        &mut self.receiver
+    }
+}
+
+impl Drop for Mailbox {
+    fn drop(&mut self) {
+        let (_, spare) = unbounded();
+        let receiver = std::mem::replace(&mut self.receiver, spare);
+        *self.home.lock().unwrap_or_else(PoisonError::into_inner) = Some(receiver);
+    }
+}
+
 /// The newest load that submitted work, and the stop its work shares. A job of a newer load
 /// raises it, so what the person left behind (a search of the last query, an open of the last
 /// file) ends early instead of running to its end.
@@ -249,89 +277,37 @@ impl std::fmt::Debug for Edge {
 }
 
 impl Edge {
-    /// An edge over `workers`, handing the window's requests to `requests`.
-    pub fn new(
-        workers: Arc<dyn Workers>,
-        requests: impl Fn(HostRequest) + Send + Sync + 'static,
-    ) -> Edge {
+    /// An edge over `services`: its workers, its request handler and its seams.
+    pub fn new(services: Services) -> Edge {
+        let Services {
+            workers,
+            on_request,
+            resume,
+            locks,
+            versions,
+            first_frames,
+            media,
+            image_plugins,
+            helpers,
+            platform,
+        } = services;
         let (sender, receiver) = unbounded();
         Edge {
             workers,
             reply: Reply(sender),
             mailbox: Arc::new(Mutex::new(Some(receiver))),
-            requests: Arc::new(requests),
+            requests: on_request,
             highlighter: Arc::new(Highlighter::new()),
-            resume: Arc::new(Forgetful),
-            locks: Arc::new(NoLocks),
-            versions: Arc::new(NoVersions),
-            first_frames: Arc::new(NoStills),
-            media: Arc::new(NoPlayer),
-            image_plugins: Arc::new(NoImagePlugins),
-            helpers: Arc::new(NoHelpers),
-            platform: PlatformAbilities::default(),
+            resume,
+            locks,
+            versions,
+            first_frames,
+            media,
+            image_plugins,
+            helpers,
+            platform,
             held: Arc::default(),
         }
-    }
-
-    /// The same edge reading where files were left from `source`: without one nothing is
-    /// remembered, and every file opens at its start.
-    pub fn with_resume_source(self, source: Arc<dyn ResumeSource>) -> Edge {
-        Edge {
-            resume: source,
-            ..self
-        }
-    }
-
-    /// The same edge asking `locks` which files refuse a save in place: without it every file
-    /// offers its edits.
-    pub fn with_locks(self, locks: Arc<dyn FileLocks>) -> Edge {
-        Edge { locks, ..self }
-    }
-
-    /// The same edge listing a file's kept versions from `source`: without one a file has none to
-    /// go back to.
-    pub fn with_version_source(self, source: Arc<dyn VersionSource>) -> Edge {
-        Edge {
-            versions: source,
-            ..self
-        }
-    }
-
-    /// The same edge showing the host's small pictures while a file opens: without them a file
-    /// shows once it is open.
-    pub fn with_first_frames(self, source: Arc<dyn StillSource>) -> Edge {
-        Edge {
-            first_frames: source,
-            ..self
-        }
-    }
-
-    /// The same edge starting its players with `host`: without one a recording does not open.
-    pub fn with_media(self, host: Arc<dyn MediaHost>) -> Edge {
-        Edge {
-            media: host,
-            ..self
-        }
-    }
-
-    /// The same edge decoding pictures the viewer cannot (HEIC, raw files in full) through
-    /// `plugins`: without them a file only a plugin can show is shown as its facts.
-    pub fn with_image_plugins(self, plugins: Arc<dyn ImagePlugins>) -> Edge {
-        Edge {
-            image_plugins: plugins,
-            ..self
-        }
-    }
-
-    /// The same edge wording its install sheet from `helpers`: without them no tool is offered.
-    pub fn with_helpers(self, helpers: Arc<dyn HelperSource>) -> Edge {
-        Edge { helpers, ..self }
-    }
-
-    /// The same edge offering only what the platform can do: an action whose desktop service is
-    /// absent is not listed, bound or drawn. Without this every ability is there.
-    pub fn with_platform(self, platform: PlatformAbilities) -> Edge {
-        Edge { platform, ..self }
     }
 
     /// What the platform can do, for the window to decide what to offer.
@@ -439,12 +415,20 @@ impl Edge {
         }
     }
 
-    /// The mailbox, once: the window's UI task takes it and awaits the results.
-    pub(crate) fn take_mailbox(&self) -> Option<UnboundedReceiver<Done>> {
-        self.mailbox
+    /// The mailbox, for as long as the caller holds it: the window's UI task takes it and awaits
+    /// the results. A clone of the edge shares it, so only one holder has it at a time; when a
+    /// holder is dropped (the window's task ended, the view mounted again) the mailbox is back
+    /// and the next `take_mailbox` gets it, with whatever arrived in between.
+    pub(crate) fn take_mailbox(&self) -> Option<Mailbox> {
+        let receiver = self
+            .mailbox
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .take()
+            .take()?;
+        Some(Mailbox {
+            home: Arc::clone(&self.mailbox),
+            receiver,
+        })
     }
 
     /// Hand a request to the binary.
@@ -462,7 +446,7 @@ mod tests {
         impl Workers for Nowhere {
             fn submit(&self, _work: Work) {}
         }
-        Edge::new(Arc::new(Nowhere), |_| {})
+        Edge::new(Services::new(Arc::new(Nowhere), |_| {}))
     }
 
     #[test]

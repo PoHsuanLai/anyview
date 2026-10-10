@@ -1,6 +1,7 @@
 use super::*;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::context::{ContextIn, ContextMenu, Spot};
+use crate::io::{DesktopService, PlatformAbilities};
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn, PaletteMove, PaletteRow, PaletteScope};
 use crate::panel::{Panel, PanelIn, PanelTab};
@@ -456,7 +457,7 @@ fn every_row_of_the_table_routes_as_written() {
             panel,
             stage,
             stage_params: &params,
-            pick_files: true,
+            platform: PlatformAbilities::ALL,
         };
         let got = route(&Shortcut(keys.to_vec()), regions);
         assert_eq!(&got, want, "{name}");
@@ -473,7 +474,7 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
         panel: &Panel::Hidden,
         stage: &IMAGE,
         stage_params: &params,
-        pick_files: true,
+        platform: PlatformAbilities::ALL,
     };
     const OPEN: ContextMenu = ContextMenu::Open {
         at: Spot { x: 1, y: 2 },
@@ -514,7 +515,7 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
 #[test]
 fn command_o_is_a_chord_only_where_the_platform_has_a_file_chooser() {
     let params = StageParams::default();
-    let routed = |pick_files| {
+    let routed = |platform| {
         route(
             &Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')]),
             Regions {
@@ -524,10 +525,14 @@ fn command_o_is_a_chord_only_where_the_platform_has_a_file_chooser() {
                 panel: &Panel::Hidden,
                 stage: &IMAGE,
                 stage_params: &params,
-                pick_files,
+                platform,
             },
         )
     };
-    assert_eq!(routed(true), Route::OpenFile);
-    assert_ne!(routed(false), Route::OpenFile, "unbound without a chooser");
+    assert_eq!(routed(PlatformAbilities::ALL), Route::OpenFile);
+    assert_ne!(
+        routed(PlatformAbilities::ALL.without(DesktopService::FileChooser)),
+        Route::OpenFile,
+        "unbound without a chooser"
+    );
 }

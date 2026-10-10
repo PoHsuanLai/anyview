@@ -6,6 +6,15 @@ use super::model::Stage;
 use crate::sheet::ExportFamily;
 use anyview_core::FileAction;
 
+/// Whether the file a stage shows plays, as a recording does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Playing {
+    /// It plays: Play in a Small Window and Play in the Background are its.
+    Plays,
+    /// It does not; it stays as it is.
+    Still,
+}
+
 /// The file actions that change what the stage shows, the export it writes, and whether it plays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StageAbilities {
@@ -13,15 +22,15 @@ pub struct StageAbilities {
     pub edits: &'static [FileAction],
     /// The format the Export sheet writes, or `None` when the stage has no export.
     pub export: Option<ExportFamily>,
-    /// Whether the file plays: Play in a Small Window and Play in the Background are its.
-    pub plays: bool,
+    /// Whether the file plays.
+    pub playing: Playing,
 }
 
 /// A stage that changes nothing and writes nothing.
 const READ_ONLY: StageAbilities = StageAbilities {
     edits: &[],
     export: None,
-    plays: false,
+    playing: Playing::Still,
 };
 
 /// A picture turns and flips.
@@ -33,7 +42,7 @@ const RASTER: StageAbilities = StageAbilities {
         FileAction::FlipVertical,
     ],
     export: Some(ExportFamily::Raster),
-    plays: false,
+    playing: Playing::Still,
 };
 
 /// A PDF turns the page the person is on (the file stores it as the page's `/Rotate`), and does
@@ -41,12 +50,12 @@ const RASTER: StageAbilities = StageAbilities {
 const PDF: StageAbilities = StageAbilities {
     edits: &[FileAction::RotateLeft, FileAction::RotateRight],
     export: Some(ExportFamily::Pdf),
-    plays: false,
+    playing: Playing::Still,
 };
 
 const MEDIA: StageAbilities = StageAbilities {
     export: Some(ExportFamily::Media),
-    plays: true,
+    playing: Playing::Plays,
     ..READ_ONLY
 };
 

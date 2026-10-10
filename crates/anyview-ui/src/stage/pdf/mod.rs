@@ -7,6 +7,6 @@ mod step;
 #[cfg(test)]
 mod tests;
 
-pub use model::{Destination, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+pub use model::{Destination, PageEdits, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
 pub(crate) use place::{LineDir, nudged};
 pub(crate) use place::{end, start};

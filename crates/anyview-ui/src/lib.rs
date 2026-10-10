@@ -42,19 +42,19 @@ pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
     Area, FamilyVisitor, Finish, FlightId, FoundHits, FrameLook, Held, HitLine, Leaving,
     LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView,
-    PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
-    PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen,
+    PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfOrigin, PdfShelf, PdfStageView, PdfTask,
+    PeekOnlyDoc, PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen,
     RasterStageView, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
     TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size, family_of,
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use hand::{Hand, HandIn, Space, Tool};
 pub use io::{
-    Backend, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords, HostRequest,
-    ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted,
-    MediaWake, NaturalSize, Need, Notice, OpenError, OpenPort, Opened, PlatformAbilities,
-    PluginPicture, Preloaded, Readable, Reply, ResumeSource, SizeBasis, SlotPixels, Stop,
-    VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,
+    HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart,
+    MediaStarted, MediaWake, NaturalSize, Need, Notice, OpenError, OpenPort, Opened,
+    PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeSource, Services,
+    SizeBasis, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -78,13 +78,13 @@ pub use sheet::{
 pub use stage::{
     AfterScrub, Animation, ControlOffer, Destination, EndReason, FindHits, FindOut, FrameCount,
     FrameDelays, FrameIndex, HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaAbilities,
-    MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageLines, PageView,
-    PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, RasterIn, RasterOut,
-    RasterParams, RasterStage, RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage, StageAbilities,
-    StageFamily, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams,
-    TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView,
-    TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap,
-    ZoomDir,
+    MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageEdits, PageLines,
+    PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, Playing, RasterIn,
+    RasterOut, RasterParams, RasterStage, RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage,
+    StageAbilities, StageFamily, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut,
+    TableParams, TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage,
+    TextStep, TextView, TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge,
+    Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};

@@ -21,8 +21,8 @@ pub use media::{
 };
 pub(crate) use media::{level_to_volume, place_to_time, tabs_offered as media_tabs};
 pub use pdf::{
-    Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask,
-    ReadyTile, use_pdf_shelf,
+    Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfOrigin, PdfShelf, PdfStageView,
+    PdfTask, ReadyTile, use_pdf_shelf,
 };
 pub use peek_only::{PeekOnlyDoc, PeekOnlyStageView};
 pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen, RasterStageView};
