@@ -21,7 +21,7 @@ pub(super) fn body(doc: &Arc<MediaDoc>, tab: PanelTab, cx: &StageCx) -> Option<E
         PanelTab::Contents => {
             Some(rsx! { Chapters { doc: Held(Arc::clone(doc)), cx: cx.clone() } })
         }
-        PanelTab::Info | PanelTab::Thumbnails => None,
+        PanelTab::Info | PanelTab::Thumbnails | PanelTab::Sheets => None,
     }
 }
 

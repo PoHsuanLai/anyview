@@ -8,9 +8,14 @@ versioning, with pre-releases while the program is in beta.
 ### Shortcuts
 
 - Shortcuts follow your system's keyboard settings. Command on a Mac-style desktop and Ctrl on Windows and most Linux desktops now mean what that system says; change a shortcut in the system and Viewer follows it. Ctrl is no longer Command on a desktop where Command is its own key.
-- Zoom uses ⌘+ and ⌘−, and the bare + and − keys still work. Actual Size is ⌥⌘0 and Zoom to Fit is ⌘0; ⌘1 and ⌘9 are left for tabs and Spaces.
+- Zoom uses ⌘+ and ⌘−, and the bare + and − keys still work. As in Preview, Actual Size is ⌘0 (or 0), Zoom to Fit is ⌘9 (or 9), and Fit Width is 2. Get Info is ⌘I.
 - Get Info is ⌘I, as in Preview; the viewer never styles text, so it gives Italic's chord up. The next and previous sheet of a workbook are ⌘Page Down and ⌘Page Up, so ⌘[ and ⌘] only turn a picture.
 - The command palette, Get Info, Copy Path, Duplicate, Move to Trash, Export, the page edits and the rest show the key the system gives them, in the palette and in the menus.
+
+### Closing
+
+- The window's close button, and the close the desktop asks for, now ask to save as Command W does when a text or a picture has changes you have not saved: Save, Don't Save or Cancel. A window with nothing to save closes at once.
+- The buttons of the bottom bar show their key in the tooltip, after the name of the button.
 
 ### Text
 
@@ -20,6 +25,12 @@ versioning, with pre-releases while the program is in beta.
 - Find works on the text you are editing, and its matches follow as you type.
 - Long lines wrap in plain text and Markdown and run on in code. The Toggle Wrap command in the palette (or the bottom bar's button) changes it, and Viewer remembers your choice for the next file of the same kind.
 - A Markdown file has a Preview | Source control at the right end of the title bar, next to where a picture has Select | Pan, so the preview is easy to find; the V key still switches. Source is set in the code face with a line-number gutter and room at the sides, and the preview reads in the interface face at a comfortable width, with headings in the display face.
+
+### Tables and JSON
+
+- A CSV, TSV or spreadsheet sheet is a table as in Numbers: a row-number gutter, a header that stays put (a hairline appears under it once the rows scroll), hairline rules between the columns, numbers at the right edge of their columns, and columns you can drag wider or narrower. Click a header to sort by it, again to reverse, and once more to go back to the file's own order; sorting is only how you look at the sheet and never changes the file. A two-hundred-thousand-row file still costs a screenful.
+- A JSON tree uses the same row height and face as a table: keys in the ordinary text colour, values tinted by what they are, and the counts of objects and arrays faint.
+- A workbook's panel has a Sheets tab with a row for each sheet, beside Info. When a file is longer than what Viewer shows, the panel says "Showing the first 200000 rows" at its foot instead of putting a banner over the rows.
 
 ### Left panel
 

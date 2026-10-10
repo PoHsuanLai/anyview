@@ -153,6 +153,10 @@ pub enum ViewerIn {
     Run(Command),
     /// A key press, routed by `route`.
     Key(Press),
+    /// The person closed the window with its frame's button or the compositor's control: it
+    /// leaves as ⌘W leaves, asking first what to do with changes that are not saved. A request
+    /// made while that question is already up changes nothing.
+    CloseRequested,
     /// The host's save of the edited text ended like this.
     Saved(SaveEnd),
     /// The time `wake()` named has come.

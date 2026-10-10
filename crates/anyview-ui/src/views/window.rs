@@ -43,7 +43,7 @@ use ds::machine::{use_machine_in, use_machine_state};
 use ds::prelude::*;
 use ds::root::pass_through::ExtraClass;
 use ds::window::vocab::Activation;
-use ds_blitz::use_gpu;
+use ds_blitz::{CloseAnswer, use_close_request, use_gpu};
 use ds_core::vocab::ShortcutKey;
 use ds_core::word::Word;
 use futures_util::StreamExt;
@@ -92,6 +92,17 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     };
     let mut slot = slot;
     slot.set(Some(dispatch));
+    // The frame's close button and the compositor's close leave as ⌘W does: a window with changes
+    // that are not saved asks Save, Don't Save or Cancel first, and the app closes it itself once
+    // the person has answered.
+    use_close_request(move || {
+        if dispatch.machine.state().peek().unsaved() {
+            dispatch.send(ViewerIn::CloseRequested);
+            CloseAnswer::Keep
+        } else {
+            CloseAnswer::Close
+        }
+    });
     let window = use_hook(try_consume_context::<WindowHost>);
     let mut zone = use_signal(|| Zone::Content);
     let mut root = use_signal(|| None::<Rc<MountedData>>);

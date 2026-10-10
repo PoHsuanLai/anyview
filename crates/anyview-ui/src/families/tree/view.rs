@@ -25,17 +25,15 @@ pub(super) fn page_of(area: Option<crate::Area>) -> u32 {
     })
 }
 
-/// How far each level of depth indents a row.
-const INDENT_PX: f32 = 16.0;
-
-/// The token class a value is coloured by: the highlighter's own, so a tree and the source view
-/// agree on what a string or a number looks like.
+/// The class a value is drawn in: the highlighter's token class, so a tree and the source view
+/// agree on what a string or a number looks like. An object's or an array's is its count, which
+/// is faint.
 fn value_class(kind: NodeKind) -> &'static str {
     match kind {
         NodeKind::String => "tok-string",
         NodeKind::Number => "tok-number",
         NodeKind::True | NodeKind::False | NodeKind::Null => "tok-constant",
-        NodeKind::Object | NodeKind::Array => "tok-comment",
+        NodeKind::Object | NodeKind::Array => "viewer-node-count",
     }
 }
 
@@ -62,15 +60,15 @@ fn node_row(
     index: u32,
 ) -> Element {
     let toggled = visible.path.clone();
-    let depth = visible.depth as f32; // a depth is far below f32's exact range
+    let depth = visible.depth;
     let key = label_text(&visible.row.label);
     let class = value_class(visible.row.kind);
     let preview = visible.row.preview.clone();
     let content = rsx! {
         span {
             class: "viewer-node",
-            style: "padding-left:{depth * INDENT_PX}px",
-            span { class: "tok-type viewer-node-key", "{key}" }
+            style: "padding-left:calc(var(--s-16) * {depth})",
+            span { class: "tok-plain viewer-node-key", "{key}" }
             span { class: "tok-punctuation", ": " }
             span { class: "{class} viewer-node-value ds-truncate", "{preview}" }
         }
@@ -120,8 +118,6 @@ pub(super) fn TreeContent(doc: Held<TreeDoc>, cx: StageCx) -> Element {
         }
     });
     let keys: Vec<u32> = (0..total).collect();
-    let note = (doc.0.coverage == anyview_text::Coverage::Prefix)
-        .then(|| "Showing the start of the file".to_owned());
     rsx! {
         div { class: "viewer-data", "data-body": "tree",
             VirtualList::<u32> {
@@ -131,9 +127,6 @@ pub(super) fn TreeContent(doc: Held<TreeDoc>, cx: StageCx) -> Element {
                 height: RowHeight::Fixed(Px(compact_px())),
                 cursor,
                 onselect: move |index: u32| send.call(StageIn::Tree(TreeIn::Select(RowNo(index)))),
-            }
-            if let Some(note) = note {
-                p { class: "viewer-data-note", "{note}" }
             }
         }
     }

@@ -9,6 +9,8 @@ pub enum PanelTab {
     Thumbnails,
     /// The outline, chapters or headings.
     Contents,
+    /// A workbook's sheets.
+    Sheets,
     /// The file's facts.
     Info,
     /// Audio, subtitle and video tracks.
@@ -22,6 +24,7 @@ impl PanelTab {
             PanelTab::Contents => 2,
             PanelTab::Info => 4,
             PanelTab::Tracks => 8,
+            PanelTab::Sheets => 16,
         }
     }
 }

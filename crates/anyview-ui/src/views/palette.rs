@@ -5,36 +5,14 @@
 //! root as they arrive, so the machine is the one place they mean anything.
 
 use super::press::press_of;
-use crate::{
-    Act, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText,
-};
-use anyview_core::shortcut;
+use crate::{Act, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, TypedText};
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
 use ds::components::menus::palette::palette_claim::{Claim, FieldKey};
 use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
 use ds::host::caret::InitialCaret;
-use ds::prelude::{CommandPalette, RunTone, Shortcut, ShortcutKey, TextLine, TextRun, use_keys};
-
-/// The keys shown beside a command.
-fn keys_of(command: &Command) -> Option<Shortcut> {
-    match command {
-        Command::File(action) => shortcut(*action),
-        Command::Stage(command) => command.shortcut(),
-        Command::OpenFile => Act::OpenFile.shortcut(),
-        Command::UseTool(tool) => match tool {
-            Tool::Crop => Some(Shortcut(vec![ShortcutKey::Char('c')])),
-            Tool::Select | Tool::Pan => Some(Shortcut(vec![ShortcutKey::Char('h')])),
-        },
-        Command::Picture(command) => match command {
-            PictureCommand::Save => Act::Save.shortcut(),
-            PictureCommand::AdjustSize => None,
-        },
-        Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
-        Command::FindHit(_) | Command::ShowAllHits | Command::Install(_) => None,
-    }
-}
+use ds::prelude::{CommandPalette, RunTone, TextLine, TextRun, use_keys};
 
 /// The row of one hit: the words around it with the match marked, and where it is. A hit whose
 /// words were not kept is listed by where it is.
@@ -102,7 +80,7 @@ pub(super) fn Palette(
             | Command::Picture(_)
             | Command::ShowView(_)
             | Command::Install(_) => commands.push(PaletteRow {
-                chord: keys_of(command).map(RowChord::always).unwrap_or_default(),
+                chord: command.shortcut().map(RowChord::always).unwrap_or_default(),
                 ..PaletteRow::new(index, command.label())
             }),
         }

@@ -44,7 +44,9 @@ pub(super) fn InfoPanel(
                 PanelTab::Info => rsx! {
                     InfoCard { name, kind, facts }
                 },
-                PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Tracks => rsx! {},
+                PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Sheets | PanelTab::Tracks => {
+                    rsx! {}
+                }
             }
             if let Some(body) = body {
                 {body}

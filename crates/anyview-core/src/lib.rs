@@ -9,6 +9,7 @@
 #![warn(missing_docs)]
 
 mod action;
+mod column;
 mod edit;
 mod error;
 mod export;
@@ -34,6 +35,7 @@ mod xml_depth;
 pub const APP_NAME: &str = "Viewer";
 
 pub use action::{FileAction, Reach, file_action_of, own_keys, reach, shortcut};
+pub use column::{ColumnSort, SortDirection, is_numeric, sorted_rows};
 pub use edit::{Adjust, Edit, EditKind, PixelRect, Reflection};
 pub use error::CoreError;
 pub use export::{

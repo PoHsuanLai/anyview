@@ -54,7 +54,12 @@ fn a_capsule_button_shows_its_name_as_soon_as_the_pointer_is_over_it() {
         hover(&mut harness, "Zoom In");
         settle(&mut harness);
         assert_eq!(harness.count(TIP), 1, "{scale}%: no tip under the pointer");
-        assert_eq!(harness.text_of(TIP).as_deref(), Some("Zoom In"), "{scale}%");
+        // The name, then the key the button's command is on.
+        assert_eq!(
+            harness.text_of(TIP).as_deref(),
+            Some("Zoom In  ⌘+"),
+            "{scale}%"
+        );
     }
 }
 
@@ -133,10 +138,10 @@ fn each_control_says_its_own_words() {
             "capsule",
             capsule,
             &[
-                ("Zoom Out", "Zoom Out", None),
-                ("Zoom In", "Zoom In", None),
-                ("Rotate Left", "Rotate Left", None),
-                ("Rotate Right", "Rotate Right", None),
+                ("Zoom Out", "Zoom Out", Some("⌘-")),
+                ("Zoom In", "Zoom In", Some("⌘+")),
+                ("Rotate Left", "Rotate Left", Some("⌘[")),
+                ("Rotate Right", "Rotate Right", Some("⌘]")),
             ],
         ),
         (
