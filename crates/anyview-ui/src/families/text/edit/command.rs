@@ -74,7 +74,8 @@ pub(super) fn command_of(keymap: &Keymap, key: &Key, modifiers: Modifiers) -> Op
                 Action::Standard(StandardAction::SelectAll) => Some(Command::SelectAll),
                 Action::Standard(StandardAction::Undo) => Some(Command::Undo),
                 Action::Standard(StandardAction::Redo) => Some(Command::Redo),
-                _ => None,
+                // `Action` is non_exhaustive: an action chordkit adds later is not the editor's.
+                Action::Standard(_) | Action::App(_) | _ => None,
             },
         );
     }

@@ -124,18 +124,19 @@ impl Act {
     /// are drawn as the keymap binds them, the viewer's own as they were declared.
     #[must_use]
     pub fn shortcut(self) -> Option<Shortcut> {
-        let found = match self {
-            Act::File(action) => shortcut(action),
-            own => STANDARD
+        let found = if let Act::File(action) = self {
+            shortcut(action)
+        } else {
+            STANDARD
                 .iter()
-                .find(|(_, act)| *act == own)
+                .find(|(_, act)| *act == self)
                 .map(|(standard, _)| Shortcut::standard(*standard))
                 .or_else(|| {
                     OWN.iter()
-                        .find(|(act, _, _)| *act == own)
+                        .find(|(act, _, _)| *act == self)
                         .and_then(|(_, _, chord)| chord.parse::<DefaultChord>().ok())
                         .and_then(Shortcut::from_default_chord)
-                }),
+                })
         };
         found.filter(|keys| !keys.keys().is_empty())
     }
