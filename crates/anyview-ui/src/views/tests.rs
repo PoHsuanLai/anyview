@@ -8,7 +8,7 @@ use super::panel::InfoPanel;
 use crate::context::entries;
 use crate::testing::golden;
 use crate::{Command, ContextPick, PanelTab, PanelTabs, StageCommand};
-use anyview_core::{FactLabel, FactValue, Facts, FileAction};
+use anyview_core::{FactLabel, FactValue, Facts, FileAction, FormatKind};
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -143,13 +143,13 @@ const CASES: &[Case] = &[
         make: || {
             root(rsx! {
                 InfoPanel {
-                    shown: Shown::Visible,
                     tab: PanelTab::Info,
                     tabs: PanelTabs::of(&[PanelTab::Info]),
+                    name: "notes.txt".to_owned(),
+                    kind: Some(FormatKind::PlainText),
                     facts: facts(),
                     body: None,
                     onchoose: |_| {},
-                    onclose: |()| {},
                 }
             })
         },
@@ -159,29 +159,13 @@ const CASES: &[Case] = &[
         make: || {
             root(rsx! {
                 InfoPanel {
-                    shown: Shown::Visible,
                     tab: PanelTab::Info,
                     tabs: PanelTabs::of(&[PanelTab::Info]),
+                    name: "IMG_0412.jpg".to_owned(),
+                    kind: Some(FormatKind::Raster),
                     facts: photo_facts(),
                     body: None,
                     onchoose: |_| {},
-                    onclose: |()| {},
-                }
-            })
-        },
-    },
-    Case {
-        name: "panel-hidden",
-        make: || {
-            root(rsx! {
-                InfoPanel {
-                    shown: Shown::Hidden,
-                    tab: PanelTab::Info,
-                    tabs: PanelTabs::of(&[PanelTab::Info, PanelTab::Contents]),
-                    facts: facts(),
-                    body: None,
-                    onchoose: |_| {},
-                    onclose: |()| {},
                 }
             })
         },

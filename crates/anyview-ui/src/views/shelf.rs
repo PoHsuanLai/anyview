@@ -8,7 +8,7 @@ use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
     use_pdf_shelf,
 };
-use crate::{PlatformAbilities, Ticket, TypedText, Viewer, ViewerIn, ViewerParams};
+use crate::{PlatformAbilities, Ticket, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
 use ds::host::measure::use_rect;
@@ -49,8 +49,6 @@ pub(super) struct Shelf {
     pub operation: Signal<Operation>,
     /// Whether the chrome is faded in.
     pub chrome: Signal<Shown>,
-    /// What is typed in the palette.
-    pub query: Signal<TypedText>,
     /// The window's motion level: what the desktop asks for, read when a step needs it.
     pub level: Level,
     /// The load of a different file whose landing sizes the window; a reload is not one.
@@ -79,7 +77,6 @@ impl Shelf {
             folder: use_signal(|| None),
             operation: use_signal(|| Operation::Idle),
             chrome: use_signal(|| Shown::Hidden),
-            query: use_signal(TypedText::default),
             level: use_level(),
             sizing: use_signal(|| None),
             left_at: use_signal(|| Resume::Nothing),
@@ -126,7 +123,7 @@ pub(super) fn viewer_params(
         doc.as_ref(),
         &shelf.probe.peek(),
         *area.peek(),
-        &shelf.query.peek(),
+        &state.palette,
         lines.as_ref().map(|held| held.0.as_ref()),
         Live {
             level: shelf.level.now(),

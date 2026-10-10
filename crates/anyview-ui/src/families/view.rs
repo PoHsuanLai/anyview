@@ -110,8 +110,6 @@ pub struct StageCx {
     pub lines: Option<Held<super::LineWindow>>,
     /// Ask for a window of lines: from this line, this many.
     pub ask_lines: EventHandler<(LineIndex, u32)>,
-    /// A key pressed in a field the stage drew (the find bar): the window knows the chords.
-    pub typing: EventHandler<KeyboardEvent>,
     /// The places the current find found, when one is up.
     pub hits: Option<Held<super::FoundHits>>,
     /// Hand a job to the workers; its answer comes back through the window's mailbox.
@@ -126,6 +124,18 @@ pub struct StageCx {
     pub frame: FrameLook,
     /// What the platform can do: a control of a service it lacks is not drawn.
     pub platform: crate::PlatformAbilities,
+}
+
+/// One place a find found, as the palette lists it under "In This File": the words around the match
+/// with the match marked, and where it is.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct HitLine {
+    /// The words around the match (a line of text, a snippet).
+    pub context: String,
+    /// The part of `context` the find matched, as byte offsets into it.
+    pub matched: std::ops::Range<usize>,
+    /// Where it is, as the person counts: `Line 42`, `Page 7`.
+    pub place: String,
 }
 
 /// What a sealed frame needs to wear the window's look: the root's attributes, written into the
@@ -226,6 +236,11 @@ pub trait StageView: 'static {
     fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
         None
     }
+    /// The first `upto` hits of the find that is up, as the palette lists them, for a family that
+    /// can search.
+    fn hit_lines(_doc: &Arc<Self::Doc>, _cx: &StageCx, _upto: u32) -> Vec<HitLine> {
+        Vec::new()
+    }
     /// The line to the player, for a family that plays.
     fn line(_doc: &Self::Doc) -> Option<Arc<dyn MediaLine>> {
         None
@@ -263,6 +278,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn modes(&self, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
+    fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
     fn media_offer(&self) -> MediaOffer;
@@ -331,6 +347,10 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {
         S::search(&self.doc, ticket, query)
+    }
+
+    fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine> {
+        S::hit_lines(&self.doc, cx, upto)
     }
 
     fn leaving(&self) -> Leaving {

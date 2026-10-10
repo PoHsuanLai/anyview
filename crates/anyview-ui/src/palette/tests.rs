@@ -1,5 +1,6 @@
 use super::*;
 use crate::command::{Command, StageCommand};
+use crate::stage::HitIndex;
 use crate::typed::TypedText;
 use anyview_core::FileAction;
 use ds_core::machine::Machine;
@@ -15,8 +16,24 @@ const fn open(query: &'static str, row: usize) -> Palette {
     Palette::Open {
         query: TypedText::from_static(query),
         selection: RowIndex(row),
+        scope: PaletteScope::Commands,
     }
 }
+
+const fn finding(query: &'static str, row: usize, list: HitList) -> Palette {
+    Palette::Open {
+        query: TypedText::from_static(query),
+        selection: RowIndex(row),
+        scope: PaletteScope::Find(list),
+    }
+}
+
+const HIT_ROWS: &[Command] = &[
+    Command::FindHit(HitIndex(0)),
+    Command::FindHit(HitIndex(1)),
+    Command::ShowAllHits,
+    EXPORT,
+];
 
 /// Name, ranked rows, state before, input, state after, outputs.
 type Case = (
@@ -121,9 +138,60 @@ const CASES: &[Case] = &[
         "a click runs the row it landed on",
         ROWS,
         open("", 0),
-        PaletteIn::Pick(RowIndex(2)),
+        PaletteIn::Pick(RowIndex(1)),
         Palette::Closed,
-        &[PaletteOut::Run(FIND), PaletteOut::Closed],
+        &[PaletteOut::Run(ROTATE), PaletteOut::Closed],
+    ),
+    (
+        "the find row makes what is typed a find and stays open",
+        ROWS,
+        open("fox", 2),
+        PaletteIn::Pick(RowIndex(2)),
+        finding("fox", 0, HitList::Brief),
+        &[],
+    ),
+    (
+        "command f opens a closed palette as a find on the last text",
+        ROWS,
+        Palette::Closed,
+        PaletteIn::OpenFind(TypedText::from_static("fox")),
+        finding("fox", 0, HitList::Brief),
+        &[PaletteOut::Opened],
+    ),
+    (
+        "command f in an open palette keeps the text and lists the hits",
+        ROWS,
+        open("fox", 1),
+        PaletteIn::ToFind,
+        finding("fox", 0, HitList::Brief),
+        &[],
+    ),
+    (
+        "typing in a find lists the first hits again",
+        HIT_ROWS,
+        finding("fo", 2, HitList::Whole),
+        PaletteIn::Typed(TypedText::from_static("fox")),
+        finding("fox", 0, HitList::Brief),
+        &[],
+    ),
+    (
+        "show all lists every hit and stays open",
+        HIT_ROWS,
+        finding("fox", 2, HitList::Brief),
+        PaletteIn::Enter,
+        finding("fox", 2, HitList::Whole),
+        &[],
+    ),
+    (
+        "a hit runs and closes the palette",
+        HIT_ROWS,
+        finding("fox", 1, HitList::Brief),
+        PaletteIn::Enter,
+        Palette::Closed,
+        &[
+            PaletteOut::Run(Command::FindHit(HitIndex(1))),
+            PaletteOut::Closed,
+        ],
     ),
     (
         "a click past the rows is nothing",

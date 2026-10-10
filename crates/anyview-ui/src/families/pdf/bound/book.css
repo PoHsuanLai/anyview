@@ -17,5 +17,5 @@ sup, sub { font-size: 0.75em; }
 pre, code { font-family: "Space Mono", monospace; font-size: 11pt; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 table { border-collapse: collapse; }
-th, td { border: 1px solid #bbb; padding: 3pt 6pt; text-align: left; }
-hr { border: 0; border-top: 1px solid #bbb; }
+th, td { border: 0.75pt solid #bbb; padding: 3pt 6pt; text-align: left; }
+hr { border: 0; border-top: 0.75pt solid #bbb; }

@@ -11,6 +11,7 @@ use crate::palette::{Palette, PaletteIn};
 use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
 use crate::stage::Stage;
+use crate::typed::TypedText;
 use ds_core::standard_action::StandardAction;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
@@ -18,7 +19,7 @@ use ds_core::vocab::{Shortcut, ShortcutKey};
 /// palette, then the context menu, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, the Menu key, Esc),
 /// then the stage, then navigation, then the chrome.
 ///
-/// Esc undoes the innermost thing: what the stage has open (a find bar, a scrub), then the
+/// Esc undoes the innermost thing: what the stage has open (a find, a scrub), then the
 /// panel, then the quick look itself.
 pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
     let keys = key.keys();
@@ -53,7 +54,18 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         Palette::Open {
             query: _,
             selection: _,
-        } => return PaletteIn::from_key(keys).map_or(Route::Swallowed, Route::Palette),
+            scope: _,
+        } => {
+            // ⌘F in the open palette makes what is typed a find, where the file can be searched.
+            if keys == [ShortcutKey::Super, ShortcutKey::Char('f')] {
+                return if can_find(regions.stage) {
+                    Route::Palette(PaletteIn::ToFind)
+                } else {
+                    Route::Swallowed
+                };
+            }
+            return PaletteIn::from_key(keys).map_or(Route::Swallowed, Route::Palette);
+        }
         Palette::Closed => {}
     }
     match regions.context {
@@ -75,6 +87,9 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
 fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
     match keys {
         [ShortcutKey::Super, ShortcutKey::Char('k')] => Some(Route::OpenPalette),
+        [ShortcutKey::Super, ShortcutKey::Char('f')] if can_find(regions.stage) => {
+            Some(Route::OpenFind)
+        }
         [ShortcutKey::Super, ShortcutKey::Char('i')] => {
             Some(Route::Panel(info_toggle(regions.panel)))
         }
@@ -82,15 +97,17 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
         [ShortcutKey::Super, ShortcutKey::Char('o')] if regions.pick_files => Some(Route::OpenFile),
         [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
         [ShortcutKey::Escape] => Some(escape(regions)),
-        keys => rewind(keys, regions.stage).map(Route::Rewind),
+        keys => rewind(keys).map(Route::Rewind),
     }
 }
 
-/// The standard undo and redo keys, unless a find bar is up: its field has its own undo.
-fn rewind(keys: &[ShortcutKey], stage: &Stage) -> Option<Rewind> {
-    if stage.is_finding() {
-        return None;
-    }
+/// Whether the file on screen can be searched: ⌘F opens the palette as a find only then.
+fn can_find(stage: &Stage) -> bool {
+    stage.find_input(&TypedText::EMPTY).is_some()
+}
+
+/// The standard undo and redo keys.
+fn rewind(keys: &[ShortcutKey]) -> Option<Rewind> {
     [
         (StandardAction::Undo, Rewind::Undo),
         (StandardAction::Redo, Rewind::Redo),

@@ -2,12 +2,12 @@ use super::*;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::context::{ContextIn, ContextMenu, Spot};
 use crate::navigate::NavigateIn;
-use crate::palette::{Palette, PaletteIn, PaletteMove, RowIndex};
+use crate::palette::{Palette, PaletteIn, PaletteMove, PaletteScope, RowIndex};
 use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
 use crate::stage::{
     FindHits, MediaIn, MediaStage, PageView, PdfIn, PdfStage, RasterIn, RasterStage, Stage,
-    StageIn, StageParams, TextIn, TextStage, ZoomDir,
+    StageIn, StageParams, TextStage, ZoomDir,
 };
 use crate::typed::TypedText;
 use anyview_core::{DocPoint, DocUnit, PageIndex, Permille};
@@ -19,6 +19,7 @@ use ds_core::vocab::{Shortcut, ShortcutKey};
 const OPEN_PALETTE: Palette = Palette::Open {
     query: TypedText::from_static(""),
     selection: RowIndex(0),
+    scope: PaletteScope::Commands,
 };
 const INFO: Panel = Panel::Shown {
     tab: PanelTab::Info,
@@ -308,13 +309,49 @@ const CASES: &[Case] = &[
         Route::Stage(StageIn::Pdf(PdfIn::NextPage)),
     ),
     (
-        "command f opens a text find",
+        "command f opens the palette as a find in a text",
         &[Super, Char('f')],
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
         TEXT,
-        Route::Stage(StageIn::Text(TextIn::Find(TypedText::EMPTY))),
+        Route::OpenFind,
+    ),
+    (
+        "command f opens the palette as a find in a pdf",
+        &[Super, Char('f')],
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        PDF,
+        Route::OpenFind,
+    ),
+    (
+        "command f has nothing to find in a picture",
+        &[Super, Char('f')],
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        IMAGE,
+        Route::Ignored,
+    ),
+    (
+        "command f in the open palette makes what is typed a find",
+        &[Super, Char('f')],
+        Sheet::Closed,
+        OPEN_PALETTE,
+        Panel::Hidden,
+        TEXT,
+        Route::Palette(PaletteIn::ToFind),
+    ),
+    (
+        "command f in the palette of a picture is swallowed",
+        &[Super, Char('f')],
+        Sheet::Closed,
+        OPEN_PALETTE,
+        Panel::Hidden,
+        IMAGE,
+        Route::Swallowed,
     ),
     (
         "space on a still image holds the hand out",

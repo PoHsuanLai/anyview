@@ -96,13 +96,13 @@ impl StageView for TableStageView {
         essentials(vec![
             CapsuleSlot::button(
                 Command::Stage(StageCommand::PreviousSheet),
-                "Previous sheet",
+                "Previous Sheet",
                 Icon::ChevronLeft,
             ),
             CapsuleSlot::Readout(format!("{} of {}: {name}", at + 1, doc.sheets.len())),
             CapsuleSlot::button(
                 Command::Stage(StageCommand::NextSheet),
-                "Next sheet",
+                "Next Sheet",
                 Icon::ChevronRight,
             ),
         ])

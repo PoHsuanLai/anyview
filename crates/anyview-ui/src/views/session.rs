@@ -7,9 +7,10 @@ use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{NaturalSize, Probed};
 use crate::sheet::ExportFacts;
 use crate::{
-    ChromeParams, Command, ContextParams, EditOffer, FileAccess, MediaOffer, Motion, PaletteParams,
-    PanelParams, PlatformAbilities, PresentationParams, SheetParams, Spot, Stage, StageAbilities,
-    StageCommand, StageParams, TextParams, TextViews, Ticket, TypedText, ViewerParams,
+    ChromeParams, Command, ContextParams, EditOffer, FileAccess, HitIndex, HitList, MediaOffer,
+    Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities,
+    PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams,
+    TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{FileAction, FormatKind, Reach, actions_for, reach};
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -168,14 +169,35 @@ pub(super) fn commands(
         .iter()
         .filter(|_| offers.playback == Playback::Playable)
         .filter(|command| offers.access == FileAccess::Writable || !edits_pages(**command))
+        // The two views of a text file are listed as "Show Preview" and "Show Source" below.
+        .filter(|command| **command != StageCommand::ToggleSource)
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
+    let views = match (stage, params.text.views) {
+        (Stage::Text(text), TextViews::RenderedAndSource) => {
+            Some(Command::ShowView(match text.place().view {
+                TextView::Rendered => TextView::Source,
+                TextView::Source => TextView::Rendered,
+            }))
+        }
+        (Stage::Text(_), TextViews::SourceOnly)
+        | (
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Table(_)
+            | Stage::Tree(_),
+            _,
+        ) => None,
+    };
     let open = offers.platform.pick_files.then_some(Command::OpenFile);
     let pan = (offers.playback == Playback::Playable && matches!(stage, Stage::Raster(_)))
         .then_some(Command::UseTool(offers.tool.other()));
     open.into_iter()
         .chain(files)
         .chain(stages)
+        .chain(views)
         .chain(pan)
         .collect()
 }
@@ -203,6 +225,9 @@ pub(super) fn offered_slots(
                 Command::Stage(_)
                 | Command::OpenFile
                 | Command::UseTool(_)
+                | Command::ShowView(_)
+                | Command::FindHit(_)
+                | Command::ShowAllHits
                 | Command::Install(_) => true,
             },
             CapsuleSlot::Readout(_)
@@ -253,16 +278,64 @@ pub(super) fn ranked(commands: Vec<Command>, query: &TypedText) -> Vec<Command> 
         .collect()
 }
 
+/// How many hits "In This File" lists before "Show All".
+const BRIEF_HITS: u32 = 8;
+
+/// The most hits "Show All" lists: a palette is a list to glance down, not the whole document.
+pub(super) const WHOLE_HITS: u32 = 200;
+
+/// The palette's rows for `query`: the commands it names, and for a find the hits of the file first
+/// (a few, then a row to list them all), the way mailo's search lists mail before commands.
+fn rows_for(
+    listed: Vec<Command>,
+    query: &TypedText,
+    scope: PaletteScope,
+    stage: &Stage,
+) -> Vec<Command> {
+    match scope {
+        PaletteScope::Commands => ranked(listed, query),
+        PaletteScope::Find(list) => {
+            let found = stage
+                .find_state()
+                .and_then(|(_, hits)| hits.count())
+                .map_or(0, |count| count.0);
+            let shown = match list {
+                HitList::Brief => found.min(BRIEF_HITS),
+                HitList::Whole => found.min(WHOLE_HITS),
+            };
+            let more =
+                (list == HitList::Brief && found > BRIEF_HITS).then_some(Command::ShowAllHits);
+            let commands: Vec<Command> = listed
+                .into_iter()
+                .filter(|command| *command != Command::Stage(StageCommand::Find))
+                .collect();
+            (0..shown)
+                .map(|hit| Command::FindHit(HitIndex(hit)))
+                .chain(more)
+                .chain(ranked(commands, query))
+                .collect()
+        }
+    }
+}
+
 /// Everything the machines read besides their inputs, from what the window knows now.
 pub(super) fn params(
     stage: &Stage,
     doc: Option<&LoadedDoc>,
     probe: &Probe,
     area: Option<crate::Area>,
-    query: &TypedText,
+    palette: &Palette,
     lines: Option<&LineWindow>,
     live: Live,
 ) -> ViewerParams {
+    let (query, scope) = match palette {
+        Palette::Open {
+            query,
+            selection: _,
+            scope,
+        } => (query.clone(), *scope),
+        Palette::Closed => (TypedText::EMPTY, PaletteScope::Commands),
+    };
     let Live {
         level,
         abilities,
@@ -319,9 +392,13 @@ pub(super) fn params(
         .copied()
         .filter_map(|command| match command {
             Command::File(action) => Some(action),
-            Command::Stage(_) | Command::OpenFile | Command::UseTool(_) | Command::Install(_) => {
-                None
-            }
+            Command::Stage(_)
+            | Command::OpenFile
+            | Command::UseTool(_)
+            | Command::ShowView(_)
+            | Command::FindHit(_)
+            | Command::ShowAllHits
+            | Command::Install(_) => None,
         })
         .collect();
     ViewerParams {
@@ -332,7 +409,7 @@ pub(super) fn params(
             centre: centre_of(area),
         },
         palette: PaletteParams {
-            rows: ranked(listed, query),
+            rows: rows_for(listed, &query, scope, stage),
         },
         panel,
         platform,

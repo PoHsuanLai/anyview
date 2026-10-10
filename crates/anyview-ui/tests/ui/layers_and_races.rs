@@ -30,11 +30,12 @@ fn two(scale: u16, wiring: Wiring) -> (tempfile::TempDir, Vec<PathBuf>, Harness,
     (dir, files, harness, requests)
 }
 
-/// What the side panel's stage says of itself.
+/// What the panel's pane says of itself.
 fn panel(harness: &Harness) -> String {
     harness
-        .attr(".ds-side-panel-stage", "data-shown")
-        .unwrap_or_default()
+        .attr(".ds-split-pane", "data-shown")
+        // A folded panel is not in the split view at all.
+        .unwrap_or_else(|| "hidden".to_owned())
 }
 
 fn closes(requests: &Requests) -> usize {

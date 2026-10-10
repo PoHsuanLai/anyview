@@ -159,21 +159,21 @@ impl StageView for RasterStageView {
         // Soonest to go first when the stage is narrow (quire's capsule): the rotate buttons, then
         // the zoom. An animation's play button stays.
         let mut slots = vec![
-            CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom out", Icon::Minus)
+            CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom Out", Icon::Minus)
                 .droppable(RANK_ZOOM),
             CapsuleSlot::Readout(format!("{}%", percent.0 / 10)).droppable(RANK_ZOOM),
-            CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom in", Icon::Plus).droppable(RANK_ZOOM),
+            CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom In", Icon::Plus).droppable(RANK_ZOOM),
         ];
         if doc.offer != crate::EditOffer::Withheld {
             slots.push(CapsuleSlot::Divider.essential());
             slots.push(
-                CapsuleSlot::button(Command::File(RotateLeft), "Rotate left", Icon::RotateLeft)
+                CapsuleSlot::button(Command::File(RotateLeft), "Rotate Left", Icon::RotateLeft)
                     .droppable(RANK_ROTATE),
             );
             slots.push(
                 CapsuleSlot::button(
                     Command::File(RotateRight),
-                    "Rotate right",
+                    "Rotate Right",
                     Icon::RotateRight,
                 )
                 .droppable(RANK_ROTATE),
@@ -211,7 +211,6 @@ impl StageView for RasterStageView {
         Some(rsx! {
             view::PointerModes {
                 tool: cx.hand.tool,
-                still: !doc.plays(),
                 onpick: move |tool| run.call(Command::UseTool(tool)),
             }
         })

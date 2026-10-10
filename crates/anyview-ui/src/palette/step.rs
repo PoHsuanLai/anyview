@@ -1,6 +1,9 @@
 //! The palette's transitions.
 
-use super::model::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
+use super::model::{
+    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteScope, RowIndex,
+};
+use crate::command::{Command, StageCommand};
 use crate::typed::TypedText;
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -16,7 +19,11 @@ impl Machine for Palette {
     fn step(self, input: PaletteIn, _at: Stamp, params: &PaletteParams, _cx: &()) -> Step {
         match self {
             Palette::Closed => closed(input),
-            Palette::Open { query, selection } => open(query, selection, input, params),
+            Palette::Open {
+                query,
+                selection,
+                scope,
+            } => open(query, selection, scope, input, params),
         }
     }
 
@@ -26,6 +33,7 @@ impl Machine for Palette {
             | Palette::Open {
                 query: _,
                 selection: _,
+                scope: _,
             } => None,
         }
     }
@@ -37,10 +45,20 @@ fn closed(input: PaletteIn) -> Step {
             let state = Palette::Open {
                 query: TypedText::EMPTY,
                 selection: RowIndex(0),
+                scope: PaletteScope::Commands,
             };
             (state, vec![PaletteOut::Opened])
         }
-        PaletteIn::Typed(_)
+        PaletteIn::OpenFind(query) => {
+            let state = Palette::Open {
+                query,
+                selection: RowIndex(0),
+                scope: PaletteScope::Find(HitList::Brief),
+            };
+            (state, vec![PaletteOut::Opened])
+        }
+        PaletteIn::ToFind
+        | PaletteIn::Typed(_)
         | PaletteIn::Move(_)
         | PaletteIn::Pick(_)
         | PaletteIn::Enter
@@ -49,23 +67,54 @@ fn closed(input: PaletteIn) -> Step {
     }
 }
 
-fn open(query: TypedText, selection: RowIndex, input: PaletteIn, params: &PaletteParams) -> Step {
+fn open(
+    query: TypedText,
+    selection: RowIndex,
+    scope: PaletteScope,
+    input: PaletteIn,
+    params: &PaletteParams,
+) -> Step {
     let this = Palette::Open {
         query: query.clone(),
         selection,
+        scope,
     };
     match input {
+        // New text is a new list: a find lists its first hits again.
         PaletteIn::Typed(text) => {
+            let scope = match scope {
+                PaletteScope::Commands => PaletteScope::Commands,
+                PaletteScope::Find(_) => PaletteScope::Find(HitList::Brief),
+            };
             let state = Palette::Open {
                 query: text,
                 selection: RowIndex(0),
+                scope,
             };
             (state, vec![])
         }
         PaletteIn::Move(movement) => {
             let selection = moved(selection, movement, params.rows.len());
-            (Palette::Open { query, selection }, vec![])
+            (
+                Palette::Open {
+                    query,
+                    selection,
+                    scope,
+                },
+                vec![],
+            )
         }
+        PaletteIn::ToFind | PaletteIn::OpenFind(_) => match scope {
+            PaletteScope::Commands => (
+                Palette::Open {
+                    query,
+                    selection: RowIndex(0),
+                    scope: PaletteScope::Find(HitList::Brief),
+                },
+                vec![],
+            ),
+            PaletteScope::Find(_) => (this, vec![]),
+        },
         PaletteIn::Enter => run(this, selection, params),
         PaletteIn::Pick(row) => run(this, row, params),
         PaletteIn::Close => (Palette::Closed, vec![PaletteOut::Closed]),
@@ -73,9 +122,38 @@ fn open(query: TypedText, selection: RowIndex, input: PaletteIn, params: &Palett
     }
 }
 
-/// `row`'s command, with the palette closed after it; nothing when there is no such row.
+/// `row`'s command, with the palette closed after it; nothing when there is no such row. Two rows
+/// keep the palette open: "Show All", which lists every hit, and "Find", which makes the text a
+/// find.
 fn run(this: Palette, row: RowIndex, params: &PaletteParams) -> Step {
+    let Palette::Open {
+        query,
+        selection,
+        scope,
+    } = this.clone()
+    else {
+        return (this, vec![]);
+    };
     match params.rows.get(row.0) {
+        Some(Command::ShowAllHits) => (
+            Palette::Open {
+                query,
+                selection,
+                scope: PaletteScope::Find(HitList::Whole),
+            },
+            vec![],
+        ),
+        Some(Command::Stage(StageCommand::Find)) => match scope {
+            PaletteScope::Commands => (
+                Palette::Open {
+                    query,
+                    selection: RowIndex(0),
+                    scope: PaletteScope::Find(HitList::Brief),
+                },
+                vec![],
+            ),
+            PaletteScope::Find(_) => (this, vec![]),
+        },
         Some(command) => (
             Palette::Closed,
             vec![PaletteOut::Run(*command), PaletteOut::Closed],

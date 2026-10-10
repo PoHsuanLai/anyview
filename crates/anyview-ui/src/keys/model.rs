@@ -48,6 +48,8 @@ pub enum Route {
     OpenContextMenu,
     /// ⌘K: open the palette.
     OpenPalette,
+    /// ⌘F: open the palette as a find in the open file.
+    OpenFind,
     /// ⌘Z and ⇧⌘Z: take back the last edit, or do it again.
     Rewind(Rewind),
     /// ⌘I opens or closes the Info tab; Esc closes the panel.

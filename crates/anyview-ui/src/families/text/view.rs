@@ -2,7 +2,6 @@
 //! a sealed frame. The room owns the wheel (a window of lines scrolls by the line index, not by a
 //! native scroll), so the machine's `Scroll(line)` is the one place the reader's position lives.
 
-use super::bar::TextFinding;
 use super::doc::TextDoc;
 use super::find::{FoundHits, Mark, pieces};
 use super::frame;
@@ -14,8 +13,8 @@ use dioxus::prelude::*;
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::prelude::Word;
 
-/// The height of one line in logical pixels: the `--s-18` step of the stylesheet.
-const ROW: f32 = 18.0;
+/// The height of one line in logical pixels: the `--s-20` step of the stylesheet.
+const ROW: f32 = 20.0;
 
 /// Lines asked for beyond the room, so a short scroll lands on lines already read.
 const OVERSCAN: u32 = 8;
@@ -175,9 +174,6 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
                         line(visible, place.wrap, hits, within)
                     }
                 }
-            }
-            if let Some((query, hits)) = find {
-                TextFinding { query, hits, cx: cx.clone() }
             }
         }
     }

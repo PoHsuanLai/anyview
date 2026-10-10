@@ -54,8 +54,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
             | LoadOut::ShowFull(_),
         ) => {}
         ViewerOut::Chrome(ChromeOut::Fade { to, .. }) => shelf.chrome.set(to),
-        ViewerOut::Palette(PaletteOut::Opened) => shelf.query.set(TypedText::EMPTY),
-        ViewerOut::Palette(PaletteOut::Closed | PaletteOut::Run(_))
+        ViewerOut::Palette(PaletteOut::Opened | PaletteOut::Closed | PaletteOut::Run(_))
         | ViewerOut::Panel(PanelOut::Show(_) | PanelOut::Hide)
         | ViewerOut::Sheet(SheetOut::Opened | SheetOut::Closed) => {}
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),

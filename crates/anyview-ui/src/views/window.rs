@@ -11,11 +11,11 @@ use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
-use super::keys::{keys_of, shortcut_of};
+use super::keys::shortcut_of;
 use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::scrub::{levelled, scrubbed};
-use super::session::{Probe, offered_slots};
+use super::session::{Probe, WHOLE_HITS, offered_slots};
 use super::sheet::{
     EditSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
 };
@@ -24,21 +24,33 @@ use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
     ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, NavigateIn,
-    Palette as PaletteState, PaletteIn, Panel, PanelIn, PanelTab, Presentation, Sheet, SheetIn,
-    Spot, StageCommand, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
+    Palette as PaletteState, PaletteIn, PaletteScope, Panel, PanelIn, PanelTab, Presentation,
+    Sheet, SheetIn, Spot, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
 };
 use anyview_core::FilePath;
 use dioxus::prelude::*;
+use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec, SplitPane};
+use ds::components::chrome::split_view::view::SplitView;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
 use ds::machine::{use_machine_in, use_machine_state};
 use ds::prelude::*;
+use ds::root::pass_through::ExtraClass;
 use ds::window::vocab::Activation;
 use ds_blitz::use_gpu;
 use ds_core::vocab::ShortcutKey;
 use ds_core::word::Word;
 use futures_util::StreamExt;
 use std::rc::Rc;
+
+/// The left panel's pane: 220 wide, between 180 and 320, and it folds away when dragged past half
+/// its least. It sits beside the stage, so opening it shrinks the stage and not the window.
+const PANEL: PaneSpec = PaneSpec {
+    preferred: PaneSize::Fixed(Px(220.0)),
+    min: PaneSize::Fixed(Px(180.0)),
+    max: PaneSize::Fixed(Px(320.0)),
+    collapsing: Collapsing::Snaps,
+};
 
 /// What the viewer window draws for `launch`.
 #[component]
@@ -125,17 +137,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
 
     let state = machine.state()();
     let presentation = state.presentation;
-    let finding = state.stage.is_finding();
-    // The keys belong to the window again once the find that held them is closed.
-    use_effect(use_reactive!(|finding| {
-        if !finding && let Some(element) = root.peek().clone() {
+    let palette_open = matches!(state.palette, PaletteState::Open { .. });
+    // The keys belong to the window again once the palette that held them is closed.
+    use_effect(use_reactive!(|palette_open| {
+        if !palette_open && let Some(element) = root.peek().clone() {
             focus_soon(element);
         }
     }));
 
     let current = shelf.shown();
     let ticket = shelf.probe.read().ticket().unwrap_or_default();
-    let typing_in = dispatch;
     let worker = carry.edge.clone();
     let requester = carry.edge.clone();
     let reveal_edge = carry.edge.clone();
@@ -155,7 +166,6 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 carry.edge.submit(job);
             }
         }),
-        typing: EventHandler::new(move |event: KeyboardEvent| typed(typing_in, &event)),
         hits: (shelf.hits)(),
         work: EventHandler::new(move |job: Job| worker.submit(job)),
         request: EventHandler::new(move |request: HostRequest| requester.request(request)),
@@ -234,11 +244,57 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         Some(_) => None,
         None => current.as_ref().and_then(|(_, doc)| doc.view().modes(&cx)),
     };
+    let kind = shelf
+        .probe
+        .read()
+        .found()
+        .map(|probed| probed.sniffed.kind());
+    // A file with no tabs has no panel to open, whatever the machine remembers.
+    let pane_shown = if tabs.first().is_some() {
+        panel_shown
+    } else {
+        Shown::Hidden
+    };
+    let panel = rsx! {
+        InfoPanel {
+            tab: panel_tab,
+            tabs,
+            name: title.clone(),
+            kind,
+            facts,
+            body,
+            onchoose: move |tab: PanelTab| dispatch.send(ViewerIn::Panel(PanelIn::Choose(tab))),
+        }
+    };
+    // A pane dragged open or shut asks the machine for the same: opening is idempotent (the tab
+    // is the one the panel would show), so a drag that reports it twice does not close it again.
+    let panel_wanted = move |(_, shown): (usize, Shown)| {
+        dispatch.send(ViewerIn::Panel(match shown {
+            Shown::Visible => PanelIn::Choose(panel_tab),
+            Shown::Hidden => PanelIn::Close,
+        }));
+    };
+    // What the palette lists under "In This File" when it is a find.
+    let hit_lines = match (&state.palette, current.as_ref()) {
+        (
+            PaletteState::Open {
+                query: _,
+                selection: _,
+                scope: PaletteScope::Find(_),
+            },
+            Some((_, doc)),
+        ) => doc.view().hit_lines(&cx, WHOLE_HITS),
+        _ => Vec::new(),
+    };
+    let found = state
+        .stage
+        .find_state()
+        .and_then(|(_, hits)| hits.count())
+        .map_or(0, |count| count.0);
     let rows = machine_params.palette.rows;
     let export_facts = machine_params.sheet.export;
     let offer = machine_params.sheet.media;
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
-    let palette_open = matches!(state.palette, PaletteState::Open { .. });
     let context_rows = machine_params.context.entries;
     let context_open = matches!(state.context, ContextMenu::Open { .. });
     let keyed = state.clone();
@@ -285,83 +341,88 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             onblur: move |_| dispatch.send(ViewerIn::Hand(HandIn::SpaceUp)),
             onpointermove: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerMoved(zone()))),
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
-            div {
-                class: "viewer-stage",
-                onmounted: move |event| measured.on_mounted(event),
-                // A secondary click on the content opens the context menu at the pointer; over the
-                // capsule or the titlebar it is theirs.
-                oncontextmenu: move |event: MouseEvent| {
-                    event.prevent_default();
-                    if zone() == Zone::Content {
-                        let at = event.client_coordinates();
-                        let spot = Spot { x: at.x.round() as i32, y: at.y.round() as i32 };
-                        dispatch.send(ViewerIn::Context(ContextIn::Open(spot)));
-                    }
+            SplitView {
+                label: "Viewer",
+                // A folded pane leaves the split view altogether: its divider would take a strip at the
+                // stage's left edge (a right-click there, a drag that starts there).
+                panes: match pane_shown {
+                    Shown::Visible => vec![SplitPane::new(PANEL, panel)],
+                    Shown::Hidden => Vec::new(),
                 },
-                // The small window has no frame to take hold of: a press on the picture moves it.
-                onpointerdown: move |_| {
-                    if let (Presentation::Mini, Some(window)) = (presentation, window.as_ref()) {
-                        window.host().begin_move();
-                    }
+                on_shown: panel_wanted,
+                common: Common {
+                    extra_class: ExtraClass::parse("viewer-split").ok(),
+                    ..Common::default()
                 },
-                if let Some(reason) = failure {
-                    FailedScreen {
-                        reason,
-                        name: title.clone(),
-                        offer: failed_offer,
-                        onreveal: move |()| reveal(&reveal_edge, &shelf),
-                    }
-                } else {
-                    Loadable { phase,
-                        if let Some((_, doc)) = current.as_ref() {
-                            {doc.view().stage(&cx)}
+                div {
+                    class: "viewer-stage",
+                    onmounted: move |event| measured.on_mounted(event),
+                    // A secondary click on the content opens the context menu at the pointer; over the
+                    // capsule or the titlebar it is theirs.
+                    oncontextmenu: move |event: MouseEvent| {
+                        event.prevent_default();
+                        if zone() == Zone::Content {
+                            let at = event.client_coordinates();
+                            let spot = Spot { x: at.x.round() as i32, y: at.y.round() as i32 };
+                            dispatch.send(ViewerIn::Context(ContextIn::Open(spot)));
+                        }
+                    },
+                    // The small window has no frame to take hold of: a press on the picture moves it.
+                    onpointerdown: move |_| {
+                        if let (Presentation::Mini, Some(window)) = (presentation, window.as_ref()) {
+                            window.host().begin_move();
+                        }
+                    },
+                    if let Some(reason) = failure {
+                        FailedScreen {
+                            reason,
+                            name: title.clone(),
+                            offer: failed_offer,
+                            onreveal: move |()| reveal(&reveal_edge, &shelf),
+                        }
+                    } else {
+                        Loadable { phase,
+                            if let Some((_, doc)) = current.as_ref() {
+                                {doc.view().stage(&cx)}
+                            }
                         }
                     }
-                }
-                if !slots.is_empty() {
-                    Controls {
-                        slots,
-                        shown: chrome,
-                        onpick: move |command: Command| dispatch.send(ViewerIn::Run(command)),
-                        onscrub: move |event| scrubbed(dispatch, event),
-                        onlevel: move |at| levelled(dispatch, at),
-                        onpointerenter: move |()| zone.set(Zone::Capsule),
-                        onpointerleave: move |()| zone.set(Zone::Content),
-                    }
-                }
-                // The small borderless window has no titlebar: the picture is what is dragged.
-                match keyed.presentation {
-                    Presentation::Mini => rsx! {},
-                    Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
-                        Titlebar {
-                            title,
+                    if !slots.is_empty() {
+                        Controls {
+                            slots,
                             shown: chrome,
-                            trailing,
+                            onpick: move |command: Command| dispatch.send(ViewerIn::Run(command)),
+                            onscrub: move |event| scrubbed(dispatch, event),
+                            onlevel: move |at| levelled(dispatch, at),
                             onpointerenter: move |()| zone.set(Zone::Capsule),
                             onpointerleave: move |()| zone.set(Zone::Content),
                         }
-                    },
+                    }
                 }
             }
-            InfoPanel {
-                shown: panel_shown,
-                tab: panel_tab,
-                tabs,
-                facts,
-                body,
-                onchoose: move |tab: PanelTab| dispatch.send(ViewerIn::Panel(PanelIn::Choose(tab))),
-                onclose: move |()| dispatch.send(ViewerIn::Panel(PanelIn::Close)),
+            // The small borderless window has no titlebar: the picture is what is dragged. The bar
+            // lies over the panel's pane and the stage alike.
+            match keyed.presentation {
+                Presentation::Mini => rsx! {},
+                Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
+                    Titlebar {
+                        title,
+                        shown: chrome,
+                        trailing,
+                        onpointerenter: move |()| zone.set(Zone::Capsule),
+                        onpointerleave: move |()| zone.set(Zone::Content),
+                    }
+                },
             }
-            if let PaletteState::Open { query: typed, selection } = &keyed.palette {
+            if let PaletteState::Open { query: typed, selection, scope } = &keyed.palette {
                 Palette {
                     query: typed.clone(),
                     rows,
                     selection: *selection,
-                    ontyped: move |text: TypedText| {
-                        let mut query = shelf.query;
-                        query.set(text.clone());
-                        dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text)));
-                    },
+                    scope: *scope,
+                    hits: hit_lines,
+                    found,
+                    ontyped: move |text: TypedText| dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text))),
                     onpick: move |row| dispatch.send(ViewerIn::Palette(PaletteIn::Pick(row))),
                     onkey: move |event: KeyboardEvent| {
                         if let Some(key) = shortcut_of(&event) {
@@ -473,30 +534,6 @@ fn title_of(probe: &Probe) -> Option<String> {
         .found()
         .and_then(|probed| probed.source.path().file_name())
         .map(|name| name.as_str().to_owned())
-}
-
-/// A key pressed in a field the stage drew (its find bar). Enter and Shift+Enter step through the
-/// hits and Esc closes the find, as the commands and the Esc chord mean; every other key without
-/// the command key is the field's own (typing), and goes no further. The command key's chords
-/// (⌘G, ⌘F) go on to the window's routing.
-fn typed(dispatch: Dispatch, event: &KeyboardEvent) {
-    let keys = keys_of(event);
-    match keys.as_slice() {
-        [ShortcutKey::Enter] => {
-            event.stop_propagation();
-            dispatch.send(ViewerIn::Run(Command::Stage(StageCommand::FindNext)));
-        }
-        [ShortcutKey::Shift, ShortcutKey::Enter] => {
-            event.stop_propagation();
-            dispatch.send(ViewerIn::Run(Command::Stage(StageCommand::FindPrevious)));
-        }
-        [ShortcutKey::Escape] => {
-            event.stop_propagation();
-            dispatch.send(ViewerIn::Key(ds_core::vocab::Shortcut(keys)));
-        }
-        chord if chord.contains(&ShortcutKey::Super) => {}
-        _ => event.stop_propagation(),
-    }
 }
 
 /// Show the file the window last asked for in its folder.

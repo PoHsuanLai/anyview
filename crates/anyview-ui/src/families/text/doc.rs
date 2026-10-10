@@ -2,7 +2,7 @@
 //! for Markdown the rendered page. Reading a window of lines blocks, so it runs on a worker
 //! (`Job::Lines`); the UI thread only ever holds the lines a worker returned.
 
-use super::find::FoundHits;
+use super::find::{FoundHits, Snippet, clip};
 use crate::TypedText;
 use crate::io::{OpenError, OpenLink, Stop};
 use anyview_core::{
@@ -18,6 +18,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 /// The largest Markdown file that is rendered as a page: layout runs on the UI thread, so a larger
 /// one is shown as its source.
 const RENDER_LIMIT: u64 = 2 * 1024 * 1024;
+
+/// How many hits of a find keep the words around them, for the palette's list.
+const SNIPPETS: usize = 200;
 
 /// How much of a large file the first frame reads. A file no longer than this has no first frame:
 /// opening it takes no longer.
@@ -88,6 +91,31 @@ impl TextDoc {
         Ok(LineWindow { first, lines })
     }
 
+    /// The words around the first `SNIPPETS` of `hits`, for the palette's list. A line that cannot
+    /// be read leaves its hit with a clip of nothing; the hit is still listed by its line.
+    fn snippets(&self, hits: &[anyview_text::FindHit]) -> Vec<Snippet> {
+        let mut lines: Option<(LineIndex, String)> = None;
+        hits.iter()
+            .take(SNIPPETS)
+            .map(|hit| {
+                let text = match &lines {
+                    Some((line, text)) if *line == hit.line => text.clone(),
+                    Some(_) | None => {
+                        let read = self
+                            .text
+                            .lines(hit.line..LineIndex(hit.line.0.saturating_add(1)))
+                            .ok()
+                            .and_then(|read| read.into_iter().next())
+                            .unwrap_or_default();
+                        lines = Some((hit.line, read.clone()));
+                        read
+                    }
+                };
+                clip(&text, hit.from.0 as usize, hit.to.0 as usize)
+            })
+            .collect()
+    }
+
     /// Every place `query` occurs, ignoring case; none for an empty query. Blocking; the hits
     /// found so far when `stop` is raised.
     pub fn find(
@@ -96,7 +124,11 @@ impl TextDoc {
         stop: &Stop,
     ) -> Result<FoundHits, anyview_text::TextError> {
         match Needle::new(query.as_str()) {
-            Some(needle) => self.text.find(&needle, stop).map(FoundHits::new),
+            Some(needle) => {
+                let hits = self.text.find(&needle, stop)?;
+                let snippets = self.snippets(&hits);
+                Ok(FoundHits::new(hits).with_snippets(snippets))
+            }
             None => Ok(FoundHits::default()),
         }
     }

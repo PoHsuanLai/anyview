@@ -1,4 +1,4 @@
-//! The text stage under the harness: the keys scroll it, find marks its hits and steps through
+//! The text stage under the harness: the keys scroll it, find (in the palette) marks its hits and steps through
 //! them, and long lines wrap to the window's width.
 
 use crate::support;
@@ -108,8 +108,12 @@ fn the_keys_scroll_a_text_by_line_by_page_and_to_its_ends() {
     assert_eq!(first_line(&harness), Some(1));
 }
 
+fn capsule(harness: &Harness) -> String {
+    harness.text_of(".ds-capsule").unwrap_or_default()
+}
+
 #[test]
-fn find_marks_the_hits_steps_through_them_and_closes_with_escape() {
+fn find_lives_in_the_palette_marks_the_hits_behind_it_and_enter_jumps_and_leaves_them_to_step() {
     let body: String = (1..=300)
         .map(|n| {
             if n % 50 == 0 {
@@ -121,19 +125,28 @@ fn find_marks_the_hits_steps_through_them_and_closes_with_escape() {
         .collect();
     let (_dir, mut harness) = open(&body);
     assert_eq!(
-        harness.count(".viewer-find"),
+        harness.count(".ds-palette"),
         0,
-        "no bar until it is asked for"
+        "nothing until it is asked for"
     );
     chord(&mut harness, 'f');
-    assert_eq!(harness.count(".viewer-find"), 1, "command F brings the bar");
-    type_text(&mut harness, "needle");
     assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("1 of 6"),
-        "six rows have it, and the first is the nearest"
+        harness.count(".ds-palette"),
+        1,
+        "command F brings the palette"
     );
-    assert!(harness.count(".viewer-hit") >= 1, "the hit is marked");
+    type_text(&mut harness, "needle");
+    let listed = harness.text_of(".ds-palette").unwrap_or_default();
+    assert!(
+        listed.contains("In This File")
+            && listed.contains("Line 50")
+            && listed.contains("Line 300"),
+        "the hits are listed with their lines, before the commands: {listed}"
+    );
+    assert!(
+        harness.count(".viewer-hit") >= 1,
+        "the hit is marked behind the palette"
+    );
     assert_eq!(
         harness.count(".viewer-hit-current"),
         1,
@@ -142,53 +155,66 @@ fn find_marks_the_hits_steps_through_them_and_closes_with_escape() {
     let first = first_line(&harness).unwrap();
     assert!(first <= 50, "the first hit is on screen from row {first}");
     save(&mut harness, "find.png");
-    harness.send(Input::key(ShortcutKey::Enter));
-    settle(&mut harness);
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("2 of 6")
-    );
+    press(&mut harness, ShortcutKey::Down);
     let second = first_line(&harness).unwrap();
     assert!(
         second > first,
-        "the view followed the hit: {first} then {second}"
+        "moving the highlight to the next hit moved the view: {first} then {second}"
     );
-    harness.send(Input::chord(&[ShortcutKey::Shift], ShortcutKey::Enter));
-    settle(&mut harness);
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("1 of 6"),
-        "shift and return step back"
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(harness.count(".ds-palette"), 0, "Enter jumps and closes");
+    assert!(harness.count(".viewer-hit") >= 1, "the hits stay marked");
+    assert!(
+        capsule(&harness).contains("2 of 6"),
+        "the capsule says where the reader is: {}",
+        capsule(&harness)
     );
-    harness.send(Input::key(ShortcutKey::Escape));
+    chord(&mut harness, 'g');
+    assert!(
+        capsule(&harness).contains("3 of 6"),
+        "command G steps to the next: {}",
+        capsule(&harness)
+    );
+    harness.send(Input::chord(
+        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        ShortcutKey::Char('g'),
+    ));
     settle(&mut harness);
-    assert_eq!(harness.count(".viewer-find"), 0, "Esc closes the bar");
-    assert_eq!(harness.count(".viewer-hit"), 0, "and takes the marks away");
+    assert!(
+        capsule(&harness).contains("2 of 6"),
+        "and shift command G steps back: {}",
+        capsule(&harness)
+    );
+    press(&mut harness, ShortcutKey::Escape);
+    assert_eq!(harness.count(".viewer-hit"), 0, "Esc puts the find away");
 }
 
 #[test]
-fn a_find_with_no_match_says_so() {
+fn escape_in_the_find_palette_clears_the_marks_and_a_find_with_no_match_says_so() {
     let (_dir, mut harness) = open(&numbered(40));
     chord(&mut harness, 'f');
-    type_text(&mut harness, "zzz");
-    assert_eq!(
-        harness.text_of(".viewer-find-standing").as_deref(),
-        Some("No matches")
+    // `w` toggles wrapping and `v` the source view, and `0` zooms: none of them while typing.
+    type_text(&mut harness, "wv0");
+    assert!(
+        harness
+            .text_of(".ds-palette")
+            .unwrap_or_default()
+            .contains("No matches"),
+        "nothing in the file is named so"
     );
     assert_eq!(harness.count(".viewer-hit"), 0);
-}
-
-#[test]
-fn typing_in_the_find_bar_does_not_run_the_windows_keys() {
-    // `w` toggles wrapping and `v` the source view, and `0` zooms: none of them while typing.
-    let (_dir, mut harness) = open(&numbered(40));
-    chord(&mut harness, 'f');
-    type_text(&mut harness, "wv0");
     assert_eq!(
         harness.attr(".viewer-line", "data-wrap").as_deref(),
         Some("on"),
         "w did not toggle wrapping"
     );
+    press(&mut harness, ShortcutKey::Escape);
+    assert_eq!(harness.count(".ds-palette"), 0, "Esc closes it");
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "row 7");
+    assert!(harness.count(".viewer-hit") >= 1, "a phrase is found");
+    press(&mut harness, ShortcutKey::Escape);
+    assert_eq!(harness.count(".viewer-hit"), 0, "and Esc clears its marks");
 }
 
 #[test]
@@ -203,7 +229,7 @@ fn a_long_line_wraps_to_the_window_when_wrap_is_on_and_runs_on_when_it_is_off() 
     let wrapped = row(&harness);
     save(&mut harness, "wrapped.png");
     assert!(
-        wrapped > 3.0 * 18.0,
+        wrapped > 3.0 * 20.0,
         "600 characters take several rows in a 900 px window: {wrapped}"
     );
     press(&mut harness, ShortcutKey::Char('w'));
@@ -213,7 +239,7 @@ fn a_long_line_wraps_to_the_window_when_wrap_is_on_and_runs_on_when_it_is_off() 
     );
     let single = row(&harness);
     assert!(
-        (single - 18.0).abs() < 1.0,
+        (single - 20.0).abs() < 1.0,
         "with wrap off the line is one row: {single}"
     );
 }

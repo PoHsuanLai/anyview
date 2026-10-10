@@ -1,6 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
+use super::find::{FindHits, HitIndex};
 use super::media::{
     ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
 };
@@ -48,7 +49,50 @@ impl Stage {
         }
     }
 
-    /// Whether a find is up: the keys go to its field, not to the window's chords.
+    /// The input that searches the file for `query`, for a stage that can search.
+    pub fn find_input(&self, query: &TypedText) -> Option<StageIn> {
+        match self {
+            Stage::Text(_) => Some(StageIn::Text(TextIn::Find(query.clone()))),
+            Stage::Pdf(_) => Some(StageIn::Pdf(PdfIn::Find(query.clone()))),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Media(_)
+            | Stage::Table(_)
+            | Stage::Tree(_) => None,
+        }
+    }
+
+    /// The input that makes `hit` the current one of the find that is up.
+    pub fn hit_input(&self, hit: HitIndex) -> Option<StageIn> {
+        match self {
+            Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::GoToHit(hit))),
+            Stage::Pdf(PdfStage::Finding { .. }) => Some(StageIn::Pdf(PdfIn::GoToHit(hit))),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Media(_)
+            | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
+            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Table(_)
+            | Stage::Tree(_) => None,
+        }
+    }
+
+    /// The text of the find that is up and where its search stands.
+    pub fn find_state(&self) -> Option<(&TypedText, FindHits)> {
+        match self {
+            Stage::Pdf(PdfStage::Finding { query, hits, .. })
+            | Stage::Text(TextStage::Finding { query, hits, .. }) => Some((query, *hits)),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Media(_)
+            | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
+            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Table(_)
+            | Stage::Tree(_) => None,
+        }
+    }
+
+    /// Whether a find is up: its hits are marked, and Esc puts it away.
     pub fn is_finding(&self) -> bool {
         match self {
             Stage::Pdf(PdfStage::Finding { .. }) | Stage::Text(TextStage::Finding { .. }) => true,

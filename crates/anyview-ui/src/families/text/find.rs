@@ -7,16 +7,82 @@ use crate::{HitCount, HitIndex};
 use anyview_core::LineIndex;
 use anyview_text::{FindHit, TokenClass, TokenLine};
 
+/// The words around a hit, for the palette's list: a clip of its line and where in the clip the
+/// match is.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Snippet {
+    /// The clip.
+    pub text: String,
+    /// The match inside it, as byte offsets.
+    pub matched: std::ops::Range<usize>,
+}
+
 /// Every hit of a phrase in a file, in file order.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FoundHits {
     hits: Vec<FindHit>,
+    /// The snippets of the first hits, in the same order; the palette lists no more than these.
+    snippets: Vec<Snippet>,
+}
+
+/// How much of a line is kept before a match and after it, in bytes.
+const BEFORE: usize = 32;
+const AFTER: usize = 72;
+
+/// `line` clipped to the words around the bytes `from..to`: leading space gone, an ellipsis where
+/// the line was cut, the match located in the result. Offsets that are not on character edges
+/// (the highlighter and the search disagreeing) give the start of the line with no match marked.
+pub(crate) fn clip(line: &str, from: usize, to: usize) -> Snippet {
+    let from_ok = from <= to && to <= line.len();
+    if !from_ok || !line.is_char_boundary(from) || !line.is_char_boundary(to) {
+        let text: String = line.trim().chars().take(BEFORE + AFTER).collect();
+        return Snippet {
+            text,
+            matched: 0..0,
+        };
+    }
+    let mut start = from.saturating_sub(BEFORE);
+    while !line.is_char_boundary(start) {
+        start -= 1;
+    }
+    let lead = line[start..from].len() - line[start..from].trim_start().len();
+    start += lead;
+    let mut end = to.saturating_add(AFTER).min(line.len());
+    while !line.is_char_boundary(end) {
+        end += 1;
+    }
+    let body = line[start..end].trim_end();
+    let end = (start + body.len()).max(to);
+    let body = &line[start..end];
+    let cut_before = start > line.len() - line.trim_start().len();
+    let cut_after = end < line.trim_end().len();
+    let (head, tail) = (
+        if cut_before { "\u{2026}" } else { "" },
+        if cut_after { "\u{2026}" } else { "" },
+    );
+    Snippet {
+        text: format!("{head}{body}{tail}"),
+        matched: head.len() + (from - start)..head.len() + (to - start),
+    }
 }
 
 impl FoundHits {
     /// The hits `hits`, which a search made in file order.
     pub fn new(hits: Vec<FindHit>) -> FoundHits {
-        FoundHits { hits }
+        FoundHits {
+            hits,
+            snippets: Vec::new(),
+        }
+    }
+
+    /// The same hits with the words around the first of them.
+    pub(crate) fn with_snippets(self, snippets: Vec<Snippet>) -> FoundHits {
+        FoundHits { snippets, ..self }
+    }
+
+    /// The words around the hit numbered `index`, when they were kept.
+    pub(crate) fn snippet(&self, index: HitIndex) -> Option<&Snippet> {
+        self.snippets.get(index.0 as usize)
     }
 
     /// How many there are.
@@ -160,6 +226,59 @@ mod tests {
             text: text.to_owned(),
             mark,
         }
+    }
+
+    #[test]
+    fn a_snippet_keeps_the_words_around_the_match_and_marks_where_it_is() {
+        // name, line, match from, match to, the clip, the match in it
+        let cases: Vec<(&str, &str, usize, usize, &str, &str)> = vec![
+            (
+                "a short line",
+                "the needle here",
+                4,
+                10,
+                "the needle here",
+                "needle",
+            ),
+            (
+                "leading space is dropped",
+                "    the needle",
+                8,
+                14,
+                "the needle",
+                "needle",
+            ),
+            (
+                "a character edge is respected",
+                "caf\u{e9} needle",
+                6,
+                12,
+                "caf\u{e9} needle",
+                "needle",
+            ),
+            (
+                "off a character edge marks nothing",
+                "caf\u{e9} needle",
+                4,
+                6,
+                "caf\u{e9} needle",
+                "",
+            ),
+        ];
+        for (name, line, from, to, text, matched) in cases {
+            let snippet = clip(line, from, to);
+            assert_eq!(snippet.text, text, "{name}: clip");
+            assert_eq!(
+                &snippet.text[snippet.matched.clone()],
+                matched,
+                "{name}: match"
+            );
+        }
+        let long = format!("{} needle {}", "a".repeat(100), "b".repeat(120));
+        let snippet = clip(&long, 101, 107);
+        assert!(snippet.text.starts_with('\u{2026}') && snippet.text.ends_with('\u{2026}'));
+        assert_eq!(&snippet.text[snippet.matched.clone()], "needle");
+        assert!(snippet.text.len() < long.len());
     }
 
     #[test]

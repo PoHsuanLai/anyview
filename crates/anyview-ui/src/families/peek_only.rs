@@ -2,6 +2,7 @@
 //! the full tier does not cover yet (the registry maps them here), and it is a real view, not a
 //! stub: a person sees what the file is and hands it to the program that can show it.
 
+use crate::families::InfoCard;
 use crate::families::view::{Area, StageCx, StageView};
 use crate::io::{OpenError, OpenLink, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
@@ -15,11 +16,7 @@ use anyview_image::{Decoded, decode_bytes, encode};
 use anyview_peek::{Body, peek};
 use dioxus::prelude::*;
 use ds::components::content::image_source::ImageSource;
-use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
-use ds::components::fields::fact_list::{Fact, FactList};
-use ds::components::overlays::empty_state::EmptyState;
-use ds::prelude::Icon;
 use ds_core::word::Word;
 use std::sync::Arc;
 use std::time::Duration;
@@ -227,24 +224,17 @@ impl StageView for PeekOnlyStageView {
     fn stage(doc: &Arc<PeekOnlyDoc>, cx: &StageCx) -> Element {
         let run = cx.run;
         let platform = cx.platform;
-        let facts: Vec<Fact> = doc
-            .facts
-            .rows()
-            .iter()
-            .map(|row| Fact::new(row.label.label(), row.value.as_str()))
-            .collect();
         let description = description_of(doc);
         rsx! {
             div { class: "viewer-peek",
                 div { class: "viewer-peek-body",
-                    if let Some(thumbnail) = doc.thumbnail.clone() {
-                        img { class: "viewer-peek-thumbnail", alt: "First page", src: thumbnail.0 }
-                    }
-                    EmptyState {
-                        icon: Icon::File,
-                        title: doc.name.clone(),
-                        description: Some(TextLine::from(description)),
-                        action: rsx! {
+                    InfoCard {
+                        name: doc.name.clone(),
+                        kind: Some(doc.kind),
+                        facts: doc.facts.clone(),
+                        thumbnail: doc.thumbnail.clone(),
+                        note: Some(description),
+                        actions: rsx! {
                             div { class: "viewer-failed-actions",
                                 if platform.offers(FileAction::RevealInFolder) {
                                     Button {
@@ -255,7 +245,6 @@ impl StageView for PeekOnlyStageView {
                             }
                         },
                     }
-                    div { class: "viewer-peek-facts", FactList { facts } }
                     if !doc.listing.is_empty() {
                         ul { class: "viewer-peek-listing", aria_label: "Contents",
                             for line in doc.listing.iter() {

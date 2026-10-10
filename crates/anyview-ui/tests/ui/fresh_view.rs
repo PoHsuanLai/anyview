@@ -43,7 +43,7 @@ fn capsule(harness: &Harness) -> String {
 /// Everything on screen that is the view's state, as text.
 fn view_of(harness: &Harness) -> String {
     format!(
-        "{} | rows {:?} | zoom {:?} | place {:?} | line {:?} | find {} | page {:?}",
+        "{} | rows {:?} | zoom {:?} | place {:?} | line {:?} | palette {} | page {:?}",
         capsule(harness),
         harness
             .text_of(".viewer-data-scroll")
@@ -51,7 +51,7 @@ fn view_of(harness: &Harness) -> String {
         harness.attr(".viewer-raster", "data-zoom"),
         harness.attr(".viewer-raster-picture", "style"),
         harness.text_of(".viewer-lineno"),
-        harness.count(".viewer-find"),
+        harness.count(".ds-palette"),
         harness.attr(".viewer-pdf", "style"),
     )
 }
@@ -186,11 +186,6 @@ fn a_different_file_starts_with_a_view_of_its_own_in_every_family() {
                     fresh,
                     "{scale} {name}: the change changed nothing"
                 );
-                // A find bar is not in the way of an arrow: Esc closes it, and the arrow route is
-                // for the keys; a drop is for everything else.
-                if matches!(how, Arrival::Drop) && *name == "text" {
-                    chord(&mut harness, 'f');
-                }
                 next(&mut harness, how, &paths[1]);
                 assert_eq!(
                     view_of(&harness),
@@ -358,9 +353,9 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
         settle(&mut harness);
         let tabs = |harness: &Harness| {
             (
-                harness.attr(".ds-side-panel-stage", "data-shown"),
-                harness.text_of(".viewer-side-panel .ds-segmented"),
-                harness.attr(".viewer-side-panel [aria-checked=true]", "aria-label"),
+                harness.attr(".ds-split-pane", "data-shown"),
+                harness.text_of(".viewer-panel .ds-segmented"),
+                harness.attr(".viewer-panel [aria-checked=true]", "aria-label"),
             )
         };
         let on_pdf = tabs(&harness);
@@ -380,7 +375,7 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
         );
         assert!(
             harness
-                .text_of(".viewer-side-panel")
+                .text_of(".viewer-panel")
                 .unwrap_or_default()
                 .contains("48"),
             "{scale}: on its Info tab, the picture's facts"

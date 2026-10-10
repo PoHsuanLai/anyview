@@ -3,7 +3,7 @@
 
 use crate::support;
 
-use ds::prelude::{Appearance, Point, Px, Rect, ShortcutKey};
+use ds::prelude::{Appearance, Point, Px, Rect};
 use ds_harness::{Driver, Harness, Input, Query, Viewport};
 use std::time::Duration;
 use support::{Wiring, settle, wired};
@@ -51,10 +51,10 @@ fn on_screen(rect: Rect, width: u32, height: u32) -> bool {
 fn a_capsule_button_shows_its_name_as_soon_as_the_pointer_is_over_it() {
     for scale in SCALES {
         let (mut harness, _dir) = opened(900, 600, scale);
-        hover(&mut harness, "Zoom in");
+        hover(&mut harness, "Zoom In");
         settle(&mut harness);
         assert_eq!(harness.count(TIP), 1, "{scale}%: no tip under the pointer");
-        assert_eq!(harness.text_of(TIP).as_deref(), Some("Zoom in"), "{scale}%");
+        assert_eq!(harness.text_of(TIP).as_deref(), Some("Zoom In"), "{scale}%");
     }
 }
 
@@ -62,7 +62,7 @@ fn a_capsule_button_shows_its_name_as_soon_as_the_pointer_is_over_it() {
 fn moving_away_hides_the_tip() {
     for scale in SCALES {
         let (mut harness, _dir) = opened(900, 600, scale);
-        hover(&mut harness, "Zoom in");
+        hover(&mut harness, "Zoom In");
         harness.advance(Duration::from_millis(1300));
         assert_eq!(harness.count(TIP), 1);
         harness.send(Input::pointer_move(Point {
@@ -84,7 +84,7 @@ fn a_tip_stays_inside_a_small_window() {
         for (width, height) in [(320, 240), (260, 200)] {
             let (mut harness, _dir) = opened(width, height, scale);
             let mut seen = 0;
-            for label in ["Zoom out", "Zoom in", "Rotate right"] {
+            for label in ["Zoom Out", "Zoom In", "Rotate Right"] {
                 let sel = format!("[aria-label=\"{label}\"]");
                 if harness.rect(&sel).is_none_or(|r| r.size.width.0 <= 0.0) {
                     continue;
@@ -103,44 +103,72 @@ fn a_tip_stays_inside_a_small_window() {
     }
 }
 
-/// Each button says its own words: (row, a window with those buttons up, their labels).
+/// Each control says its own words in the owner's terse style, `Name  Key`: title case, two
+/// spaces, the key as drawn, no parentheses and no sentence. A capsule button says its name alone
+/// (quire's capsule has no key to give a tip); the mode controls carry the key that switches them.
+/// A row is a window with those controls up, and each control's label with its tip's name and key.
 #[test]
-fn each_button_says_its_own_words() {
+fn each_control_says_its_own_words() {
     type Setup = fn() -> (Harness, tempfile::TempDir);
     fn capsule() -> (Harness, tempfile::TempDir) {
         opened(900, 600, 100)
     }
-    fn find_bar() -> (Harness, tempfile::TempDir) {
+    fn markdown() -> (Harness, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
-        let path = support::text_file(dir.path(), "notes.txt", "word", 200);
+        let path = support::text_file(dir.path(), "notes.md", "word", 200);
         let (mut harness, _, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
         settle(&mut harness);
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+        harness.send(Input::pointer_move(Point {
+            x: Px(450.0),
+            y: Px(200.0),
+        }));
         settle(&mut harness);
         (harness, dir)
     }
-    let cases: [(&str, Setup, &[&str]); 2] = [
+    // The label to hover, then the tip's name and key.
+    type Tip = (&'static str, &'static str, Option<&'static str>);
+    // row, the window, then its tips
+    let cases: [(&str, Setup, &[Tip]); 3] = [
         (
             "capsule",
             capsule,
-            &["Zoom out", "Zoom in", "Rotate left", "Rotate right"],
+            &[
+                ("Zoom Out", "Zoom Out", None),
+                ("Zoom In", "Zoom In", None),
+                ("Rotate Left", "Rotate Left", None),
+                ("Rotate Right", "Rotate Right", None),
+            ],
         ),
         (
-            "find bar",
-            find_bar,
-            &["Previous match", "Next match", "Close find"],
+            "pointer mode",
+            capsule,
+            &[("Pointer mode", "Pointer Tool", Some("H"))],
+        ),
+        (
+            "view mode",
+            markdown,
+            &[("View mode", "View Mode", Some("V"))],
         ),
     ];
-    for (row, setup, labels) in cases {
+    for (row, setup, controls) in cases {
         let (mut harness, _dir) = setup();
-        for label in labels {
+        for (label, name, key) in controls {
             hover(&mut harness, label);
             harness.advance(Duration::from_millis(1300));
-            assert_eq!(
-                harness.text_of(TIP).as_deref(),
-                Some(*label),
-                "row {row}: the tip of the {label} button"
-            );
+            let tip = harness.text_of(TIP).unwrap_or_default();
+            match key {
+                None => assert_eq!(tip, *name, "row {row}: the tip of {label}"),
+                Some(key) => {
+                    assert!(
+                        tip.starts_with(name) && tip.trim_end().ends_with(key),
+                        "row {row}: the tip of {label} is the name then the key: {tip:?}"
+                    );
+                    assert!(
+                        tip.contains("  ") && !tip.contains('('),
+                        "row {row}: two spaces and no parentheses: {tip:?}"
+                    );
+                }
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 //! The text stage's transitions.
 
-use super::super::find::{FindHits, FindOut, HitStep};
+use super::super::find::{FindHits, FindOut, HitIndex, HitStep};
 use super::model::{
     TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
@@ -141,6 +141,7 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
         }
         | TextIn::NextHit
         | TextIn::PreviousHit
+        | TextIn::GoToHit(_)
         | TextIn::CloseFind
         | TextIn::Elapsed => stay(place),
     }
@@ -148,6 +149,17 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
 
 fn stepped(query: TypedText, hits: FindHits, place: TextPlace, step: HitStep) -> Step {
     let hits = hits.stepped(step);
+    let outs = hits
+        .current()
+        .map(|hit| TextOut::Find(FindOut::ShowHit(hit)))
+        .into_iter()
+        .collect();
+    (TextStage::Finding { query, hits, place }, outs)
+}
+
+/// Make `hit` the current one, asking for it to be shown.
+fn jumped(query: TypedText, hits: FindHits, place: TextPlace, hit: HitIndex) -> Step {
+    let hits = hits.jumped(hit);
     let outs = hits
         .current()
         .map(|hit| TextOut::Find(FindOut::ShowHit(hit)))
@@ -211,6 +223,7 @@ fn finding(
         }
         TextIn::NextHit => stepped(query, hits, place, HitStep::Next),
         TextIn::PreviousHit => stepped(query, hits, place, HitStep::Previous),
+        TextIn::GoToHit(hit) => jumped(query, hits, place, hit),
         TextIn::CloseFind => closed(place),
         TextIn::ToggleSource => match other_view(place.view, params.views) {
             Some(view) => {

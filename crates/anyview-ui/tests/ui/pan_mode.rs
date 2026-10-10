@@ -169,36 +169,6 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
 }
 
 #[test]
-fn the_tip_offers_space_only_where_space_does_not_play() {
-    for scale in SCALES {
-        let (_dir, harness) = zoomed(scale);
-        let still = harness.attr(".viewer-modes", "title").unwrap_or_default();
-        assert!(still.contains("Hold Space to pan"), "{scale}: {still}");
-        let (_dir, paths) = folder(&[("anyview-image", "spin.gif", "moving.gif")]);
-        let (mut harness, _, _) = support::wired(
-            &paths,
-            0,
-            Appearance::default(),
-            support::Wiring {
-                viewport: Some(ds_harness::Viewport {
-                    width: 900,
-                    height: 600,
-                    scale_percent: scale,
-                }),
-                ..support::Wiring::default()
-            },
-        );
-        settle(&mut harness);
-        settle(&mut harness);
-        let moving = harness.attr(".viewer-modes", "title").unwrap_or_default();
-        assert!(
-            !moving.is_empty() && !moving.contains("Space"),
-            "{scale}: an animation's Space plays it: {moving}"
-        );
-    }
-}
-
-#[test]
 fn the_palette_row_names_the_tool_it_switches_to() {
     for scale in SCALES {
         let (_dir, mut harness) = zoomed(scale);

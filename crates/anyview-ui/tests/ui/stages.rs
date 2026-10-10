@@ -128,14 +128,14 @@ fn a_wheel_scrolls_a_text_file_by_whole_lines_and_the_lines_are_highlighted() {
         harness.count(".tok-keyword") > 0,
         "keywords are classed for the stylesheet"
     );
-    harness.send(Input::wheel(centre(), Px(0.0), Px(-54.0)));
+    harness.send(Input::wheel(centre(), Px(0.0), Px(-60.0)));
     harness.advance(Duration::from_millis(300));
     assert_eq!(
         first(&harness).as_deref(),
         Some("4"),
-        "three lines of 18 px"
+        "three lines of 20 px"
     );
-    harness.send(Input::wheel(centre(), Px(0.0), Px(18.0)));
+    harness.send(Input::wheel(centre(), Px(0.0), Px(20.0)));
     harness.advance(Duration::from_millis(300));
     assert_eq!(first(&harness).as_deref(), Some("3"), "one line back");
     save(&mut harness, "code.png");
@@ -176,10 +176,10 @@ fn a_file_with_no_stage_shows_its_facts_and_offers_show_in_folder() {
     harness.advance(Duration::from_millis(300));
     assert_eq!(harness.count(".viewer-peek"), 1);
     assert_eq!(
-        harness.text_of(".ds-empty-state-title").as_deref(),
+        harness.text_of(".viewer-card-name").as_deref(),
         Some("mystery.bin")
     );
-    assert!(harness.count(".ds-fact-list") > 0, "its facts are listed");
+    assert!(harness.count(".viewer-fact") > 0, "its facts are listed");
     let reveal = harness
         .centre(".viewer-peek .ds-button")
         .expect("Show in Folder");

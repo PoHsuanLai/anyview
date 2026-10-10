@@ -5,4 +5,6 @@ mod step;
 #[cfg(test)]
 mod tests;
 
-pub use model::{Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, RowIndex};
+pub use model::{
+    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteScope, RowIndex,
+};

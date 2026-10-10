@@ -82,7 +82,7 @@ fn rotating_right_asks_the_host_to_save_the_turn_and_the_picture_stays_as_the_fi
     harness.send(Input::pointer_move(support::middle()));
     harness.advance(std::time::Duration::from_millis(300));
     let button = harness
-        .centre("[aria-label=\"Rotate right\"]")
+        .centre("[aria-label=\"Rotate Right\"]")
         .expect("the rotate button");
     harness.send(Input::click(button));
     settle(&mut harness);
@@ -272,7 +272,7 @@ fn an_edit_that_loses_something_asks_first_and_cancel_leaves_the_file_alone() {
     harness.send(Input::pointer_move(support::middle()));
     harness.advance(std::time::Duration::from_millis(300));
     let rotate = harness
-        .centre("[aria-label=\"Rotate right\"]")
+        .centre("[aria-label=\"Rotate Right\"]")
         .expect("the rotate button");
     harness.send(Input::click(rotate));
     settle(&mut harness);
