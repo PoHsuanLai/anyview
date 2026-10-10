@@ -5,8 +5,8 @@
 
 use anyview_core::Source;
 use anyview_pane::{
-    FilePath, HitList, NonEmpty, PaneCommand, PaneEdge, PaneRequest, Sequence, SequenceOrigin,
-    ViewerPane, Work, Workers, use_pane_handle,
+    FilePath, HitList, MediaHost, NonEmpty, PaneCommand, PaneEdge, PaneRequest, Sequence,
+    SequenceOrigin, ViewerPane, Work, Workers, use_pane_handle,
 };
 use dioxus::prelude::*;
 use ds::components::menus::palette::palette_group::{GroupEntries, PaletteGroup};
@@ -309,8 +309,23 @@ pub fn hosted_over(
     viewport: Viewport,
     store: Option<&Path>,
 ) -> Host {
+    hosted_with(panes, viewport, store, None)
+}
+
+/// The same, with `media` starting the players when there is one; with none a recording is the
+/// host's to open.
+pub fn hosted_with(
+    panes: Vec<(PathBuf, Option<Sequence>)>,
+    viewport: Viewport,
+    store: Option<&Path>,
+    media: Option<Arc<dyn MediaHost>>,
+) -> Host {
     let workers = Arc::new(Counting::default());
     let edge = PaneEdge::portable(workers.clone());
+    let edge = match media {
+        Some(host) => edge.with_media(host),
+        None => edge,
+    };
     let edge = match store {
         Some(root) => edge.with_store(root),
         None => edge,
@@ -371,6 +386,16 @@ pub fn text_file(dir: &Path, name: &str, word: &str, lines: u32) -> PathBuf {
 pub fn image_file(dir: &Path, name: &str, fixture: &str) -> PathBuf {
     let from = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../anyview-image/tests/fixtures")
+        .join(fixture);
+    let path = dir.join(name);
+    std::fs::copy(from, &path).unwrap();
+    std::fs::canonicalize(path).unwrap()
+}
+
+/// A copy of one of the media crate's fixtures.
+pub fn media_file(dir: &Path, name: &str, fixture: &str) -> PathBuf {
+    let from = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../anyview-media/tests/fixtures")
         .join(fixture);
     let path = dir.join(name);
     std::fs::copy(from, &path).unwrap();
