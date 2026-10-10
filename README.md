@@ -140,7 +140,7 @@ fn Preview(file: FilePath, workers: Arc<dyn Workers>, store_root: PathBuf, focus
 }
 ```
 
-All panes of a window share the one `Workers` pool. With `with_store(root)` the pane reads where each file was left and writes the recently viewed and the place on that pool, merging only its own file's entry under a lock across processes, so the viewer and the app can use one `root`; without it the app hears `PaneRequest::Remember` and keeps the place itself, or drops it. The pane gives the keyboard back (`PaneRequest::Unfocus`) on Esc and when the focus moves from it to another part of the app. With a `look` the pane draws its selection and caret at rest while `focused` is false. A recording opens in a viewer window of its own (`PaneRequest::OpenElsewhere`) until the player can be hosted in a pane.
+All panes of a window share the one `Workers` pool. With `with_store(root)` the pane reads where each file was left and writes the recently viewed and the place on that pool, merging only its own file's entry under a lock across processes, so the viewer and the app can use one `root`: the person's data directory joined with `anyview_pane::STORE_FOLDER`, which is where the viewer's own windows keep theirs; without it the app hears `PaneRequest::Remember` and keeps the place itself, or drops it. The pane gives the keyboard back (`PaneRequest::Unfocus`) on Esc and when the focus moves from it to another part of the app. With a `look` the pane draws its selection and caret at rest while `focused` is false. A recording opens in a viewer window of its own (`PaneRequest::OpenElsewhere`) unless the app gives the pane a player (the `player` feature and `PaneEdge::with_player`); then it plays in the pane.
 
 ## Known limitations
 
