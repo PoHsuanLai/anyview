@@ -104,15 +104,15 @@ fn a_key_and_a_pinch_zoom_the_picture_and_the_capsule_says_how_far() {
         Some("150%"),
         "a pinch of 20% from 125%"
     );
-    harness.send(Input::key(ShortcutKey::Char('0')));
+    harness.send(Input::key(ShortcutKey::Char('9')));
     harness.advance(Duration::from_millis(100));
-    assert_eq!(readout(&harness).as_deref(), Some("100%"), "0 fits again");
+    assert_eq!(readout(&harness).as_deref(), Some("100%"), "9 fits again");
     assert_eq!(
         harness.attr(".viewer-raster", "data-zoom").as_deref(),
         Some("fit")
     );
     // The picture is bigger when zoomed: the red quadrant now reaches past its 24 px.
-    harness.send(Input::key(ShortcutKey::Char('1')));
+    harness.send(Input::key(ShortcutKey::Char('0')));
     harness.advance(Duration::from_millis(100));
     save(&mut harness, "picture-actual.png");
 }

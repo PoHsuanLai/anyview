@@ -61,8 +61,8 @@ pub enum Act {
 const OWN: &[(Act, &str, &str)] = &[
     (Act::Palette, "anyview.palette", "Primary+K"),
     (Act::Info, "anyview.info", "Primary+Alt+I"),
-    (Act::ZoomToFit, "anyview.zoom-to-fit", "Primary+0"),
-    (Act::ZoomToActual, "anyview.zoom-to-actual", "Primary+Alt+0"),
+    (Act::ZoomToFit, "anyview.zoom-to-fit", "Primary+9"),
+    (Act::ZoomToActual, "anyview.zoom-to-actual", "Primary+0"),
     (Act::Done, "anyview.done", "Primary+Enter"),
     (
         Act::DeletePage,

@@ -199,8 +199,8 @@ fn presses_stand_for_commands() {
         ("plus", key(&[Char('+')]), Some(StageCommand::ZoomIn)),
         ("equals", key(&[Char('=')]), Some(StageCommand::ZoomIn)),
         ("minus", key(&[Char('-')]), Some(StageCommand::ZoomOut)),
-        ("zero", key(&[Char('0')]), Some(StageCommand::ZoomToFit)),
-        ("one", key(&[Char('1')]), Some(StageCommand::ZoomToActual)),
+        ("zero", key(&[Char('0')]), Some(StageCommand::ZoomToActual)),
+        ("nine", key(&[Char('9')]), Some(StageCommand::ZoomToFit)),
         (
             "the zoom in action",
             Press::Act(Act::ZoomIn),

@@ -224,7 +224,7 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
     let _ = zoom_of;
     saved(&mut harness, "pdf-zoomed.png");
 
-    harness.send(Input::key(ShortcutKey::Char('0')));
+    harness.send(Input::key(ShortcutKey::Char('9')));
     settle(&mut harness);
     let fitted = capsule(&harness);
     harness.send(Input::wheel(at, Px(0.0), Px(-700.0)));
