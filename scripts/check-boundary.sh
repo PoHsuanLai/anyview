@@ -375,7 +375,7 @@ EDGES=(
   "anyview-fs: anyview-core"
   "anyview-machines: anyview-core ds-core"
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-machines anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
-  "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-ui ds"
+  "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-store anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
