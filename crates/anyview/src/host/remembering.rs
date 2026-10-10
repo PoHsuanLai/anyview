@@ -115,22 +115,13 @@ impl PlaceWriter {
     }
 
     fn write_soon(&self, source: Source, resume: Resume) {
-        *self
-            .inner
-            .in_flight
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) += 1;
         let this = self.clone();
-        // The flush waits on the count, not on the handle.
+        let done = InFlight::start(Arc::clone(&self.inner));
+        // The flush waits on the count, not on the handle; a write the runtime drops unrun as the
+        // program ends still settles the count, through the guard.
         drop(self.inner.runtime.spawn_blocking(move || {
             this.write(&source, &resume);
-            let mut in_flight = this
-                .inner
-                .in_flight
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
-            *in_flight -= 1;
-            this.inner.settled.notify_all();
+            drop(done);
         }));
     }
 
@@ -142,5 +133,30 @@ impl PlaceWriter {
         {
             eprintln!("anyview: cannot keep the place: {error}");
         }
+    }
+}
+
+/// One write on the pool, counted from its start until it is done or dropped unrun.
+struct InFlight(Arc<Inner>);
+
+impl InFlight {
+    fn start(inner: Arc<Inner>) -> InFlight {
+        *inner
+            .in_flight
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) += 1;
+        InFlight(inner)
+    }
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        let mut in_flight = self
+            .0
+            .in_flight
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        *in_flight = in_flight.saturating_sub(1);
+        self.0.settled.notify_all();
     }
 }
