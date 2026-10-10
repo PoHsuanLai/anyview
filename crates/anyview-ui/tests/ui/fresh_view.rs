@@ -358,11 +358,15 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
             (
                 harness.attr(".ds-split-pane", "data-shown"),
                 harness.text_of(".viewer-panel .ds-segmented"),
-                harness.attr(".viewer-panel [aria-checked=true]", "aria-label"),
+                harness.text_of(".viewer-panel [data-selected=selected]"),
             )
         };
         let on_pdf = tabs(&harness);
         assert_eq!(on_pdf.0.as_deref(), Some("visible"), "{scale}: {on_pdf:?}");
+        assert!(
+            on_pdf.2.as_deref().is_some_and(|tab| !tab.is_empty()),
+            "{scale}: a tab is chosen: {on_pdf:?}"
+        );
         next(&mut harness, Arrival::Arrow, &files[1]);
         assert_eq!(
             tabs(&harness),
