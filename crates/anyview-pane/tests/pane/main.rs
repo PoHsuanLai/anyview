@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used)]
 
+mod find;
 mod keys;
 mod mapping;
 mod region;

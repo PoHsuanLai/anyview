@@ -6,7 +6,8 @@
 //! and no file drop, and none of the viewer's chords, since the host owns the keyboard. What the
 //! pane asks of its host (to close it, to open a file elsewhere, to carry out a change to the
 //! file) arrives as a [`PaneRequest`]; what it can do arrives as commands the host lists in its
-//! own palette ([`PaneHandle::commands`]) and runs ([`PaneHandle::run`]).
+//! own palette ([`PaneHandle::commands`]) and runs ([`PaneHandle::run`]); a find in the file is the
+//! host's palette too ([`PaneHandle::find`], [`PaneHandle::hits`]).
 //!
 //! The pane never asks the OS for anything: no D-Bus, no file chooser. The platform abilities of a
 //! [`PaneEdge::portable`] edge are none, so Open, Print, Share, Open With and Show in Folder are
@@ -57,8 +58,8 @@ pub use anyview_peek::StillSource;
 /// give [`PaneEdge::with_store`] the same, so a pane shares one history with them.
 pub use anyview_store::STORE_FOLDER;
 pub use anyview_ui::{
-    DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, ImagePlugins,
-    Look, LookFeed, MediaHost, MediaSupport, NaturalSize, Opened, PaneChrome, PlatformAbilities,
-    ResumeSource, Rewind, TextSave, TypedText, VersionKey, VersionSource, Work, WorkKind, WorkLane,
-    Workers,
+    DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, HitList,
+    ImagePlugins, Look, LookFeed, MediaHost, MediaSupport, NaturalSize, Opened, PaneChrome,
+    PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText, VersionKey, VersionSource, Work,
+    WorkKind, WorkLane, Workers,
 };

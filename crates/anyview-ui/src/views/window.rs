@@ -166,6 +166,23 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             seat.link.serve(Callback::new(move |command: Command| {
                 dispatch.send(ViewerIn::Run(command));
             }));
+            // A find the host's palette feeds goes to the stage as the window's own palette
+            // would send it (`find_input`, `dismissal`), without opening a palette.
+            seat.link
+                .serve_find(Callback::new(move |query: Option<TypedText>| {
+                    let input = {
+                        let state = dispatch.machine.state();
+                        let viewer = state.peek();
+                        match &query {
+                            Some(query) => viewer.stage.find_input(query),
+                            None if viewer.stage.is_finding() => viewer.stage.dismissal(),
+                            None => None,
+                        }
+                    };
+                    if let Some(input) = input {
+                        dispatch.send(ViewerIn::Stage(input));
+                    }
+                }));
         }
     });
     use_drop(move || {
@@ -416,17 +433,27 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         }));
     };
     // What the palette lists under "In This File" when it is a find.
-    let hit_lines = match (&state.palette, state.palette_scope, current.as_ref()) {
-        (PaletteState::Open { .. }, PaletteScope::Find(_), Some((_, doc))) => {
-            doc.view().hit_lines(&cx, WHOLE_HITS)
-        }
-        _ => Vec::new(),
+    // A pane lists them for its host's palette while a find is up.
+    let listing_hits = (hosted && state.stage.is_finding())
+        || matches!(
+            (&state.palette, state.palette_scope),
+            (PaletteState::Open { .. }, PaletteScope::Find(_))
+        );
+    let hit_lines = match current.as_ref() {
+        Some((_, doc)) if listing_hits => doc.view().hit_lines(&cx, WHOLE_HITS),
+        Some(_) | None => Vec::new(),
     };
     let found = state
         .stage
         .find_state()
         .and_then(|(_, hits)| hits.count())
         .map_or(0, |count| count.0);
+    let pane_hits = hit_lines.clone();
+    use_effect(use_reactive!(|found, pane_hits| {
+        if let Some(seat) = seat {
+            seat.link.publish_hits(found, pane_hits);
+        }
+    }));
     let rows = machine_params.palette.rows;
     let export_facts = machine_params.sheet.export;
     let offer = machine_params.sheet.media;
