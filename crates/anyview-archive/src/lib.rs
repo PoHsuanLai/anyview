@@ -12,9 +12,10 @@
 //! ```no_run
 //! use anyview_archive::{EntryLimit, ExtractLimits, extract, list};
 //! use anyview_core::{ArchiveFormat, ByteLen, FilePath};
+//! use anyview_fs::OnDisk;
 //!
 //! let file = FilePath::new("/home/me/photos.zip")?;
-//! let listing = list(&file, ArchiveFormat::Zip, EntryLimit(50), ByteLen(8 << 20))?;
+//! let listing = list(file.on_disk(), ArchiveFormat::Zip, EntryLimit(50), ByteLen(8 << 20))?;
 //! for entry in &listing.entries {
 //!     println!("{}", entry.path);
 //! }
@@ -22,7 +23,7 @@
 //!     entry: ByteLen(1 << 20),
 //!     scanned: ByteLen(8 << 20),
 //! };
-//! let bytes = extract(&file, ArchiveFormat::Zip, "cover.jpg", limits)?;
+//! let bytes = extract(file.on_disk(), ArchiveFormat::Zip, "cover.jpg", limits)?;
 //! # let _ = bytes;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
