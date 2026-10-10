@@ -3,7 +3,7 @@ use crate::chrome::{ChromeIn, PinReason};
 use crate::context::{ContextIn, ContextMenu, Spot};
 use crate::edits::Rewind;
 use crate::navigate::NavigateIn;
-use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteScope};
+use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteMove};
 use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
 use crate::stage::{
@@ -18,11 +18,7 @@ use ds_core::vocab::ShortcutKey::{
 };
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
-const OPEN_PALETTE: Palette = Palette::Open {
-    query: TypedText::from_static(""),
-    selection: PaletteIndex(0),
-    scope: PaletteScope::Commands,
-};
+const OPEN_PALETTE: Palette = Palette::open(TypedText::from_static(""), PaletteIndex(0));
 const INFO: Panel = Panel::Shown {
     tab: PanelTab::Info,
 };

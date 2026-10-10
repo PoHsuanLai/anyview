@@ -17,7 +17,7 @@ use ds::components::lists::table::model::{
 };
 use ds::components::lists::virtual_table::{VirtualTable, row_pitch};
 use ds::components::overlays::empty_state::EmptyState;
-use ds::prelude::{Icon, Px};
+use ds::prelude::{ColumnRules, Icon, Px};
 use std::sync::Arc;
 
 /// The gutter's column id: no column of a file has it.
@@ -106,7 +106,6 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         let _ = (doc, sheet_no, by);
         scroller.scroll_to(Px(0.0));
     }));
-    let scrolled = use_memo(move || scroller.scroll().read().offset.0 > 0.0);
     let send = cx.send;
     let sheet: Arc<SheetDoc> = match doc.0.sheets.get(sheet_no.0 as usize) {
         // a u32 fits a usize
@@ -137,18 +136,19 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
             }
         };
     }
-    let shown = if scrolled() { "yes" } else { "no" };
     rsx! {
         div {
             class: "viewer-data",
             "data-body": "table",
-            "data-scrolled": shown,
             VirtualTable::<u32> {
                 label: "Rows",
                 columns: columns_of(&sheet),
                 rows,
                 cell,
                 scroller,
+                // Numbers' look: a hairline between the columns, and one under the header once
+                // the rows are scrolled (quire's default).
+                rules: ColumnRules::Hairline,
                 sort: by.map(drawn),
                 on_sort: move |asked: Sort<u32>| {
                     send.call(StageIn::Table(TableIn::PressHeader(asked.column)));

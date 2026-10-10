@@ -1,6 +1,6 @@
 use crate::chrome::{Chrome, ChromeOut, PinReason, PinReasons};
 use crate::command::{Command, StageCommand};
-use crate::palette::{Palette, PaletteIndex, PaletteParams, PaletteScope};
+use crate::palette::{Palette, PaletteIndex, PaletteParams};
 use crate::panel::{PanelParams, PanelTab, PanelTabs};
 use crate::picture::{PictureEditIn, PictureEditing, PictureEdits};
 use crate::presentation::{ContentClass, PresentationParams};
@@ -82,11 +82,7 @@ pub(super) fn media(paused: Pace) -> Stage {
 }
 
 pub(super) fn palette_on(row: usize) -> Palette {
-    Palette::Open {
-        query: TypedText::EMPTY,
-        selection: PaletteIndex(row),
-        scope: PaletteScope::Commands,
-    }
+    Palette::open(TypedText::EMPTY, PaletteIndex(row))
 }
 
 pub(super) fn menu_pinned() -> Chrome {

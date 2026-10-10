@@ -8,7 +8,7 @@ use crate::hand::{Hand, HandIn};
 use crate::keys::Press;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
-use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
+use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams, PaletteScope};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
 use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
@@ -29,6 +29,8 @@ pub struct Viewer {
     pub panel: Panel,
     /// The ⌘K palette.
     pub palette: Palette,
+    /// What the palette lists: the commands, or a find's hits. `Commands` while it is closed.
+    pub palette_scope: PaletteScope,
     /// The right-click menu.
     pub context: ContextMenu,
     /// The modal sheet.

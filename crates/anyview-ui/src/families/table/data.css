@@ -1,7 +1,8 @@
 /* Data views: a table and a tree share a row height (the compact row), the data face and the body
    size. The table is quire's VirtualTable, whose header is above its rows and so stays put. Its
-   header and cells are quire's to style (ds-lint DsInternals), so the Numbers-look column rules
-   wait on a quire option for them. Tokens only. */
+   header and cells are quire's to style (ds-lint DsInternals): the Numbers-look column rules and
+   the header's hairline once scrolled are its `ColumnRules::Hairline` and `HeaderRule`. Tokens
+   only. */
 
 .viewer-data{ position:absolute; inset:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
 .viewer-row-number{ color:var(--ink-faint); }

@@ -149,12 +149,9 @@ fn find_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_puts_
     let (viewer, outs) = acted(viewer, Act::Find, 0);
     assert_eq!(
         viewer.palette,
-        Palette::Open {
-            query: TypedText::EMPTY,
-            selection: PaletteIndex(0),
-            scope: PaletteScope::Find(HitList::Brief),
-        }
+        Palette::open(TypedText::EMPTY, PaletteIndex(0))
     );
+    assert_eq!(viewer.palette_scope, PaletteScope::Find(HitList::Brief));
     assert!(outs.contains(&ViewerOut::Palette(PaletteOut::Opened)));
     assert_eq!(
         viewer.stage,
@@ -205,11 +202,8 @@ fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_ste
             hits: FindHits::answered(HitCount(3), HitIndex(0)),
             place,
         }),
-        palette: Palette::Open {
-            query: TypedText::new("fox"),
-            selection: PaletteIndex(0),
-            scope: PaletteScope::Find(HitList::Brief),
-        },
+        palette: Palette::open(TypedText::new("fox"), PaletteIndex(0)),
+        palette_scope: PaletteScope::Find(HitList::Brief),
         ..Viewer::default()
     };
     let (viewer, outs) = viewer.step(key(&[Down]), Stamp(0), &(), &params);
