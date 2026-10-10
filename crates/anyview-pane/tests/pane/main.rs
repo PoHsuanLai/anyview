@@ -5,6 +5,7 @@
 mod find;
 mod keys;
 mod mapping;
+mod playback;
 mod region;
 mod store;
 mod support;
