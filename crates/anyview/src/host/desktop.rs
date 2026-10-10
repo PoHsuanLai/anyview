@@ -5,7 +5,7 @@ use super::documents;
 use super::helpers::HelperHost;
 use super::media::{self, Media};
 use super::outcome::Outcome;
-use super::remembering::{REMEMBER_EVERY, Remembering};
+use super::remembering::{PlaceWriter, REMEMBER_EVERY};
 use super::route::Task;
 use super::saving;
 use super::store::Store;
@@ -78,7 +78,7 @@ struct Parts<R, S, P, T, F, L> {
     links: L,
     store: Arc<Store>,
     versions: Versions,
-    remembering: Remembering,
+    remembering: PlaceWriter,
     media: Media,
     helpers: Option<Arc<HelperHost>>,
 }
@@ -141,7 +141,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
                 trash,
                 picker,
                 links,
-                remembering: Remembering::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
+                remembering: PlaceWriter::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
                 versions,
                 media,
