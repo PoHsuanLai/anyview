@@ -4,6 +4,25 @@ use anyview_core::{FileAction, Helper};
 use ds_core::vocab::{Shortcut, ShortcutKey};
 use ds_core::word::Word;
 
+/// A command for the open picture's edits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PictureCommand {
+    /// Choose a new size for the picture.
+    AdjustSize,
+    /// Write the changes into the file (⌘S).
+    Save,
+}
+
+impl PictureCommand {
+    /// The words the palette lists the command by.
+    pub fn label(self) -> &'static str {
+        match self {
+            PictureCommand::AdjustSize => "Adjust Size\u{2026}",
+            PictureCommand::Save => "Save",
+        }
+    }
+}
+
 /// A command a stage understands. The stage that is showing decides what it means, or that it
 /// means nothing (a PDF has no "toggle source").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
@@ -190,7 +209,11 @@ impl Command {
             Command::File(action) => action.label().to_string(),
             Command::Stage(command) => command.label().to_string(),
             Command::OpenFile => "Open\u{2026}".to_owned(),
-            Command::UseTool(tool) => format!("Use {}", tool.label()),
+            Command::UseTool(tool) => match tool {
+                crate::Tool::Crop => "Crop".to_owned(),
+                crate::Tool::Select | crate::Tool::Pan => format!("Use {}", tool.label()),
+            },
+            Command::Picture(command) => command.label().to_owned(),
             Command::FindHit(hit) => format!("Match {}", hit.0 + 1),
             Command::ShowAllHits => "Show All Matches".to_owned(),
             Command::ShowView(view) => match view {
@@ -214,6 +237,8 @@ pub enum Command {
     /// Choose the pointer tool on a picture, as Preview's tool control does. The palette lists the
     /// tool the person is not using, named for what the row switches to ("Use Select").
     UseTool(crate::Tool),
+    /// A command for the picture being edited: Adjust Size or Save.
+    Picture(PictureCommand),
     /// Show a text file as its page or as its source, as the titlebar's Preview | Source does. The
     /// palette lists the view the person is not looking at ("Show Source").
     ShowView(crate::TextView),

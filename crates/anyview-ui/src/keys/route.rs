@@ -5,7 +5,7 @@ use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
 use crate::context::{ContextIn, ContextMenu};
 use crate::edits::Rewind;
-use crate::hand::HandIn;
+use crate::hand::{HandIn, Tool};
 use crate::io::DesktopService;
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn};
@@ -46,7 +46,8 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         | Sheet::Helper {
             helper: _,
             phase: _,
-        } => {
+        }
+        | Sheet::Picture(_) => {
             return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}
@@ -95,6 +96,11 @@ fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
             Some(Route::Panel(info_toggle(regions.panel)))
         }
         [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
+        [ShortcutKey::Super, ShortcutKey::Char('s')]
+            if matches!(regions.stage, Stage::Raster(_)) =>
+        {
+            Some(Route::Save)
+        }
         [ShortcutKey::Super, ShortcutKey::Char('o')]
             if regions.platform.has(DesktopService::FileChooser) =>
         {
@@ -135,7 +141,7 @@ fn info_toggle(panel: &Panel) -> PanelIn {
     }
 }
 
-/// H switches the pan tool, and Space held turns it on, for a picture. (An animation's Space is
+/// H switches the pan tool, C chooses the crop tool, and Space held turns the pan tool on, for a picture. (An animation's Space is
 /// its play button, which the stage claimed before this.)
 fn hand_key(keys: &[ShortcutKey], stage: &Stage) -> Option<HandIn> {
     if !matches!(stage, Stage::Raster(_)) {
@@ -143,6 +149,7 @@ fn hand_key(keys: &[ShortcutKey], stage: &Stage) -> Option<HandIn> {
     }
     match keys {
         [ShortcutKey::Char('h')] => Some(HandIn::Toggle),
+        [ShortcutKey::Char('c')] => Some(HandIn::Use(Tool::Crop)),
         [ShortcutKey::Space] => Some(HandIn::SpaceDown),
         _ => None,
     }

@@ -39,6 +39,8 @@ fn cx(stage: Stage) -> StageCx {
     StageCx {
         stage,
         hand: crate::Hand::default(),
+        picture: crate::PictureEdits::default(),
+        edit: EventHandler::new(|_: crate::PictureEditIn| {}),
         ticket: Ticket::default(),
         area: None,
         send: EventHandler::new(|_: StageIn| {}),

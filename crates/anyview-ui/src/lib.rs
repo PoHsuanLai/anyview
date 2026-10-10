@@ -23,6 +23,7 @@ mod look;
 mod navigate;
 mod palette;
 mod panel;
+mod picture;
 pub mod prelude;
 mod presentation;
 mod sheet;
@@ -36,7 +37,7 @@ mod views;
 mod testing;
 
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
-pub use command::{Command, StageCommand};
+pub use command::{Command, PictureCommand, StageCommand};
 pub use context::{
     ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams, ContextPick, Spot,
 };
@@ -68,14 +69,18 @@ pub use palette::{
     HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
 };
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
+pub use picture::{
+    CropAspect, CropBox, CropGrip, CropLean, CropShape, PictureEditIn, PictureEditing, PictureEdits,
+};
 pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{
     ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption, HelperEnd,
-    HelperPhase, MAX_LONG_EDGE, MediaOffer, PageSpan, Sheet, SheetIn, SheetOut, SheetParams,
-    SizePick, TrimSpan, VersionKey, VersionList, VersionRow, format_of, kind_hint, kind_name,
-    quality_of,
+    HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureDeparture,
+    PictureSheet, PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion,
+    ResizeUnit, Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList,
+    VersionRow, format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
     AfterScrub, Animation, ControlOffer, Destination, EndReason, FindHits, FindOut, FrameCount,

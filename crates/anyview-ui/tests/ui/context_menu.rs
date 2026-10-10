@@ -156,13 +156,14 @@ fn picking_rotate_runs_it_and_closes_the_menu() {
     harness.send(Input::click(rotate));
     // The row blinks, the menu runs it and fades out, then it closes.
     harness.advance(std::time::Duration::from_secs(1));
-    let after = asked(&requests);
+    assert!(
+        asked(&requests)[before..].is_empty(),
+        "the turn waits in the window for a save"
+    );
     assert_eq!(
-        after[before..],
-        [HostRequest::Edit(EditRequest::of_picture(Edit::Rotate(
-            QuarterTurn::ThreeQuarter
-        )))],
-        "the first row is Rotate Left"
+        harness.count(".ds-titlebar-edited"),
+        1,
+        "the first row is Rotate Left, and the title bar says the picture is edited"
     );
     assert_eq!(
         harness.count(".ds-menu"),

@@ -16,6 +16,13 @@ versioning, with pre-releases while the program is in beta.
 
 - A PDF or a book opens with its pages beside it, as in Preview, until you open or close the panel yourself; after that it stays as you left it from file to file. A file Viewer can only describe, such as an archive or a font, has no panel to open, because the window already shows its card.
 
+### Pictures
+
+- A picture can be cut, resized, turned and mirrored, and the changes wait until you save them. Crop sits beside Select and Pan in the title bar (or press C): drag the corners and edges of the rectangle, choose Free, Original, Square, 4:3 or 16:9 (landscape or portrait), and press Return to cut or Esc to leave it. The title bar shows a dot while the picture has changes that are not saved.
+- Adjust Size… (in the command palette) opens a dialog with the width and height in pixels or as a percent, kept in proportion unless you untick it.
+- Rotate and flip no longer write the file at once: they turn what you see, and Command S saves the picture in its own format, keeping its details except the turn, which is now in the picture itself. Command Z and Shift-Command Z take back and redo the steps first. A picture Viewer cannot write offers Export… instead.
+- Closing the window or opening another file asks whether to save the changes: Save, Don't Save or Cancel.
+
 ### Find
 
 - Find is in the command palette. Command F opens it as a find, with the last find's text selected: what you type is searched for in the file, the matches are marked behind the palette, and the places are listed under "In This File" (with the line or page), followed by the commands that match. Moving through the list shows each match, Return goes to it and closes the palette, and Esc clears the marks. The bottom bar then reads "3 of 17" with Previous Match and Next Match buttons, and Command G and Shift-Command G step through the matches as before. The find bar is gone.

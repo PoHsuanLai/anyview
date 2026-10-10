@@ -15,3 +15,5 @@
 .viewer-export-needs{ padding:0 var(--s-20); }
 .viewer-export-foot{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--s-8); padding:var(--s-12) var(--s-20) var(--s-16); }
 .viewer-export-saved{ flex:1 1 auto; min-width:0; }
+/* Adjust Size: the dialog is as wide as its form needs; the stepper rows are the export dialog's. */
+.viewer-resize{ gap:var(--s-8); min-width:calc(var(--s-36) * 8); }

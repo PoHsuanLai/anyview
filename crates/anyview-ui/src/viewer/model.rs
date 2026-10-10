@@ -10,8 +10,9 @@ use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
+use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
-use crate::sheet::{Sheet, SheetIn, SheetOut, SheetParams};
+use crate::sheet::{PictureDeparture, Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Stage, StageIn, StageOut, StageParams};
 use anyview_core::{FileAction, FilePath};
 use ds_core::vocab::Shortcut;
@@ -46,6 +47,11 @@ pub struct Viewer {
     pub choosing: Choosing,
     /// Whether the person has opened or closed the side panel in this window.
     pub panel_said: PanelSay,
+    /// What has been done to the open picture and not saved.
+    pub picture: PictureEdits,
+    /// Where the person was going when they chose to save the picture's changes first: they go
+    /// when the saved file has been read again.
+    pub after_save: Option<PictureDeparture>,
 }
 
 /// Whether the person has said what they want of the side panel. Until they have, a PDF or a
@@ -129,6 +135,8 @@ pub enum ViewerIn {
     Stage(StageIn),
     /// The pan tool, or Space held for it.
     Hand(HandIn),
+    /// An edit of the open picture, or the crop rectangle being moved.
+    Picture(PictureEditIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the
     /// palette runs for the row it picked.
     Run(Command),

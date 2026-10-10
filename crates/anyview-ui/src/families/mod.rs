@@ -25,6 +25,7 @@ pub use pdf::{
     PdfTask, ReadyTile, use_pdf_shelf,
 };
 pub use peek_only::{PeekOnlyDoc, PeekOnlyStageView};
+pub(crate) use raster::adjusted_raster;
 pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen, RasterStageView};
 pub use registry::{FamilyVisitor, family_of, flow_of, visit};
 pub(crate) use registry::{open_for, peek_for};

@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::ScrubEvent;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::capsule::view::Capsule;
-use ds::components::chrome::titlebar_parts::TitleParts;
+use ds::components::chrome::titlebar_parts::{DocumentState, TitleParts};
 use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
 use ds::prelude::{Material, Shown, Surface};
 use ds_core::vocab::Fraction;
@@ -21,6 +21,7 @@ pub(super) fn Titlebar(
     title: String,
     shown: Shown,
     trailing: Option<Element>,
+    #[props(default)] document: DocumentState,
     onpointerenter: EventHandler<()>,
     onpointerleave: EventHandler<()>,
 ) -> Element {
@@ -33,7 +34,10 @@ pub(super) fn Titlebar(
             Surface { material: Material::Bar,
                 WindowTitlebar {
                     title,
-                    parts: TitleParts::default(),
+                    parts: TitleParts {
+                        document,
+                        ..TitleParts::default()
+                    },
                     lights: TrafficLights::Shown,
                     // The family's mode controls (Select | Pan) are part of the bar.
                     trailing,

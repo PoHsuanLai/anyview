@@ -4,10 +4,12 @@
 use super::carry::Carry;
 use super::session::Probe;
 use crate::families::{FoundHits, Held};
+use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, Notice, SizeBasis};
 use crate::{
-    Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, Sheet, SheetIn, Stage, StageIn, TextIn,
-    TextStage, Ticket, TypedText, VersionList, ViewerIn, freshness,
+    EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, PictureEditIn,
+    PictureEditing, Sheet, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
+    VersionList, ViewerIn, freshness,
 };
 use anyview_core::{FilePath, Helper, Resume};
 use dioxus::prelude::*;
@@ -97,7 +99,8 @@ fn available(c: &Carry, helper: Helper) {
         | Sheet::SaveCopy { .. }
         | Sheet::Revert { .. }
         | Sheet::NoVersions
-        | Sheet::Helper { .. } => {
+        | Sheet::Helper { .. }
+        | Sheet::Picture(_) => {
             let lacking = c
                 .shelf
                 .shown_now()
@@ -319,6 +322,8 @@ fn opened(c: &Carry, ticket: Ticket, result: Result<crate::LoadedDoc, crate::Ope
 /// document says of itself (an animation moves, a find already up asks again).
 pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     send(c, ViewerIn::Load(LoadIn::Opened { ticket }));
+    // Whatever was done to the last picture is gone with it (or was just saved into this one).
+    send(c, ViewerIn::Picture(picture_landed(c, doc)));
     // The panel stays open from file to file; its tab stays too when the new file has it.
     send(c, ViewerIn::Panel(crate::PanelIn::TabsChanged));
     size_window(
@@ -333,6 +338,32 @@ pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     }
     // A player that started before the document landed may have woken the window already.
     drain_media(c);
+}
+
+/// What the picture edits are told when `doc` lands: its size, and whether it can be saved with
+/// changes (a picture whose format has a writer, in a file that takes a save in place).
+fn picture_landed(c: &Carry, doc: &crate::LoadedDoc) -> PictureEditIn {
+    let on_a_picture = c
+        .dispatch()
+        .is_some_and(|dispatch| matches!(dispatch.machine.state().peek().stage, Stage::Raster(_)));
+    let writable = c
+        .shelf
+        .probe
+        .peek()
+        .found()
+        .is_some_and(|probed| probed.access == FileAccess::Writable);
+    let size = match doc.view().natural() {
+        Some(NaturalSize::Pixels(size)) if on_a_picture => Some(size),
+        Some(NaturalSize::Pixels(_) | NaturalSize::Points(_) | NaturalSize::Compact(_)) | None => {
+            None
+        }
+    };
+    let editing = if on_a_picture && writable && doc.view().edit_offer() != EditOffer::Withheld {
+        PictureEditing::Allowed
+    } else {
+        PictureEditing::Locked
+    };
+    PictureEditIn::Landed { size, editing }
 }
 
 /// A different file has loaded: tell the host how big its content naturally is, once, so it can

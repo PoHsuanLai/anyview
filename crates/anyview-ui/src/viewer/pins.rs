@@ -29,7 +29,8 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 | Sheet::SaveCopy { .. }
                 | Sheet::Revert { .. }
                 | Sheet::NoVersions
-                | Sheet::Helper { .. } => true,
+                | Sheet::Helper { .. }
+                | Sheet::Picture(_) => true,
                 Sheet::Closed => false,
             };
             let context = match viewer.context {

@@ -3,14 +3,15 @@
 //! inputs; every decision (what a pinch means at this zoom, where a double-click goes) is the
 //! machine's.
 
+use super::crop::CropOverlay;
 use super::doc::RasterDoc;
 use super::geometry::{
-    centre_of, fit, frame_of, held_source, limited_pan, place, point_under, pointer_delta,
-    scale_of, turn_of,
+    centre_of, fit, frame_of, held_source, in_file, limited_pan, place, point_under, pointer_delta,
+    reach_in_picture, scale_of, turn_of,
 };
 use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
-use crate::{Command, RasterIn, RasterStage, Stage, StageIn, Tool};
-use anyview_core::{DocPoint, DocUnit, Permille, QuarterTurn, Zoom};
+use crate::{Command, PictureEditIn, RasterIn, RasterStage, Stage, StageIn, Tool};
+use anyview_core::{DocPoint, DocUnit, Permille, PixelSize, QuarterTurn, Reflection, Zoom};
 use dioxus::prelude::*;
 use ds::components::content::text_runs::TextLine;
 use ds::components::controls::button::Button;
@@ -92,6 +93,29 @@ fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
     }
 }
 
+/// How near an edge of the crop rectangle still takes hold of it, in logical pixels of the room.
+const CROP_REACH: f32 = 10.0;
+
+/// The picture as the stage lays it out: the part of the file's picture that is kept, and how far
+/// it is turned (by the stage and by the person's edits).
+fn laid_out(cx: &StageCx, stage: &RasterStage, size: PixelSize) -> (PixelSize, QuarterTurn) {
+    let adjust = cx.picture.adjust();
+    (adjust.kept(size).size, turn_of(stage).then(adjust.turn))
+}
+
+/// The point of the picture as shown that is under (`at`, in the room) now.
+fn under(
+    cx: &StageCx,
+    stage: &RasterStage,
+    size: PixelSize,
+    area: Area,
+    at: (f32, f32),
+) -> DocPoint {
+    let (kept, turn) = laid_out(cx, stage, size);
+    let shown = scale_of(stage, fit(kept, turn, area));
+    point_under(centre_of(stage, kept, turn), shown, area, at)
+}
+
 #[component]
 fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     let mut last = use_signal(|| None::<(f32, f32)>);
@@ -110,22 +134,25 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         );
         match pointer.phase {
             PointerPhase::Drag => {
+                if current.picture.is_dragging() {
+                    current.edit.call(PictureEditIn::Drag(under(
+                        &current, stage, doc_size, area, at,
+                    )));
+                    return;
+                }
                 if let Some(from) = last() {
-                    let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
+                    let (kept, turn) = laid_out(&current, stage, doc_size);
+                    let shown = scale_of(stage, fit(kept, turn, area));
                     let by = pointer_delta(shown, area, (at.0 - from.0, at.1 - from.1));
-                    let by = limited_pan(
-                        doc_size,
-                        turn_of(stage),
-                        shown,
-                        centre_of(stage, doc_size),
-                        area,
-                        by,
-                    );
+                    let by = limited_pan(kept, turn, shown, centre_of(stage, kept, turn), area, by);
                     send.call(StageIn::Raster(RasterIn::PanBy(by)));
                     last.set(Some(at));
                 }
             }
             PointerPhase::Release => {
+                if current.picture.is_dragging() {
+                    current.edit.call(PictureEditIn::Release);
+                }
                 last.set(None);
                 send.call(StageIn::Raster(RasterIn::PanEnd));
             }
@@ -139,14 +166,15 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         let Stage::Raster(stage) = &gestured.stage else {
             return;
         };
-        let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
+        let (kept, turn) = laid_out(&gestured, stage, doc_size);
+        let shown = scale_of(stage, fit(kept, turn, area));
         // A pinch and a wheel turn under Control zoom alike: `by` thousandths, about the pointer.
         let zoom_by = |by: i32, at: Point| {
             let zoom = Zoom::scaled(Permille(
                 u32::try_from(i64::from(shown.0) * (1000 + i64::from(by)) / 1000)
                     .unwrap_or(Zoom::MIN_SCALE.0),
             ));
-            let centre = centre_of(stage, doc_size);
+            let centre = centre_of(stage, kept, turn);
             let on = point_under(
                 centre,
                 shown,
@@ -168,7 +196,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                     let moved = pointer_delta(shown, area, (by.x.0, by.y.0));
                     // A share stops at the picture's edge, so a glide ends flush with it (quire
                     // sends it on until it has run out).
-                    let moved = limited_pan(doc_size, turn_of(stage), shown, *centre, area, moved);
+                    let moved = limited_pan(kept, turn, shown, *centre, area, moved);
                     if moved
                         == (DocPoint {
                             x: DocUnit(0),
@@ -189,16 +217,32 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     let (Some(area), Stage::Raster(stage)) = (cx.area, &cx.stage) else {
         return rsx! { div { class: "viewer-raster" } };
     };
-    let turn = turn_of(stage);
-    let scale = scale_of(stage, fit(doc_size, turn, area));
-    let centre = centre_of(stage, doc_size);
-    let placed = place(doc_size, turn, scale, centre, area);
+    let adjust = cx.picture.adjust();
+    let (kept, turn) = laid_out(&cx, stage, doc_size);
+    let scale = scale_of(stage, fit(kept, turn, area));
+    let centre = centre_of(stage, kept, turn);
+    let placed = place(kept, turn, scale, centre, area);
+    let origin = adjust.kept(doc_size);
     let zoomed = match stage {
         RasterStage::Fitted { .. } => "fit",
         RasterStage::Zoomed { .. } | RasterStage::Panning { .. } => "zoomed",
     };
     let down = cx.clone();
     let moving = cx.clone();
+    let up = cx.clone();
+    let overlay = cx.picture.draft().map(|draft| {
+        rsx! {
+            CropOverlay {
+                draft,
+                aspect: cx.picture.aspect(),
+                dragging: cx.picture.is_dragging(),
+                centre,
+                scale,
+                area,
+                onedit: cx.edit,
+            }
+        }
+    });
     rsx! {
         div {
             class: "viewer-raster",
@@ -206,26 +250,38 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
             "data-zoom": zoomed,
             "data-pan": if cx.hand.pans() { "on" } else { "off" },
             "data-drag": if matches!(stage, RasterStage::Panning { .. }) { "on" } else { "off" },
+            "data-crop": if cx.picture.is_cropping() { "on" } else { "off" },
             onmounted: move |event| capture.on_mounted(event),
             onpointerdown: move |event: PointerEvent| {
                 let Some(area) = down.area else { return };
-                if !down.hand.pans() {
-                    return;
-                }
-                let Stage::Raster(RasterStage::Zoomed { .. }) = &down.stage else { return };
                 if event.trigger_button() != Some(dioxus::html::input_data::MouseButton::Primary) {
                     return;
                 }
                 let point = event.client_coordinates();
-                last.set(Some((
+                let at = (
                     point.x as f32 - area.origin.x.0,
                     point.y as f32 - area.origin.y.0,
-                )));
+                );
+                if down.picture.is_cropping() {
+                    let Stage::Raster(stage) = &down.stage else { return };
+                    let (kept, turn) = laid_out(&down, stage, doc_size);
+                    let shown = scale_of(stage, fit(kept, turn, area));
+                    down.edit.call(PictureEditIn::Grab {
+                        at: under(&down, stage, doc_size, area, at),
+                        reach: reach_in_picture(shown, area, CROP_REACH),
+                    });
+                    held.set(capture.begin());
+                    return;
+                }
+                if !down.hand.pans() {
+                    return;
+                }
+                let Stage::Raster(RasterStage::Zoomed { .. }) = &down.stage else { return };
+                last.set(Some(at));
                 held.set(capture.begin());
                 send.call(StageIn::Raster(RasterIn::PanStart));
             },
             onpointermove: move |event: PointerEvent| {
-                let (Some(from), PointerHold::Local) = (last(), held()) else { return };
                 let Some(area) = moving.area else { return };
                 let Stage::Raster(stage) = &moving.stage else { return };
                 let point = event.client_coordinates();
@@ -233,33 +289,45 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                     point.x as f32 - area.origin.x.0,
                     point.y as f32 - area.origin.y.0,
                 );
-                let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
+                if moving.picture.is_dragging() {
+                    if held() == PointerHold::Local {
+                        moving
+                            .edit
+                            .call(PictureEditIn::Drag(under(&moving, stage, doc_size, area, at)));
+                    }
+                    return;
+                }
+                let (Some(from), PointerHold::Local) = (last(), held()) else { return };
+                let (kept, turn) = laid_out(&moving, stage, doc_size);
+                let shown = scale_of(stage, fit(kept, turn, area));
                 let by = pointer_delta(shown, area, (at.0 - from.0, at.1 - from.1));
-                let by = limited_pan(
-                    doc_size,
-                    turn_of(stage),
-                    shown,
-                    centre_of(stage, doc_size),
-                    area,
-                    by,
-                );
+                let by = limited_pan(kept, turn, shown, centre_of(stage, kept, turn), area, by);
                 send.call(StageIn::Raster(RasterIn::PanBy(by)));
                 last.set(Some(at));
             },
             onpointerup: move |_| {
+                if up.picture.is_dragging() {
+                    if held() == PointerHold::Local {
+                        up.edit.call(PictureEditIn::Release);
+                    }
+                    return;
+                }
                 if held() == PointerHold::Local && last().is_some() {
                     last.set(None);
                     send.call(StageIn::Raster(RasterIn::PanEnd));
                 }
             },
             ondoubleclick: move |event: MouseEvent| {
+                if cx.picture.is_cropping() {
+                    return;
+                }
                 let Some(area) = cx.area else { return };
                 let Stage::Raster(stage) = &cx.stage else { return };
                 let point = event.client_coordinates();
-                let shown = scale_of(stage, fit(doc_size, turn_of(stage), area));
-                let at = point_under(
-                    centre_of(stage, doc_size),
-                    shown,
+                let at = under(
+                    &cx,
+                    stage,
+                    doc_size,
                     area,
                     (
                         point.x as f32 - area.origin.x.0,
@@ -276,13 +344,25 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                         QuarterTurn::None | QuarterTurn::Half => (width, height),
                         QuarterTurn::Quarter | QuarterTurn::ThreeQuarter => (height, width),
                     };
+                    // The picture is mirrored before it is turned; the transform list reads
+                    // right to left.
+                    let mirror = match adjust.reflection {
+                        Reflection::Kept => "",
+                        Reflection::Mirrored => " scaleX(-1)",
+                    };
                     let style = format!(
-                        "left:{}px; top:{}px; width:{w}px; height:{h}px; transform:rotate({}deg)",
+                        "left:{}px; top:{}px; width:{w}px; height:{h}px; transform:rotate({}deg){mirror}",
                         mid_x - w / 2.0,
                         mid_y - h / 2.0,
                         rotation(placed.turn),
                     );
-                    let (x, y, sw, sh) = held_source(placed.source, doc_size, doc.0.held);
+                    let in_the_file = in_file(
+                        placed.source,
+                        kept,
+                        adjust.reflection,
+                        (origin.left.0, origin.top.0),
+                    );
+                    let (x, y, sw, sh) = held_source(in_the_file, doc_size, doc.0.held);
                     let texture = doc.0.texture_at(frame_of(stage)).clone();
                     rsx! {
                         div { class: "viewer-raster-picture", style,
@@ -296,15 +376,24 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
                     }
                 }
             }
+            if let Some(overlay) = overlay {
+                {overlay}
+            }
         }
     }
 }
 
-/// Select | Pan, as Preview's tool control: a drag pans a zoomed picture under Pan (or while Space is
-/// held). It sits on the titlebar's trailing side, where the window can show a mode that stays.
-/// The tip is the owner's terse `Name  Key`: the key is H, which switches the tool.
+/// Select | Pan, as Preview's tool control, and Crop beside them when the picture can be saved with
+/// changes: a drag pans a zoomed picture under Pan (or while Space is held) and moves the corners of
+/// the crop rectangle under Crop. It sits on the titlebar's trailing side, where the window can show
+/// a mode that stays. The tip is the owner's terse `Name  Key`: the key is H, which switches the
+/// tool.
 #[component]
-pub(super) fn PointerModes(tool: Tool, onpick: EventHandler<Tool>) -> Element {
+pub(super) fn PointerModes(tool: Tool, tools: Vec<Tool>, onpick: EventHandler<Tool>) -> Element {
+    let choices: Vec<Choice<Tool>> = tools
+        .iter()
+        .map(|offered| Choice::new(*offered, offered.label()))
+        .collect();
     rsx! {
         Tooltip {
             text: "Pointer Tool",
@@ -315,10 +404,7 @@ pub(super) fn PointerModes(tool: Tool, onpick: EventHandler<Tool>) -> Element {
                 ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
                 SegmentedControl::<Tool> {
                     label: "Pointer mode",
-                    choices: vec![
-                        Choice::new(Tool::Select, Tool::Select.label()),
-                        Choice::new(Tool::Pan, Tool::Pan.label()),
-                    ],
+                    choices,
                     tracking: Tracking::SelectOne(tool),
                     onchange: move |picked: Tool| {
                         if picked != tool {

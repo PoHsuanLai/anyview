@@ -4,7 +4,7 @@
 
 use crate::support;
 
-use anyview_core::{Edit, FileAction, FilePath, QuarterTurn};
+use anyview_core::{Adjust, Edit, FileAction, FilePath, QuarterTurn};
 use anyview_ui::{EditRequest, HostRequest, Notice, TypedText};
 use ds::prelude::{Appearance, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query};
@@ -92,20 +92,6 @@ fn every_shortcut_the_palette_shows_for_a_file_action_runs_that_action() {
             HostRequest::Run(FileAction::Duplicate),
         ),
         (
-            "rotate right",
-            vec![ShortcutKey::Ctrl],
-            ']',
-            HostRequest::Edit(EditRequest::of_picture(Edit::Rotate(QuarterTurn::Quarter))),
-        ),
-        (
-            "rotate left",
-            vec![ShortcutKey::Ctrl],
-            '[',
-            HostRequest::Edit(EditRequest::of_picture(Edit::Rotate(
-                QuarterTurn::ThreeQuarter,
-            ))),
-        ),
-        (
             "reveal",
             vec![ShortcutKey::Ctrl],
             'r',
@@ -123,6 +109,33 @@ fn every_shortcut_the_palette_shows_for_a_file_action_runs_that_action() {
         harness.send(Input::chord(&modifiers, ShortcutKey::Char(key)));
         settle(&mut harness);
         assert_eq!(asked(&requests), [want], "{name}");
+    }
+}
+
+#[test]
+fn the_rotate_shortcuts_turn_the_picture_and_the_save_shortcut_asks_the_host_to_write_it() {
+    // name, the key, the turn
+    const CASES: &[(&str, char, QuarterTurn)] = &[
+        ("rotate right", ']', QuarterTurn::Quarter),
+        ("rotate left", '[', QuarterTurn::ThreeQuarter),
+    ];
+    for (name, key, turn) in CASES {
+        let (_dir, mut harness, requests) = picture();
+        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(*key)));
+        settle(&mut harness);
+        assert!(
+            asked(&requests).is_empty(),
+            "{name}: nothing is written yet"
+        );
+        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('s')));
+        settle(&mut harness);
+        assert_eq!(
+            asked(&requests),
+            [HostRequest::Edit(EditRequest::of_picture(Edit::Adjust(
+                Adjust::NONE.turned(*turn)
+            )))],
+            "{name}"
+        );
     }
 }
 

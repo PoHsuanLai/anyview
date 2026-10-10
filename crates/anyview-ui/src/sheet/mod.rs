@@ -6,6 +6,7 @@ mod helper;
 mod model;
 mod offer;
 mod option;
+mod picture;
 mod step;
 #[cfg(test)]
 mod tests;
@@ -19,6 +20,10 @@ pub use model::{Sheet, SheetIn, SheetOut, SheetParams};
 pub use offer::MediaOffer;
 pub use option::{
     ExportControl, ExportOption, MAX_LONG_EDGE, PageSpan, SizePick, TrimSpan, format_of, quality_of,
+};
+pub use picture::{
+    MAX_RESIZED_SIDE, PictureDeparture, PictureSheet, PictureSheetIn, PictureSheetOut,
+    ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
 };
 pub use versions::{VersionKey, VersionList, VersionRow};
 pub use words::{kind_hint, kind_name};

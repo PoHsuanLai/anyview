@@ -14,23 +14,27 @@ use super::failed::{FailedScreen, Offer};
 use super::keys::shortcut_of;
 use super::palette::Palette;
 use super::panel::InfoPanel;
+use super::resize::ResizeSheet;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, WHOLE_HITS, offered_slots};
 use super::sheet::{
     EditSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
+use super::unsaved::UnsavedSheet;
 use crate::families::FrameLook;
 use crate::io::{HostRequest, Job};
 use crate::{
     ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, NavigateIn,
-    Palette as PaletteState, PaletteIn, PaletteScope, Panel, PanelIn, PanelTab, Presentation,
-    Sheet, SheetIn, Spot, StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
+    Palette as PaletteState, PaletteIn, PaletteScope, Panel, PanelIn, PanelTab, PictureEditIn,
+    PictureSheet, PictureSheetIn, Presentation, Sheet, SheetIn, Spot, StageCx, StageIn, TypedText,
+    Viewer, ViewerIn, Zone,
 };
 use anyview_core::FilePath;
 use dioxus::prelude::*;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec, SplitPane};
 use ds::components::chrome::split_view::view::SplitView;
+use ds::components::chrome::titlebar_parts::DocumentState;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
 use ds::machine::{use_machine_in, use_machine_state};
@@ -154,6 +158,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let cx = StageCx {
         stage: state.stage.clone(),
         hand: state.hand,
+        picture: state.picture.clone(),
+        edit: EventHandler::new(move |input: PictureEditIn| {
+            dispatch.send(ViewerIn::Picture(input));
+        }),
         ticket,
         area: area(),
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
@@ -299,6 +307,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let context_open = matches!(state.context, ContextMenu::Open { .. });
     let keyed = state.clone();
     let chrome = (shelf.chrome)();
+    // The edited dot: the picture has changes that are not saved.
+    let document = if state.picture.is_edited() {
+        DocumentState::Edited
+    } else {
+        DocumentState::Saved
+    };
 
     rsx! {
         div {
@@ -409,6 +423,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         title,
                         shown: chrome,
                         trailing,
+                        document,
                         onpointerenter: move |()| zone.set(Zone::Capsule),
                         onpointerleave: move |()| zone.set(Zone::Content),
                     }
@@ -509,6 +524,22 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         }
                     },
                     None => rsx! {},
+                },
+                Sheet::Picture(PictureSheet::Resize(draft)) => rsx! {
+                    ResizeSheet {
+                        draft: *draft,
+                        onchange: move |change| dispatch.send(ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Resize(change)))),
+                        onconfirm: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
+                Sheet::Picture(PictureSheet::Unsaved(_)) => rsx! {
+                    UnsavedSheet {
+                        name: title_of(&shelf.probe.read()).unwrap_or_default(),
+                        onsave: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        ondiscard: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Decline))),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
                 },
                 Sheet::Export { draft, span } => rsx! {
                     ExportSheet {

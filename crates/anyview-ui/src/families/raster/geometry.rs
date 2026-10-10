@@ -9,7 +9,7 @@
 //! texture's box rotated about its middle.
 
 use crate::{Animation, Area, FrameIndex, RasterStage};
-use anyview_core::{DocPoint, DocUnit, Permille, PixelSize, QuarterTurn, Zoom};
+use anyview_core::{DocPoint, DocUnit, Permille, PixelSize, QuarterTurn, Reflection, Zoom};
 
 /// The picture's width and height in texels as shown: a quarter turn swaps them.
 pub(crate) fn turned(size: PixelSize, turn: QuarterTurn) -> (f64, f64) {
@@ -72,12 +72,13 @@ pub(crate) fn scale_of(stage: &RasterStage, fit: Permille) -> Permille {
     }
 }
 
-/// The picture point in the middle of the room, as shown.
-pub(crate) fn centre_of(stage: &RasterStage, size: PixelSize) -> DocPoint {
+/// The picture point in the middle of the room, as shown: for a picture of `size` turned by
+/// `turn`, the middle of it when it is fitted.
+pub(crate) fn centre_of(stage: &RasterStage, size: PixelSize, turn: QuarterTurn) -> DocPoint {
     match stage {
         RasterStage::Zoomed { centre, .. } | RasterStage::Panning { centre, .. } => *centre,
-        RasterStage::Fitted { turn, .. } => {
-            let (w, h) = turned(size, *turn);
+        RasterStage::Fitted { .. } => {
+            let (w, h) = turned(size, turn);
             DocPoint {
                 x: units(w / 2.0),
                 y: units(h / 2.0),
@@ -186,6 +187,47 @@ pub(crate) fn held_source(
     let (hx, hw) = along(x, w, size.width.0, held.width.0);
     let (hy, hh) = along(y, h, size.height.0, held.height.0);
     (hx, hy, hw, hh)
+}
+
+/// A rectangle (x, y, width, height) of the picture's kept part, as laid out upright, as a
+/// rectangle of the file's own picture: the mirror undone (the picture is mirrored before it is
+/// turned, so this is within the part) and the part's place in the picture added.
+pub(crate) fn in_file(
+    (x, y, w, h): (u32, u32, u32, u32),
+    kept: PixelSize,
+    reflection: Reflection,
+    (left, top): (u32, u32),
+) -> (u32, u32, u32, u32) {
+    let x = match reflection {
+        Reflection::Kept => x,
+        Reflection::Mirrored => kept.width.0.saturating_sub(x.saturating_add(w)),
+    };
+    (left.saturating_add(x), top.saturating_add(y), w, h)
+}
+
+/// Logical pixels of the room per texel at `scale` device pixels per texel.
+fn logical_per_texel(scale: Permille, area: Area) -> f64 {
+    f64::from(scale.0.max(1)) / 1000.0 / f64::from(area.scale.max(f32::EPSILON))
+}
+
+/// Where the picture point (`x`, `y`, in texels as shown) is in the room, in logical pixels from the
+/// room's corner: what `point_under` undoes.
+pub(crate) fn room_point(
+    centre: DocPoint,
+    scale: Permille,
+    area: Area,
+    (x, y): (f64, f64),
+) -> (f64, f64) {
+    let per_texel = logical_per_texel(scale, area);
+    (
+        f64::from(area.size.width.0) / 2.0 + (x - texels(centre.x)) * per_texel,
+        f64::from(area.size.height.0) / 2.0 + (y - texels(centre.y)) * per_texel,
+    )
+}
+
+/// A length of `logical` pixels of the room as a length in the picture, in 1/64 texel.
+pub(crate) fn reach_in_picture(scale: Permille, area: Area, logical: f32) -> DocUnit {
+    units(f64::from(logical) / logical_per_texel(scale, area))
 }
 
 /// The picture point (in 1/64 texel, as shown) under a pointer at (`x`, `y`) in the room.
@@ -538,6 +580,138 @@ mod tests {
             );
             let landed = point(200.0, 100.0).x.0 - left.x.0;
             assert_eq!(landed, point(*want, 0.0).x.0, "{name}");
+        }
+    }
+    #[test]
+    fn a_picture_point_is_where_the_pointer_finds_it_at_either_scale() {
+        // The 400 by 200 picture in a room of 400 by 200 logical pixels. name, the room's device
+        // scale, the scale it is drawn at (device pixels per texel), the room's middle as a point
+        // of the picture (texels), the picture point, where that is in the room (logical pixels).
+        type Case = (&'static str, f32, u32, (f64, f64), (f64, f64), (f64, f64));
+        const CASES: &[Case] = &[
+            (
+                "scale 1, fitted: a texel is a pixel",
+                1.0,
+                1000,
+                (200.0, 100.0),
+                (100.0, 50.0),
+                (100.0, 50.0),
+            ),
+            (
+                "scale 1, its far corner",
+                1.0,
+                1000,
+                (200.0, 100.0),
+                (400.0, 200.0),
+                (400.0, 200.0),
+            ),
+            (
+                "scale 2, at actual size: a texel is half a logical pixel",
+                2.0,
+                1000,
+                (200.0, 100.0),
+                (0.0, 0.0),
+                (100.0, 50.0),
+            ),
+            (
+                "scale 2, its far corner",
+                2.0,
+                1000,
+                (200.0, 100.0),
+                (400.0, 200.0),
+                (300.0, 150.0),
+            ),
+            (
+                "scale 2, blown up four times: a texel is two logical pixels",
+                2.0,
+                4000,
+                (100.0, 50.0),
+                (110.0, 50.0),
+                (220.0, 100.0),
+            ),
+        ];
+        for (name, device, drawn, middle, texel, want) in CASES {
+            let room = area(400.0, 200.0, *device);
+            let at = room_point(point(middle.0, middle.1), Permille(*drawn), room, *texel);
+            assert!(
+                (at.0 - want.0).abs() < 0.01 && (at.1 - want.1).abs() < 0.01,
+                "{name}: {at:?}"
+            );
+            // And the pointer there finds the same texel again.
+            let back = point_under(
+                point(middle.0, middle.1),
+                Permille(*drawn),
+                room,
+                (at.0 as f32, at.1 as f32),
+            );
+            assert_eq!(back, point(texel.0, texel.1), "{name}: back");
+        }
+    }
+
+    #[test]
+    fn a_reach_of_pixels_of_the_room_is_more_texels_when_the_picture_is_shrunk() {
+        // name, the scale drawn at, device scale, the reach in logical pixels, the reach in texels
+        const CASES: &[(&str, u32, f32, f32, f64)] = &[
+            ("actual size", 1000, 1.0, 10.0, 10.0),
+            ("shrunk to half", 500, 1.0, 10.0, 20.0),
+            ("blown up twice", 2000, 1.0, 10.0, 5.0),
+        ];
+        for (name, drawn, device, logical, texels_wanted) in CASES {
+            let reach = reach_in_picture(Permille(*drawn), area(400.0, 200.0, *device), *logical);
+            assert_eq!(reach, units(*texels_wanted), "{name}");
+        }
+        // At device scale 2 the same drawn scale covers half as many logical pixels.
+        assert_eq!(
+            reach_in_picture(Permille(1000), area(400.0, 200.0, 2.0), 10.0),
+            units(20.0)
+        );
+    }
+
+    #[test]
+    fn a_rectangle_of_the_upright_part_is_found_in_the_file_unmirrored_and_offset() {
+        let kept = PixelSize {
+            width: PixelLen(100),
+            height: PixelLen(60),
+        };
+        // name, reflection, the rectangle, where the part starts in the file, the file's rectangle
+        const CASES: &[(
+            &str,
+            Reflection,
+            (u32, u32, u32, u32),
+            (u32, u32),
+            (u32, u32, u32, u32),
+        )] = &[
+            (
+                "as it is",
+                Reflection::Kept,
+                (10, 20, 30, 15),
+                (0, 0),
+                (10, 20, 30, 15),
+            ),
+            (
+                "mirrored, the left is the right",
+                Reflection::Mirrored,
+                (0, 0, 30, 15),
+                (0, 0),
+                (70, 0, 30, 15),
+            ),
+            (
+                "the part starts inside the file",
+                Reflection::Kept,
+                (10, 20, 30, 15),
+                (200, 100),
+                (210, 120, 30, 15),
+            ),
+            (
+                "mirrored and offset",
+                Reflection::Mirrored,
+                (10, 20, 30, 15),
+                (200, 100),
+                (260, 120, 30, 15),
+            ),
+        ];
+        for (name, reflection, rect, origin, want) in CASES {
+            assert_eq!(in_file(*rect, kept, *reflection, *origin), *want, "{name}");
         }
     }
 }

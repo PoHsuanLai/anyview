@@ -4,6 +4,7 @@
 
 mod command;
 mod model;
+mod picture;
 mod pins;
 mod region;
 mod step;
