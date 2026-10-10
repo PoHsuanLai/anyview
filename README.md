@@ -122,7 +122,7 @@ A camera raw file shows its embedded preview with no plugin at all. `dist/instal
 - Edits are saved in place and the original is kept under `$XDG_STATE_HOME/anyview` for a while.
 - There are no settings yet. Light, dark, accent colour and reduced motion follow the desktop.
 - After the last window closes the program keeps running for ten minutes so the next open is quick.
-- Ctrl and Command are one key, and shortcuts are drawn with Mac symbols.
+- Shortcuts follow your system's keyboard settings: Command on a Mac-style desktop, Ctrl on Windows and most Linux desktops, drawn as that platform draws them.
 - Built and run on Linux (Wayland, the freedesktop portals and D-Bus); the portable build (`--no-default-features`, above) compiles the viewer without its D-Bus parts but has not run on macOS or Windows. Single-instance, Open With, Share, Print and Trash have been exercised against fakes, not yet on a real desktop.
 - It makes no network connection and sends nothing anywhere.
 

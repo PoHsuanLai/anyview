@@ -33,7 +33,7 @@ mod xml_depth;
 /// The binary, the app id and the bus names stay `anyview`, `org.quire.Anyview` and `org.quire.Anyview1`.
 pub const APP_NAME: &str = "Viewer";
 
-pub use action::{FileAction, Reach, reach, shortcut};
+pub use action::{FileAction, Reach, file_action_of, own_keys, reach, shortcut};
 pub use edit::{Adjust, Edit, EditKind, PixelRect, Reflection};
 pub use error::CoreError;
 pub use export::{

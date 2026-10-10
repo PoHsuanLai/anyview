@@ -289,7 +289,7 @@ fn closing_the_window_keeps_where_the_person_was() {
     press(&mut harness, ShortcutKey::PageDown);
     let line = first_line(&harness).unwrap() - 1;
     requests.lock().unwrap().clear();
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('w')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
     settle(&mut harness);
     let asked = requests.lock().unwrap();
     assert_eq!(

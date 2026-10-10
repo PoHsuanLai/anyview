@@ -3,6 +3,7 @@ use crate::Command;
 use crate::SaveEnd;
 use crate::chrome::*;
 use crate::hand::{HandIn, Tool};
+use crate::keys::{Act, Press};
 use crate::load::*;
 use crate::navigate::*;
 use crate::palette::*;
@@ -22,7 +23,11 @@ fn path(text: &str) -> FilePath {
 }
 
 fn key(keys: &[ShortcutKey]) -> ViewerIn {
-    ViewerIn::Key(Shortcut(keys.to_vec()))
+    ViewerIn::Key(Press::Key(Shortcut(keys.to_vec())))
+}
+
+fn act(act: Act) -> ViewerIn {
+    ViewerIn::Key(Press::Act(act))
 }
 
 #[test]
@@ -97,24 +102,29 @@ fn pressed(viewer: Viewer, keys: &[ShortcutKey], at: u64) -> (Viewer, Vec<Viewer
     viewer.step(key(keys), Stamp(at), &(), &params())
 }
 
+/// The viewer after the chord of `action`, and what it asked for.
+fn acted(viewer: Viewer, action: Act, at: u64) -> (Viewer, Vec<ViewerOut>) {
+    viewer.step(act(action), Stamp(at), &(), &params())
+}
+
 #[test]
 fn keys_open_and_close_the_regions_in_the_order_they_are_open() {
-    use ShortcutKey::{Char, Escape, Super};
-    // Command K opens the palette; Esc closes it, and only it.
-    let (viewer, outs) = pressed(Viewer::default(), &[Super, Char('k')], 0);
+    use ShortcutKey::Escape;
+    // The palette's action opens it; Esc closes it, and only it.
+    let (viewer, outs) = acted(Viewer::default(), Act::Palette, 0);
     assert_eq!(outs, vec![ViewerOut::Palette(PaletteOut::Opened), FADE_IN]);
     assert_eq!(viewer.palette, palette_on(0));
     let (viewer, _) = pressed(viewer, &[Escape], 1);
     assert_eq!(viewer.palette, Palette::Closed);
-    // Command I shows the info tab, and Esc closes the panel next.
-    let (viewer, outs) = pressed(viewer, &[Super, Char('i')], 2);
+    // Info shows the info tab, and Esc closes the panel next.
+    let (viewer, outs) = acted(viewer, Act::Info, 2);
     assert_eq!(outs, vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Info))]);
     let (viewer, outs) = pressed(viewer, &[Escape], 3);
     assert_eq!(outs, vec![ViewerOut::Panel(PanelOut::Hide)]);
-    // With nothing open Esc does nothing in a window, and command W closes it.
+    // With nothing open Esc does nothing in a window, and Close closes it.
     let (viewer, outs) = pressed(viewer, &[Escape], 4);
     assert_eq!(outs, vec![]);
-    let (_, outs) = pressed(viewer, &[Super, Char('w')], 5);
+    let (_, outs) = acted(viewer, Act::Close, 5);
     assert_eq!(outs, vec![ViewerOut::CloseWindow]);
 }
 
@@ -129,13 +139,13 @@ fn reading_text() -> Stage {
 }
 
 #[test]
-fn command_f_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_puts_away() {
-    use ShortcutKey::{Char, Escape, Super};
+fn find_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_puts_away() {
+    use ShortcutKey::Escape;
     let viewer = Viewer {
         stage: reading_text(),
         ..Viewer::default()
     };
-    let (viewer, outs) = pressed(viewer, &[Super, Char('f')], 0);
+    let (viewer, outs) = acted(viewer, Act::Find, 0);
     assert_eq!(
         viewer.palette,
         Palette::Open {
@@ -522,15 +532,14 @@ fn leaving_a_text_with_unsaved_changes_asks_first_and_goes_on_once_the_text_is_k
 #[test]
 fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
     use crate::sheet::{Departure, Sheet};
-    use ShortcutKey::{Char, Super};
     let params = params();
     let step = |viewer: Viewer, input: ViewerIn| viewer.step(input, Stamp(0), &(), &params);
     let unsaved = editing_text(Changes::Unsaved, Outside::Unchanged);
-    let (closing, outs) = step(unsaved.clone(), key(&[Super, Char('w')]));
+    let (closing, outs) = step(unsaved.clone(), act(Act::Close));
     assert_eq!(
         closing.sheet,
         Sheet::Unsaved(Departure::Close),
-        "command W asks"
+        "Close asks"
     );
     assert!(!outs.contains(&ViewerOut::CloseWindow));
     let (done, _) = step(
@@ -539,7 +548,7 @@ fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
     );
     assert_eq!(done.sheet, Sheet::Unsaved(Departure::Finish), "Done asks");
     let saved = editing_text(Changes::Saved, Outside::Unchanged);
-    let (_, outs) = step(saved.clone(), key(&[Super, Char('w')]));
+    let (_, outs) = step(saved.clone(), act(Act::Close));
     assert!(
         outs.contains(&ViewerOut::CloseWindow),
         "a saved text closes at once"
@@ -552,13 +561,13 @@ fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
     assert!(outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::EndEdit))));
     let (saving, outs) = step(
         editing_text(Changes::Unsaved, Outside::Unchanged),
-        key(&[Super, Char('s')]),
+        act(Act::Save),
     );
     assert_eq!(saving.sheet, Sheet::Closed);
     assert!(outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Save))));
     let (replacing, _) = step(
         editing_text(Changes::Unsaved, Outside::Changed),
-        key(&[Super, Char('s')]),
+        act(Act::Save),
     );
     assert_eq!(
         replacing.sheet,

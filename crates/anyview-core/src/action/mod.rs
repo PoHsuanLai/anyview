@@ -10,4 +10,4 @@ mod tests;
 
 pub use model::FileAction;
 pub use reach::{Reach, reach};
-pub use shortcut::shortcut;
+pub use shortcut::{file_action_of, own_keys, shortcut};

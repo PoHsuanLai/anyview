@@ -47,8 +47,17 @@ fn closes(requests: &Requests) -> usize {
         .count()
 }
 
+/// The Info action's chord (Command and Option with I).
+fn info(harness: &mut Harness) {
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
+    settle(harness);
+}
+
 fn chord(harness: &mut Harness, key: char) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(key)));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char(key)));
     settle(harness);
 }
 
@@ -60,7 +69,7 @@ fn escape_closes_the_palette_before_the_panel_and_the_panel_before_the_window() 
             ..Wiring::default()
         };
         let (_dir, _, mut harness, requests) = two(scale, wiring);
-        chord(&mut harness, 'i');
+        info(&mut harness);
         assert_eq!(panel(&harness), "visible", "{scale}: the panel is up");
         chord(&mut harness, 'k');
         assert_eq!(harness.count(".ds-palette"), 1, "{scale}");
@@ -84,7 +93,7 @@ fn escape_closes_the_palette_before_the_panel_and_the_panel_before_the_window() 
 fn escape_closes_the_menu_and_leaves_the_panel() {
     for scale in SCALES {
         let (_dir, _, mut harness, _) = two(scale, Wiring::default());
-        chord(&mut harness, 'i');
+        info(&mut harness);
         harness.send(Input::key(ShortcutKey::ContextMenu));
         settle(&mut harness);
         assert_eq!(harness.count(".ds-menu"), 1, "{scale}: the menu is up");
@@ -163,7 +172,7 @@ fn host_shows(requests: &Requests) -> Option<String> {
 fn moving_to_the_trash_while_the_next_file_loads_trashes_the_file_the_sheet_names() {
     for scale in SCALES {
         let (hold, mut harness, requests, _dir) = loading_the_second(scale);
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Backspace));
+        harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Backspace));
         settle(&mut harness);
         let named = harness.text_of(".ds-alert").unwrap_or_default();
         let Some(button) = harness.centre(".ds-alert-footer .ds-alert-slot:last-child .ds-button")

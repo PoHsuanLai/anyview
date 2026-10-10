@@ -6,6 +6,7 @@ use super::support::*;
 use crate::command::{Command, PictureCommand};
 use crate::edits::{EditCaution, EditOffer, EditRequest, Rewind};
 use crate::hand::Tool;
+use crate::keys::{Act, Press};
 use crate::load::{Load, Ticket};
 use crate::navigate::NavigateIn;
 use crate::picture::{PictureEditIn, PictureEditing};
@@ -18,7 +19,6 @@ use anyview_core::{
     Adjust, Edit, FilePath, NonEmpty, PixelLen, PixelSize, QuarterTurn, Sequence, SequenceOrigin,
 };
 use ds_core::machine::Machine;
-use ds_core::standard_action::StandardAction;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
@@ -48,7 +48,7 @@ fn step(viewer: Viewer, input: ViewerIn) -> (Viewer, Vec<ViewerOut>) {
 }
 
 fn press(viewer: Viewer, keys: &[ShortcutKey]) -> (Viewer, Vec<ViewerOut>) {
-    step(viewer, ViewerIn::Key(Shortcut(keys.to_vec())))
+    step(viewer, ViewerIn::Key(Press::Key(Shortcut(keys.to_vec()))))
 }
 
 /// Whether the viewer asked to open `file`.
@@ -65,12 +65,12 @@ fn the_save() -> EditRequest {
     EditRequest::of_picture(Edit::Adjust(Adjust::NONE.turned(QuarterTurn::Quarter)))
 }
 
-const COMMAND_W: [ShortcutKey; 2] = [ShortcutKey::Super, ShortcutKey::Char('w')];
-const COMMAND_S: [ShortcutKey; 2] = [ShortcutKey::Super, ShortcutKey::Char('s')];
+const CLOSE: ViewerIn = ViewerIn::Key(Press::Act(Act::Close));
+const SAVE: ViewerIn = ViewerIn::Key(Press::Act(Act::Save));
 
 #[test]
 fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
-    let (asked, outs) = press(turned(), &COMMAND_W);
+    let (asked, outs) = step(turned(), CLOSE);
     assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Close));
     assert!(!closes(&outs), "the window waits for the answer");
 
@@ -110,7 +110,7 @@ fn a_picture_with_nothing_unsaved_closes_without_asking() {
         picture: editable(),
         ..turned()
     };
-    let (viewer, outs) = press(viewer, &COMMAND_W);
+    let (viewer, outs) = step(viewer, CLOSE);
     assert!(closes(&outs));
     assert_eq!(viewer.sheet, Sheet::Closed);
 }
@@ -147,14 +147,14 @@ fn an_arrow_key_asks_before_leaving_the_picture_and_does_not_move_the_walk() {
 
 #[test]
 fn the_save_chord_writes_the_whole_adjustment() {
-    let (_, outs) = press(turned(), &COMMAND_S);
+    let (_, outs) = step(turned(), SAVE);
     assert_eq!(outs, vec![ViewerOut::Edit(the_save())]);
     let (_, outs) = step(
         Viewer {
             picture: editable(),
             ..turned()
         },
-        ViewerIn::Key(Shortcut(COMMAND_S.to_vec())),
+        SAVE,
     );
     assert!(
         outs.is_empty(),
@@ -202,12 +202,7 @@ fn the_save_chord_on_a_picture_that_cannot_be_written_offers_the_export_dialog()
         stage: image(),
         ..Viewer::default()
     };
-    let (viewer, _) = viewer.step(
-        ViewerIn::Key(Shortcut(COMMAND_S.to_vec())),
-        Stamp(0),
-        &(),
-        &params,
-    );
+    let (viewer, _) = viewer.step(SAVE, Stamp(0), &(), &params);
     assert!(matches!(viewer.sheet, Sheet::Export { .. }));
 }
 
@@ -266,8 +261,8 @@ fn a_new_file_does_not_carry_the_crop_tool_along() {
 
 #[test]
 fn undo_takes_back_an_edit_that_is_not_saved_before_it_asks_the_host_to_undo_a_save() {
-    let undo = ViewerIn::Key(Shortcut::standard(StandardAction::Undo));
-    let redo = ViewerIn::Key(Shortcut::standard(StandardAction::Redo));
+    let undo = ViewerIn::Key(Press::Act(Act::Undo));
+    let redo = ViewerIn::Key(Press::Act(Act::Redo));
     let (undone, outs) = step(turned(), undo.clone());
     assert!(!undone.picture.is_edited());
     assert_eq!(outs, vec![refitted()], "no request of the host");

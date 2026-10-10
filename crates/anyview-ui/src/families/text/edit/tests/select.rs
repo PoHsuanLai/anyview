@@ -95,9 +95,9 @@ fn a_double_click_selects_a_word_and_a_triple_click_a_line() {
 fn select_all_copy_cut_and_paste_go_through_the_clipboard() {
     for scale in SCALES {
         let mut rig = Rig::open(TEXT, false, 4, 400, scale);
-        rig.ctrl('a');
+        rig.command('a');
         assert_eq!(rig.range(), (0, TEXT.len()));
-        rig.ctrl('c');
+        rig.command('c');
         assert_eq!(
             rig.harness.clipboard_text().as_deref(),
             Some(TEXT),
@@ -107,16 +107,16 @@ fn select_all_copy_cut_and_paste_go_through_the_clipboard() {
         for _ in 0..4 {
             rig.shift(ShortcutKey::Right);
         }
-        rig.ctrl('x');
+        rig.command('x');
         assert_eq!(rig.text(), "one three\nfour five\nsix", "scale {scale}");
         assert_eq!(rig.harness.clipboard_text().as_deref(), Some(" two"));
         rig.click(2, 3);
-        rig.ctrl('v');
+        rig.command('v');
         assert_eq!(rig.text(), "one three\nfour five\nsix two");
         rig.harness.set_clipboard_text("a\r\nb");
-        rig.ctrl('v');
+        rig.command('v');
         assert_eq!(rig.text(), "one three\nfour five\nsix twoa\nb");
-        rig.ctrl('z');
+        rig.command('z');
         assert_eq!(rig.text(), "one three\nfour five\nsix two");
     }
 }

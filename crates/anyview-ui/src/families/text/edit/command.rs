@@ -1,7 +1,9 @@
 //! What a key pressed on the edit surface means: pure, so the table is the whole rule.
 
 use anyview_text::Motion;
+use chordkit::{Action, Context, Keymap, StandardAction};
 use dioxus::prelude::{Key, Modifiers};
+use ds_core::command::resolve;
 
 /// What the editor does for a key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,23 +61,30 @@ const NAMED: &[(Key, Named)] = &[
     (Key::Delete, Named::Delete),
 ];
 
-/// The command `key` with `modifiers` means, or `None` for a key the editor leaves alone.
-pub(super) fn command_of(key: &Key, modifiers: Modifiers) -> Option<Command> {
+/// The command `key` with `modifiers` means under `keymap`, or `None` for a key the editor leaves
+/// alone. What a chord on a letter means (select all, undo, redo) is the keymap's, in a text field;
+/// how far an arrow with Ctrl, Alt or Command moves is the text's own until the keymap has text
+/// actions for the moves.
+pub(super) fn command_of(keymap: &Keymap, key: &Key, modifiers: Modifiers) -> Option<Command> {
     let extend = modifiers.contains(Modifiers::SHIFT);
-    let command = modifiers.intersects(Modifiers::CONTROL | Modifiers::META);
-    if let Key::Character(text) = key {
-        return if command {
-            lettered(&text.to_lowercase(), extend)
-        } else {
-            None
-        };
+    let command = modifiers.intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER);
+    if let Key::Character(_) = key {
+        return resolve(keymap, key, modifiers, Context::TextEntry).and_then(
+            |action| match action {
+                Action::Standard(StandardAction::SelectAll) => Some(Command::SelectAll),
+                Action::Standard(StandardAction::Undo) => Some(Command::Undo),
+                Action::Standard(StandardAction::Redo) => Some(Command::Redo),
+                // `Action` is non_exhaustive: an action chordkit adds later is not the editor's.
+                Action::Standard(_) | Action::App(_) | _ => None,
+            },
+        );
     }
     let named = NAMED
         .iter()
         .find(|(known, _)| known == key)
         .map(|(_, named)| *named)?;
     let word = modifiers.intersects(Modifiers::CONTROL | Modifiers::ALT);
-    let line = modifiers.contains(Modifiers::META);
+    let line = modifiers.intersects(Modifiers::META | Modifiers::SUPER);
     let go = |by| Some(Command::Move { by, extend });
     let see = |by| Some(Command::Visual { by, extend });
     match named {
@@ -103,20 +112,10 @@ pub(super) fn command_of(key: &Key, modifiers: Modifiers) -> Option<Command> {
     }
 }
 
-/// The command a letter with the command key held means.
-fn lettered(letter: &str, extend: bool) -> Option<Command> {
-    match letter {
-        "a" => Some(Command::SelectAll),
-        "z" if extend => Some(Command::Redo),
-        "z" => Some(Command::Undo),
-        "y" => Some(Command::Redo),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chordkit::{Desktop, Platform};
 
     #[test]
     fn each_key_means_one_command() {
@@ -124,6 +123,10 @@ mod tests {
         const SHIFT: Modifiers = Modifiers::SHIFT;
         const CTRL: Modifiers = Modifiers::CONTROL;
         const META: Modifiers = Modifiers::META;
+        const SUPER: Modifiers = Modifiers::SUPER;
+        let ours = Keymap::conventional(Platform::Linux {
+            desktop: Desktop::Ours,
+        });
         let go = |by, extend| Some(Command::Move { by, extend });
         let see = |by, extend| Some(Command::Visual { by, extend });
         let letter = |text: &str| Key::Character(text.to_owned());
@@ -178,21 +181,31 @@ mod tests {
             ("shift tab is left alone", Key::Tab, SHIFT, None),
             ("backspace", Key::Backspace, NONE, Some(Command::Backspace)),
             ("delete", Key::Delete, NONE, Some(Command::Delete)),
-            ("select all", letter("a"), CTRL, Some(Command::SelectAll)),
-            ("undo", letter("z"), CTRL, Some(Command::Undo)),
+            ("select all", letter("a"), SUPER, Some(Command::SelectAll)),
+            ("undo", letter("z"), SUPER, Some(Command::Undo)),
             (
                 "redo with shift",
                 letter("Z"),
-                CTRL | SHIFT,
+                SUPER | SHIFT,
                 Some(Command::Redo),
             ),
-            ("redo with y", letter("y"), META, Some(Command::Redo)),
+            ("control is not command here", letter("z"), CTRL, None),
             ("a letter is text, not a command", letter("a"), NONE, None),
-            ("an unknown chord", letter("q"), CTRL, None),
+            ("an unknown chord", letter("q"), SUPER, None),
             ("a key the editor does not read", Key::F5, NONE, None),
         ];
         for (name, key, modifiers, want) in cases {
-            assert_eq!(command_of(&key, modifiers), want, "{name}");
+            assert_eq!(command_of(&ours, &key, modifiers), want, "{name}");
         }
+        // Where Ctrl is the command key, it is, and Ctrl+Y redoes.
+        let windows = Keymap::conventional(Platform::Windows);
+        assert_eq!(
+            command_of(&windows, &letter("y"), CTRL),
+            Some(Command::Redo)
+        );
+        assert_eq!(
+            command_of(&windows, &letter("z"), CTRL),
+            Some(Command::Undo)
+        );
     }
 }

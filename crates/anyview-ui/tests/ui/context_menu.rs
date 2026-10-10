@@ -49,7 +49,7 @@ fn menu(harness: &Harness) -> Vec<String> {
 
 /// The palette's text for the open file.
 fn palette(harness: &mut Harness) -> String {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     let text = harness.text_of(".ds-palette").unwrap_or_default();
     harness.send(Input::key(ShortcutKey::Escape));

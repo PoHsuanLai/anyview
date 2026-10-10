@@ -9,8 +9,9 @@ use super::option::{ExportOption, PageSpan};
 use super::picture::{PictureSheet, PictureSheetIn, PictureSheetOut};
 use super::versions::{VersionKey, VersionList};
 use crate::edits::{EditCaution, EditOffer, EditRequest};
+use crate::keys::{Act, Press};
 use crate::typed::TypedText;
-use anyview_core::{Fact, Helper};
+use anyview_core::{Fact, FileAction, Helper};
 use ds_core::vocab::ShortcutKey;
 
 /// What opening a sheet reads besides its input: what the host can write.
@@ -123,14 +124,18 @@ impl From<ds_core::machine::Elapsed> for SheetIn {
 }
 
 impl SheetIn {
-    /// What a key means to an open sheet: Enter confirms and Esc cancels. Every other key means
-    /// nothing to the sheet, and it keeps them from the content behind it.
-    pub fn from_key(keys: &[ShortcutKey]) -> Option<SheetIn> {
-        match keys {
-            [ShortcutKey::Enter] => Some(SheetIn::Confirm),
-            [ShortcutKey::Escape] => Some(SheetIn::Cancel),
-            [ShortcutKey::Super, ShortcutKey::Char('d')] => Some(SheetIn::Discard),
-            _ => None,
+    /// What a press means to an open sheet: Enter confirms and Esc cancels, and Duplicate's chord
+    /// (⌘D) is Don't Save in the question about unsaved changes, as in a Mac's dialogs. Every other
+    /// press means nothing to the sheet, and it keeps them from the content behind it.
+    pub fn from_press(press: &Press) -> Option<SheetIn> {
+        match press {
+            Press::Key(shortcut) => match shortcut.keys().as_slice() {
+                [ShortcutKey::Enter] => Some(SheetIn::Confirm),
+                [ShortcutKey::Escape] => Some(SheetIn::Cancel),
+                _ => None,
+            },
+            Press::Act(Act::File(FileAction::Duplicate)) => Some(SheetIn::Discard),
+            Press::Act(_) => None,
         }
     }
 }

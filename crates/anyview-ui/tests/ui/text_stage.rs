@@ -38,7 +38,7 @@ fn press(harness: &mut Harness, key: ShortcutKey) {
 }
 
 fn chord(harness: &mut Harness, key: char) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(key)));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char(key)));
     settle(harness);
 }
 
@@ -176,7 +176,7 @@ fn find_lives_in_the_palette_marks_the_hits_behind_it_and_enter_jumps_and_leaves
         capsule(&harness)
     );
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Char('g'),
     ));
     settle(&mut harness);

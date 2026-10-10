@@ -6,6 +6,7 @@ use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
 use crate::hand::{Hand, HandIn};
 use crate::io::{PlatformAbilities, SaveEnd};
+use crate::keys::Press;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
@@ -15,7 +16,6 @@ use crate::presentation::{Presentation, PresentationIn, PresentationOut, Present
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Changes, Stage, StageIn, StageOut, StageParams};
 use anyview_core::{FileAction, FilePath};
-use ds_core::vocab::Shortcut;
 
 /// One window's viewer: a state per region. Regions are independent machines; what couples them
 /// is in `step`.
@@ -152,7 +152,7 @@ pub enum ViewerIn {
     /// palette runs for the row it picked.
     Run(Command),
     /// A key press, routed by `route`.
-    Key(Shortcut),
+    Key(Press),
     /// The host's save of the edited text ended like this.
     Saved(SaveEnd),
     /// The time `wake()` named has come.
@@ -230,6 +230,6 @@ pub struct ViewerParams {
     /// The file actions the open file offers, whatever the palette's query: the ones a key may
     /// run.
     pub files: Vec<FileAction>,
-    /// What the platform can do: ⌘O is bound only when it has a file chooser.
+    /// What the platform can do: Open is bound only when it has a file chooser.
     pub platform: PlatformAbilities,
 }

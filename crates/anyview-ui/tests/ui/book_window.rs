@@ -129,7 +129,10 @@ fn middle(scale: u16) -> Point {
 
 /// Opens the panel's second tab (the first is Thumbnails).
 fn open_tab(harness: &mut Harness, at: usize) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(harness);
     let tab = harness
         .centre(&format!(".ds-segmented-segment:nth-child({at})"))
@@ -206,7 +209,10 @@ fn the_panel_shows_a_thumbnail_for_each_page() {
     let dir = tempfile::tempdir().unwrap();
     let mut harness = open(&epub(dir.path()), 100, Wiring::default());
     let (_, pages) = place(&harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),
@@ -261,7 +267,7 @@ fn contents_lists_the_chapters_and_each_leads_to_its_first_page() {
 fn find_in_a_chapter_finds_its_text_and_goes_to_the_page() {
     let dir = tempfile::tempdir().unwrap();
     let mut harness = open(&epub(dir.path()), 100, Wiring::default());
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('f')));
     settle(&mut harness);
     for c in "zeppelin".chars() {
         harness.send(Input::key(ShortcutKey::Char(c)));
@@ -333,7 +339,10 @@ fn a_comic_is_one_page_to_a_picture() {
     let mut harness = open(&comic(dir.path()), 100, Wiring::default());
     assert_eq!(place(&harness), (1, 3), "{}", capsule(&harness));
     assert!(harness.count(".viewer-pdf-tile") >= 1);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),
@@ -351,7 +360,7 @@ fn a_comic_is_one_page_to_a_picture() {
 fn a_book_offers_no_page_edits_for_its_pages_are_not_a_file() {
     let dir = tempfile::tempdir().unwrap();
     let (mut harness, requests) = opened(&epub(dir.path()), 100, Wiring::default());
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(&mut harness);
     let palette = harness
         .text_of(".ds-palette")
@@ -367,7 +376,7 @@ fn a_book_offers_no_page_edits_for_its_pages_are_not_a_file() {
     harness.send(Input::key(ShortcutKey::Escape));
     settle(&mut harness);
     for key in [ShortcutKey::Backspace, ShortcutKey::Down, ShortcutKey::Up] {
-        harness.send(Input::chord(&[ShortcutKey::Ctrl, ShortcutKey::Shift], key));
+        harness.send(Input::chord(&[ShortcutKey::Super, ShortcutKey::Shift], key));
         settle(&mut harness);
     }
     let edits: Vec<HostRequest> = requests
@@ -425,7 +434,7 @@ fn the_export_dialog_is_never_offered_for_a_book_though_its_stage_is_the_pdf_sta
     let dir = tempfile::tempdir().unwrap();
     for scale in [100, 200] {
         let (mut harness, requests) = opened(&epub(dir.path()), scale, Wiring::default());
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+        harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
         settle(&mut harness);
         for letter in "export".chars() {
             harness.send(Input::key(ShortcutKey::Char(letter)));

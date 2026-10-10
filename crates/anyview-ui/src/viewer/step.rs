@@ -11,7 +11,7 @@ use crate::command::{Command, StageCommand};
 use crate::context::{ContextIn, ContextOut, ContextPick};
 use crate::edits::Rewind;
 use crate::hand::{HandIn, Tool};
-use crate::keys::{Regions, Route, route};
+use crate::keys::{Act, Press, Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
@@ -22,10 +22,9 @@ use crate::presentation::Presentation;
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn, TextIn};
 use crate::typed::TypedText;
-use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
+use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
 use ds_core::machine::{Elapsed, Machine};
 use ds_core::time::stamp::Stamp;
-use ds_core::vocab::Shortcut;
 
 impl Machine for Viewer {
     type In = ViewerIn;
@@ -539,7 +538,7 @@ pub(super) fn navigate_now(
         })
 }
 
-fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> Step {
+fn keyed(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> Step {
     if let Some(input) = crop_key(&viewer, key.keys().as_slice()) {
         return picture(viewer, input, at, params);
     }
@@ -585,18 +584,14 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
     }
 }
 
-/// A key no region claimed, which may be the shortcut of a file action the open file offers (⌘P,
-/// ⌘D, ⌘[ …): the action runs as the palette's row would.
-fn file_key(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> Step {
-    let keys = key.keys();
-    let action = params
-        .files
-        .iter()
-        .find(|action| shortcut(**action).is_some_and(|bound| bound.keys() == keys))
-        .copied();
-    match action {
-        Some(action) => run(viewer, Command::File(action), at, params),
-        None => (viewer, vec![]),
+/// A press no region claimed, which may be the action of a file action the open file offers (Print,
+/// Duplicate, Rotate…): it runs as the palette's row would.
+fn file_key(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> Step {
+    match key.act() {
+        Some(Act::File(action)) if params.files.contains(&action) => {
+            run(viewer, Command::File(action), at, params)
+        }
+        Some(_) | None => (viewer, vec![]),
     }
 }
 

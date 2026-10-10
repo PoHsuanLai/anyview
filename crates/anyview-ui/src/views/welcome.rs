@@ -4,10 +4,12 @@
 //! window of its own and closes this one.
 
 use super::app::use_look;
-use super::keys::shortcut_of;
+use super::press::press_of;
 use crate::io::{DesktopService, Done, HostRequest};
+use crate::keys::{Act, Press};
 use crate::{Edge, Look, stylesheet};
 use anyview_core::FilePath;
+use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::chrome::titlebar_parts::TitleParts;
 use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
@@ -15,7 +17,6 @@ use ds::components::controls::button_model::Answers;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
 use ds::prelude::*;
-use ds_core::vocab::ShortcutKey;
 use futures_util::StreamExt;
 
 /// The root of the welcome window: a quire `Ds` root, the stylesheet and the welcome. It reads its
@@ -81,6 +82,7 @@ fn Welcome() -> Element {
     // Without a file chooser Open… and ⌘O are not there; dropping a file still opens it.
     let can_pick = edge.platform().has(DesktopService::FileChooser);
     let (pick, key) = (edge.clone(), edge);
+    let keymap = use_keys();
     rsx! {
         div {
             class: "viewer-welcome",
@@ -93,20 +95,17 @@ fn Welcome() -> Element {
                 drop.mounted(event);
             },
             onkeydown: move |event: KeyboardEvent| {
-                // ⌘O opens the dialog, ⌘W closes the window.
-                let keys = shortcut_of(&event)
-                    .map(|key| key.keys())
-                    .unwrap_or_default();
-                match keys.as_slice() {
-                    [ShortcutKey::Super, ShortcutKey::Char('o')] if can_pick => {
+                // Open asks for the dialog, Close closes the window.
+                match press_of(keymap, &event, Context::Normal) {
+                    Some(Press::Act(Act::OpenFile)) if can_pick => {
                         event.prevent_default();
                         key.request(HostRequest::PickFile);
                     }
-                    [ShortcutKey::Super, ShortcutKey::Char('w')] => {
+                    Some(Press::Act(Act::Close)) => {
                         event.prevent_default();
                         key.request(HostRequest::CloseWindow);
                     }
-                    _ => {}
+                    Some(_) | None => {}
                 }
             },
             WindowTitlebar {

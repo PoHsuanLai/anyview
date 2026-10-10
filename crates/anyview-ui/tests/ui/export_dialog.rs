@@ -34,7 +34,7 @@ fn open(path: PathBuf, scale_percent: u16) -> (Harness, Requests) {
 }
 
 fn export(harness: &mut Harness) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in "export".chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));

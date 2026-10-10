@@ -159,6 +159,10 @@ DIRECT=(
 # 571, the headless peek 250 and the viewer 689.
 # anyview-fs (the one place a path is opened, so anyview-core does no I/O; it depends on core alone) is one package
 # more in each: the peek is 572, the headless peek 193 and the viewer 690.
+# The desktop key system (batch 11: quire v0.3.6 resolves keys to actions through chordkit, and anyview-core
+# declares the viewer's own actions' default chords with it) adds chordkit to every tree, and quire's
+# chordkit-kde and chordkit-gnome (the system shortcut readers) to the windowed ones: the peek is 575, the
+# headless peek 194 and the viewer 693.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -167,10 +171,10 @@ DIRECT=(
 # own and `ds` is the `pane` feature's), with no renderer, no window system, no dioxus and no encoder.
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
-  "anyview-peek: 572"
-  "anyview: 690"
+  "anyview-peek: 575"
+  "anyview: 693"
 )
-HEADLESS_BUDGET=193
+HEADLESS_BUDGET=194
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 

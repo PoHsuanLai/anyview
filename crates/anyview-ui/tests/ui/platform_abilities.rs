@@ -41,7 +41,7 @@ fn picture(platform: PlatformAbilities) -> (Harness, Requests) {
 }
 
 fn palette(harness: &mut Harness) -> String {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     let text = harness.text_of(".ds-palette").unwrap_or_default();
     harness.send(Input::key(ShortcutKey::Escape));
@@ -94,8 +94,8 @@ fn with_every_ability_the_palette_the_menu_and_the_keys_are_as_they_were() {
     for label in ["Share\u{2026}", "Show in Folder"] {
         assert!(menu.iter().any(|row| row == label), "{label} in {menu:?}");
     }
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'p');
+    chord(&mut harness, &[ShortcutKey::Super], 'o');
+    chord(&mut harness, &[ShortcutKey::Super], 'p');
     let asked = asked(&requests);
     assert!(asked.contains(&HostRequest::PickFile), "⌘O asks for a file");
     assert!(
@@ -122,9 +122,9 @@ fn with_no_ability_the_desktop_actions_are_in_no_palette_no_menu_and_on_no_key()
         menu.iter().any(|row| row == "Move to Trash"),
         "the rest of the menu stays: {menu:?}"
     );
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'p');
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'r');
+    chord(&mut harness, &[ShortcutKey::Super], 'o');
+    chord(&mut harness, &[ShortcutKey::Super], 'p');
+    chord(&mut harness, &[ShortcutKey::Super], 'r');
     let asked = asked(&requests);
     for request in [
         HostRequest::PickFile,
@@ -222,7 +222,7 @@ fn the_welcome_window_asks_for_a_file_only_where_there_is_a_chooser() {
     );
     let said = harness.text_of(".viewer-welcome").unwrap_or_default();
     assert!(!said.contains("Choose"), "{said:?}");
-    chord(&mut harness, &[ShortcutKey::Ctrl], 'o');
+    chord(&mut harness, &[ShortcutKey::Super], 'o');
     assert!(!asked(&requests).contains(&HostRequest::PickFile), "no ⌘O");
 }
 

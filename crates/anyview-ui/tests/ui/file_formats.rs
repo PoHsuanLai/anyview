@@ -64,7 +64,7 @@ fn a_picture_wider_than_the_gpu_texture_limit_is_shown_not_refused() {
 }
 
 #[test]
-fn the_wheel_under_control_zooms_a_picture_as_it_does_a_pdf() {
+fn the_wheel_under_command_zooms_a_picture_as_it_does_a_pdf() {
     for scale in SCALES {
         let mut harness = opened(&[sample("quadrants.png")], scale);
         let before = harness.text_of(".ds-capsule-readout");
@@ -76,13 +76,13 @@ fn the_wheel_under_control_zooms_a_picture_as_it_does_a_pdf() {
                 y: Px(40.0),
             },
             at: middle(),
-            held: Modifiers::CONTROL,
+            held: Modifiers::SUPER,
         }));
         settle(&mut harness);
         assert_ne!(
             before,
             harness.text_of(".ds-capsule-readout"),
-            "STEP_FAIL Ctrl+wheel over a picture at scale {scale} leaves the zoom at {before:?}"
+            "STEP_FAIL Command+wheel over a picture at scale {scale} leaves the zoom at {before:?}"
         );
     }
 }

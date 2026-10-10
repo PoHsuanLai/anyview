@@ -2,6 +2,7 @@
 
 use super::support::*;
 use crate::command::{Command, StageCommand};
+use crate::keys::Press;
 use crate::load::{Load, LoadFailure, LoadFlow, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::sheet::{Sheet, SheetOut};
@@ -206,7 +207,7 @@ fn long_text() -> ViewerParams {
 fn pressed(viewer: Viewer, keys: &[ShortcutKey]) -> Viewer {
     viewer
         .step(
-            ViewerIn::Key(Shortcut(keys.to_vec())),
+            ViewerIn::Key(Press::Key(Shortcut(keys.to_vec()))),
             Stamp(0),
             &(),
             &long_text(),
@@ -264,7 +265,7 @@ fn home_and_end_still_walk_the_folder_for_a_file_that_does_not_scroll() {
         ..Viewer::default()
     };
     let (_, outs) = viewer.step(
-        ViewerIn::Key(Shortcut(vec![ShortcutKey::End])),
+        ViewerIn::Key(Press::Key(Shortcut(vec![ShortcutKey::End]))),
         Stamp(0),
         &(),
         &params(),

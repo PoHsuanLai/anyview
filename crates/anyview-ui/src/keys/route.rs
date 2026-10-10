@@ -1,6 +1,7 @@
 //! The one routing function.
 
-use super::model::{Regions, Route};
+use super::act::Act;
+use super::model::{Press, Regions, Route};
 use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
 use crate::context::{ContextIn, ContextMenu};
@@ -13,17 +14,16 @@ use crate::panel::{Panel, PanelIn, PanelTab};
 use crate::sheet::{Sheet, SheetIn};
 use crate::stage::Stage;
 use crate::typed::TypedText;
-use ds_core::standard_action::StandardAction;
-use ds_core::vocab::{Shortcut, ShortcutKey};
+use ds_core::vocab::ShortcutKey;
 
-/// Which region gets `key`, given the states of the regions that can claim it: a sheet, then the
-/// palette, then the context menu, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, the Menu key, Esc),
-/// then the stage, then navigation, then the chrome.
+/// Which region gets `press`, given the states of the regions that can claim it: a sheet, then the
+/// palette, then the context menu, then the global actions (the palette, Info, Close, Open, Save,
+/// Undo, Redo, the Menu key, Esc), then the stage, then navigation, then the chrome.
 ///
 /// Esc undoes the innermost thing: what the stage has open (a find, a scrub), then the
 /// panel, then the quick look itself.
-pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
-    let keys = key.keys();
+pub fn route(press: &Press, regions: Regions<'_>) -> Route {
+    let keys = press.keys();
     let keys = keys.as_slice();
     match regions.sheet {
         Sheet::Export { draft: _, span: _ }
@@ -50,7 +50,7 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         | Sheet::Picture(_)
         | Sheet::Unsaved(_)
         | Sheet::ConfirmReplace => {
-            return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
+            return SheetIn::from_press(press).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}
     }
@@ -60,15 +60,15 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
             selection: _,
             scope: _,
         } => {
-            // ⌘F in the open palette makes what is typed a find, where the file can be searched.
-            if keys == [ShortcutKey::Super, ShortcutKey::Char('f')] {
+            // Find in the open palette makes what is typed a find, where the file can be searched.
+            if press.act() == Some(Act::Find) {
                 return if can_find(regions.stage) {
                     Route::Palette(PaletteIn::ToFind)
                 } else {
                     Route::Swallowed
                 };
             }
-            return PaletteIn::from_key(keys).map_or(Route::Swallowed, Route::Palette);
+            return PaletteIn::from_press(press).map_or(Route::Swallowed, Route::Palette);
         }
         Palette::Closed => {}
     }
@@ -81,56 +81,57 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
         }
         ContextMenu::Closed => {}
     }
-    match global(keys, &regions) {
+    match global(press, &regions) {
         Some(route) => route,
-        None => unclaimed(keys, &regions),
+        None => unclaimed(press, &regions),
     }
 }
 
-/// The global chords.
-fn global(keys: &[ShortcutKey], regions: &Regions<'_>) -> Option<Route> {
-    match keys {
-        [ShortcutKey::Super, ShortcutKey::Char('k')] => Some(Route::OpenPalette),
-        [ShortcutKey::Super, ShortcutKey::Char('f')] if can_find(regions.stage) => {
-            Some(Route::OpenFind)
-        }
-        [ShortcutKey::Super, ShortcutKey::Char('i')] => {
-            Some(Route::Panel(info_toggle(regions.panel)))
-        }
-        [ShortcutKey::Super, ShortcutKey::Char('w')] => Some(Route::CloseWindow),
-        [ShortcutKey::Super, ShortcutKey::Char('s')]
-            if matches!(regions.stage, Stage::Raster(_)) =>
-        {
-            Some(Route::Save)
-        }
-        [ShortcutKey::Super, ShortcutKey::Char('o')]
-            if regions.platform.has(DesktopService::FileChooser) =>
-        {
-            Some(Route::OpenFile)
-        }
-        [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
-        [ShortcutKey::Escape] => Some(escape(regions)),
-        keys => rewind(keys).map(Route::Rewind),
+/// The global actions and keys.
+fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
+    match press {
+        Press::Act(act) => match act {
+            Act::Palette => Some(Route::OpenPalette),
+            Act::Find if can_find(regions.stage) => Some(Route::OpenFind),
+            Act::Info => Some(Route::Panel(info_toggle(regions.panel))),
+            Act::Close => Some(Route::CloseWindow),
+            Act::Save if matches!(regions.stage, Stage::Raster(_)) => Some(Route::Save),
+            Act::OpenFile if regions.platform.has(DesktopService::FileChooser) => {
+                Some(Route::OpenFile)
+            }
+            Act::Undo => Some(Route::Rewind(Rewind::Undo)),
+            Act::Redo => Some(Route::Rewind(Rewind::Redo)),
+            Act::Find
+            | Act::FindNext
+            | Act::FindPrevious
+            | Act::Save
+            | Act::OpenFile
+            | Act::ZoomIn
+            | Act::ZoomOut
+            | Act::ZoomToFit
+            | Act::ZoomToActual
+            | Act::Done
+            | Act::DeletePage
+            | Act::MovePageEarlier
+            | Act::MovePageLater
+            | Act::NextSheet
+            | Act::PreviousSheet
+            | Act::File(_) => None,
+        },
+        Press::Key(shortcut) => match shortcut.keys().as_slice() {
+            [ShortcutKey::ContextMenu] => Some(Route::OpenContextMenu),
+            [ShortcutKey::Escape] => Some(escape(regions)),
+            _ => None,
+        },
     }
 }
 
-/// Whether the file on screen can be searched: ⌘F opens the palette as a find only then.
+/// Whether the file on screen can be searched: Find opens the palette as a find only then.
 fn can_find(stage: &Stage) -> bool {
     stage.find_input(&TypedText::EMPTY).is_some()
 }
 
-/// The standard undo and redo keys.
-fn rewind(keys: &[ShortcutKey]) -> Option<Rewind> {
-    [
-        (StandardAction::Undo, Rewind::Undo),
-        (StandardAction::Redo, Rewind::Redo),
-    ]
-    .into_iter()
-    .find(|(standard, _)| Shortcut::standard(*standard).keys() == keys)
-    .map(|(_, rewind)| rewind)
-}
-
-/// ⌘I: close the panel when it already shows Info, otherwise show Info.
+/// Info: close the panel when it already shows Info, otherwise show Info.
 fn info_toggle(panel: &Panel) -> PanelIn {
     match panel {
         Panel::Shown {
@@ -169,8 +170,10 @@ fn escape(regions: &Regions<'_>) -> Route {
 
 /// A key no global chord wants: the stage if it has the command, then navigation, then the
 /// chrome.
-fn unclaimed(keys: &[ShortcutKey], regions: &Regions<'_>) -> Route {
-    let staged = StageCommand::from_key(keys)
+fn unclaimed(press: &Press, regions: &Regions<'_>) -> Route {
+    let keys = press.keys();
+    let keys = keys.as_slice();
+    let staged = StageCommand::from_press(press)
         .and_then(|command| regions.stage.input_for(command, regions.stage_params));
     if let Some(input) = staged {
         return Route::Stage(input);

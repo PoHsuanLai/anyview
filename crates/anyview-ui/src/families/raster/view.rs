@@ -21,9 +21,10 @@ use ds::components::overlays::empty_state::EmptyState;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::Point;
 use ds::prelude::{Choice, Icon, SegmentedControl, Shortcut, ShortcutKey, Tooltip};
+use ds::prelude::{Point, use_platform};
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
+use ds_core::command::holds_primary;
 use ds_core::word::Word;
 
 /// Whether `at`, a point of the window, is over the room.
@@ -160,6 +161,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         }
     });
     let gestured = cx.clone();
+    let platform = use_platform();
     // A wheel's detents arrive eased, one share a frame, and a touchpad's run with the glide after it.
     use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let Some(area) = gestured.area else { return };
@@ -168,7 +170,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         };
         let (kept, turn) = laid_out(&gestured, stage, doc_size);
         let shown = scale_of(stage, fit(kept, turn, area));
-        // A pinch and a wheel turn under Control zoom alike: `by` thousandths, about the pointer.
+        // A pinch and a wheel turn under the primary modifier zoom alike: `by` thousandths, about the pointer.
         let zoom_by = |by: i32, at: Point| {
             let zoom = Zoom::scaled(Permille(
                 u32::try_from(i64::from(shown.0) * (1000 + i64::from(by)) / 1000)
@@ -186,7 +188,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
         match gesture {
             Gesture::Pinch { by, at, .. } if over(area, at) => zoom_by(by.0, at),
             Gesture::Scroll { by, at, held, .. }
-                if over(area, at) && ds::prelude::is_command(held) =>
+                if over(area, at) && holds_primary(platform, held) =>
             {
                 zoom_by((by.y.0 * WHEEL_ZOOM).round() as i32, at);
             }

@@ -1,11 +1,12 @@
 use super::*;
 use crate::command::{Command, StageCommand};
+use crate::keys::{Act, Press};
 use crate::stage::HitIndex;
 use crate::typed::TypedText;
 use anyview_core::FileAction;
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
-use ds_core::vocab::ShortcutKey;
+use ds_core::vocab::{Shortcut, ShortcutKey};
 
 const EXPORT: Command = Command::File(FileAction::Export);
 const ROTATE: Command = Command::File(FileAction::RotateRight);
@@ -243,31 +244,33 @@ fn every_row_of_the_table_steps_as_written() {
 #[test]
 fn keys_mean_moves_enter_and_escape() {
     // name, keys, input
-    const KEYS: &[(&str, &[ShortcutKey], Option<PaletteIn>)] = &[
+    let key = |key| Press::Key(Shortcut(vec![key]));
+    // name, the press, input
+    let presses = [
         (
             "up",
-            &[ShortcutKey::Up],
+            key(ShortcutKey::Up),
             Some(PaletteIn::Move(PaletteMove::Up)),
         ),
         (
             "down",
-            &[ShortcutKey::Down],
+            key(ShortcutKey::Down),
             Some(PaletteIn::Move(PaletteMove::Down)),
         ),
-        ("enter", &[ShortcutKey::Enter], Some(PaletteIn::Enter)),
-        ("escape", &[ShortcutKey::Escape], Some(PaletteIn::Close)),
+        ("enter", key(ShortcutKey::Enter), Some(PaletteIn::Enter)),
+        ("escape", key(ShortcutKey::Escape), Some(PaletteIn::Close)),
         (
-            "command k closes",
-            &[ShortcutKey::Super, ShortcutKey::Char('k')],
+            "the palette's action closes",
+            Press::Act(Act::Palette),
             Some(PaletteIn::Close),
         ),
         (
             "a letter is typed, not a key",
-            &[ShortcutKey::Char('a')],
+            key(ShortcutKey::Char('a')),
             None,
         ),
     ];
-    for (name, keys, want) in KEYS {
-        assert_eq!(PaletteIn::from_key(keys), *want, "{name}");
+    for (name, press, want) in presses {
+        assert_eq!(PaletteIn::from_press(&press), want, "{name}");
     }
 }

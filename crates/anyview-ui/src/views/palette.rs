@@ -4,29 +4,32 @@
 //! Enter runs; this draws its rows and hands the keys it takes (arrows, Enter, Esc, ⌘K, ⌘F) to the
 //! root as they arrive, so the machine is the one place they mean anything.
 
-use crate::{Command, HitLine, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText};
+use super::press::press_of;
+use crate::keys::Act;
+use crate::{
+    Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, PictureCommand, Tool, TypedText,
+};
 use anyview_core::shortcut;
+use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
 use ds::components::menus::palette::palette_claim::{Claim, FieldKey};
 use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
 use ds::host::caret::InitialCaret;
-use ds::prelude::{CommandPalette, RunTone, Shortcut, ShortcutKey, TextLine, TextRun};
+use ds::prelude::{CommandPalette, RunTone, Shortcut, ShortcutKey, TextLine, TextRun, use_keys};
 
 /// The keys shown beside a command.
 fn keys_of(command: &Command) -> Option<Shortcut> {
     match command {
         Command::File(action) => shortcut(*action),
-        Command::Stage(command) => Some(command.shortcut()),
-        Command::OpenFile => Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')])),
+        Command::Stage(command) => command.shortcut(),
+        Command::OpenFile => Act::OpenFile.shortcut(),
         Command::UseTool(tool) => match tool {
             Tool::Crop => Some(Shortcut(vec![ShortcutKey::Char('c')])),
             Tool::Select | Tool::Pan => Some(Shortcut(vec![ShortcutKey::Char('h')])),
         },
         Command::Picture(command) => match command {
-            PictureCommand::Save => {
-                Some(Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('s')]))
-            }
+            PictureCommand::Save => Act::Save.shortcut(),
             PictureCommand::AdjustSize => None,
         },
         Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
@@ -67,11 +70,6 @@ fn hit_row(index: usize, line: Option<&HitLine>) -> PaletteRow<usize> {
     }
 }
 
-/// Whether `keys` is ⌘F, which the palette's field hands to the window to make the text a find.
-fn is_find(keys: &[ShortcutKey]) -> bool {
-    keys == [ShortcutKey::Super, ShortcutKey::Char('f')]
-}
-
 /// The palette over the window. `rows` are the machine's ranked rows; `selection` its highlight.
 /// As a find (`scope`), the rows that are hits are drawn from `hits` (the first `rows` of them) and
 /// `found` is how many there are in all.
@@ -88,6 +86,7 @@ pub(super) fn Palette(
     onkey: EventHandler<KeyboardEvent>,
     onclose: EventHandler<()>,
 ) -> Element {
+    let keymap = use_keys();
     let finding = matches!(scope, PaletteScope::Find(_));
     let mut in_file: Vec<PaletteRow<usize>> = Vec::new();
     let mut commands: Vec<PaletteRow<usize>> = Vec::new();
@@ -144,8 +143,11 @@ pub(super) fn Palette(
             claim: Callback::new(move |key: FieldKey| {
                 // The keys the palette machine reads are the machine's: they never reach the
                 // field or the palette's own selection.
-                let keys = super::keys::keys_of(&key.event);
-                if crate::PaletteIn::from_key(&keys).is_some() || is_find(&keys) {
+                // Find is also the window's: it makes what is typed a find.
+                let press = press_of(keymap, &key.event, Context::TextEntry);
+                if press.is_some_and(|press| {
+                    PaletteIn::from_press(&press).is_some() || press.act() == Some(Act::Find)
+                }) {
                     onkey.call(key.event);
                     Claim::Take
                 } else {

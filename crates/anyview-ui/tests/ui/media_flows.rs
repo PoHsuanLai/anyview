@@ -74,7 +74,7 @@ fn mark(harness: &mut Harness, player: &FakePlayer, marks: &[(char, u64)]) {
 
 /// Export the trim from the palette, as the sheet offers it, and the trim the host is asked for.
 fn exported_trim(harness: &mut Harness, requests: &Requests) -> Option<TimeRange> {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in "export".chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));

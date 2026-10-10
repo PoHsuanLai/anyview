@@ -20,8 +20,9 @@ use dioxus::prelude::*;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::Point;
+use ds::prelude::{Point, use_platform};
 use ds_blitz::use_gpu;
+use ds_core::command::holds_primary;
 use std::sync::Arc;
 
 /// How far a drag may travel and still be a click on a link, in logical pixels.
@@ -202,6 +203,7 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
     // A wheel's detents arrive eased, one share a frame, each a few device pixels; the part of a
     // share below a whole pixel is carried to the next, so the shares still sum to the detent.
     let mut carried = use_signal(|| (0.0_f32, 0.0_f32));
+    let platform = use_platform();
     use_gestures_with(WheelDelivery::Eased, move |gesture| {
         let Some(area) = area else { return };
         match gesture {
@@ -209,7 +211,7 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                 steer.zoom_by(by.0, in_room(at, area));
             }
             Gesture::Scroll { by, at, held, .. } if over(area, at) => {
-                if ds::prelude::is_command(held) {
+                if holds_primary(platform, held) {
                     let turn = (by.y.0 * WHEEL_ZOOM).round() as i32;
                     steer.zoom_by(turn, in_room(at, area));
                 } else {

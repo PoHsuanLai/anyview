@@ -1,12 +1,13 @@
 use super::*;
+use crate::keys::{Act, Press};
 use crate::typed::TypedText;
 use anyview_core::{
-    ByteLen, Helper, MetadataCarry, PageSelection, PdfExport, PdfExportKind, RasterExport,
-    RasterExportKind, RasterTarget, Resize, TextExport,
+    ByteLen, FileAction, Helper, MetadataCarry, PageSelection, PdfExport, PdfExportKind,
+    RasterExport, RasterExportKind, RasterTarget, Resize, TextExport,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
-use ds_core::vocab::ShortcutKey;
+use ds_core::vocab::{Shortcut, ShortcutKey};
 
 const PNG: ExportDraft = ExportDraft::Raster(RasterExport::Image(
     RasterTarget::Png,
@@ -352,16 +353,22 @@ fn a_draft_knows_its_format() {
 }
 
 #[test]
-fn enter_confirms_and_escape_cancels_and_letters_mean_nothing() {
+fn enter_confirms_and_escape_cancels_and_duplicates_chord_discards() {
+    let key = |key| Press::Key(Shortcut(vec![key]));
     assert_eq!(
-        SheetIn::from_key(&[ShortcutKey::Enter]),
+        SheetIn::from_press(&key(ShortcutKey::Enter)),
         Some(SheetIn::Confirm)
     );
     assert_eq!(
-        SheetIn::from_key(&[ShortcutKey::Escape]),
+        SheetIn::from_press(&key(ShortcutKey::Escape)),
         Some(SheetIn::Cancel)
     );
-    assert_eq!(SheetIn::from_key(&[ShortcutKey::Char('x')]), None);
+    assert_eq!(SheetIn::from_press(&key(ShortcutKey::Char('x'))), None);
+    assert_eq!(
+        SheetIn::from_press(&Press::Act(Act::File(FileAction::Duplicate))),
+        Some(SheetIn::Discard)
+    );
+    assert_eq!(SheetIn::from_press(&Press::Act(Act::Palette)), None);
 }
 
 #[test]

@@ -60,7 +60,7 @@ pub use io::{
     SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work, WorkKind, WorkLane, Workers,
     folder_sequence,
 };
-pub use keys::{Regions, Route, route};
+pub use keys::{Act, Press, Regions, Route, route};
 pub use load::{
     Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
 };

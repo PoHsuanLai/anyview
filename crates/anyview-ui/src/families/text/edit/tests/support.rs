@@ -188,8 +188,9 @@ impl Rig {
         self.chord(&[ShortcutKey::Shift], key);
     }
 
-    pub fn ctrl(&mut self, c: char) {
-        self.chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(c));
+    /// A letter with the command key held (Command on this desktop).
+    pub fn command(&mut self, c: char) {
+        self.chord(&[ShortcutKey::Super], ShortcutKey::Char(c));
     }
 
     pub fn type_text(&mut self, text: &str) {

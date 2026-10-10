@@ -17,7 +17,7 @@ use ds::edit::pointer::EditFocus;
 use ds::edit::selection::use_selection_rects;
 use ds::focus::soon::focus_soon;
 use ds::host::position::{TextPosition, TextRange};
-use ds::prelude::{EditSurface, Point, Px, Rect, Size};
+use ds::prelude::{EditSurface, Point, Px, Rect, Size, use_keys};
 use ds::root::common::Common;
 use ds::root::pass_through::ExtraClass;
 use ds_core::word::Word;
@@ -63,6 +63,7 @@ pub(crate) fn EditLines(
         rows,
         scroll: onscroll,
         changed: onchanged,
+        keys: use_keys(),
     };
     let frame = {
         let held = session.read();
