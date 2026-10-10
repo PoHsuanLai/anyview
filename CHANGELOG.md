@@ -9,7 +9,7 @@ versioning, with pre-releases while the program is in beta.
 
 - Shortcuts follow your system's keyboard settings. Command on a Mac-style desktop and Ctrl on Windows and most Linux desktops now mean what that system says; change a shortcut in the system and Viewer follows it. Ctrl is no longer Command on a desktop where Command is its own key.
 - Zoom uses ⌘+ and ⌘−, and the bare + and − keys still work. Actual Size is ⌥⌘0 and Zoom to Fit is ⌘0; ⌘1 and ⌘9 are left for tabs and Spaces.
-- Get Info is ⌥⌘I, because ⌘I is Italic. The next and previous sheet of a workbook are ⌘Page Down and ⌘Page Up, so ⌘[ and ⌘] only turn a picture.
+- Get Info is ⌘I, as in Preview; the viewer never styles text, so it gives Italic's chord up. The next and previous sheet of a workbook are ⌘Page Down and ⌘Page Up, so ⌘[ and ⌘] only turn a picture.
 - The command palette, Get Info, Copy Path, Duplicate, Move to Trash, Export, the page edits and the rest show the key the system gives them, in the palette and in the menus.
 
 ### Text

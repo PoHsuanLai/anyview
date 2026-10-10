@@ -2,7 +2,7 @@
 //! that resolves to an action of the viewer's is that action, and a key with no command modifier is
 //! the key itself. Which modifier is Command or Ctrl is never decided here.
 
-use crate::keys::{Act, Press, app, rows};
+use crate::keys::{Act, Press, app, rows, standing};
 use chordkit::{Context, DefaultChord, Modifier, Platform, PrimaryUse};
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::{Key, KeyboardEvent, Modifiers, use_hook};
@@ -10,14 +10,21 @@ use ds::prelude::{Keys, use_keys};
 use ds_core::command::chord_of;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
-/// The window's keymap, with the viewer's own actions declared on it once, each on its own so a
-/// chord the person's system keeps for itself leaves that one action unbound and no other.
+/// The window's keymap, with the viewer's own actions declared on it once. An app's registration
+/// replaces its earlier one, so the rows are added one at a time to a growing registration and a
+/// row the keymap refuses (a chord the person's system keeps for itself) is left out, leaving that
+/// one action unbound and no other.
 pub(super) fn use_viewer_keys() -> Keys {
     let keys = use_keys();
     use_hook(|| {
         if let Some(app) = app() {
-            for row in rows() {
-                let _unbound = keys.register_actions(&app, std::slice::from_ref(&row));
+            let mut held = standing(&app);
+            let _forgone = keys.register(&app, &held);
+            for (action, chord) in rows() {
+                let next = held.clone().action(action, chord);
+                if keys.register(&app, &next).is_ok() {
+                    held = next;
+                }
             }
         }
     });
