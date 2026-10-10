@@ -674,13 +674,8 @@ mod tests {
             height: PixelLen(60),
         };
         // name, reflection, the rectangle, where the part starts in the file, the file's rectangle
-        const CASES: &[(
-            &str,
-            Reflection,
-            (u32, u32, u32, u32),
-            (u32, u32),
-            (u32, u32, u32, u32),
-        )] = &[
+        type Rect = (u32, u32, u32, u32);
+        const CASES: &[(&str, Reflection, Rect, (u32, u32), Rect)] = &[
             (
                 "as it is",
                 Reflection::Kept,

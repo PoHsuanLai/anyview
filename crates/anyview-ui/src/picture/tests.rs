@@ -317,7 +317,8 @@ fn an_aspect_is_the_largest_rectangle_of_that_shape_inside_the_one_now() {
 #[test]
 fn the_aspects_name_their_proportions() {
     // name, aspect, ratio for a picture of 400 by 300
-    const CASES: &[(&str, CropShape, CropLean, Option<(u32, u32)>)] = &[
+    type Case = (&'static str, CropShape, CropLean, Option<(u32, u32)>);
+    const CASES: &[Case] = &[
         ("free", CropShape::Free, CropLean::Wide, None),
         ("free, standing", CropShape::Free, CropLean::Tall, None),
         (
