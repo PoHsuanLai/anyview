@@ -675,7 +675,8 @@ mod tests {
         };
         // name, reflection, the rectangle, where the part starts in the file, the file's rectangle
         type Rect = (u32, u32, u32, u32);
-        const CASES: &[(&str, Reflection, Rect, (u32, u32), Rect)] = &[
+        type Case = (&'static str, Reflection, Rect, (u32, u32), Rect);
+        const CASES: &[Case] = &[
             (
                 "as it is",
                 Reflection::Kept,
