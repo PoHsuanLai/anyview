@@ -56,7 +56,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         ViewerOut::Chrome(ChromeOut::Fade { to, .. }) => shelf.chrome.set(to),
         ViewerOut::Palette(PaletteOut::Opened | PaletteOut::Closed | PaletteOut::Run(_))
         | ViewerOut::Panel(PanelOut::Show(_) | PanelOut::Hide)
-        | ViewerOut::Sheet(SheetOut::Opened | SheetOut::Closed) => {}
+        | ViewerOut::Sheet(SheetOut::Opened | SheetOut::Closed | SheetOut::Picture(_)) => {}
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),
         ViewerOut::Stage(out) => staged(c, &out),
         ViewerOut::Sheet(SheetOut::Export(draft)) => {

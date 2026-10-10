@@ -9,7 +9,7 @@ use anyview_core::{
     Adjust, Axis, Edit, EditKind, PageIndex, PageRange, PixelLen, PixelRect, PixelSize,
     QuarterTurn, RasterFormat, Reflection,
 };
-use anyview_image::{Decoded, ExifFacts, ImageError, Rgba8, decode_bytes, edited};
+use anyview_image::{Decoded, ExifFacts, ImageError, Location, Rgba8, decode_bytes, edited};
 use image::{RgbaImage, imageops};
 use support::{bytes, sniffed};
 
@@ -304,6 +304,39 @@ fn a_series_of_turns_and_flips_folded_into_one_adjustment_places_the_pixels_as_t
             still(&at_once, "a.png"),
             still(&one_by_one, "a.png"),
             "after {step:?}"
+        );
+    }
+}
+
+#[test]
+fn a_cut_keeps_the_place_a_photo_had_and_never_gives_one_that_had_none() {
+    // name, file, whether the original says where it was taken
+    const CASES: &[(&str, &str, bool)] = &[
+        ("a located photo", "located.jpg", true),
+        ("a located PNG", "located.png", true),
+        ("a photo with no place", "plain.jpg", false),
+    ];
+    for (name, file, located) in CASES {
+        let before = bytes(file);
+        assert_eq!(
+            Location::of_file(&before).is_some(),
+            *located,
+            "{name}: fixture"
+        );
+        let (width, height) = size_of(&still(&before, file));
+        let adjust = cut_to(PixelRect {
+            left: PixelLen(0),
+            top: PixelLen(0),
+            size: PixelSize {
+                width: PixelLen((width / 2).max(1)),
+                height: PixelLen((height / 2).max(1)),
+            },
+        });
+        let after = edited(&before, &sniffed(&before, file), Edit::Adjust(adjust)).unwrap();
+        assert_eq!(
+            Location::of_file(&after).is_some(),
+            *located,
+            "{name}: after the cut"
         );
     }
 }
