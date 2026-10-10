@@ -239,10 +239,7 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
 #[test]
 fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     let (_dir, mut harness, _) = opened();
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),

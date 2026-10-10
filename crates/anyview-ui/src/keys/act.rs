@@ -3,7 +3,7 @@
 //! a default chord and registered once per window, so a person's own change to one wins.
 
 use anyview_core::{FileAction, file_action_of, own_keys, shortcut};
-use chordkit::{Action, AppAction, AppId, DefaultChord, StandardAction};
+use chordkit::{Action, AppAction, AppId, DefaultChord, Registration, StandardAction};
 use ds_core::vocab::Shortcut;
 
 /// The viewer's name as the owner of its actions.
@@ -60,7 +60,7 @@ pub enum Act {
 /// `Primary` is Command or Ctrl, whichever the platform means.
 const OWN: &[(Act, &str, &str)] = &[
     (Act::Palette, "anyview.palette", "Primary+K"),
-    (Act::Info, "anyview.info", "Primary+Alt+I"),
+    (Act::Info, "anyview.info", "Primary+I"),
     (Act::ZoomToFit, "anyview.zoom-to-fit", "Primary+9"),
     (Act::ZoomToActual, "anyview.zoom-to-actual", "Primary+0"),
     (Act::Done, "anyview.done", "Primary+Enter"),
@@ -171,9 +171,18 @@ impl Act {
     }
 }
 
+/// The standard actions the viewer does not offer, so they give their chords away: it never styles
+/// text (a text being edited is plain), and Get Info takes the Italic chord, ⌘I, as Preview does.
+const FORGONE: &[StandardAction] = &[StandardAction::Italic];
+
 /// The viewer's name in the keymap, or `None` if it does not read (a test rules that out).
 pub(crate) fn app() -> Option<AppId> {
     AppId::new(APP).ok()
+}
+
+/// What the viewer registers before any action: the standard actions it forgoes.
+pub(crate) fn standing(app: &AppId) -> Registration {
+    Registration::new(app).forgo_all(FORGONE.iter().copied())
 }
 
 /// Every action the viewer declares with its default chord: its own and those of the file.
@@ -222,8 +231,13 @@ mod tests {
             .map(|desktop| Platform::Linux { desktop })
             .chain([Platform::MacOs, Platform::Windows]);
         for platform in platforms {
+            let whole = rows()
+                .into_iter()
+                .fold(standing(&app), |held, (action, chord)| {
+                    held.action(action, chord)
+                });
             let registered = Keymap::conventional(platform)
-                .register(&app, &rows())
+                .register_with(&whole)
                 .map_err(|conflict| conflict.to_string());
             assert_eq!(registered, Ok(()), "{platform:?}");
         }

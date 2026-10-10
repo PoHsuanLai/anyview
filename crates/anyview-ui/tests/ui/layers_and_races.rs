@@ -49,10 +49,7 @@ fn closes(requests: &Requests) -> usize {
 
 /// The Info action's chord (Command and Option with I).
 fn info(harness: &mut Harness) {
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(harness);
 }
 

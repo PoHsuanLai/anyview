@@ -372,14 +372,14 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Zoom to Fit and Actual Size are the viewer's own actions.** chordkit has no standard action for them:
   Bigger and Smaller are ⌘+ and ⌘−, Fit is ⌘0 and Actual Size ⌥⌘0, and Zoom to Width has only its key `9`.
   ⌘1 and ⌘9 are left to the tab and Space convention. Ends when chordkit names them.
-- **Info is ⌥⌘I.** ⌘I is the standard Italic, which the keymap refuses to give to another action, and the
-  viewer registers each of its actions on its own so one refusal costs one chord. Ends if the viewer may
-  forgo Italic (`Registration::forgo`) once quire's `use_register_actions` takes it.
+- **Info is ⌘I because the viewer forgoes Italic.** The viewer never styles text and text editing is plain,
+  so its registration gives `StandardAction::Italic` away (`Registration::forgo`). Ends if text editing ever
+  needs Italic: Info then goes back to ⌥⌘I.
 - **⌘D is two actions.** Duplicate takes it, and the unsaved-changes question reads it as Don't Save because
   the keymap gives a chord to one action. Rebinding Duplicate rebinds Don't Save with it.
-- **The viewer registers its actions row by row, not with `use_register_actions`.** That hook is all or
-  nothing, and one refused chord would unbind the rest. Ends when quire's registration reports the rows it
-  took.
+- **The viewer registers its actions by growing one registration, not with `use_register_actions`.** A
+  registration is all or nothing and replaces the app's earlier one, so each row is tried added to what
+  was accepted and a refused row is dropped. Ends when quire's registration reports the rows it took.
 - **Mini stays when the file stops being media.** Walking the sequence from a video in the mini
   window to an image leaves the presentation `Mini`; `Presentation` only leaves `Mini` on
   `ToWindow`. Ends when the root promotes the window as the stage family changes.
