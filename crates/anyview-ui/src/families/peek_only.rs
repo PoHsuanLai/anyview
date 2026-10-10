@@ -17,6 +17,7 @@ use anyview_peek::{Body, peek};
 use dioxus::prelude::*;
 use ds::components::content::image_source::ImageSource;
 use ds::components::controls::button::Button;
+use ds_core::word::Word;
 use std::sync::Arc;
 use std::time::Duration;
 
