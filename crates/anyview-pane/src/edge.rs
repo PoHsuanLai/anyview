@@ -70,6 +70,15 @@ impl PaneEdge {
     /// (give `root` the one they use) and with any other program that opens it: each write
     /// merges only its own file's entry under a lock across processes. Unix only.
     ///
+    /// The viewer's own windows keep theirs in [`STORE_FOLDER`](crate::STORE_FOLDER) under the
+    /// person's data directory (`$XDG_DATA_HOME`, else `~/.local/share`). The host resolves that
+    /// directory, as it does its own, and the pane never reads the environment:
+    ///
+    /// ```ignore
+    /// let data = dirs::data_dir().expect("a home");
+    /// let edge = PaneEdge::portable(workers).with_store(data.join(anyview_pane::STORE_FOLDER));
+    /// ```
+    ///
     /// Without a store a pane remembers nothing itself: the host hears every
     /// [`PaneRequest::Remember`](crate::PaneRequest::Remember) and keeps it, or drops it.
     #[must_use]

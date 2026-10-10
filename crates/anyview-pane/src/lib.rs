@@ -53,6 +53,9 @@ pub use anyview_media::{AudioDriver, MpvHost};
 #[cfg(feature = "player")]
 pub use anyview_media_host::{AudioFocus, FixedMpv, MediaHub, PlayerHost, PlayerPlugins};
 pub use anyview_peek::StillSource;
+/// The folder under the person's data directory where the viewer's windows keep their memory:
+/// give [`PaneEdge::with_store`] the same, so a pane shares one history with them.
+pub use anyview_store::STORE_FOLDER;
 pub use anyview_ui::{
     DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, ImagePlugins,
     Look, LookFeed, MediaHost, MediaSupport, NaturalSize, Opened, PaneChrome, PlatformAbilities,
