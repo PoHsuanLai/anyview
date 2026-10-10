@@ -35,6 +35,9 @@ pub enum Declined {
     NotPrintable,
     /// The typed name is not a file name.
     NotAFileName,
+    /// The file did not open: the window's own failure card already says why, so the host has
+    /// nothing to add.
+    OpenFailed,
 }
 
 /// What became of a task.

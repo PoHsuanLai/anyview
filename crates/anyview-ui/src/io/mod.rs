@@ -33,5 +33,5 @@ pub use seams::{
 };
 pub use services::Services;
 pub use workers::{
-    Edge, HostRequest, NaturalSize, Reply, SizeBasis, TextSave, Work, WorkKind, Workers,
+    Edge, HostRequest, NaturalSize, NotOpened, Reply, SizeBasis, TextSave, Work, WorkKind, Workers,
 };

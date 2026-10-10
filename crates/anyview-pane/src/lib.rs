@@ -9,6 +9,10 @@
 //! own palette ([`PaneHandle::commands`]) and runs ([`PaneHandle::run`]); a find in the file is the
 //! host's palette too ([`PaneHandle::find`], [`PaneHandle::hits`]).
 //!
+//! A file the pane could not open (unreadable, damaged, locked, empty, too large or of a kind
+//! nothing here shows) is [`PaneRequest::NotOpened`], with the file and the [`LoadFailure`] its own
+//! card names; the card is the pane's, and any other way to open the file is the host's to offer.
+//!
 //! The pane never asks the OS for anything: no D-Bus, no file chooser. The platform abilities of a
 //! [`PaneEdge::portable`] edge are none, so Open, Print, Share, Open With and Show in Folder are
 //! simply not there. A recording opens in a viewer window of its own, which the host hears as
@@ -59,7 +63,7 @@ pub use anyview_peek::StillSource;
 pub use anyview_store::{Clock, STORE_FOLDER};
 pub use anyview_ui::{
     DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, HitList,
-    ImagePlugins, Look, LookFeed, MediaHost, MediaSupport, NaturalSize, Opened, PaneChrome,
-    PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText, VersionKey, VersionSource, Work,
-    WorkKind, WorkLane, Workers,
+    ImagePlugins, LoadFailure, Look, LookFeed, MediaHost, MediaSupport, NaturalSize, NotOpened,
+    Opened, PaneChrome, PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText, VersionKey,
+    VersionSource, Work, WorkKind, WorkLane, Workers,
 };

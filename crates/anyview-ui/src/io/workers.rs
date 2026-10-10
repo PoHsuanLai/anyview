@@ -10,7 +10,9 @@ use super::media::{MediaHost, MediaPort, MediaSupport};
 use super::notice::Notice;
 use super::seams::{FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource};
 use super::services::Services;
-use crate::{EditRequest, ExportDraft, Presentation, Rewind, Ticket, TypedText, VersionKey};
+use crate::{
+    EditRequest, ExportDraft, LoadFailure, Presentation, Rewind, Ticket, TypedText, VersionKey,
+};
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
 use anyview_machines::{PlatformAbilities, SaveEnd};
@@ -170,6 +172,9 @@ pub enum HostRequest {
     /// The window now shows this file: the host records it as viewed, and it is the file the
     /// requests below that name none refer to.
     Opened(Opened),
+    /// The file the window was asked to show could not be opened, and the window now says so.
+    /// See [`NotOpened`] for when it is sent.
+    NotOpened(NotOpened),
     /// Carry out a file action on the open file (reveal it, copy it, open it with, print it…).
     Run(FileAction),
     /// Choose another file to open.
@@ -216,6 +221,24 @@ pub enum HostRequest {
     /// once for each file the window opens, never for the same file loaded again: the host sizes
     /// the window to it, as it did when the first file opened.
     SizeWindow(SizeBasis),
+}
+
+/// A file the viewer was asked to show and could not open: the host may offer another way to
+/// open it (another program's, say), since the viewer has none.
+///
+/// Sent once for each open that fails, when the viewer's own failure card goes up: whether the
+/// file could not be read, was damaged, locked, empty, over what the viewer opens or of a kind it
+/// has no way to show. A file that opens as facts only (an archive, a font, a recording without a
+/// player) did open, and is announced by [`HostRequest::Opened`] instead. A window shown again
+/// for the same file (it changed on disk and the new copy fails) sends it again for that load,
+/// never for a redraw. The next [`HostRequest::Opened`] supersedes it: a later load of the same
+/// file that succeeds announces the file as opened.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotOpened {
+    /// The file that did not open.
+    pub file: FilePath,
+    /// Why, as the failure card says it.
+    pub reason: LoadFailure,
 }
 
 /// The text of the open file as the person edited it, whole, as the file is to hold it: its
