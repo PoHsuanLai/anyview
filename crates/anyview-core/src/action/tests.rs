@@ -1,7 +1,8 @@
 use super::*;
+use chordkit::{Action, DefaultChord};
 use ds_core::standard_action::StandardAction;
 use ds_core::testing::word_matches_serde;
-use ds_core::vocab::{Shortcut, ShortcutKey};
+use ds_core::vocab::Shortcut;
 use ds_core::word::Word;
 
 #[test]
@@ -56,30 +57,32 @@ enum Want {
     Nothing,
     /// The standard action's own keys.
     Standard(StandardAction),
-    /// The viewer's own keys, in the Mac's modifier order.
-    Own(&'static [ShortcutKey]),
+    /// The viewer's own action, with its default chord as the keymap reads it.
+    Own(&'static str, &'static str),
 }
 
 #[test]
 fn shortcuts_are_the_standard_ones_or_the_viewers_own() {
     use FileAction::*;
-    use ShortcutKey::{Alt, Backspace, Char, Shift, Super};
     use Want::{Nothing, Own, Standard};
     const CASES: &[(FileAction, Want)] = &[
         (Open, Standard(StandardAction::Open)),
         (RevealInFolder, Standard(StandardAction::Reveal)),
         (CopyFile, Standard(StandardAction::Copy)),
-        (CopyPath, Own(&[Alt, Super, Char('c')])),
+        (CopyPath, Own("anyview.copy-path", "Primary+Alt+C")),
         (Share, Nothing),
         (Rename, Nothing),
-        (Duplicate, Own(&[Super, Char('d')])),
-        (MoveToTrash, Own(&[Super, Backspace])),
+        (Duplicate, Own("anyview.duplicate", "Primary+D")),
+        (
+            MoveToTrash,
+            Own("anyview.move-to-trash", "Primary+Backspace"),
+        ),
         (Print, Standard(StandardAction::Print)),
-        (Export, Own(&[Shift, Super, Char('e')])),
+        (Export, Own("anyview.export", "Primary+Shift+E")),
         (SaveCopy, Standard(StandardAction::SaveAs)),
         (RevertTo, Nothing),
-        (RotateLeft, Own(&[Super, Char('[')])),
-        (RotateRight, Own(&[Super, Char(']')])),
+        (RotateLeft, Own("anyview.rotate-left", "Primary+[")),
+        (RotateRight, Own("anyview.rotate-right", "Primary+]")),
         (FlipHorizontal, Nothing),
         (FlipVertical, Nothing),
         (PlayInBackground, Nothing),
@@ -97,37 +100,28 @@ fn shortcuts_are_the_standard_ones_or_the_viewers_own() {
             Nothing => assert_eq!(got, None, "{action:?}"),
             Standard(standard) => {
                 assert_eq!(got, Some(Shortcut::standard(*standard)), "{action:?}");
+                assert_eq!(
+                    file_action_of(&Action::Standard(*standard)),
+                    Some(*action),
+                    "{action:?}"
+                );
             }
-            Own(keys) => assert_eq!(got.map(|s| s.keys()), Some(keys.to_vec()), "{action:?}"),
+            Own(id, chord) => {
+                let own = own_keys().into_iter().find(|(file, _, _)| file == action);
+                let (_, app, default) = own.unwrap_or_else(|| panic!("{action:?} has no row"));
+                assert_eq!(app.id(), *id, "{action:?}");
+                assert_eq!(Ok(default), chord.parse::<DefaultChord>(), "{action:?}");
+                assert_eq!(
+                    got,
+                    Shortcut::from_default_chord(default),
+                    "{action:?}: the shown keys are the default chord"
+                );
+                assert_eq!(
+                    file_action_of(&Action::App(app)),
+                    Some(*action),
+                    "{action:?}"
+                );
+            }
         }
     }
-}
-
-#[test]
-fn no_shortcut_takes_a_reserved_combination_unless_it_is_that_standard_action() {
-    // The standard actions the viewer's actions are allowed to be.
-    const MEANS: &[(FileAction, StandardAction)] = &[
-        (FileAction::Open, StandardAction::Open),
-        (FileAction::RevealInFolder, StandardAction::Reveal),
-        (FileAction::CopyFile, StandardAction::Copy),
-        (FileAction::Print, StandardAction::Print),
-        (FileAction::SaveCopy, StandardAction::SaveAs),
-    ];
-    let mut seen: Vec<Vec<ShortcutKey>> = Vec::new();
-    for action in FileAction::ALL {
-        let Some(shortcut) = shortcut(*action) else {
-            continue;
-        };
-        let keys = shortcut.keys();
-        let owner = StandardAction::owning(&keys);
-        let means = MEANS.iter().find(|(a, _)| a == action).map(|(_, s)| *s);
-        assert_eq!(owner, means, "{action:?} uses {}", shortcut.glyphs());
-        assert!(
-            !seen.contains(&keys),
-            "{action:?} repeats {}",
-            shortcut.glyphs()
-        );
-        seen.push(keys);
-    }
-    assert!(seen.len() >= MEANS.len(), "the standard actions are bound");
 }

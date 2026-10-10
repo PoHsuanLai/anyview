@@ -13,6 +13,8 @@ publish.workspace = true
 testing = []
 
 [dependencies]
+# The actions and chords of the keymap: a file action's own id and default chord.
+chordkit = { workspace = true }
 ds-core = { workspace = true }
 infer = { workspace = true }
 serde = { workspace = true }

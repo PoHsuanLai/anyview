@@ -7,6 +7,9 @@ Exec=anyview %U
 Icon=org.quire.Anyview
 StartupWMClass=org.quire.Anyview
 Terminal=false
+# keycap rewrites keys for apps that do not read the keymap; the viewer resolves its own keys
+# through it, so it asks for the keymap-aware profile and gets Command as Command.
+X-Keycap-Profile=keymap-aware
 # The viewer claims the bus name org.quire.Anyview1 with its own interface, not
 # org.freedesktop.Application, so the desktop starts it by Exec; dist/org.quire.Anyview1.service
 # is for the viewer's own launcher.
