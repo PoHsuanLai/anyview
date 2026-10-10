@@ -5,6 +5,7 @@
 //! is `anyview_peek::StillSource`, which the launcher lends its pane as well.
 
 use super::helpers::Need;
+use super::job::Opened;
 use crate::VersionRow;
 use anyview_core::{FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
@@ -15,6 +16,18 @@ pub trait ResumeSource: Debug + Send + Sync + 'static {
     /// What was remembered for `path` when its file looked like `stamp`; `Resume::Nothing` when
     /// nothing was, the file changed since, or the record cannot be read. Blocking.
     fn recall(&self, path: &FilePath, stamp: FileStamp) -> Resume;
+}
+
+/// Where a person's views and places are written, to the store the host keeps. The read side is
+/// [`ResumeSource`]; a host that gives both has a viewer that remembers.
+pub trait ResumeKeeper: Debug + Send + Sync + 'static {
+    /// `opened` was shown: it goes first among the files recently viewed. Blocking; a failure is the
+    /// keeper's to log, since nobody is waiting for the answer.
+    fn viewed(&self, opened: &Opened);
+
+    /// The person is at `resume` in `source`'s file; `Resume::Nothing` forgets the place. Blocking,
+    /// and a failure is the keeper's to log.
+    fn remember(&self, source: &Source, resume: &Resume);
 }
 
 /// What asking the plugins for a picture of a file came to.

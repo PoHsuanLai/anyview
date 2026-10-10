@@ -127,3 +127,29 @@ fn a_pane_the_host_has_not_focused_handles_no_key() {
         "given the keyboard back, it takes it"
     );
 }
+
+#[test]
+fn losing_the_focus_to_the_host_gives_the_keyboard_back_once() {
+    // what happens first, how many times the pane asked to give the keyboard back
+    for (name, escapes, want) in [
+        ("a click elsewhere in the host", 0, 1),
+        ("Esc, then a click elsewhere", 1, 1),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut host = three(&dir);
+        for _ in 0..escapes {
+            press(&mut host, ShortcutKey::Escape);
+        }
+        host.click_elsewhere();
+        assert_eq!(host.times(&PaneRequest::Unfocus), want, "{name}");
+    }
+}
+
+#[test]
+fn a_blur_while_the_host_has_not_given_the_keyboard_says_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = three(&dir);
+    host.focus(false);
+    host.click_elsewhere();
+    assert!(!host.asked(&PaneRequest::Unfocus));
+}

@@ -6,8 +6,8 @@
 use super::helpers::{HelperSource, NoHelpers};
 use super::media::{MediaHost, NoPlayer};
 use super::seams::{
-    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoVersions, ResumeSource,
-    VersionSource,
+    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoVersions, ResumeKeeper,
+    ResumeSource, VersionSource,
 };
 use super::workers::{HostRequest, Workers};
 use anyview_machines::PlatformAbilities;
@@ -43,6 +43,9 @@ pub struct Services {
     pub on_request: Arc<dyn Fn(HostRequest) + Send + Sync>,
     /// Where each file was left last time.
     pub resume: Arc<dyn ResumeSource>,
+    /// Where the views and places are written, when the window keeps them itself instead of
+    /// asking its host through `HostRequest::Opened` and `HostRequest::Remember`.
+    pub keeper: Option<Arc<dyn ResumeKeeper>>,
     /// Which files refuse a save in place.
     pub locks: Arc<dyn FileLocks>,
     /// The versions kept of a file.
@@ -80,6 +83,7 @@ impl Services {
             workers,
             on_request: Arc::new(on_request),
             resume: Arc::new(Forgetful),
+            keeper: None,
             locks: Arc::new(NoLocks),
             versions: Arc::new(NoVersions),
             first_frames: Arc::new(NoStills),
@@ -96,6 +100,16 @@ impl Services {
     pub fn with_resume_source(self, source: Arc<dyn ResumeSource>) -> Services {
         Services {
             resume: source,
+            ..self
+        }
+    }
+
+    /// The same services writing the views and places to `keeper` from the workers. The window
+    /// then keeps them itself (see [`Edge::keep`](super::workers::Edge::keep)); the host still hears `HostRequest::Opened`.
+    #[must_use]
+    pub fn with_resume_keeper(self, keeper: Arc<dyn ResumeKeeper>) -> Services {
+        Services {
+            keeper: Some(keeper),
             ..self
         }
     }

@@ -56,9 +56,8 @@ pub enum PaneRequest {
     /// The pane now shows this file; it is the file the requests below that name none refer to.
     Opened(Opened),
     /// Keep where the person is in the open file, for next time. Sent whenever a gesture
-    /// settles, so the host may coalesce them.
-    // TODO(store lane): the pane ships a store-backed handler for this by default (merge on write
-    // under a cross-process lock). Until that store exists the host keeps it, or drops it.
+    /// settles, so the host may coalesce them. Only an edge with no store sends it: over
+    /// [`PaneEdge::with_store`](crate::PaneEdge::with_store) the pane keeps the place itself.
     Remember(Resume),
     /// Watch this file for changes on disk and tell the pane (through the edge's `changed`).
     Watch(FilePath),
@@ -66,7 +65,9 @@ pub enum PaneRequest {
     Unwatch,
     /// A change to the file, or an action on it, which the host carries out or declines.
     File(FileRequest),
-    /// Esc had nothing left to undo: the keyboard goes back to the host.
+    /// The keyboard goes back to the host: Esc had nothing left to undo, or the focus moved from the
+    /// pane to something else in the host while the host still counted the pane as focused.
+    /// Asked once for each time the pane was given the keyboard.
     Unfocus,
 }
 

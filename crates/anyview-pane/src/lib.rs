@@ -39,6 +39,7 @@ mod edge;
 mod handle;
 mod pane;
 mod request;
+mod store;
 
 pub use edge::PaneEdge;
 pub use handle::{PaneCommand, PaneHandle, use_pane_handle};

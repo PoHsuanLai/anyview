@@ -525,6 +525,7 @@ dependencies = [
  "anyview-media",
  "anyview-media-host",
  "anyview-peek",
+ "anyview-store",
  "anyview-ui",
  "dioxus",
  "ds",

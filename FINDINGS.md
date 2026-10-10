@@ -800,15 +800,20 @@ on. It is a reference, not a log: how each was found lives in git history.
   which handles the three inputs that change the scope (opening as a find, the Find row, "Show All") and hands the rest
   to quire. A second host with a scope of its own (a bar with tabs) will want the same, and then the scope belongs in
   quire's machine as a type parameter; until a second one does, it stays here.
-- **A pane's Remember goes to the host, not to a store.** The agreed default is a store-backed handler that merges one
-  file's entry on write under a cross-process lock, so temor and the viewer can both run; the store's writer guard is
-  in-process only and a library cannot spawn the thread a blocking write needs. `PaneRequest::Remember` is passed
-  through, and `PaneEdge::with_resume_source` reads. Ends when the store lane lands the cross-process merge and a `Job`
-  kind the pool can run for the write.
-- **The pane's focus is the host's word, and nothing tells the host when the pane lost it.** The window takes the
-  keyboard when `focused` turns true and handles nothing while it is false; a blur inside the pane (Tab out, a click
-  elsewhere in the host) sends no `FocusLost`, and `HostSignals.activity` is not set by the pane. Ends when temor's
-  focus handoff shows what it needs.
+- **A pane's store writes are not coalesced.** `PaneEdge::with_store` writes a place for each settled gesture whose
+  place differs from the last written, as one `Job::Keep` on the pool (each takes the store's lock and replaces one
+  file), where the viewer's window waits `REMEMBER_EVERY` and writes the latest. The time stamped on a view is the
+  system clock's, not a host's `Clock`. Ends when `Remembering` moves to a library crate both can share.
+- **A pane's activity is its own only under a `look` feed.** Without a feed the pane takes the host's tokens and draws
+  in the host's `Ds` root, whose `HostSignals.activity` is the host's window, so the pane cannot mark its selection
+  and caret at rest without marking the whole window. With a feed the pane is a `Ds` root of its own and provides
+  `HostSignals` with its own `activity` (the host's modality and scale shared), set from `focused`. Ends if quire
+  scopes activity to a subtree.
+- **A pane's focus loss is read from `focusout` and `focusin`.** The root asks to give the keyboard back when its
+  `focusout` was not followed by a `focusin` (focus moving to one of its own parts), checked after the event pass; blitz
+  has no related target to read. The pane's own menu and palette are drawn in a layer outside the root, so focus going
+  into one, or dropped when one closes, does not count. Tab leaving the pane is caught the same way only if the pane
+  lets Tab move the focus.
 - **Two panes on one GPU device are untested.** `TextureLayer` and `use_gpu` use the quire window's device, which the
   host's renderer shares; whether one queue and one `TextureHandle` namespace hold with two panes and the host's
   terminal is unmeasured (the harness tests run the Hybrid backend). Ends with a run on a real output.

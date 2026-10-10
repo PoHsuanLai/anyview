@@ -3,12 +3,13 @@
 //! the panes made of their host and the keys that reached the host unconsumed.
 #![allow(dead_code)]
 
+use anyview_core::Source;
 use anyview_pane::{
     FilePath, NonEmpty, PaneEdge, PaneRequest, Sequence, SequenceOrigin, ViewerPane, Work, Workers,
 };
 use dioxus::prelude::*;
 use ds::prelude::{Appearance, Ds, Material};
-use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Viewport};
+use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Input, Query, Viewport};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use std::path::{Path, PathBuf};
@@ -102,7 +103,54 @@ impl Host {
 
     /// Whether any pane asked for this.
     pub fn asked(&self, wanted: &PaneRequest) -> bool {
-        self.requests.lock().unwrap().contains(wanted)
+        self.times(wanted) > 0
+    }
+
+    /// How many times the panes asked for this.
+    pub fn times(&self, wanted: &PaneRequest) -> usize {
+        self.requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| *request == wanted)
+            .count()
+    }
+
+    /// Whether any pane asked the host to keep where the person is.
+    pub fn asked_to_remember(&self) -> bool {
+        self.requests.lock().unwrap().iter().any(|request| {
+            let PaneRequest::Remember(_) = request else {
+                return false;
+            };
+            true
+        })
+    }
+
+    /// The file the panes last said they show, as the viewer probed it.
+    pub fn source(&self) -> Source {
+        self.requests
+            .lock()
+            .unwrap()
+            .iter()
+            .rev()
+            .find_map(|request| {
+                let PaneRequest::Opened(opened) = request else {
+                    return None;
+                };
+                Some(opened.source.clone())
+            })
+            .expect("a pane showed a file")
+    }
+
+    /// Click the host's own focusable thing beside the panes, which takes the keyboard focus from
+    /// whichever pane had it.
+    pub fn click_elsewhere(&mut self) {
+        let at = self
+            .harness
+            .rect("#elsewhere")
+            .expect("the host's own spot");
+        self.harness.send(Input::click(at.origin));
+        self.settle();
     }
 }
 
@@ -152,6 +200,12 @@ fn Row() -> Element {
                     });
                 },
                 {panes.into_iter()}
+                // The host's own, outside every pane, over a corner of the last one.
+                div {
+                    id: "elsewhere",
+                    tabindex: "0",
+                    style: "position:fixed;right:0;bottom:0;width:20px;height:20px;",
+                }
             }
         }
     }
@@ -174,7 +228,21 @@ pub fn sequence_of(paths: &[PathBuf], at: usize) -> Sequence {
 
 /// One pane per entry of `panes`, side by side in a region of `viewport`, over one pool.
 pub fn hosted(panes: Vec<(PathBuf, Option<Sequence>)>, viewport: Viewport) -> Host {
+    hosted_over(panes, viewport, None)
+}
+
+/// The same, over the viewer's store at `store` when there is one.
+pub fn hosted_over(
+    panes: Vec<(PathBuf, Option<Sequence>)>,
+    viewport: Viewport,
+    store: Option<&Path>,
+) -> Host {
     let workers = Arc::new(Counting::default());
+    let edge = PaneEdge::portable(workers.clone());
+    let edge = match store {
+        Some(root) => edge.with_store(root),
+        None => edge,
+    };
     let (focus, changes) = unbounded();
     let requests = Arc::new(Mutex::new(Vec::new()));
     let heard = Arc::new(Mutex::new(Vec::new()));
@@ -183,7 +251,7 @@ pub fn hosted(panes: Vec<(PathBuf, Option<Sequence>)>, viewport: Viewport) -> Ho
             .into_iter()
             .map(|(path, sequence)| (FilePath::new(path).unwrap(), sequence))
             .collect(),
-        edge: PaneEdge::portable(workers.clone()),
+        edge,
         requests: requests.clone(),
         heard: heard.clone(),
         focus: Arc::new(Mutex::new(Some(changes))),

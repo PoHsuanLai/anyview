@@ -12,7 +12,7 @@ use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
 use super::palette::Palette;
-use super::pane::PaneSeat;
+use super::pane::{PaneSeat, after_events};
 use super::panel::InfoPanel;
 use super::press::{press_of, use_viewer_keys};
 use super::resize::ResizeSheet;
@@ -132,6 +132,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let window = use_hook(try_consume_context::<WindowHost>);
     let mut zone = use_signal(|| Zone::Content);
     let mut root = use_signal(|| None::<Rc<MountedData>>);
+    // A pane hears that the focus left it for the host's other parts: the focus moving to one of
+    // its own parts is a `focusin` the root hears right after the `focusout`.
+    let entered = use_hook(|| CopyValue::new(0_u32));
+    let lost = seat.and_then(|seat| seat.lost);
 
     // The window opens its file once it has drawn.
     let first = launch.clone();
@@ -498,6 +502,20 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 }
             },
             onblur: move |_| dispatch.send(ViewerIn::Hand(HandIn::SpaceUp)),
+            onfocusin: move |_| {
+                let mut entered = entered;
+                *entered.write() += 1;
+            },
+            onfocusout: move |_| {
+                let Some(lost) = lost else { return };
+                let before = *entered.read();
+                spawn(async move {
+                    after_events().await;
+                    if *entered.read() == before && heard() {
+                        lost.call(());
+                    }
+                });
+            },
             onpointermove: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerMoved(zone()))),
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             SplitView {

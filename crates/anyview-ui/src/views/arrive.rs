@@ -54,6 +54,7 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 );
             }
         }
+        Done::Kept => {}
         Done::Notice(notice) => noticed(c, notice),
         Done::Helped(helper, end) => send(c, ViewerIn::Sheet(SheetIn::HelperEnded(helper, end))),
         Done::Available(helper) => available(c, helper),

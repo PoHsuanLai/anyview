@@ -3,11 +3,13 @@
 //! default, the titlebar and the capsule come with the pointer, ⌘K opens the palette and the
 //! side panel waits to be asked for.
 
+use super::pane::PaneSeat;
 use super::window::ViewerWindow;
 use crate::{Look, LookFeed, Presentation};
 use anyview_core::{FilePath, Sequence};
 use dioxus::prelude::*;
 use ds::prelude::*;
+use ds_core::vocab::{Activity, InputModality};
 
 /// What the window was opened with: the file, and the list the arrow keys walk, when there is one.
 /// The binary provides it as a root context (`ds_blitz::AppConfig::with_context`).
@@ -79,18 +81,54 @@ pub fn PaneApp() -> Element {
     };
     if followed {
         rsx! {
-            Ds {
-                appearance: now.appearance,
-                system: now.system,
-                tint_alpha: now.tint_alpha,
-                typeface: now.typeface,
-                stack: now.stack,
-                material: Material::Window,
-                {window}
+            PaneSignals {
+                Ds {
+                    appearance: now.appearance,
+                    system: now.system,
+                    tint_alpha: now.tint_alpha,
+                    typeface: now.typeface,
+                    stack: now.stack,
+                    material: Material::Window,
+                    {window}
+                }
             }
         }
     } else {
         window
+    }
+}
+
+/// The pane's own `Ds` root draws active while the host says the pane has the keyboard, and
+/// inactive (selection and caret at rest) while it does not, as a window does that lost key status.
+/// The host's modality and scale are shared as they are; only the activity is the pane's own, so
+/// the host's window is not marked inactive by it.
+#[component]
+fn PaneSignals(children: Element) -> Element {
+    let seat = use_hook(try_consume_context::<PaneSeat>);
+    let host = use_hook(try_consume_context::<HostSignals>);
+    let own_modality = use_signal(InputModality::default);
+    let own_scale = use_signal(|| Scale::ONE);
+    let mut activity = use_signal(|| seat.map_or(Activity::Active, activity_of));
+    use_effect(move || {
+        let next = seat.map_or(Activity::Active, activity_of);
+        if *activity.peek() != next {
+            activity.set(next);
+        }
+    });
+    use_context_provider(|| HostSignals {
+        modality: host.map_or(own_modality, |host| host.modality),
+        scale: host.map_or(own_scale, |host| host.scale),
+        activity,
+    });
+    children
+}
+
+/// Whether the host has given the pane the keyboard, as the activity of a window.
+fn activity_of(seat: PaneSeat) -> Activity {
+    if (seat.focused)() {
+        Activity::Active
+    } else {
+        Activity::Inactive
     }
 }
 

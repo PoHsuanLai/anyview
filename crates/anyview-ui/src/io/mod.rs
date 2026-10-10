@@ -19,7 +19,7 @@ pub use anyview_machines::{DesktopService, PlatformAbilities, SaveEnd};
 pub use error::OpenError;
 pub use folder::folder_sequence;
 pub use helpers::{HelperSource, HelperWords, Need};
-pub use job::{Done, Job, OpenPort, Opened, Preloaded, WorkLane};
+pub use job::{Done, Job, Keeping, OpenPort, Opened, Preloaded, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{
     MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaSupport,
@@ -28,7 +28,8 @@ pub use media::{
 pub use notice::Notice;
 pub(crate) use probe::probe;
 pub use seams::{
-    FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeSource, VersionSource,
+    FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeKeeper, ResumeSource,
+    VersionSource,
 };
 pub use services::Services;
 pub use workers::{
