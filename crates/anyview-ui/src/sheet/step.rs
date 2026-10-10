@@ -457,7 +457,6 @@ fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
             | SheetIn::AskUnsaved(_)
             | SheetIn::AskReplace
             | SheetIn::Discard
-            | SheetIn::Picture(_)
             | SheetIn::AskEdit(_, _)
             | SheetIn::AskRename(_)
             | SheetIn::AskSaveCopy(_)
