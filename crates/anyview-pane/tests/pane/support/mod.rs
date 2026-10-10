@@ -409,6 +409,14 @@ pub fn image_file(dir: &Path, name: &str, fixture: &str) -> PathBuf {
     std::fs::canonicalize(path).unwrap()
 }
 
+/// The stock `mpv` and mpv-wgpu's C plugin as the host's player runs them, or `None` with a note
+/// where this machine has none (a failure where `ANYVIEW_REQUIRE_PLAYER` is set).
+#[cfg(feature = "player")]
+pub fn mpv_host() -> Option<anyview_pane::MpvHost> {
+    let (mpv, cplugin) = crate::skip::mpv_programs()?;
+    Some(anyview_pane::MpvHost { mpv, cplugin })
+}
+
 /// A copy of one of the media crate's fixtures.
 pub fn media_file(dir: &Path, name: &str, fixture: &str) -> PathBuf {
     let from = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

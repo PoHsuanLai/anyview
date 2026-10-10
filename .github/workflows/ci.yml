@@ -56,7 +56,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       # Tests that need a GPU adapter, mpv, ffmpeg or a session bus skip themselves when it is
-      # missing (the suite builds its own scratch dirs and fake buses).
+      # missing (the suite builds its own scratch dirs and fake buses); the player job below runs the
+      # ones that need mpv with it installed.
       - name: Test
         run: cargo test --workspace --locked --no-fail-fast
 
@@ -94,6 +95,69 @@ jobs:
         run: |
           bash dev/syntax-dump/build.sh
           git diff --exit-code --stat -- crates/anyview-text/src/code/syntaxes.packdump
+
+  # The player with the real mpv: Ubuntu's own, which loads mpv-wgpu's C plugin, drawing on lavapipe
+  # (the software Vulkan driver). The gate job's tests skip themselves with no mpv; here a skip is a
+  # failure (ANYVIEW_REQUIRE_PLAYER), so this job fails where the player could not run. It runs only
+  # the test binaries that start a player, not the suite again.
+  player:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ANYVIEW_REQUIRE_PLAYER: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      # The gate job's libraries, plus mpv (the program that plays, not libmpv: nothing links it), a
+      # software Vulkan driver for the window's device, and dbus-daemon for the private bus the
+      # now-playing test starts.
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libharfbuzz-dev libxml2-dev libpng-dev \
+            zlib1g-dev libbz2-dev liblzma-dev libglib2.0-dev libdav1d-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libdbus-1-dev libasound2-dev \
+            mesa-vulkan-drivers libvulkan1 \
+            mpv dbus
+          mpv --version | head -n 1
+          dbus-daemon --version | head -n 1
+
+      # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
+      - name: Toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      # mpv-wgpu's C plugin, at the rev Cargo.toml pins the player to, in a target directory of its
+      # own (it is not part of this workspace). mpv-wgpu's own CI builds and tests it against the
+      # same stock mpv.
+      - name: Build mpv-wgpu's C plugin
+        run: |
+          rev=$(sed -n 's/^mpv-wgpu-player = .*rev = "\([0-9a-f]*\)".*/\1/p' Cargo.toml)
+          test -n "$rev"
+          git clone https://github.com/PoHsuanLai/mpv-wgpu "$RUNNER_TEMP/mpv-wgpu"
+          git -C "$RUNNER_TEMP/mpv-wgpu" checkout "$rev"
+          (cd "$RUNNER_TEMP/mpv-wgpu" && CARGO_TARGET_DIR="$RUNNER_TEMP/mpv-wgpu-target" \
+            cargo build --release -p mpv-wgpu-cplugin --locked)
+          plugin="$RUNNER_TEMP/mpv-wgpu-target/release/libmpv_wgpu_cplugin.so"
+          test -f "$plugin"
+          echo "MPV_WGPU_MPV=/usr/bin/mpv" >> "$GITHUB_ENV"
+          echo "MPV_WGPU_CPLUGIN=$plugin" >> "$GITHUB_ENV"
+
+      # The player's own tests, then the program's window and now-playing entry over a private bus
+      # (filtered to the modules that start a player), then the pane with a player of its own.
+      - name: Player tests
+        run: |
+          cargo test -p anyview-media --features player --test media --locked -- driver:: session::
+          cargo test -p anyview --test anyview --locked -- media_hub:: mpris_bus::
+          cargo test -p anyview-pane --features player --test pane --locked
 
   # The headless half of the library builds off Linux: what a mail client or a terminal links to
   # look at a file (anyview-peek without its `pane`, so no renderer and no window). Nothing in that

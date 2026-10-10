@@ -16,6 +16,9 @@ mod pdf_fixture;
 mod support;
 mod window_fit;
 
+#[path = "../../../../dev/skip.rs"]
+mod skip;
+
 #[path = "../../../../dev/test_guard.rs"]
 mod test_guard;
 

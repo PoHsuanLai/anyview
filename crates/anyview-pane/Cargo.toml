@@ -32,8 +32,11 @@ futures-channel = { workspace = true }
 futures-util = { workspace = true }
 
 [dev-dependencies]
+ds-blitz = { workspace = true }
 ds-harness = { workspace = true }
 tempfile = { workspace = true }
+# The runtime a hub serves its desktop entry on, for the tests that play with the real mpv (feature `player`).
+tokio = { workspace = true }
 
 [lints]
 workspace = true

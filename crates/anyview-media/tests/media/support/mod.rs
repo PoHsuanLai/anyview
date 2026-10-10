@@ -2,6 +2,7 @@
 #![cfg(feature = "player")]
 #![allow(dead_code)]
 
+use crate::skip::skipped;
 use anyview_core::{FilePath, MediaTrack};
 use anyview_media::{
     AudioDriver, Device, Driver, FrameSink, MediaCommand, MediaDriver, MediaEvent, MpvHost, Queue,
@@ -26,32 +27,11 @@ pub fn fixture(name: &str) -> FilePath {
     .unwrap()
 }
 
-/// The programs a test plays with: the stock `mpv` (`MPV_WGPU_MPV`, else the first on the search
-/// path) and the C plugin built from mpv-wgpu (`MPV_WGPU_CPLUGIN`). `None` with a note when
-/// either is missing, so a machine without them skips the player's tests rather than fails them.
+/// The programs a test plays with, as [`crate::skip::mpv_programs`] finds them; `None` with a note
+/// when either is missing, so a machine without them skips the player's tests rather than fails them.
 pub fn mpv_host() -> Option<MpvHost> {
-    let cplugin = std::env::var_os("MPV_WGPU_CPLUGIN").map(PathBuf::from);
-    let mpv = std::env::var_os("MPV_WGPU_MPV")
-        .map(PathBuf::from)
-        .or_else(|| {
-            let path = std::env::var_os("PATH")?;
-            std::env::split_paths(&path)
-                .map(|dir| dir.join("mpv"))
-                .find(|candidate| candidate.is_file())
-        });
-    match (mpv, cplugin) {
-        (Some(mpv), Some(cplugin)) if cplugin.is_file() => Some(MpvHost { mpv, cplugin }),
-        (None, _) => {
-            eprintln!("SKIPPED: no mpv (set MPV_WGPU_MPV or put mpv on the search path)");
-            None
-        }
-        (Some(_), _) => {
-            eprintln!(
-                "SKIPPED: no mpv-wgpu C plugin (build mpv-wgpu-cplugin, set MPV_WGPU_CPLUGIN)"
-            );
-            None
-        }
-    }
+    let (mpv, cplugin) = crate::skip::mpv_programs()?;
+    Some(MpvHost { mpv, cplugin })
 }
 
 /// A device and queue, or `None` with a note when the machine has no adapter or no mpv: the
@@ -61,7 +41,7 @@ pub fn device() -> Option<(Device, Queue)> {
     match headless_device() {
         Ok(pair) => Some(pair),
         Err(error) => {
-            eprintln!("SKIPPED: no graphics device ({error})");
+            skipped(&format!("no graphics device ({error})"));
             None
         }
     }

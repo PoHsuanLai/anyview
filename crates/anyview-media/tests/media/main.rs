@@ -7,6 +7,9 @@ mod driver;
 mod session;
 mod support;
 
+#[path = "../../../../dev/skip.rs"]
+mod skip;
+
 #[path = "../../../../dev/test_guard.rs"]
 mod test_guard;
 

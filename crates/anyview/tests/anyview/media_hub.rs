@@ -256,7 +256,7 @@ fn a_session_with_no_window_plays_is_stopped_from_the_entry_and_goes() {
         &probed(&tone).sniffed,
         &Resume::Nothing,
     ) {
-        eprintln!("SKIPPED: cannot start a background session ({error})");
+        crate::skip::skipped(&format!("cannot start a background session ({error})"));
         return;
     }
     assert!(rig.hub.plays_in_background());
@@ -293,7 +293,7 @@ fn a_session_with_no_window_ends_when_its_recording_does() {
         &probed(&tone).sniffed,
         &Resume::Nothing,
     ) {
-        eprintln!("SKIPPED: cannot start a background session ({error})");
+        crate::skip::skipped(&format!("cannot start a background session ({error})"));
         return;
     }
     assert!(rig.hub.plays_in_background());
@@ -321,7 +321,7 @@ fn a_background_session_starts_where_the_file_was_left() {
         rig.hub
             .play_in_background(&probed(&clip).source, &probed(&clip).sniffed, &left)
     {
-        eprintln!("SKIPPED: cannot start a background session ({error})");
+        crate::skip::skipped(&format!("cannot start a background session ({error})"));
         return;
     }
     eventually("a position at or after where it was left", || {

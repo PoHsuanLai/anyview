@@ -684,11 +684,15 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Plugin export requests carry a range and a stream and nothing else.** Fields for what P3's exports need
   (a target's bitrate or quality, subtitles, metadata) are added to `ExportRequest` as optional fields, which a
   version 1 plugin ignores. `Plugins` keeps no per-target options either: the manifest lists names only.
-- **Playing needs an mpv that loads C plugins, and was tried with Fedora's 0.41 only.** The player starts `mpv
-  --script=<mpv-wgpu-cplugin.so>`; Fedora builds `-Dcplugins=enabled`, and Debian 13 (0.40) and 12 (0.35) export the
-  render API the plugin needs (mpv-wgpu's spike), but none of those was run for this. An mpv without C plugin
-  support fails to start (`PlayerStart`) and the stage says the recording cannot be played; the reason is logged
-  and not shown to the person. Ends when CI has a Debian image, and when the stage shows what was missing.
+- **Playing needs an mpv that loads C plugins, and has run against two: Fedora's 0.41 and Ubuntu's.** The player starts
+  `mpv --script=<mpv-wgpu-cplugin.so>`; Fedora builds `-Dcplugins=enabled`, and CI's `player` job runs the player's
+  tests (anyview-media's driver and session, the program's `media_hub` and `mpris_bus`, the pane's) with the stock mpv
+  of `ubuntu-latest` (24.04, the apt package; the job prints its version) and the plugin built at the rev
+  `Cargo.toml` pins, on lavapipe, with `ANYVIEW_REQUIRE_PLAYER` making a skip a failure. Debian 13 (0.40) and 12 (0.35)
+  export the render API the plugin needs (mpv-wgpu's spike) but none was run for this, and no CI job runs a real
+  output, Wayland or a hardware GPU. An mpv without C plugin support fails to start (`PlayerStart`) and the stage says
+  the recording cannot be played; the reason is logged and not shown to the person. Ends when CI has a Debian image,
+  and when the stage shows what was missing.
 - **The installer writes the path of the mpv it found.** `install.sh` puts the `mpv` on the search
   path (or `--mpv`) into `mpv.toml`, so the viewer never searches the person's `PATH` when it runs; an mpv that
   moves, or is installed later, needs the manifest edited or the installer run again. A packaged `anyview-mpv`
@@ -813,21 +817,25 @@ on. It is a reference, not a log: how each was found lives in git history.
   has no related target to read. The pane's own menu and palette are drawn in a layer outside the root, so focus going
   into one, or dropped when one closes, does not count. Tab leaving the pane is caught the same way only if the pane
   lets Tab move the focus.
-- **Two panes on one GPU device are untested.** `TextureLayer` and `use_gpu` use the quire window's device, which the
-  host's renderer shares; whether one queue and one `TextureHandle` namespace hold with two panes and the host's
-  terminal is unmeasured (the harness tests run the Hybrid backend). Ends with a run on a real output.
+- **Two panes on one GPU device are tested on lavapipe and a harness window only.** `TextureLayer` and `use_gpu` use
+  the quire window's device, which the host's renderer shares. `tests/pane/playback.rs` hosts two panes in one hybrid
+  harness window (one offscreen wgpu device, the harness's own, which `use_gpu` returns to both), plays a video in each
+  with the real mpv and checks both pictures reach their textures on that device. What is still unmeasured is a real
+  output: a compositor's surface, a hardware driver, the host's terminal drawing beside the panes, and whether one queue
+  holds under a long play. Ends with a run on a real output.
 
-- **A recording plays in a pane only where a host gave the pane a player, and no real mpv has run in a pane yet.**
+- **A recording plays in a pane only where a host gave the pane a player, and no host has played one yet.**
   `PaneEdge::with_player` (feature `player`) and `with_media` start the player of `anyview-media-host`, and the pane then
-  stops handing recordings to its host as `OpenElsewhere`. The tests cover the hub's choice of whom to pause, the
-  boundary and the manifests, and that a pane with a (scripted) player shows the media stage and hands nothing to its
-  host while one without hands the file over (`tests/pane/playback.rs`); none starts mpv in a pane or has two panes play
-  at once. The hub's pause cannot be driven without mpv: its sessions are built from live lines, and the `Exclusive`
-  gate over `Sounding::heard` is one `if`, so the table in `focus.rs` is the whole test of it. A pane has no desktop
-  now-playing entry (`MediaHub::standalone` shows none), no facts of its own for a recording (`FixedMpv` reads none, so
-  the info panel shows what the file says of itself) and no built-in audio player (a sound card is not in the pane's
-  tree): with no mpv a recording shows the row that names it. Ends when temor has played a video and two panes in one
-  window, and the facts and the entry are wanted.
+  stops handing recordings to its host as `OpenElsewhere`. The tests cover the hub's choice of whom to pause (the table
+  in `focus.rs`), the boundary and the manifests, that a pane with a (scripted) player shows the media stage and hands
+  nothing to its host while one without hands the file over, and, with the real mpv (CI's `player` job; skipped
+  elsewhere), two panes in one window each drawing a video into its own texture and the hub pausing the first when the
+  second plays (`tests/pane/playback.rs`). That test sends play and pause to the players' lines as the stage's controls
+  do, not by clicking the pane's capsule, and runs sound off (`AudioDriver::Null`). A pane has no desktop now-playing
+  entry (`MediaHub::standalone` shows none), no facts of its own for a recording (`FixedMpv` reads none, so the info panel
+  shows what the file says of itself) and no built-in audio player (a sound card is not in the pane's tree): with no mpv a
+  recording shows the row that names it. Ends when temor has played a video and two panes in one window, and the facts and
+  the entry are wanted.
 
 ## Standing facts
 
