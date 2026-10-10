@@ -133,7 +133,7 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
             1,
             "{scale}: the control is in the titlebar"
         );
-        assert_eq!(harness.count(SEGMENTS), 2, "{scale}: Select and Pan");
+        assert_eq!(harness.count(SEGMENTS), 3, "{scale}: Select, Pan and Crop");
         let bar = harness.rect(".viewer-titlebar").unwrap();
         let control = harness.rect(".ds-titlebar-trailing").unwrap();
         let window = harness.rect(".viewer").unwrap();
