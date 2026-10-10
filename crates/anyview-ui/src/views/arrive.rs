@@ -258,7 +258,7 @@ fn failed(c: &Carry, ticket: Ticket, error: &crate::OpenError) {
     );
 }
 
-fn probed(c: &Carry, ticket: Ticket, result: Result<crate::Probed, crate::OpenError>) {
+fn probed(c: &Carry, ticket: Ticket, result: Result<crate::Opened, crate::OpenError>) {
     let mut probe = c.shelf.probe;
     let now = probe.peek().clone();
     if now.ticket() != Some(ticket) {
@@ -269,7 +269,7 @@ fn probed(c: &Carry, ticket: Ticket, result: Result<crate::Probed, crate::OpenEr
             // A reload keeps the stage, and so the place the person is at: what the store
             // remembered is older.
             let found = match now {
-                Probe::Reprobing(..) => crate::Probed {
+                Probe::Reprobing(..) => crate::Opened {
                     resume: Resume::Nothing,
                     ..found
                 },

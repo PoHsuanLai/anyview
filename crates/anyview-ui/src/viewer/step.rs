@@ -12,7 +12,7 @@ use crate::keys::{Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
-use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteScope, RowIndex};
+use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteRow, PaletteScope};
 use crate::panel::{PanelIn, PanelTab};
 use crate::presentation::Presentation;
 use crate::sheet::{Sheet, SheetIn, SheetOut};
@@ -400,7 +400,7 @@ fn searched(viewer: Viewer, query: &TypedText, at: Stamp, params: &ViewerParams)
 }
 
 /// The highlight moved to `row`: when that row is a hit, it is the current one.
-fn jumped(viewer: Viewer, row: RowIndex, at: Stamp, params: &ViewerParams) -> Step {
+fn jumped(viewer: Viewer, row: PaletteRow, at: Stamp, params: &ViewerParams) -> Step {
     match params.palette.rows.get(row.0) {
         Some(Command::FindHit(hit)) => match viewer.stage.hit_input(*hit) {
             Some(input) => stage(viewer, input, at, params),

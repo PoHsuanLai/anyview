@@ -4,7 +4,7 @@
 
 use crate::families::InfoCard;
 use crate::families::view::{Area, StageCx, StageView};
-use crate::io::{OpenError, OpenLink, Readable};
+use crate::io::{OpenError, OpenPort, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
 use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
 use anyview_core::{
@@ -164,7 +164,7 @@ impl StageView for PeekOnlyStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<PeekOnlyDoc, OpenError> {
         let name = src
             .path()

@@ -8,7 +8,7 @@ use anyview_pdf::{PdfDocument, apply, page_op};
 use anyview_store::{
     DEFAULT_KEEP, Durability, Pending, SavedAt, StoreError, VersionId, Versions, Written,
 };
-use anyview_ui::{EditRequest, Probed, VersionKey, VersionRow};
+use anyview_ui::{EditRequest, Opened, VersionKey, VersionRow};
 
 /// Why an edit could not be made into the bytes of a new file.
 #[derive(Debug, thiserror::Error)]
@@ -37,7 +37,7 @@ enum SaveError {
 }
 
 /// The bytes `file` becomes under `request`.
-fn edited(file: &Probed, request: EditRequest) -> Result<Vec<u8>, EditError> {
+fn edited(file: &Opened, request: EditRequest) -> Result<Vec<u8>, EditError> {
     let bytes = std::fs::read(file.source.path().as_path()).map_err(EditError::Read)?;
     match file.sniffed.kind() {
         FormatKind::Raster => Ok(anyview_image::edited(&bytes, &file.sniffed, request.edit)?),
@@ -67,7 +67,7 @@ fn edited(file: &Probed, request: EditRequest) -> Result<Vec<u8>, EditError> {
 pub(super) fn save_edit(
     versions: &Versions,
     at: SavedAt,
-    file: &Probed,
+    file: &Opened,
     request: EditRequest,
 ) -> Outcome {
     let path = file.source.path();

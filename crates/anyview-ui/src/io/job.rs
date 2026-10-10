@@ -27,7 +27,7 @@ const PRELOAD_LIMIT: u64 = 64 * 1024 * 1024;
 /// on the UI thread from the window's `Gpu`), the one highlighter every file shares, and the
 /// pictures the host has ready.
 #[derive(Debug, Clone)]
-pub struct OpenLink {
+pub struct OpenPort {
     /// Where a decoded picture goes.
     pub texture: TextureHandle,
     /// Highlights code for every stage.
@@ -44,7 +44,7 @@ pub struct OpenLink {
 /// A file whose type was read: what to open, how it was sniffed, which stage shows it and where
 /// the person left it last time.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Probed {
+pub struct Opened {
     /// The file and its stamp.
     pub source: Source,
     /// Proof the type was sniffed.
@@ -61,7 +61,7 @@ pub struct Probed {
 #[derive(Debug, Clone)]
 pub struct Preloaded {
     /// What was probed.
-    pub probed: Probed,
+    pub probed: Opened,
     /// The open document.
     pub doc: LoadedDoc,
 }
@@ -84,14 +84,14 @@ pub enum Job {
     /// Make the cheap first frame of the probed file.
     Peek {
         ticket: Ticket,
-        probed: Probed,
-        link: OpenLink,
+        probed: Opened,
+        link: OpenPort,
     },
     /// Open the probed file in full.
     Open {
         ticket: Ticket,
-        probed: Probed,
-        link: OpenLink,
+        probed: Opened,
+        link: OpenPort,
     },
     /// Read and highlight `rows` lines of an open text file from `first`.
     Lines {
@@ -107,7 +107,7 @@ pub enum Job {
         query: TypedText,
     },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
-    Preload { path: FilePath, link: OpenLink },
+    Preload { path: FilePath, link: OpenPort },
     /// Read the stamp `path` has now.
     Stat { path: FilePath },
     /// List the folder `path` is in, as the sequence the arrow keys walk.
@@ -128,7 +128,7 @@ pub enum Done {
     /// The probe of `ticket`.
     Probed {
         ticket: Ticket,
-        result: Result<Probed, OpenError>,
+        result: Result<Opened, OpenError>,
     },
     /// The first frame of `ticket`, or `None` when the file has no cheap one.
     Peeked {
@@ -337,10 +337,10 @@ fn probed(
     path: &FilePath,
     resume: &dyn ResumeSource,
     locks: &dyn FileLocks,
-) -> Result<Probed, OpenError> {
+) -> Result<Opened, OpenError> {
     let probed = super::probe(path)?;
     let remembered = resume.recall(path, probed.source.stamp());
-    Ok(Probed {
+    Ok(Opened {
         resume: remembered,
         access: locks.access(path),
         ..probed
@@ -351,7 +351,7 @@ fn probed(
 /// person will not meet again by asking: a failed preload is silent, the open when asked reports.
 fn preloaded(
     path: &FilePath,
-    link: &OpenLink,
+    link: &OpenPort,
     resume: &dyn ResumeSource,
     locks: &dyn FileLocks,
 ) -> Option<Preloaded> {

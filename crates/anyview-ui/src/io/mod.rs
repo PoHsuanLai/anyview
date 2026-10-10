@@ -19,7 +19,7 @@ pub use anyview_core::work::{Backend, Stop};
 pub use error::OpenError;
 pub use folder::folder_sequence;
 pub use helpers::{HelperSource, HelperWords, Need};
-pub use job::{Done, Job, OpenLink, Preloaded, Probed, WorkLane};
+pub use job::{Done, Job, OpenPort, Opened, Preloaded, WorkLane};
 pub(crate) use media::MediaPort;
 pub use media::{
     MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted, MediaWake,

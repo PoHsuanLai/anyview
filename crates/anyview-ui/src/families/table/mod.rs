@@ -8,7 +8,7 @@ mod view;
 pub use doc::{SheetDoc, TableDoc};
 
 use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{OpenError, OpenLink};
+use crate::io::{OpenError, OpenPort};
 use crate::{
     Command, PanelTab, PanelTabs, SheetNo, SheetTotal, Stage, StageCommand, StageFamily,
     StageParams, TableParams, Ticket,
@@ -32,7 +32,7 @@ impl StageView for TableStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<TableDoc, OpenError> {
         doc::open(src, sniffed)
     }

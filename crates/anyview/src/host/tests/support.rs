@@ -13,7 +13,7 @@ use anyview_platform::testing::{
 };
 use anyview_platform::{PickOutcome, PrintOutcome};
 use anyview_store::Viewed;
-use anyview_ui::{Probed, StageFamily, family_of};
+use anyview_ui::{Opened, StageFamily, family_of};
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -28,7 +28,7 @@ pub fn path(text: &str) -> FilePath {
 }
 
 /// `name` holding `bytes`, as the probe of a window would find it.
-pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Probed {
+pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Opened {
     std::fs::write(at.join(name), bytes).unwrap();
     let file = FileName::new(name).unwrap();
     let SniffStep::Done(sniffed) = sniff(&FileHead::new(bytes), &file) else {
@@ -39,7 +39,7 @@ pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Probed {
         modified: ModTime(1),
     };
     let family: StageFamily = family_of(sniffed.kind());
-    Probed {
+    Opened {
         source: Source::new(FilePath::new(at.join(name)).unwrap(), stamp),
         sniffed,
         family,

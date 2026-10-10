@@ -6,7 +6,7 @@ use ds_core::vocab::ShortcutKey;
 
 /// A position in the ranked rows, from 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct RowIndex(pub usize);
+pub struct PaletteRow(pub usize);
 
 /// How many of a find's hits the palette lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -39,7 +39,7 @@ pub enum Palette {
     /// Showing, with what was typed, the highlighted row and what it lists.
     Open {
         query: TypedText,
-        selection: RowIndex,
+        selection: PaletteRow,
         scope: PaletteScope,
     },
 }
@@ -71,7 +71,7 @@ pub enum PaletteIn {
     /// Move the highlight; it stops at the first and last row.
     Move(PaletteMove),
     /// A row was clicked.
-    Pick(RowIndex),
+    Pick(PaletteRow),
     /// Enter: run the highlighted row.
     Enter,
     /// Esc or a click outside.

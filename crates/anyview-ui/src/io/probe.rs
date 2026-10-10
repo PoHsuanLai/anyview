@@ -1,7 +1,7 @@
 //! Probing: what a file is, read from its first 4 KiB (and, for a zip, its entries), and which stage shows it.
 
 use super::error::OpenError;
-use super::job::Probed;
+use super::job::Opened;
 use super::seams::FileAccess;
 use crate::StageFamily;
 use crate::families::family_of;
@@ -13,7 +13,7 @@ use std::io::ErrorKind;
 /// Look at the file `path` names: stat it, read its head, sniff it. Blocking. The sniffing is the
 /// light tier's (`anyview_peek::probe`), so the viewer and the launcher's pane tell a zip document
 /// from an archive by the same rule.
-pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
+pub(crate) fn probe(path: &FilePath) -> Result<Opened, OpenError> {
     let probed = anyview_peek::probe(path.on_disk()).map_err(open_error)?;
     let stamp = probed.input.stamp();
     let family = family_of(probed.sniffed.kind());
@@ -21,7 +21,7 @@ pub(crate) fn probe(path: &FilePath) -> Result<Probed, OpenError> {
     if stamp.len == ByteLen(0) && !folder && !holds_text(family) {
         return Err(OpenError::Empty);
     }
-    Ok(Probed {
+    Ok(Opened {
         resume: Resume::Nothing,
         access: FileAccess::Writable,
         family,

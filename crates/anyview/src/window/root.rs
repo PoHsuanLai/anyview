@@ -291,7 +291,7 @@ pub(super) fn stacking_for(
 /// finds it. The new window is opened through the app's handle, which only a real app has.
 fn reopen(
     seed: &Seed,
-    shown: Option<&anyview_ui::Probed>,
+    shown: Option<&anyview_ui::Opened>,
     app: Option<&AppHandle>,
     presentation: Presentation,
     edge: &Edge,

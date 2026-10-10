@@ -946,7 +946,7 @@ host sends `Cancel` or closes its pipe (the host also kills the plugin's process
 Acceptance of both against real tools is still to do: the tests run stand-in scripts for the tools.
 
 **How the viewer routes a decode.** `anyview_ui::ImagePlugins` is the seam (`Edge::with_image_plugins`, carried
-on `OpenLink`); the binary's `host::ImageHost` implements it over the registry: `Plugins::route(Decode, subject)`
+on `OpenPort`); the binary's `host::ImageHost` implements it over the registry: `Plugins::route(Decode, subject)`
 is `Served` (it asks the plugin with `PluginRunner::decode`, on the worker that opens the file, never the UI
 thread), `Missing` (a `Needs` row naming the package) or `Unserved`. A plugin that is installed whose tools are
 not says so in `hello`, and the row names the tools. The raster back end asks it for HEIC (and AVIF in a build
@@ -1228,7 +1228,7 @@ The single place a concept lives. Extend it; never write a second one.
 | How many lines fit a page when long lines wrap | `families/text/wrap.rs` |
 | Where a key step through a text lands | `stage/text/steps.rs` |
 | What a stage remembers of where the person is, and puts back | `Stage::resume`, `Stage::restoring` (`stage/resume.rs`) |
-| Which files refuse a save in place (their edits are not offered) | `anyview_ui::FileLocks` and `Probed::access` (the binary implements it over `anyview_store::is_read_only`: `host/locks.rs`) |
+| Which files refuse a save in place (their edits are not offered) | `anyview_ui::FileLocks` and `Opened::access` (the binary implements it over `anyview_store::is_read_only`: `host/locks.rs`) |
 | Which rows the right-click menu has, in what order | `context/entries.rs` (`entries`), over the palette's `commands` (`views/session.rs`) |
 | Where a file was left, read by the window | `anyview_ui::ResumeSource` (the binary implements it over `anyview_store`) |
 | Where a file is left, kept | `HostRequest::Remember` (the binary writes it through `anyview_store`) |
@@ -1344,7 +1344,7 @@ of formats is the trait `StageView`, named for what it draws:
 pub trait StageView: 'static {
     const FAMILY: StageFamily;
     type Doc: Debug + Send + Sync + 'static;     // what opening makes: the picture on the GPU, the line index
-    fn open(ticket: Ticket, src: &Source, sniffed: &Sniffed, link: &OpenLink) -> Result<Self::Doc, OpenError>; // on a worker
+    fn open(ticket: Ticket, src: &Source, sniffed: &Sniffed, link: &OpenPort) -> Result<Self::Doc, OpenError>; // on a worker
     fn facts(doc: &Self::Doc) -> Facts;
     fn tabs(doc: &Self::Doc) -> PanelTabs;
     fn params(doc: &Self::Doc, stage: &Stage, area: Option<Area>) -> StageParams;
@@ -1356,7 +1356,7 @@ pub trait StageView: 'static {
 ```
 
 The window holds a `LoadedDoc` (an `Arc<dyn DocView>` made by `LoadedDoc::of::<S>`), so drawing needs no
-match on the family. `visit(kind, KindVisitor)` in `families/registry.rs` is the one exhaustive match over
+match on the family. `visit(kind, FamilyVisitor)` in `families/registry.rs` is the one exhaustive match over
 `FormatKind` for the full tier: every kind maps to a view, and the kinds the full tier does not show yet
 map to `PeekOnlyStageView` (facts, a real view). `anyview_core::stage_support` says the same in
 the core's table, and a test holds the two equal. `Workers` (`io/workers.rs`) is the one seam to the
@@ -1464,11 +1464,11 @@ machine input or a worker job, never a decision of a view.
   `WorkLane::Preload` lane into textures of their own (`Job::Preload`) and keeps the file it just left as it was
   left. Arriving at a held file shows it with no probe and no open, and reads its stamp (`Job::Stat`) to see that
   it is still current.
-- *Resume.* `Job::Probe` asks the host's `ResumeSource` for where the file was left (`Probed::resume`); after the
+- *Resume.* `Job::Probe` asks the host's `ResumeSource` for where the file was left (`Opened::resume`); after the
   load machine installs the stage, `Stage::restoring` turns it into the stage's own `Restore` input. Every
   settled gesture says `HostRequest::Remember`, which is how the host keeps it.
 - *Access.* `Job::Probe` also asks the host's `FileLocks` whether the file takes a save in place
-  (`Probed::access`); a file that refuses one has its picture edits, Revert To and page edits left out of
+  (`Opened::access`); a file that refuses one has its picture edits, Revert To and page edits left out of
   the palette's commands, so the palette, the context menu and the keys all stop offering them.
 - *Reload.* The host says a file changed (`Edge::changed`); the window reads its stamp and, if `freshness` says it
   differs from the one opened, sends `ViewerIn::Reload`. The root probes again with the stage left in place, a
@@ -1500,7 +1500,7 @@ left in `PdfLive::wants` for the view to carry out, because only the view knows 
 and speaks to the player in `PlayerCommand`s; the window holds what the player last reported (position, volume,
 speed, tracks, chapters, whether a picture shows, trim marks) in a `MediaShelf`, and the capsule, the
 panel and the stage read it. A recording opens by starting a player (`Job::Open` calls `MediaHost::start`
-through the `OpenLink`; a preload's link has none, so a neighbour never plays). The player's news arrives
+through the `OpenPort`; a preload's link has none, so a neighbour never plays). The player's news arrives
 as `Done::Media`, the window drains its `MediaLine` and feeds each piece to the machine as an input (the
 position, the events) or to the shelf (the lists), and what the machine asks goes out through
 `MediaLine::send`; the stage tells the player the size of the room (`MediaLine::resize`) whenever it

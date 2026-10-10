@@ -27,7 +27,7 @@ pub use shelf::{PdfShelf, use_pdf_shelf};
 pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
-use crate::io::{NaturalSize, OpenError, OpenLink};
+use crate::io::{NaturalSize, OpenError, OpenPort};
 use crate::{
     PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
     Viewport,
@@ -49,7 +49,7 @@ impl StageView for PdfStageView {
         _ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<PdfDoc, OpenError> {
         if sniffed.kind() == FormatKind::Book {
             doc::open_book(src, sniffed)

@@ -6,7 +6,7 @@
 
 use super::abilities::PlatformAbilities;
 use super::helpers::{HelperSource, NoHelpers};
-use super::job::{Done, Job, OpenLink, Probed, WorkLane};
+use super::job::{Done, Job, OpenPort, Opened, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::notice::Notice;
 use super::seams::{
@@ -166,7 +166,7 @@ pub enum SizeBasis {
 pub enum HostRequest {
     /// The window now shows this file: the host records it as viewed, and it is the file the
     /// requests below that name none refer to.
-    Opened(Probed),
+    Opened(Opened),
     /// Carry out a file action on the open file (reveal it, copy it, open it with, print it…).
     Run(FileAction),
     /// Choose another file to open.
@@ -418,8 +418,8 @@ impl Edge {
     }
 
     /// What an open of a file into `texture` needs.
-    pub(crate) fn link(&self, texture: TextureHandle) -> OpenLink {
-        OpenLink {
+    pub(crate) fn link(&self, texture: TextureHandle) -> OpenPort {
+        OpenPort {
             media: Some(MediaPort {
                 host: Arc::clone(&self.media),
                 reply: self.reply.clone(),
@@ -429,8 +429,8 @@ impl Edge {
     }
 
     /// What opening a file ahead of the person needs: the same, but it can start no player.
-    pub(crate) fn link_for_preload(&self, texture: TextureHandle) -> OpenLink {
-        OpenLink {
+    pub(crate) fn link_for_preload(&self, texture: TextureHandle) -> OpenPort {
+        OpenPort {
             texture,
             highlighter: Arc::clone(&self.highlighter),
             first_frames: Arc::clone(&self.first_frames),

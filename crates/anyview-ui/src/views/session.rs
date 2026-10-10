@@ -4,7 +4,7 @@
 
 use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
-use crate::io::{NaturalSize, Probed};
+use crate::io::{NaturalSize, Opened};
 use crate::sheet::ExportFacts;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, HitIndex, HitList, MediaOffer,
@@ -29,16 +29,16 @@ pub(super) enum Probe {
     Pending(Ticket),
     /// The probe of this ticket is running again for a file that changed; the second is what the
     /// file on screen was probed as.
-    Reprobing(Ticket, Probed),
+    Reprobing(Ticket, Opened),
     /// The probe answered; the load machine has not been told yet.
-    Arrived(Ticket, Probed),
+    Arrived(Ticket, Opened),
     /// The load machine knows.
-    Announced(Ticket, Probed),
+    Announced(Ticket, Opened),
 }
 
 impl Probe {
     /// What the probe found, once it has.
-    pub(super) fn found(&self) -> Option<&Probed> {
+    pub(super) fn found(&self) -> Option<&Opened> {
         match self {
             Probe::Arrived(_, probed)
             | Probe::Announced(_, probed)
@@ -461,7 +461,7 @@ fn centre_of(area: Option<crate::Area>) -> Spot {
 }
 
 /// The family of stage a probed file gets.
-pub(super) fn family(probed: &Probed) -> crate::StageFamily {
+pub(super) fn family(probed: &Opened) -> crate::StageFamily {
     family_of(probed.sniffed.kind())
 }
 

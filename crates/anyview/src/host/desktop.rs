@@ -345,7 +345,7 @@ async fn share<R, S: Share, P, T, F, L>(
 
 async fn print<R, S, P: Printer, T, F, L>(
     parts: &Parts<R, S, P, T, F, L>,
-    probed: anyview_ui::Probed,
+    probed: anyview_ui::Opened,
 ) -> Outcome {
     let title = JobTitle(
         probed

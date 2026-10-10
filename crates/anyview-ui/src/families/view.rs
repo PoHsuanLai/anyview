@@ -6,7 +6,7 @@
 
 use crate::families::media::MediaShelf;
 use crate::families::pdf::PdfShelf;
-use crate::io::{HostRequest, Job, MediaLine, NaturalSize, OpenError, OpenLink};
+use crate::io::{HostRequest, Job, MediaLine, NaturalSize, OpenError, OpenPort};
 use crate::{
     Command, EditOffer, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn,
     StageParams, Ticket, TypedText,
@@ -172,7 +172,7 @@ pub trait StageView: 'static {
         ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<Self::Doc, OpenError>;
     /// The cheap first frame of the file, shown while `open` runs, or `None` when there is not one
     /// for this file. Blocking, on a worker; only called for a family whose `FLOW` is
@@ -181,7 +181,7 @@ pub trait StageView: 'static {
         _ticket: Ticket,
         _src: &Source,
         _sniffed: &Sniffed,
-        _link: &OpenLink,
+        _link: &OpenPort,
     ) -> Result<Option<Self::Doc>, OpenError> {
         Ok(None)
     }
@@ -203,7 +203,7 @@ pub trait StageView: 'static {
         Self::params(doc, stage, area)
     }
     /// The inputs the stage is told when `doc` lands, given the stage that is showing and where
-    /// the file was left (`Probed::resume`): an animation says it moves, a find already up is
+    /// the file was left (`Opened::resume`): an animation says it moves, a find already up is
     /// asked again of the new copy, a place that needs the document's extent is put back.
     fn arrived(_doc: &Self::Doc, _stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
         Vec::new()

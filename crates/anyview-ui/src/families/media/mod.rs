@@ -19,7 +19,7 @@ pub use shelf::{MediaShelf, use_media_shelf};
 pub use window::audio_window_size;
 
 use crate::families::view::{Area, Held, Leaving, StageCx, StageView};
-use crate::io::{MediaLine, NaturalSize, OpenError, OpenLink};
+use crate::io::{MediaLine, NaturalSize, OpenError, OpenPort};
 use crate::{
     Command, MediaIn, MediaOffer, PanelTab, PanelTabs, Stage, StageFamily, StageIn, StageParams,
     Ticket,
@@ -43,7 +43,7 @@ impl StageView for MediaStageView {
         ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
-        link: &OpenLink,
+        link: &OpenPort,
     ) -> Result<MediaDoc, OpenError> {
         doc::open(ticket, src, sniffed, link)
     }

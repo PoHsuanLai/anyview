@@ -80,7 +80,7 @@ mod tests {
     use super::*;
     use crate::StageFamily;
     use crate::families::{LoadedDoc, PeekOnlyDoc, PeekOnlyStageView};
-    use crate::io::{Probed, Readable};
+    use crate::io::{Opened, Readable};
     use anyview_core::{
         ByteLen, Facts, FileStamp, FormatKind, ModTime, Resume, Source, sniff_folder,
     };
@@ -95,7 +95,7 @@ mod tests {
             modified: ModTime(0),
         };
         Preloaded {
-            probed: Probed {
+            probed: Opened {
                 source: Source::new(path(name), stamp),
                 sniffed: sniff_folder(),
                 family: StageFamily::PeekOnly,

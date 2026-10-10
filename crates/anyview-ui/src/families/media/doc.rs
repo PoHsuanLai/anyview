@@ -2,7 +2,7 @@
 
 use crate::MediaOffer;
 use crate::Ticket;
-use crate::io::{MediaLine, MediaPlayback, OpenError, OpenLink};
+use crate::io::{MediaLine, MediaPlayback, OpenError, OpenPort};
 use anyview_core::{
     FactGroup, FactLabel, FactValue, Facts, FormatKind, MediaTags, Sniffed, Source,
 };
@@ -65,7 +65,7 @@ pub(super) fn open(
     ticket: Ticket,
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<MediaDoc, OpenError> {
     let port = link
         .media

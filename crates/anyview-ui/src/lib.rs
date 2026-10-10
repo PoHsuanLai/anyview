@@ -40,11 +40,11 @@ pub use context::{
 };
 pub use edits::{EditCaution, EditOffer, EditRequest, Rewind};
 pub use families::{
-    Area, Finish, FlightId, FoundHits, FrameLook, Held, HitLine, KindVisitor, Leaving, LineWindow,
-    LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, PDF_CSS,
-    PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
-    PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterStageView,
-    RasterTarget, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
+    Area, FamilyVisitor, Finish, FlightId, FoundHits, FrameLook, Held, HitLine, Leaving,
+    LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView,
+    PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfShelf, PdfStageView, PdfTask, PeekOnlyDoc,
+    PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen,
+    RasterStageView, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
     TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size, family_of,
     flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
@@ -52,9 +52,9 @@ pub use hand::{Hand, HandIn, Space, Tool};
 pub use io::{
     Backend, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords, HostRequest,
     ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart, MediaStarted,
-    MediaWake, NaturalSize, Need, Notice, OpenError, OpenLink, PlatformAbilities, PluginPicture,
-    Preloaded, Probed, Readable, Reply, ResumeSource, SizeBasis, SlotPixels, Stop, VersionSource,
-    Work, WorkKind, WorkLane, Workers, folder_sequence,
+    MediaWake, NaturalSize, Need, Notice, OpenError, OpenPort, Opened, PlatformAbilities,
+    PluginPicture, Preloaded, Readable, Reply, ResumeSource, SizeBasis, SlotPixels, Stop,
+    VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -63,7 +63,7 @@ pub use load::{
 pub use look::{Look, LookFeed};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{
-    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteScope, RowIndex,
+    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteRow, PaletteScope,
 };
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
 pub use presentation::{

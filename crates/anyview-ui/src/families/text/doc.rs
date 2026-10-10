@@ -4,7 +4,7 @@
 
 use super::find::{FoundHits, Snippet, clip};
 use crate::TypedText;
-use crate::io::{OpenError, OpenLink, Stop};
+use crate::io::{OpenError, OpenPort, Stop};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
 };
@@ -135,7 +135,7 @@ impl TextDoc {
 }
 
 /// Open the text file `src`. Blocking: indexes every line once, renders Markdown.
-pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenLink) -> Result<TextDoc, OpenError> {
+pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenPort) -> Result<TextDoc, OpenError> {
     let text = TextLines::open(FileBytes::open(src)?)?;
     let count = text.line_count();
     let encoding = text.encoding().label();
@@ -191,7 +191,7 @@ fn markdown(
 pub(crate) fn first_frame(
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<Option<TextDoc>, OpenError> {
     if src.stamp().len.0 <= FIRST_FRAME_BYTES {
         return Ok(None);

@@ -7,7 +7,7 @@ use anyview_core::{Axis, Edit, FilePath, PageIndex, PageRange, QuarterTurn};
 use anyview_image::ExifFacts;
 use anyview_pdf::PdfDocument;
 use anyview_store::{SavedAt, VersionId, Versions};
-use anyview_ui::{EditRequest, HostRequest, Probed, Rewind, TypedText};
+use anyview_ui::{EditRequest, HostRequest, Opened, Rewind, TypedText};
 
 #[path = "../../../../anyview-pdf/tests/pdf/support/mod.rs"]
 #[allow(clippy::unwrap_used)]
@@ -31,12 +31,12 @@ fn kept_of(outcome: &Outcome) -> VersionId {
     kept.clone()
 }
 
-fn bytes_of(file: &Probed) -> Vec<u8> {
+fn bytes_of(file: &Opened) -> Vec<u8> {
     std::fs::read(file.source.path().as_path()).unwrap()
 }
 
 /// The versions the scratch dir's store holds for `file`, newest first.
-fn versions_of(scratch: &std::path::Path, file: &Probed) -> Vec<anyview_store::Version> {
+fn versions_of(scratch: &std::path::Path, file: &Opened) -> Vec<anyview_store::Version> {
     Versions::under_state(&scratch.join("state"))
         .list(file.source.path().as_path())
         .unwrap()
@@ -175,7 +175,7 @@ async fn a_png_flip_is_written_again_as_a_png_and_a_save_that_fails_says_nothing
     );
 }
 
-fn page_count(file: &Probed) -> u32 {
+fn page_count(file: &Opened) -> u32 {
     PdfDocument::from_bytes(bytes_of(file))
         .unwrap()
         .page_count()

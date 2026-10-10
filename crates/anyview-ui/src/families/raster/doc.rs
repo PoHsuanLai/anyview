@@ -2,7 +2,7 @@
 //! on a worker: the picture goes from the decoder into the window's `TextureHandle` without
 //! touching the UI thread, and the document the UI receives is only the picture's size.
 
-use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenLink, PluginPicture, Stop};
+use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenPort, PluginPicture, Stop};
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
@@ -93,7 +93,7 @@ impl RasterDoc {
 
 /// What to open and where to put it.
 #[derive(Debug, Clone)]
-pub struct RasterTarget {
+pub struct RasterOpen {
     /// The file.
     pub source: Source,
     /// How it was sniffed.
@@ -126,12 +126,12 @@ pub struct RasterDone {
 pub struct RasterBackend;
 
 impl Backend for RasterBackend {
-    type Doc = RasterTarget;
+    type Doc = RasterOpen;
     type Worker = ();
     type Job = RasterJob;
     type Done = RasterDone;
 
-    fn run(doc: &RasterTarget, _worker: &mut (), job: RasterJob, _stop: &Stop) -> RasterDone {
+    fn run(doc: &RasterOpen, _worker: &mut (), job: RasterJob, _stop: &Stop) -> RasterDone {
         match job {
             RasterJob::Decode { ticket } => RasterDone {
                 ticket,
@@ -141,7 +141,7 @@ impl Backend for RasterBackend {
     }
 }
 
-fn decode_into(target: &RasterTarget) -> Result<RasterDoc, OpenError> {
+fn decode_into(target: &RasterOpen) -> Result<RasterDoc, OpenError> {
     // The file is read once: the decoder, the facts and the edit offer share these bytes.
     let bytes = file_bytes(&target.source.on_disk())?;
     let mut doc = decoded(target, &bytes)?;
@@ -163,7 +163,7 @@ fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8]) -> EditOffer {
     }
 }
 
-fn decoded(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
+fn decoded(target: &RasterOpen, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
     if matches!(
         target.sniffed.detail(),
         FormatDetail::Raster(RasterFormat::Raw)
@@ -222,7 +222,7 @@ fn decoded(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError> 
 /// A picture only a plugin can decode: its pixels, or the facts and the row naming the package.
 /// `unserved` is what the viewer says when no plugin is installed and none is known.
 fn plugin_into(
-    target: &RasterTarget,
+    target: &RasterOpen,
     bytes: &[u8],
     unserved: ImageError,
 ) -> Result<RasterDoc, OpenError> {
@@ -246,7 +246,7 @@ fn plugin_into(
 /// A camera raw file: the plugin's full development when one is installed and works; else the
 /// preview inside the file, with a row offering the plugin for the full picture; else, for a file
 /// with no readable preview, the facts and that row.
-fn raw_into(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
+fn raw_into(target: &RasterOpen, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
     let developed = target
         .plugins
         .decode(&target.source, &target.sniffed, PLUGIN_AREA);
@@ -288,7 +288,7 @@ fn raw_into(target: &RasterTarget, bytes: &[u8]) -> Result<RasterDoc, OpenError>
 }
 
 /// A document with no picture: the facts of the file and the row naming what would show it.
-fn blank_doc(target: &RasterTarget, bytes: &[u8], needs: Need) -> RasterDoc {
+fn blank_doc(target: &RasterOpen, bytes: &[u8], needs: Need) -> RasterDoc {
     let one = PixelSize {
         width: PixelLen(1),
         height: PixelLen(1),
@@ -313,7 +313,7 @@ fn holding(doc: RasterDoc, held: PixelSize) -> RasterDoc {
 }
 
 fn doc_of(
-    target: &RasterTarget,
+    target: &RasterOpen,
     bytes: &[u8],
     size: PixelSize,
     frames: u32,
@@ -364,7 +364,7 @@ fn upload_frames(
 pub(crate) fn first_frame(
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<Option<RasterDoc>, OpenError> {
     let Some((picture, size, frames, facts)) = cheap_picture(src, sniffed, link)? else {
         return Ok(None);
@@ -389,7 +389,7 @@ type Cheap = (Rgba8, PixelSize, u32, Facts);
 fn cheap_picture(
     src: &Source,
     sniffed: &Sniffed,
-    link: &OpenLink,
+    link: &OpenPort,
 ) -> Result<Option<Cheap>, OpenError> {
     if let Some(picture) = link.first_frames.still(&src.on_disk()) {
         let size = declared_size(src.on_disk(), sniffed)?.unwrap_or_else(|| picture.size());
