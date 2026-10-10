@@ -1,9 +1,11 @@
 //! The viewer's memory on disk: the recently-viewed history and what a person left of each file.
 //!
-//! Two programs use it at once: the viewer writes, and the launcher reads, even when the viewer
-//! is not running. So there is no database and no lock: every file is written whole to a
-//! temporary name in its own directory, synced, and renamed over the old one, which a reader sees
-//! either complete or not at all.
+//! Several programs use it at once: the viewer writes, a terminal that embeds the viewer may
+//! write too, and the launcher reads, even when the viewer is not running. So there is no
+//! database: every file is written whole to a temporary name in its own directory, synced, and
+//! renamed over the old one, which a reader sees either complete or not at all. Readers take no
+//! lock. Writers take turns through an advisory lock file in the store root, and each merges only
+//! its own entry into what is on disk, so the last writer wins per file, never per store.
 //!
 //! Every public item is reached from this root, once.
 //!

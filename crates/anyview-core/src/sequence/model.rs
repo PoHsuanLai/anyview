@@ -30,6 +30,10 @@ pub enum SequenceOrigin {
     Results(ResultsId),
     /// Files the person selected.
     Selection,
+    /// Paths printed in the output of a terminal command, kept in the order they were printed
+    /// (the host has already resolved them against the command's folder and dropped the missing
+    /// ones). Walked like a [`SequenceOrigin::Selection`]: never sorted or regrouped.
+    Output,
 }
 
 /// The files the viewer walks through with ← and →: never empty, always pointing at one of them.
