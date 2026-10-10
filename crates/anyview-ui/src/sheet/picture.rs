@@ -163,7 +163,7 @@ impl ResizeDraft {
                 }
             }
             ResizeChange::Unit(unit) => ResizeDraft { unit, ..self },
-            ResizeChange::ResizeProportion(proportion) => {
+            ResizeChange::Proportion(proportion) => {
                 let height = match proportion {
                     ResizeProportion::Kept => {
                         held(scaled(self.width, u64::from(from_h), u64::from(from_w)))
@@ -190,7 +190,7 @@ pub enum ResizeChange {
     /// The numbers now count this.
     Unit(ResizeUnit),
     /// The sides follow each other, or do not.
-    ResizeProportion(ResizeProportion),
+    Proportion(ResizeProportion),
 }
 
 /// Where the person is going when a picture with changes that are not saved is in the way.
@@ -276,7 +276,7 @@ mod tests {
             (
                 "free sides are their own",
                 &[
-                    ResizeChange::ResizeProportion(ResizeProportion::Free),
+                    ResizeChange::Proportion(ResizeProportion::Free),
                     ResizeChange::Width(200),
                 ],
                 size(200, 300),
@@ -285,9 +285,9 @@ mod tests {
             (
                 "keeping the proportions again follows the width",
                 &[
-                    ResizeChange::ResizeProportion(ResizeProportion::Free),
+                    ResizeChange::Proportion(ResizeProportion::Free),
                     ResizeChange::Width(200),
-                    ResizeChange::ResizeProportion(ResizeProportion::Kept),
+                    ResizeChange::Proportion(ResizeProportion::Kept),
                 ],
                 size(200, 150),
                 (200, 150),

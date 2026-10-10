@@ -59,7 +59,8 @@ fn drafted(sheet: &Sheet) -> ExportDraft {
         | Sheet::SaveCopy { .. }
         | Sheet::Revert { .. }
         | Sheet::NoVersions
-        | Sheet::Helper { .. } => panic!("the export sheet is up: {sheet:?}"),
+        | Sheet::Helper { .. }
+        | Sheet::Picture(_) => panic!("the export sheet is up: {sheet:?}"),
     }
 }
 
