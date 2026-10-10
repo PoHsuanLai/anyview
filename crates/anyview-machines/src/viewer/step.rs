@@ -11,7 +11,7 @@ use crate::command::{Command, StageCommand};
 use crate::context::{ContextIn, ContextOut, ContextPick};
 use crate::edits::Rewind;
 use crate::hand::{HandIn, Tool};
-use crate::keys::{Act, Press, Regions, Route, route};
+use crate::keys::{Act, Chords, Press, Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
@@ -368,6 +368,10 @@ fn kept_or_new(showing: &Stage, family: StageFamily, params: &ViewerParams) -> S
 
 /// The palette's own transitions, then what it ran, then the find the palette stands for.
 pub(super) fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
+    // A pane draws no palette (its commands are listed in the host's), so it never opens one.
+    if viewer.presentation == Presentation::Pane {
+        return (viewer, vec![]);
+    }
     let before = viewer.palette.clone();
     let closing = matches!(input, PaletteIn::Close);
     let (viewer, mut outs) = palette_stepped(viewer, input, at, params);
@@ -555,6 +559,13 @@ fn keyed(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> Step 
             stage: &viewer.stage,
             stage_params: &params.stage,
             platform: params.platform,
+            chords: match viewer.presentation {
+                Presentation::Pane => Chords::None,
+                Presentation::Window
+                | Presentation::Peek
+                | Presentation::Mini
+                | Presentation::Background => Chords::Viewer,
+            },
         },
     );
     match routed {
@@ -613,10 +624,11 @@ fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> 
 }
 
 /// Esc with nothing open: a quick look closes; a window, a mini window and a background session
-/// stay.
+/// stay; a pane gives the keyboard back to its host and stays.
 fn dismissed(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.presentation {
         Presentation::Peek => leaving(viewer, Departure::Close, at, params),
+        Presentation::Pane => (viewer, vec![ViewerOut::Unfocus]),
         Presentation::Window | Presentation::Mini | Presentation::Background => (viewer, vec![]),
     }
 }

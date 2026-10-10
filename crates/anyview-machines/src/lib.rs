@@ -41,7 +41,7 @@ pub use context::{
 };
 pub use edits::{EditCaution, EditOffer, EditRequest, Rewind, SaveEnd};
 pub use hand::{Hand, HandIn, Space, Tool};
-pub use keys::{Act, Press, Regions, Route, route};
+pub use keys::{Act, Chords, Press, Regions, Route, route};
 pub use load::{
     Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
 };

@@ -8,7 +8,7 @@ use crate::command::{Command, PictureCommand, StageCommand};
 use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
 use crate::picture::PictureEditIn;
-use crate::presentation::PresentationIn;
+use crate::presentation::{Presentation, PresentationIn};
 use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn};
 use crate::stage::{Stage, StageIn, TextIn};
 use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
@@ -93,6 +93,11 @@ pub(super) fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
 /// viewer's own to start; every other action is the edge's.
 fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerParams) -> Step {
     let handed_over = |viewer: Viewer| (viewer, vec![ViewerOut::Run(action)]);
+    // A pane has no sheets and changes nothing itself: the host carries out, or declines, every
+    // action on the file. (The mini window is not a thing a pane becomes.)
+    if viewer.presentation == Presentation::Pane && action != FileAction::PlayInMiniWindow {
+        return handed_over(viewer);
+    }
     match action {
         // Converting is exporting: the export dialog is where the format is chosen.
         FileAction::Export | FileAction::ConvertTo => export(viewer, at, params),

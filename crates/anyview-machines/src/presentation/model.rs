@@ -13,6 +13,10 @@ pub enum Presentation {
     Mini,
     /// Playing with no window, publishing the media session.
     Background,
+    /// A region of a host's window: no frame of its own, no sheets, no palette and none of the
+    /// viewer's chords, since the host owns them. It stays a pane; the host decides whether a
+    /// viewer is shown this way.
+    Pane,
 }
 
 /// What moves the presentation.

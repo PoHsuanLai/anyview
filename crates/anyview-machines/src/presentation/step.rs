@@ -26,6 +26,7 @@ impl Machine for Presentation {
             Presentation::Peek => peek(input),
             Presentation::Mini => mini(input),
             Presentation::Background => background(input),
+            Presentation::Pane => pane(input),
         }
     }
 
@@ -34,7 +35,8 @@ impl Machine for Presentation {
             Presentation::Window
             | Presentation::Peek
             | Presentation::Mini
-            | Presentation::Background => None,
+            | Presentation::Background
+            | Presentation::Pane => None,
         }
     }
 }
@@ -72,5 +74,13 @@ fn background(input: PresentationIn) -> Step {
     match input {
         PresentationIn::ToWindow => becoming(Presentation::Window),
         PresentationIn::ToMini | PresentationIn::Elapsed => (Presentation::Background, vec![]),
+    }
+}
+
+fn pane(input: PresentationIn) -> Step {
+    match input {
+        PresentationIn::ToWindow | PresentationIn::ToMini | PresentationIn::Elapsed => {
+            (Presentation::Pane, vec![])
+        }
     }
 }

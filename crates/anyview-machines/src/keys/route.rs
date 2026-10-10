@@ -1,7 +1,7 @@
 //! The one routing function.
 
 use super::act::Act;
-use super::model::{Press, Regions, Route};
+use super::model::{Chords, Press, Regions, Route};
 use crate::DesktopService;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::command::StageCommand;
@@ -21,10 +21,15 @@ use ds_core::vocab::ShortcutKey;
 /// Undo, Redo, the Menu key, Esc), then the stage, then navigation, then the chrome.
 ///
 /// Esc undoes the innermost thing: what the stage has open (a find, a scrub), then the
-/// panel, then the quick look itself.
+/// panel, then the quick look itself (or, in a pane, the focus). With `chords` off, an action
+/// goes nowhere.
 pub fn route(press: &Press, regions: Regions<'_>) -> Route {
     let keys = press.keys();
     let keys = keys.as_slice();
+    // A hosted viewer hears no chord: the host's keymap has them all.
+    if regions.chords == Chords::None && press.act().is_some() {
+        return Route::Swallowed;
+    }
     match regions.sheet {
         Sheet::Export { draft: _, span: _ }
         | Sheet::Unavailable {
