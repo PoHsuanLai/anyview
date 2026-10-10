@@ -528,6 +528,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     if *entered.read() != before || !heard() {
                         return;
                     }
+                    // A menu or the palette of the pane's own is drawn in a layer over the window,
+                    // outside the root, so the focus going into one is not the host's.
+                    let now = dispatch.machine.state();
+                    let now = now.peek();
+                    if matches!(now.context, ContextMenu::Open { .. })
+                        || matches!(now.palette, PaletteState::Open { .. })
+                    {
+                        return;
+                    }
                     if *dropped_layer.peek() {
                         *dropped_layer.write() = false;
                         if let Some(element) = root.peek().clone() {
