@@ -17,6 +17,7 @@ mod specimen;
 
 use crate::any::AnyPeeked;
 use crate::body::Body;
+use crate::unavailable::Unavailable;
 use dioxus::prelude::*;
 use ds::components::content::pdf_thumb::PdfThumb;
 use ds::components::fields::fact_list::{Fact, FactList};
@@ -111,6 +112,9 @@ fn media(peeked: &Arc<AnyPeeked>, page_room: Size) -> Element {
         Body::Tree(tree) => grid::tree(tree),
         Body::Folder(_) => plate(Icon::Folder, PlateFamily::Blue),
         Body::FactsOnly(_) => plate(Icon::File, PlateFamily::Blue),
+        // A file too big to preview is not a fault: like Finder's card for a file it does not
+        // preview, it shows as a file with its facts and says nothing about the limit.
+        Body::Unavailable(Unavailable::TooBig { .. }) => plate(Icon::File, PlateFamily::Blue),
         Body::Unavailable(reason) => rsx! {
             {plate(Icon::File, PlateFamily::Red)}
             InlineBanner { severity: Severity::Info, text: reason.label() }
