@@ -1,6 +1,6 @@
-//! The table stage's transitions.
-
 use super::model::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
+use crate::stage::row::RowNo;
+use anyview_core::ColumnSort;
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
@@ -13,15 +13,13 @@ impl Machine for TableStage {
     type Ctx = ();
 
     fn step(self, input: TableIn, _at: Stamp, params: &TableParams, _cx: &()) -> Step {
-        match self {
-            TableStage::Browsing { sheet } => browsing(sheet, input, params),
-            TableStage::Selected { sheet, row } => selected(sheet, row, input, params),
-        }
+        let (sheet, row, sort) = advance(self.sheet(), self.row(), self.sort(), input, params);
+        (TableStage::of(sheet, row, sort), vec![])
     }
 
     fn wake(&self) -> Option<Stamp> {
         match self {
-            TableStage::Browsing { sheet: _ } | TableStage::Selected { sheet: _, row: _ } => None,
+            TableStage::Browsing { .. } | TableStage::Selected { .. } => None,
         }
     }
 }
@@ -37,48 +35,40 @@ fn sheet_asked(sheet: SheetNo, input: TableIn, total: SheetTotal) -> Option<Shee
         TableIn::ChooseSheet(_)
         | TableIn::Select(_)
         | TableIn::Move(_)
+        | TableIn::PressHeader(_)
         | TableIn::Deselect
         | TableIn::Elapsed => None,
     }
 }
 
-fn browsing(sheet: SheetNo, input: TableIn, params: &TableParams) -> Step {
-    match input {
-        TableIn::NextSheet | TableIn::PreviousSheet | TableIn::ChooseSheet(_) => {
-            let sheet = sheet_asked(sheet, input, params.sheets).unwrap_or(sheet);
-            (TableStage::Browsing { sheet }, vec![])
-        }
-        TableIn::Select(row) => (TableStage::Selected { sheet, row }, vec![]),
-        TableIn::Move(step) => match step.from(None, params.rows, params.page) {
-            Some(row) => (TableStage::Selected { sheet, row }, vec![]),
-            None => (TableStage::Browsing { sheet }, vec![]),
-        },
-        TableIn::Deselect | TableIn::Elapsed => (TableStage::Browsing { sheet }, vec![]),
-    }
-}
-
-fn selected(
+/// The sheet, the cursor and the sort after `input`.
+fn advance(
     sheet: SheetNo,
-    row: crate::stage::row::RowNo,
+    row: Option<RowNo>,
+    sort: Option<ColumnSort>,
     input: TableIn,
     params: &TableParams,
-) -> Step {
+) -> (SheetNo, Option<RowNo>, Option<ColumnSort>) {
     match input {
-        // Another sheet has other rows: the cursor does not carry over.
+        // Another sheet has other rows and other columns: the cursor and the sort do not carry
+        // over.
         TableIn::NextSheet | TableIn::PreviousSheet | TableIn::ChooseSheet(_) => {
             match sheet_asked(sheet, input, params.sheets).filter(|next| *next != sheet) {
-                Some(next) => (TableStage::Browsing { sheet: next }, vec![]),
-                None => (TableStage::Selected { sheet, row }, vec![]),
+                Some(next) => (next, None, None),
+                None => (sheet, row, sort),
             }
         }
-        TableIn::Select(row) => (TableStage::Selected { sheet, row }, vec![]),
-        TableIn::Move(step) => {
-            let row = step
-                .from(Some(row), params.rows, params.page)
-                .unwrap_or(row);
-            (TableStage::Selected { sheet, row }, vec![])
+        TableIn::Select(picked) => (sheet, Some(picked), sort),
+        TableIn::Move(step) => (
+            sheet,
+            step.from(row, params.rows, params.page).or(row),
+            sort,
+        ),
+        // The rows change places, so the row the cursor was on is somewhere else.
+        TableIn::PressHeader(column) if column < params.columns => {
+            (sheet, None, ColumnSort::after_press(sort, column))
         }
-        TableIn::Deselect => (TableStage::Browsing { sheet }, vec![]),
-        TableIn::Elapsed => (TableStage::Selected { sheet, row }, vec![]),
+        TableIn::PressHeader(_) | TableIn::Elapsed => (sheet, row, sort),
+        TableIn::Deselect => (sheet, None, sort),
     }
 }

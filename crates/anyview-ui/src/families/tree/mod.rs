@@ -12,6 +12,7 @@ use crate::{
     Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, Ticket, TreeParams,
 };
 use anyview_core::{Facts, Sniffed, Source};
+use anyview_text::Coverage;
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
@@ -74,7 +75,17 @@ impl StageView for TreeStageView {
         )])
     }
 
-    fn panel(_doc: &Arc<TreeDoc>, _tab: PanelTab, _cx: &StageCx) -> Option<Element> {
-        None
+    fn panel(doc: &Arc<TreeDoc>, tab: PanelTab, _cx: &StageCx) -> Option<Element> {
+        match (tab, doc.coverage) {
+            // The panel's footer says the file runs on past what the tree holds.
+            (PanelTab::Info, Coverage::Prefix) => Some(rsx! {
+                p { class: "viewer-panel-note", "Showing the start of the file" }
+            }),
+            (PanelTab::Info, Coverage::Whole)
+            | (
+                PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Sheets | PanelTab::Tracks,
+                Coverage::Whole | Coverage::Prefix,
+            ) => None,
+        }
     }
 }

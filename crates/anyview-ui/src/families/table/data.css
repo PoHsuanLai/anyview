@@ -1,12 +1,17 @@
-/* Tables and trees: a header over a virtual list that fills the stage. The table scrolls sideways
-   when its columns are wider than the room. Tokens only. */
+/* Data views: a table and a tree share a row height (the compact row), the data face and the body
+   size. The table is quire's VirtualTable, whose header is above its rows and so stays put; the
+   header reads once the content scrolls under it. Columns are ruled with hairlines, the Numbers
+   look. Tokens only. */
 
-.viewer-data{ position:absolute; inset:0; display:flex; flex-direction:column; font-size:var(--fs-body); }
-.viewer-data-scroll{ flex:1 1 0; min-height:0; overflow-x:auto; display:flex; flex-direction:column; }
-.viewer-data-table{ flex:1 1 0; min-height:0; }
-.viewer-data-note{ flex:none; margin:0; padding:var(--s-4) var(--s-12); color:var(--ink-soft); font-size:var(--fs-help); border-top:var(--hair) solid var(--line); }
-.viewer-row-number{ color:var(--ink-faint); font-variant-numeric:tabular-nums; }
-.viewer-node{ display:inline-flex; gap:0; white-space:pre; font-family:var(--font-code); font-size:var(--fs-mono); }
+.viewer-data{ position:absolute; inset:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
+.viewer-data[*|data-body=table] .ds-table-header{ box-sizing:border-box; border-bottom:var(--hair) solid transparent; }
+.viewer-data[*|data-scrolled=yes] .ds-table-header{ border-bottom-color:var(--line); }
+.viewer-data .ds-table-cell{ box-sizing:border-box; line-height:var(--row-compact-h); border-inline-end:var(--hair) solid var(--line); font-variant-numeric:tabular-nums; }
+.viewer-data .ds-table-cell:last-child{ border-inline-end:0; }
+.viewer-row-number{ color:var(--ink-faint); }
+.viewer-node{ display:inline-flex; gap:0; white-space:pre; }
 .viewer-node-key{ flex:none; }
 .viewer-node-value{ overflow:hidden; }
+.viewer-node-count{ color:var(--ink-faint); }
 .viewer-sheets{ display:flex; flex-direction:column; }
+.viewer-panel-note{ margin:auto 0 0; color:var(--ink-faint); font-size:var(--fs-help); }

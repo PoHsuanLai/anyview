@@ -151,7 +151,7 @@ impl StageView for PdfStageView {
         match tab {
             PanelTab::Thumbnails => Some(rsx! { panel::Thumbnails { doc, cx: cx.clone() } }),
             PanelTab::Contents => Some(rsx! { panel::Outline { doc, cx: cx.clone() } }),
-            PanelTab::Info | PanelTab::Tracks => None,
+            PanelTab::Info | PanelTab::Sheets | PanelTab::Tracks => None,
         }
     }
 }

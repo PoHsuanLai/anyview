@@ -5,9 +5,10 @@ use crate::io::OpenError;
 use anyview_archive::office_look;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Sniffed, Source,
+    is_numeric,
 };
 use anyview_fs::OnDisk;
-use anyview_text::{CharWidth, Coverage, HeaderMode, Table, Workbook};
+use anyview_text::{CharWidth, Coverage, HeaderMode, RowIndex, Table, Workbook};
 use ds_core::word::Word;
 use std::sync::Arc;
 
@@ -20,6 +21,9 @@ pub struct SheetDoc {
     pub table: Table,
     /// The width each column wants, in characters.
     pub widths: Vec<CharWidth>,
+    /// Whether each column holds numbers, so its cells sit at the trailing edge and it sorts as
+    /// numbers.
+    pub numeric: Vec<bool>,
 }
 
 /// An opened table file.
@@ -31,9 +35,18 @@ pub struct TableDoc {
     pub facts: Facts,
 }
 
+/// Whether each column of `table` is a column of numbers.
+fn numeric_columns(table: &Table) -> Vec<bool> {
+    let rows = table.row_count().0;
+    (0..table.columns().0 as usize) // a u32 fits a usize
+        .map(|column| is_numeric((0..rows).map(|row| table.cell(RowIndex(row), column))))
+        .collect()
+}
+
 fn sheet(name: String, table: Table) -> Arc<SheetDoc> {
     Arc::new(SheetDoc {
         widths: table.column_widths(),
+        numeric: numeric_columns(&table),
         name,
         table,
     })

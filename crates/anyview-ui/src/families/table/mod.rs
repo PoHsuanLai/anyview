@@ -1,5 +1,5 @@
 //! Delimited tables and spreadsheets: the table stage's view. A file is read whole on a worker
-//! (`doc`), up to a cap; the rows on screen are the ones a `VirtualList` mounts (`view`).
+//! (`doc`), up to a cap; the rows on screen are the ones a `VirtualTable` mounts (`view`).
 
 mod doc;
 mod panel;
@@ -43,7 +43,7 @@ impl StageView for TableStageView {
 
     fn tabs(doc: &TableDoc) -> PanelTabs {
         if doc.sheets.len() > 1 {
-            PanelTabs::of(&[PanelTab::Info, PanelTab::Contents])
+            PanelTabs::of(&[PanelTab::Sheets, PanelTab::Info])
         } else {
             PanelTabs::of(&[PanelTab::Info])
         }
@@ -61,6 +61,10 @@ impl StageView for TableStageView {
         };
         StageParams {
             table: TableParams {
+                columns: doc
+                    .sheets
+                    .get(at)
+                    .map_or(0, |sheet| sheet.table.columns().0),
                 sheets: SheetTotal(u32::try_from(doc.sheets.len()).unwrap_or(u32::MAX)),
                 rows: doc
                     .sheets

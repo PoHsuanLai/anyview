@@ -47,7 +47,7 @@ fn view_of(harness: &Harness) -> String {
         "{} | rows {:?} | zoom {:?} | place {:?} | line {:?} | palette {} | page {:?}",
         capsule(harness),
         harness
-            .text_of(".viewer-data-scroll")
+            .text_of(".viewer-data")
             .map(|text| text.chars().take(120).collect::<String>()),
         harness.attr(".viewer-raster", "data-zoom"),
         harness.attr(".viewer-raster-picture", "style"),

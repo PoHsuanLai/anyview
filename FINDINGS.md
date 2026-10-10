@@ -1031,6 +1031,19 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A row picked in a table or a tree keeps Left and Right.** The arrow keys, Page Up and Down, Home and End move
   the cursor (`RowStep`); while a row is picked Left and Right walk nothing, and Esc puts the cursor away so they
   walk the folder again.
+## Tables
+
+- **A `VirtualTable` has no scroll-edge of its own.** Its header sits above its `Scroller`, so it stays put, but the
+  hairline under it once the rows scroll is the consumer's: the table view reads `scroller.scroll().offset` through a
+  `use_memo` (so only the flip from zero re-renders it) and sets `data-scrolled` on its root, which `data.css` styles.
+- **A component that returns early must have made its hooks first.** `TableContent` returns the "no rows" empty state
+  for an empty sheet; a workbook can have an empty sheet 0 and a full sheet 1, so `use_scroller`, the order's
+  `use_memo` and the scroll-to-top effect all come before that return, or the next sheet would find fewer hooks.
+- **Sorting is a permutation made on the main thread.** `sorted_rows` is O(n log n) over a sheet of up to
+  `TABLE_ROWS`/`SHEET_ROWS` rows, run once per (sheet, sort) in a memo. It keys numbers as `f64` and text as
+  lower-cased strings, blanks last whichever way it runs. If a sort of a sheet this large is ever felt, it moves to
+  a worker job like the other long reads.
+
 ## Saves, versions and the install receipt
 
 - **Editing text keeps the file as it was, apart from the edits.** The text is read as UTF-8 (a UTF-16 or

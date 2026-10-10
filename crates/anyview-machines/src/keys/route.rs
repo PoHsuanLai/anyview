@@ -139,7 +139,7 @@ fn info_toggle(panel: &Panel) -> PanelIn {
         } => PanelIn::Close,
         Panel::Hidden
         | Panel::Shown {
-            tab: PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Tracks,
+            tab: PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Sheets | PanelTab::Tracks,
         } => PanelIn::Choose(PanelTab::Info),
     }
 }
