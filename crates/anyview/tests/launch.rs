@@ -22,6 +22,9 @@
 #[path = "anyview/support/mod.rs"]
 mod support;
 
+#[path = "../../../dev/skip.rs"]
+mod skip;
+
 use ds::prelude::ShortcutKey;
 use ds_harness::{Driver, Input, Query};
 use std::path::PathBuf;
