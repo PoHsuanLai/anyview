@@ -356,7 +356,9 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
             choice: MediaExport::CurrentFrame(RasterTarget::Png),
         }))
         .unwrap();
-    assert_eq!(png, Outcome::Done);
+    // What a save answers: the file it wrote, under the name it chose.
+    let wrote = |name: &str| Outcome::Wrote(FilePath::try_from(dir.path().join(name)).unwrap());
+    assert_eq!(png, wrote("clip frame.png"));
     let bytes = std::fs::read(dir.path().join("clip frame.png")).unwrap();
     assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
     let size = |at: usize| u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap());
@@ -373,7 +375,7 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
             choice: MediaExport::CurrentFrame(RasterTarget::default_jpeg()),
         }))
         .unwrap();
-    assert_eq!(jpeg, Outcome::Done);
+    assert_eq!(jpeg, wrote("clip frame.jpg"));
     let bytes = std::fs::read(dir.path().join("clip frame.jpg")).unwrap();
     assert_eq!(&bytes[..2], b"\xff\xd8", "a JPEG");
     let again = rig
@@ -383,9 +385,9 @@ fn the_frame_on_screen_is_saved_at_the_pictures_own_size_in_the_format_asked_for
             choice: MediaExport::CurrentFrame(RasterTarget::Png),
         }))
         .unwrap();
-    assert_eq!(again, Outcome::Done);
-    assert!(
-        dir.path().join("clip frame 2.png").exists(),
+    assert_eq!(
+        again,
+        wrote("clip frame 2.png"),
         "the second is under a free name, the first is kept"
     );
 }
