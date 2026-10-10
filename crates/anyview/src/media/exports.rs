@@ -1,12 +1,12 @@
 //! Media exports on the pool: a transcode is a request to the FFmpeg plugin that one worker waits
 //! on, with progress and a `Stop` that cancels it; the frame comes from the player that shows it.
 
-use super::plugins::ExportTool;
 use crate::runtime::{JobHandle, JobOutcome, Lane, Pool, Runner};
 use crate::seam::Settled;
 use anyview_core::work::{Backend, Stop, Ticket, Ticketed};
 use anyview_core::{MediaLength, MediaTime};
 use anyview_media::{ExportProgress, ExportReport, ExportRequest, MediaError, ask_of};
+use anyview_media_host::ExportTool;
 use anyview_platform::PlatformError;
 use anyview_plugin_protocol::{ExportRequest as PluginRequest, MicroRange};
 use std::collections::HashMap;

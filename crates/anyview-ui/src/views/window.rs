@@ -25,7 +25,7 @@ use super::sheet::{
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use super::unsaved::UnsavedSheet;
 use crate::families::FrameLook;
-use crate::io::{FileAccess, HostRequest, Job};
+use crate::io::{FileAccess, HostRequest, Job, MediaSupport};
 use crate::{
     Chords, ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure,
     NavigateIn, Palette as PaletteState, PaletteIn, PaletteScope, PaneChrome, Panel, PanelIn,
@@ -222,9 +222,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
 
     let current = shelf.shown();
     let ticket = shelf.probe.read().ticket().unwrap_or_default();
-    // A recording in a pane opens in a viewer window of its own, until the player can be hosted:
-    // the host hears it as a file to open elsewhere.
-    let elsewhere = if hosted {
+    // A recording in a pane plays in it when the host gave the edge a player; with none, it opens
+    // in a viewer window of its own: the host hears it as a file to open elsewhere.
+    let elsewhere = if hosted && carry.edge.media_support() == MediaSupport::Absent {
         shelf
             .probe
             .read()

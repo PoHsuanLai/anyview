@@ -10,6 +10,7 @@
 #   (c) anyview-peek compiles on its own, headless and with `media` (see below).
 #   (d) anyview-pane, the viewer as a pane another app hosts, compiles on its own and reaches no bus
 #       and no docket or porter: it asks the OS for nothing (abilities arrive as `PlatformAbilities`).
+#       The same with its `player` feature, which adds the player host over the person's own mpv.
 #
 #   scripts/check-portable.sh
 set -euo pipefail
@@ -25,6 +26,15 @@ cargo check -p anyview-pane --no-default-features --locked
 for dep in zbus ashpd docket-client docket-core porter-core; do
   if cargo tree -p anyview-pane -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
     echo "check-portable: anyview-pane reaches $dep" >&2
+    exit 1
+  fi
+done
+# With its `player` feature the pane plays recordings through anyview-media-host (the person's own mpv, run
+# as a child process): it compiles alone and still reaches no bus, no docket or porter.
+cargo check -p anyview-pane --features player --locked
+for dep in zbus ashpd docket-client docket-core porter-core; do
+  if cargo tree -p anyview-pane --features player -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
+    echo "check-portable: anyview-pane --features player reaches $dep" >&2
     exit 1
   fi
 done

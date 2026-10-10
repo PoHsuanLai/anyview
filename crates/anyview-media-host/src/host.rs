@@ -1,22 +1,22 @@
-//! The window's way to start a player: the `MediaHost` the views are lent.
+//! The views' way to start a player: the `MediaHost` a window or a pane is lent.
 
 use super::actor::{MediaActor, Plan};
 use super::engine::{BuiltinAbility, Chosen, Engine, builtin_ability, choose, no_sound_fact};
 use super::hub::{MediaHub, SessionId};
 use super::line::LiveLine;
 use super::orders::Home;
-use super::plugins::{MediaPlugins, PlayRoute, Playing, Reading};
+use super::plugins::{PlayRoute, PlayerPlugins, Playing, Reading};
 use super::sink::WindowSink;
 use super::snapshot::Snapshot;
-use crate::runtime::{Actor, Mailbox, UiWaker};
 use anyview_core::{Facts, MediaTags};
 use anyview_platform::{Ability, Artwork, TrackSerial};
 use anyview_plugin::Subject;
+use anyview_runtime::{Actor, Mailbox, UiWaker};
 use anyview_ui::{MediaHost, MediaPlayback, MediaStart, MediaStarted, MediaWake, Need, OpenError};
 use ds::components::content::image_source::ImageSource;
 use std::sync::Arc;
 
-/// Starts a player on its own media thread for each window that asks.
+/// Starts a player on its own media thread for each window or pane that asks.
 #[derive(Debug, Clone)]
 pub struct PlayerHost {
     hub: MediaHub,
@@ -98,8 +98,8 @@ impl MediaHost for PlayerHost {
             }
         };
         let id: SessionId = self.hub.inner.next_id();
-        let art = cover.as_ref().map(|cover| Artwork {
-            png: Arc::from(cover.png.as_slice()),
+        let art = cover.as_ref().map(|png| Artwork {
+            png: Arc::from(png.as_slice()),
         });
         let snapshot = Snapshot::new(&start.file, &tags, art, Ability::Can, TrackSerial(id.0));
         let plan = Plan {
@@ -130,14 +130,14 @@ impl MediaHost for PlayerHost {
             tags,
             facts,
             length: None,
-            cover: cover.map(|cover| ImageSource::png(&cover.png)),
+            cover: cover.map(|png| ImageSource::png(&png)),
         })
     }
 }
 
 /// A recording no player plays: its facts, with `needs` as the row that says what would.
 fn unplayed(
-    plugins: &MediaPlugins,
+    plugins: &dyn PlayerPlugins,
     start: &MediaStart,
     needs: Need,
     tags: MediaTags,

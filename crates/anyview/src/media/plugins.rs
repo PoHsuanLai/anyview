@@ -10,9 +10,10 @@ use anyview_core::{
 };
 use anyview_fs::OnDisk;
 use anyview_media::{MpvHost, offered_kinds, target_of};
-use anyview_peek::{AudioCover, audio_cover};
+use anyview_media_host::{ExportTool, PlayRoute, PlayerPlugins, Playing, Reading, WriteRoute};
+use anyview_peek::audio_cover;
 use anyview_platform::{PluginFacts, PluginRunner};
-use anyview_plugin::{Installed, MissingPlugin, Plugins, Provision, Route, Subject};
+use anyview_plugin::{MissingPlugin, Plugins, Provision, Route, Subject};
 use anyview_plugin_protocol::Capability;
 use anyview_ui::{MediaOffer, Need};
 use std::sync::Arc;
@@ -31,17 +32,6 @@ pub struct MediaPlugins {
     registry: PluginRegistry,
     runner: PluginRunner,
     helpers: Option<Arc<HelperHost>>,
-}
-
-/// What asking for a player came to.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PlayRoute {
-    /// A plugin plays it, with these programs.
-    Ready(MpvHost),
-    /// None does; this package would.
-    Missing(MissingPlugin),
-    /// None does, and no package is known to.
-    Unserved,
 }
 
 impl MediaPlugins {
@@ -114,38 +104,6 @@ impl MediaPlugins {
     }
 }
 
-/// A recording's facts and tags, from whoever could read them.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Reading {
-    /// The rows beyond the kind and the size, which the window adds itself.
-    pub facts: Facts,
-    /// The title, artist and album the recording says.
-    pub tags: MediaTags,
-    /// The cover an audio file carries, read by the pure-Rust reader of its header (a plugin's
-    /// facts have no picture).
-    pub cover: Option<AudioCover>,
-}
-
-/// Which program writes a recording's exports.
-#[derive(Debug, Clone)]
-pub struct ExportTool {
-    /// The runner that talks to it.
-    pub runner: PluginRunner,
-    /// The plugin that writes.
-    pub plugin: Installed,
-}
-
-/// What asking for a writer came to.
-#[derive(Debug, Clone)]
-pub enum WriteRoute {
-    /// A plugin writes it.
-    Ready(Arc<ExportTool>),
-    /// None does; this package would.
-    Missing(MissingPlugin),
-    /// None does, and no package is known to.
-    Unserved,
-}
-
 impl MediaPlugins {
     /// What the recording `source` says of itself: the FFmpeg plugin's facts when it is installed
     /// and answers, else what the header says to a pure-Rust reader. A plugin that fails is said
@@ -174,7 +132,8 @@ impl MediaPlugins {
         };
         let cover = (sniffed.kind() == FormatKind::Audio)
             .then(|| audio_cover(source.on_disk(), sniffed, &HEADER_BUDGET))
-            .flatten();
+            .flatten()
+            .map(|cover| cover.png);
         Reading { facts, tags, cover }
     }
 
@@ -270,15 +229,6 @@ impl MediaPlugins {
     }
 }
 
-/// Whether a player shows the recording's picture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Playing {
-    /// A player was started for it.
-    Yes,
-    /// None was.
-    No,
-}
-
 /// What a pure-Rust reader of the header says, without the rows the window adds itself.
 fn header_facts(source: &Source, sniffed: &Sniffed) -> Facts {
     let peeked = anyview_peek::peek(source.on_disk(), sniffed, &HEADER_BUDGET);
@@ -295,4 +245,26 @@ fn header_facts(source: &Source, sniffed: &Sniffed) -> Facts {
         .fold(Facts::empty(), |facts, fact| {
             facts.with(fact.label, fact.value.clone())
         })
+}
+
+impl PlayerPlugins for MediaPlugins {
+    fn reading(&self, source: &Source, sniffed: &Sniffed) -> Reading {
+        MediaPlugins::reading(self, source, sniffed)
+    }
+
+    fn player(&self, subject: &Subject<'_>) -> PlayRoute {
+        MediaPlugins::player(self, subject)
+    }
+
+    fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
+        MediaPlugins::writer(self, subject)
+    }
+
+    fn need_of(&self, missing: &MissingPlugin) -> Need {
+        MediaPlugins::need_of(self, missing)
+    }
+
+    fn offer(&self, sniffed: &Sniffed, playing: Playing) -> MediaOffer {
+        MediaPlugins::offer(self, sniffed, playing)
+    }
 }

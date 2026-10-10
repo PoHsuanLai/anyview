@@ -6,7 +6,7 @@
 
 use super::helpers::HelperSource;
 use super::job::{Done, Job, OpenPort, Opened, WorkLane};
-use super::media::{MediaHost, MediaPort};
+use super::media::{MediaHost, MediaPort, MediaSupport};
 use super::notice::Notice;
 use super::seams::{FileLocks, ImagePlugins, ResumeSource, VersionSource};
 use super::services::Services;
@@ -332,6 +332,12 @@ impl Edge {
             platform,
             held: Arc::default(),
         }
+    }
+
+    /// Whether the host this edge was built with starts players, for a pane to decide whether a
+    /// recording plays in it or is handed to the host.
+    pub fn media_support(&self) -> MediaSupport {
+        self.media.support()
     }
 
     /// What the platform can do, for the window to decide what to offer.

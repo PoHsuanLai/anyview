@@ -1,5 +1,7 @@
 //! What a pane is wired to: the host's workers and the seams it has an implementation for.
 
+#[cfg(feature = "player")]
+use anyview_media_host::PlayerHost;
 use anyview_peek::StillSource;
 use anyview_ui::{
     FileLocks, HelperSource, ImagePlugins, MediaHost, PlatformAbilities, ResumeSource, Services,
@@ -83,11 +85,21 @@ impl PaneEdge {
         self.changed(|services| services.with_first_frames(source))
     }
 
-    /// The same edge starting players with `host`. Until a player can be hosted in a pane a
-    /// recording opens elsewhere whatever this says, so a host has no use for it yet.
+    /// The same edge starting players with `host`, so a recording plays in the pane. With none (the
+    /// default, and `MediaHost`s that say [`MediaSupport::Absent`](anyview_ui::MediaSupport)) a
+    /// recording is handed to the host as [`PaneRequest::OpenElsewhere`](crate::PaneRequest).
     #[must_use]
     pub fn with_media(self, host: Arc<dyn MediaHost>) -> PaneEdge {
         self.changed(|services| services.with_media(host))
+    }
+
+    /// The same edge playing recordings with `player`: the person's own mpv as a child process,
+    /// drawing into the pane. Panes that share a window share one [`MediaHub`](crate::MediaHub),
+    /// and so one source of sound at a time. Feature `player`.
+    #[cfg(feature = "player")]
+    #[must_use]
+    pub fn with_player(self, player: PlayerHost) -> PaneEdge {
+        self.with_media(Arc::new(player))
     }
 
     /// The same edge decoding the pictures the viewer cannot through `plugins`.

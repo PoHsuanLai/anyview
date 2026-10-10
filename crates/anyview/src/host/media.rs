@@ -8,6 +8,7 @@ use anyview_core::{
     RasterTarget, Resume, SniffStep, StreamPick, Subtitles, sniff,
 };
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
+use anyview_media_host::PlayerPlugins;
 use anyview_plugin::Subject;
 use anyview_store::free_beside;
 use anyview_ui::Opened;

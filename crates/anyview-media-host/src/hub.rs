@@ -1,4 +1,4 @@
-//! The program's players: which sessions are running, the desktop's one now-playing entry and the
+//! The players of a host: which sessions are running, the desktop's one now-playing entry and the
 //! controls that come back from it, and the sessions that play with no window.
 //!
 //! A session is a window's (its line is held by the window, and the hub only watches it) or a
@@ -7,20 +7,21 @@
 //! that one.
 
 use super::engine::{BuiltinAbility, Chosen, Engine, builtin_ability, choose};
+use super::focus::{AudioFocus, Sounding};
 use super::line::LiveLine;
 use super::orders::{Home, Order, orders_for};
-use super::plugins::{MediaPlugins, PlayRoute};
-use crate::runtime::{Actor, Mailbox, RuntimeError, UiWaker};
+use super::plugins::{PlayRoute, PlayerPlugins};
 use anyview_core::{FilePath, Resume, Sniffed, Source};
-use anyview_media::{AudioDriver, MediaCommand, MediaError, PictureSlot, ShotContent};
+use anyview_media::{AudioDriver, MediaCommand, MediaError, Pace, PictureSlot, ShotContent};
 use anyview_platform::{MediaControl, MediaSession, MediaState, PlaybackStatus};
 use anyview_plugin::Subject;
+use anyview_runtime::{Actor, Mailbox, RuntimeError, UiWaker};
 use anyview_ui::MediaNotice;
 use ds_blitz::{AppHandle, AppHold};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::Duration;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::sync::oneshot;
@@ -120,8 +121,12 @@ pub(super) struct Inner {
     shots: Mutex<Vec<ShotWaiter>>,
     app: Option<AppHandle>,
     audio: AudioDriver,
-    plugins: Arc<MediaPlugins>,
+    plugins: Arc<dyn PlayerPlugins>,
     runtime: tokio::runtime::Handle,
+    /// Whether sessions may sound together; shared until the host says otherwise.
+    focus: OnceLock<AudioFocus>,
+    /// Which sessions sound, for `AudioFocus::Exclusive`.
+    sounding: Mutex<Sounding>,
 }
 
 fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -137,8 +142,8 @@ impl Inner {
         self.audio
     }
 
-    pub(super) fn plugins(&self) -> &MediaPlugins {
-        &self.plugins
+    pub(super) fn plugins(&self) -> &dyn PlayerPlugins {
+        self.plugins.as_ref()
     }
 
     /// The player for `file`, a recording of `sniffed`'s kind, or why there is none.
@@ -164,12 +169,16 @@ impl Inner {
 
     /// A session's entry changed.
     pub(super) fn state(&self, id: SessionId, state: MediaState) {
+        if self.focus.get() == Some(&AudioFocus::Exclusive) {
+            self.yield_to(id, state.status);
+        }
         let _closed = self.updates.send(Update::State(id, Box::new(state)));
     }
 
     /// A window's session is gone, because its line was dropped.
     pub(super) fn gone(&self, id: SessionId) {
         locked(&self.sessions).retain(|entry| entry.id != id);
+        locked(&self.sounding).gone(id);
         let _closed = self.updates.send(Update::Gone(id));
     }
 
@@ -180,6 +189,7 @@ impl Inner {
             let at = sessions.iter().position(|entry| entry.id == id);
             at.map(|at| sessions.remove(at))
         };
+        locked(&self.sounding).gone(id);
         if let Some(entry) = owner {
             // The session's own thread cannot join itself: a blocking worker drops the line.
             self.runtime.spawn_blocking(move || drop(entry));
@@ -198,6 +208,21 @@ impl Inner {
         };
         if let Some((_, _, tell)) = waiter {
             let _gone = tell.send(result);
+        }
+    }
+
+    /// Session `id` now has `status`: when it has just started playing, every other session that
+    /// was playing is paused, so one source sounds at a time.
+    fn yield_to(&self, id: SessionId, status: PlaybackStatus) {
+        let to_pause = locked(&self.sounding).heard(id, status);
+        if to_pause.is_empty() {
+            return;
+        }
+        for entry in locked(&self.sessions)
+            .iter()
+            .filter(|entry| to_pause.contains(&entry.id))
+        {
+            entry.send(MediaCommand::SetPlayback(Pace::Paused));
         }
     }
 
@@ -241,7 +266,8 @@ impl Inner {
     }
 }
 
-/// The program's players. Cloning shares them.
+/// The players of a host. Cloning shares them: several panes of one window start theirs on one
+/// hub, each with a session of its own.
 #[derive(Clone)]
 pub struct MediaHub {
     pub(super) inner: Arc<Inner>,
@@ -250,6 +276,20 @@ pub struct MediaHub {
 impl std::fmt::Debug for MediaHub {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MediaHub").finish_non_exhaustive()
+    }
+}
+
+/// The now-playing entry of a host that has none: nothing is published and no control arrives.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoEntry;
+
+impl MediaSession for NoEntry {
+    async fn publish(&self, _state: &MediaState) -> Result<(), anyview_platform::PlatformError> {
+        Ok(())
+    }
+
+    async fn next_control(&mut self) -> Option<MediaControl> {
+        std::future::pending().await
     }
 }
 
@@ -264,13 +304,14 @@ impl MediaHub {
     /// A hub whose desktop entry is made by `register` when the first player speaks, so a viewer
     /// that plays nothing shows nothing to the desktop, and served on `runtime`. `app` is the event
     /// loop that background sessions hold open and that Quit ends; `audio` is the sound driver every
-    /// session plays on; `plugins` are what plays, probes and exports a recording.
+    /// session plays on; `plugins` are what plays, probes and exports a recording. Sessions sound
+    /// together ([`AudioFocus::Shared`]) until [`with_focus`](MediaHub::with_focus) says otherwise.
     pub fn start<S, F, Fut>(
         runtime: &tokio::runtime::Handle,
         register: F,
         app: Option<AppHandle>,
         audio: AudioDriver,
-        plugins: Arc<MediaPlugins>,
+        plugins: Arc<dyn PlayerPlugins>,
     ) -> MediaHub
     where
         S: MediaSession + Send + 'static,
@@ -287,9 +328,37 @@ impl MediaHub {
             audio,
             plugins,
             runtime: runtime.clone(),
+            focus: OnceLock::new(),
+            sounding: Mutex::new(Sounding::default()),
         });
         runtime.spawn(serve(register, inbox, Arc::downgrade(&inner)));
         MediaHub { inner }
+    }
+
+    /// A hub for a host that has no desktop entry to keep and no event loop to hold open (a pane in
+    /// another application's window): nothing is shown to the desktop, and sessions sound one at a
+    /// time ([`AudioFocus::Exclusive`]), so a second pane that starts playing pauses the first.
+    pub fn standalone(
+        runtime: &tokio::runtime::Handle,
+        audio: AudioDriver,
+        plugins: Arc<dyn PlayerPlugins>,
+    ) -> MediaHub {
+        MediaHub::start(
+            runtime,
+            || std::future::ready(NoEntry),
+            None,
+            audio,
+            plugins,
+        )
+        .with_focus(AudioFocus::Exclusive)
+    }
+
+    /// The same hub with `focus` deciding whether its sessions may sound together. Set once, before
+    /// the first session starts; a later call changes nothing.
+    #[must_use]
+    pub fn with_focus(self, focus: AudioFocus) -> MediaHub {
+        let _kept = self.inner.focus.set(focus);
+        self
     }
 
     /// Start a session playing `file` with no window, picking up where `resume` says, and hold
@@ -321,12 +390,9 @@ impl MediaHub {
         };
         let reading = self.inner.plugins().reading(source, sniffed);
         let id = self.inner.next_id();
-        let art = reading
-            .cover
-            .as_ref()
-            .map(|cover| anyview_platform::Artwork {
-                png: Arc::from(cover.png.as_slice()),
-            });
+        let art = reading.cover.as_ref().map(|png| anyview_platform::Artwork {
+            png: Arc::from(png.as_slice()),
+        });
         let snapshot = super::snapshot::Snapshot::new(
             file,
             &reading.tags,
@@ -370,7 +436,7 @@ impl MediaHub {
     }
 
     /// The plugins that play, read and write recordings.
-    pub fn plugins(&self) -> &MediaPlugins {
+    pub fn plugins(&self) -> &dyn PlayerPlugins {
         self.inner.plugins()
     }
 

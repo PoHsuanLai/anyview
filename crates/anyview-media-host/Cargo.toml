@@ -1,0 +1,36 @@
+[package]
+name = "anyview-media-host"
+description = "The host side of the player for a window or a pane: PlayerHost (the MediaHost a view starts players with), MediaHub (the sessions, the desktop's one now-playing entry, one audio source at a time) and the thread each player runs on, over the person's own mpv run as a child process."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# No default features: a host names the sound card it links. `audio` is the built-in audio player
+# (anyview-media's feature of the same name: symphonia decodes, cpal plays), for when the person has no
+# mpv; video and Opus still need mpv.
+default = []
+audio = ["anyview-media/audio"]
+
+[dependencies]
+anyview-core = { workspace = true }
+anyview-media = { workspace = true, features = ["player"] }
+anyview-platform = { workspace = true }
+anyview-plugin = { workspace = true }
+anyview-runtime = { workspace = true }
+anyview-ui = { workspace = true }
+# `ImageSource`, the cover an audio file carries, as the views take it.
+ds = { workspace = true }
+# `AppHandle` (what a session with no window holds open) and `TextureHandle` (where the picture goes).
+ds-blitz = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+anyview-plugin-protocol = { workspace = true }
+
+[lints]
+workspace = true

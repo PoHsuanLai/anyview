@@ -1,5 +1,5 @@
 //! The media thread's actor: one player, the instructions it is sent and the news it makes. The
-//! player's logic is a `anyview_media::MediaDriver`; this is the part only the program can write: where
+//! player's logic is a `anyview_media::MediaDriver`; this is the part only the host can write: where
 //! the news goes (the window's mailbox, the desktop's now-playing entry, a waiting export) and
 //! what ends a session.
 
@@ -8,9 +8,9 @@ use super::hub::{Inner, SessionId, ShotError};
 use super::map::{Opened, notices_of};
 use super::orders::Home;
 use super::snapshot::{Change, Snapshot};
-use crate::runtime::{ActorBody, ActorWake, Flow, Outbox};
 use anyview_core::FilePath;
 use anyview_media::{Continuation, EndReason, MediaCommand, MediaDriver, MediaEvent};
+use anyview_runtime::{ActorBody, ActorWake, Flow, Outbox};
 use anyview_ui::MediaNotice;
 use std::sync::Weak;
 

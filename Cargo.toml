@@ -11,10 +11,12 @@ members = [
   "crates/anyview-image",
   "crates/anyview-machines",
   "crates/anyview-media",
+  "crates/anyview-media-host",
   "crates/anyview-pane",
   "crates/anyview-platform",
   "crates/anyview-plugin",
   "crates/anyview-plugin-protocol",
+  "crates/anyview-runtime",
   "crates/anyview-peek",
   "crates/anyview-plugin-fake",
   "crates/anyview-pdf",
@@ -49,6 +51,8 @@ anyview-image = { path = "crates/anyview-image" }
 # The viewer's pure state machines: no Dioxus and no ds, so a host that is not the window can drive them.
 anyview-machines = { path = "crates/anyview-machines" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
+# The player host and the hub of its sessions, over anyview-media's player: child mpv, no libmpv. The viewer and (behind its `player` feature) the pane link it.
+anyview-media-host = { path = "crates/anyview-media-host", default-features = false }
 # The viewer as a pane another quire app hosts in-process (temor, the terminal): no zbus, no player, no OS asked.
 anyview-pane = { path = "crates/anyview-pane" }
 # No default features: the viewer binary asks for the Linux desktop's services through its own
@@ -58,6 +62,8 @@ anyview-platform = { path = "crates/anyview-platform", default-features = false 
 anyview-plugin-fake = { path = "crates/anyview-plugin-fake" }
 anyview-plugin = { path = "crates/anyview-plugin" }
 anyview-plugin-protocol = { path = "crates/anyview-plugin-protocol" }
+# The pool, the runner and the actors: the threads of the program.
+anyview-runtime = { path = "crates/anyview-runtime" }
 # No default features: the window (`anyview-ui`) takes the peek for its probe and its cards and draws and
 # plays with its own parts, and the binary asks for `media` and `pane`. `sill` takes the path directly and
 # so gets the crate's own default.

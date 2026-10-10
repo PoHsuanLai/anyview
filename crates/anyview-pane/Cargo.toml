@@ -8,8 +8,18 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+# `player` lets a pane play recordings itself: the person's own mpv run as a child process, through
+# `anyview-media-host`. Off by default, so the pane's own tree has no player in it (and a recording
+# opens elsewhere, as the host hears it). The built-in audio player (a sound card) is not part of it.
+[features]
+default = []
+player = ["dep:anyview-media-host", "dep:anyview-media"]
+
 [dependencies]
 anyview-core = { workspace = true }
+# `AudioDriver` and `MpvHost`, which a host names to build the hub and its plugins.
+anyview-media = { workspace = true, features = ["player"], optional = true }
+anyview-media-host = { workspace = true, optional = true }
 # `StillSource`, the seam of the host's small pictures (re-exported, so a host names this crate alone).
 anyview-peek = { workspace = true }
 anyview-ui = { workspace = true }

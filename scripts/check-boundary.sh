@@ -28,9 +28,22 @@ cd "$(dirname "$0")/.."
 # in anyview-machines, whose source is checked file by file below.
 # anyview-pane is the viewer as a pane another quire app hosts in its own process (temor, the terminal): a thin
 # crate over anyview-ui, so it carries the window's tree (the renderer, wgpu, pdfrum, tokio) and nothing more. It
-# never asks the OS for anything, so it reaches no bus (zbus, ashpd), no docket or porter, no player, no libav and no
+# never asks the OS for anything, so it reaches no bus (zbus, ashpd), no docket or porter, no player (by default), no libav and no
 # sound card; abilities arrive as data (`PlatformAbilities`). Like anyview-ui it does not name wgpu, tokio or a PDF
 # library itself (the DIRECT table below). Only the host links it; the viewer and the peek do not.
+# With its `player` feature (off by default, so the default tree above has no player in it) the pane also links
+# anyview-media-host: the player host and the hub of sessions, over the person's own mpv run as a child process
+# (mpv-wgpu-player's `subprocess` host). It still reaches no bus, no docket or porter, no libmpv, no libav and no
+# sound card (the media host's `audio` feature, which brings cpal and the symphonia decoders, is not the pane's
+# `player`); PANE_PLAYER_FORBIDDEN below checks that tree and PANE_PLAYER_BUDGET sizes it.
+# anyview-media-host is the host side of the player, shared by the viewer and the pane: PlayerHost (the MediaHost
+# the views are lent), MediaHub (the sessions, the desktop's now-playing entry through anyview-platform's
+# `MediaSession` trait, one audio source at a time) and the thread each player runs on. It names the views'
+# seam (anyview-ui), the platform crate WITHOUT `quire-desktop`, the plugin vocabulary and anyview-runtime, and
+# reaches no bus, no docket or porter, no libmpv or libav and (with its default features) no sound card. The
+# MPRIS entry is a session the binary passes in.
+# anyview-runtime is the program's threads (the pool, the runner, the actors): anyview-core and thiserror, and
+# no UI, no GPU, no bus, no player, no runtime of tokio's.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
@@ -105,6 +118,8 @@ RULES=(
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
   "anyview-machines: dioxus ds ds-blitz ds-shell ds-motion ds-style tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
+  "anyview-runtime: dioxus ds ds-blitz tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
+  "anyview-media-host: zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia"
   "anyview-pane: zbus ashpd docket-client docket-core porter-core mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys"
   "anyview-export: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
@@ -181,6 +196,12 @@ DIRECT=(
 # The pane (anyview-pane) is 590: anyview-ui's tree (589) and the pane crate itself; its own dependencies
 # (anyview-core, anyview-peek, anyview-ui, dioxus, ds, futures-channel, futures-util) were all in that tree already.
 # Only a host links it, so the viewer and the peek budgets above are untouched.
+# Moving the player host out of the binary (anyview-media-host) and the threads with it (anyview-runtime) makes the
+# viewer 696, two packages more: those two crates, with every dependency they name already in its tree.
+# anyview-runtime is 34 (anyview-core's tree and nothing else). anyview-media-host is 606: anyview-ui's tree
+# and the player (anyview-media with mpv-wgpu-player's subprocess host, anyview-platform's portable half
+# with bayonet and latchkey, and what those bring). The pane with its `player` feature is 607: the pane's 590
+# and the media host's extra packages, which are the player's alone.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -190,11 +211,16 @@ DIRECT=(
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 575"
-  "anyview: 694"
+  "anyview: 696"
   "anyview-machines: 34"
   "anyview-pane: 590"
+  "anyview-runtime: 34"
+  "anyview-media-host: 606"
 )
 HEADLESS_BUDGET=194
+# The pane with its `player` feature: what a host that plays recordings in a pane links.
+PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
+PANE_PLAYER_BUDGET=607
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
@@ -320,24 +346,43 @@ for budget in "${BUDGETS[@]}"; do
   fi
 done
 
+# The pane with its `player` feature reaches no bus, no docket or porter, no libmpv or libav and no sound card,
+# and stays inside its own budget (the default pane, above, has no player at all).
+for dep in "${PANE_PLAYER_FORBIDDEN[@]}"; do
+  if cargo tree -p anyview-pane --features player -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    echo "LEAK: anyview-pane --features player depends on $dep"
+    fail=1
+  fi
+done
+pane_player=$(cargo tree -p anyview-pane --features player -e normal,build --prefix none --format '{p}' 2>/dev/null \
+  | sed 's/ (\*)$//' | sort -u | grep -c .)
+if [ "$pane_player" -gt "$PANE_PLAYER_BUDGET" ]; then
+  echo "BUDGET: anyview-pane --features player has $pane_player packages, the budget is $PANE_PLAYER_BUDGET"
+  fail=1
+else
+  echo "budget holds: anyview-pane --features player has $pane_player packages of $PANE_PLAYER_BUDGET"
+fi
+
 # The allowed edges between our own crates (ARCHITECTURE.md section 1): each crate's direct normal
 # and build dependencies that live in a path (this workspace and the sibling quire checkout), and
 # nothing else. A dependency on a crate not listed here is a leak; so is one the crate no longer
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-media anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
+  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-fs: anyview-core"
   "anyview-machines: anyview-core ds-core"
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-machines anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
-  "anyview-pane: anyview-core anyview-peek anyview-ui ds"
+  "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
+  "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"
+  "anyview-runtime: anyview-core"
   "anyview-archive: anyview-core ds-core"
   "anyview-book: anyview-archive anyview-core ds-core"
   "anyview-font: anyview-core"
