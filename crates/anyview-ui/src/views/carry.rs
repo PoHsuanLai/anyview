@@ -3,6 +3,7 @@
 
 use super::arrive::shown_path;
 use super::editing;
+use super::pane::PaneSeat;
 use super::shelf::{Dispatch, Doc, Shelf};
 use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
@@ -26,6 +27,8 @@ pub(super) struct Carry {
     pub gpu: Gpu,
     pub toasts: ToastHub,
     pub machine: CopyValue<Option<Dispatch>>,
+    /// Where a pane sits in its host: the one place Esc gives the keyboard back to.
+    pub seat: Option<PaneSeat>,
 }
 
 impl Carry {
@@ -110,6 +113,11 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         }
         ViewerOut::Run(action) => c.edge.request(HostRequest::Run(action)),
         ViewerOut::PickFile => c.edge.request(HostRequest::PickFile),
+        ViewerOut::Unfocus => {
+            if let Some(seat) = c.seat {
+                seat.unfocus.call(());
+            }
+        }
         ViewerOut::CloseWindow => {
             remember_on_leaving(c);
             c.edge.request(HostRequest::Unwatch);

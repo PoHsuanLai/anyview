@@ -35,3 +35,11 @@ impl From<Appearance> for Look {
 /// the desktop's files serves all of them. A window with none keeps the look it was launched with.
 #[derive(Debug, Clone)]
 pub struct LookFeed(pub tokio::sync::watch::Receiver<Look>);
+
+/// Two feeds are equal when they are the one channel, which is what a component's props need to know
+/// whether the host handed over the same feed again.
+impl PartialEq for LookFeed {
+    fn eq(&self, other: &LookFeed) -> bool {
+        self.0.same_channel(&other.0)
+    }
+}

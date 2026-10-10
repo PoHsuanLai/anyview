@@ -60,6 +60,10 @@ pub(super) fn sheet(
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
+    // A pane has no sheets: what would ask is handed to the host instead (`file_action`).
+    if viewer.presentation == crate::presentation::Presentation::Pane {
+        return (viewer, vec![]);
+    }
     let (sheet, outs) = stepped(viewer.sheet, input, at, &params.sheet, ViewerOut::Sheet);
     (Viewer { sheet, ..viewer }, outs)
 }

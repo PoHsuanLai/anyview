@@ -197,7 +197,8 @@ pub(super) fn answered(
             | ViewerOut::NameRename
             | ViewerOut::NameCopy
             | ViewerOut::PickFile
-            | ViewerOut::CloseWindow => None,
+            | ViewerOut::CloseWindow
+            | ViewerOut::Unfocus => None,
         })
         .collect();
     let mut state = (viewer, outs);

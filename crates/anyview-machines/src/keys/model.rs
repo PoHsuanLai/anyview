@@ -54,6 +54,18 @@ impl Press {
     }
 }
 
+/// Whether the viewer answers the chords of the keymap (a Command or Ctrl key with a letter).
+/// A pane is hosted: the host owns every one of them, and what the viewer answers there is the
+/// plain keys alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Chords {
+    /// The viewer answers its chords: a window.
+    #[default]
+    Viewer,
+    /// The viewer answers none; a chord goes nowhere.
+    None,
+}
+
 /// The states key routing reads. It decides from these and nothing else.
 #[derive(Debug, Clone, Copy)]
 pub struct Regions<'a> {
@@ -71,6 +83,8 @@ pub struct Regions<'a> {
     pub stage_params: &'a StageParams,
     /// The desktop services there are: Open is a chord only where there is a file chooser.
     pub platform: PlatformAbilities,
+    /// Whether the viewer's chords are answered.
+    pub chords: Chords,
 }
 
 /// Where a key goes, with the input the region is to be given. Precedence is the order of the

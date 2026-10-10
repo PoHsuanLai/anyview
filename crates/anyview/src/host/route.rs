@@ -292,7 +292,9 @@ fn present(shown: Shown, presentation: Presentation) -> (Shown, Carry) {
         Presentation::Mini | Presentation::Window => {
             about_file(shown, |_| Carry::Window(WindowTask::Reopen(presentation)))
         }
-        Presentation::Peek | Presentation::Background => declined(shown, Declined::Present),
+        Presentation::Peek | Presentation::Background | Presentation::Pane => {
+            declined(shown, Declined::Present)
+        }
     }
 }
 

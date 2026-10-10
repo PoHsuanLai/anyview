@@ -528,6 +528,7 @@ fn every_row_of_the_table_routes_as_written() {
             stage,
             stage_params: &params,
             platform: PlatformAbilities::ALL,
+            chords: Chords::Viewer,
         };
         let got = route(&keys.press(), regions);
         assert_eq!(&got, want, "{name}");
@@ -545,6 +546,7 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
         stage: &IMAGE,
         stage_params: &params,
         platform: PlatformAbilities::ALL,
+        chords: Chords::Viewer,
     };
     const OPEN: ContextMenu = ContextMenu::Open {
         at: Spot { x: 1, y: 2 },
@@ -596,6 +598,7 @@ fn open_is_an_action_only_where_the_platform_has_a_file_chooser() {
                 stage: &IMAGE,
                 stage_params: &params,
                 platform,
+                chords: Chords::Viewer,
             },
         )
     };
@@ -605,4 +608,40 @@ fn open_is_an_action_only_where_the_platform_has_a_file_chooser() {
         Route::OpenFile,
         "unbound without a chooser"
     );
+}
+
+#[test]
+fn a_hosted_viewer_hears_no_chord_and_its_plain_keys_still_route() {
+    let params = StageParams::default();
+    let routed = |keys: In| {
+        route(
+            &keys.press(),
+            Regions {
+                sheet: &Sheet::Closed,
+                palette: &Palette::Closed,
+                context: &ContextMenu::Closed,
+                panel: &Panel::Hidden,
+                stage: &IMAGE,
+                stage_params: &params,
+                platform: PlatformAbilities::ALL,
+                chords: Chords::None,
+            },
+        )
+    };
+    // name, the keys, where they go
+    let cases: Vec<(&str, In, Route)> = vec![
+        ("the palette's chord", Chord(Act::Palette), Route::Swallowed),
+        ("Info", Chord(Act::Info), Route::Swallowed),
+        ("Open", Chord(Act::OpenFile), Route::Swallowed),
+        ("Close", Chord(Act::Close), Route::Swallowed),
+        (
+            "an arrow still walks the sequence",
+            Plain(&[Right]),
+            Route::Navigate(NavigateIn::Next),
+        ),
+        ("Esc has nothing to undo", Plain(&[Escape]), Route::Dismiss),
+    ];
+    for (name, keys, want) in cases {
+        assert_eq!(routed(keys), want, "{name}");
+    }
 }

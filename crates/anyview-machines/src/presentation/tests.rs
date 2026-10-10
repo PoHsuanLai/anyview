@@ -3,7 +3,7 @@ use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
 use ContentClass::{Document, Media};
-use Presentation::{Background, Mini, Peek, Window};
+use Presentation::{Background, Mini, Pane, Peek, Window};
 use PresentationIn::{ToMini, ToWindow};
 
 /// Name, content, state before, input, state after, outputs.
@@ -91,6 +91,22 @@ const CASES: &[Case] = &[
         &[],
     ),
     (
+        "a pane is never promoted to a window: the host owns the frame",
+        Media,
+        Pane,
+        ToWindow,
+        Pane,
+        &[],
+    ),
+    (
+        "nor does it shrink to a mini window",
+        Media,
+        Pane,
+        ToMini,
+        Pane,
+        &[],
+    ),
+    (
         "the clock changes no presentation",
         Media,
         Mini,
@@ -112,14 +128,14 @@ fn every_row_of_the_table_steps_as_written() {
 }
 
 #[test]
-fn no_input_ever_reaches_peek_or_background() {
-    // Peek and Background are how a viewer is launched; nothing transitions into them.
-    for from in [Window, Peek, Mini, Background] {
+fn no_input_ever_reaches_peek_background_or_pane() {
+    // Peek, Background and Pane are how a viewer is launched; nothing transitions into them.
+    for from in [Window, Peek, Mini, Background, Pane] {
         for content in [Media, Document] {
             for input in [ToWindow, ToMini, PresentationIn::Elapsed] {
                 let (next, _) = from.step(input, Stamp(0), &PresentationParams { content }, &());
                 assert!(
-                    next == from || (next != Peek && next != Background),
+                    next == from || (next != Peek && next != Background && next != Pane),
                     "{from:?} on {input:?} became {next:?}"
                 );
             }

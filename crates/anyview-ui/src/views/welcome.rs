@@ -6,7 +6,7 @@
 use super::app::use_look;
 use super::press::press_of;
 use crate::io::{DesktopService, Done, HostRequest};
-use crate::{Act, Edge, Look, Press, stylesheet};
+use crate::{Act, Chords, Edge, Look, Press, stylesheet};
 use anyview_core::FilePath;
 use chordkit::Context;
 use dioxus::prelude::*;
@@ -95,7 +95,7 @@ fn Welcome() -> Element {
             },
             onkeydown: move |event: KeyboardEvent| {
                 // Open asks for the dialog, Close closes the window.
-                match press_of(keymap, &event, Context::Normal) {
+                match press_of(keymap, &event, Context::Normal, Chords::Viewer) {
                     Some(Press::Act(Act::OpenFile)) if can_pick => {
                         event.prevent_default();
                         key.request(HostRequest::PickFile);

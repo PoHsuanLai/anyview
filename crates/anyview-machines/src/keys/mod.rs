@@ -9,5 +9,5 @@ mod tests;
 
 pub use act::Act;
 pub use act::{app, rows, standing};
-pub use model::{Press, Regions, Route};
+pub use model::{Chords, Press, Regions, Route};
 pub use route::route;

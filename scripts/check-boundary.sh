@@ -26,6 +26,11 @@ cd "$(dirname "$0")/.."
 # window (ds-blitz, which brings tokio and wgpu) and the three back ends (which bring image and
 # pdfrum); it never names a bus, a PDF library itself (the DIRECT table) or a player. The machines are
 # in anyview-machines, whose source is checked file by file below.
+# anyview-pane is the viewer as a pane another quire app hosts in its own process (temor, the terminal): a thin
+# crate over anyview-ui, so it carries the window's tree (the renderer, wgpu, pdfrum, tokio) and nothing more. It
+# never asks the OS for anything, so it reaches no bus (zbus, ashpd), no docket or porter, no player, no libav and no
+# sound card; abilities arrive as data (`PlatformAbilities`). Like anyview-ui it does not name wgpu, tokio or a PDF
+# library itself (the DIRECT table below). Only the host links it; the viewer and the peek do not.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
@@ -100,6 +105,7 @@ RULES=(
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
   "anyview-machines: dioxus ds ds-blitz ds-shell ds-motion ds-style tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
+  "anyview-pane: zbus ashpd docket-client docket-core porter-core mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys"
   "anyview-export: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
@@ -120,6 +126,7 @@ DIRECT=(
   "anyview: cpal symphonia zbus ashpd freedesktop-desktop-entry latchkey interprocess wgpu pdfrum pdfrum-edit mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next image anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-peek: wgpu pdfrum pdfrum-anyrender pdfrum-edit tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
   "anyview-ui: pdfrum pdfrum-anyrender pdfrum-edit"
+  "anyview-pane: wgpu tokio pdfrum pdfrum-anyrender pdfrum-edit"
   "anyview-export: wgpu pdfrum pdfrum-anyrender pdfrum-edit image tokio mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next anyrender anyrender_vello_hybrid vello_hybrid blitz-dom blitz-paint blitz-html blitz-shell dioxus-native"
 )
 
@@ -171,6 +178,9 @@ DIRECT=(
 # Splitting the machines out of anyview-ui (layering audit F2) adds anyview-machines to the viewer's tree: 694.
 # anyview-machines is 34: anyview-core's tree (ds-core, chordkit, jiff, thiserror and the like) and nothing of
 # the window.
+# The pane (anyview-pane) is 590: anyview-ui's tree (589) and the pane crate itself; its own dependencies
+# (anyview-core, anyview-peek, anyview-ui, dioxus, ds, futures-channel, futures-util) were all in that tree already.
+# Only a host links it, so the viewer and the peek budgets above are untouched.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -182,6 +192,7 @@ BUDGETS=(
   "anyview-peek: 575"
   "anyview: 694"
   "anyview-machines: 34"
+  "anyview-pane: 590"
 )
 HEADLESS_BUDGET=194
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
@@ -321,6 +332,7 @@ EDGES=(
   "anyview-fs: anyview-core"
   "anyview-machines: anyview-core ds-core"
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-machines anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
+  "anyview-pane: anyview-core anyview-peek anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"

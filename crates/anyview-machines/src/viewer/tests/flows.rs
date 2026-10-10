@@ -9,6 +9,7 @@ use crate::navigate::*;
 use crate::palette::*;
 use crate::panel::*;
 use crate::presentation::*;
+use crate::sheet::{Sheet, SheetIn};
 use crate::stage::*;
 use crate::testing::settle;
 use crate::typed::TypedText;
@@ -234,7 +235,7 @@ fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_ste
 }
 
 #[test]
-fn escape_closes_a_quick_look_and_leaves_a_window() {
+fn escape_closes_a_quick_look_leaves_a_window_and_unfocuses_a_pane() {
     let params = params();
     let esc = || key(&[ShortcutKey::Escape]);
     let (_, peek) = Viewer::launched(Presentation::Peek).step(esc(), Stamp(0), &(), &params);
@@ -247,6 +248,36 @@ fn escape_closes_a_quick_look_and_leaves_a_window() {
         let (_, outs) = Viewer::launched(presentation).step(esc(), Stamp(0), &(), &params);
         assert_eq!(outs, vec![], "{presentation:?}");
     }
+    let (pane, outs) = Viewer::launched(Presentation::Pane).step(esc(), Stamp(0), &(), &params);
+    assert_eq!(
+        outs,
+        vec![ViewerOut::Unfocus],
+        "a pane is never closed by a key"
+    );
+    assert_eq!(pane.presentation, Presentation::Pane);
+}
+
+#[test]
+fn a_pane_opens_no_palette_and_no_sheet_and_hands_the_file_actions_to_its_host() {
+    let params = params();
+    let pane = || Viewer::launched(Presentation::Pane);
+    for input in [
+        ViewerIn::Palette(PaletteIn::Open),
+        ViewerIn::Sheet(SheetIn::AskTrash),
+        ViewerIn::Key(Press::Act(Act::Palette)),
+    ] {
+        let (viewer, outs) = pane().step(input.clone(), Stamp(0), &(), &params);
+        assert_eq!(viewer, pane(), "{input:?}");
+        assert_eq!(outs, vec![], "{input:?}");
+    }
+    let (viewer, outs) = pane().step(
+        ViewerIn::Run(Command::File(FileAction::MoveToTrash)),
+        Stamp(0),
+        &(),
+        &params,
+    );
+    assert_eq!(viewer.sheet, Sheet::Closed, "no sheet asks");
+    assert_eq!(outs, vec![ViewerOut::Run(FileAction::MoveToTrash)]);
 }
 
 #[test]

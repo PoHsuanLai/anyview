@@ -790,6 +790,25 @@ on. It is a reference, not a log: how each was found lives in git history.
   surface boxes every run of text between a selection's ends, the gutter's included; `families/text/edit`
   drops the boxes left of the text. quire's `edit_tree` can leave unmarked text out itself (a small patch to
   `ds-blitz`'s `edit_tree.rs`, not in v0.3.1); nothing here waits for it.
+- **Find does not work in a pane.** Find is the palette's (⌘F opens it as a find), and a pane draws no palette, so the
+  pane lists no Find command and the capsule has no Find button; a find already running on the stage still closes on
+  Esc. Ends when the find is data a host can show (the palette machine generic over its rows and moved into quire,
+  which temor was asked for), so that the host's palette can be the pane's find.
+- **A pane's Remember goes to the host, not to a store.** The agreed default is a store-backed handler that merges one
+  file's entry on write under a cross-process lock, so temor and the viewer can both run; the store's writer guard is
+  in-process only and a library cannot spawn the thread a blocking write needs. `PaneRequest::Remember` is passed
+  through, and `PaneEdge::with_resume_source` reads. Ends when the store lane lands the cross-process merge and a `Job`
+  kind the pool can run for the write.
+- **A recording in a pane opens a viewer window instead.** `PlayerHost`, `MediaHub` and `MediaActor` live in
+  `crates/anyview/src/media`; the pane asks its host for `OpenElsewhere`. Ends when they are extracted into a library
+  behind `anyview-media`'s `player` feature. One audio source at a time across panes comes with it.
+- **The pane's focus is the host's word, and nothing tells the host when the pane lost it.** The window takes the
+  keyboard when `focused` turns true and handles nothing while it is false; a blur inside the pane (Tab out, a click
+  elsewhere in the host) sends no `FocusLost`, and `HostSignals.activity` is not set by the pane. Ends when temor's
+  focus handoff shows what it needs.
+- **Two panes on one GPU device are untested.** `TextureLayer` and `use_gpu` use the quire window's device, which the
+  host's renderer shares; whether one queue and one `TextureHandle` namespace hold with two panes and the host's
+  terminal is unmeasured (the harness tests run the Hybrid backend). Ends with a run on a real output.
 
 ## Standing facts
 

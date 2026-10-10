@@ -8,6 +8,8 @@
 #       or zbus: the core never reaches the desktop modules or a D-Bus crate. Tests and the platform crate's `testing` support are exempt.
 #       ds-desktop is not a leak: it is quire's probe, and without its `dbus` feature it has no bus.
 #   (c) anyview-peek compiles on its own, headless and with `media` (see below).
+#   (d) anyview-pane, the viewer as a pane another app hosts, compiles on its own and reaches no bus
+#       and no docket or porter: it asks the OS for nothing (abilities arrive as `PlatformAbilities`).
 #
 #   scripts/check-portable.sh
 set -euo pipefail
@@ -18,6 +20,14 @@ cargo check --workspace --no-default-features --locked
 #     compiles here but not in a launcher. Built headless, and with `media`, the launcher's set.
 cargo check -p anyview-peek --no-default-features --locked
 cargo check -p anyview-peek --no-default-features --features media --locked
+# (d) The pane alone, as temor takes it, and its tree holds none of the desktop's crates.
+cargo check -p anyview-pane --no-default-features --locked
+for dep in zbus ashpd docket-client docket-core porter-core; do
+  if cargo tree -p anyview-pane -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
+    echo "check-portable: anyview-pane reaches $dep" >&2
+    exit 1
+  fi
+done
 if cargo tree -p anyview-platform --no-default-features -e normal,build -i zbus 2>/dev/null | grep -q .; then
   echo "check-portable: anyview-platform reaches zbus without quire-desktop" >&2
   exit 1
@@ -31,4 +41,4 @@ if [ -n "$leaks" ]; then
   echo "$leaks" | head -50 >&2
   exit 1
 fi
-echo "check-portable: the workspace builds without quire-desktop, anyview-peek builds alone (headless and with media), anyview-platform has no zbus and no core module names crate::desktop or zbus"
+echo "check-portable: the workspace builds without quire-desktop, anyview-peek builds alone (headless and with media), anyview-pane builds alone and reaches no bus, anyview-platform has no zbus and no core module names crate::desktop or zbus"

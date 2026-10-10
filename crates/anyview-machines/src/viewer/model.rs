@@ -212,6 +212,9 @@ pub enum ViewerOut {
     PickFile,
     /// Close the window.
     CloseWindow,
+    /// Esc had nothing left to undo in a pane: the keyboard goes back to the host. A pane is
+    /// never closed by a key.
+    Unfocus,
 }
 
 /// Everything the regions read besides their inputs.
