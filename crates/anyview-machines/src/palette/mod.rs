@@ -9,4 +9,4 @@ mod tests;
 pub use model::{
     HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
 };
-pub(crate) use step::{ScopedStep, step_with_scope};
+pub(crate) use step::step_with_scope;
