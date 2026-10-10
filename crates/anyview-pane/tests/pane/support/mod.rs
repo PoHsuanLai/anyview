@@ -149,7 +149,7 @@ fn Row() -> Element {
                         taken: !event.default_action_enabled(),
                     });
                 },
-                {panes}
+                {panes.into_iter()}
             }
         }
     }
