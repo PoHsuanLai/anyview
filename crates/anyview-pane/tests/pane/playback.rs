@@ -8,7 +8,7 @@ use anyview_ui::{
     MediaLine, MediaNotice, MediaOffer, MediaPlayback, MediaStart, MediaStarted, OpenError,
     PlayerCommand, SlotPixels,
 };
-use ds_harness::{Driver, Viewport};
+use ds_harness::{Query, Viewport};
 use std::path::Path;
 use std::sync::Arc;
 
