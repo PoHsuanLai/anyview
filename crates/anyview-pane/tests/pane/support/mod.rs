@@ -5,9 +5,10 @@
 
 use anyview_core::Source;
 use anyview_pane::{
-    FilePath, HitList, MediaHost, NonEmpty, PaneCommand, PaneEdge, PaneRequest, Sequence,
-    SequenceOrigin, ViewerPane, Work, WorkKind, Workers, use_pane_handle,
+    Clock as ViewClock, FilePath, HitList, MediaHost, NonEmpty, PaneCommand, PaneEdge, PaneRequest,
+    Sequence, SequenceOrigin, ViewerPane, Work, WorkKind, Workers, use_pane_handle,
 };
+use anyview_store::Viewed;
 use dioxus::prelude::*;
 use ds::components::menus::palette::palette_group::{GroupEntries, PaletteGroup};
 use ds::prelude::{Appearance, Ds, Material};
@@ -18,6 +19,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+/// The time a store-backed pane stamps each view with.
+pub const VIEWED_AT: Viewed = Viewed(1_700_000_000);
 
 /// Runs each job on the thread that submitted it, so a result is in the mailbox by the time the
 /// harness looks, and counts them: panes that share a pool share the count.
@@ -338,7 +342,9 @@ pub fn hosted_with(
         None => edge,
     };
     let edge = match store {
-        Some(root) => edge.with_store(root),
+        Some(root) => edge
+            .with_store(root)
+            .with_clock(Arc::new(|| VIEWED_AT) as ViewClock),
         None => edge,
     };
     let (focus, changes) = unbounded();

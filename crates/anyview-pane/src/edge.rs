@@ -4,12 +4,14 @@ use crate::store::PaneStore;
 #[cfg(feature = "player")]
 use anyview_media_host::PlayerHost;
 use anyview_peek::StillSource;
+use anyview_store::{Clock, Viewed};
 use anyview_ui::{
     FileLocks, HelperSource, ImagePlugins, MediaHost, PlatformAbilities, ResumeSource, Services,
     VersionSource, Workers,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The workers and the seams one pane runs over: [`anyview_ui::Services`] without the request
 /// handler, which the pane owns (what it asks of its host is [`ViewerPane`](crate::ViewerPane)'s
@@ -37,6 +39,10 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct PaneEdge {
     services: Arc<Services>,
+    /// Where the viewer's store is, once [`PaneEdge::with_store`] named it.
+    store: Option<PathBuf>,
+    /// The time a recorded view is stamped with.
+    clock: Clock,
 }
 
 impl PartialEq for PaneEdge {
@@ -82,13 +88,18 @@ impl PaneEdge {
     /// Without a store a pane remembers nothing itself: the host hears every
     /// [`PaneRequest::Remember`](crate::PaneRequest::Remember) and keeps it, or drops it.
     #[must_use]
-    pub fn with_store(self, root: impl Into<PathBuf>) -> PaneEdge {
-        let store = Arc::new(PaneStore::at(root.into()));
-        self.changed(|services| {
-            services
-                .with_resume_source(store.clone())
-                .with_resume_keeper(store)
-        })
+    pub fn with_store(mut self, root: impl Into<PathBuf>) -> PaneEdge {
+        self.store = Some(root.into());
+        self.rewired()
+    }
+
+    /// The same edge stamping each view a pane records with `clock`, in seconds since the Unix
+    /// epoch. The default is the system clock. It matters to an edge with a store, whichever of
+    /// [`with_store`](PaneEdge::with_store) and this comes first.
+    #[must_use]
+    pub fn with_clock(mut self, clock: Clock) -> PaneEdge {
+        self.clock = clock;
+        self.rewired()
     }
 
     /// The same edge reading where files were left from `source`.
@@ -154,15 +165,45 @@ impl PaneEdge {
     fn over(services: Services) -> PaneEdge {
         PaneEdge {
             services: Arc::new(services),
+            store: None,
+            clock: system_clock(),
         }
     }
 
     fn changed(self, change: impl FnOnce(Services) -> Services) -> PaneEdge {
-        PaneEdge::over(change(Arc::unwrap_or_clone(self.services)))
+        PaneEdge {
+            services: Arc::new(change(Arc::unwrap_or_clone(self.services))),
+            store: self.store,
+            clock: self.clock,
+        }
+    }
+
+    /// The same edge with its store (when it has one) opened over the clock it has now.
+    fn rewired(self) -> PaneEdge {
+        let Some(root) = self.store.clone() else {
+            return self;
+        };
+        let store = Arc::new(PaneStore::at(root, self.clock.clone()));
+        self.changed(|services| {
+            services
+                .with_resume_source(store.clone())
+                .with_resume_keeper(store)
+        })
     }
 
     /// The services this edge was built from, for the pane to wire its own request handler into.
     pub(crate) fn services(&self) -> Services {
         (*self.services).clone()
     }
+}
+
+/// Seconds since the Unix epoch, on the system clock. A clock before it reads as the epoch itself.
+fn system_clock() -> Clock {
+    Arc::new(|| {
+        Viewed(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |since| since.as_secs()),
+        )
+    })
 }

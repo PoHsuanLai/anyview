@@ -8,6 +8,10 @@
 #[serde(transparent)]
 pub struct Viewed(pub u64);
 
+/// The time as a program reads it, in [`Viewed`] seconds: the one place a program asks the time,
+/// so a test passes a fixed one.
+pub type Clock = std::sync::Arc<dyn Fn() -> Viewed + Send + Sync>;
+
 #[cfg(test)]
 mod tests {
     use super::*;

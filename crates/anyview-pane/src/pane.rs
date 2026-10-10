@@ -10,9 +10,12 @@ use anyview_ui::{
     use_pane_link,
 };
 use dioxus::prelude::*;
+use ds::base::time::clock;
 use futures_channel::mpsc::{UnboundedReceiver, unbounded};
 use futures_util::StreamExt;
+use futures_util::future::{Either, select};
 use std::cell::{Cell, RefCell};
+use std::pin::pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -122,7 +125,24 @@ fn Seated(props: PaneProps) -> Element {
         let kept = keeping.clone();
         async move {
             let Some(mut requests) = taken else { return };
-            while let Some(request) = requests.next().await {
+            loop {
+                // The place held back is written when its interval ends, if no request comes
+                // first; the next request then finds the policy as the wake left it.
+                let due = kept.borrow().due_in();
+                let request = match due {
+                    Some(wait) => {
+                        let sleeping = pin!(clock::sleep(wait));
+                        match select(requests.next(), sleeping).await {
+                            Either::Left((request, _)) => request,
+                            Either::Right(((), _)) => {
+                                kept.borrow_mut().wake(&edge);
+                                continue;
+                            }
+                        }
+                    }
+                    None => requests.next().await,
+                };
+                let Some(request) = request else { break };
                 // With a store, the pane keeps the views and places itself, on the workers.
                 let answered = kept.borrow_mut().answers(&request, &edge);
                 if answered {

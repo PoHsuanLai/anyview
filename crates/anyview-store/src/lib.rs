@@ -62,7 +62,7 @@ pub use reader::{HistoryRead, read_history};
 pub use save::{BackedUp, Durability, Pending, Written};
 pub use sweep::sweep_leftovers;
 pub use versions::{DEFAULT_CAP, DEFAULT_KEEP, KeepPeriod, SavedAt, Version, VersionId, Versions};
-pub use viewed::Viewed;
+pub use viewed::{Clock, Viewed};
 pub use writer::{StoreWriter, ViewRecorded};
 
 /// The folder under a person's data directory that holds the store, which the viewer writes and
