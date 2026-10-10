@@ -30,6 +30,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L1 | `anyview-image` | exists | raster and vector images: decode to upright RGBA8, a downscaled peek with EXIF facts, encode for export, lossless JPEG rotation |
 | L1 | `anyview-pdf` | exists | pdfrum: open and share a document, lay out pages, plan and draw tiles, search across the document, outline, links, page edits, exports |
 | L1 | `anyview-media` | exists | video and audio: the typestate player session over the person's own mpv, run as a child process, and the driver an actor runs (feature `player`); the built-in audio player for a machine with no mpv (feature `audio`: symphonia decodes, cpal plays); and the plan, the names and the asks of the exports a plugin writes; links no libmpv and no libav |
+| L1 | `anyview-runtime` | exists | the program's threads: the bounded worker pool and its lanes, the runner that puts a back end's results in a window's mailbox, and the actors that own what cannot be shared (the media player); `anyview-core` and `thiserror` only |
 | L1 | `anyview-text` | exists | text: encodings and windowed lines, code highlighting into token classes, Markdown to HTML, CSV tables, spreadsheets (calamine), JSON trees, and the five text peeks |
 | L1 | `anyview-archive` | exists | archives: zip, tar, 7z and compressed-stream listings read inside a byte budget, extracting one entry, the archive peek, and an office package's title, author, count and embedded picture |
 | L1 | `anyview-book` | exists | books: an EPUB's package (metadata, reading order, contents), a chapter as sealed HTML (allowlisted markup, sealed styles, images inlined as `data:` URLs), a comic zip's pages in natural order, and the covers of both; reads the zip through `anyview-archive` |
@@ -41,12 +42,13 @@ planned has no directory yet; its row is the rule it will carry.
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, `look` (its one front door: probe a file and peek at it as `Peeking` says), and the pane view (what the launcher links) |
 | L3 | `anyview-machines` | exists | the viewer's pure state machines as `ds-core` machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the stages, key routing and the root that composes them), and the vocabulary they speak (`Command`, `EditRequest`, `PlatformAbilities`); depends on `anyview-core`, `ds-core` and `chordkit` alone, with no Dioxus, no `ds` and no window, so a host that is not the viewer's window (temor, a terminal) drives the same machines |
 | L4 | `anyview-ui` | exists | the viewer's window: it re-exports the machines, and adds the blocking work a worker does for them (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages (which also show books, bound as PDFs) and the facts view) and the window that draws every region (`views`) |
-| L4 | `anyview-pane` | exists | the viewer as a pane another quire app hosts in its own window (temor, a terminal): `ViewerPane` over a `PaneEdge`, the `PaneRequest`s it makes of its host (`HostRequest` narrowed to what a region of a window can mean), and `PaneHandle`, which lends the host the pane's commands as a palette group; a thin crate over `anyview-ui`, so no new dependency, and only a host links it |
+| L2 | `anyview-media-host` | exists | the host side of the player, for the viewer's windows and for a pane in another app's window: `PlayerHost` (the `MediaHost` the views start players with), `MediaHub` (the sessions, the desktop's one now-playing entry, a saved frame, and one source of sound at a time across panes: `AudioFocus`), the `PlayerPlugins` seam it asks (`FixedMpv` for a host with one mpv and no plugin registry) and the thread each player runs on; over `anyview-media`'s player, so child mpv and a memfd ring, no libmpv and no libav |
+| L4 | `anyview-pane` | exists | the viewer as a pane another quire app hosts in its own window (temor, a terminal): `ViewerPane` over a `PaneEdge`, the `PaneRequest`s it makes of its host (`HostRequest` narrowed to what a region of a window can mean), and `PaneHandle`, which lends the host the pane's commands as a palette group; a thin crate over `anyview-ui`, so no new dependency, and only a host links it; with its `player` feature (off by default) a recording plays in the pane through `anyview-media-host` (`PaneEdge::with_player`), and without it a recording is handed to the host as `OpenElsewhere` |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
 | dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
-| L5 | `anyview` | exists | the binary: the runtime (the worker pool, the actors and delivery to the UI thread), the command line, single instance, the windows, the players and the desktop's now-playing entry (`media`), and the host that carries out what the windows ask through the platform |
+| L5 | `anyview` | exists | the binary: the command line, single instance, the windows, the plugins that play, read and write recordings, the exports and the desktop's now-playing entry (`media`; the player host and the hub are `anyview-media-host`), and the host that carries out what the windows ask through the platform |
 
 ### Allowed edges (workspace crates and quire; everything else is forbidden)
 
@@ -63,7 +65,9 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-fs` | `anyview-core` |
 | `anyview-machines` | `anyview-core`, `ds-core` (the `Machine` trait, `Stamp` and `Word`), `chordkit` (the keymap's nouns, for `Act`) |
 | `anyview-ui` | `anyview-archive` (an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-fs` (`OnDisk`), `anyview-image`, `anyview-machines` (every machine, re-exported from the root), `anyview-pdf`, `anyview-peek` (without `pane` and `media`: `probe`, so the window and the launcher's pane tell a zip document from an archive by one rule, `peek` for the card of a file no stage shows, and `StillSource`, the host's small picture of a file), `anyview-store` (`file_details`, the General section of the Info tab), `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
-| `anyview-pane` | `anyview-core` (`FilePath`, `Sequence`), `anyview-peek` (`StillSource`, re-exported so a host names this crate alone), `anyview-ui` (the window, the edge and the seams), `ds` (the palette's group and row) |
+| `anyview-pane` | `anyview-core` (`FilePath`, `Sequence`), with `player`: `anyview-media` (`AudioDriver`, `MpvHost`, re-exported) and `anyview-media-host` (`PlayerHost` and the hub), `anyview-peek` (`StillSource`, re-exported so a host names this crate alone), `anyview-ui` (the window, the edge and the seams), `ds` (the palette's group and row) |
+| `anyview-runtime` | `anyview-core` (`work::Backend`, `Ticket`, `Stop`); `thiserror` |
+| `anyview-media-host` | `anyview-core`, `anyview-media` (feature `player`; with `audio`, the built-in audio player), `anyview-platform` (without `quire-desktop`: the `MediaSession` trait and the now-playing vocabulary; no bus), `anyview-plugin` (`Subject`, `MissingPlugin`, `Installed`), `anyview-runtime` (`Actor`, `Mailbox`), `anyview-ui` (`MediaHost`, `MediaNotice` and the rest of the seam it implements), `ds` (`ImageSource`), `ds-blitz` (`AppHandle`, `TextureHandle`); `tokio` (the hub's channels and timeout) and `thiserror` |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `anyview-fs` (`OpenFile`, for a window of lines read by offset), `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -74,7 +78,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
 | `anyview-peek` | `anyview-archive`, `anyview-book`, `anyview-core`, `anyview-font`, `anyview-fs` (`OnDisk`, `is_regular`, `open_regular`: the peek is the adapter that opens a path), `anyview-image`, `anyview-text`, `ds-core` (`Word`, `Size`, `Scale`); with `pane`, `ds` (the pane's components) and `ds-blitz` (`TextureLayer`, and the `pdf` feature's page cache) |
-| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (with `media` and `pane`; a recording's facts from its header when no plugin reads it, a window's size from a header, and `StillSource`, over the thumbnail cache), `anyview-fs` (`OnDisk`), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-desktop` (`Desktop::probe`: whether PackageKit answers, for the Install... offer), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
+| `anyview` | `anyview-core`, `anyview-export` (the exports and printouts of images, PDFs and text), `anyview-image` (`Rgba8`, the picture a cached thumbnail lends the first frame, the encode of a saved frame, and `edited`, a picture's bytes after an edit), `anyview-media` (features `player` and `audio`), `anyview-media-host` (`PlayerHost`, `MediaHub`, `PlayerPlugins`; feature `audio`), `anyview-runtime` (the pool, the runner and the actors; the binary re-exports it as `anyview::runtime`), `anyview-pdf` (`apply`, a PDF's bytes after a page edit), `anyview-peek` (with `media` and `pane`; a recording's facts from its header when no plugin reads it, a window's size from a header, and `StillSource`, over the thumbnail cache), `anyview-fs` (`OnDisk`), `anyview-platform`, `anyview-plugin` and `anyview-plugin-protocol` (the registry and the plugins' export requests), `anyview-store`, `anyview-ui`, `ds` (`Appearance`, `WindowHost`), `ds-blitz` (`launch_idle`, `AppHandle`, `LastWindowClosed`, the clipboard), `ds-desktop` (`Desktop::probe`: whether PackageKit answers, for the Install... offer), `ds-helpers` (the catalog of tools, the probe and the PackageKit install of a missing one: the one crate that reaches PackageKit, on the bus `anyview-platform` otherwise owns; the binary names none of zbus) |
 
 Dev-dependencies follow the same table, plus `wgpu` and `pollster` for `anyview`'s media-thread test (they never reach its normal build; they make the window's device and read a texture back), plus `tempfile` for `anyview-media`'s driver tests, plus `ds-harness`, `image` and `tempfile` and `anyview-platform`'s `testing` fakes for `anyview`'s window tests, plus `serde_json` for round-trip tests and `ds-core` with
 its `testing` feature for `word_matches_serde` (`anyview-core`), and `tempfile` for scratch
@@ -94,6 +98,8 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 | `anyview-platform` | `testing` | the fakes and the private bus | tests only |
 | `anyview-media` | `player` | the typestate player over the person's mpv | on |
 | `anyview-media` | `audio` | the built-in audio player (symphonia, cpal) | on, through `anyview/audio` |
+| `anyview-media-host` | `audio` | the built-in audio player (`anyview-media/audio`: symphonia, cpal) | on, through `anyview/audio` |
+| `anyview-pane` | `player` | recordings play in the pane: `PaneEdge::with_player`, and `PlayerHost`, `MediaHub`, `FixedMpv` re-exported; the person's own mpv as a child process, no sound card | off (a host turns it on) |
 | `anyview-peek` | `media` | a recording's header and cover (symphonia, mp4parse, matroska-demuxer) | on |
 | `anyview-peek` | `pane` | the pane that draws (`ds`, `dioxus`, `ds-blitz`) | on |
 | `anyview-export` | `print` | a text document printed to a PDF (`ds-blitz`'s `pdf`) | on |
@@ -113,13 +119,15 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 | `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf`, which only the `print` feature links |
 | `anyview-machines` | `dioxus`, `ds`, `ds-blitz`, `ds-shell`, `ds-motion`, `ds-style`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values and `step` functions, no spawning, no clock, no disk; the script also fails on a source file that names Dioxus, quire's components, a decoder, the disk, a thread or a clock, and checks `cargo tree -p anyview-machines -e normal -i dioxus` is empty |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machines are in `anyview-machines` (below), which the script holds to that |
-| `anyview-pane` | `zbus`, `ashpd`, `docket-client`, `docket-core`, `porter-core`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `cpal`, `alsa`, `alsa-sys`; and it never names `wgpu`, `tokio` or `pdfrum` itself (the DIRECT table): it asks the OS for nothing, and abilities arrive as `PlatformAbilities`. Budget 590 packages (the window's 589 and the crate); the viewer and the peek budgets are untouched since only a host links it |
+| `anyview-pane` | `zbus`, `ashpd`, `docket-client`, `docket-core`, `porter-core`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `cpal`, `alsa`, `alsa-sys`; and it never names `wgpu`, `tokio` or `pdfrum` itself (the DIRECT table): it asks the OS for nothing, and abilities arrive as `PlatformAbilities`. Budget 590 packages (the window's 589 and the crate); the viewer and the peek budgets are untouched since only a host links it. With `player` it may reach `mpv-wgpu-player` (the child-process host) and `anyview-platform`'s portable half, and still none of the bus, docket, porter, `rsmpv`, libav, `cpal`, `alsa` or `symphonia`: a second table in the script (`PANE_PLAYER_FORBIDDEN`) and a budget of 607 |
+| `anyview-media-host` | `zbus`, `ashpd`, `docket-client`, `docket-core`, `porter-core`, `prov`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `cpal`, `alsa`, `alsa-sys`, `symphonia` in its default tree: no bus, no libmpv or libav and no sound card; the desktop's now-playing entry is a `MediaSession` the host passes in (the binary's MPRIS one), and the built-in audio player is its `audio` feature. Budget 606 packages. It starts threads, but only the media thread of a player and only through `anyview-runtime`'s `Actor` |
+| `anyview-runtime` | `dioxus`, `ds`, `ds-blitz`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `image`, `syntect`, the player, libmpv, libav: pure threads over `anyview-core`. Budget 34 packages |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
 | `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust2`, `flate2`, `bzip2`, `ruzstd`, `lzma-rust2`): the one crate that names `skrifa` for reading a face |
 | `anyview-platform` | `dioxus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`: the edge knows the desktop, not the pictures; it spawns no thread and runs on the binary's tokio runtime |
-| `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `cpal`, `symphonia`, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime inside it stays generic over the back ends and names none of them |
-| `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `mpv-wgpu-player` (with its `player` feature), built with the `subprocess` host only, so no libmpv and no `rsmpv`. Its `audio` feature names `symphonia` and `cpal`, which the launcher's library must never reach (`anyview-peek` links symphonia for probing and never `cpal`). It spawns no thread of its own (cpal's callback thread and the `null` output's clock are the only ones), reads no clock beyond that output's, draws nothing and has no runtime: the binary runs its driver on the media thread and its exports on the pool |
+| `anyview` | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next` anywhere in its tree: it links no libmpv and no libav, and runs the person's mpv and the FFmpeg plugin as programs. It never names, in its own manifest, `cpal`, `symphonia`, `zbus`, `ashpd`, `freedesktop-*`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `pdfrum`, `image`, the `blitz-*` crates, `anyrender` or `dioxus-native` (the DIRECT table): the bus, the renderer and the decoders come through the platform and the window crates. It does name `dioxus`, for the root component every window shares, and is exempt from the "only `anyview-platform` reaches `zbus`" check for the same reason it links that crate; the DIRECT row holds it to not naming it. The runtime (`anyview-runtime`) stays generic over the back ends and names none of them |
+| `anyview-media` | `dioxus`, `tokio`, `zbus`, `pdfrum`, `image`, `syntect`, `pulldown-cmark`, `resvg`, `jxl-oxide`, the `blitz-*` crates, `anyrender`: the one crate that names `mpv-wgpu-player` (with its `player` feature), built with the `subprocess` host only, so no libmpv and no `rsmpv`. Its `audio` feature names `symphonia` and `cpal`, which the launcher's library must never reach (`anyview-peek` links symphonia for probing and never `cpal`). It spawns no thread of its own (cpal's callback thread and the `null` output's clock are the only ones), reads no clock beyond that output's, draws nothing and has no runtime: `anyview-media-host` runs its driver on the media thread and the binary runs its exports on the pool |
 | `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: bayonet's wire (no `host` feature, so no `toml`), serde and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
@@ -528,19 +536,20 @@ Pixels are premultiplied RGBA8, the form `TextureLayer` uploads; `Raster::straig
 encoder takes. A page is drawn on white. Hits, links and outline entries carry pages, never object
 numbers, and rectangles are fractions of the displayed page, so they need no zoom.
 
-## 2h. Modules inside `anyview` (the runtime)
+## 2h. Modules inside `anyview-runtime` and `anyview` (the program)
 
-`lib.rs` declares `pub mod runtime`; `main.rs` is the program. The runtime is the one place that
-starts threads (section 5b), and it names no back end: it is generic over `anyview_core::work::Backend`
-and over an actor body.
+`anyview-runtime` holds the threads: the pool, the runner and the actors (section 5b). It names no back end: it
+is generic over `anyview_core::work::Backend` and over an actor body. The binary starts the pool and
+re-exports the crate as `anyview::runtime` (`pub use anyview_runtime as runtime`); the one library that starts a
+thread, `anyview-media-host`, does so for a player through `Actor`. `main.rs` is the program.
 
 | Module | Holds |
 | --- | --- |
-| `runtime::error` | `RuntimeError` (`Spawn`, `ActorEnded`) |
-| `runtime::mailbox` | `UiWaker`, `Mailbox` (the UI thread's end, `drain`), `Outbox` (cloned to every posting thread; one wake per drain) |
-| `runtime::pool` | `Pool`, `PoolSize`, `Lane` (`Visible`, `Preload`); the per-worker scratch map and the queues are private |
-| `runtime::runner` | `Runner<B, T>`, `JobHandle`, `JobOutcome` (`Done`, `Skipped`, `Panicked`), `JobPanic` |
-| `runtime::actor` | `Actor`, `ActorBody`, `ActorWake`, `Flow` |
+| `error` | `RuntimeError` (`Spawn`, `ActorEnded`) |
+| `mailbox` | `UiWaker`, `Mailbox` (the UI thread's end, `drain`), `Outbox` (cloned to every posting thread; one wake per drain) |
+| `pool` | `Pool`, `PoolSize`, `Lane` (`Visible`, `Preload`); the per-worker scratch map and the queues are private |
+| `runner` | `Runner<B, T>`, `JobHandle`, `JobOutcome` (`Done`, `Skipped`, `Panicked`), `JobPanic` |
+| `actor` | `Actor`, `ActorBody`, `ActorWake`, `Flow` |
 
 The program is the rest of the library. `main.rs` reads the process's arguments, working directory and
 environment once and calls `program::run`; nothing below it reads `std::env`.
@@ -638,8 +647,25 @@ end of a held file is looked for once a poll's last position is in. A crashed or
 again. The frame on screen is mpv's: `ExportJob::MpvScreenshot` is planned here and carried out by the player
 that shows the frame (`MediaCommand::Screenshot`).
 
+**The host (`anyview-media-host`).** `PlayerHost` is the `MediaHost` a window or a pane starts players with
+(`start` reads the recording's facts through `PlayerPlugins`, chooses the player (`engine.rs`: `choose`) and spawns
+the media thread, whose `MediaActor` holds the `MediaDriver` behind `Guarded` and turns the player's events into the
+views' `MediaNotice`s (`map.rs`) and the desktop's now-playing entry (`snapshot.rs`)). `MediaHub` keeps the
+sessions: a window's (its line is the view's; the hub only watches), a background one (the hub holds it and the
+event loop), the desktop entry's controls carried out on the session shown (`orders.rs`), and a saved frame
+(`screenshot`). `MediaHub::start` takes the entry as a `MediaSession` (the binary's MPRIS one);
+`MediaHub::standalone` is the hub of a host with none. **One source of sound at a time:** `AudioFocus::Shared`
+(the default; each window plays on its own) or `Exclusive` (what `standalone` sets, for panes sharing a hub): a
+session that reports `Playing` after it was not pauses every other session that was playing
+(`focus.rs`: `Sounding::heard`, which also ignores the late `Playing` of a session it has just paused). The hub
+is the same for every pane of a window: one `MediaHub`, a `SessionId` per player. `PlayerPlugins` is what the host
+asks of the plugins (`reading`, `player`, `writer`, `need_of`, `offer`); the binary implements it over its registry
+(below), and `FixedMpv` answers for a host that has one `mpv` and its C plugin. The pane reaches all of it through
+`anyview-pane`'s `player` feature (`PaneEdge::with_player`); an edge with no `MediaHost`, or one that says
+`MediaSupport::Absent` (`NoPlayer`, the default), hands a recording to the host as `OpenElsewhere`.
+
 **The binary's side (`anyview::media`).** `MediaPlugins` (the registry from `discover(&Env)` and the
-`PluginRunner`) answers four questions: `player` (the `MpvHost` of a kind, else the package that would play it),
+`PluginRunner`, and `PlayerPlugins` for the host above) answers four questions: `player` (the `MpvHost` of a kind, else the package that would play it),
 `reading` (a recording's facts and tags: the FFmpeg plugin's, else `anyview-peek`'s pure-Rust ones), `writer`
 (the plugin that writes exports) and `offer` (which media exports the sheet lists). `offer` asks the writer's
 greeting which targets this machine's FFmpeg can encode and keeps those that fit the file's kind (a frame is
@@ -1236,9 +1262,9 @@ The single place a concept lives. Extend it; never write a second one.
 | Which keys stand for a stage command | `StageCommand::from_key` (`command.rs`) |
 | Ignoring a result that arrived after the person left a file | `anyview_core::work::Ticket` (re-exported by `anyview_ui`), `Load`; `Ticketed` pairs a result with it |
 | What a back end offers a worker, and how work is told to stop | `anyview_core::work::Backend`, `Stop` |
-| The threads: the worker pool, its lanes, panics in jobs | `anyview::runtime::Pool`, `Runner` |
-| Handing a result to the UI thread and waking it | `anyview::runtime::Mailbox`, `Outbox`, `UiWaker` |
-| An object one thread owns, with commands in and events out (the player) | `anyview::runtime::Actor`, `ActorBody` |
+| The threads: the worker pool, its lanes, panics in jobs | `anyview_runtime::Pool`, `Runner` (`anyview::runtime`) |
+| Handing a result to the UI thread and waking it | `anyview_runtime::Mailbox`, `Outbox`, `UiWaker` |
+| An object one thread owns, with commands in and events out (the player) | `anyview_runtime::Actor`, `ActorBody` |
 | The views' work on the pool | `anyview::seam::Workforce` (the one `Workers`) |
 | The command line | `anyview::cli::parse` |
 | Being the viewer, or forwarding a launch to it | `anyview::program::claim_role` over `anyview_platform::Instance` (`DbusInstance` or `portable::LatchkeyInstance`) |
@@ -1311,11 +1337,11 @@ The single place a concept lives. Extend it; never write a second one.
 | Which media exports a recording offers | `media::MediaPlugins::offer` (the plugin's greeting and the file's kind), `anyview_ui::MediaOffer` |
 | Cutting, copying and converting a recording, with progress and stop | `media::PluginExport` (a pool job asking the FFmpeg plugin), `media::Exports` in the binary |
 | The frame on screen, saved | `MediaCommand::Screenshot` on the player that shows it, then `host/media.rs` encodes it as the format asked |
-| Which players run, the desktop's one entry and its controls | `anyview::media::MediaHub` |
+| Which players run, the desktop's one entry and its controls, one source of sound at a time | `anyview_media_host::MediaHub` (`anyview::media::MediaHub`), `AudioFocus` |
 | What a desktop control means to a player | `orders_for` (`media/orders.rs`) |
 | The now-playing entry built from the player's events, and how often a moving position is published | `media/snapshot.rs` (`Snapshot`) |
 | The player's events and instructions as the stage machine's, both ways | `media/map.rs` |
-| Starting a player for a window | `anyview_ui::MediaHost`, implemented by `anyview::media::PlayerHost` |
+| Starting a player for a window | `anyview_ui::MediaHost`, implemented by `anyview_media_host::PlayerHost` (`anyview::media::PlayerHost`) |
 | What a window holds of its player | `anyview_ui::MediaLine`; the news is applied by `MediaShelf` (`families/media/shelf.rs`) |
 | Playing with no window | `MediaHub::play_in_background`: it holds the event loop open (`ds_blitz::AppHandle::hold`) while it plays |
 | The small window of a recording | `Presentation::Mini`; `WindowTask::Reopen` makes the window again; `WindowStacking` asks the desktop to keep it above |
@@ -1395,7 +1421,8 @@ binary's pool: `fn submit(&self, work: Work)`.
 
 ## 5b. Threads
 
-The binary owns every thread; libraries never spawn. Back-end crates expose `Backend::run` and
+The binary owns every thread; libraries never spawn, with one exception: `anyview-media-host` starts the
+media thread of each player, through `anyview-runtime`'s `Actor`. Back-end crates expose `Backend::run` and
 their work items and nothing else.
 
 | Thread | Owner | Runs |
@@ -1403,7 +1430,7 @@ their work items and nothing else.
 | `anyview-watch` | `host::Watcher` | the file watcher's burst settling: it owns the one `notify` instance's events and calls `Edge::changed` from here |
 | UI | the window (`ds-blitz`) | the machines, the views, `TextureLayer`, Markdown and HTML layout; never blocks |
 | workers, `PoolSize::from_cores(cores)` (cores minus one, at least one) | `runtime::Pool` | back-end jobs, visible-lane first, and media exports (`media::Exports`) |
-| `anyview-media` (one per recording that plays) | `runtime::Actor` | the media player (mpv's `Driver` or the built-in `BuiltinDriver`): built, polled and commanded only there; the built-in one decodes there, whenever the sound card's wake or an instruction brings a turn |
+| `anyview-media` (one per recording that plays) | `anyview-media-host`, on `runtime::Actor` | the media player (mpv's `Driver` or the built-in `BuiltinDriver`): built, polled and commanded only there; the built-in one decodes there, whenever the sound card's wake or an instruction brings a turn |
 | (cpal's) | the sound card's callback | drains `anyview_media::Pipe` into the card and wakes the actor as it runs low or time passes; it decodes nothing and takes one short lock. `SilentOutput` (`ANYVIEW_AUDIO_OUTPUT=null`) is a thread of ours that drains the same pipe at the recording's pace |
 | (none: plugin calls) | the worker that makes them | `PluginRunner` calls block their worker and poll the plugin's pipe, so they spawn no thread of their own; a plugin is a child process, killed when its call ends |
 | async runtime | the binary's tokio runtime (`program::start`: one worker, `anyview-platform`) | `anyview-platform` (D-Bus, MPRIS) and the host's tasks (`host::Desktop`); blocking work among them runs on its blocking pool |
@@ -1431,7 +1458,7 @@ An actor owns an object that cannot be shared. `Actor::spawn` runs `make(ActorWa
 thread, so the object is built there and may be `!Send`; commands arrive through `Actor::send`, the
 object's own callback calls `ActorWake::wake` (coalesced) and the body's `woken` polls it; events
 go out through an `Outbox`. The player runs this way, one actor per recording that plays (a window's
-or a background session's): `anyview::media`'s actor owns a `MediaDriver` (mpv's `Driver`, or the built-in `BuiltinDriver`
+or a background session's): `anyview-media-host`'s actor owns a `MediaDriver` (mpv's `Driver`, or the built-in `BuiltinDriver`
 when there is no mpv and the file is audio), so `poll` is only ever
 called on its thread (`crates/anyview/tests/media_thread.rs` checks that, FINDINGS). The window holds a
 `MediaLine` to it: commands go in without blocking, the news comes back through the actor's mailbox, and the

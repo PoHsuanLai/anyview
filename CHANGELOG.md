@@ -11,7 +11,7 @@ versioning, with pre-releases while the program is in beta.
 
 ### Embedding
 
-- The viewer can be hosted as a pane in another quire app's window (`anyview-pane`: `ViewerPane`). A pane draws the file, the bottom bar when the pointer is over it, the info panel (over the file when the pane is narrow) and the context menu; it draws no title bar, sheets or command palette, leaves every shortcut with a modifier to the app that hosts it, takes plain keys only while the app says it has the keyboard, and gives the keyboard back on Esc once there is nothing left to close. The app lists the pane's commands in its own palette. A recording in a pane opens in a viewer window of its own for now.
+- The viewer can be hosted as a pane in another quire app's window (`anyview-pane`: `ViewerPane`). A pane draws the file, the bottom bar when the pointer is over it, the info panel (over the file when the pane is narrow) and the context menu; it draws no title bar, sheets or command palette, leaves every shortcut with a modifier to the app that hosts it, takes plain keys only while the app says it has the keyboard, and gives the keyboard back on Esc once there is nothing left to close. The app lists the pane's commands in its own palette. A recording in a pane opens in a viewer window of its own, unless the app hosting the pane gives it a player: then video and audio play in the pane, and when several panes share one player only the one that started last keeps playing.
 
 ### Shortcuts
 
