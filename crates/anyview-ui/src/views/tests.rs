@@ -5,10 +5,10 @@
 use super::chrome::{Controls, Titlebar};
 use super::context::items_of;
 use super::panel::InfoPanel;
-use crate::context::entries;
 use crate::testing::golden;
 use crate::{Command, ContextPick, PanelTab, PanelTabs, StageCommand};
 use anyview_core::{FactLabel, FactValue, Facts, FileAction, FormatKind};
+use anyview_machines::seam::entries;
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
 use ds::components::chrome::capsule::model::CapsuleSlot;

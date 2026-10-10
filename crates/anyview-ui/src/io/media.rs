@@ -5,9 +5,9 @@
 
 use super::helpers::Need;
 use super::workers::Reply;
-use crate::sheet::MediaOffer;
-use crate::stage::{MediaAbilities, MediaError, PlayerCommand, PlayerEvent};
-use crate::{Done, OpenError, Ticket};
+use crate::{
+    Done, MediaAbilities, MediaError, MediaOffer, OpenError, PlayerCommand, PlayerEvent, Ticket,
+};
 use anyview_core::{
     Facts, FilePath, MediaChapter, MediaLength, MediaTags, MediaTime, MediaTrack, Sniffed, Source,
     Speed, VideoPresence,

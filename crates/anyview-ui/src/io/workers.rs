@@ -4,18 +4,16 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::abilities::PlatformAbilities;
 use super::helpers::HelperSource;
 use super::job::{Done, Job, OpenPort, Opened, WorkLane};
 use super::media::{MediaHost, MediaPort};
 use super::notice::Notice;
 use super::seams::{FileLocks, ImagePlugins, ResumeSource, VersionSource};
 use super::services::Services;
-use crate::edits::{EditRequest, Rewind};
-use crate::sheet::{ExportDraft, VersionKey};
-use crate::{Presentation, Ticket, TypedText};
+use crate::{EditRequest, ExportDraft, Presentation, Rewind, Ticket, TypedText, VersionKey};
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
+use anyview_machines::{PlatformAbilities, SaveEnd};
 use anyview_peek::StillSource;
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
@@ -234,15 +232,6 @@ impl TextSave {
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
-}
-
-/// How the host's save of the edited text ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SaveEnd {
-    /// The text is in the file, and the original is kept.
-    Written,
-    /// Nothing was written and the file is as it was.
-    Refused,
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's

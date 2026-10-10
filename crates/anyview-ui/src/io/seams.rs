@@ -5,7 +5,7 @@
 //! is `anyview_peek::StillSource`, which the launcher lends its pane as well.
 
 use super::helpers::Need;
-use crate::sheet::VersionRow;
+use crate::VersionRow;
 use anyview_core::{FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;

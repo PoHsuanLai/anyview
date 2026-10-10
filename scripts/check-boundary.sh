@@ -18,10 +18,14 @@ cd "$(dirname "$0")/.."
 # one. The crates above it (anyview-peek and the back ends not yet written) are added to this table
 # when they exist; ARCHITECTURE.md section 1 lists the rule each will carry. anyview-store does
 # blocking file I/O and nothing else (the launcher links it): no runtime, no UI, no decoder.
-# anyview-ui holds the pure machines and the views that draw them. The crate itself may name the
+# anyview-machines holds the viewer's pure state machines (chrome, panel, palette, sheet, navigation,
+# presentation, loading, the stages, key routing, the root) over anyview-core, ds-core and chordkit alone:
+# no dioxus, no ds, no ds-blitz, no ds-shell, no runtime, no GPU, no decoder, no bus, no player. A host that
+# is not the viewer's window (temor, a terminal) drives the same machines without compiling a window.
+# anyview-ui holds the views that draw those machines and the effects that feed them. The crate itself may name the
 # window (ds-blitz, which brings tokio and wgpu) and the three back ends (which bring image and
-# pdfrum); it never names a bus, a PDF library itself (the DIRECT table) or a player. The machines inside it stay pure, which is checked per
-# source file below.
+# pdfrum); it never names a bus, a PDF library itself (the DIRECT table) or a player. The machines are
+# in anyview-machines, whose source is checked file by file below.
 # anyview-image and anyview-text are blocking back ends the launcher links: no runtime, no bus, no
 # GPU, no UI, no Blitz, no player, and neither reaches the other's codecs (the image crate has no
 # highlighter or Markdown parser, the text crate no image decoder).
@@ -94,6 +98,7 @@ RULES=(
   "anyview-plugin-fake: anyview-core ds-core toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
   "anyview-core: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image syntect blitz-dom anyrender serde_json"
   "anyview-store: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender"
+  "anyview-machines: dioxus ds ds-blitz ds-shell ds-motion ds-style tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-export: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
@@ -163,6 +168,9 @@ DIRECT=(
 # declares the viewer's own actions' default chords with it) adds chordkit to every tree, and quire's
 # chordkit-kde and chordkit-gnome (the system shortcut readers) to the windowed ones: the peek is 575, the
 # headless peek 194 and the viewer 693.
+# Splitting the machines out of anyview-ui (layering audit F2) adds anyview-machines to the viewer's tree: 694.
+# anyview-machines is 34: anyview-core's tree (ds-core, chordkit, jiff, thiserror and the like) and nothing of
+# the window.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
@@ -172,7 +180,8 @@ DIRECT=(
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 575"
-  "anyview: 693"
+  "anyview: 694"
+  "anyview-machines: 34"
 )
 HEADLESS_BUDGET=194
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
@@ -310,7 +319,8 @@ EDGES=(
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-fs: anyview-core"
-  "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
+  "anyview-machines: anyview-core ds-core"
+  "anyview-ui: anyview-archive anyview-book anyview-core anyview-fs anyview-image anyview-machines anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
   "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core porter-core prov"
@@ -384,19 +394,22 @@ for dep in zbus ashpd freedesktop-desktop-entry memfd; do
 done
 echo "portable build holds: anyview-platform --no-default-features reaches none of zbus ashpd freedesktop-desktop-entry memfd"
 
-# The machines of anyview-ui are pure: their source names no view, no quire component, no decoder,
-# no disk, no thread and no clock. The effects are carried out by `io`, `families` and `views`.
-MACHINES=(chrome command keys load navigate palette panel presentation sheet stage time typed viewer)
-for machine in "${MACHINES[@]}"; do
-  path="crates/anyview-ui/src/$machine"
-  [ -d "$path" ] || path="$path.rs"
-  hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\banyview_image\b|\banyview_pdf\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_' "$path" || true)
-  if [ -n "$hits" ]; then
-    echo "IMPURE: the machine $machine names an effect or a view"
-    echo "$hits" | head -10
-    fail=1
-  fi
-done
-echo "machines hold: ${MACHINES[*]} name no view, decoder, disk, thread or clock"
+# The machines are pure: their source names no view, no quire component, no decoder, no disk, no thread
+# and no clock. The effects are carried out by anyview-ui's `io`, `families` and `views`. Every file of
+# anyview-machines is held to it, and the crate's tree must hold no dioxus (the loop above says the same
+# of the whole tree; this line names the one the audit asked for).
+if cargo tree -p anyview-machines -e normal -i dioxus 2>/dev/null | grep -q .; then
+  echo "LEAK: anyview-machines reaches dioxus"
+  fail=1
+else
+  echo "machines hold: anyview-machines reaches no dioxus"
+fi
+hits=$(grep -rnE '\bdioxus\b|\bds::|\bds_blitz\b|\bds_shell\b|\banyview_image\b|\banyview_pdf\b|\banyview_text\b|std::fs|std::thread|std::time::(Instant|SystemTime)|futures_|tokio' crates/anyview-machines/src || true)
+if [ -n "$hits" ]; then
+  echo "IMPURE: a machine names an effect or a view"
+  echo "$hits" | head -10
+  fail=1
+fi
+echo "machines hold: anyview-machines names no view, decoder, disk, thread or clock"
 
 exit "$fail"

@@ -2,18 +2,16 @@
 //! document the load opened, the window of lines last read. These are the results of effects,
 //! kept so the views can draw them and so a late result for a file the person left is dropped.
 
-use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{DesktopService, NaturalSize, Opened};
-use crate::sheet::ExportFacts;
-use crate::stage::WrapChoices;
 use crate::{
-    ChromeParams, Command, ContextParams, EditOffer, FileAccess, HitIndex, HitList, MediaOffer,
-    Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities, Playing,
-    PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams,
-    TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
+    ChromeParams, Command, ContextParams, EditOffer, ExportFacts, FileAccess, HitIndex, HitList,
+    MediaOffer, Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities,
+    Playing, PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand,
+    StageParams, TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
 };
 use anyview_core::{Adjust, FileAction, FormatKind, Reach, actions_for, reach};
+use anyview_machines::seam::{WrapChoices, entries};
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::MotionLevel;
@@ -545,10 +543,8 @@ pub(super) fn family(probed: &Opened) -> crate::StageFamily {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::ContextPick;
     use crate::families::family_of;
-    use crate::panel::{PanelTab, PanelTabs};
-    use crate::{ContextEntry, PlatformAbilities};
+    use crate::{ContextEntry, ContextPick, PanelTab, PanelTabs, PlatformAbilities};
     use FileAction::{
         ConvertTo, CopyFile, CopyPath, Export, FlipHorizontal, FlipVertical, PlayInBackground,
         PlayInMiniWindow, Print, RevertTo, RotateLeft, RotateRight, SaveCopy, Share,

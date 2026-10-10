@@ -39,7 +39,8 @@ planned has no directory yet; its row is the rule it will carry.
 | L2 | `anyview-export` | exists | the exports and printouts of images, PDFs and text documents: runs the jobs each format plans, writes each file beside the original through a temporary file renamed into place, and makes the PDF a printer takes |
 | L2 | `anyview-platform` | exists | the edge: traits, their Linux implementations and fakes |
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, `look` (its one front door: probe a file and peek at it as `Peeking` says), and the pane view (what the launcher links) |
-| L4 | `anyview-ui` | exists | the viewer: its pure machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the five stages, key routing and the root that composes them), the blocking work a worker does for it (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages (which also show books, bound as PDFs) and the facts view) and the window that draws every region (`views`) |
+| L3 | `anyview-machines` | exists | the viewer's pure state machines as `ds-core` machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the stages, key routing and the root that composes them), and the vocabulary they speak (`Command`, `EditRequest`, `PlatformAbilities`); depends on `anyview-core`, `ds-core` and `chordkit` alone, with no Dioxus, no `ds` and no window, so a host that is not the viewer's window (temor, a terminal) drives the same machines |
+| L4 | `anyview-ui` | exists | the viewer's window: it re-exports the machines, and adds the blocking work a worker does for them (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages (which also show books, bound as PDFs) and the facts view) and the window that draws every region (`views`) |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
@@ -59,7 +60,8 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core` (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
 | `anyview-fs` | `anyview-core` |
-| `anyview-ui` | `anyview-archive` (an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-fs` (`OnDisk`), `anyview-image`, `anyview-pdf`, `anyview-peek` (without `pane` and `media`: `probe`, so the window and the launcher's pane tell a zip document from an archive by one rule, `peek` for the card of a file no stage shows, and `StillSource`, the host's small picture of a file), `anyview-store` (`file_details`, the General section of the Info tab), `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
+| `anyview-machines` | `anyview-core`, `ds-core` (the `Machine` trait, `Stamp` and `Word`), `chordkit` (the keymap's nouns, for `Act`) |
+| `anyview-ui` | `anyview-archive` (an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-fs` (`OnDisk`), `anyview-image`, `anyview-machines` (every machine, re-exported from the root), `anyview-pdf`, `anyview-peek` (without `pane` and `media`: `probe`, so the window and the launcher's pane tell a zip document from an archive by one rule, `peek` for the card of a file no stage shows, and `StillSource`, the host's small picture of a file), `anyview-store` (`file_details`, the General section of the Info tab), `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `anyview-fs` (`OpenFile`, for a window of lines read by offset), `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -107,7 +109,8 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 | `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd`, `cpal`, `alsa`, `alsa-sys` anywhere in its tree: no libmpv, no libav, no D-Bus and no sound card in the launcher's process, and no `anyview-media` at all (it probes with `symphonia`; playing is the media crate's). Its `media` feature (off by default; the viewer and the launcher ask for it) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); without it the crate leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget, and so is its headless tree (`--no-default-features`: no `pane`, so no `ds-blitz`, `dioxus` of its own or renderer, and no `anyview-image` encoder), which reaches none of `ds-blitz`, `wgpu`, `rav1e` or `zbus` and builds on macOS and Windows |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
 | `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf`, which only the `print` feature links |
-| `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
+| `anyview-machines` | `dioxus`, `ds`, `ds-blitz`, `ds-shell`, `ds-motion`, `ds-style`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values and `step` functions, no spawning, no clock, no disk; the script also fails on a source file that names Dioxus, quire's components, a decoder, the disk, a thread or a clock, and checks `cargo tree -p anyview-machines -e normal -i dioxus` is empty |
+| `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machines are in `anyview-machines` (below), which the script holds to that |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
 | `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust2`, `flate2`, `bzip2`, `ruzstd`, `lzma-rust2`): the one crate that names `skrifa` for reading a face |
@@ -208,9 +211,14 @@ whole to `<name>.tmp` beside it, synced, and renamed over the old one, so a read
 never sees a partial file. There is no database: `redb` takes an exclusive file lock that blocks the
 launcher while the viewer runs. The viewer is the one writer.
 
-## 2b. Modules inside `anyview-ui`
+## 2b. Modules inside `anyview-machines` and `anyview-ui`
 
-Same rules as section 2: private modules, each public item re-exported once at the crate root. Each
+Same rules as section 2: private modules, each public item re-exported once at the crate root.
+The modules from `chrome` to `viewer` in the table below, and `abilities` (`DesktopService`,
+`PlatformAbilities`), are the crate `anyview-machines`; `io`, `families`, `views` and `look` are
+`anyview-ui`, which re-exports every machine name from its own root (`anyview_ui::Viewer`), so
+callers do not change. `anyview_machines::seam` is `#[doc(hidden)]`: the few names the views need
+beyond the machines' surface (`entries`, `app`, `rows`, `standing`, `WrapChoices`). Each
 region is a directory with `model.rs` (the states, inputs, outputs and params), `step.rs` (the
 `Machine` impl) and `tests.rs`; a table in a test file is exempt from the size aim.
 
@@ -1455,13 +1463,14 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `Stage` | `NoStage`, `Raster`, `Pdf`, `Media`, `Text`, `Table`, `Tree` | one family's input each | each family's output, lifted |
 | `Viewer` | one state per region above | `Open`, `Reload` (a changed file: the stage stays), `Dropped` (the first file opens, and the walk ends; one's folder or the several are the list. `begin`, which every different file goes through, is what cancels a sheet, closes the palette and the context menu, and gives the stage, a held Space, the crop tool and the picture's unsaved edits back; the pointer tool and the side panel stay. A picture with unsaved edits is never left by it directly: `Open`, `Dropped`, `Chosen`, an arrow key and ⌘W go through `leaving`, which asks Save, Don't Save or Cancel first and, on Save, goes on once the saved file has been read again; the window's own close button is quire's and is not asked), `Chosen` (the same, once the file chooser ends, with no files when it was cancelled; one chooser is asked for at a time), `StartAs` (the window was opened in a presentation: nothing is asked of the host), a region's input, `Run` (a command from a control the window drew), `Key` | each region's output, lifted; `Probe`, `Reload`, `ListFolder`, `Run`, `PickFile`, `CloseWindow` |
 
-**Why the machines and the views share a crate.** The machines are the part that must stay pure, and
-they are: each `model.rs` and `step.rs` names only `anyview-core` and `ds-core`, which the script
-checks per file, and a machine's tests run with no window. A second crate for the views would add a
-layer for no second consumer (the binary is the only one) and would split `Viewer`'s outputs from the
-code that carries them out. The module list above is the boundary: the modules before `io` are the
-machines, `io`, `families` and `views` are the edge. `anyview-ui` therefore names Blitz, vello and
-anyrender through `ds-blitz`, which is why the root `Cargo.toml` carries quire's `[patch]` sections.
+**Why the machines are a crate of their own.** The machines are the part that must stay pure, and
+they are: they name only `anyview-core`, `ds-core` and `chordkit`, which Cargo enforces, and the script
+checks every source file and the absence of Dioxus from the tree. A second consumer (temor) wants the
+machines (`chrome`, `navigate`, `palette`, `load`, `keys`) without compiling a window, so they are
+`anyview-machines`; `anyview-ui` is the edge: `io`, `families` and `views` carry out what the machines
+say and draw it. The module list above is the boundary: the modules before `io` are the machines.
+`anyview-ui` names Blitz, vello and anyrender through `ds-blitz`, which is why the root `Cargo.toml`
+carries quire's `[patch]` sections.
 
 **Threads.** The library never spawns one. A window hands each blocking job to `Workers` (the binary's
 one bounded pool) as a `Work`; a worker calls `Work::run`, and the `Done` it makes goes through the
@@ -1609,7 +1618,7 @@ and its view in `pane`). A kind whose back end lands replaces its `FactsPeek` ma
 real type. A peek reads from the file by its `Source`, stays inside the `PeekBudget`, and
 reports a count as a `Tally` when it saw only the start.
 
-**Add a machine.** A directory in `anyview-ui` with `model.rs`, `step.rs` and `tests.rs`: an enum of
+**Add a machine.** A directory in `anyview-machines` with `model.rs`, `step.rs` and `tests.rs`: an enum of
 states, each variant holding only its data; `impl Machine` with an outer match on the state and an
 inner one on the input, no `_` arm; a `const CASES` table of name, state, input, time, state after,
 outputs; and, if it keeps a timer, a test that steps `Elapsed` at each `wake()` (`testing::settle`).

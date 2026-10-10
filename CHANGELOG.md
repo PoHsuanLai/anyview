@@ -158,6 +158,7 @@ versioning, with pre-releases while the program is in beta.
 
 ### Changed
 
+- The viewer's state machines (chrome, panel, palette, sheet, navigation, presentation, loading, the stages, key routing and the root) are a library of their own, `anyview-machines`, which depends on `anyview-core`, `ds-core` and `chordkit` and not on Dioxus or the window, so another app can drive them without compiling a window. `anyview-ui` re-exports every name, so nothing changes for you or for a caller. The viewer's package budget is 694 (one package more, the new crate); `anyview-machines` is 34.
 - The package budget of the viewer is 666 (the sound card library adds four packages and the missing-tool
   prompt two, ds-shell and ds-helpers; the launcher is unchanged). Building from source needs the ALSA development files (`libasound2-dev`, `alsa-lib-devel`).
 

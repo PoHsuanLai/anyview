@@ -6,8 +6,7 @@
 use super::app::use_look;
 use super::press::press_of;
 use crate::io::{DesktopService, Done, HostRequest};
-use crate::keys::{Act, Press};
-use crate::{Edge, Look, stylesheet};
+use crate::{Act, Edge, Look, Press, stylesheet};
 use anyview_core::FilePath;
 use chordkit::Context;
 use dioxus::prelude::*;

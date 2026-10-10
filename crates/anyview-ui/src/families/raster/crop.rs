@@ -5,7 +5,7 @@
 
 use super::geometry::room_point;
 use crate::families::view::Area;
-use crate::picture::{CropAspect, CropBox, CropGrip, CropLean, CropShape, PictureEditIn};
+use crate::{CropAspect, CropBox, CropGrip, CropLean, CropShape, PictureEditIn};
 use anyview_core::{DocPoint, Permille};
 use dioxus::prelude::*;
 use ds::components::controls::button::Button;
