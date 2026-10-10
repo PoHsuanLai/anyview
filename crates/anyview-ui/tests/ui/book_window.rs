@@ -129,10 +129,7 @@ fn middle(scale: u16) -> Point {
 
 /// Opens the panel's second tab (the first is Thumbnails).
 fn open_tab(harness: &mut Harness, at: usize) {
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(harness);
     let tab = harness
         .centre(&format!(".ds-segmented-segment:nth-child({at})"))
@@ -209,10 +206,7 @@ fn the_panel_shows_a_thumbnail_for_each_page() {
     let dir = tempfile::tempdir().unwrap();
     let mut harness = open(&epub(dir.path()), 100, Wiring::default());
     let (_, pages) = place(&harness);
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),
@@ -339,10 +333,7 @@ fn a_comic_is_one_page_to_a_picture() {
     let mut harness = open(&comic(dir.path()), 100, Wiring::default());
     assert_eq!(place(&harness), (1, 3), "{}", capsule(&harness));
     assert!(harness.count(".viewer-pdf-tile") >= 1);
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),

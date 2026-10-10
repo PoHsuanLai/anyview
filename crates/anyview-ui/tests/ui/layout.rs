@@ -235,10 +235,7 @@ fn a_window_resized_down_and_back_keeps_its_zoom_and_the_capsule_hits_where_it_i
 fn the_titlebar_does_not_cover_the_top_of_the_panel_tabs() {
     let (_d, mut h) = open("pdf", 612, 792, 100);
     pointer(&mut h, 612, 792);
-    h.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Alt],
-        ShortcutKey::Char('i'),
-    ));
+    h.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut h);
     pointer(&mut h, 612, 792);
     assert_eq!(
