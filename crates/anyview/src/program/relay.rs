@@ -81,8 +81,9 @@ pub async fn open_each(wants: Vec<Want>, arrivals: &UnboundedSender<Arrival>) {
 
 /// Serve `primary` for the life of the process: every request another launch forwards opens its
 /// files in new windows.
-pub async fn relay(mut primary: Primary, arrivals: UnboundedSender<Arrival>) {
-    while let Some(request) = primary.next().await {
+pub async fn relay(primary: Primary, arrivals: UnboundedSender<Arrival>) {
+    let mut requests = requests_of(primary);
+    while let Some(request) = requests.recv().await {
         let wants = wants_of(request);
         if wants.is_empty() {
             // A launch with no file: what a person sees is a window to choose one in.
@@ -93,6 +94,24 @@ pub async fn relay(mut primary: Primary, arrivals: UnboundedSender<Arrival>) {
             return;
         }
     }
+}
+
+/// The requests `primary` hears, read on a thread of their own because it waits for them.
+fn requests_of(primary: Primary) -> tokio::sync::mpsc::UnboundedReceiver<Request> {
+    let (sender, requests) = tokio::sync::mpsc::unbounded_channel();
+    let reader = std::thread::Builder::new()
+        .name("anyview-requests".to_owned())
+        .spawn(move || {
+            for request in primary {
+                if sender.send(request).is_err() {
+                    return;
+                }
+            }
+        });
+    if let Err(error) = reader {
+        eprintln!("anyview: cannot listen for other launches: {error}");
+    }
+    requests
 }
 
 /// Carry out each arrival, until the channel closes or the app has ended: a window for each

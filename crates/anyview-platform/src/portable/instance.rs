@@ -6,7 +6,7 @@
 //! Unlike the bus, nothing starts the viewer when a request arrives and none runs: the launch
 //! that finds nobody home is the viewer itself.
 
-use super::frame::{self, MAX_LINE};
+use super::frame::{self, FrameError, MAX_LINE};
 use crate::error::PlatformError;
 use crate::instance::{Claim, Instance, Primary, Request};
 use latchkey::{Agent, Error as Latch, Listening, Stream};
@@ -14,9 +14,9 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Sender, channel};
 use std::thread::JoinHandle;
 use std::time::Duration;
-use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 /// The agent's name: it becomes a directory under the runtime directory, and part of a pipe name
 /// on Windows.
@@ -99,7 +99,7 @@ impl Instance for LatchkeyInstance {
     async fn claim(&self, request: &Request) -> Result<Claim, PlatformError> {
         let agent = self.agent()?;
         let request = request.clone();
-        let (sender, requests) = unbounded_channel();
+        let (sender, requests) = channel();
         let settled = tokio::time::timeout(
             EXCHANGE,
             tokio::task::spawn_blocking(move || settle(agent, sender, &request)),
@@ -122,7 +122,7 @@ enum Settled {
 /// Take the lock and open the door, or hand `request` to the viewer that has them.
 fn settle(
     agent: Agent,
-    sender: UnboundedSender<Request>,
+    sender: Sender<Request>,
     request: &Request,
 ) -> Result<Settled, PlatformError> {
     match agent.listen() {
@@ -163,7 +163,7 @@ struct Door {
 }
 
 impl Door {
-    fn open(agent: Agent, listening: Listening, sender: UnboundedSender<Request>) -> Door {
+    fn open(agent: Agent, listening: Listening, sender: Sender<Request>) -> Door {
         let stopping = Arc::new(AtomicBool::new(false));
         let stop = Arc::clone(&stopping);
         let accepting = std::thread::Builder::new()
@@ -191,7 +191,7 @@ impl Drop for Door {
 
 /// Take each client in turn until told to stop. `listening` is dropped when this ends, which
 /// removes the socket.
-fn accept_loop(listening: &Listening, stopping: &AtomicBool, sender: &UnboundedSender<Request>) {
+fn accept_loop(listening: &Listening, stopping: &AtomicBool, sender: &Sender<Request>) {
     loop {
         let accepted = listening.accept();
         if stopping.load(Ordering::SeqCst) {
@@ -214,18 +214,15 @@ fn accept_loop(listening: &Listening, stopping: &AtomicBool, sender: &UnboundedS
 }
 
 /// Read one request from `stream`, hand it to the viewer and say whether it was taken.
-fn serve(stream: Stream, sender: &UnboundedSender<Request>) {
+fn serve(stream: Stream, sender: &Sender<Request>) {
     let mut reader = BufReader::new(stream);
     let mut line = String::new();
     let read = (&mut reader).take(MAX_LINE).read_line(&mut line);
     let result = match read {
-        Ok(_) if line.ends_with('\n') => frame::decode(line.trim_end()).and_then(|request| {
-            sender
-                .send(request)
-                .map_err(|_| "the viewer is closing".to_owned())
-        }),
-        Ok(_) => Err("the request was cut short or too long".to_owned()),
-        Err(error) => Err(format!("the request could not be read: {error}")),
+        Ok(_) if line.ends_with('\n') => frame::decode(line.trim_end())
+            .and_then(|request| sender.send(request).map_err(|_| FrameError::Closing)),
+        Ok(_) => Err(FrameError::CutShort),
+        Err(error) => Err(FrameError::Unreadable(error.to_string())),
     };
     let mut answer = frame::answer(&result);
     answer.push('\n');

@@ -21,7 +21,7 @@ use porter_core::Count;
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;
 use std::path::Path;
-use tokio::sync::mpsc::UnboundedSender;
+use std::sync::mpsc::Sender;
 
 /// The bus name docket's router calls: the viewer's app name, which docket's activation file starts.
 pub const AGENT_BUS_NAME: &str = "org.quire.Anyview";
@@ -52,7 +52,7 @@ fn intents_error(reason: &dyn std::fmt::Display) -> PlatformError {
 /// the app name docket calls. Requests the router makes arrive on `sender`.
 pub(super) async fn serve(
     connection: &zbus::Connection,
-    sender: UnboundedSender<Request>,
+    sender: Sender<Request>,
 ) -> Result<(), PlatformError> {
     let manifest = manifest()?;
     let window = PrivateWindow::new(&manifest);
@@ -68,11 +68,11 @@ pub(super) async fn serve(
 /// Answers the router's calls by handing requests to the viewer.
 pub(super) struct ViewerIntents {
     manifest: ValidManifest,
-    sender: UnboundedSender<Request>,
+    sender: Sender<Request>,
 }
 
 impl ViewerIntents {
-    pub(super) fn new(manifest: ValidManifest, sender: UnboundedSender<Request>) -> ViewerIntents {
+    pub(super) fn new(manifest: ValidManifest, sender: Sender<Request>) -> ViewerIntents {
         ViewerIntents { manifest, sender }
     }
 

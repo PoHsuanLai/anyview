@@ -6,10 +6,58 @@
 //! request. The receiving side parses everything it is sent, as the D-Bus service does: a
 //! relative path or a place that is not a `Resume` is refused by name.
 
-use crate::handoff::{self, Wire};
+use crate::handoff::{self, HandoffError, Wire};
 use crate::instance::Request;
-use anyview_core::FilePath;
+use anyview_core::{CoreError, FilePath};
 use serde_json::{Value, json};
+
+/// Why a line is not a request, an answer is not an answer, or a request was not taken. The
+/// viewer's side writes it as the `why` of a refusal; the client's side reads it back.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub(super) enum FrameError {
+    /// The line is not JSON.
+    #[error("not a request: {0}")]
+    NotJson(String),
+    /// A text field is missing or is not text.
+    #[error("the request has no text field {0:?}")]
+    NoText(&'static str),
+    /// A list field is missing or is not a list.
+    #[error("the request has no list field {0:?}")]
+    NoList(&'static str),
+    /// A list holds an item that is not text.
+    #[error("{0:?} holds something that is not text")]
+    ItemNotText(&'static str),
+    /// A number field is missing or is not a number.
+    #[error("the request has no number field {0:?}")]
+    NoNumber(&'static str),
+    /// The `op` names nothing the viewer does.
+    #[error("unknown request {0:?}")]
+    UnknownOp(String),
+    /// A path is relative.
+    #[error("{0}")]
+    Path(#[from] CoreError),
+    /// A handoff is not one.
+    #[error("{0}")]
+    Handoff(#[from] HandoffError),
+    /// The request was longer than [`MAX_LINE`] or the connection ended before its newline.
+    #[error("the request was cut short or too long")]
+    CutShort,
+    /// The request could not be read from the connection.
+    #[error("the request could not be read: {0}")]
+    Unreadable(String),
+    /// The viewer is shutting down and takes no more requests.
+    #[error("the viewer is closing")]
+    Closing,
+    /// The running viewer refused the request, for the reason it gave.
+    #[error("{0}")]
+    Refused(String),
+    /// The viewer's answer is not JSON.
+    #[error("an answer that is not JSON: {0}")]
+    AnswerNotJson(String),
+    /// The viewer's answer says neither yes nor no.
+    #[error("an answer that says neither yes nor no")]
+    AnswerUndecided,
+}
 
 /// The most a request may weigh. A handoff names a search's results, so it can be long, but no
 /// honest request is this large; anything past it is cut off and refused.
@@ -39,73 +87,75 @@ pub(super) fn encode(request: &Request) -> String {
 }
 
 /// The request `line` says, or why it is not one.
-pub(super) fn decode(line: &str) -> Result<Request, String> {
+pub(super) fn decode(line: &str) -> Result<Request, FrameError> {
     let value: Value =
-        serde_json::from_str(line).map_err(|error| format!("not a request: {error}"))?;
+        serde_json::from_str(line).map_err(|error| FrameError::NotJson(error.to_string()))?;
     let field = |name: &str| value.get(name);
-    let string = |name: &str| {
+    let string = |name: &'static str| {
         field(name)
             .and_then(Value::as_str)
             .map(str::to_owned)
-            .ok_or_else(|| format!("the request has no text field {name:?}"))
+            .ok_or(FrameError::NoText(name))
     };
-    let strings = |name: &str| {
+    let strings = |name: &'static str| {
         field(name)
             .and_then(Value::as_array)
-            .ok_or_else(|| format!("the request has no list field {name:?}"))?
+            .ok_or(FrameError::NoList(name))?
             .iter()
             .map(|item| {
                 item.as_str()
                     .map(str::to_owned)
-                    .ok_or_else(|| format!("{name:?} holds something that is not text"))
+                    .ok_or(FrameError::ItemNotText(name))
             })
             .collect::<Result<Vec<_>, _>>()
     };
-    let path = |text: &str| FilePath::new(text).map_err(|error| error.to_string());
     match string("op")?.as_str() {
-        "open" => strings("files")?
-            .iter()
-            .map(|file| path(file))
-            .collect::<Result<Vec<_>, _>>()
-            .map(Request::Open),
-        "peek" => path(&string("file")?).map(Request::Peek),
-        "play" => path(&string("file")?).map(Request::Play),
+        "open" => Ok(Request::Open(
+            strings("files")?
+                .iter()
+                .map(FilePath::new)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        "peek" => Ok(Request::Peek(FilePath::new(string("file")?)?)),
+        "play" => Ok(Request::Play(FilePath::new(string("file")?)?)),
         "handoff" => {
             let wire = Wire {
                 file: string("file")?,
                 resume: string("resume")?,
                 results: field("results")
                     .and_then(Value::as_u64)
-                    .ok_or("the request has no number field \"results\"")?,
+                    .ok_or(FrameError::NoNumber("results"))?,
                 entries: strings("entries")?,
             };
-            handoff::decode(&wire).map(Request::Handoff)
+            Ok(Request::Handoff(handoff::decode(&wire)?))
         }
-        other => Err(format!("unknown request {other:?}")),
+        other => Err(FrameError::UnknownOp(other.to_owned())),
     }
 }
 
 /// The line the viewer answers with.
-pub(super) fn answer(result: &Result<(), String>) -> String {
+pub(super) fn answer(result: &Result<(), FrameError>) -> String {
     match result {
         Ok(()) => json!({ "ok": true }),
-        Err(why) => json!({ "ok": false, "why": why }),
+        Err(why) => json!({ "ok": false, "why": why.to_string() }),
     }
     .to_string()
 }
 
 /// What an answer line says: nothing when the request was taken, the viewer's reason when not.
-pub(super) fn understand(line: &str) -> Result<(), String> {
-    let value: Value = serde_json::from_str(line)
-        .map_err(|error| format!("an answer that is not JSON: {error}"))?;
+pub(super) fn understand(line: &str) -> Result<(), FrameError> {
+    let value: Value =
+        serde_json::from_str(line).map_err(|error| FrameError::AnswerNotJson(error.to_string()))?;
     match value.get("ok").and_then(Value::as_bool) {
         Some(true) => Ok(()),
-        Some(false) => Err(value
-            .get("why")
-            .and_then(Value::as_str)
-            .unwrap_or("no reason given")
-            .to_owned()),
-        None => Err("an answer that says neither yes nor no".to_owned()),
+        Some(false) => Err(FrameError::Refused(
+            value
+                .get("why")
+                .and_then(Value::as_str)
+                .unwrap_or("no reason given")
+                .to_owned(),
+        )),
+        None => Err(FrameError::AnswerUndecided),
     }
 }
 
@@ -162,7 +212,7 @@ mod tests {
             ("no files list", r#"{"op":"open"}"#, "\"files\""),
         ];
         for (name, line, mentions) in CASES {
-            let refused = decode(line).unwrap_err();
+            let refused = decode(line).unwrap_err().to_string();
             assert!(refused.contains(mentions), "{name}: {refused}");
         }
         assert!(decode(r#"{"op":"peek","file":"a/b.png"}"#).is_err());
@@ -172,9 +222,9 @@ mod tests {
     fn an_answer_says_yes_or_the_reason() {
         assert_eq!(understand(&answer(&Ok(()))), Ok(()));
         assert_eq!(
-            understand(&answer(&Err("closing".to_owned()))),
-            Err("closing".to_owned())
+            understand(&answer(&Err(FrameError::Closing))),
+            Err(FrameError::Refused(FrameError::Closing.to_string()))
         );
-        assert!(understand("{}").is_err());
+        assert_eq!(understand("{}"), Err(FrameError::AnswerUndecided));
     }
 }

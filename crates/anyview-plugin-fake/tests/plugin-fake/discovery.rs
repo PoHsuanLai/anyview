@@ -29,6 +29,21 @@ fn manifests_are_found_in_the_user_and_the_system_directories() {
 }
 
 #[test]
+fn a_named_folder_stands_in_for_the_users_directory() {
+    let scratch = Scratch::new();
+    scratch.install(Where::User, "mine", 1, &[]);
+    scratch.install(Where::System, "theirs", 1, &[]);
+    let found = anyview_platform::discover_in(&scratch.env, &scratch.env.dirs.config);
+    let ids: Vec<_> = found
+        .plugins
+        .installed()
+        .iter()
+        .map(|plugin| plugin.manifest.id.as_str().to_owned())
+        .collect();
+    assert_eq!(ids, ["theirs"]);
+}
+
+#[test]
 fn the_user_directory_overrides_the_system_directory() {
     let scratch = Scratch::new();
     scratch.install(Where::System, "tool", 1, &["--fault", "mute"]);

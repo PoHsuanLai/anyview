@@ -5,6 +5,27 @@
 //! listing reads inside a byte budget, so a huge archive costs a glance what a small one does.
 //!
 //! Every public item is reached from this root, once.
+//!
+//! The format is the one the caller sniffed (`anyview_core::sniff`); the source is a path, or any
+//! `Input` a host injects:
+//!
+//! ```no_run
+//! use anyview_archive::{EntryLimit, ExtractLimits, extract, list};
+//! use anyview_core::{ArchiveFormat, ByteLen, FilePath};
+//!
+//! let file = FilePath::new("/home/me/photos.zip")?;
+//! let listing = list(&file, ArchiveFormat::Zip, EntryLimit(50), ByteLen(8 << 20))?;
+//! for entry in &listing.entries {
+//!     println!("{}", entry.path);
+//! }
+//! let limits = ExtractLimits {
+//!     entry: ByteLen(1 << 20),
+//!     scanned: ByteLen(8 << 20),
+//! };
+//! let bytes = extract(&file, ArchiveFormat::Zip, "cover.jpg", limits)?;
+//! # let _ = bytes;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 mod container;
 mod entry;

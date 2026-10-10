@@ -200,22 +200,36 @@ fn recode(from: &FilePath, to: &FilePath, target: RasterTarget) -> Outcome {
     }
 }
 
-fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), String> {
-    let bytes = std::fs::read(from.as_path()).map_err(|error| error.to_string())?;
-    let name = FileName::new("frame.png").map_err(|error| error.to_string())?;
+/// Why the frame the player wrote could not become the picture the person asked for.
+#[derive(Debug, thiserror::Error)]
+enum RecodeError {
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+    #[error("{0}")]
+    Name(#[from] anyview_core::CoreError),
+    #[error("{0}")]
+    Image(#[from] anyview_image::ImageError),
+    #[error("the frame is not a picture")]
+    NotAPicture,
+    #[error("the frame is an animation")]
+    Animation,
+}
+
+fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), RecodeError> {
+    let bytes = std::fs::read(from.as_path())?;
+    let name = FileName::new("frame.png")?;
     let head = &bytes[..bytes.len().min(4096)];
     let SniffStep::Done(sniffed) = sniff(&FileHead::new(head), &name) else {
-        return Err("the frame is not a picture".to_owned());
+        return Err(RecodeError::NotAPicture);
     };
-    let picture = match anyview_image::decode_bytes(&bytes, &sniffed) {
-        Ok(anyview_image::Decoded::Still(picture)) => picture,
-        Ok(anyview_image::Decoded::Animated(_) | anyview_image::Decoded::HeldStill { .. }) => {
-            return Err("the frame is an animation".to_owned());
+    let picture = match anyview_image::decode_bytes(&bytes, &sniffed)? {
+        anyview_image::Decoded::Still(picture) => picture,
+        anyview_image::Decoded::Animated(_) | anyview_image::Decoded::HeldStill { .. } => {
+            return Err(RecodeError::Animation);
         }
-        Err(error) => return Err(error.to_string()),
     };
-    let encoded = anyview_image::encode(&picture, target).map_err(|error| error.to_string())?;
-    std::fs::write(to.as_path(), encoded).map_err(|error| error.to_string())
+    let encoded = anyview_image::encode(&picture, target)?;
+    Ok(std::fs::write(to.as_path(), encoded)?)
 }
 
 #[cfg(test)]

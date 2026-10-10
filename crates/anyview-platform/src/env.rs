@@ -4,6 +4,7 @@
 //! is the one place the process is asked.
 
 use crate::spawn::{ProcessSpawn, RefuseSpawn, Spawn};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -83,8 +84,10 @@ pub enum BusRoute {
     Absent,
 }
 
-/// The seams every implementation is built with.
+/// The seams every implementation is built with: start from [`Env::from_process`] or
+/// [`Env::isolated`] and change a seam with a `with_*` method.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Env {
     /// The person's directories.
     pub dirs: Dirs,
@@ -95,6 +98,11 @@ pub struct Env {
     /// The audio driver the person asked for (`ANYVIEW_AUDIO_OUTPUT`), as they wrote it: the
     /// player parses it, and without one it lets the system's sound server choose.
     pub audio_output: Option<String>,
+    /// `PATH`: the folders programs are found in, as the system wrote it.
+    pub tool_path: OsString,
+    /// The screen to fit windows to in place of the desktop's (`ANYVIEW_WINDOW_SCREEN`), as they
+    /// wrote it: `WIDTHxHEIGHT` logical pixels, parsed by the window. For tests.
+    pub window_screen: Option<String>,
 }
 
 impl Env {
@@ -105,6 +113,10 @@ impl Env {
             session: BusRoute::Usual,
             spawn: Arc::new(ProcessSpawn),
             audio_output: std::env::var("ANYVIEW_AUDIO_OUTPUT")
+                .ok()
+                .filter(|text| !text.is_empty()),
+            tool_path: std::env::var_os("PATH").unwrap_or_default(),
+            window_screen: std::env::var("ANYVIEW_WINDOW_SCREEN")
                 .ok()
                 .filter(|text| !text.is_empty()),
         }
@@ -118,6 +130,44 @@ impl Env {
             session: BusRoute::Absent,
             spawn: Arc::new(RefuseSpawn),
             audio_output: None,
+            tool_path: OsString::new(),
+            window_screen: None,
+        }
+    }
+
+    /// The same environment with the person's directories `dirs`.
+    pub fn with_dirs(self, dirs: Dirs) -> Env {
+        Env { dirs, ..self }
+    }
+
+    /// The same environment reaching the session bus by `session`.
+    pub fn with_session(self, session: BusRoute) -> Env {
+        Env { session, ..self }
+    }
+
+    /// The same environment starting programs with `spawn`.
+    pub fn with_spawn(self, spawn: Arc<dyn Spawn>) -> Env {
+        Env { spawn, ..self }
+    }
+
+    /// The same environment finding programs in the folders of `tool_path`.
+    pub fn with_tool_path(self, tool_path: OsString) -> Env {
+        Env { tool_path, ..self }
+    }
+
+    /// The same environment fitting windows to the screen `window_screen` names.
+    pub fn with_window_screen(self, window_screen: Option<String>) -> Env {
+        Env {
+            window_screen,
+            ..self
+        }
+    }
+
+    /// The same environment with the audio driver the person asked for, as they wrote it.
+    pub fn with_audio_output(self, audio_output: Option<String>) -> Env {
+        Env {
+            audio_output,
+            ..self
         }
     }
 }

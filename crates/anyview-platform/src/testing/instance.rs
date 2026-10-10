@@ -1,8 +1,8 @@
 use super::locked;
 use crate::error::PlatformError;
 use crate::instance::{Claim, Instance, Primary, Request};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 /// What the fake plays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,14 +19,14 @@ pub enum FakeRole {
 pub struct FakeInstance {
     role: FakeRole,
     claimed: Arc<Mutex<Vec<Request>>>,
-    sender: UnboundedSender<Request>,
-    receiver: Arc<Mutex<Option<UnboundedReceiver<Request>>>>,
+    sender: Sender<Request>,
+    receiver: Arc<Mutex<Option<Receiver<Request>>>>,
 }
 
 impl FakeInstance {
     /// A fake in `role`.
     pub fn new(role: FakeRole) -> Self {
-        let (sender, receiver) = unbounded_channel();
+        let (sender, receiver) = channel();
         FakeInstance {
             role,
             claimed: Arc::default(),

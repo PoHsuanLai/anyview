@@ -9,7 +9,7 @@ use crate::handoff;
 use crate::instance::{Claim, Instance, Primary, Request};
 use anyview_core::FilePath;
 use std::path::PathBuf;
-use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
+use std::sync::mpsc::{Sender, channel};
 use zbus::{fdo, interface};
 
 /// The well-known name the viewer owns.
@@ -31,7 +31,7 @@ impl DbusInstance {
 
 impl Instance for DbusInstance {
     async fn claim(&self, request: &Request) -> Result<Claim, PlatformError> {
-        let (sender, requests) = unbounded_channel();
+        let (sender, requests) = channel();
         let built = self
             .env
             .session_builder()?
@@ -142,7 +142,7 @@ fn parse_path(text: &str) -> fdo::Result<FilePath> {
 
 /// The object other launches call.
 struct Service {
-    sender: UnboundedSender<Request>,
+    sender: Sender<Request>,
 }
 
 impl Service {
@@ -190,7 +190,8 @@ impl Service {
             results,
             entries,
         };
-        let handed = handoff::decode(&wire).map_err(fdo::Error::InvalidArgs)?;
+        let handed =
+            handoff::decode(&wire).map_err(|error| fdo::Error::InvalidArgs(error.to_string()))?;
         self.hand_over(Request::Handoff(handed))
     }
 }

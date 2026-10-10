@@ -5,7 +5,18 @@
 //! own results is refused by name.
 
 use crate::instance::Handoff;
-use anyview_core::{FilePath, NonEmpty, ResultsId, Resume, Sequence, SequenceOrigin};
+use anyview_core::{CoreError, FilePath, NonEmpty, ResultsId, Resume, Sequence, SequenceOrigin};
+
+/// Why a wire is not a handoff.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum HandoffError {
+    /// A path is relative, or the file is not among the results.
+    #[error("{0}")]
+    Core(#[from] CoreError),
+    /// The place is not the JSON of a `Resume`.
+    #[error("the place is not a resume: {0}")]
+    Resume(String),
+}
 
 /// What a handoff is made of on the bus, in the order of the method's arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,26 +50,22 @@ pub(crate) fn encode(handoff: &Handoff) -> Wire {
 }
 
 /// The handoff `wire` says, or why it is not one.
-pub(crate) fn decode(wire: &Wire) -> Result<Handoff, String> {
-    let path = |text: &String| FilePath::new(text).map_err(|error| error.to_string());
-    let file = path(&wire.file)?;
+pub(crate) fn decode(wire: &Wire) -> Result<Handoff, HandoffError> {
+    let file = FilePath::new(&wire.file)?;
     let resume: Resume = serde_json::from_str(&wire.resume)
-        .map_err(|error| format!("the place is not a resume: {error}"))?;
+        .map_err(|error| HandoffError::Resume(error.to_string()))?;
     let entries = wire
         .entries
         .iter()
-        .map(path)
+        .map(FilePath::new)
         .collect::<Result<Vec<_>, _>>()?;
     let sequence = match NonEmpty::from_vec(entries) {
         None => None,
-        Some(entries) => Some(
-            Sequence::starting_at(
-                entries,
-                &file,
-                SequenceOrigin::Results(ResultsId(wire.results)),
-            )
-            .map_err(|error| error.to_string())?,
-        ),
+        Some(entries) => Some(Sequence::starting_at(
+            entries,
+            &file,
+            SequenceOrigin::Results(ResultsId(wire.results)),
+        )?),
     };
     Ok(Handoff {
         file,

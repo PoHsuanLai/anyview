@@ -53,18 +53,16 @@ fn compressed(
     if tally.is_empty() {
         return Ok(one_file(src, format, &unpacked));
     }
-    let seen = match (read, unpacked.whole) {
-        (Ok(Seen::All), true) => Seen::All,
-        (Ok(Seen::All | Seen::Start) | Err(_), true | false) => Seen::Start,
+    let seen = match (read, unpacked.seen) {
+        (Ok(Seen::All), Seen::All) => Seen::All,
+        (Ok(Seen::All | Seen::Start) | Err(_), Seen::All | Seen::Start) => Seen::Start,
     };
     Ok(tally.finish(format, Holds::Entries, seen))
 }
 
 fn one_file(src: &Input, format: ArchiveFormat, unpacked: &stream::Unpacked) -> Listing {
     let name = stem_of(src).unwrap_or_default();
-    let size = unpacked
-        .whole
-        .then_some(ByteLen(unpacked.bytes.len() as u64));
+    let size = (unpacked.seen == Seen::All).then_some(ByteLen(unpacked.bytes.len() as u64));
     Listing {
         format,
         holds: Holds::OneFile,

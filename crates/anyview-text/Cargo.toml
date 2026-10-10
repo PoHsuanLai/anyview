@@ -25,5 +25,9 @@ tempfile = { workspace = true }
 # Builds the workbook the sheet tests read: a test fixture, never a normal dependency.
 zip = { workspace = true }
 
+# Makes the named pipe the image reader must refuse.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+rustix = { workspace = true }
+
 [lints]
 workspace = true

@@ -11,7 +11,8 @@ publish.workspace = true
 # `player` is the session and the driver: mpv-wgpu's subprocess host and the GPU. The planning and
 # naming of exports needs neither.
 [features]
-default = ["player", "audio"]
+# No default features: a caller names the player and the sound card it links (the viewer asks for both).
+default = []
 player = ["dep:mpv-wgpu-player", "dep:wgpu", "dep:pollster"]
 # `audio` is the built-in audio player: symphonia decodes (the decoders anyview-peek already links for
 # probing) and cpal plays, for when the person has no mpv. Video and Opus still need mpv.

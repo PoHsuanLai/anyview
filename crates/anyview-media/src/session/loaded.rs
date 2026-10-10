@@ -19,7 +19,7 @@ impl Session<Loaded> {
         match drain(&mut self.player) {
             Ok(report) => report,
             Err(reason) => Report {
-                events: vec![MediaEvent::Failed(reason)],
+                events: vec![MediaEvent::Failed(reason.to_string())],
                 ..Report::quiet()
             },
         }

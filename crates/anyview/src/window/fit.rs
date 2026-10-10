@@ -39,28 +39,17 @@ const TOP_BAR: Reserve = Reserve {
     left: 0,
 };
 
-/// The environment variable that replaces the screen, as `WIDTHxHEIGHT` logical pixels (for testing).
-const SCREEN_VARIABLE: &str = "ANYVIEW_WINDOW_SCREEN";
-
 /// The area a window is fitted to on `screen`: its work area less the top bar, in logical pixels,
-/// or [`DEFAULT_SCREEN`] when no screen is known. `ANYVIEW_WINDOW_SCREEN` replaces either. quire
-/// caps a window to 85% of it (`Extent::fit_with`).
-pub(crate) fn work_for(screen: Option<ScreenArea>) -> Extent {
-    let replaced = std::env::var(SCREEN_VARIABLE)
-        .ok()
-        .and_then(|text| parse_screen(&text));
-    work_from(screen, replaced)
-}
-
-/// [`work_for`] given what the environment says.
-fn work_from(screen: Option<ScreenArea>, replaced: Option<Extent>) -> Extent {
+/// or [`DEFAULT_SCREEN`] when no screen is known. `replaced` (the screen a test names) replaces
+/// either. quire caps a window to 85% of it (`Extent::fit_with`).
+pub(crate) fn work_for(screen: Option<ScreenArea>, replaced: Option<Extent>) -> Extent {
     replaced
         .or_else(|| screen.map(|area| area.less(TOP_BAR).work))
         .unwrap_or(DEFAULT_SCREEN)
 }
 
 /// `WIDTHxHEIGHT` as an extent; `None` when it is not two positive whole numbers.
-fn parse_screen(text: &str) -> Option<Extent> {
+pub(crate) fn parse_screen(text: &str) -> Option<Extent> {
     let (width, height) = text.trim().split_once(['x', 'X'])?;
     let (width, height) = (width.trim().parse().ok()?, height.trim().parse().ok()?);
     (width > 0 && height > 0).then(|| Extent::new(width, height))
@@ -68,11 +57,15 @@ fn parse_screen(text: &str) -> Option<Extent> {
 
 /// The window a viewer opens on `file` on a `screen`: its content's natural size by its header,
 /// fitted.
-pub(crate) fn window_for(file: &FilePath, screen: Option<ScreenArea>) -> WindowSize {
+pub(crate) fn window_for(
+    file: &FilePath,
+    screen: Option<ScreenArea>,
+    replaced: Option<Extent>,
+) -> WindowSize {
     let natural = natural_of(file);
     fitted(
         natural.map(|natural| logical_of(natural, screen)),
-        work_for(screen),
+        work_for(screen, replaced),
         natural.map_or(LEAST, least_of),
     )
 }
@@ -128,11 +121,13 @@ pub(crate) fn fitted(natural: Option<Extent>, work: Extent, least: Extent) -> Wi
 /// owner asked for the same. The same file loaded again does not ask (the viewer sends nothing).
 pub(crate) struct WindowFit {
     sizer: WindowSizer,
+    /// The screen a test names in place of the desktop's.
+    replaced: Option<Extent>,
 }
 
 impl WindowFit {
-    pub(crate) fn new(sizer: WindowSizer) -> WindowFit {
-        WindowFit { sizer }
+    pub(crate) fn new(sizer: WindowSizer, replaced: Option<Extent>) -> WindowFit {
+        WindowFit { sizer, replaced }
     }
 
     /// A different file has loaded: size the window to its content on the screen it is on (exact
@@ -152,7 +147,7 @@ impl WindowFit {
         let screen = self.sizer.screen();
         let wanted = fitted(
             natural.map(|natural| logical_of(natural, screen)),
-            work_for(screen),
+            work_for(screen, self.replaced),
             natural.map_or(LEAST, least_of),
         )
         .start();
@@ -282,20 +277,20 @@ mod tests {
     #[test]
     fn the_work_area_is_the_screen_less_the_top_bar_and_a_fixed_one_without() {
         let hd = output(Extent::new(1920, 1080), Scale(120));
-        assert_eq!(work_from(Some(hd), None), Extent::new(1920, 1048));
+        assert_eq!(work_for(Some(hd), None), Extent::new(1920, 1048));
         let retina = output(Extent::new(3840, 2160), Scale(240));
         assert_eq!(
-            work_from(Some(retina), None),
+            work_for(Some(retina), None),
             Extent::new(1920, 1048),
             "logical pixels, whatever the scale"
         );
         assert_eq!(
-            work_from(None, None),
+            work_for(None, None),
             DEFAULT_SCREEN,
             "before the event loop"
         );
         assert_eq!(
-            work_from(Some(hd), Some(Extent::new(640, 480))),
+            work_for(Some(hd), Some(Extent::new(640, 480))),
             Extent::new(640, 480),
             "the override wins"
         );
@@ -315,7 +310,7 @@ mod tests {
             let area = output(physical, scale);
             start(fitted(
                 Some(logical_of(natural, Some(area))),
-                work_from(Some(area), None),
+                work_for(Some(area), None),
                 LEAST,
             ))
         };
@@ -399,7 +394,7 @@ mod tests {
         .with_clock(Clock::Virtual)
         .with_window_screen(screen);
         let harness = Harness::new(Blank, config);
-        let fit = WindowFit::new(harness.window_sizer());
+        let fit = WindowFit::new(harness.window_sizer(), None);
         (harness, fit)
     }
 

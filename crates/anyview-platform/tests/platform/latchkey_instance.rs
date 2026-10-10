@@ -27,11 +27,8 @@ async fn primary(instance: &LatchkeyInstance) -> Primary {
     }
 }
 
-async fn next(primary: &mut Primary) -> Request {
-    tokio::time::timeout(Duration::from_secs(10), primary.next())
-        .await
-        .unwrap()
-        .unwrap()
+fn next(primary: &mut Primary) -> Request {
+    primary.next_within(Duration::from_secs(10)).unwrap()
 }
 
 #[tokio::test]
@@ -51,7 +48,7 @@ async fn the_first_launch_listens_and_a_second_hands_its_files_over() {
         assert!(matches!(claim, Claim::Forwarded), "{request:?}");
     }
     for request in sent {
-        assert_eq!(next(&mut first).await, request);
+        assert_eq!(next(&mut first), request);
     }
 }
 
@@ -79,7 +76,7 @@ async fn a_handoff_keeps_its_results_and_its_place() {
         .await
         .unwrap();
     assert!(matches!(claim, Claim::Forwarded));
-    assert_eq!(next(&mut first).await, Request::Handoff(handed));
+    assert_eq!(next(&mut first), Request::Handoff(handed));
 }
 
 #[tokio::test]
@@ -112,7 +109,7 @@ async fn a_socket_left_by_a_killed_viewer_is_taken_over() {
         .await
         .unwrap();
     assert!(matches!(claim, Claim::Forwarded));
-    assert_eq!(next(&mut first).await, Request::Peek(path("/docs/c.pdf")));
+    assert_eq!(next(&mut first), Request::Peek(path("/docs/c.pdf")));
 }
 
 #[cfg(unix)]
@@ -155,5 +152,5 @@ async fn a_line_that_is_not_a_request_is_refused_and_the_viewer_carries_on() {
         .await
         .unwrap();
     assert!(matches!(claim, Claim::Forwarded));
-    assert_eq!(next(&mut first).await, Request::Play(path("/music/d.flac")));
+    assert_eq!(next(&mut first), Request::Play(path("/music/d.flac")));
 }

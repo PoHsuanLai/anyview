@@ -10,6 +10,7 @@ use std::path::PathBuf;
 /// the destination: a file is written whole or not at all, and an export that fails after some
 /// of its files were written removes them.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ExportError {
     /// The image could not be read, decoded or encoded.
     #[error("{0}")]
@@ -21,8 +22,13 @@ pub enum ExportError {
     #[error("{0}")]
     Text(#[from] TextError),
     /// The page could not be printed to a PDF.
+    #[cfg(feature = "print")]
     #[error("cannot lay the page out: {0}")]
     Layout(#[from] ds_blitz::PdfError),
+    /// This build has no page renderer (the `print` feature is off), so a text document cannot be
+    /// printed to a PDF.
+    #[error("this build cannot print a text document")]
+    NoRenderer,
     /// A path was not a file path.
     #[error("{0}")]
     Path(#[from] CoreError),

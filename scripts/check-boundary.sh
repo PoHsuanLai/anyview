@@ -34,9 +34,9 @@ cd "$(dirname "$0")/.."
 # the binary's tokio runtime (zbus's tokio feature) and spawns nothing itself.
 # anyview-peek is the light tier the launcher links: its `pane` feature draws with quire's `ds` and `ds-blitz` (so
 # Blitz, the renderer and, through `ds-blitz`, `wgpu` and pdfrum are in its tree) but never libmpv or
-# D-Bus, and never libav or libmpv: its `media` feature (default on) reads a recording's facts and
+# D-Bus, and never libav or libmpv: its `media` feature reads a recording's facts and
 # cover art with pure-Rust parsers (symphonia, mp4parse, matroska-demuxer), and a video's frame comes
-# from a thumbnail source the host injects. `cargo tree -p` below runs with the default features, so
+# from a thumbnail source the host injects. `cargo tree -p` below names the features the crates used to have by default (`flags_of`), so
 # those parsers are in the tree it checks and `ffmpeg-next`, `ffmpeg-sys-next`, `rsmpv` and
 # `rsmpv-sys` must not be. It does not depend on `anyview-media` at all. What it may not name itself is the DIRECT table below.
 # anyview-book reads EPUB and comic zips through anyview-archive (the one crate that names the container
@@ -172,6 +172,20 @@ HEADLESS_BUDGET=192
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
+# The features that were on by default before a crate's default became empty (the viewer and the other
+# embedders now ask for what they need). The checks below measure the same tree as ever by naming them:
+# the media crate with its player and sound card, the peek with its pane and recording readers, the
+# export crate with its renderer, the platform crate with the Linux desktop's services.
+flags_of() {
+  case "$1" in
+    anyview-media) echo "--features player,audio" ;;
+    anyview-peek) echo "--features media,pane" ;;
+    anyview-export) echo "--features print" ;;
+    anyview-platform) echo "--features quire-desktop" ;;
+    *) echo "" ;;
+  esac
+}
+
 for rule in "${RULES[@]}"; do
   crate="${rule%%:*}"
   read -r -a forbidden <<<"${rule#*:}"
@@ -182,10 +196,11 @@ for rule in "${RULES[@]}"; do
     continue
   fi
   leaked=0
+  read -r -a flags <<<"$(flags_of "$crate")"
   for dep in "${forbidden[@]}"; do
-    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if cargo tree -p "$crate" ${flags[@]+"${flags[@]}"} -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
       echo "LEAK: $crate depends on $dep"
-      cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | head -20
+      cargo tree -p "$crate" ${flags[@]+"${flags[@]}"} -i "$dep" -e normal,build 2>/dev/null | head -20
       leaked=1
       fail=1
     fi
@@ -228,8 +243,9 @@ for dir in crates/*/ plugins/*/; do
     continue
   fi
   leaked=0
+  read -r -a flags <<<"$(flags_of "$crate")"
   for dep in "${FORBIDDEN_EVERYWHERE[@]}"; do
-    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if cargo tree -p "$crate" ${flags[@]+"${flags[@]}"} -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
       echo "LEAK: $crate depends on $dep: codecs are run as plugins, never linked"
       leaked=1
       fail=1
@@ -267,7 +283,8 @@ done
 for budget in "${BUDGETS[@]}"; do
   crate="${budget%%:*}"
   limit="${budget#*: }"
-  count=$(cargo tree -p "$crate" -e normal,build --prefix none --format '{p}' 2>/dev/null \
+  read -r -a flags <<<"$(flags_of "$crate")"
+  count=$(cargo tree -p "$crate" ${flags[@]+"${flags[@]}"} -e normal,build --prefix none --format '{p}' 2>/dev/null \
     | sed 's/ (\*)$//' | sort -u | grep -c .)
   if [ "$count" -gt "$limit" ]; then
     echo "BUDGET: $crate has $count packages, the budget is $limit"
@@ -336,8 +353,9 @@ for dir in crates/*/ plugins/*/; do
     continue
   fi
   leaked=0
+  read -r -a flags <<<"$(flags_of "$crate")"
   for dep in "${EDGE_ONLY[@]}"; do
-    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if cargo tree -p "$crate" ${flags[@]+"${flags[@]}"} -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
       echo "LEAK: $crate reaches $dep, which only anyview-platform may name"
       leaked=1
       fail=1
@@ -347,7 +365,7 @@ for dir in crates/*/ plugins/*/; do
     echo "platform-only names held: $crate reaches none of ${EDGE_ONLY[*]}"
   fi
 done
-# anyview-platform reaches the bus and the freedesktop entry readers only through its `quire-desktop`
+# anyview-platform reaches the bus and the freedesktop entry readers only through its opt-in `quire-desktop`
 # feature (ARCHITECTURE.md section 2e): with it off, none of them is in its tree. This is the
 # crate's own tree; quire's `ds-settings` still brings zbus into the binary's until quire's portable
 # build lands, and that is not the platform crate's doing.

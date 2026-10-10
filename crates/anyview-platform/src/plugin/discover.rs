@@ -6,6 +6,7 @@ use crate::env::Env;
 use anyview_plugin::{Plugins, Provision};
 use anyview_plugin_protocol::PROTOCOL_VERSION;
 use bayonet::Search;
+use std::path::Path;
 
 /// A manifest file that is not a plugin.
 pub type Rejected = bayonet::Rejected<Provision>;
@@ -23,9 +24,16 @@ pub struct Discovery {
 /// `$XDG_DATA_DIRS` (the system's, most important first), as `env` names them. A file that is
 /// not a usable manifest is listed in `rejected` and skipped; nothing here fails.
 pub fn discover(env: &Env) -> Discovery {
+    discover_in(env, &env.dirs.data)
+}
+
+/// [`discover`] with `folder` as the person's data directory, whose `anyview/plugins` is read
+/// first: a host that keeps its plugins elsewhere (a development tree, a portable install) names
+/// the folder, and `env`'s system directories still follow.
+pub fn discover_in(env: &Env, folder: &Path) -> Discovery {
     let found = bayonet::discover::<Provision>(&Search::new(
         "anyview",
-        &env.dirs.data,
+        folder,
         &env.dirs.data_dirs,
         PROTOCOL_VERSION,
     ));

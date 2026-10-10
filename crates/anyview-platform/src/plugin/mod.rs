@@ -11,6 +11,6 @@ mod route;
 mod runner;
 mod wire;
 
-pub use discover::{Discovery, Rejected, discover};
+pub use discover::{Discovery, Rejected, discover, discover_in};
 pub use route::PluginFacts;
 pub use runner::{PluginRunner, Timeouts};

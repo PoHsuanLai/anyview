@@ -14,7 +14,7 @@ publish.workspace = true
 # PDF's first page (ds-blitz, which brings the renderer). Off, a headless caller (a mail client
 # peeking at attachments, a terminal) builds none of that, and a PDF is peeked as facts only.
 [features]
-default = ["media", "pane"]
+default = []
 media = ["dep:symphonia", "dep:mp4parse", "dep:matroska-demuxer"]
 pane = ["dep:dioxus", "dep:ds", "dep:ds-blitz"]
 

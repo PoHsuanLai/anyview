@@ -36,7 +36,7 @@ async fn a_second_launch_forwards_open_peek_and_play_to_the_first() {
         assert!(matches!(claim, Claim::Forwarded), "{request:?}");
     }
     for request in sent {
-        assert_eq!(primary.next().await, Some(request));
+        assert_eq!(primary.next(), Some(request));
     }
 }
 
@@ -129,7 +129,7 @@ async fn a_handoff_arrives_with_its_place_and_the_results_it_came_from() {
             .unwrap();
     }
     for handoff in sent {
-        assert_eq!(primary.next().await, Some(Request::Handoff(handoff)));
+        assert_eq!(primary.next(), Some(Request::Handoff(handoff)));
     }
 }
 

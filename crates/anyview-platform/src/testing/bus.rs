@@ -60,9 +60,7 @@ impl PrivateBus {
 
     /// An environment whose session bus is this one and whose directories are scratch.
     pub fn env(&self) -> Env {
-        let mut env = Env::isolated(self.scratch.path());
-        env.session = BusRoute::Address(self.address.clone());
-        env
+        Env::isolated(self.scratch.path()).with_session(BusRoute::Address(self.address.clone()))
     }
 
     /// The bus address.

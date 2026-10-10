@@ -63,7 +63,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-text` | `anyview-core`, `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
 | `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, bayonet (`host`), `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `porter-core` and `prov` (docket's app side, section 2n) |
 | `anyview-pdf` | `anyview-core` |
-| `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
+| `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`, behind the `print` feature: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
 | `anyview-book` | `anyview-archive`, `anyview-core`, `ds-core` (`base64`, for `data:` URLs) |
 | `anyview-font` | `anyview-core` |
@@ -76,6 +76,24 @@ directories (`anyview-store`, `anyview-image`, `anyview-text`, `anyview-platform
 `ds-harness` (a real Blitz document, and the hybrid GPU painter), `ds-lint` and `dioxus-ssr` as
 dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memory. `anyview-export` takes `tempfile`.
 
+### Features
+
+No crate turns a heavy dependency on by default: a default build of a library is its types and its
+portable code, and the binary (or any other embedder) names what it links. `scripts/check-boundary.sh`
+measures each crate with the features in this table (`flags_of`), so its checks see the tree a consumer gets.
+
+| crate | feature | what it adds | the viewer |
+|---|---|---|---|
+| `anyview-platform` | `quire-desktop` | D-Bus single instance, the media session, portals, the file manager, the freedesktop entries (Linux; docket's app side) | on, through `anyview/quire-desktop` |
+| `anyview-platform` | `testing` | the fakes and the private bus | tests only |
+| `anyview-media` | `player` | the typestate player over the person's mpv | on |
+| `anyview-media` | `audio` | the built-in audio player (symphonia, cpal) | on, through `anyview/audio` |
+| `anyview-peek` | `media` | a recording's header and cover (symphonia, mp4parse, matroska-demuxer) | on |
+| `anyview-peek` | `pane` | the pane that draws (`ds`, `dioxus`, `ds-blitz`) | on |
+| `anyview-export` | `print` | a text document printed to a PDF (`ds-blitz`'s `pdf`) | on |
+| `anyview-image` | `encode` | the AVIF and metadata encoders | on |
+| `anyview` | `audio`, `quire-desktop` | forward the two above | both on by default; `--no-default-features` is the portable build |
+
 ### External boundaries (`scripts/check-boundary.sh`)
 
 | Crate | Never reaches |
@@ -84,9 +102,9 @@ dev-dependencies. `anyview-pdf` has none: its tests build their fixture in memor
 | `anyview-store` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, `blitz-dom`, `blitz-paint`, `anyrender`: blocking file I/O only, so the launcher links it cheaply |
 | `anyview-image` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `syntect`, `pulldown-cmark`: blocking decode and encode on the caller's worker, no spawning, no clock |
 | `anyview-text` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`: blocking reads on the caller's worker, no spawning, no clock |
-| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd`, `cpal`, `alsa`, `alsa-sys` anywhere in its tree: no libmpv, no libav, no D-Bus and no sound card in the launcher's process, and no `anyview-media` at all (it probes with `symphonia`; playing is the media crate's). Its `media` feature (default on) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); `--no-default-features` leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget, and so is its headless tree (`--no-default-features`: no `pane`, so no `ds-blitz`, `dioxus` of its own or renderer, and no `anyview-image` encoder), which reaches none of `ds-blitz`, `wgpu`, `rav1e` or `zbus` and builds on macOS and Windows |
+| `anyview-peek` | `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `zbus`, `ashpd`, `cpal`, `alsa`, `alsa-sys` anywhere in its tree: no libmpv, no libav, no D-Bus and no sound card in the launcher's process, and no `anyview-media` at all (it probes with `symphonia`; playing is the media crate's). Its `media` feature (off by default; the viewer and the launcher ask for it) pulls in `symphonia`, `mp4parse` and `matroska-demuxer`, pure-Rust readers of a recording's header (section 2f); without it the crate leaves them out and a recording is peeked as facts only. `wgpu`, pdfrum and `tokio` are in its tree (they come with `ds-blitz`, which the launcher links) but it never names them itself: the DIRECT table of the script. Its tree is held to a package-count budget, and so is its headless tree (`--no-default-features`: no `pane`, so no `ds-blitz`, `dioxus` of its own or renderer, and no `anyview-image` encoder), which reaches none of `ds-blitz`, `wgpu`, `rav1e` or `zbus` and builds on macOS and Windows |
 | `anyview-pdf` | `dioxus`, `tokio`, `zbus`, `wgpu`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `rayon`: the one crate that names pdfrum. It draws to CPU pixels with the vello-cpu rasterizer and never encodes them (`anyview-image` owns every raster encoder), spawns nothing and has no pool |
-| `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf` |
+| `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf`, which only the `print` feature links |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machine modules inside it (below) stay pure: the script fails on a source file of one that names Dioxus, quire's components, a decoder, the disk, a thread or a clock |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
@@ -284,12 +302,12 @@ implementations are reached through `portable`, `linux` and `testing`. A second 
 **Two halves, one feature.** The owner's rule (quire design/36) is that everything but the desktop itself is
 cross-platform and the desktop's services are additive extras. So `portable` is built everywhere and calls no
 desktop service, and `desktop` (public path `anyview_platform::linux`, kept for `sill`) is the Linux desktop's services (D-Bus, the portals, MPRIS, the freedesktop
-application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is on by
-default (Cargo has no per-target default features, so the code behind it is also gated on
-`target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
-dependencies of that feature. The binary forwards it (`anyview/quire-desktop`), and `--no-default-features` is the
+application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is opt-in
+(the default build is the traits, the portable stand-ins and the `testing` fakes; Cargo has no per-target default
+features, so the code behind it is also gated on `target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
+dependencies of that feature. The binary forwards it (`anyview/quire-desktop`, on in its defaults), and `--no-default-features` is the
 portable build. `anyview-platform` is declared in the workspace with `default-features = false`, so only the
-binary's feature decides it; `sill` takes the crate by path and gets its default. Without the feature each
+binary's feature decides it; `sill` takes the crate by path and asks for `quire-desktop`. Without the feature each
 desktop ability is a trait the host still holds, answered by a portable stand-in:
 
 | Ability | With `quire-desktop` (Linux) | Without it |
@@ -336,7 +354,7 @@ leaves nothing to clean: the kernel drops the lock, and the next launch removes 
 Nothing starts the viewer when none runs, which the bus does; the launch that finds nobody home is the
 viewer. Linux with `quire-desktop` keeps the bus because activation (a launcher's call starts the viewer) and
 `forward_over` (the launcher's own connection) are the bus's, and latchkey starts nothing by itself. Nothing reads
-`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`),
+`std::env`, `dirs` or a bus address outside `env`: the binary builds an `Env` (`Env::from_process`, then `with_dirs`, `with_session`, `with_spawn`, `with_audio_output`, `with_tool_path`, `with_window_screen`; `PATH`, `ANYVIEW_AUDIO_OUTPUT` and `ANYVIEW_WINDOW_SCREEN` are read there and nowhere else; `Env` is `#[non_exhaustive]`),
 a test builds its own (`Env::isolated`, which names no bus and refuses to start programs). Async
 methods are driven by the caller's runtime and never spawn; blocking ones (thumbnails)
 run on the caller's worker.
@@ -347,7 +365,7 @@ run on the caller's worker.
 | `env` | `Env` (`dirs`, `session`, `spawn`, `audio_output`: `ANYVIEW_AUDIO_OUTPUT`, as written), `Dirs`, `BusRoute` (`Usual`, `Address`, `Absent`) |
 | `spawn` | `Argv`, the `Spawn` trait, `ProcessSpawn`, `RefuseSpawn` |
 | `uri` | `file_uri`: the escaped `file://` URI the thumbnail spec hashes and the file manager takes |
-| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` |
+| `instance` | `Instance`, `Request` (`Open`, `Peek`, `Play`, `Handoff`), `Handoff`, `Claim`, `Primary` (std channel: `next` blocks, `next_within(Duration)` gives up; an async program reads it on a thread of its own, as `program::relay` does) |
 | `handoff` (private) | a `Handoff` as the fields both wires carry (`Wire`): encoded and parsed once, for the bus and the socket |
 | `media` | `MediaSession`, `MediaState`, `MediaControl`, `PlaybackStatus`, `Ability`, `SeekDirection`, `TrackSerial` |
 | `thumbnail` | `ThumbnailCache`, `ThumbSize`, `ThumbPixels` |
@@ -356,7 +374,7 @@ run on the caller's worker.
 | `reveal` | `Reveal` |
 | `picker` | `Picker`, `PickOutcome` (`Chosen`, `Cancelled`, `NoDialog`): the desktop's file dialog |
 | `link` | `OpenLink`: a web or mail address handed to the desktop's handler |
-| `plugin` | `discover` (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts` (bayonet's), `PluginFacts`; the `Wire` that tells bayonet the viewer's messages is private |
+| `plugin` | `discover` and `discover_in` (the same with a folder in place of the person's data directory) (`Discovery`, `Rejected`), `PluginRunner` (`probe`, `thumbnail`, `decode`, `export`, and the routing seam `peek_facts`), `Timeouts` (bayonet's), `PluginFacts`; the `Wire` that tells bayonet the viewer's messages is private |
 | `stacking` | `WindowStacking`, `Stacking`, `StackingOutcome` |
 | `portable` | built everywhere, no desktop service: `LatchkeyInstance` (`new`, `under(dir)` for tests; the `frame` module is its line of JSON), `SystemOpen`, `SystemReveal`, `FreedesktopThumbnails`, `NoStacking`, and the absent abilities `NoApps`, `NoShare`, `NoPrinter`, `NoPicker` |
 | `desktop` (feature `quire-desktop`, Linux; quire design/36's module name), public as `linux` | one implementation per trait: `DbusInstance` (and `forward_over`, the call a launcher makes on its own bus connection; it also serves docket's `IntentProvider1`, `intents`, section 2n), `MprisSession`, `DesktopApps`, `PortalPrinter`, `PortalPicker` (the FileChooser portal), `MailShare`, `FileManagerReveal`; `FreedesktopThumbnails`, `NoStacking` and `XdgOpen` (an alias of `SystemOpen`) re-exported from `portable` under their old names; `portal` (private) is what every portal call shares: the request path, the `Response` code and the answer stream |
@@ -400,7 +418,7 @@ the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futur
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
 are blocking and run on the caller's worker (`worker` is that worker, for a host that has none); only
-`pane` draws. Its `pane` feature (on by default) is everything that draws or rasterises, `ds`, `dioxus` and
+`pane` draws. Its `pane` feature (off by default; the viewer asks for it) is everything that draws or rasterises, `ds`, `dioxus` and
 `ds-blitz`; without it the crate links none of them, and a PDF is peeked as facts only.
 
 Every peek reads an `anyview_core::Input`: a path (`&FilePath`, `&Source`) or any bytes a host injects

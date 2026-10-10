@@ -2,6 +2,7 @@
 
 use super::report::{Frame, Report};
 use super::{Idle, Loaded, Opening, Session, convert, fault};
+use crate::error::MediaError;
 use crate::event::{EndReason, MediaEvent};
 use mpv_wgpu_player as mpv;
 
@@ -21,7 +22,7 @@ impl Session<Opening> {
     pub fn poll(mut self) -> Opened {
         let report = match drain(&mut self.player) {
             Ok(report) => report,
-            Err(reason) => return self.give_up(failed(reason)),
+            Err(reason) => return self.give_up(failed(reason.to_string())),
         };
         let loaded = report
             .events
@@ -57,8 +58,8 @@ fn failed(reason: String) -> Report {
 }
 
 /// Poll the player and translate what it said.
-pub(super) fn drain(player: &mut mpv::Player) -> Result<Report, String> {
-    let outcome = player.poll().map_err(|error| fault(error).to_string())?;
+pub(super) fn drain(player: &mut mpv::Player) -> Result<Report, MediaError> {
+    let outcome = player.poll().map_err(fault)?;
     let events: Vec<mpv::Event> = player.events().to_vec();
     let mut translated = Vec::new();
     for event in &events {

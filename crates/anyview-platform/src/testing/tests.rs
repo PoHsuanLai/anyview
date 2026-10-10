@@ -25,7 +25,7 @@ async fn a_first_launch_owns_the_name_and_receives_forwarded_requests() {
     };
     let theirs = Request::Peek(file("/b.png"));
     fake.forward(theirs.clone());
-    assert_eq!(primary.next().await, Some(theirs));
+    assert_eq!(primary.next(), Some(theirs));
     assert_eq!(fake.claimed(), vec![mine]);
 }
 

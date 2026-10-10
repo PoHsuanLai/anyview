@@ -128,8 +128,7 @@ async fn a_file_open_from_the_router_reaches_the_viewers_open_path() {
         FilePath::new(a.clone()).unwrap(),
         FilePath::new(b.clone()).unwrap(),
     ]);
-    let got = tokio::time::timeout(Duration::from_secs(5), primary.next()).await;
-    assert_eq!(got.unwrap(), Some(want));
+    assert_eq!(primary.next_within(Duration::from_secs(5)), Some(want));
 }
 
 #[tokio::test]
@@ -151,9 +150,8 @@ async fn a_missing_file_refuses_the_whole_call_and_opens_nothing() {
     // The next real request is the first thing the viewer hears.
     let ok = perform(&router, invocation(&[&here])).await.unwrap();
     assert!(ok.get("Ok").is_some(), "{ok}");
-    let got = tokio::time::timeout(Duration::from_secs(5), primary.next()).await;
     assert_eq!(
-        got.unwrap(),
+        primary.next_within(Duration::from_secs(5)),
         Some(Request::Open(vec![FilePath::new(here).unwrap()]))
     );
 }
@@ -170,9 +168,9 @@ async fn only_the_router_may_call_the_provider() {
     std::fs::write(&file, b"a").unwrap();
 
     assert!(perform(&intruder, invocation(&[&file])).await.is_err());
-    let heard = tokio::time::timeout(Duration::from_millis(300), primary.next()).await;
+    let heard = primary.next_within(Duration::from_millis(300));
     assert!(
-        heard.is_err(),
+        heard.is_none(),
         "a caller that is not the router opened a file"
     );
 }

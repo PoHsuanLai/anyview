@@ -6,6 +6,25 @@
 //! either complete or not at all.
 //!
 //! Every public item is reached from this root, once.
+//!
+//! A launcher reads the history without the viewer running, and the versions kept before a save
+//! in place are listed per file:
+//!
+//! ```no_run
+//! use anyview_store::{STORE_FOLDER, Versions, read_history};
+//! use std::path::Path;
+//!
+//! let data = Path::new("/home/me/.local/share");
+//! for viewed in read_history(&data.join(STORE_FOLDER)).entries() {
+//!     println!("{}", viewed.path.as_path().display());
+//! }
+//! let state = Path::new("/home/me/.local/state");
+//! let versions = Versions::new(state.join(STORE_FOLDER).join("versions"));
+//! for kept in versions.list(Path::new("/home/me/notes.txt"))? {
+//!     println!("{}", kept.id);
+//! }
+//! # Ok::<(), anyview_store::StoreError>(())
+//! ```
 
 mod attrs;
 mod details;
