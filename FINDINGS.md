@@ -6,10 +6,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **The window's own close button does not ask about unsaved picture edits.** ⌘W, a quick look's Esc, opening
-  another file and the arrow keys ask Save, Don't Save or Cancel (`viewer/picture.rs` `leaving`); the traffic
-  light and the window manager's close reach quire's `CloseRequested` (`ds-blitz/window_shell.rs`) with no hook
-  for the app to answer. Ends when quire lets a window hold a close request until the app has answered.
 - **A picture's edits are saved in its own format only where anyview-image has a writer.** A cut or a resize of a
   JPEG is encoded again at quality 92 (a turn or a mirror alone stays lossless through the orientation tag); a
   PNG or TIFF with 16-bit samples or a palette comes back as 8-bit RGBA when it is cut or resized (the save asks
@@ -78,14 +74,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   (`PaneSpec` 220, between 180 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
   reports only whether the pane is open (`on_shown`), so a new window opens at 220. Ends when the split view
   reports a pane's size to persist.
-- **A capsule button's tip carries no key.** The tips are the owner's terse `Name  Key`, but quire's
-  `ToolbarItem` has no key to give a button, so the capsule says the name alone ("Zoom In"); the mode controls
-  in the titlebar (`Pointer Tool  H`, `View Mode  V`) carry theirs. `~/av-wt/design/quire-capsule-shortcut.patch`
-  adds `ToolbarItem::shortcut`. Ends when quire takes it.
-- **The Data modality is not built.** Tables are still a header and quire `Row`s in a `VirtualList` with guessed column
-  widths, and no sticky header rule, resizable columns or sort. It needs quire's virtual-row `Table` (lane Q).
-- **The text view's wrap is on for every text file.** The standard has it on for plain text and off for code;
-  `TextStage::opened` starts every file wrapped. Ends when the stage is told the kind it opens.
 - **Find has no case or word options, and a PDF's hits have no words around them.** The palette lists a PDF's
   hit as the phrase and its page ("Page 7"): `anyview-pdf`'s `Hit` keeps the rectangles, not the text.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
@@ -783,10 +771,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   so editing never reads the file again and a save of the file under it cannot change what the pieces point at.
   A larger file is not offered for editing (no technical reason is shown). Ends if a file people edit is larger,
   which wants the table over a ranged source and a streamed save.
-- **Closing the window with the title bar's button, or by the desktop, does not ask about unsaved changes.** The
-  question is asked for the keys, Done, opening another file and walking the folder; quire closes the window on a
-  close request without asking the app (`WindowEvent::CloseRequested` in `ds-blitz`'s window shell). Ends when
-  quire lets an app veto the close.
 - **Wrapping is remembered for the window, not across launches.** The last choice for plain text, Markdown and
   code is kept by the window and used for the next file of the kind; no `viewer.*` setting stores it yet.
   Ends with the desktop settings keys.
