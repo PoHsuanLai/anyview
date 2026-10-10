@@ -350,10 +350,8 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
         };
         let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
         settle(&mut harness);
-        harness.send(Input::click(
-            harness.centre(".ds-segmented-segment").unwrap(),
-        ));
-        settle(&mut harness);
+        // The panel opened on the pages. (A click on a tab would leave the keyboard in the tab
+        // control, whose arrows move between tabs, so the arrow below would not walk the folder.)
         let tabs = |harness: &Harness| {
             (
                 harness.attr(".ds-split-pane", "data-shown"),
