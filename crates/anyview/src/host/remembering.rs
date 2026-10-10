@@ -8,7 +8,7 @@
 use super::store::Store;
 use anyview_core::{FilePath, Resume, Source};
 use anyview_ui::{Noted, Remembering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use tokio::runtime::Handle;
 
@@ -20,6 +20,9 @@ struct Inner {
     /// Zero of the clock the policy is told the time on.
     origin: Instant,
     policy: Mutex<Remembering>,
+    /// Writes handed to the blocking pool and not yet done, so a flush can wait them out.
+    in_flight: Mutex<usize>,
+    settled: Condvar,
 }
 
 /// The places of the files shown, written as the policy says.
@@ -43,6 +46,8 @@ impl PlaceWriter {
                 runtime,
                 origin: Instant::now(),
                 policy: Mutex::new(Remembering::new(every)),
+                in_flight: Mutex::new(0),
+                settled: Condvar::new(),
             }),
         }
     }
@@ -71,7 +76,8 @@ impl PlaceWriter {
         }
     }
 
-    /// Write what waits, now. Blocking: the program calls it as it ends.
+    /// Write what waits, now, and wait out the writes already on the pool, so nothing is lost
+    /// when the runtime goes. Blocking: the program calls it as it ends.
     pub fn flush(&self) {
         let waiting = self
             .inner
@@ -81,6 +87,18 @@ impl PlaceWriter {
             .take_all(self.inner.origin.elapsed());
         for (source, resume) in waiting {
             self.write(&source, &resume);
+        }
+        let mut in_flight = self
+            .inner
+            .in_flight
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        while *in_flight > 0 {
+            in_flight = self
+                .inner
+                .settled
+                .wait(in_flight)
+                .unwrap_or_else(PoisonError::into_inner);
         }
     }
 
@@ -97,13 +115,23 @@ impl PlaceWriter {
     }
 
     fn write_soon(&self, source: Source, resume: Resume) {
+        *self
+            .inner
+            .in_flight
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) += 1;
         let this = self.clone();
-        // A write that cannot be joined is one the runtime dropped as the program ended.
-        drop(
-            self.inner
-                .runtime
-                .spawn_blocking(move || this.write(&source, &resume)),
-        );
+        // The flush waits on the count, not on the handle.
+        drop(self.inner.runtime.spawn_blocking(move || {
+            this.write(&source, &resume);
+            let mut in_flight = this
+                .inner
+                .in_flight
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            *in_flight -= 1;
+            this.inner.settled.notify_all();
+        }));
     }
 
     fn write(&self, source: &Source, resume: &Resume) {
