@@ -5,6 +5,10 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Resume
+
+- Where you left off in a file is now safe when two programs that use Viewer run at once, such as Viewer and a terminal with a viewer pane in it: each remembers its own files without erasing the other's.
+
 ### Shortcuts
 
 - Shortcuts follow your system's keyboard settings. Command on a Mac-style desktop and Ctrl on Windows and most Linux desktops now mean what that system says; change a shortcut in the system and Viewer follows it. Ctrl is no longer Command on a desktop where Command is its own key.

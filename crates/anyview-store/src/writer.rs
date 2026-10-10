@@ -1,10 +1,13 @@
 //! The write API: what the viewer links. Reads, decides with the pure modules, writes whole files.
 //!
-//! One `StoreWriter` per store root at a time (the viewer is a single instance): a read-modify-
-//! write of the history would otherwise lose one of two concurrent updates. Blocking; call it
+//! Any number of writers may share a store root, in this process or another (the viewer and a
+//! terminal that embeds it): each write takes the store's cross-process lock, reads what is on
+//! disk now, merges in only its own entry, and replaces the file atomically. So the last writer
+//! wins per file entry, never per store, and nobody erases another's entries. Blocking; call it
 //! from a worker.
 
 use crate::error::StoreError;
+use crate::guard::StoreLock;
 use crate::history::{History, HistoryCap, HistoryEntry, history_after_view};
 use crate::io;
 use crate::label::resume_label;
@@ -57,6 +60,7 @@ impl StoreWriter {
         resume: &Resume,
     ) -> Result<ViewRecorded, StoreError> {
         resume_file_name(path)?; // refuses a path JSON cannot hold, before anything is written
+        let _lock = StoreLock::exclusive(&self.root)?;
         let (before, replaced_damaged) = match read_history(&self.root) {
             HistoryRead::Loaded(history) => (history, None),
             HistoryRead::Absent => (History::default(), None),
@@ -93,6 +97,7 @@ impl StoreWriter {
         resume: &Resume,
     ) -> Result<(), StoreError> {
         let file = self.resume_path(path)?;
+        let _lock = StoreLock::exclusive(&self.root)?;
         if matches!(resume, Resume::Nothing) {
             return io::remove(&file);
         }

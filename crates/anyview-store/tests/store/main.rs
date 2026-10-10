@@ -9,6 +9,7 @@ mod save_in_place;
 mod save_safety;
 mod store_writer;
 mod support;
+mod two_writers;
 mod version_store;
 
 #[path = "../../../../dev/test_guard.rs"]

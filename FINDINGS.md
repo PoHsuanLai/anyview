@@ -1064,6 +1064,17 @@ on. It is a reference, not a log: how each was found lives in git history.
   identical to the file's latest. A save refused for a read-only file is `Io { op: Permissions, kind:
   PermissionDenied }`; `anyview_store::is_read_only` is the query a window uses to disable edits. Rename's no-replace
   falls back to a look-then-rename for a folder on a file system without `RENAME_NOREPLACE` (the one window left).
+- **The resume store has several writers, so writes lock.** The viewer and a program embedding it (temor's
+  pane) may both record a view. `StoreWriter::record_view` and `save_resume` take an exclusive `flock(2)` on
+  `<root>/.lock` through `rustix::fs::flock` (already a dependency, so no new crate), read the history or record
+  now on disk, merge only their own entry, and replace the file by write-to-temp, fsync, rename. The last writer
+  wins per file entry, never per store. The lock belongs to the open file, so the system drops it when the
+  holder dies (a crashed writer cannot wedge the store), and it also excludes a second writer in the same
+  process. Readers (`read_history`, `load_resume`) take no lock: a rename is atomic. A temporary file a crashed
+  writer left is `<name>.tmp`, never listed (only `.json` is) and truncated by the next write. Platforms: Linux
+  and macOS use `flock`, which both have; `flock` can be unreliable on NFS, where a store would not normally be.
+  `anyview-store` is Unix-only today (`std::os::unix` in `io.rs`) and is not in the macOS and Windows peek
+  builds' trees; if it ever builds on Windows the lock becomes `LockFileEx` on the same file.
 - **`dist/install.sh` writes a receipt** (`<prefix>/share/anyview/install-receipt`) naming the files it wrote and
   the directories it made; `uninstall.sh` removes exactly those, directories only when empty. An install from
   before the receipt is removed by file names, as it was.

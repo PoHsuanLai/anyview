@@ -24,6 +24,8 @@ pub enum StoreOp {
     Stat,
     /// Giving a file the mode of the one it replaces.
     Permissions,
+    /// Taking the lock that lets one process at a time write a store.
+    Lock,
 }
 
 /// Why the store could not read or write.

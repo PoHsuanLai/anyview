@@ -35,7 +35,7 @@ pub(crate) fn encode(handoff: &Handoff) -> Wire {
         Some(sequence) => (
             match sequence.origin() {
                 SequenceOrigin::Results(id) => id.0,
-                SequenceOrigin::Folder(_) | SequenceOrigin::Selection => 0,
+                SequenceOrigin::Folder(_) | SequenceOrigin::Selection | SequenceOrigin::Output => 0,
             },
             sequence.entries().iter().map(text).collect(),
         ),

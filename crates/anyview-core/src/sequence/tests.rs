@@ -115,6 +115,20 @@ fn a_new_sequence_points_at_the_first_and_remembers_its_origin() {
 }
 
 #[test]
+fn output_paths_are_walked_in_the_order_they_were_printed() {
+    let printed = [3, 1, 2];
+    let entries = NonEmpty::from_vec(printed.iter().copied().map(file).collect()).unwrap();
+    let seq = Sequence::starting_at(entries, &file(1), SequenceOrigin::Output).unwrap();
+    let walked: Vec<_> = seq.entries().iter().cloned().collect();
+    assert_eq!(
+        walked,
+        printed.iter().copied().map(file).collect::<Vec<_>>()
+    );
+    assert_eq!(seq.current(), &file(1));
+    assert_eq!(seq.origin(), &SequenceOrigin::Output);
+}
+
+#[test]
 fn a_file_taken_out_leaves_the_walk_on_the_file_the_person_was_heading_for() {
     use Heading::{Back, Onward};
     // name, length, the file on, heading, index after (in the shorter list), or none left
