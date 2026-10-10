@@ -134,6 +134,7 @@ const KEYS: &[(&[ShortcutKey], StageCommand)] = &[
     (&[ShortcutKey::Char('-')], StageCommand::ZoomOut),
     (&[ShortcutKey::Char('0')], StageCommand::ZoomToActual),
     (&[ShortcutKey::Char('9')], StageCommand::ZoomToFit),
+    (&[ShortcutKey::Char('2')], StageCommand::ZoomToWidth),
     (&[ShortcutKey::Char('v')], StageCommand::ToggleSource),
     (&[ShortcutKey::Char('w')], StageCommand::ToggleWrap),
     (&[ShortcutKey::Space], StageCommand::TogglePlayback),
