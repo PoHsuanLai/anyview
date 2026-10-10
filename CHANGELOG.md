@@ -9,6 +9,10 @@ versioning, with pre-releases while the program is in beta.
 
 - Where you left off in a file is now safe when two programs that use Viewer run at once, such as Viewer and a terminal with a viewer pane in it: each remembers its own files without erasing the other's.
 
+### Embedding
+
+- The viewer can be hosted as a pane in another quire app's window (`anyview-pane`: `ViewerPane`). A pane draws the file, the bottom bar when the pointer is over it, the info panel (over the file when the pane is narrow) and the context menu; it draws no title bar, sheets or command palette, leaves every shortcut with a modifier to the app that hosts it, takes plain keys only while the app says it has the keyboard, and gives the keyboard back on Esc once there is nothing left to close. The app lists the pane's commands in its own palette. A recording in a pane opens in a viewer window of its own for now.
+
 ### Shortcuts
 
 - Shortcuts follow your system's keyboard settings. Command on a Mac-style desktop and Ctrl on Windows and most Linux desktops now mean what that system says; change a shortcut in the system and Viewer follows it. Ctrl is no longer Command on a desktop where Command is its own key.

@@ -499,6 +499,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-pane"
+version = "0.1.0-beta.1"
+dependencies = [
+ "anyview-core",
+ "anyview-peek",
+ "anyview-ui",
+ "dioxus",
+ "ds",
+ "ds-harness",
+ "futures-channel",
+ "futures-util",
+ "tempfile",
+]
+
+[[package]]
 name = "anyview-pdf"
 version = "0.1.0-beta.1"
 dependencies = [

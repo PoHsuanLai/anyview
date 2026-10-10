@@ -1,0 +1,27 @@
+[package]
+name = "anyview-pane"
+description = "The viewer as a pane another quire app hosts in its own window: ViewerPane, the edge it runs over, the requests it makes of its host and the commands it lends the host's palette."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyview-core = { workspace = true }
+# `StillSource`, the seam of the host's small pictures (re-exported, so a host names this crate alone).
+anyview-peek = { workspace = true }
+anyview-ui = { workspace = true }
+dioxus = { workspace = true }
+# The palette's group and row, which the pane's commands are handed over as.
+ds = { workspace = true }
+futures-channel = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+ds-harness = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

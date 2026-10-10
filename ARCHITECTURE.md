@@ -41,6 +41,7 @@ planned has no directory yet; its row is the rule it will carry.
 | L3 | `anyview-peek` | exists | the light tier: the registry that maps every kind to its `Peek`, the PDF, folder, video and audio (pure-Rust header parsers) and facts-only peeks, the type-erased `AnyPeeked`, `look` (its one front door: probe a file and peek at it as `Peeking` says), and the pane view (what the launcher links) |
 | L3 | `anyview-machines` | exists | the viewer's pure state machines as `ds-core` machines (chrome, panel, palette, context menu, sheet, navigation, presentation, loading, the stages, key routing and the root that composes them), and the vocabulary they speak (`Command`, `EditRequest`, `PlatformAbilities`); depends on `anyview-core`, `ds-core` and `chordkit` alone, with no Dioxus, no `ds` and no window, so a host that is not the viewer's window (temor, a terminal) drives the same machines |
 | L4 | `anyview-ui` | exists | the viewer's window: it re-exports the machines, and adds the blocking work a worker does for them (`io`), one Dioxus view per family of formats (`families`: images, text, PDF pages (which also show books, bound as PDFs) and the facts view) and the window that draws every region (`views`) |
+| L4 | `anyview-pane` | exists | the viewer as a pane another quire app hosts in its own window (temor, a terminal): `ViewerPane` over a `PaneEdge`, the `PaneRequest`s it makes of its host (`HostRequest` narrowed to what a region of a window can mean), and `PaneHandle`, which lends the host the pane's commands as a palette group; a thin crate over `anyview-ui`, so no new dependency, and only a host links it |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
 | plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
@@ -62,6 +63,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-fs` | `anyview-core` |
 | `anyview-machines` | `anyview-core`, `ds-core` (the `Machine` trait, `Stamp` and `Word`), `chordkit` (the keymap's nouns, for `Act`) |
 | `anyview-ui` | `anyview-archive` (an office document's facts and picture), `anyview-book`, `anyview-core`, `anyview-fs` (`OnDisk`), `anyview-image`, `anyview-machines` (every machine, re-exported from the root), `anyview-pdf`, `anyview-peek` (without `pane` and `media`: `probe`, so the window and the launcher's pane tell a zip document from an archive by one rule, `peek` for the card of a file no stage shows, and `StillSource`, the host's small picture of a file), `anyview-store` (`file_details`, the General section of the Info tab), `anyview-text`, `ds` (the components and hooks), `ds-blitz` (the window, `TextureLayer`, and its `pdf` feature, which lays a book's chapters out on pages), `ds-core` (the `Machine` trait and `Stamp`), `ds-shell` (the missing-tool sheet, `HelperSheet`) |
+| `anyview-pane` | `anyview-core` (`FilePath`, `Sequence`), `anyview-peek` (`StillSource`, re-exported so a host names this crate alone), `anyview-ui` (the window, the edge and the seams), `ds` (the palette's group and row) |
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `anyview-fs` (`OpenFile`, for a window of lines read by offset), `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
@@ -111,6 +113,7 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 | `anyview-export` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`: blocking work on the caller's worker, no spawning, no clock. It names none of `pdfrum`, `image`, `wgpu`, `tokio` or the renderer itself (the DIRECT table of the script): the PDF comes through `anyview-pdf`, the pixels through `anyview-image`, and the printed page through `ds-blitz`'s `pdf`, which only the `print` feature links |
 | `anyview-machines` | `dioxus`, `ds`, `ds-blitz`, `ds-shell`, `ds-motion`, `ds-style`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values and `step` functions, no spawning, no clock, no disk; the script also fails on a source file that names Dioxus, quire's components, a decoder, the disk, a thread or a clock, and checks `cargo tree -p anyview-machines -e normal -i dioxus` is empty |
 | `anyview-ui` | `zbus`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`: the player and the platform reach the views as `MediaHost`, `anyview-platform` traits and `HostRequest`s, never as dependencies. It never names `pdfrum` itself either, though `pdfrum` is in its tree through `anyview-pdf`. `tokio` and `wgpu` arrive only through `ds-blitz`, `image` through `anyview-image` and `pdfrum` through `anyview-pdf` (the DIRECT table of the script); the library never names them. The machines are in `anyview-machines` (below), which the script holds to that |
+| `anyview-pane` | `zbus`, `ashpd`, `docket-client`, `docket-core`, `porter-core`, `mpv-wgpu-player`, `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`, `cpal`, `alsa`, `alsa-sys`; and it never names `wgpu`, `tokio` or `pdfrum` itself (the DIRECT table): it asks the OS for nothing, and abilities arrive as `PlatformAbilities`. Budget 590 packages (the window's 589 and the crate); the viewer and the peek budgets are untouched since only a host links it |
 | `anyview-archive` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker inside a byte budget, no spawning, no clock; the one crate that names the container codecs |
 | `anyview-book` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, the `blitz-*` crates, `anyrender`, `image`, `resvg`, `jxl-oxide`, `syntect`, `pulldown-cmark`, `skrifa`: blocking reads on the caller's worker, no spawning, no clock; it names no codec (the zip comes through `anyview-archive`) and decodes no picture |
 | `anyview-font` | the same, and the archive codecs (`zip`, `tar`, `sevenz-rust2`, `flate2`, `bzip2`, `ruzstd`, `lzma-rust2`): the one crate that names `skrifa` for reading a face |
@@ -1453,7 +1456,7 @@ changes applies from the next step. Only the chrome keeps a timer; every other `
 | `ContextMenu` | `Closed`, `Open { at }` | `Open(Spot)`, `OpenAtCentre`, `Pick`, `Close` | `Run(ContextPick)` |
 | `Sheet` | `Closed`, `Export { draft }`, `ConfirmTrash`, `Rename { name }` | `OpenExport`, `AskTrash`, `AskRename`, `PickKind`, `Change`, `Typed`, `Confirm`, `Cancel` | `Opened`, `Closed`, `Export`, `Trash`, `Rename` |
 | `Navigate` | `Idle`, `Walking { sequence, heading }` | `Start`, `Next`, `Previous`, `First`, `Last`, `Gone`, `Leave` | `Open(path)`, `Preload(neighbours)` |
-| `Presentation` | `Window`, `Peek`, `Mini`, `Background` | `ToWindow`, `ToMini` | `Become(presentation)` |
+| `Presentation` | `Window`, `Peek`, `Mini`, `Background`, `Pane` (a pane never becomes another) | `ToWindow`, `ToMini` | `Become(presentation)` |
 | `Load` | `Idle`, `Probing`, `Peeking { frame }`, `Opening`, `Ready`, `Failed { reason }`, each with its `Ticket` | `Begin`, `Probed`, `Peeked`, `PeekFailed`, `Opened`, `Failed` | `Probe`, `Peek`, `Open`, `Cancel`, `UseStage`, `ShowFirstFrame`, `ShowFull` |
 | `RasterStage` | `Fitted`, `Zoomed`, `Panning`; an `Animation` (`Still`, `Playing { due }`, `Paused`, `Ended`) rides in each; `wake()` is the playing frame's `due` | `ZoomStep`, `SetZoom`, `DoubleClick`, `PanStart`/`PanBy`/`PanEnd`, `Rotate`, `Restore`, `Animated`, `TogglePlayback`, `StepFrame`, `Elapsed` | `Remember`, `Turned`, `ShowFrame` |
 | `PdfStage` | `Reading`, `Finding { query, hits }`, `Jumping { target }` | `Scroll`, `SetZoom`, `Find`, `Results`, `NextHit`, `GoTo`, `NextPage`, `Arrived`, `Restore` | `Remember`, `ScrollTo`, `Find(..)` |
@@ -1472,6 +1475,39 @@ machines (`chrome`, `navigate`, `palette`, `load`, `keys`) without compiling a w
 say and draw it. The module list above is the boundary: the modules before `io` are the machines.
 `anyview-ui` names Blitz, vello and anyrender through `ds-blitz`, which is why the root `Cargo.toml`
 carries quire's `[patch]` sections.
+
+**The pane.** `anyview-pane` is the viewer drawn in a region of another quire app's window
+(`Presentation::Pane`; the first host is temor). It is the window without the window, by a switch in the
+machines and the one view that draws them, not a fork:
+
+- *Drawn:* the file, the capsule (when the pointer is over the pane), the info panel (a layer over the file when
+  the pane is under 480 logical pixels wide) and the context menu. `PaneChrome` takes the capsule and the panel
+  away. *Not drawn:* the titlebar, the traffic lights, the welcome window, sheets, the palette and file drop. The
+  close-request hook is not registered (the pane has no window of its own to close), and the viewer's actions are
+  not declared on the host's keymap.
+- *Keys:* `keys::route` takes a `Chords` flag in `Regions`; `Chords::None` (a pane) sends every action to
+  `Route::Swallowed`, and the window reads plain keys only (`press_of` does not ask the keymap), so the host keeps
+  every Ctrl, Alt or Super chord. With `focused` false the root handles and consumes no key. Esc undoes the
+  innermost thing (the context menu, then what the stage has open, then the panel) and then `ViewerOut::Unfocus`
+  reaches the host as `PaneRequest::Unfocus`; it never closes the pane.
+- *Sheets and the palette are machine-level no-ops in a pane* (`viewer/region.rs` `sheet`, `viewer/step.rs`
+  `palette`), so no command can open one that is not drawn. What would have asked a question is handed over:
+  `file_action` turns every file action into `ViewerOut::Run`, which the host hears as
+  `PaneRequest::File(FileRequest::Run(..))` and carries out or declines. A pane is read-only: its access is
+  `ReadOnly`, a text is not editable, no picture edit is offered, and Find is not listed (it lives in the palette).
+- *Requests:* `PaneRequest::from_host` is the one total function from `HostRequest`; the mapping table is
+  in the module and tested by `tests/pane/mapping.rs`, which fails to compile when a request is added without a row.
+- *Commands:* the host makes a `PaneHandle` (`use_pane_handle`) and passes it as the pane's `handle`. The window
+  publishes the unranked command list (the rows the palette would show for an empty query) into the handle's
+  link and serves a runner that sends `ViewerIn::Run`, the path a palette row and a context-menu row take.
+  `PaneHandle::commands()` is a `PaletteGroup<PaneCommand>` (one group titled with the file's name, each row with
+  its keys) for the host's own `CommandPalette`; `run` is the pick. The host owns the handle (as it owns a quire
+  `EditHandle`) because its palette is the pane's sibling, and a handle it already holds can be read in any render.
+- *Edge:* `PaneEdge::portable(workers)` wraps `Services` with every seam absent and `PlatformAbilities::NONE`; the
+  `with_*` builders add the host's seams, and two edges are equal when they are the same `Arc`. The pane owns the
+  request handler (a channel into a task that calls the host's `on_request`), so the `Edge` is built inside the pane.
+- *A recording* in a pane is sent to the host as `PaneRequest::OpenElsewhere` until the player is extracted from
+  the binary (`PlayerHost`, `MediaHub`); the stage shows its facts meanwhile.
 
 **Threads.** The library never spawns one. A window hands each blocking job to `Workers` (the binary's
 one bounded pool) as a `Work`; a worker calls `Work::run`, and the `Done` it makes goes through the

@@ -110,6 +110,37 @@ another mpv, and `--without-plugin NAME` (`ffmpeg`, `heif`, `mpv` or `raw`) leav
 
 A camera raw file shows its embedded preview with no plugin at all. `dist/install.sh --help` lists every option.
 
+## Embedding
+
+`anyview-pane` draws the viewer in a region of another quire app's window, with no D-Bus, player or file chooser: the app owns the keyboard chords, its own palette and its own sheets. The pane asks the app for what it cannot do itself (close, open elsewhere, rename, move to the trash) through `PaneRequest`, and lends the app's palette its commands.
+
+```rust
+use anyview_pane::{PaneEdge, ViewerPane, use_pane_handle};
+
+#[component]
+fn Preview(file: FilePath, workers: Arc<dyn Workers>, focused: ReadSignal<bool>) -> Element {
+    let handle = use_pane_handle();
+    let edge = use_hook(|| PaneEdge::portable(workers));
+    // In the app's palette: `handle.commands()` is a `PaletteGroup<PaneCommand>`, and a picked
+    // row is `handle.run(command)`.
+    rsx! {
+        ViewerPane {
+            file,
+            edge,
+            focused,
+            handle,
+            on_request: move |request| match request {
+                PaneRequest::Unfocus => { /* give the keyboard back to the terminal */ }
+                PaneRequest::ClosePane => { /* close the split */ }
+                _ => { /* SizeHint, OpenElsewhere, File(..): carry out, or decline */ }
+            },
+        }
+    }
+}
+```
+
+All panes of a window share the one `Workers` pool. A recording opens in a viewer window of its own (`PaneRequest::OpenElsewhere`) until the player can be hosted in a pane.
+
 ## Known limitations
 
 - Audio (MP3, AAC, M4A, FLAC, WAV, AIFF and Ogg Vorbis) plays with nothing installed. Video and Opus audio need your own `mpv` and the `mpv` plugin, and the viewer says so; HEIC, HEIF and AVIF need the `heif` plugin.

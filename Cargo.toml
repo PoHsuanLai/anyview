@@ -11,6 +11,7 @@ members = [
   "crates/anyview-image",
   "crates/anyview-machines",
   "crates/anyview-media",
+  "crates/anyview-pane",
   "crates/anyview-platform",
   "crates/anyview-plugin",
   "crates/anyview-plugin-protocol",
@@ -48,6 +49,8 @@ anyview-image = { path = "crates/anyview-image" }
 # The viewer's pure state machines: no Dioxus and no ds, so a host that is not the window can drive them.
 anyview-machines = { path = "crates/anyview-machines" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
+# The viewer as a pane another quire app hosts in-process (temor, the terminal): no zbus, no player, no OS asked.
+anyview-pane = { path = "crates/anyview-pane" }
 # No default features: the viewer binary asks for the Linux desktop's services through its own
 # `quire-desktop` feature, and a crate that needs only the portable half (plugin discovery) does not
 # bring zbus along. `sill` takes the path directly and so gets the crate's own default.
