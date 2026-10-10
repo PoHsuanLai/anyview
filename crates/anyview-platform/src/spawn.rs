@@ -11,6 +11,7 @@ pub struct Argv {
 
 impl Argv {
     /// `program` with `args`.
+    #[must_use]
     pub fn new(program: impl Into<String>, args: Vec<String>) -> Argv {
         Argv {
             program: program.into(),

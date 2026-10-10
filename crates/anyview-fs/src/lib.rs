@@ -10,6 +10,8 @@
 //!
 //! Every public item is reached from this root, once.
 
+#![warn(missing_docs)]
+
 use anyview_core::{ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, Source};
 use std::fs::{File, Metadata};
 use std::io::{Error, ErrorKind, Result};

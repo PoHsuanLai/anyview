@@ -12,6 +12,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 /// cannot be read; the caller then uses its default. The size is the file's own claim and may be
 /// absurd. Blocking, and bounded: at most a quarter of a mebibyte of a picture and eight of a
 /// movie's header are read.
+#[must_use]
 pub fn natural_size(src: impl Into<Input>) -> Option<PixelSize> {
     let src = src.into();
     let head = src.bytes().read_range(0..FileHead::MAX.0).ok()?;
@@ -43,6 +44,7 @@ pub fn natural_size(src: impl Into<Input>) -> Option<PixelSize> {
 /// Whether `src` (a path, or any bytes a host injects) is an audio file, by its head. Only the
 /// first bytes are read, nothing is decoded and no tag is parsed, so it is cheap for any caller.
 /// `false` for anything else, a path that is not a regular file, and bytes that cannot be read.
+#[must_use]
 pub fn is_audio(src: impl Into<Input>) -> bool {
     let src = src.into();
     let Ok(head) = src.bytes().read_range(0..FileHead::MAX.0) else {

@@ -12,11 +12,13 @@ pub struct NonEmpty<T> {
 
 impl<T> NonEmpty<T> {
     /// A list that starts with `head`, followed by `tail`.
+    #[must_use]
     pub fn new(head: T, tail: Vec<T>) -> Self {
         NonEmpty { head, tail }
     }
 
     /// The entries of `items`, or `None` when it is empty.
+    #[must_use]
     pub fn from_vec(items: Vec<T>) -> Option<Self> {
         let mut items = items.into_iter();
         let head = items.next()?;

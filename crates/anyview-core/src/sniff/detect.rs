@@ -58,6 +58,7 @@ fn raw_over_container(sniffed: Sniffed, name: &FileName) -> Sniffed {
 }
 
 /// A folder, which has no bytes to read.
+#[must_use]
 pub fn sniff_folder() -> Sniffed {
     Sniffed::new(
         FormatKind::Folder,

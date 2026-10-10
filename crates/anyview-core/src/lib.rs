@@ -6,6 +6,8 @@
 //! is reached through its one public module, `work`, and the front doors, which [`prelude`] names
 //! a second time for a glob import.
 
+#![warn(missing_docs)]
+
 mod action;
 mod edit;
 mod error;

@@ -4,6 +4,7 @@ use anyview_core::{FactTime, FactValue, ModTime};
 
 /// `2 Oct 2026 at 14:30`, in the person's own time zone: the same words and the same zone the
 /// Info panel's dates use.
+#[must_use]
 pub fn modified_text(modified: ModTime) -> String {
     FactValue::date(FactTime::from_mod_time(modified))
         .as_str()

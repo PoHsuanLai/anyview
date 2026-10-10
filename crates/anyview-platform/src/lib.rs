@@ -35,6 +35,8 @@
 //! reached through `portable`, `linux` and `testing`. Another platform adds a module beside
 //! `linux` and changes nothing outside this crate.
 
+#![warn(missing_docs)]
+
 mod env;
 mod error;
 mod handoff;

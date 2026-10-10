@@ -35,6 +35,7 @@ fn options() -> Options {
 }
 
 /// `source` as HTML and an outline.
+#[must_use]
 pub fn render(source: &str, env: &RenderEnv<'_>) -> Rendered {
     let parsed: Vec<_> = Parser::new_ext(source, options()).collect();
     let (events, outline) = events::prepare(parsed, env);

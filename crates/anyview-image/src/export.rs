@@ -16,6 +16,7 @@ use anyview_core::{
 /// The jobs that write `choice` for the image `file`. A re-encode keeps the original's EXIF and
 /// ICC profile unless the choice drops them (a vector image has none to keep); a PDF puts
 /// the image on one page.
+#[must_use]
 pub fn plan_export(file: &FilePath, choice: RasterExport) -> Vec<ExportJob> {
     match choice {
         RasterExport::Image(target, resize, keep) => vec![ExportJob::EncodeRaster {

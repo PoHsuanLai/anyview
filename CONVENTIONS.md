@@ -80,6 +80,12 @@ quietly.
   `with_*` methods or a constructor, and a field added later breaks no caller. A vocabulary enum
   (`FormatKind`, `Body`, `Part`) or a data struct is never `#[non_exhaustive]`: exhaustive matching
   is the reason the vocabulary is enums.
+- **A library crate documents its public API and shows its front door.** Each library crate
+  says `#![warn(missing_docs)]`, and the docs say something the name does not. The crates a host
+  consumes (`anyview-core`, `anyview-peek`, `anyview-ui`) have a small `prelude` of the types a
+  typical consumer names to start, nothing more. A front-door constructor or a pure function whose
+  value is the point is `#[must_use]`, and a front door has a doctest (`no_run` where it needs a
+  window or a file).
 
 ## 4. Types
 

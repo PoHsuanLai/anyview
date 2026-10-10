@@ -11,6 +11,8 @@
 //! Every public item is reached from this root, once, except that [`prelude`] names the front doors
 //! a second time for a glob import.
 
+#![warn(missing_docs)]
+
 mod any;
 mod body;
 mod book;

@@ -28,6 +28,8 @@
 //! assert_eq!(page.outline.len(), 1);
 //! ```
 
+#![warn(missing_docs)]
+
 mod bytes;
 mod code;
 mod encoding;

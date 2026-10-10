@@ -31,6 +31,7 @@ pub struct Dirs {
 impl Dirs {
     /// This process's, as the `dirs` crate and the XDG variables name them. Without a home at
     /// all everything hangs off `/`, where writes fail and are reported.
+    #[must_use]
     pub fn from_process() -> Dirs {
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
         Dirs {
@@ -47,6 +48,7 @@ impl Dirs {
     /// Every directory inside `root` (a test's scratch folder): `root/home`, `root/config`,
     /// `root/data`, `root/cache`, `root/state`, and one system directory each, `root/etc-xdg` and
     /// `root/share`.
+    #[must_use]
     pub fn under(root: &Path) -> Dirs {
         Dirs {
             home: root.join("home"),
@@ -107,6 +109,7 @@ pub struct Env {
 
 impl Env {
     /// The process's own directories, session bus and child processes.
+    #[must_use]
     pub fn from_process() -> Env {
         Env {
             dirs: Dirs::from_process(),
@@ -124,6 +127,7 @@ impl Env {
 
     /// Nothing outside `scratch`: every directory inside it, no bus, and no program ever
     /// started. For tests that must never reach the person's session or files.
+    #[must_use]
     pub fn isolated(scratch: &Path) -> Env {
         Env {
             dirs: Dirs::under(scratch),
@@ -136,26 +140,31 @@ impl Env {
     }
 
     /// The same environment with the person's directories `dirs`.
+    #[must_use]
     pub fn with_dirs(self, dirs: Dirs) -> Env {
         Env { dirs, ..self }
     }
 
     /// The same environment reaching the session bus by `session`.
+    #[must_use]
     pub fn with_session(self, session: BusRoute) -> Env {
         Env { session, ..self }
     }
 
     /// The same environment starting programs with `spawn`.
+    #[must_use]
     pub fn with_spawn(self, spawn: Arc<dyn Spawn>) -> Env {
         Env { spawn, ..self }
     }
 
     /// The same environment finding programs in the folders of `tool_path`.
+    #[must_use]
     pub fn with_tool_path(self, tool_path: OsString) -> Env {
         Env { tool_path, ..self }
     }
 
     /// The same environment fitting windows to the screen `window_screen` names.
+    #[must_use]
     pub fn with_window_screen(self, window_screen: Option<String>) -> Env {
         Env {
             window_screen,
@@ -164,6 +173,7 @@ impl Env {
     }
 
     /// The same environment with the audio driver the person asked for, as they wrote it.
+    #[must_use]
     pub fn with_audio_output(self, audio_output: Option<String>) -> Env {
         Env {
             audio_output,

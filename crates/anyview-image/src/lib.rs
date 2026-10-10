@@ -4,6 +4,8 @@
 //!
 //! Every public item is reached from this root, once.
 
+#![warn(missing_docs)]
+
 mod decode;
 #[cfg(feature = "encode")]
 mod edit;

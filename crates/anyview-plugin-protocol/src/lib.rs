@@ -4,6 +4,8 @@
 //! its own, and it depends on `bayonet` without its host half, `serde` and `thiserror` only, so a
 //! plugin written in Rust depends on this crate and nothing of the viewer's.
 
+#![warn(missing_docs)]
+
 mod capability;
 mod error;
 mod message;

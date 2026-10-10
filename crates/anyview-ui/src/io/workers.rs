@@ -278,6 +278,7 @@ impl std::fmt::Debug for Edge {
 
 impl Edge {
     /// An edge over `services`: its workers, its request handler and its seams.
+    #[must_use]
     pub fn new(services: Services) -> Edge {
         let Services {
             workers,

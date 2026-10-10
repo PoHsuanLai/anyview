@@ -16,6 +16,7 @@ pub enum Reach {
 }
 
 /// Where `action` may appear.
+#[must_use]
 pub fn reach(action: FileAction) -> Reach {
     spec_of(action).reach
 }

@@ -54,6 +54,7 @@ impl Default for WorkerConfig {
 
 impl WorkerConfig {
     /// This config with the thread named `name`.
+    #[must_use]
     pub fn with_name(self, name: impl Into<String>) -> Self {
         WorkerConfig {
             name: name.into(),
@@ -62,16 +63,19 @@ impl WorkerConfig {
     }
 
     /// This config giving up on a look after `overrun`.
+    #[must_use]
     pub fn with_overrun(self, overrun: Duration) -> Self {
         WorkerConfig { overrun, ..self }
     }
 
     /// This config running each look on a stack of `stack` bytes.
+    #[must_use]
     pub fn with_stack(self, stack: usize) -> Self {
         WorkerConfig { stack, ..self }
     }
 
     /// This config refusing files once `abandoned` abandoned looks still run.
+    #[must_use]
     pub fn with_abandoned(self, abandoned: usize) -> Self {
         WorkerConfig { abandoned, ..self }
     }
@@ -138,6 +142,7 @@ impl<T: Send + 'static> PeekWorker<T> {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn spawn(config: WorkerConfig, work: PeekWork<T>, failed: PeekFailure<T>) -> Self {
         let slot = Arc::new(Slot {
             waiting: Mutex::new(Waiting {

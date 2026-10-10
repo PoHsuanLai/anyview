@@ -72,6 +72,7 @@ impl TextCodec {
 
     /// `bytes` as text, with a replacement character for anything that is not valid. A byte-order
     /// mark is not looked for: skip it with [`Detected::mark`] first.
+    #[must_use]
     pub fn decode(self, bytes: &[u8]) -> Cow<'_, str> {
         self.engine().decode_without_bom_handling(bytes).0
     }
@@ -88,6 +89,7 @@ pub enum Coverage {
 
 /// The encoding of a file whose first bytes are `head`: a byte-order mark if there is one, else
 /// UTF-8 when the bytes are valid UTF-8, else Windows-1252.
+#[must_use]
 pub fn detect(head: &[u8], coverage: Coverage) -> Detected {
     const MARKS: &[(&[u8], TextEncoding)] = &[
         (&[0xEF, 0xBB, 0xBF], TextEncoding::Utf8),

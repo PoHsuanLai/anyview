@@ -27,6 +27,7 @@ pub struct Needle {
 
 impl Needle {
     /// The phrase `text`, or `None` when it is empty.
+    #[must_use]
     pub fn new(text: &str) -> Option<Needle> {
         let lower: Vec<char> = text.chars().flat_map(char::to_lowercase).collect();
         (!lower.is_empty()).then_some(Needle { lower })

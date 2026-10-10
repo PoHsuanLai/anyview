@@ -32,6 +32,7 @@ impl Default for PluginRunner {
 
 impl PluginRunner {
     /// A runner that waits as `timeouts` say.
+    #[must_use]
     pub fn new(timeouts: Timeouts) -> PluginRunner {
         PluginRunner {
             runner: Runner::new("anyview", timeouts),

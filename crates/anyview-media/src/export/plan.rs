@@ -5,6 +5,7 @@ use anyview_core::{ExportJob, FilePath, MediaExport, StreamPick, Subtitles, Time
 
 /// The jobs `choice` makes of the recording `source`. A frame is the player's to take (the binary
 /// carries `MpvScreenshot` out through it); a trim and an audio export are the FFmpeg plugin's.
+#[must_use]
 pub fn plan_export(source: &FilePath, choice: MediaExport) -> Vec<ExportJob> {
     let transcode = |range, streams, audio| ExportJob::Transcode {
         source: source.clone(),

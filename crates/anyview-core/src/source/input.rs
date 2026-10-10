@@ -22,6 +22,7 @@ pub struct Input {
 
 impl Input {
     /// `bytes` called `name`, as they were at `stamp`, in no file of their own.
+    #[must_use]
     pub fn new(name: FileName, stamp: FileStamp, bytes: Arc<dyn ReadAt>) -> Self {
         Input {
             name,
@@ -33,6 +34,7 @@ impl Input {
 
     /// `bytes` called `name`, whose stamp is read from the bytes ([`ReadAt::stamp`]) the first time
     /// it is asked for, and is a length with no date when they have none.
+    #[must_use]
     pub fn measured(name: FileName, bytes: Arc<dyn ReadAt>) -> Self {
         Input {
             name,
@@ -43,6 +45,7 @@ impl Input {
     }
 
     /// This input, saying the bytes are the file at `path`.
+    #[must_use]
     pub fn at(self, path: FilePath) -> Self {
         Input {
             path: Some(path),

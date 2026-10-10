@@ -34,6 +34,7 @@ pub enum ResumeLabel {
 
 /// The label for `resume`. Total over `Resume`: a state with no position worth a row's room is
 /// [`ResumeLabel::Unlabelled`].
+#[must_use]
 pub fn resume_label(resume: &Resume) -> ResumeLabel {
     match resume {
         Resume::Pdf { page, .. } => ResumeLabel::Page {

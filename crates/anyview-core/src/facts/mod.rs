@@ -33,6 +33,7 @@ pub struct Fact {
 
 impl Fact {
     /// The row `label` with `value`, in the label's own section and tier.
+    #[must_use]
     pub fn new(label: FactLabel, value: FactValue) -> Self {
         Fact {
             group: label.group(),
@@ -43,11 +44,13 @@ impl Fact {
     }
 
     /// This row, listed in `group` instead.
+    #[must_use]
     pub fn in_group(self, group: FactGroup) -> Self {
         Fact { group, ..self }
     }
 
     /// This row, at `tier` instead.
+    #[must_use]
     pub fn at_tier(self, tier: Tier) -> Self {
         Fact { tier, ..self }
     }
@@ -59,16 +62,19 @@ pub struct Facts(Vec<Fact>);
 
 impl Facts {
     /// No rows.
+    #[must_use]
     pub fn empty() -> Self {
         Facts(Vec::new())
     }
 
     /// These rows plus one more at the end, in the label's own section and tier.
+    #[must_use]
     pub fn with(self, label: FactLabel, value: FactValue) -> Self {
         self.with_fact(Fact::new(label, value))
     }
 
     /// These rows plus `fact` at the end.
+    #[must_use]
     pub fn with_fact(mut self, fact: Fact) -> Self {
         self.0.push(fact);
         self
@@ -88,6 +94,7 @@ impl Facts {
     }
 
     /// These rows without the ones listed in `group`.
+    #[must_use]
     pub fn without(mut self, group: FactGroup) -> Self {
         self.0.retain(|row| row.group != group);
         self

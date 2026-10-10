@@ -28,6 +28,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+#![warn(missing_docs)]
+
 mod container;
 mod entry;
 mod error;

@@ -16,6 +16,7 @@ const ORIGIN_LIMIT: usize = 4096;
 
 /// The details of the file at `path` (a link is followed). Blocking: it stats the file and reads
 /// one extended attribute. A file that cannot be looked at has no details at all.
+#[must_use]
 pub fn file_details(path: &Path) -> FileDetails {
     let Ok(meta) = fs::metadata(path) else {
         return FileDetails::default();
@@ -37,6 +38,7 @@ pub fn file_details(path: &Path) -> FileDetails {
 /// and permissions. Blocking, as [`file_details`] is. Bytes a host handed in, with no file of
 /// their own, have only the kind and the size: there is no file whose dates or folder they could
 /// be.
+#[must_use]
 pub fn general_facts(input: &Input, sniffed: &Sniffed) -> Facts {
     match input.path() {
         Some(path) => Facts::general(sniffed, &file_details(path.as_path())),
