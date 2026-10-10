@@ -88,7 +88,7 @@ mod real_mpv {
         Pace, PlayerCommand, PlayerEvent, SlotPixels,
     };
     use ds_blitz::TextureHandle;
-    use ds_harness::{Query, Viewport};
+    use ds_harness::{Driver, Query, Viewport};
     use std::sync::{Arc, Mutex, PoisonError};
     use std::time::{Duration, Instant};
 
