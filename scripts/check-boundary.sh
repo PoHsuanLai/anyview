@@ -65,7 +65,7 @@ cd "$(dirname "$0")/.."
 # and nothing of the viewer's (no anyview-core, no ds-core, no `toml`), and no runtime, bus, GPU,
 # decoder or UI. anyview-plugin is the viewer's capabilities and the registry as values: it names
 # anyview-core, the protocol and bayonet (whose host half parses the manifest's TOML), and reaches no
-# runtime, bus, GPU, decoder, player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate and nothing else
+# runtime, bus, GPU, decoder, player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate, and bayonet's testing fake for the wire faults
 # (its dev-dependencies, which the checks below do not look at, are the host's crates).
 # anyview-ffmpeg (under plugins/, since it is a program shipped as its own package and no layer of
 # the viewer) is a plugin like the fake one: the protocol crate, `serde`, `serde_json` and `thiserror`,
@@ -319,7 +319,7 @@ EDGES=(
   "anyview-export: anyview-core anyview-image anyview-pdf anyview-store anyview-text ds-blitz ds-core"
   "anyview-plugin: anyview-core anyview-plugin-protocol bayonet"
   "anyview-plugin-protocol: bayonet"
-  "anyview-plugin-fake: anyview-plugin-protocol"
+  "anyview-plugin-fake: anyview-plugin-protocol bayonet"
   "anyview-ffmpeg: anyview-plugin-protocol"
   "anyview-heif: anyview-plugin-protocol anyview-tool-kit"
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"

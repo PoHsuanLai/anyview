@@ -182,7 +182,7 @@ impl MediaPlugins {
     pub fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
         match self.plugins().route(Capability::Export, subject) {
             Route::Served(plugin) => WriteRoute::Ready(Arc::new(ExportTool {
-                runner: self.runner,
+                runner: self.runner.clone(),
                 plugin: plugin.clone(),
             })),
             Route::Missing(missing) => WriteRoute::Missing(missing),

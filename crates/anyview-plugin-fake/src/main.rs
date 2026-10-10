@@ -1,14 +1,9 @@
 //! A plugin for the tests: it serves protocol v1 for files whose first line is its text, and
-//! misbehaves in the one way its command line asks for. Everything it knows about the viewer is
-//! the protocol crate, which is what a third-party plugin needs too.
+//! misbehaves in the one way its command line asks for. The wire faults are bayonet's fake plugin;
+//! what this adds is the viewer's own messages and the three faults that need them.
 
-mod behaviour;
 mod serve;
 
-use behaviour::Behaviour;
-use std::process::ExitCode;
-
-fn main() -> ExitCode {
-    let behaviour = Behaviour::from_args(std::env::args().skip(1));
-    serve::run(&behaviour)
+fn main() -> std::process::ExitCode {
+    serve::run()
 }

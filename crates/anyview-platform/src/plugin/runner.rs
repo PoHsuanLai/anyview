@@ -19,7 +19,7 @@ pub use bayonet::run::Timeouts;
 
 /// Runs requests against plugins. A request starts the plugin, greets it, asks once and kills
 /// the process on every path out.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PluginRunner {
     runner: Runner,
 }

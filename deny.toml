@@ -67,7 +67,7 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # The pinned git dependencies, all rev-pinned in Cargo.lock: quire and blitz-kit (the desktop
-# manifest's revs), our forks and pdfrum, mpv-wgpu, and
+# manifest's revs), our forks, mpv-wgpu, and
 # taffy (reached through blitz).
 allow-git = [
     "https://github.com/PoHsuanLai/anyrender",
@@ -82,7 +82,6 @@ allow-git = [
     # rev in Cargo.toml. MIT OR Apache-2.0.
     "https://github.com/PoHsuanLai/bayonet",
     "https://github.com/PoHsuanLai/mpv-wgpu",
-    "https://github.com/PoHsuanLai/pdfrum",
     "https://github.com/PoHsuanLai/vello",
     # The desktop's agent layer (anyview-platform, quire-desktop): docket at the manifest's rev, and
     # porter, almanac and stoker at the revs docket pins. All MIT OR Apache-2.0.
