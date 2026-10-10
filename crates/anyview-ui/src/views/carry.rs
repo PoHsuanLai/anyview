@@ -2,12 +2,13 @@
 //! what is wanted, and this hands it to a worker, a signal the views read, or the host.
 
 use super::arrive::shown_path;
-use super::shelf::{Dispatch, Shelf};
+use super::editing;
+use super::shelf::{Dispatch, Doc, Shelf};
 use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
     ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut, PresentationOut,
-    SheetIn, SheetOut, Stage, StageIn, StageOut, TextIn, TextStage, Ticket, TypedText, ViewerIn,
+    SheetIn, SheetOut, Stage, StageIn, StageOut, TextIn, TextOut, Ticket, TypedText, ViewerIn,
     ViewerOut,
 };
 use anyview_core::{FilePath, Neighbours, Resume};
@@ -56,7 +57,14 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         ViewerOut::Chrome(ChromeOut::Fade { to, .. }) => shelf.chrome.set(to),
         ViewerOut::Palette(PaletteOut::Opened | PaletteOut::Closed | PaletteOut::Run(_))
         | ViewerOut::Panel(PanelOut::Show(_) | PanelOut::Hide)
-        | ViewerOut::Sheet(SheetOut::Opened | SheetOut::Closed | SheetOut::Picture(_)) => {}
+        | ViewerOut::Sheet(
+            SheetOut::Opened
+            | SheetOut::Closed
+            | SheetOut::Picture(_)
+            | SheetOut::Save(_)
+            | SheetOut::Discard(_),
+        ) => {}
+        ViewerOut::Sheet(SheetOut::Replace) => editing::save(c),
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),
         ViewerOut::Stage(out) => staged(c, &out),
         ViewerOut::Sheet(SheetOut::Export(draft)) => {
@@ -126,6 +134,7 @@ fn opened(c: &Carry, ticket: Ticket, path: FilePath) {
     shelf.pdf.reset();
     shelf.media.reset();
     shelf.left_at.set(Resume::Nothing);
+    editing::forget(c);
     shelf
         .operation
         .set(Operation::Running(PendingToken::start()));
@@ -164,6 +173,10 @@ fn remember_on_leaving(c: &Carry) {
 /// back to it needs no decode and no search for the place.
 fn keep_the_one_left(c: &Carry) {
     let mut shelf = c.shelf;
+    // A file written while it was edited is not what its document holds: it is opened afresh.
+    if *shelf.edit.doc.peek() == Doc::Stale {
+        return;
+    }
     let (Some((_, doc)), Some(probed)) = (
         shelf.loaded.peek().clone(),
         shelf.probe.peek().found().cloned(),
@@ -233,6 +246,20 @@ fn staged(c: &Carry, out: &StageOut) {
         media_out(c, media);
         return;
     }
+    match out {
+        StageOut::Text(TextOut::BeginEdit) => return editing::begin(c),
+        StageOut::Text(TextOut::EndEdit) => return editing::end(c),
+        StageOut::Text(TextOut::Save) => return editing::save(c),
+        StageOut::Text(TextOut::Wrapped(wrap)) => return editing::wrapped(c, *wrap),
+        StageOut::Text(
+            TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_),
+        )
+        | StageOut::Raster(_)
+        | StageOut::Pdf(_)
+        | StageOut::Media(_)
+        | StageOut::Table(_)
+        | StageOut::Tree(_) => {}
+    }
     if let StageOut::Pdf(PdfOut::Edit(request)) = out {
         c.edge.request(HostRequest::Edit(*request));
         return;
@@ -274,6 +301,9 @@ fn remember(c: &Carry, resume: &Resume) {
 /// Search the open file for `query`. A first frame is only the start of the file, so only the
 /// full open is searched; the stage asks again when it lands.
 fn search(c: &Carry, query: &TypedText) {
+    if editing::searches_text(c) {
+        return editing::search(c, query);
+    }
     let Some((ticket, doc)) = c.shelf.loaded.peek().clone() else {
         return;
     };
@@ -290,11 +320,10 @@ fn reveal(c: &Carry, index: HitIndex) {
     let Some(hit) = found.0.get(index) else {
         return;
     };
-    let Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) =
-        dispatch.machine.state().peek().stage.clone()
-    else {
+    let Stage::Text(text) = dispatch.machine.state().peek().stage.clone() else {
         return;
     };
+    let place = text.place();
     let page = dispatch.params().stage.text.extent.page.0;
     let top = top_for(hit.line, place.line, page);
     if top != place.line {

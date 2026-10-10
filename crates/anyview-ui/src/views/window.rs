@@ -11,19 +11,20 @@ use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
-use super::keys::shortcut_of;
+use super::keys::{for_the_window, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
 use super::resize::ResizeSheet;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, WHOLE_HITS, offered_slots};
 use super::sheet::{
-    EditSheet, InstallSheet, NameSheet, NoVersionsSheet, RevertSheet, TrashSheet, UnavailableSheet,
+    EditSheet, InstallSheet, NameSheet, NoVersionsSheet, ReplaceSheet, RevertSheet, TrashSheet,
+    UnavailableSheet,
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use super::unsaved::UnsavedSheet;
 use crate::families::FrameLook;
-use crate::io::{HostRequest, Job};
+use crate::io::{FileAccess, HostRequest, Job};
 use crate::{
     ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, NavigateIn,
     Palette as PaletteState, PaletteIn, PaletteScope, Panel, PanelIn, PanelTab, PictureEditIn,
@@ -143,8 +144,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let presentation = state.presentation;
     let palette_open = matches!(state.palette, PaletteState::Open { .. });
     // The keys belong to the window again once the palette that held them is closed.
+    let editor = shelf.edit.handle;
     use_effect(use_reactive!(|palette_open| {
-        if !palette_open && let Some(element) = root.peek().clone() {
+        if palette_open {
+            return;
+        }
+        if dispatch.machine.state().peek().stage.edited().is_some() {
+            // The text being edited has the keyboard back.
+            editor.focus();
+        } else if let Some(element) = root.peek().clone() {
             focus_soon(element);
         }
     }));
@@ -188,6 +196,13 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             ),
         },
         platform: shelf.platform,
+        access: shelf
+            .probe
+            .read()
+            .found()
+            .map_or(FileAccess::Writable, |probed| probed.access),
+        text_edit: shelf.edit.session,
+        text_editor: shelf.edit.handle,
     };
     let facts = current
         .as_ref()
@@ -306,9 +321,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let context_rows = machine_params.context.entries;
     let context_open = matches!(state.context, ContextMenu::Open { .. });
     let keyed = state.clone();
+    let editing = state.stage.edited().is_some();
     let chrome = (shelf.chrome)();
-    // The edited dot: the picture has changes that are not saved.
-    let document = if state.picture.is_edited() {
+    // The edited dot: the picture or the text has changes that are not saved.
+    let document = if state.unsaved() {
         DocumentState::Edited
     } else {
         DocumentState::Saved
@@ -329,6 +345,13 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 // focus is still on the window Return and Esc reach it here, so the machine's sheet
                 // answers them.
                 if palette_open || context_open {
+                    return;
+                }
+                // The text being edited has the keys: the window hears only what is meant for it.
+                if editing
+                    && !sheet_open
+                    && !shortcut_of(&event).is_some_and(|key| for_the_window(&key.keys()))
+                {
                     return;
                 }
                 if sheet_open {
@@ -472,6 +495,13 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
+                Sheet::ConfirmReplace => rsx! {
+                    ReplaceSheet {
+                        name: title_of(&shelf.probe.read()).unwrap_or_default(),
+                        onreplace: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
+                        oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
+                    }
+                },
                 Sheet::Rename { name } => rsx! {
                     NameSheet {
                         label: "Rename",
@@ -533,11 +563,11 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
-                Sheet::Picture(PictureSheet::Unsaved(_)) => rsx! {
+                Sheet::Unsaved(_) => rsx! {
                     UnsavedSheet {
                         name: title_of(&shelf.probe.read()).unwrap_or_default(),
                         onsave: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Confirm)),
-                        ondiscard: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Decline))),
+                        ondiscard: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Discard)),
                         oncancel: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },

@@ -2,11 +2,12 @@
 //! crosses regions.
 
 use super::command::run;
+use super::departure::{leaving, save_open, saved, walks};
 use super::model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
-use super::picture::{answered, crop_key, crop_synced, leaving, picture, picture_in, save, walks};
+use super::picture::{answered, crop_key, crop_synced, picture, picture_in};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
-use crate::command::Command;
+use crate::command::{Command, StageCommand};
 use crate::context::{ContextIn, ContextOut, ContextPick};
 use crate::edits::Rewind;
 use crate::hand::{HandIn, Tool};
@@ -18,8 +19,8 @@ use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope}
 use crate::panel::{Panel, PanelIn, PanelOut, PanelTab};
 use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::Presentation;
-use crate::sheet::{PictureDeparture, Sheet, SheetIn, SheetOut};
-use crate::stage::{Stage, StageFamily, StageIn};
+use crate::sheet::{Departure, Sheet, SheetIn, SheetOut};
+use crate::stage::{Stage, StageFamily, StageIn, TextIn};
 use crate::typed::TypedText;
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin, shortcut};
 use ds_core::machine::{Elapsed, Machine};
@@ -63,10 +64,10 @@ impl Machine for Viewer {
 
 fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> Step {
     match input {
-        ViewerIn::Open(path) => leaving(viewer, PictureDeparture::Open(path), at, params),
+        ViewerIn::Open(path) => leaving(viewer, Departure::Open(path), at, params),
         ViewerIn::Reload(path) => reload(viewer, &path, at),
         ViewerIn::Dropped(paths) if paths.is_empty() => (viewer, vec![]),
-        ViewerIn::Dropped(paths) => leaving(viewer, PictureDeparture::Dropped(paths), at, params),
+        ViewerIn::Dropped(paths) => leaving(viewer, Departure::Dropped(paths), at, params),
         ViewerIn::Chosen(paths) => {
             let viewer = Viewer {
                 choosing: Choosing::Not,
@@ -75,7 +76,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
             if paths.is_empty() {
                 (viewer, vec![])
             } else {
-                leaving(viewer, PictureDeparture::Chosen(paths), at, params)
+                leaving(viewer, Departure::Chosen(paths), at, params)
             }
         }
         ViewerIn::Load(input) => load(viewer, input, at, params),
@@ -91,6 +92,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Picture(input) => picture_in(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
+        ViewerIn::Saved(end) => saved(viewer, end, at, params),
         ViewerIn::Elapsed => elapsed(viewer, at, params),
     }
 }
@@ -358,7 +360,7 @@ fn kept_or_new(showing: &Stage, family: StageFamily, params: &ViewerParams) -> S
     if showing.family() == family {
         showing.clone()
     } else {
-        Stage::for_family(family, params.stage.text.views)
+        Stage::for_family(family, params.stage.text.views).wrapped(params.stage.text.wrap)
     }
 }
 
@@ -508,7 +510,7 @@ fn can_open_context(viewer: &Viewer) -> bool {
 /// A move along the sequence; landing on a file begins loading it.
 fn navigate(viewer: Viewer, input: NavigateIn, at: Stamp, params: &ViewerParams) -> Step {
     if walks(&input) {
-        leaving(viewer, PictureDeparture::Walk(input), at, params)
+        leaving(viewer, Departure::Walk(input), at, params)
     } else {
         navigate_now(viewer, input, at, params)
     }
@@ -561,11 +563,19 @@ fn keyed(viewer: Viewer, key: &Shortcut, at: Stamp, params: &ViewerParams) -> St
         Route::Context(input) => context(viewer, input, at, params),
         Route::OpenContextMenu => context(viewer, ContextIn::OpenAtCentre, at, params),
         Route::Panel(input) => panel(viewer, input, at, params),
-        Route::CloseWindow => leaving(viewer, PictureDeparture::Close, at, params),
-        Route::Save => save(viewer, at, params),
+        Route::CloseWindow => leaving(viewer, Departure::Close, at, params),
+        Route::Save => save_open(viewer, at, params),
         Route::OpenFile => choose(viewer),
         Route::Rewind(rewind) => rewound(viewer, rewind, at, params),
         Route::Dismiss => dismissed(viewer, at, params),
+        // Done and Save of a text being edited go through the command, which asks first where a
+        // question is due.
+        Route::Stage(StageIn::Text(TextIn::Done)) => {
+            run(viewer, Command::Stage(StageCommand::Done), at, params)
+        }
+        Route::Stage(StageIn::Text(TextIn::Save)) => {
+            run(viewer, Command::Stage(StageCommand::Save), at, params)
+        }
         Route::Stage(input) => stage(viewer, input, at, params),
         Route::Hand(input) => (hand(viewer, input), vec![]),
         Route::Navigate(input) => navigate(viewer, input, at, params),
@@ -608,7 +618,7 @@ fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> 
 /// stay.
 fn dismissed(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.presentation {
-        Presentation::Peek => leaving(viewer, PictureDeparture::Close, at, params),
+        Presentation::Peek => leaving(viewer, Departure::Close, at, params),
         Presentation::Window | Presentation::Mini | Presentation::Background => (viewer, vec![]),
     }
 }

@@ -47,9 +47,11 @@ impl Stage {
                 offset: view.offset,
                 zoom: view.zoom,
             },
-            Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) => {
-                Resume::Text { line: place.line }
-            }
+            Stage::Text(
+                TextStage::Reading { place }
+                | TextStage::Finding { place, .. }
+                | TextStage::Editing { place, .. },
+            ) => Resume::Text { line: place.line },
         }
     }
 

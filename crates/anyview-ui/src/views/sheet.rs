@@ -39,6 +39,26 @@ pub(super) fn TrashSheet(
     }
 }
 
+/// Another program changed the file while its text was edited: Replace writes the text over what
+/// it wrote, Cancel keeps the person where they were.
+#[component]
+pub(super) fn ReplaceSheet(
+    name: String,
+    onreplace: EventHandler<()>,
+    oncancel: EventHandler<()>,
+) -> Element {
+    rsx! {
+        Alert {
+            title: format!("\u{201c}{name}\u{201d} was changed by another application."),
+            message: Some("Saving will replace those changes with yours.".to_owned().into()),
+            buttons: vec![
+                AlertButton::new("Replace", AlertRole::Normal, onreplace),
+                AlertButton::new("Cancel", AlertRole::Cancel, oncancel),
+            ],
+        }
+    }
+}
+
 /// Asking before an edit that loses something is saved: one short sentence of what is lost, the
 /// edit's own button as the default and Cancel.
 #[component]

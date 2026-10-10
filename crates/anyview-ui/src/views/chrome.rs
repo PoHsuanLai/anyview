@@ -19,6 +19,7 @@ use ds_core::word::Word;
 #[component]
 pub(super) fn Titlebar(
     title: String,
+    #[props(default)] edited: DocumentState,
     shown: Shown,
     trailing: Option<Element>,
     #[props(default)] document: DocumentState,

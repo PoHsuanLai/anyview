@@ -9,7 +9,7 @@ use anyview_core::{
 use anyview_image::ExifFacts;
 use anyview_pdf::PdfDocument;
 use anyview_store::{SavedAt, VersionId, Versions};
-use anyview_ui::{EditRequest, HostRequest, Opened, Rewind, TypedText};
+use anyview_ui::{EditRequest, HostRequest, Opened, Rewind, TextSave, TypedText};
 
 #[path = "../../../../anyview-pdf/tests/pdf/support/mod.rs"]
 #[allow(clippy::unwrap_used)]
@@ -67,6 +67,46 @@ async fn a_jpeg_turn_is_saved_in_place_with_its_original_kept() {
     )
     .unwrap();
     assert_eq!(original, JPEG, "and it holds the original bytes");
+}
+
+#[tokio::test]
+async fn edited_text_is_written_over_the_file_with_the_original_kept_and_only_text_takes_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = probed(dir.path(), "notes.txt", b"one\r\ntwo\r\n");
+    let (desktop, _) = desktop(dir.path());
+    let (shown, _) = route(Shown::default(), HostRequest::Opened(file.clone()));
+    let text = || TextSave::new(b"one\r\nthree\r\n".to_vec());
+    let (shown, carry) = route(shown, HostRequest::SaveText(text()));
+    let Carry::Desktop(task) = carry else {
+        panic!("not carried: {carry:?}")
+    };
+    let (_, busy) = route(shown.clone(), HostRequest::SaveText(text()));
+    assert_eq!(
+        busy,
+        Carry::Declined(Declined::Queued),
+        "one save at a time: the second waits"
+    );
+    kept_of(&desktop.carry_out(task).await.unwrap());
+    assert_eq!(
+        bytes_of(&file),
+        b"one\r\nthree\r\n",
+        "the text is the file now"
+    );
+    assert_eq!(
+        versions_of(dir.path(), &file).len(),
+        1,
+        "and the original is kept"
+    );
+    let picture = probed(dir.path(), "a.jpg", JPEG);
+    let (shown, _) = route(Shown::default(), HostRequest::Opened(picture));
+    let (_, carry) = route(shown, HostRequest::SaveText(text()));
+    assert_eq!(
+        carry,
+        Carry::Declined(Declined::Edit),
+        "a picture takes no text"
+    );
+    let (_, carry) = route(Shown::default(), HostRequest::SaveText(text()));
+    assert_eq!(carry, Carry::Declined(Declined::NoFileShown));
 }
 
 #[tokio::test]

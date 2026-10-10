@@ -3,12 +3,14 @@
 //! Markdown file's page is a sealed frame (`frame`).
 
 mod doc;
+mod edit;
 mod find;
 mod frame;
 mod modes;
 mod view;
 mod wrap;
 
+pub(crate) use doc::found_in;
 pub use doc::{LineWindow, TextDoc};
 pub use find::FoundHits;
 pub(crate) use find::top_for;
@@ -16,9 +18,9 @@ pub(crate) use find::top_for;
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenPort};
 use crate::{
-    Command, HitIndex, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs, Stage, StageCommand,
-    StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams, TextStage, TextViews,
-    Ticket, TypedText,
+    Command, Editable, FileAccess, HitIndex, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs,
+    Stage, StageCommand, StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams,
+    TextStage, TextViews, Ticket, TypedText,
 };
 use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -84,6 +86,8 @@ impl StageView for TextStageView {
                     lines: LineTotal(doc.line_count().0),
                     page: PageLines(0),
                 },
+                editable: doc.editable(),
+                ..TextParams::default()
             },
             ..StageParams::default()
         }
@@ -126,7 +130,7 @@ impl StageView for TextStageView {
             | Stage::Media(_)
             | Stage::Table(_)
             | Stage::Tree(_)
-            | Stage::Text(TextStage::Reading { .. }) => Vec::new(),
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { .. }) => Vec::new(),
         }
     }
 
@@ -134,12 +138,27 @@ impl StageView for TextStageView {
         rsx! { view::TextContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(_doc: &TextDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
-        let mut slots = essentials(vec![CapsuleSlot::button(
+    fn slots(doc: &TextDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
+        let mut buttons = vec![CapsuleSlot::button(
             Command::Stage(StageCommand::ToggleWrap),
             "Wrap Lines",
             Icon::Columns,
-        )]);
+        )];
+        // Done ends the editing; Edit starts it, for a file that is small enough and takes a save.
+        match (cx.stage.edited(), doc.editable(), cx.access) {
+            (Some(_), _, _) => buttons.push(CapsuleSlot::button(
+                Command::Stage(StageCommand::Done),
+                "Done",
+                Icon::Check,
+            )),
+            (None, Editable::Yes, FileAccess::Writable) => buttons.push(CapsuleSlot::button(
+                Command::Stage(StageCommand::Edit),
+                "Edit",
+                Icon::Pen,
+            )),
+            (None, Editable::Yes, FileAccess::ReadOnly) | (None, Editable::No, _) => {}
+        }
+        let mut slots = essentials(buttons);
         slots.extend(crate::families::found::standing(&cx.stage));
         slots
     }
@@ -149,8 +168,12 @@ impl StageView for TextStageView {
     }
 
     fn modes(doc: &Arc<TextDoc>, cx: &StageCx) -> Option<Element> {
-        // Only a file with a page to preview has two views to choose between.
+        // Only a file with a page to preview has two views to choose between, and the text being
+        // edited is its source.
         doc.rendered.as_ref()?;
+        if cx.stage.edited().is_some() {
+            return None;
+        }
         let view = view::place_of(&cx.stage)?.view;
         let run = cx.run;
         Some(rsx! {
@@ -180,6 +203,13 @@ impl StageView for TextStageView {
                 })
             })
             .collect()
+    }
+
+    fn edit_read(doc: &Arc<TextDoc>, ticket: Ticket) -> Option<Job> {
+        Some(Job::EditRead {
+            ticket,
+            doc: Arc::clone(doc),
+        })
     }
 
     fn search(doc: &Arc<TextDoc>, ticket: Ticket, query: &TypedText) -> Option<Job> {

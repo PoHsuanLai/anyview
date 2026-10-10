@@ -99,6 +99,12 @@ pub enum StageCommand {
     PreviousSheet,
     /// Close every open node of a tree but the top level.
     CollapseAll,
+    /// Edit the text in place.
+    Edit,
+    /// Finish editing the text and go back to reading it.
+    Done,
+    /// Save the edited text to its file.
+    Save,
 }
 
 impl StageCommand {
@@ -106,8 +112,8 @@ impl StageCommand {
     /// first, in the order `Shortcut::keys` normalises to.
     pub fn from_key(keys: &[ShortcutKey]) -> Option<StageCommand> {
         use ShortcutKey::{
-            Backspace, Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super,
-            Up,
+            Backspace, Char, Down, End, Enter, Home, Left, PageDown, PageUp, Right, Shift, Space,
+            Super, Up,
         };
         match keys {
             [Char('+' | '=')] | [Shift, Char('+')] | [Super, Char('+' | '=')] => {
@@ -148,6 +154,9 @@ impl StageCommand {
             [Super, Char(']')] => Some(StageCommand::NextSheet),
             [Super, Char('[')] => Some(StageCommand::PreviousSheet),
             [Char('c')] => Some(StageCommand::CollapseAll),
+            [Enter] => Some(StageCommand::Edit),
+            [Super, Enter] => Some(StageCommand::Done),
+            [Super, Char('s')] => Some(StageCommand::Save),
             _ => None,
         }
     }
@@ -158,8 +167,8 @@ impl StageCommand {
     /// it.
     pub fn shortcut(self) -> Shortcut {
         use ShortcutKey::{
-            Backspace, Char, Down, End, Home, Left, PageDown, PageUp, Right, Shift, Space, Super,
-            Up,
+            Backspace, Char, Down, End, Enter, Home, Left, PageDown, PageUp, Right, Shift, Space,
+            Super, Up,
         };
         Shortcut(match self {
             StageCommand::ZoomIn => vec![Char('+')],
@@ -198,6 +207,9 @@ impl StageCommand {
             StageCommand::NextSheet => vec![Super, Char(']')],
             StageCommand::PreviousSheet => vec![Super, Char('[')],
             StageCommand::CollapseAll => vec![Char('c')],
+            StageCommand::Edit => vec![Enter],
+            StageCommand::Done => vec![Super, Enter],
+            StageCommand::Save => vec![Super, Char('s')],
         })
     }
 }

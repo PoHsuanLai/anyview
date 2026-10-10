@@ -3,6 +3,7 @@
 //! file starting to load, a palette command, the chrome's pins.
 
 mod command;
+mod departure;
 mod model;
 mod picture;
 mod pins;

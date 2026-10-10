@@ -3,14 +3,15 @@
 //! (`Job::Lines`); the UI thread only ever holds the lines a worker returned.
 
 use super::find::{FoundHits, Snippet, clip};
-use crate::TypedText;
 use crate::io::{OpenError, OpenPort, Stop};
+use crate::{Editable, TypedText};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, LineIndex, Sniffed, Source,
+    ByteLen, FactLabel, FactValue, Facts, FilePath, FormatDetail, FormatKind, LineIndex, Sniffed,
+    Source,
 };
 use anyview_text::{
-    CodeLines, DiskFiles, FileBytes, Highlighter, LineCount, Needle, RenderEnv, Rendered, SyntaxId,
-    TextLines, TokenLine, render,
+    CodeLines, DiskFiles, EDIT_BYTES, EditRefusal, EditText, FileBytes, Highlighter, LineCount,
+    Needle, RenderEnv, Rendered, Session, SyntaxId, TextLines, TokenLine, render,
 };
 use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -21,6 +22,20 @@ const RENDER_LIMIT: u64 = 2 * 1024 * 1024;
 
 /// How many hits of a find keep the words around them, for the palette's list.
 const SNIPPETS: usize = 200;
+
+/// The hits of `needle` in the text being edited, with the words around the first of them.
+pub(crate) fn found_in(text: &Session, needle: &Needle) -> FoundHits {
+    let hits = text.find(needle);
+    let snippets = hits
+        .iter()
+        .take(SNIPPETS)
+        .map(|hit| {
+            let line = text.buffer().line_text(hit.line.0 as usize);
+            clip(&line, hit.from.0 as usize, hit.to.0 as usize)
+        })
+        .collect();
+    FoundHits::new(hits).with_snippets(snippets)
+}
 
 /// How much of a large file the first frame reads. A file no longer than this has no first frame:
 /// opening it takes no longer.
@@ -38,6 +53,12 @@ pub struct TextDoc {
     pub rendered: Option<Rendered>,
     /// The rows of the Info tab.
     pub facts: Facts,
+    /// The file, which editing reads whole.
+    path: FilePath,
+    /// How many bytes the file had when it was opened.
+    len: u64,
+    /// How the file is highlighted, for the text being edited.
+    syntax: Option<SyntaxId>,
 }
 
 /// Highlighted lines read from `first`.
@@ -74,6 +95,25 @@ impl TextDoc {
     /// How many lines the file has.
     pub fn line_count(&self) -> LineCount {
         self.count
+    }
+
+    /// Whether the file is small enough to be edited in place.
+    pub(crate) fn editable(&self) -> Editable {
+        if self.len <= EDIT_BYTES {
+            Editable::Yes
+        } else {
+            Editable::No
+        }
+    }
+
+    /// The file read whole for editing, or why it is not edited. Blocking.
+    pub(crate) fn read_for_edit(&self) -> Result<EditText, EditRefusal> {
+        EditText::read(self.path.as_path())
+    }
+
+    /// `source` highlighted as this file is, one line of tokens for each of its lines.
+    pub(crate) fn highlight(&self, source: &str) -> Vec<TokenLine> {
+        self.highlighter.snippet(self.syntax, source)
     }
 
     /// `rows` lines from `first`, highlighted. Blocking.
@@ -153,6 +193,9 @@ pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenPort) -> Result<T
         count,
         rendered,
         facts,
+        path: src.path().clone(),
+        len: src.stamp().len.0,
+        syntax,
     })
 }
 
@@ -209,5 +252,8 @@ pub(crate) fn first_frame(
         count,
         rendered: None,
         facts,
+        path: src.path().clone(),
+        len: src.stamp().len.0,
+        syntax,
     }))
 }

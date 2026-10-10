@@ -8,7 +8,7 @@ use anyview_pdf::{PdfDocument, apply, page_op};
 use anyview_store::{
     DEFAULT_KEEP, Durability, Pending, SavedAt, StoreError, VersionId, Versions, Written,
 };
-use anyview_ui::{EditRequest, Opened, VersionKey, VersionRow};
+use anyview_ui::{EditRequest, Opened, TextSave, VersionKey, VersionRow};
 
 /// Why an edit could not be made into the bytes of a new file.
 #[derive(Debug, thiserror::Error)]
@@ -75,6 +75,17 @@ pub(super) fn save_edit(
         .map_err(SaveError::from)
         .and_then(|bytes| written(versions, at, path, bytes));
     outcome_of(result, path)
+}
+
+/// `file` written over with the text the person edited, its original kept first.
+pub(super) fn save_text(
+    versions: &Versions,
+    at: SavedAt,
+    file: &Opened,
+    save: TextSave,
+) -> Outcome {
+    let path = file.source.path();
+    outcome_of(written(versions, at, path, save.into_bytes()), path)
 }
 
 /// `bytes` written over `path` once its original is kept.

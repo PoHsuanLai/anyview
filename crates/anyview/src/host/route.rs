@@ -7,7 +7,7 @@ use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail
 use anyview_export::DocumentExport;
 use anyview_store::VersionId;
 use anyview_ui::{
-    EditRequest, ExportDraft, HostRequest, Opened, Presentation, SizeBasis, VersionKey,
+    EditRequest, ExportDraft, HostRequest, Opened, Presentation, SizeBasis, TextSave, VersionKey,
 };
 
 /// The file a window shows, as the host last heard of it.
@@ -138,6 +138,8 @@ pub enum Task {
     },
     /// Save the file in place with this change, after keeping the original.
     Edit { file: Opened, request: EditRequest },
+    /// Write the text the person edited over the file, after keeping the original.
+    SaveText { file: Opened, save: TextSave },
     /// Put a kept version back as the file; what it is now is kept first.
     Restore { file: FilePath, version: VersionId },
     /// Put back the kept version this key names.
@@ -184,6 +186,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
             (shown.remembering(resume), carry)
         }
         HostRequest::Edit(request) => editing::edit(shown, request),
+        HostRequest::SaveText(save) => editing::save_text(shown, save),
         HostRequest::Rewind(rewind) => editing::rewind(shown, rewind),
         HostRequest::RevertTo(key) => editing::revert(shown, key),
         HostRequest::SaveCopy(typed) => editing::save_copy(shown, typed),

@@ -6,7 +6,7 @@ use super::media::{MediaIn, MediaOut, MediaParams, MediaStage};
 use super::pdf::{PdfIn, PdfOut, PdfParams, PdfStage};
 use super::raster::{RasterIn, RasterOut, RasterParams, RasterStage};
 use super::table::{TableIn, TableOut, TableParams, TableStage};
-use super::text::{TextIn, TextOut, TextParams, TextStage, TextViews};
+use super::text::{TextIn, TextOut, TextParams, TextPlace, TextStage, TextViews, Wrap};
 use super::tree::{TreeIn, TreeOut, TreeParams, TreeStage};
 use anyview_core::Resume;
 
@@ -42,6 +42,17 @@ impl Stage {
             StageFamily::Tree => Stage::Tree(TreeStage::default()),
             StageFamily::PeekOnly => Stage::NoStage,
         }
+    }
+
+    /// This stage, a text one at the top of its file starting with its lines wrapped as `wrap`
+    /// says; any other stage as it is.
+    pub(crate) fn wrapped(self, wrap: Wrap) -> Stage {
+        if let Stage::Text(TextStage::Reading { place }) = self {
+            return Stage::Text(TextStage::Reading {
+                place: TextPlace { wrap, ..place },
+            });
+        }
+        self
     }
 }
 
@@ -96,7 +107,15 @@ impl StageOut {
             | StageOut::Text(TextOut::Remember(resume))
             | StageOut::Pdf(PdfOut::Remember(resume)) => Some(resume),
             StageOut::Raster(RasterOut::ShowFrame(_))
-            | StageOut::Text(TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_))
+            | StageOut::Text(
+                TextOut::ScrollTo(_)
+                | TextOut::Show(_)
+                | TextOut::Find(_)
+                | TextOut::BeginEdit
+                | TextOut::EndEdit
+                | TextOut::Save
+                | TextOut::Wrapped(_),
+            )
             | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
             StageOut::Table(out) => match *out {},
@@ -109,7 +128,15 @@ impl StageOut {
         match self {
             StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),
             StageOut::Raster(_)
-            | StageOut::Text(TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_))
+            | StageOut::Text(
+                TextOut::Remember(_)
+                | TextOut::ScrollTo(_)
+                | TextOut::Show(_)
+                | TextOut::BeginEdit
+                | TextOut::EndEdit
+                | TextOut::Save
+                | TextOut::Wrapped(_),
+            )
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
             StageOut::Table(out) => match *out {},

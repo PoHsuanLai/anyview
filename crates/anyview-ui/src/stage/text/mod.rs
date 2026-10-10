@@ -6,8 +6,11 @@ mod step;
 mod steps;
 #[cfg(test)]
 mod tests;
+mod wrap;
 
 pub use model::{
-    LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
-    TextView, TextViews, Wrap,
+    Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,
+    TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
+
+pub(crate) use wrap::WrapChoices;

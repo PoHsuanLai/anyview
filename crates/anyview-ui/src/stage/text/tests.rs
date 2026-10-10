@@ -33,6 +33,28 @@ const fn found(count: u32, current: u32) -> FindHits {
 const fn show_hit(hit: u32) -> TextOut {
     TextOut::Find(FindOut::ShowHit(HitIndex(hit)))
 }
+const fn edited(changes: Changes) -> Edited {
+    Edited {
+        changes,
+        outside: Outside::Unchanged,
+    }
+}
+/// Editing the source from `line`, with no find up.
+const fn editing(line: u32, changes: Changes) -> TextStage {
+    TextStage::Editing {
+        place: place(line, On, Source),
+        edited: edited(changes),
+        find: None,
+    }
+}
+/// Editing the source from `line` with a find for `cat` up, where its search stands at `hits`.
+const fn editing_found(line: u32, hits: FindHits) -> TextStage {
+    TextStage::Editing {
+        place: place(line, On, Source),
+        edited: edited(Changes::Saved),
+        find: Some(EditFind { query: CAT, hits }),
+    }
+}
 
 use TextView::{Rendered, Source};
 use Wrap::{Off, On};
@@ -86,12 +108,12 @@ const CASES: &[Case] = &[
         &[],
     ),
     (
-        "toggling wrap flips it",
+        "toggling wrap flips it, and the choice is kept for the kind",
         BOTH,
         reading(5, On, Rendered),
         TextIn::ToggleWrap,
         reading(5, Off, Rendered),
-        &[],
+        &[TextOut::Wrapped(Off)],
     ),
     (
         "toggling wrap flips it back",
@@ -99,6 +121,184 @@ const CASES: &[Case] = &[
         reading(5, Off, Rendered),
         TextIn::ToggleWrap,
         reading(5, On, Rendered),
+        &[TextOut::Wrapped(On)],
+    ),
+    (
+        "editing starts in the source and asks for the file's text",
+        SOURCE_ONLY,
+        reading(5, On, Source),
+        TextIn::Edit,
+        editing(5, Changes::Saved),
+        &[TextOut::BeginEdit],
+    ),
+    (
+        "editing a Markdown page switches to its source first",
+        BOTH,
+        reading(5, On, Rendered),
+        TextIn::Edit,
+        editing(5, Changes::Saved),
+        &[TextOut::Show(Source), TextOut::BeginEdit],
+    ),
+    (
+        "editing from a find carries the find over",
+        BOTH,
+        finding(found(3, 1), 4),
+        TextIn::Edit,
+        editing_found(4, found(3, 1)),
+        &[TextOut::Show(Source), TextOut::BeginEdit],
+    ),
+    (
+        "Done goes back to reading and lets the text go",
+        SOURCE_ONLY,
+        editing(5, Changes::Saved),
+        TextIn::Done,
+        reading(5, On, Source),
+        &[TextOut::EndEdit],
+    ),
+    (
+        "Done with a find up clears its marks too",
+        SOURCE_ONLY,
+        editing_found(5, found(3, 1)),
+        TextIn::Done,
+        reading(5, On, Source),
+        &[TextOut::EndEdit, TextOut::Find(FindOut::Clear)],
+    ),
+    (
+        "a change marks the text unsaved",
+        SOURCE_ONLY,
+        editing(5, Changes::Saved),
+        TextIn::Edited(Changes::Unsaved),
+        editing(5, Changes::Unsaved),
+        &[],
+    ),
+    (
+        "a change searches a find over the text again",
+        SOURCE_ONLY,
+        editing_found(5, found(3, 1)),
+        TextIn::Edited(Changes::Unsaved),
+        TextStage::Editing {
+            place: place(5, On, Source),
+            edited: edited(Changes::Unsaved),
+            find: Some(EditFind {
+                query: CAT,
+                hits: found(3, 1),
+            }),
+        },
+        &[TextOut::Find(FindOut::Search(CAT))],
+    ),
+    (
+        "the hits of a find just typed show the nearest",
+        SOURCE_ONLY,
+        editing_found(5, FindHits::Pending),
+        TextIn::Results {
+            query: CAT,
+            count: HitCount(3),
+            nearest: HitIndex(1),
+        },
+        editing_found(5, found(3, 1)),
+        &[show_hit(1)],
+    ),
+    (
+        "the hits of a search made after a change do not move the view",
+        SOURCE_ONLY,
+        editing_found(5, found(3, 1)),
+        TextIn::Results {
+            query: CAT,
+            count: HitCount(2),
+            nearest: HitIndex(0),
+        },
+        editing_found(5, found(2, 0)),
+        &[],
+    ),
+    (
+        "a find typed while editing searches the text",
+        SOURCE_ONLY,
+        editing(5, Changes::Saved),
+        TextIn::Find(CAT),
+        editing_found(5, FindHits::Pending),
+        &[TextOut::Find(FindOut::Search(CAT))],
+    ),
+    (
+        "stepping through the hits of a find while editing shows each",
+        SOURCE_ONLY,
+        editing_found(5, found(3, 2)),
+        TextIn::NextHit,
+        editing_found(5, found(3, 0)),
+        &[show_hit(0)],
+    ),
+    (
+        "closing the find keeps the editing",
+        SOURCE_ONLY,
+        editing_found(5, found(3, 2)),
+        TextIn::CloseFind,
+        editing(5, Changes::Saved),
+        &[TextOut::Find(FindOut::Clear)],
+    ),
+    (
+        "Save asks for the text to be written",
+        SOURCE_ONLY,
+        editing(5, Changes::Unsaved),
+        TextIn::Save,
+        editing(5, Changes::Unsaved),
+        &[TextOut::Save],
+    ),
+    (
+        "the file changing on disk is remembered",
+        SOURCE_ONLY,
+        editing(5, Changes::Unsaved),
+        TextIn::Disk(Outside::Changed),
+        TextStage::Editing {
+            place: place(5, On, Source),
+            edited: Edited {
+                changes: Changes::Unsaved,
+                outside: Outside::Changed,
+            },
+            find: None,
+        },
+        &[],
+    ),
+    (
+        "the view of an edited text is its source and stays so",
+        BOTH,
+        editing(5, Changes::Saved),
+        TextIn::ToggleSource,
+        editing(5, Changes::Saved),
+        &[],
+    ),
+    (
+        "toggling wrap while editing keeps the choice",
+        SOURCE_ONLY,
+        editing(5, Changes::Saved),
+        TextIn::ToggleWrap,
+        TextStage::Editing {
+            place: place(5, Off, Source),
+            edited: edited(Changes::Saved),
+            find: None,
+        },
+        &[TextOut::Wrapped(Off)],
+    ),
+    (
+        "scrolling while editing is remembered",
+        SOURCE_ONLY,
+        editing(5, Changes::Unsaved),
+        TextIn::Scroll(LineIndex(40)),
+        editing(40, Changes::Unsaved),
+        &[remembered(40)],
+    ),
+    (
+        "editing again while editing is nothing",
+        SOURCE_ONLY,
+        editing(5, Changes::Unsaved),
+        TextIn::Edit,
+        editing(5, Changes::Unsaved),
+        &[],
+    ),
+    (
+        "Done, Save and a change mean nothing to a text being read",
+        SOURCE_ONLY,
+        reading(5, On, Source),
+        TextIn::Done,
+        reading(5, On, Source),
         &[],
     ),
     (
@@ -298,6 +498,7 @@ fn every_row_of_the_table_steps_as_written() {
     for (name, views, from, input, state, outs) in CASES {
         let params = TextParams {
             views: *views,
+            editable: Editable::Yes,
             ..TextParams::default()
         };
         let (next, out) = from.clone().step(input.clone(), Stamp(0), &params, &());
@@ -305,6 +506,19 @@ fn every_row_of_the_table_steps_as_written() {
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
         assert_eq!(next.wake(), None, "{name}: no timer");
     }
+}
+
+#[test]
+fn a_file_that_is_not_editable_is_not_edited() {
+    let params = TextParams::default();
+    assert_eq!(params.editable, Editable::No);
+    let before = finding(found(3, 1), 4);
+    let (next, outs) = before.clone().step(TextIn::Edit, Stamp(0), &params, &());
+    assert_eq!(next, before, "a find stays a find");
+    assert_eq!(outs, vec![]);
+    let (next, outs) = reading(5, On, Source).step(TextIn::Edit, Stamp(0), &params, &());
+    assert_eq!(next, reading(5, On, Source));
+    assert_eq!(outs, vec![]);
 }
 
 #[test]

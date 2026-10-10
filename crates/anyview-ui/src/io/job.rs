@@ -7,6 +7,7 @@ use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::notice::Notice;
 use super::seams::{FileAccess, FileLocks, ImagePlugins, ResumeSource, VersionSource};
+use super::workers::SaveEnd;
 use crate::families::{
     FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
@@ -15,7 +16,7 @@ use crate::{StageFamily, Ticket, TypedText};
 use anyview_core::work::Stop;
 use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
 use anyview_peek::StillSource;
-use anyview_text::Highlighter;
+use anyview_text::{EditRefusal, EditText, Highlighter};
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
 
@@ -106,6 +107,8 @@ pub enum Job {
         doc: Arc<TextDoc>,
         query: TypedText,
     },
+    /// Read an open text file whole, to edit it in place.
+    EditRead { ticket: Ticket, doc: Arc<TextDoc> },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
     Preload { path: FilePath, link: OpenPort },
     /// Read the stamp `path` has now.
@@ -145,6 +148,13 @@ pub enum Done {
         ticket: Ticket,
         result: Result<LineWindow, OpenError>,
     },
+    /// The text of the file of `ticket`, read for editing, or why it cannot be.
+    EditText {
+        ticket: Ticket,
+        result: Result<EditText, EditRefusal>,
+    },
+    /// The host wrote the edited text over `path`, or could not.
+    Saved { path: FilePath, end: SaveEnd },
     /// The hits of `query` in the file of `ticket`.
     Found {
         ticket: Ticket,
@@ -194,6 +204,7 @@ impl Job {
             | Job::Open { .. }
             | Job::Lines { .. }
             | Job::Search { .. }
+            | Job::EditRead { .. }
             | Job::Stat { .. }
             | Job::Folder { .. }
             | Job::Versions { .. } => WorkLane::Visible,
@@ -209,7 +220,8 @@ impl Job {
             | Job::Peek { ticket, .. }
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
-            | Job::Search { ticket, .. } => *ticket,
+            | Job::Search { ticket, .. }
+            | Job::EditRead { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
             Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } | Job::Versions { .. } => {
                 Ticket::default()
@@ -241,6 +253,10 @@ impl Job {
                 ticket: *ticket,
                 query: query.clone(),
                 result: Err(OpenError::Crashed),
+            },
+            Job::EditRead { ticket, .. } => Done::EditText {
+                ticket: *ticket,
+                result: Err(EditRefusal::Unreadable(std::io::ErrorKind::Other)),
             },
             Job::Preload { path, .. } => Done::Preloaded {
                 path: path.clone(),
@@ -307,6 +323,10 @@ impl Job {
                 ticket,
                 result: doc.find(&query, stop).map_err(OpenError::from),
                 query,
+            },
+            Job::EditRead { ticket, doc } => Done::EditText {
+                ticket,
+                result: doc.read_for_edit(),
             },
             Job::Preload { path, link } => Done::Preloaded {
                 loaded: preloaded(&path, &link, resume, locks),

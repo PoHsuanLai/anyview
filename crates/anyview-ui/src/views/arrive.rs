@@ -2,6 +2,7 @@
 //! was asked for, and one for a file the person has left is dropped here or by the machine.
 
 use super::carry::Carry;
+use super::editing;
 use super::session::Probe;
 use crate::families::{FoundHits, Held};
 use crate::io::NaturalSize;
@@ -30,6 +31,8 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 lines.set(Some(Held(Arc::new(window))));
             }
         }
+        Done::EditText { ticket, result } => editing::read(c, ticket, result),
+        Done::Saved { path, end } => editing::saved(c, &path, end),
         Done::Found {
             ticket,
             query,
@@ -100,7 +103,9 @@ fn available(c: &Carry, helper: Helper) {
         | Sheet::Revert { .. }
         | Sheet::NoVersions
         | Sheet::Helper { .. }
-        | Sheet::Picture(_) => {
+        | Sheet::Picture(_)
+        | Sheet::Unsaved(_)
+        | Sheet::ConfirmReplace => {
             let lacking = c
                 .shelf
                 .shown_now()
@@ -429,6 +434,10 @@ fn stamped(c: &Carry, path: &FilePath, stamp: Option<anyview_core::FileStamp>) {
         return;
     };
     if probed.source.path() != path {
+        return;
+    }
+    // A text being edited keeps its place when its file changes: the edit decides what to do.
+    if editing::stamped(c, probed.source.stamp(), path, stamp) == editing::Heard::Taken {
         return;
     }
     match freshness(probed.source.stamp(), stamp) {

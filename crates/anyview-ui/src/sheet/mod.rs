@@ -1,5 +1,6 @@
 //! The modal sheet: export, confirm a trash, rename, save a copy, revert to a kept version, install a missing tool. One sheet at a time; it takes every key.
 
+mod departure;
 mod draft;
 mod facts;
 mod helper;
@@ -13,6 +14,7 @@ mod tests;
 mod versions;
 mod words;
 
+pub use departure::Departure;
 pub use draft::{ExportDraft, ExportFamily, ExportKindPick};
 pub use facts::ExportFacts;
 pub use helper::{HelperEnd, HelperPhase};
@@ -22,8 +24,8 @@ pub use option::{
     ExportControl, ExportOption, MAX_LONG_EDGE, PageSpan, SizePick, TrimSpan, format_of, quality_of,
 };
 pub use picture::{
-    MAX_RESIZED_SIDE, PictureDeparture, PictureSheet, PictureSheetIn, PictureSheetOut,
-    ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
+    MAX_RESIZED_SIDE, PictureSheet, PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft,
+    ResizeProportion, ResizeUnit,
 };
 pub use versions::{VersionKey, VersionList, VersionRow};
 pub use words::{kind_hint, kind_name};

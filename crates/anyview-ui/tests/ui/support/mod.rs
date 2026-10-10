@@ -204,6 +204,7 @@ impl Memory {
             | HostRequest::Trash
             | HostRequest::Rename(_)
             | HostRequest::Edit(_)
+            | HostRequest::SaveText(_)
             | HostRequest::Rewind(_)
             | HostRequest::RevertTo(_)
             | HostRequest::SaveCopy(_)

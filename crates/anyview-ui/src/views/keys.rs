@@ -71,6 +71,36 @@ pub(crate) fn shortcut_of(event: &KeyboardEvent) -> Option<Shortcut> {
     Some(Shortcut(keys))
 }
 
+/// Whether a key pressed while text is being edited is meant for the window and not for the text:
+/// the chords of the window (⌘S, ⌘F, ⌘K, ⌘W, ⌘I, ⌘Return…) and Esc, but not the keys of the text
+/// itself, nor the chords the text takes for undo, redo, select all and the clipboard.
+pub(crate) fn for_the_window(keys: &[ShortcutKey]) -> bool {
+    let command = keys.contains(&ShortcutKey::Super);
+    match keys.last() {
+        Some(ShortcutKey::Escape) => keys.len() == 1,
+        Some(ShortcutKey::Char(letter)) => {
+            command && !matches!(letter, 'a' | 'c' | 'x' | 'v' | 'z' | 'y')
+        }
+        // Moving, deleting and spacing are the text's, with the command key held or not.
+        Some(
+            ShortcutKey::Left
+            | ShortcutKey::Right
+            | ShortcutKey::Up
+            | ShortcutKey::Down
+            | ShortcutKey::Home
+            | ShortcutKey::End
+            | ShortcutKey::PageUp
+            | ShortcutKey::PageDown
+            | ShortcutKey::Backspace
+            | ShortcutKey::Delete
+            | ShortcutKey::Tab
+            | ShortcutKey::Space,
+        ) => false,
+        Some(_) => command,
+        None => false,
+    }
+}
+
 /// The normalised keys of `event`, empty when it is not one the viewer reads.
 pub(crate) fn keys_of(event: &KeyboardEvent) -> Vec<ShortcutKey> {
     shortcut_of(event)
@@ -141,5 +171,33 @@ mod tests {
             assert_eq!(Shortcut(keys).keys(), want, "{name}");
         }
         assert_eq!(key_of(&Key::Shift), None, "a modifier alone");
+    }
+
+    #[test]
+    fn the_window_takes_only_its_own_chords_from_a_text_being_edited() {
+        use ShortcutKey::{Char, Enter, Escape, Left, Right, Shift, Space, Super};
+        // name, keys, whether they are the window's
+        const CASES: &[(&str, &[ShortcutKey], bool)] = &[
+            ("a letter is typed", &[Char('w')], false),
+            ("a space is typed", &[Space], false),
+            ("an arrow moves the caret", &[Left], false),
+            ("shift and an arrow selects", &[Shift, Right], false),
+            ("return is a line break", &[Enter], false),
+            ("save", &[Super, Char('s')], true),
+            ("find", &[Super, Char('f')], true),
+            ("the palette", &[Super, Char('k')], true),
+            ("close", &[Super, Char('w')], true),
+            ("done", &[Super, Enter], true),
+            ("escape closes what is open", &[Escape], true),
+            ("undo is the text's", &[Super, Char('z')], false),
+            ("redo is the text's", &[Shift, Super, Char('z')], false),
+            ("select all is the text's", &[Super, Char('a')], false),
+            ("copy is the text's", &[Super, Char('c')], false),
+            ("paste is the text's", &[Super, Char('v')], false),
+            ("a word move is the text's", &[Super, Left], false),
+        ];
+        for (name, keys, want) in CASES {
+            assert_eq!(for_the_window(keys), *want, "{name}");
+        }
     }
 }

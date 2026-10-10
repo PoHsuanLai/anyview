@@ -7,13 +7,13 @@ use super::opening::Opening;
 use super::seed::{Seed, StackingAsk};
 use super::welcome::open_each;
 use crate::host::{
-    Carry, Doing, HandedResume, Listening, Outcome, Shown, StoreLocks, WindowTask, WindowWatch,
-    route, subject_of, tell, tell_declined, tell_problem,
+    Carry, Declined, Doing, HandedResume, Listening, Outcome, Shown, StoreLocks, WindowTask,
+    WindowWatch, route, subject_of, tell, tell_declined, tell_problem,
 };
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{
-    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, Services,
+    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, SaveEnd, Services,
     ViewerApp,
 };
 use dioxus::prelude::*;
@@ -162,6 +162,7 @@ fn Window(seed: Seed) -> Element {
         async move {
             let Some(mut requests) = taken else { return };
             while let Some(request) = requests.next().await {
+                let saves_text = matches!(request, HostRequest::SaveText(_));
                 let (next, carry) = route(shown.take(), request);
                 *shown.borrow_mut() = next;
                 match carry {
@@ -246,7 +247,21 @@ fn Window(seed: Seed) -> Element {
                             );
                         });
                     }
-                    Carry::Declined(why) => tell_declined(&edge, why),
+                    Carry::Declined(why) => {
+                        // A save of the edited text the host will not make is an end the editor
+                        // waits to hear, unless it is only waiting its turn.
+                        let file = shown
+                            .borrow()
+                            .file()
+                            .map(|probed| probed.source.path().clone());
+                        if saves_text
+                            && why != Declined::Queued
+                            && let Some(file) = file
+                        {
+                            edge.saved(file, SaveEnd::Refused);
+                        }
+                        tell_declined(&edge, why);
+                    }
                 }
             }
         }
@@ -344,9 +359,20 @@ fn ended(
             let _gone = again.unbounded_send(request);
         }
     }
-    // The file on disk is not the one the window opened: it looks at its stamp and reloads.
+    // The file on disk is not the one the window opened: it looks at its stamp and reloads. The
+    // text being edited is told instead, and keeps its place.
     if let Outcome::Written { file, kept: _ } = &outcome {
-        edge.changed(file.clone());
+        if note.doing == Some(Doing::SaveText) {
+            edge.saved(file.clone(), SaveEnd::Written);
+        } else {
+            edge.changed(file.clone());
+        }
+    }
+    if note.doing == Some(Doing::SaveText)
+        && matches!(outcome, Outcome::NotWritten(_))
+        && let Some(file) = &note.subject
+    {
+        edge.saved(file.clone(), SaveEnd::Refused);
     }
     if let Outcome::Moved(path) = &outcome {
         edge.moved(path.clone());

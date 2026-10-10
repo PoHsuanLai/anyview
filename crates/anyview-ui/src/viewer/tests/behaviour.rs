@@ -216,9 +216,7 @@ fn pressed(viewer: Viewer, keys: &[ShortcutKey]) -> Viewer {
 
 fn line_of(viewer: &Viewer) -> Option<u32> {
     match &viewer.stage {
-        Stage::Text(TextStage::Reading { place } | TextStage::Finding { place, .. }) => {
-            Some(place.line.0)
-        }
+        Stage::Text(text) => Some(text.place().line.0),
         Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)

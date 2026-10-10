@@ -33,9 +33,10 @@ pub use raster::{
 };
 pub use row::{RowNo, RowStep};
 pub use table::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
+pub(crate) use text::WrapChoices;
 pub use text::{
-    LineTotal, PageLines, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
-    TextView, TextViews, Wrap,
+    Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,
+    TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
 pub use tree::{TreeIn, TreeOut, TreeParams, TreeStage};
 pub use zoom::{Viewport, ZoomDir};

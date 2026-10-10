@@ -7,6 +7,11 @@ versioning, with pre-releases while the program is in beta.
 
 ### Text
 
+- You can edit plain text, code and Markdown files. Press Return, or choose Edit from the command palette or the bottom bar, to type in the file where you are reading it; Done finishes. The usual things work: the caret and selection, arrows with Option or Control for words and Command for the line, Home and End, Select All, Cut, Copy and Paste, Undo and Redo, and typing with an input method (Chinese, Japanese, Korean). Typing a word, a run of Backspaces and a paste each undo as one step. A Markdown file is edited in its source.
+- Command S saves. The original is kept first, so Revert To can bring it back; the file keeps its line endings and, if it had one, its byte-order mark. A file that is not UTF-8 text, or is too large, is not edited, and Viewer says why in words.
+- The title bar shows a dot after the name while there are changes you have not saved. Closing with Command W, opening another file or finishing with Done asks "Save changes to “name”?" with Save, Don't Save and Cancel. If another program changes the file while you are editing, Viewer tells you; with no changes of yours it reads the file again, and with some, Save asks before replacing what the other program wrote.
+- Find works on the text you are editing, and its matches follow as you type.
+- Long lines wrap in plain text and Markdown and run on in code. The Toggle Wrap command in the palette (or the bottom bar's button) changes it, and Viewer remembers your choice for the next file of the same kind.
 - A Markdown file has a Preview | Source control at the right end of the title bar, next to where a picture has Select | Pan, so the preview is easy to find; the V key still switches. Source is set in the code face with a line-number gutter and room at the sides, and the preview reads in the interface face at a comfortable width, with headings in the display face.
 
 ### Left panel

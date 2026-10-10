@@ -30,7 +30,9 @@ fn derived(viewer: &Viewer, reason: PinReason) -> bool {
                 | Sheet::Revert { .. }
                 | Sheet::NoVersions
                 | Sheet::Helper { .. }
-                | Sheet::Picture(_) => true,
+                | Sheet::Picture(_)
+                | Sheet::Unsaved(_)
+                | Sheet::ConfirmReplace => true,
                 Sheet::Closed => false,
             };
             let context = match viewer.context {

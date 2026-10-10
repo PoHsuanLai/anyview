@@ -43,6 +43,8 @@ pub enum WorkKind {
     Lines,
     /// Search a text for a phrase.
     Search,
+    /// Read a text whole, to edit it.
+    EditRead,
     /// Open a neighbour ahead of time.
     Preload,
     /// Read a file's stamp.
@@ -114,6 +116,7 @@ impl Work {
             Job::Open { .. } => WorkKind::Open,
             Job::Lines { .. } => WorkKind::Lines,
             Job::Search { .. } => WorkKind::Search,
+            Job::EditRead { .. } => WorkKind::EditRead,
             Job::Preload { .. } => WorkKind::Preload,
             Job::Stat { .. } => WorkKind::Stat,
             Job::Folder { .. } => WorkKind::Folder,
@@ -180,6 +183,9 @@ pub enum HostRequest {
     Rename(TypedText),
     /// Save the open file in place with this change; the host keeps the original first.
     Edit(EditRequest),
+    /// Write the open text file in place with this text, as the person edited it; the host keeps
+    /// the original first. Its end is told to the window (`Edge::saved`).
+    SaveText(TextSave),
     /// Take back the last edit of the open file, or do it again.
     Rewind(Rewind),
     /// Put this kept version back as the open file.
@@ -209,6 +215,34 @@ pub enum HostRequest {
     /// once for each file the window opens, never for the same file loaded again: the host sizes
     /// the window to it, as it did when the first file opened.
     SizeWindow(SizeBasis),
+}
+
+/// The text of the open file as the person edited it, whole, as the file is to hold it: its
+/// line endings and byte-order mark are the ones it had.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextSave {
+    bytes: Vec<u8>,
+}
+
+impl TextSave {
+    /// The file's new bytes.
+    pub fn new(bytes: Vec<u8>) -> TextSave {
+        TextSave { bytes }
+    }
+
+    /// The bytes to write.
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+/// How the host's save of the edited text ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveEnd {
+    /// The text is in the file, and the original is kept.
+    Written,
+    /// Nothing was written and the file is as it was.
+    Refused,
 }
 
 /// What one viewer window is wired to: the workers, the way back from them, and the binary's
@@ -339,6 +373,12 @@ impl Edge {
     /// Callable from any thread, and a no-op once the window is gone.
     pub fn changed(&self, path: FilePath) {
         self.reply.post(Done::Changed { path });
+    }
+
+    /// Tell the window how a save of the edited text of `path` ended. Callable from any thread,
+    /// and a no-op once the window is gone.
+    pub fn saved(&self, path: FilePath, end: SaveEnd) {
+        self.reply.post(Done::Saved { path, end });
     }
 
     /// Tell the window which files the person chose in the file dialog: they open as dropped

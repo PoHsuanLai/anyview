@@ -277,7 +277,60 @@ const CASES: &[Case] = &[
         Sheet::Closed,
         &[SheetOut::Closed],
     ),
+    (
+        "leaving with changes unsaved asks what to do with them",
+        Sheet::Closed,
+        SheetIn::AskUnsaved(Departure::Close),
+        unsaved(Departure::Close),
+        &[SheetOut::Opened],
+    ),
+    (
+        "Save writes the changes and then goes on",
+        unsaved(Departure::Close),
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Save(Departure::Close), SheetOut::Closed],
+    ),
+    (
+        "Don't Save lets the changes go and goes on",
+        unsaved(Departure::Finish),
+        SheetIn::Discard,
+        Sheet::Closed,
+        &[SheetOut::Discard(Departure::Finish), SheetOut::Closed],
+    ),
+    (
+        "Cancel keeps the person where they were",
+        unsaved(Departure::Close),
+        SheetIn::Cancel,
+        Sheet::Closed,
+        &[SheetOut::Closed],
+    ),
+    (
+        "replacing another program's changes writes the text",
+        Sheet::ConfirmReplace,
+        SheetIn::Confirm,
+        Sheet::Closed,
+        &[SheetOut::Replace, SheetOut::Closed],
+    ),
+    (
+        "that question has no Don't Save",
+        Sheet::ConfirmReplace,
+        SheetIn::Discard,
+        Sheet::ConfirmReplace,
+        &[],
+    ),
+    (
+        "a sheet that is up will not open the question",
+        Sheet::ConfirmTrash,
+        SheetIn::AskUnsaved(Departure::Close),
+        Sheet::ConfirmTrash,
+        &[],
+    ),
 ];
+
+const fn unsaved(departure: Departure) -> Sheet {
+    Sheet::Unsaved(departure)
+}
 
 #[test]
 fn every_row_of_the_table_steps_as_written() {

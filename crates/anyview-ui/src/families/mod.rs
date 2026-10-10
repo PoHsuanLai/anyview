@@ -30,6 +30,7 @@ pub use raster::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen, Ra
 pub use registry::{FamilyVisitor, family_of, flow_of, visit};
 pub(crate) use registry::{open_for, peek_for};
 pub use table::{SheetDoc, TableDoc, TableStageView};
+pub(crate) use text::found_in;
 pub(crate) use text::top_for;
 pub(crate) use text::views_of;
 pub use text::{FoundHits, LineWindow, TextDoc, TextStageView};

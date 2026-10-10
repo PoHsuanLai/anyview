@@ -8,6 +8,7 @@ use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
     use_pdf_shelf,
 };
+use crate::stage::WrapChoices;
 use crate::{PlatformAbilities, Ticket, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use dioxus::prelude::*;
@@ -55,8 +56,50 @@ pub(super) struct Shelf {
     pub sizing: Signal<Option<Ticket>>,
     /// Where the person last said they were in the open file, kept for the file when it is left.
     pub left_at: Signal<Resume>,
+    /// How the person last chose to wrap each kind of text, for the next file of the kind.
+    pub wraps: Signal<WrapChoices>,
+    /// The text being edited and what the window knows about its file.
+    pub edit: EditShelf,
     /// What the platform can do: fixed for the window's life, so not a signal.
     pub platform: PlatformAbilities,
+}
+
+/// Where a save of the edited text stands, as far as the file's stamp is concerned: while the
+/// host writes, and until the stamp it left is read, a change of the file is the window's own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Settle {
+    /// No save of ours is under way: a change of the file is another program's.
+    Idle,
+    /// The host is writing.
+    Saving,
+    /// The host wrote; the stamp it left is being read.
+    Reading,
+}
+
+/// Whether the document the window holds still reads the file as it was when it opened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Doc {
+    /// It does.
+    Current,
+    /// The file was written since: the lines it holds are the old ones, and the file is opened
+    /// again when the editing ends.
+    Stale,
+}
+
+/// What the window holds of the text being edited besides the text (which the stage's context
+/// carries, as it is read by the views).
+#[derive(Clone, Copy)]
+pub(super) struct EditShelf {
+    /// The text, once read.
+    pub session: Signal<Option<anyview_text::Session>>,
+    /// The handle on the edit surface.
+    pub handle: ds::edit::handle::EditHandle,
+    /// Where a save stands.
+    pub settle: Signal<Settle>,
+    /// The text the host is writing: its stamp, so the save marks that text and no later one.
+    pub writing: Signal<Option<anyview_text::Revision>>,
+    /// Whether the document is behind the file.
+    pub doc: Signal<Doc>,
 }
 
 impl Shelf {
@@ -80,6 +123,14 @@ impl Shelf {
             level: use_level(),
             sizing: use_signal(|| None),
             left_at: use_signal(|| Resume::Nothing),
+            wraps: use_signal(WrapChoices::default),
+            edit: EditShelf {
+                session: use_signal(|| None),
+                handle: ds::edit::handle::use_edit_handle(),
+                settle: use_signal(|| Settle::Idle),
+                writing: use_signal(|| None),
+                doc: use_signal(|| Doc::Current),
+            },
             platform,
         }
     }
@@ -139,6 +190,7 @@ pub(super) fn viewer_params(
                 PictureOffer::Unavailable
             },
             adjust: state.picture.adjust(),
+            wraps: *shelf.wraps.peek(),
         },
     )
 }
