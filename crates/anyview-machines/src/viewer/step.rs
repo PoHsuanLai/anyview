@@ -91,10 +91,9 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Picture(input) => picture_in(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
-        ViewerIn::CloseRequested => match viewer.sheet {
-            Sheet::Unsaved(_) => (viewer, vec![]),
-            _ => leaving(viewer, Departure::Close, at, params),
-        },
+        // A second close request while the question is up changes nothing.
+        ViewerIn::CloseRequested if matches!(viewer.sheet, Sheet::Unsaved(_)) => (viewer, vec![]),
+        ViewerIn::CloseRequested => leaving(viewer, Departure::Close, at, params),
         ViewerIn::Saved(end) => saved(viewer, end, at, params),
         ViewerIn::Elapsed => elapsed(viewer, at, params),
     }
