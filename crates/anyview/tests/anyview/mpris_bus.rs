@@ -17,6 +17,7 @@ use support::{eventually, media_fixture, probed};
 #[test]
 fn the_control_center_sees_a_background_session_pauses_it_and_stops_it() {
     let Some(bus) = PrivateBus::start() else {
+        crate::skip::skipped("no private session bus");
         return;
     };
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -40,7 +41,7 @@ fn the_control_center_sees_a_background_session_pauses_it_and_stops_it() {
 
     let source = probed(&media_fixture("tone.flac"));
     if let Err(error) = hub.play_in_background(&source.source, &source.sniffed, &Resume::Nothing) {
-        eprintln!("SKIPPED: cannot start a background session ({error})");
+        crate::skip::skipped(&format!("cannot start a background session ({error})"));
         return;
     }
     // The player is on the bus once something plays, and not before.

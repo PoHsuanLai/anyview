@@ -2,6 +2,7 @@
 //! for the work, the desktop over fakes for the requests, and a real file to open.
 #![allow(dead_code)]
 
+use crate::skip::skipped;
 use anyview::host::Appearances;
 use anyview::host::{
     CachedPictures, Clock, Desktop, HelperHost, ImageHost, Media, SETTLE, Services, Store, Trash,
@@ -240,7 +241,7 @@ pub fn gpu() -> Option<ds_blitz::Gpu> {
             ));
         }
     }
-    eprintln!("SKIPPED: no graphics adapter");
+    skipped("no graphics adapter");
     None
 }
 
@@ -256,32 +257,15 @@ pub fn eventually(what: &str, mut done: impl FnMut() -> bool) {
     panic!("{what} did not happen within 20 s");
 }
 
-/// The programs that play, when this machine has them: the stock `mpv` (`MPV_WGPU_MPV`, else the
-/// first on the search path) and the C plugin built from mpv-wgpu (`MPV_WGPU_CPLUGIN`).
+/// The programs that play, when this machine has them: the stock `mpv` and the C plugin built from
+/// mpv-wgpu (see [`crate::skip::mpv_programs`]).
 pub fn mpv_programs() -> Option<(PathBuf, PathBuf)> {
-    let cplugin = std::env::var_os("MPV_WGPU_CPLUGIN").map(PathBuf::from);
-    let mpv = std::env::var_os("MPV_WGPU_MPV")
-        .map(PathBuf::from)
-        .or_else(|| on_path("mpv"));
-    match (mpv, cplugin) {
-        (Some(mpv), Some(cplugin)) if cplugin.is_file() => Some((mpv, cplugin)),
-        (None, _) => {
-            eprintln!("SKIPPED: no mpv (set MPV_WGPU_MPV or put mpv on the search path)");
-            None
-        }
-        (Some(_), _) => {
-            eprintln!("SKIPPED: no mpv-wgpu C plugin (set MPV_WGPU_CPLUGIN)");
-            None
-        }
-    }
+    crate::skip::mpv_programs()
 }
 
 /// The program `name` on the search path, when there is one.
 pub fn on_path(name: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|dir| dir.join(name))
-        .find(|candidate| candidate.is_file())
+    crate::skip::on_path(name)
 }
 
 /// The FFmpeg plugin built from this workspace, beside the test binaries' folder, when this

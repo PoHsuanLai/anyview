@@ -529,10 +529,12 @@ dependencies = [
  "anyview-ui",
  "dioxus",
  "ds",
+ "ds-blitz",
  "ds-harness",
  "futures-channel",
  "futures-util",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
