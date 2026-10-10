@@ -44,6 +44,17 @@ pub struct PaneProps {
     pub chrome: PaneChrome,
 }
 
+impl std::fmt::Debug for PaneProps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The handlers and signals have nothing to show.
+        f.debug_struct("PaneProps")
+            .field("file", &self.file)
+            .field("edge", &self.edge)
+            .field("chrome", &self.chrome)
+            .finish_non_exhaustive()
+    }
+}
+
 /// The viewer in a region of the host's window.
 ///
 /// - **Drawn:** the file, the capsule of controls when the pointer is over the pane, the info
