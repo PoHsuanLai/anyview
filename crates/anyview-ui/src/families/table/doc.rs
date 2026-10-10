@@ -6,6 +6,7 @@ use anyview_archive::office_look;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Sniffed, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_text::{CharWidth, Coverage, HeaderMode, Table, Workbook};
 use ds_core::word::Word;
 use std::sync::Arc;
@@ -59,7 +60,7 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TableDoc, OpenErro
     }
     match sniffed.detail() {
         FormatDetail::Table(delimiter) => {
-            let table = Table::read(src, *delimiter, HeaderMode::Detect)?;
+            let table = Table::read(src.on_disk(), *delimiter, HeaderMode::Detect)?;
             let facts = base_facts(src, sniffed)
                 .with(FactLabel::Rows, FactValue::text(count_text(&table)))
                 .with(
@@ -85,7 +86,7 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TableDoc, OpenErro
 }
 
 fn workbook(src: &Source, sniffed: &Sniffed, format: OfficeFormat) -> Result<TableDoc, OpenError> {
-    let book = Workbook::open(src)?;
+    let book = Workbook::open(src.on_disk())?;
     let sheets: Vec<Arc<SheetDoc>> = book
         .sheets()
         .iter()
@@ -98,7 +99,7 @@ fn workbook(src: &Source, sniffed: &Sniffed, format: OfficeFormat) -> Result<Tab
     }
     // The package's own title and author are a nicety: a workbook that has none, or that is not
     // a package (the binary format), still shows its sheets.
-    let look = office_look(src.path(), format).unwrap_or_default();
+    let look = office_look(src.on_disk(), format).unwrap_or_default();
     let facts = look.facts().rows().iter().fold(
         base_facts(src, sniffed).with(FactLabel::Sheets, FactValue::text(sheets.len().to_string())),
         |facts, row| {

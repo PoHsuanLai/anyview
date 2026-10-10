@@ -1,12 +1,14 @@
-//! Loading fixtures the way the viewer meets files: a `Source` on disk and what sniffing made of it.
+//! Loading fixtures the way the viewer meets files: an `Input` on disk and what sniffing made of it.
 //! The image and text fixtures are the back-end crates' own; this crate adds a PDF.
 // Each test crate uses some of these helpers, and none of them is a `#[test]` function.
 #![allow(dead_code)]
 
 use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, PeekBudget, PixelArea, SniffStep,
-    Sniffed, Source, ZipEntries, sniff, sniff_zip,
+    ByteLen, FileHead, FileName, FilePath, FileStamp, Input, ModTime, PeekBudget, PixelArea,
+    SniffStep, Sniffed, Source, ZipEntries, sniff, sniff_zip,
 };
+use anyview_fs::OnDisk;
+use anyview_peek::Peeking;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -45,7 +47,7 @@ pub fn sniffed(bytes: &[u8], name: &str) -> Sniffed {
 }
 
 /// A file on disk as the viewer would be handed it, modified at `modified` nanoseconds.
-pub fn on_disk(path: &Path, modified: i64) -> (Source, Sniffed) {
+pub fn on_disk(path: &Path, modified: i64) -> (Input, Sniffed) {
     // The expected dates are in UTC, whatever zone the machine is in.
     anyview_core::LocalZone::pin(0);
     let bytes = std::fs::read(path).unwrap();
@@ -55,13 +57,13 @@ pub fn on_disk(path: &Path, modified: i64) -> (Source, Sniffed) {
         modified: ModTime(modified),
     };
     (
-        Source::new(FilePath::new(path).unwrap(), stamp),
+        Source::new(FilePath::new(path).unwrap(), stamp).on_disk(),
         sniffed(&bytes, name),
     )
 }
 
 /// The fixture as the viewer would be handed it.
-pub fn fixture(home: Home, name: &str) -> (Source, Sniffed) {
+pub fn fixture(home: Home, name: &str) -> (Input, Sniffed) {
     on_disk(&path(home, name), 0)
 }
 
@@ -79,6 +81,11 @@ pub fn pane_budget() -> PeekBudget {
     budget(4_000_000, 1_000_000)
 }
 
+/// A look with the launcher's pane budget of the tests.
+pub fn pane_looking() -> Peeking {
+    Peeking::pane().with_budget(pane_budget())
+}
+
 /// The facts as `(label slug, text)` rows, in order.
 pub fn rows(facts: &anyview_core::Facts) -> Vec<(&'static str, String)> {
     use ds_core::word::Word;
@@ -91,7 +98,7 @@ pub fn rows(facts: &anyview_core::Facts) -> Vec<(&'static str, String)> {
 
 /// A zip of `entries` (a name ending in `/` is a folder) written as `bundle.zip` in `dir`, handed to
 /// the viewer as a file on disk.
-pub fn zip_on_disk(dir: &Path, entries: &[(&str, &str)]) -> (Source, Sniffed) {
+pub fn zip_on_disk(dir: &Path, entries: &[(&str, &str)]) -> (Input, Sniffed) {
     use std::io::Write;
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options =

@@ -24,6 +24,8 @@ anyview-book = { workspace = true }
 anyview-core = { workspace = true }
 anyview-font = { workspace = true }
 anyview-image = { workspace = true }
+# `OnDisk`, `is_regular` and `open_regular`: core does no I/O, so a path is opened here.
+anyview-fs = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
 # The `pane` feature: the component, and the PDF page cache. Nothing outside `pane/` names a type of

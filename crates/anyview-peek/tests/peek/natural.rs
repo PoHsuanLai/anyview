@@ -4,6 +4,7 @@
 use crate::support;
 
 use anyview_core::{FilePath, PixelLen, PixelSize, QuarterTurn};
+use anyview_fs::OnDisk;
 use anyview_peek::{is_audio, natural_size};
 use std::time::{Duration, Instant};
 use support::{Home, path};
@@ -16,11 +17,11 @@ fn size(width: u32, height: u32) -> Option<PixelSize> {
 }
 
 fn natural(home: Home, name: &str) -> Option<PixelSize> {
-    natural_size(&FilePath::new(path(home, name)).unwrap())
+    natural_size(FilePath::new(path(home, name)).unwrap().on_disk())
 }
 
 fn natural_at(file: &std::path::Path) -> Option<PixelSize> {
-    natural_size(&FilePath::new(file).unwrap())
+    natural_size(FilePath::new(file).unwrap().on_disk())
 }
 
 /// Where a row's file comes from: a shared fixture, or bytes written under the row's name.
@@ -156,12 +157,12 @@ fn a_header_is_read_from_the_start_of_a_large_file_only() {
 
 #[test]
 fn only_audio_files_are_audio() {
-    let is = |home, name: &str| is_audio(&FilePath::new(path(home, name)).unwrap());
+    let is = |home, name: &str| is_audio(FilePath::new(path(home, name)).unwrap().on_disk());
     for name in ["art.mp3", "art.flac", "art.m4a", "art.ogg", "plain.mp3"] {
         assert!(is(Home::Own, &format!("audio/{name}")), "{name}");
     }
     assert!(!is(Home::Own, "hello.pdf"));
     assert!(!is(Home::Own, "clip.mp4"));
     let dir = tempfile::tempdir().unwrap();
-    assert!(!is_audio(&FilePath::new(dir.path()).unwrap()));
+    assert!(!is_audio(FilePath::new(dir.path()).unwrap().on_disk()));
 }

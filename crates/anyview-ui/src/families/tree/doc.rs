@@ -4,6 +4,7 @@ use crate::io::OpenError;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source, TreeFormat,
 };
+use anyview_fs::OnDisk;
 use anyview_text::{Coverage, Tree};
 
 /// The most bytes of a file the tree reads. A JSON document is one value and is refused above
@@ -26,7 +27,7 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TreeDoc, OpenError
     let (FormatKind::Tree, FormatDetail::Tree(format)) = (sniffed.kind(), sniffed.detail()) else {
         return Err(OpenError::Unrecognised);
     };
-    let (tree, coverage) = Tree::read(src, *format, TREE_BYTES)?;
+    let (tree, coverage) = Tree::read(src.on_disk(), *format, TREE_BYTES)?;
     let root = tree.row(&anyview_core::TreePath::root())?;
     let kind = match format {
         TreeFormat::Json => "JSON",

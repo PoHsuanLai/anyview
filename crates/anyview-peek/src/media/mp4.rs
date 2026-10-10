@@ -10,6 +10,8 @@ use crate::error::PeekError;
 use anyview_core::{Input, PeekBudget, PixelLen, PixelSize};
 use mp4parse::{AudioSampleEntry, CodecType, SampleEntry, Track, TrackType, VideoSampleEntry};
 use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::num::TryFromIntError;
+use thiserror::Error;
 
 /// The most top-level boxes looked at before giving up: a real file has a handful.
 const TOP_LEVEL_BOXES: usize = 64;
@@ -17,8 +19,8 @@ const TOP_LEVEL_BOXES: usize = 64;
 /// What the header of the movie `src` says.
 pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
     let mut file = super::opened(src)?;
-    let header =
-        movie_header(&mut file, src.bytes().len().0, budget.bytes.0).map_err(PeekError::media)?;
+    let header = movie_header(&mut file, src.bytes().len().0, budget.bytes.0)
+        .map_err(|error| PeekError::media(error.to_string()))?;
     let context = mp4parse::read_mp4(&mut Cursor::new(&header.bytes))
         .map_err(|error| PeekError::media(format!("not a movie: {error}")))?;
     let mut recording = Recording {
@@ -72,6 +74,29 @@ pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
     Ok(recording)
 }
 
+/// Why the movie header could not be gathered.
+#[derive(Debug, Error)]
+enum HeaderError {
+    /// The file could not be read or sought in.
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+    /// A box length does not fit this machine's memory.
+    #[error("{0}")]
+    Size(#[from] TryFromIntError),
+    /// A box runs past the end of the file.
+    #[error("a box runs past the end of the file")]
+    Truncated,
+    /// The `moov` or `ftyp` box is larger than the budget allows.
+    #[error("the movie header is {size} bytes, over the budget")]
+    OverBudget {
+        /// The box's length.
+        size: u64,
+    },
+    /// No `moov` box was found.
+    #[error("no movie header")]
+    NoMovie,
+}
+
 /// The `ftyp` and `moov` boxes of a file, back to back, and the length `moov`'s header states.
 struct MovieHeader {
     bytes: Vec<u8>,
@@ -84,7 +109,7 @@ fn movie_header(
     file: &mut (impl Read + Seek),
     len: u64,
     limit: u64,
-) -> Result<MovieHeader, String> {
+) -> Result<MovieHeader, HeaderError> {
     let mut bytes = Vec::new();
     let mut moov_body = None;
     let mut position = 0_u64;
@@ -92,35 +117,32 @@ fn movie_header(
         if position + 8 > len {
             break;
         }
-        file.seek(SeekFrom::Start(position))
-            .map_err(|e| e.to_string())?;
+        file.seek(SeekFrom::Start(position))?;
         let mut head = [0_u8; 8];
-        file.read_exact(&mut head).map_err(|e| e.to_string())?;
+        file.read_exact(&mut head)?;
         let kind = [head[4], head[5], head[6], head[7]];
         let small = u64::from(u32::from_be_bytes([head[0], head[1], head[2], head[3]]));
         let (size, header_len) = match small {
             0 => (len - position, 8),
             1 => {
                 let mut wide = [0_u8; 8];
-                file.read_exact(&mut wide).map_err(|e| e.to_string())?;
+                file.read_exact(&mut wide)?;
                 (u64::from_be_bytes(wide), 16)
             }
             n => (n, 8),
         };
         if size < header_len || position + size > len {
-            return Err("a box runs past the end of the file".to_owned());
+            return Err(HeaderError::Truncated);
         }
         if &kind == b"ftyp" || &kind == b"moov" {
             if size > limit {
-                return Err(format!("the movie header is {size} bytes, over the budget"));
+                return Err(HeaderError::OverBudget { size });
             }
-            file.seek(SeekFrom::Start(position))
-                .map_err(|e| e.to_string())?;
-            let mut whole = vec![0_u8; usize::try_from(size).map_err(|e| e.to_string())?];
-            file.read_exact(&mut whole).map_err(|e| e.to_string())?;
+            file.seek(SeekFrom::Start(position))?;
+            let mut whole = vec![0_u8; usize::try_from(size)?];
+            file.read_exact(&mut whole)?;
             if &kind == b"moov" {
-                moov_body =
-                    Some(bytes.len() + usize::try_from(header_len).map_err(|e| e.to_string())?);
+                moov_body = Some(bytes.len() + usize::try_from(header_len)?);
             }
             bytes.extend_from_slice(&whole);
             if moov_body.is_some() {
@@ -129,7 +151,7 @@ fn movie_header(
         }
         position += size;
     }
-    let moov_body = moov_body.ok_or_else(|| "no movie header".to_owned())?;
+    let moov_body = moov_body.ok_or(HeaderError::NoMovie)?;
     let micros = bytes.get(moov_body..).and_then(movie_micros);
     Ok(MovieHeader { bytes, micros })
 }

@@ -4,6 +4,7 @@
 use crate::io::OpenError;
 use anyview_book::{BookError, Comic};
 use anyview_core::{FactLabel, FactValue, Facts, FileName, FilePath, SectionIndex};
+use anyview_fs::OnDisk;
 use anyview_image::ImageFile;
 use anyview_pdf::{PagePicture, bind as bind_parts, pdf_of_pictures};
 
@@ -29,7 +30,7 @@ fn picture(image: ImageFile) -> Option<PagePicture> {
 /// The comic at `path` as the bytes of one PDF, and the rows of its Info tab (`base` and the
 /// page count).
 pub(super) fn bind(path: &FilePath, base: Facts) -> Result<(Vec<u8>, Facts), OpenError> {
-    let comic = Comic::open(path)?;
+    let comic = Comic::open(path.on_disk())?;
     let facts = base.with(
         FactLabel::Pages,
         FactValue::text(comic.sections().get().to_string()),

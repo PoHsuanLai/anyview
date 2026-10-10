@@ -61,7 +61,6 @@ pub use sniff::{
 };
 pub use source::{
     ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, ReadAtStream, Source,
-    is_regular, open_regular,
 };
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use tree_path::{OpenNodes, TreePath};

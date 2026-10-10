@@ -6,8 +6,9 @@
 use crate::error::PeekError;
 use anyview_core::{
     ByteLen, Deadline, FactLabel, FactValue, Facts, FileHead, FileName, FilePath, FormatKind,
-    Input, Peek, PeekBudget, SniffStep, Sniffed, ZipEntries, open_regular, sniff, sniff_zip,
+    Input, Peek, PeekBudget, SniffStep, Sniffed, ZipEntries, sniff, sniff_zip,
 };
+use anyview_fs::open_regular;
 use anyview_text::Tally;
 use ds_core::word::Word;
 use std::fs::{self, DirEntry};

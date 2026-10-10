@@ -4,6 +4,7 @@ use crate::described::Described;
 use crate::error::PeekError;
 use crate::folder::FolderSummary;
 use crate::pdf::PdfPeeked;
+use crate::unavailable::Unavailable;
 use anyview_archive::ArchivePeeked;
 use anyview_core::Peek;
 use anyview_font::FontPeeked;
@@ -38,8 +39,8 @@ pub enum Body {
     Folder(FolderSummary),
     /// Nothing to draw but the facts: the kind has no back end yet.
     FactsOnly(Described),
-    /// The peek failed; this is why, in words, and the pane shows the facts beside it.
-    Unavailable(String),
+    /// The peek failed; this is why, and the pane shows the facts beside it.
+    Unavailable(Unavailable),
 }
 
 impl From<ImagePeek> for Body {

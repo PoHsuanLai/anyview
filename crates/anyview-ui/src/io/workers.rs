@@ -10,14 +10,15 @@ use super::job::{Done, Job, OpenLink, Probed, WorkLane};
 use super::media::{MediaHost, MediaPort, NoPlayer};
 use super::notice::Notice;
 use super::seams::{
-    FileCards, FileLocks, FirstFrameSource, Forgetful, ImagePlugins, NoCards, NoImagePlugins,
-    NoLocks, NoPictures, NoVersions, ResumeSource, VersionSource,
+    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoVersions, ResumeSource,
+    VersionSource,
 };
 use crate::edits::{EditRequest, Rewind};
 use crate::sheet::{ExportDraft, VersionKey};
 use crate::{Presentation, Ticket, TypedText};
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
+use anyview_peek::{NoStills, StillSource};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -224,10 +225,9 @@ pub struct Edge {
     resume: Arc<dyn ResumeSource>,
     locks: Arc<dyn FileLocks>,
     versions: Arc<dyn VersionSource>,
-    first_frames: Arc<dyn FirstFrameSource>,
+    first_frames: Arc<dyn StillSource>,
     media: Arc<dyn MediaHost>,
     image_plugins: Arc<dyn ImagePlugins>,
-    cards: Arc<dyn FileCards>,
     helpers: Arc<dyn HelperSource>,
     platform: PlatformAbilities,
     held: Arc<Mutex<Held>>,
@@ -264,10 +264,9 @@ impl Edge {
             resume: Arc::new(Forgetful),
             locks: Arc::new(NoLocks),
             versions: Arc::new(NoVersions),
-            first_frames: Arc::new(NoPictures),
+            first_frames: Arc::new(NoStills),
             media: Arc::new(NoPlayer),
             image_plugins: Arc::new(NoImagePlugins),
-            cards: Arc::new(NoCards),
             helpers: Arc::new(NoHelpers),
             platform: PlatformAbilities::default(),
             held: Arc::default(),
@@ -300,7 +299,7 @@ impl Edge {
 
     /// The same edge showing the host's small pictures while a file opens: without them a file
     /// shows once it is open.
-    pub fn with_first_frames(self, source: Arc<dyn FirstFrameSource>) -> Edge {
+    pub fn with_first_frames(self, source: Arc<dyn StillSource>) -> Edge {
         Edge {
             first_frames: source,
             ..self
@@ -322,12 +321,6 @@ impl Edge {
             image_plugins: plugins,
             ..self
         }
-    }
-
-    /// The same edge showing the files no stage covers (fonts, archives, folders, office documents)
-    /// as `cards` describe them: without them a card lists only the kind and the size.
-    pub fn with_cards(self, cards: Arc<dyn FileCards>) -> Edge {
-        Edge { cards, ..self }
     }
 
     /// The same edge wording its install sheet from `helpers`: without them no tool is offered.
@@ -442,7 +435,6 @@ impl Edge {
             highlighter: Arc::clone(&self.highlighter),
             first_frames: Arc::clone(&self.first_frames),
             image_plugins: Arc::clone(&self.image_plugins),
-            cards: Arc::clone(&self.cards),
             media: None,
         }
     }

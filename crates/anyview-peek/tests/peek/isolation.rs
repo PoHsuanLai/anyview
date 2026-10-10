@@ -4,6 +4,7 @@
 use crate::support;
 
 use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, PeekBudget, Source};
+use anyview_fs::OnDisk;
 use anyview_peek::{Body, PeekError, peek, probe};
 use std::path::Path;
 use std::sync::mpsc;
@@ -14,7 +15,7 @@ use support::{Home, pane_budget, path};
 fn probe_within(file: FilePath) -> Result<anyview_peek::Probed, PeekError> {
     let (sender, receiver) = mpsc::channel();
     std::thread::spawn(move || {
-        let _ = sender.send(probe(&file));
+        let _ = sender.send(probe(file.on_disk()));
     });
     receiver
         .recv_timeout(Duration::from_secs(5))
@@ -53,7 +54,7 @@ fn a_fifo_and_a_device_behind_a_link_are_refused_by_the_probe_instead_of_blockin
 #[test]
 fn a_peek_of_a_device_behind_a_link_reads_nothing() {
     let real = FilePath::new(path(Home::Image, "quadrants.png")).unwrap();
-    let probed = probe(&real).unwrap();
+    let probed = probe(real.on_disk()).unwrap();
     let dir = tempfile::tempdir().unwrap();
     let link = dir.path().join("zero.png");
     std::os::unix::fs::symlink("/dev/zero", &link).unwrap();
@@ -64,7 +65,8 @@ fn a_peek_of_a_device_behind_a_link_reads_nothing() {
             len: ByteLen(1),
             modified: ModTime(0),
         },
-    );
+    )
+    .on_disk();
     let peeked = peek(&source, &probed.sniffed, &pane_budget());
     assert!(
         matches!(peeked.body, Body::Unavailable(_)),
@@ -76,7 +78,7 @@ fn a_peek_of_a_device_behind_a_link_reads_nothing() {
 #[test]
 fn a_picture_over_the_byte_budget_is_not_read() {
     let real = FilePath::new(path(Home::Image, "quadrants.png")).unwrap();
-    let probed = probe(&real).unwrap();
+    let probed = probe(real.on_disk()).unwrap();
     let tight = PeekBudget {
         bytes: ByteLen(16),
         ..pane_budget()

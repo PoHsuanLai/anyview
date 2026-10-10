@@ -6,9 +6,7 @@
 use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::notice::Notice;
-use super::seams::{
-    FileAccess, FileCards, FileLocks, FirstFrameSource, ImagePlugins, ResumeSource, VersionSource,
-};
+use super::seams::{FileAccess, FileLocks, ImagePlugins, ResumeSource, VersionSource};
 use crate::families::{
     FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
@@ -16,6 +14,7 @@ use crate::sheet::VersionRow;
 use crate::{StageFamily, Ticket, TypedText};
 use anyview_core::work::Stop;
 use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
+use anyview_peek::StillSource;
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
@@ -34,11 +33,9 @@ pub struct OpenLink {
     /// Highlights code for every stage.
     pub highlighter: Arc<Highlighter>,
     /// The host's small pictures, for a first frame.
-    pub first_frames: Arc<dyn FirstFrameSource>,
+    pub first_frames: Arc<dyn StillSource>,
     /// The plugins that decode what the viewer cannot.
     pub image_plugins: Arc<dyn ImagePlugins>,
-    /// The host's cards for the files no stage shows.
-    pub cards: Arc<dyn FileCards>,
     /// The host's players, when this open may start one: a file opened ahead of the person never
     /// plays, so a preload carries none.
     pub(crate) media: Option<super::MediaPort>,

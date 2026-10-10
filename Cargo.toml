@@ -7,6 +7,7 @@ members = [
   "crates/anyview-core",
   "crates/anyview-export",
   "crates/anyview-font",
+  "crates/anyview-fs",
   "crates/anyview-image",
   "crates/anyview-media",
   "crates/anyview-platform",
@@ -41,6 +42,7 @@ anyview-book = { path = "crates/anyview-book" }
 anyview-core = { path = "crates/anyview-core" }
 anyview-export = { path = "crates/anyview-export" }
 anyview-font = { path = "crates/anyview-font" }
+anyview-fs = { path = "crates/anyview-fs" }
 anyview-image = { path = "crates/anyview-image" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
 # No default features: the viewer binary asks for the Linux desktop's services through its own
@@ -50,7 +52,10 @@ anyview-platform = { path = "crates/anyview-platform", default-features = false 
 anyview-plugin-fake = { path = "crates/anyview-plugin-fake" }
 anyview-plugin = { path = "crates/anyview-plugin" }
 anyview-plugin-protocol = { path = "crates/anyview-plugin-protocol" }
-anyview-peek = { path = "crates/anyview-peek" }
+# No default features: the window (`anyview-ui`) takes the peek for its probe and its cards and draws and
+# plays with its own parts, and the binary asks for `media` and `pane`. `sill` takes the path directly and
+# so gets the crate's own default.
+anyview-peek = { path = "crates/anyview-peek", default-features = false }
 anyview-pdf = { path = "crates/anyview-pdf" }
 anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }

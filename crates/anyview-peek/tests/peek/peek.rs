@@ -3,8 +3,9 @@
 
 use crate::support;
 
-use anyview_core::FormatKind;
-use anyview_peek::{AnyPeeked, Body, peek};
+use anyview_core::{ByteLen, FormatKind};
+use anyview_fs::OnDisk;
+use anyview_peek::{AnyPeeked, Body, Unavailable, peek};
 use support::{Home, budget, fixture, on_disk, pane_budget, rows};
 
 fn peeked(home: Home, name: &str) -> AnyPeeked {
@@ -255,7 +256,7 @@ fn a_peek_that_fails_still_gives_the_files_own_facts() {
     let Body::Unavailable(reason) = &peeked.body else {
         panic!("an undecodable png is unavailable, not a peek");
     };
-    assert!(!reason.is_empty());
+    assert!(!reason.label().is_empty());
     let labels: Vec<&str> = rows(&peeked.facts)
         .into_iter()
         .map(|(label, _)| label)
@@ -270,7 +271,17 @@ fn a_pdf_longer_than_the_byte_budget_is_not_read() {
     let Body::Unavailable(reason) = &peeked.body else {
         panic!("a pdf past the byte budget is unavailable");
     };
-    assert_eq!(reason, "the file is 621 bytes and the preview may read 100");
+    assert_eq!(
+        reason,
+        &Unavailable::TooBig {
+            len: ByteLen(621),
+            allowed: ByteLen(100)
+        }
+    );
+    assert_eq!(
+        reason.label(),
+        "the file is 621 bytes and the preview may read 100"
+    );
     assert_eq!(
         rows(&peeked.facts)[0],
         ("kind", "application/pdf".to_owned())
@@ -334,7 +345,8 @@ fn a_folder_counts_its_items_size_and_kinds() {
         len: anyview_core::ByteLen(0),
         modified: anyview_core::ModTime(0),
     };
-    let src = anyview_core::Source::new(anyview_core::FilePath::new(dir.path()).unwrap(), stamp);
+    let src = anyview_core::Source::new(anyview_core::FilePath::new(dir.path()).unwrap(), stamp)
+        .on_disk();
     let peeked = peek(&src, &anyview_core::sniff_folder(), &pane_budget());
     assert_eq!(peeked.kind, FormatKind::Folder);
     let Body::Folder(folder) = &peeked.body else {
@@ -359,7 +371,8 @@ fn a_folder_that_cannot_be_listed_is_unavailable() {
         len: anyview_core::ByteLen(0),
         modified: anyview_core::ModTime(0),
     };
-    let src = anyview_core::Source::new(anyview_core::FilePath::new(&missing).unwrap(), stamp);
+    let src =
+        anyview_core::Source::new(anyview_core::FilePath::new(&missing).unwrap(), stamp).on_disk();
     let peeked = peek(&src, &anyview_core::sniff_folder(), &pane_budget());
     assert_eq!(peeked.body.slug(), "unavailable");
 }
@@ -429,6 +442,9 @@ fn a_damaged_archive_is_unavailable_with_its_kind_and_the_reason() {
     let Body::Unavailable(reason) = &peeked.body else {
         panic!("a broken zip is unavailable, not {}", peeked.body.slug());
     };
-    assert!(reason.starts_with("not a valid ZIP archive"), "{reason}");
+    assert!(
+        reason.label().starts_with("not a valid ZIP archive"),
+        "{reason:?}"
+    );
     assert_eq!(rows(&peeked.facts)[0], ("kind", "Archive (ZIP)".to_owned()));
 }

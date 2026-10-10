@@ -2,7 +2,8 @@
 // Each test crate uses some of these helpers, and none of them is a `#[test]` function.
 #![allow(dead_code)]
 
-use anyview_core::FilePath;
+use anyview_core::{FilePath, Input};
+use anyview_fs::OnDisk;
 use std::io::Write;
 use std::path::Path;
 
@@ -13,11 +14,16 @@ pub const ENTRIES: &[(&str, &str)] = &[
     ("data.bin", "0123456789"),
 ];
 
-/// `bytes` written as `name` in `dir`.
-pub fn write(dir: &Path, name: &str, bytes: &[u8]) -> FilePath {
+/// `bytes` written as `name` in `dir`, as the path it is at.
+pub fn write_path(dir: &Path, name: &str, bytes: &[u8]) -> FilePath {
     let path = dir.join(name);
     std::fs::write(&path, bytes).unwrap();
     FilePath::new(path).unwrap()
+}
+
+/// `bytes` written as `name` in `dir`, as the input a reader takes.
+pub fn write(dir: &Path, name: &str, bytes: &[u8]) -> Input {
+    write_path(dir, name, bytes).on_disk()
 }
 
 /// A zip of [`ENTRIES`].

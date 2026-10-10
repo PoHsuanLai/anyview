@@ -6,36 +6,28 @@
 
 use super::{PageLook, PageTrouble, PdfPeeked};
 use crate::error::PeekError;
+use crate::looking::PANE_FIT;
 use crate::pane::page::look;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed,
+    ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, PixelSize, Sniffed,
 };
 use ds_blitz::{ThumbRequest, pdf_thumb_blocking, pdf_thumb_bytes};
 use ds_core::geometry::scale::Scale;
 use ds_core::geometry::units::{Px, Size};
 use ds_core::word::Word;
 
-/// The box a page is fitted into: the pane's media box (328 px is a 360 px pane's width inside its
-/// 16 px padding). The pane pins it equal to quire's `PANE_MEDIA`.
-pub(crate) const PANE_MEDIA: Size = Size {
-    width: Px(328.0),
-    height: Px(220.0),
-};
-
-/// The device pixels a page is rasterised for at 2x: the pane's media box twice over.
-const SHARP_AREA: u64 = 656 * 440;
-
 /// The peek of the kind `Pdf`.
 ///
 /// `ds-blitz` reads the whole file, so a file longer than the budget's bytes is refused with
-/// [`PeekError::OverBudget`] rather than read past it. The page is fitted into the pane's media
-/// box at 2x, or at 1x when the budget's pixels do not cover that.
+/// [`PeekError::OverBudget`] rather than read past it. The page is fitted into the box asked
+/// for (the pane's media box by default) at 2x, or at 1x when the budget's pixels do not cover
+/// that.
 #[derive(Debug, Clone, Copy)]
 pub struct PdfPeek;
 
-/// The scale a page is rasterised at: sharp for a budget that allows it.
-fn scale_for(budget: &PeekBudget) -> Scale {
-    if budget.pixels.0 >= SHARP_AREA {
+/// The scale a page is rasterised at: sharp for a budget that covers the box twice over each way.
+fn scale_for(budget: &PeekBudget, fit: PixelSize) -> Scale {
+    if budget.pixels.0 >= 4 * fit.area().0 {
         Scale(240)
     } else {
         Scale::ONE
@@ -48,6 +40,15 @@ impl Peek for PdfPeek {
     type Error = PeekError;
 
     fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<PdfPeeked, PeekError> {
+        Self::peek_fitted(src, sniffed, budget, PANE_FIT)
+    }
+
+    fn peek_fitted(
+        src: &Input,
+        sniffed: &Sniffed,
+        budget: &PeekBudget,
+        fit: PixelSize,
+    ) -> Result<PdfPeeked, PeekError> {
         if sniffed.kind() != Self::KIND {
             return Err(PeekError::WrongKind {
                 kind: sniffed.kind(),
@@ -60,11 +61,14 @@ impl Peek for PdfPeek {
                 allowed: budget.bytes,
             });
         }
-        let room: Size = PANE_MEDIA;
+        let room = Size {
+            width: Px(fit.width.0 as f32),
+            height: Px(fit.height.0 as f32),
+        };
         let request = ThumbRequest {
             path: src.label(),
             size: room,
-            scale: scale_for(budget),
+            scale: scale_for(budget, fit),
         };
         // A file on disk goes through the page cache, which a pane asks again at the same size;
         // bytes handed in are rasterised from memory, whole, as the budget allows.

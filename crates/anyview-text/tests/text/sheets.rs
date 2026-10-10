@@ -3,7 +3,8 @@
 
 use crate::support;
 
-use anyview_core::{Delimiter, FormatDetail, FormatKind, Input, Peek};
+use anyview_core::{Delimiter, FormatDetail, FormatKind, Peek};
+use anyview_fs::OnDisk;
 use anyview_text::{
     CharWidth, Coverage, HeaderMode, Separator, TABLE_ROWS, Table, TablePeek, TableSource, Tally,
     Workbook,
@@ -18,13 +19,13 @@ fn a_file_with_more_rows_than_the_cap_keeps_the_start_and_says_so() {
         text.push_str(&format!("{n},row{n}\n"));
     }
     let (src, _) = written(dir.path(), "big.csv", text.as_bytes());
-    let table = Table::read(&src, Delimiter::Comma, HeaderMode::Detect).unwrap();
+    let table = Table::read(src.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
     // The cap counts the file's records, the header line among them.
     assert_eq!(table.row_count().0 as usize, TABLE_ROWS - 1);
     assert_eq!(table.coverage(), Coverage::Prefix);
     assert_eq!(table.header().map(<[String]>::len), Some(2));
     let small = written(dir.path(), "small.csv", b"a,b\n1,2\n").0;
-    let whole = Table::read(&small, Delimiter::Comma, HeaderMode::Detect).unwrap();
+    let whole = Table::read(small.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
     assert_eq!(whole.coverage(), Coverage::Whole);
 }
 
@@ -34,7 +35,7 @@ fn quotes_with_newlines_and_a_latin1_encoding_read_as_written() {
     let mut bytes = b"name,note\n".to_vec();
     bytes.extend_from_slice(b"Ren\xE9,\"two\nlines, and a \"\"quote\"\"\"\n");
     let (src, _) = written(dir.path(), "q.csv", &bytes);
-    let table = Table::read(&src, Delimiter::Comma, HeaderMode::Detect).unwrap();
+    let table = Table::read(src.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
     assert_eq!(table.row_count().0, 1);
     assert_eq!(
         table.cell(anyview_text::RowIndex(0), 0),
@@ -51,7 +52,7 @@ fn quotes_with_newlines_and_a_latin1_encoding_read_as_written() {
 fn a_semicolon_file_named_csv_is_split_by_its_semicolons() {
     let dir = tempfile::tempdir().unwrap();
     let (src, _) = written(dir.path(), "eu.csv", b"a;b\n1,5;2\n3,5;4\n");
-    let table = Table::read(&src, Delimiter::Comma, HeaderMode::Detect).unwrap();
+    let table = Table::read(src.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
     assert_eq!(table.separator(), Separator::Semicolon);
     assert_eq!(table.columns().0, 2);
     assert_eq!(table.cell(anyview_text::RowIndex(0), 0), "1,5");
@@ -88,7 +89,7 @@ fn a_workbook_lists_its_sheets_in_order_with_numbers_and_text() {
     );
     assert_eq!(sniffed.kind(), FormatKind::Table);
     assert!(matches!(sniffed.detail(), FormatDetail::Office(_)));
-    let book = Workbook::open(&src).unwrap();
+    let book = Workbook::open(src.on_disk()).unwrap();
     let names: Vec<&str> = book.sheets().iter().map(|s| s.name.as_str()).collect();
     assert_eq!(names, ["People", "Empty", "Notes"]);
     let people = &book.sheets()[0].table;
@@ -112,7 +113,7 @@ fn a_workbook_peeks_its_first_sheet_and_counts_the_rest() {
             ("More", &[&["x"]]),
         ],
     );
-    let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+    let peeked = TablePeek::peek(&src.on_disk(), &sniffed, &budget(1_000_000)).unwrap();
     assert_eq!(peeked.rows.len(), 2);
     assert_eq!(peeked.total_rows, Tally::Exact(2));
     assert!(matches!(
@@ -129,7 +130,7 @@ fn a_workbook_peeks_its_first_sheet_and_counts_the_rest() {
         ])
     );
     assert!(
-        TablePeek::peek(&Input::from(&src), &sniffed, &budget(100)).is_err(),
+        TablePeek::peek(&src.on_disk(), &sniffed, &budget(100)).is_err(),
         "over the budget"
     );
 }

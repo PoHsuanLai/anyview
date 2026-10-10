@@ -4,7 +4,8 @@
 
 use crate::support;
 
-use anyview_core::{Input, Peek};
+use anyview_core::Peek;
+use anyview_fs::OnDisk;
 use anyview_text::{Coverage, RowIndex, SHEET_ROWS, TablePeek, WORKBOOK_CELLS, Workbook};
 use support::{budget, workbook_of_xml};
 
@@ -31,12 +32,12 @@ fn two_cells_a_million_rows_and_sixteen_thousand_columns_apart_do_not_become_a_g
     for (name, cells) in cases {
         let (src, sniffed) =
             workbook_of_xml(dir.path(), "sparse.xlsx", &["Sheet"], &[sheet_of(cells)]);
-        let book = Workbook::open(&src).unwrap();
+        let book = Workbook::open(src.on_disk()).unwrap();
         let table = &book.sheets()[0].table;
         let held = table.row_count().0 as usize * table.columns().0 as usize;
         assert!(held <= WORKBOOK_CELLS, "{name}: a grid of {held} cells");
         assert_eq!(table.cell(RowIndex(0), 0), "x", "{name}");
-        let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(1_000_000)).unwrap();
+        let peeked = TablePeek::peek(&src.on_disk(), &sniffed, &budget(1_000_000)).unwrap();
         assert!(peeked.rows.len() <= 40, "{name}");
     }
 }
@@ -54,9 +55,9 @@ fn a_sheet_of_millions_of_cells_is_read_only_as_far_as_the_caps_reach() {
         })
         .collect();
     let (src, sniffed) = workbook_of_xml(dir.path(), "bomb.xlsx", &["Sheet"], &[rows]);
-    let peeked = TablePeek::peek(&Input::from(&src), &sniffed, &budget(64 * 1024 * 1024)).unwrap();
+    let peeked = TablePeek::peek(&src.on_disk(), &sniffed, &budget(64 * 1024 * 1024)).unwrap();
     assert!(peeked.rows.len() <= 40);
-    let book = Workbook::open_start(&src).unwrap();
+    let book = Workbook::open_start(src.on_disk()).unwrap();
     assert_eq!(book.sheets().len(), 1);
     assert!(book.sheets()[0].table.row_count().0 as usize <= SHEET_ROWS);
 }
@@ -68,7 +69,7 @@ fn a_sheet_with_more_rows_than_the_cap_keeps_the_start_and_says_so() {
         .map(|r| format!(r#"<row r="{r}"><c r="A{r}"><v>{r}</v></c></row>"#))
         .collect();
     let (src, _) = workbook_of_xml(dir.path(), "tall.xlsx", &["Sheet"], &[rows]);
-    let book = Workbook::open(&src).unwrap();
+    let book = Workbook::open(src.on_disk()).unwrap();
     let table = &book.sheets()[0].table;
     assert_eq!(table.coverage(), Coverage::Prefix);
     // The header guess may take the first row, and the cap counts it.

@@ -2,15 +2,15 @@
 //! reads a path, a database blob or bytes in memory alike.
 
 use std::fmt::Debug;
-use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::ByteLen;
+use super::{ByteLen, FileStamp};
 
 /// Bytes that can be read at an offset, from any thread. The built-in implementations are a byte
-/// slice, a `Vec`, an `Arc<[u8]>` and an open `File`; a host implements it for anything else (a
+/// slice, a `Vec` and an `Arc<[u8]>` (this crate opens no file: `anyview-store` has the one for a
+/// path); a host implements it for anything else (a
 /// blob in a database, a spool, an archive entry). A source must end: a FIFO or an endless stream
 /// is not one. Callers hold what they take to a budget; a source need not.
 pub trait ReadAt: Debug + Send + Sync {
@@ -20,6 +20,12 @@ pub trait ReadAt: Debug + Send + Sync {
     /// Reads into `buf` from `offset`, as [`std::io::Read::read`] does: it may fill less than
     /// `buf`, and gives `0` at the end.
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize>;
+
+    /// The size and modification time of these bytes as a file system reports them, for bytes that
+    /// are a file; `None` for bytes with no clock of their own, whose stamp is just their length.
+    fn stamp(&self) -> Option<FileStamp> {
+        None
+    }
 
     /// Whether there are no bytes.
     fn is_empty(&self) -> bool {
@@ -86,21 +92,9 @@ impl<T: ReadAt + ?Sized> ReadAt for Arc<T> {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
         (**self).read_at(offset, buf)
     }
-}
 
-impl ReadAt for File {
-    fn len(&self) -> ByteLen {
-        ByteLen(self.metadata().map_or(0, |meta| meta.len()))
-    }
-
-    #[cfg(unix)]
-    fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        std::os::unix::fs::FileExt::read_at(self, buf, offset)
-    }
-
-    #[cfg(windows)]
-    fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        std::os::windows::fs::FileExt::seek_read(self, buf, offset)
+    fn stamp(&self) -> Option<FileStamp> {
+        (**self).stamp()
     }
 }
 
@@ -153,14 +147,10 @@ mod tests {
 
     #[test]
     fn every_built_in_reads_a_range_clipped_to_what_exists() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("a.bin");
-        std::fs::write(&path, b"abcd").unwrap();
-        let file = File::open(&path).unwrap();
         let vec = b"abcd".to_vec();
         let shared: Arc<[u8]> = Arc::from(&b"abcd"[..]);
         assert_eq!(vec[..].read_range(1..3).unwrap(), b"bc");
-        let sources: [(&str, &dyn ReadAt); 3] = [("vec", &vec), ("arc", &shared), ("file", &file)];
+        let sources: [(&str, &dyn ReadAt); 2] = [("vec", &vec), ("arc", &shared)];
         // name, start, end, bytes
         const CASES: &[(&str, u64, u64, &[u8])] = &[
             ("inside", 1, 3, b"bc"),

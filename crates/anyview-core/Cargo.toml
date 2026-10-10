@@ -26,4 +26,3 @@ workspace = true
 # `ds_core::testing::word_matches_serde`, for the stored `Word` enums.
 ds-core = { workspace = true, features = ["testing"] }
 serde_json = { workspace = true }
-tempfile = { workspace = true }

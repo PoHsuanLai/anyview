@@ -16,6 +16,8 @@ roxmltree = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# `OnDisk`: the input of a book in the scratch folder (core opens no file).
+anyview-fs = { workspace = true }
 tempfile = { workspace = true }
 zip = { workspace = true, features = ["deflate"] }
 

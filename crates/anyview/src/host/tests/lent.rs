@@ -3,9 +3,11 @@
 use super::support::{PNG, desktop, probed};
 use crate::host::{CachedPictures, HostedResume, Hosting, Task};
 use anyview_core::{LineIndex, PixelLen, PixelSize, Resume};
+use anyview_fs::OnDisk;
+use anyview_peek::StillSource;
 use anyview_platform::testing::FakeThumbnails;
 use anyview_platform::{ThumbPixels, ThumbSize, ThumbnailCache};
-use anyview_ui::{FirstFrameSource, ResumeSource};
+use anyview_ui::ResumeSource;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -48,7 +50,10 @@ fn the_first_frame_is_the_shared_thumbnail_of_this_version_of_the_file() {
     let file = probed(dir.path(), "a.png", PNG);
     let cache = FakeThumbnails::default();
     let pictures = CachedPictures(cache.clone());
-    assert!(pictures.picture(&file.source).is_none(), "none made yet");
+    assert!(
+        pictures.still(&file.source.on_disk()).is_none(),
+        "none made yet"
+    );
 
     let size = PixelSize {
         width: PixelLen(2),
@@ -64,7 +69,7 @@ fn the_first_frame_is_the_shared_thumbnail_of_this_version_of_the_file() {
         )
         .unwrap();
 
-    let found = pictures.picture(&file.source).unwrap();
+    let found = pictures.still(&file.source.on_disk()).unwrap();
     assert_eq!(found.size(), size);
     assert_eq!(found.bytes(), made.rgba());
 }

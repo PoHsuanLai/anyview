@@ -7,14 +7,15 @@ use crate::support;
 use anyview_core::{
     ByteLen, FactLabel, FileName, FilePath, FileStamp, FormatKind, Input, ModTime, ReadAt,
 };
-use anyview_peek::{AnyPeeked, Body, PeekError, peek, probe};
+use anyview_fs::OnDisk;
+use anyview_peek::{AnyPeeked, Body, PeekError, Unavailable, peek, probe};
 use std::io::Write;
 use std::sync::Arc;
 use support::{Home, budget, pane_budget, path};
 
 /// What the file at `file` peeks to, read as a path.
 fn through_path(file: &std::path::Path) -> AnyPeeked {
-    let probed = probe(&FilePath::new(file).unwrap()).unwrap();
+    let probed = probe(FilePath::new(file).unwrap().on_disk()).unwrap();
     peek(&probed.input, &probed.sniffed, &pane_budget())
 }
 
@@ -129,7 +130,12 @@ fn an_injected_pdf_is_rasterised_from_memory() {
 
 #[test]
 fn an_injected_folder_has_no_directory_to_list() {
-    let probed = probe(&FilePath::new(tempfile::tempdir().unwrap().path()).unwrap()).unwrap();
+    let probed = probe(
+        FilePath::new(tempfile::tempdir().unwrap().path())
+            .unwrap()
+            .on_disk(),
+    )
+    .unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Folder);
     // The same sniffed answer for bytes that have no directory behind them is refused, not read.
     let injected = Input::from((FileName::new("dir").unwrap(), Vec::new()));
@@ -157,7 +163,10 @@ fn the_byte_budget_holds_for_injected_bytes_whatever_they_claim() {
         let Body::Unavailable(reason) = &card.body else {
             panic!("{name}: {:?}", card.body);
         };
-        assert!(reason.contains("preview may read"), "{name}: {reason}");
+        assert!(
+            matches!(reason, Unavailable::TooBig { .. }),
+            "{name}: {reason:?}"
+        );
     }
 }
 

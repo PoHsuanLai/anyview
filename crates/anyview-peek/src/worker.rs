@@ -14,10 +14,10 @@
 //! It takes no async runtime: the answer comes to a closure, which sends it wherever the host
 //! listens (a channel, a signal's writer).
 
-use crate::any::{AnyPeeked, failed_card, peek_with};
-use crate::frames::VideoFrames;
-use crate::probe::probe;
-use anyview_core::{Input, PeekBudget};
+use crate::any::{AnyPeeked, failed_card};
+use crate::looking::{Peeking, look};
+use crate::unavailable::Unavailable;
+use anyview_core::Input;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, PoisonError, mpsc};
@@ -121,6 +121,23 @@ impl<T: Send + 'static> PeekWorker<T> {
     /// Starts the thread, looking at files as `work` says and answering `failed` for a file whose
     /// look panics, overruns or is refused. Without a thread (the system refused one) every
     /// request waits unanswered rather than the host failing.
+    ///
+    /// ```no_run
+    /// use anyview_core::{FileName, Input};
+    /// use anyview_peek::{PeekFailure, PeekWork, PeekWorker, WorkerConfig};
+    /// use std::sync::Arc;
+    ///
+    /// # fn main() -> Result<(), anyview_core::CoreError> {
+    /// // What the worker does with a file, and what it answers for one it cannot look at.
+    /// let work: PeekWork<usize> = Arc::new(|input| input.name().as_str().len());
+    /// let failed: PeekFailure<usize> = Arc::new(|_| 0);
+    /// let worker = PeekWorker::spawn(WorkerConfig::default(), work, failed);
+    /// // Asking again before the first starts replaces it: only the latest file is looked at.
+    /// let input = Input::from((FileName::new("notes.txt")?, b"hello".to_vec()));
+    /// worker.ask(input, |length| println!("{length}"));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn spawn(config: WorkerConfig, work: PeekWork<T>, failed: PeekFailure<T>) -> Self {
         let slot = Arc::new(Slot {
             waiting: Mutex::new(Waiting {
@@ -149,14 +166,16 @@ impl<T: Send + 'static> PeekWorker<T> {
 }
 
 impl PeekWorker<AnyPeeked> {
-    /// A worker that probes each file and peeks at it as sniffed, inside `budget`; `frames` is
-    /// the host's source of a picture for a video with no cover. A file that cannot be read is an
-    /// unavailable card, as `probe` and `peek` make.
-    pub fn looking(config: WorkerConfig, budget: PeekBudget, frames: Arc<dyn VideoFrames>) -> Self {
-        let work: PeekWork<AnyPeeked> =
-            Arc::new(move |input| look_with(input, &budget, frames.as_ref()));
-        let failed: PeekFailure<AnyPeeked> =
-            Arc::new(|input| failed_card(input, "the preview could not be made"));
+    /// A worker that [`look`]s at each file as `peeking` says. A file that cannot be read is an
+    /// unavailable card, as `look` makes it.
+    pub fn looking(config: WorkerConfig, peeking: Peeking) -> Self {
+        let work: PeekWork<AnyPeeked> = Arc::new(move |input| look(input, &peeking));
+        let failed: PeekFailure<AnyPeeked> = Arc::new(|input| {
+            failed_card(
+                input,
+                Unavailable::Damaged("the preview could not be made".to_owned()),
+            )
+        });
         PeekWorker::spawn(config, work, failed)
     }
 }
@@ -165,15 +184,6 @@ impl<T> Drop for PeekWorker<T> {
     fn drop(&mut self) {
         self.slot.lock().ended = true;
         self.slot.ready.notify_one();
-    }
-}
-
-/// The look at one file: probed, then peeked as sniffed. A file that cannot be probed is an
-/// unavailable card saying why.
-pub(crate) fn look_with(input: Input, budget: &PeekBudget, frames: &dyn VideoFrames) -> AnyPeeked {
-    match probe(&input) {
-        Ok(probed) => peek_with(&probed.input, &probed.sniffed, budget, frames),
-        Err(error) => failed_card(&input, &error.to_string()),
     }
 }
 

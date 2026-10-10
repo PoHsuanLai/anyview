@@ -8,6 +8,7 @@ use anyview_core::{
     ByteLen, Fact, FactLabel, FactValue, Facts, FormatKind, Helper, MediaTags, PeekBudget,
     PixelArea, Sniffed, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_media::{MpvHost, offered_kinds, target_of};
 use anyview_peek::{AudioCover, audio_cover};
 use anyview_platform::{PluginFacts, PluginRunner};
@@ -172,7 +173,7 @@ impl MediaPlugins {
             album: text(FactLabel::Album),
         };
         let cover = (sniffed.kind() == FormatKind::Audio)
-            .then(|| audio_cover(source, sniffed, &HEADER_BUDGET))
+            .then(|| audio_cover(source.on_disk(), sniffed, &HEADER_BUDGET))
             .flatten();
         Reading { facts, tags, cover }
     }
@@ -280,7 +281,7 @@ pub enum Playing {
 
 /// What a pure-Rust reader of the header says, without the rows the window adds itself.
 fn header_facts(source: &Source, sniffed: &Sniffed) -> Facts {
-    let peeked = anyview_peek::peek(source, sniffed, &HEADER_BUDGET);
+    let peeked = anyview_peek::peek(source.on_disk(), sniffed, &HEADER_BUDGET);
     peeked
         .facts
         .rows()

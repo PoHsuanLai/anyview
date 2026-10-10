@@ -1,11 +1,12 @@
-//! Loading fixtures the way the viewer meets files: a `Source` on disk and what sniffing made of it.
+//! Loading fixtures the way the viewer meets files: an `Input` on disk and what sniffing made of it.
 // Each test crate uses some of these helpers, and none of them is a `#[test]` function.
 #![allow(dead_code)]
 
 use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, PeekBudget, PixelArea, SniffStep,
-    Sniffed, Source, sniff,
+    ByteLen, FileHead, FileName, FilePath, FileStamp, Input, ModTime, PeekBudget, PixelArea,
+    SniffStep, Sniffed, Source, sniff,
 };
+use anyview_fs::OnDisk;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -31,23 +32,23 @@ pub fn sniffed(bytes: &[u8], name: &str) -> Sniffed {
 }
 
 /// The fixture as the viewer would be handed it.
-pub fn fixture(name: &str) -> (Source, Sniffed) {
+pub fn fixture(name: &str) -> (Input, Sniffed) {
     let bytes = bytes(name);
     let stamp = FileStamp {
         len: ByteLen(bytes.len() as u64),
         modified: ModTime(0),
     };
     let source = Source::new(FilePath::new(path(name)).unwrap(), stamp);
-    (source, sniffed(&bytes, name))
+    (source.on_disk(), sniffed(&bytes, name))
 }
 
 /// The file at `path`, of `len` bytes, as the viewer would be handed it.
-pub fn source_of(path: &std::path::Path, len: usize) -> Source {
+pub fn source_of(path: &std::path::Path, len: usize) -> Input {
     let stamp = FileStamp {
         len: ByteLen(len as u64),
         modified: ModTime(0),
     };
-    Source::new(FilePath::new(path).unwrap(), stamp)
+    Source::new(FilePath::new(path).unwrap(), stamp).on_disk()
 }
 
 /// A budget of `pixels` pixels and room for as many as that at four bytes each.

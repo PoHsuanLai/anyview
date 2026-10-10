@@ -7,11 +7,12 @@ use anyview_archive::{
     list, zip_entries,
 };
 use anyview_core::{
-    ArchiveFormat, ByteLen, FactLabel, FileHead, FileName, FileStamp, FormatKind, Input, ModTime,
-    Peek, PeekBudget, PixelArea, SniffStep, Source, ZipEntries, sniff,
+    ArchiveFormat, ByteLen, FactLabel, FileHead, FileName, FileStamp, FormatKind, ModTime, Peek,
+    PeekBudget, PixelArea, SniffStep, Source, ZipEntries, sniff,
 };
+use anyview_fs::OnDisk;
 use std::time::Duration;
-use support::{ENTRIES, bzip2, gzip, sevenz_of, tar_of, write, xz, zip_of, zstd};
+use support::{ENTRIES, bzip2, gzip, sevenz_of, tar_of, write, write_path, xz, zip_of, zstd};
 
 const BIG: ByteLen = ByteLen(1 << 20);
 const ALL: EntryLimit = EntryLimit(1000);
@@ -203,7 +204,7 @@ fn one_entry_comes_out_of_every_container_and_the_wrong_asks_are_refused() {
 fn the_peek_words_what_the_archive_is_and_holds() {
     let dir = tempfile::tempdir().unwrap();
     let bytes = gzip(&tar_of(ENTRIES));
-    let path = write(dir.path(), "bundle.tar.gz", &bytes);
+    let path = write_path(dir.path(), "bundle.tar.gz", &bytes);
     let stamp = FileStamp {
         len: ByteLen(bytes.len() as u64),
         modified: ModTime(0),
@@ -221,7 +222,7 @@ fn the_peek_words_what_the_archive_is_and_holds() {
         pixels: PixelArea(1 << 20),
         time: Duration::from_secs(1),
     };
-    let peeked = ArchivePeek::peek(&Input::from(&src), &sniffed, &budget).unwrap();
+    let peeked = ArchivePeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
     let facts = ArchivePeek::facts(&peeked);
     assert_eq!(
         facts.value(FactLabel::Kind).map(|v| v.as_str()),
@@ -237,7 +238,7 @@ fn the_peek_words_what_the_archive_is_and_holds() {
         panic!("text is answered at once");
     };
     assert!(matches!(
-        ArchivePeek::peek(&Input::from(&src), &plain, &budget),
+        ArchivePeek::peek(&src.on_disk(), &plain, &budget),
         Err(ArchiveError::WrongKind { .. })
     ));
 }

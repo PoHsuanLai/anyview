@@ -2,12 +2,13 @@
 
 use crate::support;
 
-use anyview_core::FilePath;
+use anyview_core::{FilePath, Input};
+use anyview_fs::OnDisk;
 use anyview_peek::{Body, peek, probe};
 use std::io::Write;
 use support::{Home, pane_budget, rows};
 
-fn zip_at(dir: &std::path::Path, name: &str, entries: &[(&str, Vec<u8>)]) -> FilePath {
+fn zip_at(dir: &std::path::Path, name: &str, entries: &[(&str, Vec<u8>)]) -> Input {
     let path = dir.join(name);
     let mut writer = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
     for (entry, bytes) in entries {
@@ -17,7 +18,7 @@ fn zip_at(dir: &std::path::Path, name: &str, entries: &[(&str, Vec<u8>)]) -> Fil
         writer.write_all(bytes).unwrap();
     }
     writer.finish().unwrap();
-    FilePath::new(path).unwrap()
+    FilePath::new(path).unwrap().on_disk()
 }
 
 fn picture() -> Vec<u8> {

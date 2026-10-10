@@ -1,9 +1,10 @@
 use super::*;
 use anyview_core::FilePath;
+use anyview_fs::OnDisk;
 use std::io::Write;
 
 /// A package of `entries` written into a scratch directory.
-fn package(entries: &[(&str, &[u8])]) -> (tempfile::TempDir, FilePath) {
+fn package(entries: &[(&str, &[u8])]) -> (tempfile::TempDir, Input) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("doc.zip");
     let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
@@ -13,7 +14,7 @@ fn package(entries: &[(&str, &[u8])]) -> (tempfile::TempDir, FilePath) {
         zip.write_all(body).unwrap();
     }
     zip.finish().unwrap();
-    let path = FilePath::new(&path).unwrap();
+    let path = FilePath::new(&path).unwrap().on_disk();
     (dir, path)
 }
 
@@ -139,7 +140,7 @@ fn each_format_is_read_from_its_own_parts() {
 
 #[test]
 fn a_binary_office_format_says_nothing_and_is_not_opened() {
-    let path = FilePath::new("/nonexistent/old.doc").unwrap();
+    let path = FilePath::new("/nonexistent/old.doc").unwrap().on_disk();
     assert_eq!(
         office_look(&path, OfficeFormat::Doc).unwrap(),
         OfficeLook::default()

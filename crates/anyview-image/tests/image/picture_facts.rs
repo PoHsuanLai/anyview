@@ -3,7 +3,7 @@
 
 use crate::support;
 
-use anyview_core::{FactGroup, FactLabel, Facts, Input, Peek};
+use anyview_core::{FactGroup, FactLabel, Facts, Peek};
 use anyview_image::{ExifFacts, RasterPeek, picture_facts};
 use support::{budget, bytes, fixture, sniffed};
 
@@ -133,7 +133,7 @@ fn no_serial_number_is_read_or_listed() {
         let exif = format!("{:?}", ExifFacts::read(&file));
         let panel = format!("{:?}", picture_facts(&file, &sniffed));
         let (src, sniffed) = fixture(name);
-        let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(100)).unwrap();
+        let peeked = RasterPeek::peek(&src, &sniffed, &budget(100)).unwrap();
         let peek = format!("{:?}", RasterPeek::facts(&peeked));
         for serial in SERIALS {
             for (what, text) in [("exif", &exif), ("panel", &panel), ("peek", &peek)] {
@@ -147,7 +147,7 @@ fn no_serial_number_is_read_or_listed() {
 fn a_preview_lists_the_camera_but_never_the_place() {
     for name in ["located.jpg", "located.png"] {
         let (src, sniffed) = fixture(name);
-        let peeked = RasterPeek::peek(&Input::from(&src), &sniffed, &budget(100)).unwrap();
+        let peeked = RasterPeek::peek(&src, &sniffed, &budget(100)).unwrap();
         let facts = RasterPeek::facts(&peeked);
         assert!(
             facts

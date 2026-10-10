@@ -6,12 +6,13 @@ mod player;
 
 use anyview_core::{FilePath, FileStamp, NonEmpty, Resume, Sequence, SequenceOrigin};
 use anyview_image::Rgba8;
+use anyview_peek::StillSource;
 pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
-    Edge, FileAccess, FileLocks, FirstFrameSource, HelperSource, HostRequest, ImagePlugins, Launch,
-    LookFeed, MediaHost, PlatformAbilities, Presentation, ResumeSource, VersionRow, VersionSource,
-    ViewerApp, Work, WorkKind, WorkLane, Workers,
+    Edge, FileAccess, FileLocks, HelperSource, HostRequest, ImagePlugins, Launch, LookFeed,
+    MediaHost, PlatformAbilities, Presentation, ResumeSource, VersionRow, VersionSource, ViewerApp,
+    Work, WorkKind, WorkLane, Workers,
 };
 use dioxus::prelude::*;
 use ds::prelude::Appearance;
@@ -233,9 +234,9 @@ impl ResumeSource for Memory {
 #[derive(Debug, Default)]
 pub struct Pictures(pub Vec<(String, Rgba8)>);
 
-impl FirstFrameSource for Pictures {
-    fn picture(&self, source: &anyview_core::Source) -> Option<Rgba8> {
-        let name = source.path().file_name()?;
+impl StillSource for Pictures {
+    fn still(&self, source: &anyview_core::Input) -> Option<Rgba8> {
+        let name = source.name();
         self.0
             .iter()
             .find(|(wanted, _)| wanted == name.as_str())

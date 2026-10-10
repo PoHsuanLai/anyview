@@ -8,7 +8,7 @@ use anyview_core::SectionIndex;
 #[test]
 fn an_epub_reads_its_metadata_spine_and_cover() {
     let dir = tempfile::tempdir().unwrap();
-    let epub = Epub::open(&support::epub(dir.path())).unwrap();
+    let epub = Epub::open(support::epub(dir.path())).unwrap();
     let meta = epub.meta();
     assert_eq!(meta.title.as_deref(), Some("The Test Book"));
     assert_eq!(meta.author.as_deref(), Some("Ann Author, Bo Writer"));
@@ -32,7 +32,7 @@ fn an_epub_reads_its_metadata_spine_and_cover() {
 #[test]
 fn the_contents_nest_and_lead_to_chapters() {
     let dir = tempfile::tempdir().unwrap();
-    let epub = Epub::open(&support::epub(dir.path())).unwrap();
+    let epub = Epub::open(support::epub(dir.path())).unwrap();
     let got: Vec<(String, u8, Option<u32>)> = epub
         .contents()
         .into_iter()
@@ -49,7 +49,7 @@ fn the_contents_nest_and_lead_to_chapters() {
 #[test]
 fn a_sealed_chapter_inlines_what_the_package_holds_and_nothing_remote() {
     let dir = tempfile::tempdir().unwrap();
-    let epub = Epub::open(&support::epub(dir.path())).unwrap();
+    let epub = Epub::open(support::epub(dir.path())).unwrap();
     let chapter = epub.chapter(SectionIndex(0)).unwrap();
     let data = format!(
         "data:image/png;base64,{}",

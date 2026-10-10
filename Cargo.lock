@@ -312,6 +312,7 @@ version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "anyview-export",
+ "anyview-fs",
  "anyview-image",
  "anyview-media",
  "anyview-pdf",
@@ -346,6 +347,7 @@ name = "anyview-archive"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "anyview-fs",
  "bzip2",
  "ds-core",
  "flate2",
@@ -366,6 +368,7 @@ version = "0.1.0-beta.1"
 dependencies = [
  "anyview-archive",
  "anyview-core",
+ "anyview-fs",
  "ds-core",
  "roxmltree 0.21.1",
  "tempfile",
@@ -382,7 +385,6 @@ dependencies = [
  "jiff",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 2.0.21",
 ]
 
@@ -422,10 +424,19 @@ name = "anyview-font"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "anyview-fs",
  "miniz_oxide 0.8.9",
  "skrifa 0.44.0",
  "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "anyview-fs"
+version = "0.1.0-beta.1"
+dependencies = [
+ "anyview-core",
+ "tempfile",
 ]
 
 [[package]]
@@ -446,6 +457,7 @@ name = "anyview-image"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "anyview-fs",
  "ds-core",
  "icns",
  "image",
@@ -495,6 +507,7 @@ dependencies = [
  "anyview-book",
  "anyview-core",
  "anyview-font",
+ "anyview-fs",
  "anyview-image",
  "anyview-text",
  "dioxus",
@@ -604,6 +617,7 @@ name = "anyview-text"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "anyview-fs",
  "calamine",
  "csv",
  "ds-core",
@@ -635,8 +649,10 @@ dependencies = [
  "anyview-archive",
  "anyview-book",
  "anyview-core",
+ "anyview-fs",
  "anyview-image",
  "anyview-pdf",
+ "anyview-peek",
  "anyview-store",
  "anyview-text",
  "dioxus",

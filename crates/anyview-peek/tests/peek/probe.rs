@@ -2,14 +2,15 @@
 
 use crate::support;
 
-use anyview_core::{BookFormat, ByteLen, FilePath, FormatDetail, FormatKind, OfficeFormat};
+use anyview_core::{BookFormat, ByteLen, FilePath, FormatDetail, FormatKind, Input, OfficeFormat};
+use anyview_fs::OnDisk;
 use anyview_peek::{PeekError, probe};
 use std::io::Write;
 use std::path::Path;
 use support::{Home, path};
 
 /// A zip of `entries` (name, bytes), stored, written as `name` in `dir`.
-fn zip_at(dir: &Path, name: &str, entries: &[(&str, &[u8])]) -> FilePath {
+fn zip_at(dir: &Path, name: &str, entries: &[(&str, &[u8])]) -> Input {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options =
         zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
@@ -19,13 +20,13 @@ fn zip_at(dir: &Path, name: &str, entries: &[(&str, &[u8])]) -> FilePath {
     }
     let file = dir.join(name);
     std::fs::write(&file, writer.finish().unwrap().into_inner()).unwrap();
-    FilePath::new(file).unwrap()
+    FilePath::new(file).unwrap().on_disk()
 }
 
 #[test]
 fn a_file_is_sniffed_from_its_head_and_stamped_as_it_is() {
     let png = path(Home::Image, "quadrants.png");
-    let probed = probe(&FilePath::new(&png).unwrap()).unwrap();
+    let probed = probe(FilePath::new(&png).unwrap().on_disk()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Raster);
     let meta = std::fs::metadata(&png).unwrap();
     assert_eq!(probed.input.stamp().len, ByteLen(meta.len()));
@@ -34,11 +35,11 @@ fn a_file_is_sniffed_from_its_head_and_stamped_as_it_is() {
     let dir = tempfile::tempdir().unwrap();
     let text = dir.path().join("notes.txt");
     std::fs::write(&text, "hello\nworld\n").unwrap();
-    let probed = probe(&FilePath::new(&text).unwrap()).unwrap();
+    let probed = probe(FilePath::new(&text).unwrap().on_disk()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::PlainText);
 
     // A folder is a folder.
-    let probed = probe(&FilePath::new(dir.path()).unwrap()).unwrap();
+    let probed = probe(FilePath::new(dir.path()).unwrap().on_disk()).unwrap();
     assert_eq!(probed.sniffed.kind(), FormatKind::Folder);
 }
 
@@ -69,7 +70,7 @@ fn a_zip_is_told_from_a_document_by_what_is_inside() {
     // A zip that cannot be opened is a plain archive for the peek to report on.
     let broken = dir.path().join("broken.docx");
     std::fs::write(&broken, b"PK\x03\x04 then nothing a zip would hold").unwrap();
-    let broken = FilePath::new(&broken).unwrap();
+    let broken = FilePath::new(&broken).unwrap().on_disk();
     // name, path, kind, detail (None: the row asserts only the kind)
     let cases = [
         (
@@ -109,7 +110,9 @@ fn a_zip_is_told_from_a_document_by_what_is_inside() {
 #[test]
 fn a_missing_path_is_missing_and_an_unreadable_one_is_unreadable() {
     let dir = tempfile::tempdir().unwrap();
-    let absent = FilePath::new(dir.path().join("absent.png")).unwrap();
+    let absent = FilePath::new(dir.path().join("absent.png"))
+        .unwrap()
+        .on_disk();
     assert!(
         matches!(probe(&absent), Err(PeekError::Missing { .. })),
         "{:?}",
@@ -119,7 +122,7 @@ fn a_missing_path_is_missing_and_an_unreadable_one_is_unreadable() {
     std::fs::write(&locked, "secret").unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
-    let got = probe(&FilePath::new(&locked).unwrap());
+    let got = probe(FilePath::new(&locked).unwrap().on_disk());
     // A process that ignores permissions (root) reads it; anyone else is refused.
     if std::fs::File::open(&locked).is_err() {
         assert!(matches!(got, Err(PeekError::Unreadable { .. })), "{got:?}");
