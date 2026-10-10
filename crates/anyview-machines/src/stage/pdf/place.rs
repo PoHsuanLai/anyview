@@ -17,7 +17,7 @@ pub(crate) enum LineDir {
 
 impl PdfStage {
     /// Where the reader is, or is on the way to.
-    pub(crate) fn place(&self) -> Destination {
+    pub fn place(&self) -> Destination {
         match self {
             PdfStage::Reading { view } | PdfStage::Finding { view, .. } => Destination {
                 page: view.page,
