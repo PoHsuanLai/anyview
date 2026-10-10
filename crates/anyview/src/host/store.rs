@@ -2,13 +2,11 @@
 //! has one writer (anyview-store), so every window of the process goes through this one lock.
 
 use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
-use anyview_store::{HistoryCap, SavedAt, StoreError, StoreWriter, Viewed};
+use anyview_store::{HistoryCap, SavedAt, StoreError, StoreWriter};
 use std::path::Path;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Mutex, PoisonError};
 
-/// Seconds since the Unix epoch, as the program's clock reads them. The one place the program
-/// asks the time; a test passes a fixed one.
-pub type Clock = Arc<dyn Fn() -> Viewed + Send + Sync>;
+pub use anyview_store::Clock;
 
 /// The store of recently viewed files and per-file view memory.
 pub struct Store {

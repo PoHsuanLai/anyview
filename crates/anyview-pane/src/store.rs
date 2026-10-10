@@ -3,36 +3,38 @@
 //! (or two panes in two programs) share one history without erasing each other's entries.
 
 use anyview_core::{FilePath, FileStamp, Resume, Source};
-use anyview_store::{HistoryCap, StoreWriter, Viewed};
+use anyview_store::{Clock, HistoryCap, StoreWriter};
 use anyview_ui::{
     Edge, HostRequest, Keeping, Noted, Opened, REMEMBER_EVERY, Remembering, ResumeKeeper,
     ResumeSource,
 };
+use ds::base::time::clock;
 use std::path::PathBuf;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 /// The store at one root, read when a file opens and written by the host's workers.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct PaneStore {
     writer: StoreWriter,
+    /// What each recorded view is stamped with.
+    now: Clock,
 }
 
-impl PaneStore {
-    pub(crate) fn at(root: PathBuf) -> PaneStore {
-        PaneStore {
-            writer: StoreWriter::new(root, HistoryCap::DEFAULT),
-        }
+impl std::fmt::Debug for PaneStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PaneStore")
+            .field("writer", &self.writer)
+            .finish_non_exhaustive()
     }
 }
 
-/// Seconds since the Unix epoch, on the system clock: an edge has no clock of the host's to stamp a
-/// view with. A clock before it reads as the epoch itself.
-fn now() -> Viewed {
-    Viewed(
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |since| since.as_secs()),
-    )
+impl PaneStore {
+    pub(crate) fn at(root: PathBuf, now: Clock) -> PaneStore {
+        PaneStore {
+            writer: StoreWriter::new(root, HistoryCap::DEFAULT),
+            now,
+        }
+    }
 }
 
 impl ResumeSource for PaneStore {
@@ -50,7 +52,7 @@ impl ResumeKeeper for PaneStore {
         if let Err(error) = self.writer.record_view(
             opened.source.path(),
             opened.sniffed.kind(),
-            now(),
+            (self.now)(),
             &Resume::Nothing,
         ) {
             eprintln!("anyview: cannot record the view: {error}");
@@ -70,14 +72,17 @@ impl ResumeKeeper for PaneStore {
 /// What one pane has told the store so far: the file it shows, and the places the viewer's one
 /// remembering policy ([`Remembering`]) has let through. A place is written at most once in
 /// [`REMEMBER_EVERY`], and the latest one held back is written when the file is let go of
-/// ([`Kept::finish`]), so the last place is never lost. The pane has no timer: a place that has to
-/// wait is written by the next one after the interval, or by the finish.
+/// ([`Kept::finish`]), so the last place is never lost. A place that has to wait is written when
+/// its interval ends ([`Kept::due_in`], then [`Kept::wake`]), on the clock of
+/// `ds_core::time::clock`, which the pane's component sleeps on.
 #[derive(Debug)]
 pub(crate) struct Kept {
     open: Option<Source>,
     policy: Remembering,
     /// Zero of the clock the policy is told the time on.
     origin: Instant,
+    /// When the place held back is due, on the policy's clock; none when nothing is held back.
+    due: Option<Duration>,
 }
 
 impl Default for Kept {
@@ -85,7 +90,8 @@ impl Default for Kept {
         Kept {
             open: None,
             policy: Remembering::new(REMEMBER_EVERY),
-            origin: Instant::now(),
+            origin: clock::now(),
+            due: None,
         }
     }
 }
@@ -94,8 +100,26 @@ impl Kept {
     /// The pane is done with its file (another opened, or the pane is going away): write the place
     /// held back, on the edge's workers.
     pub(crate) fn finish(&mut self, edge: &Edge) {
+        self.due = None;
         if let Some(source) = self.open.take()
             && let Some((source, resume)) = self.policy.release(source.path())
+        {
+            edge.keep(Keeping::Place { source, resume });
+        }
+    }
+
+    /// How long until the place held back is due, if one is held.
+    pub(crate) fn due_in(&self) -> Option<Duration> {
+        self.due
+            .map(|due| due.saturating_sub(clock::since(self.origin)))
+    }
+
+    /// The interval of the place held back has ended: write it, on the edge's workers.
+    pub(crate) fn wake(&mut self, edge: &Edge) {
+        self.due = None;
+        if let Some(source) = &self.open
+            && let Some((source, resume)) =
+                self.policy.take(source.path(), clock::since(self.origin))
         {
             edge.keep(Keeping::Place { source, resume });
         }
@@ -116,12 +140,19 @@ impl Kept {
                 false
             }
             HostRequest::Remember(resume) => {
-                if let Some(source) = &self.open
-                    && let Noted::Write(source, resume) =
-                        self.policy
-                            .note(source.clone(), resume.clone(), self.origin.elapsed())
-                {
-                    edge.keep(Keeping::Place { source, resume });
+                if let Some(source) = &self.open {
+                    match self.policy.note(
+                        source.clone(),
+                        resume.clone(),
+                        clock::since(self.origin),
+                    ) {
+                        Noted::Write(source, resume) => {
+                            self.due = None;
+                            edge.keep(Keeping::Place { source, resume });
+                        }
+                        Noted::Wait { due } => self.due = Some(due),
+                        Noted::Unchanged | Noted::Replaced => {}
+                    }
                 }
                 true
             }

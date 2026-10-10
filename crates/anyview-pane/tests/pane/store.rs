@@ -1,12 +1,14 @@
 //! A pane over the viewer's store keeps the views and places itself, on the host's workers; a pane
 //! without one hands every place to its host.
 
-use crate::support::{Host, hosted_over, text_file};
+use crate::support::{Host, VIEWED_AT, hosted_over, text_file};
 use anyview_core::Resume;
 use anyview_store::{HistoryCap, StoreWriter, read_history};
+use anyview_ui::REMEMBER_EVERY;
 use ds::prelude::ShortcutKey;
 use ds_harness::{Driver, Input, Viewport};
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn in_a_corner() -> Viewport {
     Viewport {
@@ -37,9 +39,13 @@ fn a_store_backed_pane_records_the_view_and_keeps_the_place_without_asking_the_h
     let recent: Vec<_> = history
         .entries()
         .iter()
-        .map(|entry| entry.path.as_path())
+        .map(|entry| (entry.path.as_path(), entry.viewed))
         .collect();
-    assert_eq!(recent, [file.as_path()], "the view is in the history");
+    assert_eq!(
+        recent,
+        [(file.as_path(), VIEWED_AT)],
+        "the view is in the history, stamped with the edge's clock"
+    );
 
     let source = host.source();
     let kept = StoreWriter::new(root.path(), HistoryCap::DEFAULT)
@@ -73,12 +79,39 @@ fn many_settled_gestures_make_few_writes() {
         host.settle();
     }
     // Each place differs from the last, so without coalescing every page would be its own write.
-    // The policy runs on real time while the harness's is virtual, so the bound only claims fewer
-    // writes than pages: a slow machine may let an interval or two pass.
+    // Each settle lets 300 ms of the harness's clock pass, so the writes are one in every interval
+    // (or two settles) at most, fewer than the pages.
     let writes = host.workers.kept() - before;
     assert!(
         writes < PAGES,
         "{PAGES} pages made {writes} writes: settled gestures inside one interval share a write"
+    );
+}
+
+#[test]
+fn a_place_held_back_is_written_when_its_interval_ends() {
+    let files = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let mut host = hosted_over(
+        vec![(long_text(&files), None)],
+        in_a_corner(),
+        Some(root.path()),
+    );
+    // The first place is written at once; the pages after it, a moment apart, are inside its
+    // interval and held back.
+    host.harness.send(Input::key(ShortcutKey::PageDown));
+    host.settle();
+    for _ in 0..2 {
+        host.harness.send(Input::key(ShortcutKey::PageDown));
+        host.harness.advance(Duration::from_millis(20));
+    }
+    let before = host.workers.kept();
+
+    // No further input: the interval ends by itself and the held place is written.
+    host.harness.advance(REMEMBER_EVERY * 2);
+    assert!(
+        host.workers.kept() > before,
+        "the held place is written when its interval ends"
     );
 }
 
