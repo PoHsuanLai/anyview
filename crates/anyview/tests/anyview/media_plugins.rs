@@ -39,7 +39,7 @@ fn rig(plugins: Arc<MediaPlugins>) -> Rig {
         || std::future::ready(FakeMediaSession::new()),
         None,
         AudioDriver::Null,
-        Arc::clone(&plugins),
+        Arc::<MediaPlugins>::clone(&plugins),
     );
     let workforce = Arc::new(
         Workforce::start(

@@ -185,7 +185,7 @@ fn show(
         move || async move { NowPlaying::register(&for_bus).await },
         Some(app.clone()),
         audio,
-        Arc::clone(&plugins),
+        Arc::<MediaPlugins>::clone(&plugins),
     );
     let media = Media {
         hub: hub.clone(),
