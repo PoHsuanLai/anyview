@@ -19,8 +19,8 @@ use anyview_ui::{
 use dioxus::prelude::*;
 use ds::prelude::WindowHost;
 use ds_blitz::{
-    AppEnded, AppHandle, Decorations, Extent, ScreenArea, WindowSize, WindowSizer, WindowSpec,
-    clipboard, use_window_sizer,
+    AppEnded, AppHandle, Decorations, Extent, ScreenArea, WindowHandle, WindowSize, WindowSizer,
+    WindowSpec, clipboard, use_window_handle, use_window_sizer,
 };
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
@@ -134,6 +134,35 @@ fn resume_of(seed: &Seed) -> Arc<dyn ResumeSource> {
     }
 }
 
+/// How the app closes a window of its own doing: through the window's handle, which the close
+/// request (the frame's button, the compositor) never puts to the viewer's veto, and so does not
+/// ask again about changes the person has just answered for. Where there is no handle (a harness)
+/// it is the host's close.
+#[derive(Clone)]
+pub(super) struct Closer {
+    handle: Option<WindowHandle>,
+    host: Option<WindowHost>,
+}
+
+impl Closer {
+    /// The closer of the window the calling component renders in.
+    pub(super) fn of_this_window(host: Option<WindowHost>) -> Self {
+        Closer {
+            handle: use_window_handle(),
+            host,
+        }
+    }
+
+    /// Close the window.
+    pub(super) fn close(&self) {
+        if let Some(handle) = &self.handle {
+            handle.close();
+        } else if let Some(host) = &self.host {
+            host.host().close();
+        }
+    }
+}
+
 /// One viewer window with its host: the requests it makes are routed and carried out.
 #[component]
 fn Window(seed: Seed) -> Element {
@@ -144,6 +173,7 @@ fn Window(seed: Seed) -> Element {
     let looks = seed.factory.appearances.feed();
     use_context_provider(|| looks);
     let window = use_hook(try_consume_context::<WindowHost>);
+    let closer = Closer::of_this_window(window.clone());
     let app = ds_blitz::use_app_handle();
     let sizer = use_window_sizer();
     let fit = use_hook(|| fit_of(seed.presentation, sizer, seed.factory.window_screen));
@@ -155,6 +185,7 @@ fn Window(seed: Seed) -> Element {
     use_future(move || {
         let taken = wiring.requests.borrow_mut().take();
         let (window, shown, hosting) = (window.clone(), Rc::clone(&shown), Arc::clone(&hosting));
+        let closer = closer.clone();
         let watching = Rc::clone(&watching);
         let (seed, app) = (seed.clone(), app.clone());
         let fit = Rc::clone(&fit);
@@ -166,11 +197,7 @@ fn Window(seed: Seed) -> Element {
                 let (next, carry) = route(shown.take(), request);
                 *shown.borrow_mut() = next;
                 match carry {
-                    Carry::Window(WindowTask::Close) => {
-                        if let Some(window) = &window {
-                            window.host().close();
-                        }
-                    }
+                    Carry::Window(WindowTask::Close) => closer.close(),
                     Carry::Window(WindowTask::CopyText(text)) => {
                         match clipboard::write_text(&text) {
                             Ok(()) => edge.notify(Notice::say("Path copied")),
@@ -226,14 +253,12 @@ fn Window(seed: Seed) -> Element {
                             presentation,
                             &edge,
                         );
-                        if let Some(window) = &window {
-                            window.host().close();
-                        }
+                        closer.close();
                     }
                     Carry::Desktop(task) => {
                         let (doing, subject) = (Doing::of(&task), subject_of(&task));
                         let (done, shown) = (hosting.carry_out(task), Rc::clone(&shown));
-                        let (watching, window) = (Rc::clone(&watching), window.clone());
+                        let (watching, closer) = (Rc::clone(&watching), closer.clone());
                         let (edge, again) = (edge.clone(), again.clone());
                         spawn(async move {
                             let note = TaskNote { doing, subject };
@@ -241,7 +266,7 @@ fn Window(seed: Seed) -> Element {
                                 done.await,
                                 &shown,
                                 &watching,
-                                window.as_ref(),
+                                &closer,
                                 (&edge, &again),
                                 &note,
                             );
@@ -343,7 +368,7 @@ fn ended(
     outcome: Result<Outcome, tokio::task::JoinError>,
     shown: &Rc<RefCell<Shown>>,
     watching: &Rc<Option<WindowWatch>>,
-    window: Option<&WindowHost>,
+    closer: &Closer,
     (edge, again): (&Edge, &UnboundedSender<HostRequest>),
     note: &TaskNote,
 ) {
@@ -396,10 +421,8 @@ fn ended(
         edge.helped(*helper, end.clone());
     }
     // The file plays with no window now: this window's part is done.
-    if outcome == Outcome::Handed
-        && let Some(window) = window
-    {
-        window.host().close();
+    if outcome == Outcome::Handed {
+        closer.close();
     }
     tell(edge, note.doing, note.subject.as_ref(), &outcome);
 }

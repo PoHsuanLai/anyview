@@ -542,6 +542,13 @@ fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
         "Close asks"
     );
     assert!(!outs.contains(&ViewerOut::CloseWindow));
+    // The window's own close button asks as ⌘W does, once.
+    let (requested, outs) = step(unsaved.clone(), ViewerIn::CloseRequested);
+    assert_eq!(requested.sheet, closing.sheet, "a close request asks");
+    assert!(!outs.contains(&ViewerOut::CloseWindow));
+    let (again, outs) = step(requested.clone(), ViewerIn::CloseRequested);
+    assert_eq!(again, requested, "a second request leaves the question up");
+    assert!(outs.is_empty());
     let (done, _) = step(
         unsaved,
         ViewerIn::Run(Command::Stage(crate::StageCommand::Done)),
@@ -552,6 +559,11 @@ fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
     assert!(
         outs.contains(&ViewerOut::CloseWindow),
         "a saved text closes at once"
+    );
+    let (_, outs) = step(saved.clone(), ViewerIn::CloseRequested);
+    assert!(
+        outs.contains(&ViewerOut::CloseWindow),
+        "so does a close request with nothing to save"
     );
     let (finished, outs) = step(
         saved,

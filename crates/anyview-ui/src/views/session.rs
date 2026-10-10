@@ -267,13 +267,19 @@ fn changes_file(command: StageCommand) -> bool {
 
 /// The capsule's `slots` without the buttons for a file action the file does not take (`files` is
 /// what the palette and the menu list), and without the dividers that leave: none first or last,
-/// and never two together.
+/// and never two together. Each button that has a key carries it, so its tooltip shows it (Zoom
+/// to Fit, ⌘9) whatever family built the slot.
 pub(super) fn offered_slots(
     slots: Vec<RankedSlot<Command>>,
     files: &[FileAction],
 ) -> Vec<RankedSlot<Command>> {
     let mut kept: Vec<RankedSlot<Command>> = Vec::with_capacity(slots.len());
-    for ranked in slots {
+    for mut ranked in slots {
+        if let CapsuleSlot::Item(item) = &mut ranked.slot
+            && item.shortcut.is_none()
+        {
+            item.shortcut = item.value.shortcut();
+        }
         let taken = match &ranked.slot {
             CapsuleSlot::Item(item) => match item.value {
                 Command::File(action) => files.contains(&action),

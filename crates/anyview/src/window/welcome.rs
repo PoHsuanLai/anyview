@@ -2,7 +2,7 @@
 //! requests (the file dialog, and opening what is chosen or dropped).
 
 use super::opening::Opening;
-use super::root::open_in_window;
+use super::root::{Closer, open_in_window};
 use super::seed::{Factory, Seed};
 use crate::host::{Doing, Outcome, Task, tell};
 use anyview_core::FilePath;
@@ -64,12 +64,12 @@ fn Welcome(seed: WelcomeSeed) -> Element {
     let provided = edge.clone();
     use_context_provider(|| provided);
     use_context_provider(|| seed.factory.appearances.feed());
-    let window = use_hook(try_consume_context::<WindowHost>);
+    let closer = Closer::of_this_window(use_hook(try_consume_context::<WindowHost>));
     let app = ds_blitz::use_app_handle();
     use_future(move || {
         let requests = taken.borrow_mut().take();
         let (edge, seed) = (edge.clone(), seed.clone());
-        let (window, app) = (window.clone(), app.clone());
+        let (closer, app) = (closer.clone(), app.clone());
         async move {
             let Some(mut requests) = requests else { return };
             while let Some(request) = requests.next().await {
@@ -78,15 +78,11 @@ fn Welcome(seed: WelcomeSeed) -> Element {
                     let edge = edge.clone();
                     spawn(async move { picked(done.await, &edge) });
                 } else if let HostRequest::OpenFiles(files) = request {
-                    if open_each(&seed.factory, app.as_ref(), files)
-                        && let Some(window) = &window
-                    {
-                        window.host().close();
+                    if open_each(&seed.factory, app.as_ref(), files) {
+                        closer.close();
                     }
-                } else if let HostRequest::CloseWindow = request
-                    && let Some(window) = &window
-                {
-                    window.host().close();
+                } else if let HostRequest::CloseWindow = request {
+                    closer.close();
                 }
                 // The welcome window has no file for any other request to be about.
             }

@@ -12,6 +12,11 @@ versioning, with pre-releases while the program is in beta.
 - Get Info is ⌘I, as in Preview; the viewer never styles text, so it gives Italic's chord up. The next and previous sheet of a workbook are ⌘Page Down and ⌘Page Up, so ⌘[ and ⌘] only turn a picture.
 - The command palette, Get Info, Copy Path, Duplicate, Move to Trash, Export, the page edits and the rest show the key the system gives them, in the palette and in the menus.
 
+### Closing
+
+- The window's close button, and the close the desktop asks for, now ask to save as Command W does when a text or a picture has changes you have not saved: Save, Don't Save or Cancel. A window with nothing to save closes at once.
+- The buttons of the bottom bar show their key in the tooltip, after the name of the button.
+
 ### Text
 
 - You can edit plain text, code and Markdown files. Press Return, or choose Edit from the command palette or the bottom bar, to type in the file where you are reading it; Done finishes. The usual things work: the caret and selection, arrows with Option or Control for words and Command for the line, Home and End, Select All, Cut, Copy and Paste, Undo and Redo, and typing with an input method (Chinese, Japanese, Korean). Typing a word, a run of Backspaces and a paste each undo as one step. A Markdown file is edited in its source.

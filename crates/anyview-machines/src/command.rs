@@ -202,6 +202,29 @@ impl StageCommand {
 }
 
 impl Command {
+    /// The keys that do the command, which the palette draws beside it and a capsule button's
+    /// tooltip after its name; `None` for a command with no key.
+    #[must_use]
+    pub fn shortcut(&self) -> Option<Shortcut> {
+        match self {
+            Command::File(action) => anyview_core::shortcut(*action),
+            Command::Stage(command) => command.shortcut(),
+            Command::OpenFile => Act::OpenFile.shortcut(),
+            Command::UseTool(tool) => match tool {
+                crate::Tool::Crop => Some(Shortcut(vec![ShortcutKey::Char('c')])),
+                crate::Tool::Select | crate::Tool::Pan => {
+                    Some(Shortcut(vec![ShortcutKey::Char('h')]))
+                }
+            },
+            Command::Picture(command) => match command {
+                PictureCommand::Save => Act::Save.shortcut(),
+                PictureCommand::AdjustSize => None,
+            },
+            Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
+            Command::FindHit(_) | Command::ShowAllHits | Command::Install(_) => None,
+        }
+    }
+
     /// The words the palette lists the command by.
     pub fn label(&self) -> String {
         match self {
