@@ -4,7 +4,7 @@
 use crate::support;
 
 use anyview_core::FilePath;
-use anyview_ui::HostRequest;
+use anyview_ui::{HostRequest, LoadFailure, NotOpened};
 use ds::prelude::Appearance;
 use ds_harness::{Driver, Input, Query};
 use std::io::Write;
@@ -53,6 +53,7 @@ fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
     big.flush().unwrap();
     drop(big);
     let path = std::fs::canonicalize(path).unwrap();
+    let file = FilePath::new(&path).unwrap();
     let (mut harness, requests, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
     for _ in 0..20 {
         settle(&mut harness);
@@ -69,6 +70,21 @@ fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
     assert!(!said.contains("Unsupported"), "{said:?}");
     assert!(!said.contains("Open With"), "{said:?}");
     assert!(said.contains("Show in Folder"), "{said:?}");
+    let told: Vec<HostRequest> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|request| matches!(request, HostRequest::NotOpened(_)))
+        .cloned()
+        .collect();
+    assert_eq!(
+        told,
+        [HostRequest::NotOpened(NotOpened {
+            file,
+            reason: LoadFailure::TooLarge
+        })],
+        "the host hears of the failed open once, with why"
+    );
     let reveal = harness
         .centre(".viewer-failed .ds-button:first-child")
         .expect("Show in Folder");

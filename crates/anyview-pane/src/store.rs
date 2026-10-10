@@ -156,7 +156,8 @@ impl Kept {
                 }
                 true
             }
-            HostRequest::Run(_)
+            HostRequest::NotOpened(_)
+            | HostRequest::Run(_)
             | HostRequest::PickFile
             | HostRequest::CloseWindow
             | HostRequest::Export(_)

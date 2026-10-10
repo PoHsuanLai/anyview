@@ -2,6 +2,7 @@
 //! window's own chrome, and several share one pool.
 
 use crate::support::{hosted, image_file, text_file, walking};
+use anyview_pane::{FilePath, LoadFailure, NotOpened, PaneRequest};
 use ds_harness::{Query, Viewport};
 
 /// What a window draws around its file and a pane must not.
@@ -71,4 +72,27 @@ fn two_panes_share_one_pool_and_each_shows_its_own_file() {
         "both panes' work went to the one pool: {}",
         host.workers.submitted()
     );
+}
+
+#[test]
+fn a_file_that_cannot_be_opened_is_told_to_the_host_once_and_never_as_opened() {
+    let dir = tempfile::tempdir().unwrap();
+    // A picture by its name with no bytes in it: the one failure that needs no decoder.
+    let empty = dir.path().join("empty.png");
+    std::fs::write(&empty, b"").unwrap();
+    let empty = std::fs::canonicalize(empty).unwrap();
+    let viewport = Viewport {
+        width: 480,
+        height: 320,
+        scale_percent: 100,
+    };
+    let mut host = hosted(vec![(empty.clone(), None)], viewport);
+    host.settle();
+    let not_opened = PaneRequest::NotOpened(NotOpened {
+        file: FilePath::new(&empty).unwrap(),
+        reason: LoadFailure::Empty,
+    });
+    assert_eq!(host.times(&not_opened), 1, "once, not again on a redraw");
+    assert!(host.shown().is_empty(), "no file was announced as opened");
+    assert_eq!(host.harness.count(".viewer-failed"), 1, "the card says so");
 }

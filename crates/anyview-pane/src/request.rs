@@ -3,8 +3,8 @@
 
 use anyview_core::{FileAction, FilePath, Helper, Resume};
 use anyview_ui::{
-    EditRequest, ExportDraft, HostRequest, NaturalSize, Opened, Presentation, Rewind, SizeBasis,
-    TextSave, TypedText, VersionKey,
+    EditRequest, ExportDraft, HostRequest, NaturalSize, NotOpened, Opened, Presentation, Rewind,
+    SizeBasis, TextSave, TypedText, VersionKey,
 };
 
 /// A change to the file, or an action on it, that the pane leaves to its host: the pane has no
@@ -55,6 +55,13 @@ pub enum PaneRequest {
     OpenElsewhere(Vec<FilePath>),
     /// The pane now shows this file; it is the file the requests below that name none refer to.
     Opened(Opened),
+    /// The file the pane was given could not be opened, and the pane's own card says why: the
+    /// host may offer to open it another way, which is the host's to draw, as the pane has no
+    /// Open With. Sent once for each open that fails (an unreadable, damaged, locked, empty,
+    /// over-large or unsupported file), never again for a redraw. A file that opens as facts only
+    /// did open and is a [`PaneRequest::Opened`]. The next `Opened` supersedes it, so a reload
+    /// of the same file that succeeds shows the file; one that fails again sends it again.
+    NotOpened(NotOpened),
     /// Keep where the person is in the open file, for next time. Sent whenever a gesture
     /// settles, so the host may coalesce them. Only an edge with no store sends it: over
     /// [`PaneEdge::with_store`](crate::PaneEdge::with_store) the pane keeps the place itself.
@@ -93,6 +100,7 @@ impl PaneRequest {
             HostRequest::PickFile => Some(PaneRequest::OpenElsewhere(Vec::new())),
             HostRequest::OpenFiles(files) => Some(PaneRequest::OpenElsewhere(files)),
             HostRequest::Opened(opened) => Some(PaneRequest::Opened(opened)),
+            HostRequest::NotOpened(not_opened) => Some(PaneRequest::NotOpened(not_opened)),
             HostRequest::Remember(resume) => Some(PaneRequest::Remember(resume)),
             HostRequest::Watch(file) => Some(PaneRequest::Watch(file)),
             HostRequest::Unwatch => Some(PaneRequest::Unwatch),

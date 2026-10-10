@@ -57,10 +57,10 @@ pub use families::{
 pub use io::{
     Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,
     HostRequest, ImagePlugins, Job, Keeping, MediaHost, MediaLine, MediaNotice, MediaPlayback,
-    MediaStart, MediaStarted, MediaSupport, MediaWake, NaturalSize, Need, Notice, OpenError,
-    OpenPort, Opened, PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeKeeper,
-    ResumeSource, SaveEnd, Services, SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work,
-    WorkKind, WorkLane, Workers, folder_sequence,
+    MediaStart, MediaStarted, MediaSupport, MediaWake, NaturalSize, Need, NotOpened, Notice,
+    OpenError, OpenPort, Opened, PlatformAbilities, PluginPicture, Preloaded, Readable, Reply,
+    ResumeKeeper, ResumeSource, SaveEnd, Services, SizeBasis, SlotPixels, Stop, TextSave,
+    VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use look::{Look, LookFeed};
 pub use views::{

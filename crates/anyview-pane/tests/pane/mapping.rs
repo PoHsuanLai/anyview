@@ -7,8 +7,8 @@ use anyview_core::{
     sniff,
 };
 use anyview_pane::{
-    EditRequest, ExportDraft, FileAccess, FileRequest, NaturalSize, Opened, PaneRequest, Rewind,
-    TextSave, TypedText, VersionKey,
+    EditRequest, ExportDraft, FileAccess, FileRequest, LoadFailure, NaturalSize, NotOpened, Opened,
+    PaneRequest, Rewind, TextSave, TypedText, VersionKey,
 };
 use anyview_ui::{HostRequest, Presentation, SizeBasis, family_of};
 use std::collections::BTreeSet;
@@ -64,10 +64,18 @@ fn variant(request: &HostRequest) -> usize {
         HostRequest::OpenUri(_) => 18,
         HostRequest::Provide(_) => 19,
         HostRequest::SizeWindow(_) => 20,
+        HostRequest::NotOpened(_) => 21,
     }
 }
 
-const VARIANTS: usize = 21;
+const VARIANTS: usize = 22;
+
+fn not_opened() -> NotOpened {
+    NotOpened {
+        file: path("/p/a.png"),
+        reason: LoadFailure::Damaged,
+    }
+}
 
 fn size() -> NaturalSize {
     NaturalSize::Points(PixelSize {
@@ -115,6 +123,10 @@ fn every_request_of_the_window_is_placed_as_the_table_says() {
         (
             HostRequest::Opened(shown.clone()),
             Some(PaneRequest::Opened(shown)),
+        ),
+        (
+            HostRequest::NotOpened(not_opened()),
+            Some(PaneRequest::NotOpened(not_opened())),
         ),
         (
             HostRequest::Remember(Resume::Nothing),

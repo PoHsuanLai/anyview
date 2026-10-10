@@ -195,7 +195,8 @@ pub fn notice_of_declined(why: Declined) -> Option<Notice> {
         | Declined::Edit
         | Declined::Busy
         | Declined::Queued
-        | Declined::NotPrintable => None,
+        | Declined::NotPrintable
+        | Declined::OpenFailed => None,
     }
 }
 

@@ -157,6 +157,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
             let carry = Carry::Desktop(Task::RecordView(probed.clone()));
             (shown.showing(probed), carry)
         }
+        HostRequest::NotOpened(_) => declined(shown, Declined::OpenFailed),
         HostRequest::CloseWindow => (shown, Carry::Window(WindowTask::Close)),
         HostRequest::PickFile => (shown, Carry::Desktop(Task::PickFile)),
         HostRequest::Reveal(file) => (shown, Carry::Desktop(Task::Reveal(file))),

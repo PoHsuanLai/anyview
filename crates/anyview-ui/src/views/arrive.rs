@@ -6,7 +6,7 @@ use super::editing;
 use super::session::Probe;
 use crate::families::{FoundHits, Held};
 use crate::io::NaturalSize;
-use crate::io::{Done, HostRequest, Job, Notice, SizeBasis};
+use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
 use crate::{
     EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, PictureEditIn,
     PictureEditing, Sheet, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
@@ -258,13 +258,12 @@ fn send(c: &Carry, input: ViewerIn) {
 /// with no natural size does (the default window), rather than leaving the last file's size.
 fn failed(c: &Carry, ticket: Ticket, error: &crate::OpenError) {
     size_window(c, ticket, SizeBasis::Default);
-    send(
-        c,
-        ViewerIn::Load(LoadIn::Failed {
-            ticket,
-            reason: error.failure(),
-        }),
-    );
+    let reason = error.failure();
+    if let Some(file) = c.shelf.wanted.peek().clone() {
+        c.edge
+            .request(HostRequest::NotOpened(NotOpened { file, reason }));
+    }
+    send(c, ViewerIn::Load(LoadIn::Failed { ticket, reason }));
 }
 
 fn probed(c: &Carry, ticket: Ticket, result: Result<crate::Opened, crate::OpenError>) {
