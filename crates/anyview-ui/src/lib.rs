@@ -65,7 +65,7 @@ pub use load::{
 pub use look::{Look, LookFeed};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{
-    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteRow, PaletteScope,
+    HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
 };
 pub use panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab, PanelTabs};
 pub use presentation::{

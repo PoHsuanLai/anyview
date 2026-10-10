@@ -1,7 +1,7 @@
 //! The palette's transitions.
 
 use super::model::{
-    HitList, Palette, PaletteIn, PaletteMove, PaletteOut, PaletteParams, PaletteRow, PaletteScope,
+    HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
 };
 use crate::command::{Command, StageCommand};
 use crate::typed::TypedText;
@@ -44,7 +44,7 @@ fn closed(input: PaletteIn) -> Step {
         PaletteIn::Open => {
             let state = Palette::Open {
                 query: TypedText::EMPTY,
-                selection: PaletteRow(0),
+                selection: PaletteIndex(0),
                 scope: PaletteScope::Commands,
             };
             (state, vec![PaletteOut::Opened])
@@ -52,7 +52,7 @@ fn closed(input: PaletteIn) -> Step {
         PaletteIn::OpenFind(query) => {
             let state = Palette::Open {
                 query,
-                selection: PaletteRow(0),
+                selection: PaletteIndex(0),
                 scope: PaletteScope::Find(HitList::Brief),
             };
             (state, vec![PaletteOut::Opened])
@@ -69,7 +69,7 @@ fn closed(input: PaletteIn) -> Step {
 
 fn open(
     query: TypedText,
-    selection: PaletteRow,
+    selection: PaletteIndex,
     scope: PaletteScope,
     input: PaletteIn,
     params: &PaletteParams,
@@ -88,7 +88,7 @@ fn open(
             };
             let state = Palette::Open {
                 query: text,
-                selection: PaletteRow(0),
+                selection: PaletteIndex(0),
                 scope,
             };
             (state, vec![])
@@ -108,7 +108,7 @@ fn open(
             PaletteScope::Commands => (
                 Palette::Open {
                     query,
-                    selection: PaletteRow(0),
+                    selection: PaletteIndex(0),
                     scope: PaletteScope::Find(HitList::Brief),
                 },
                 vec![],
@@ -125,7 +125,7 @@ fn open(
 /// `row`'s command, with the palette closed after it; nothing when there is no such row. Two rows
 /// keep the palette open: "Show All", which lists every hit, and "Find", which makes the text a
 /// find.
-fn run(this: Palette, row: PaletteRow, params: &PaletteParams) -> Step {
+fn run(this: Palette, row: PaletteIndex, params: &PaletteParams) -> Step {
     let Palette::Open {
         query,
         selection,
@@ -147,7 +147,7 @@ fn run(this: Palette, row: PaletteRow, params: &PaletteParams) -> Step {
             PaletteScope::Commands => (
                 Palette::Open {
                     query,
-                    selection: PaletteRow(0),
+                    selection: PaletteIndex(0),
                     scope: PaletteScope::Find(HitList::Brief),
                 },
                 vec![],
@@ -163,7 +163,7 @@ fn run(this: Palette, row: PaletteRow, params: &PaletteParams) -> Step {
 }
 
 /// The highlight after `movement` over `rows` rows, clamped to the first and last.
-fn moved(selection: PaletteRow, movement: PaletteMove, rows: usize) -> PaletteRow {
+fn moved(selection: PaletteIndex, movement: PaletteMove, rows: usize) -> PaletteIndex {
     let last = rows.saturating_sub(1);
     let target = match movement {
         PaletteMove::Up => selection.0.saturating_sub(1),
@@ -171,5 +171,5 @@ fn moved(selection: PaletteRow, movement: PaletteMove, rows: usize) -> PaletteRo
         PaletteMove::First => 0,
         PaletteMove::Last => last,
     };
-    PaletteRow(target.min(last))
+    PaletteIndex(target.min(last))
 }

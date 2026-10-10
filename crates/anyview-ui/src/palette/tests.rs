@@ -15,7 +15,7 @@ const ROWS: &[Command] = &[EXPORT, ROTATE, FIND];
 const fn open(query: &'static str, row: usize) -> Palette {
     Palette::Open {
         query: TypedText::from_static(query),
-        selection: PaletteRow(row),
+        selection: PaletteIndex(row),
         scope: PaletteScope::Commands,
     }
 }
@@ -23,7 +23,7 @@ const fn open(query: &'static str, row: usize) -> Palette {
 const fn finding(query: &'static str, row: usize, list: HitList) -> Palette {
     Palette::Open {
         query: TypedText::from_static(query),
-        selection: PaletteRow(row),
+        selection: PaletteIndex(row),
         scope: PaletteScope::Find(list),
     }
 }
@@ -138,7 +138,7 @@ const CASES: &[Case] = &[
         "a click runs the row it landed on",
         ROWS,
         open("", 0),
-        PaletteIn::Pick(PaletteRow(1)),
+        PaletteIn::Pick(PaletteIndex(1)),
         Palette::Closed,
         &[PaletteOut::Run(ROTATE), PaletteOut::Closed],
     ),
@@ -146,7 +146,7 @@ const CASES: &[Case] = &[
         "the find row makes what is typed a find and stays open",
         ROWS,
         open("fox", 2),
-        PaletteIn::Pick(PaletteRow(2)),
+        PaletteIn::Pick(PaletteIndex(2)),
         finding("fox", 0, HitList::Brief),
         &[],
     ),
@@ -197,7 +197,7 @@ const CASES: &[Case] = &[
         "a click past the rows is nothing",
         ROWS,
         open("", 0),
-        PaletteIn::Pick(PaletteRow(9)),
+        PaletteIn::Pick(PaletteIndex(9)),
         open("", 0),
         &[],
     ),
