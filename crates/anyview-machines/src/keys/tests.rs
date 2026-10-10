@@ -2,7 +2,6 @@ use super::*;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::context::{ContextIn, ContextMenu, Spot};
 use crate::edits::Rewind;
-use crate::io::{DesktopService, PlatformAbilities};
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteScope};
 use crate::panel::{Panel, PanelIn, PanelTab};
@@ -12,6 +11,7 @@ use crate::stage::{
     StageIn, StageParams, TextStage, ZoomDir,
 };
 use crate::typed::TypedText;
+use crate::{DesktopService, PlatformAbilities};
 use anyview_core::{DocPoint, DocUnit, PageIndex, Permille};
 use ds_core::vocab::ShortcutKey::{
     Char, Down, Enter, Escape, Left, PageDown, Right, Shift, Space, Tab, Up,

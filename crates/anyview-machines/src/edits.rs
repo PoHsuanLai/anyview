@@ -58,3 +58,12 @@ pub enum EditCaution {
     /// A signed document loses its signature.
     Signed,
 }
+
+/// How the host's save of the edited text ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveEnd {
+    /// The text is in the file, and the original is kept.
+    Written,
+    /// Nothing was written and the file is as it was.
+    Refused,
+}

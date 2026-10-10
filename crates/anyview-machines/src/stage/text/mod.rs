@@ -13,4 +13,4 @@ pub use model::{
     TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
 
-pub(crate) use wrap::WrapChoices;
+pub use wrap::WrapChoices;

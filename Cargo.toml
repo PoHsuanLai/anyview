@@ -9,6 +9,7 @@ members = [
   "crates/anyview-font",
   "crates/anyview-fs",
   "crates/anyview-image",
+  "crates/anyview-machines",
   "crates/anyview-media",
   "crates/anyview-platform",
   "crates/anyview-plugin",
@@ -44,6 +45,8 @@ anyview-export = { path = "crates/anyview-export" }
 anyview-font = { path = "crates/anyview-font" }
 anyview-fs = { path = "crates/anyview-fs" }
 anyview-image = { path = "crates/anyview-image" }
+# The viewer's pure state machines: no Dioxus and no ds, so a host that is not the window can drive them.
+anyview-machines = { path = "crates/anyview-machines" }
 anyview-media = { path = "crates/anyview-media", default-features = false }
 # No default features: the viewer binary asks for the Linux desktop's services through its own
 # `quire-desktop` feature, and a crate that needs only the portable half (plugin discovery) does not

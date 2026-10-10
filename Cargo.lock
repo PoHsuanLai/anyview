@@ -475,6 +475,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-machines"
+version = "0.1.0-beta.1"
+dependencies = [
+ "anyview-core",
+ "chordkit",
+ "ds-core",
+]
+
+[[package]]
 name = "anyview-media"
 version = "0.1.0-beta.1"
 dependencies = [
@@ -654,6 +663,7 @@ dependencies = [
  "anyview-core",
  "anyview-fs",
  "anyview-image",
+ "anyview-machines",
  "anyview-pdf",
  "anyview-peek",
  "anyview-store",

@@ -7,7 +7,7 @@ use anyview_core::FormatKind;
 /// The wrapping the person last chose for each kind of text. A kind never chosen for wraps as it
 /// reads best: prose and Markdown wrap, code runs on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) struct WrapChoices {
+pub struct WrapChoices {
     plain: Option<Wrap>,
     markdown: Option<Wrap>,
     code: Option<Wrap>,
@@ -15,7 +15,7 @@ pub(crate) struct WrapChoices {
 
 impl WrapChoices {
     /// How a file of `kind` starts.
-    pub(crate) fn of(self, kind: FormatKind) -> Wrap {
+    pub fn of(self, kind: FormatKind) -> Wrap {
         match kind {
             FormatKind::PlainText => self.plain.unwrap_or(Wrap::On),
             FormatKind::Markdown => self.markdown.unwrap_or(Wrap::On),
@@ -37,7 +37,7 @@ impl WrapChoices {
     }
 
     /// The same, once the person has chosen `wrap` for `kind`.
-    pub(crate) fn chose(self, kind: FormatKind, wrap: Wrap) -> WrapChoices {
+    pub fn chose(self, kind: FormatKind, wrap: Wrap) -> WrapChoices {
         let chosen = Some(wrap);
         match kind {
             FormatKind::PlainText => WrapChoices {
