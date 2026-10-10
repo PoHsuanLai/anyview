@@ -1,10 +1,11 @@
 use super::*;
 use crate::command::StageCommand;
+use crate::keys::{Act, Press};
 use crate::typed::TypedText;
 use anyview_core::{LineIndex, MediaLength, MediaTime, Zoom};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
-use ds_core::vocab::ShortcutKey;
+use ds_core::vocab::{Shortcut, ShortcutKey};
 
 const MEDIA: MediaStage = MediaStage::Opening;
 
@@ -190,44 +191,59 @@ fn escape_undoes_what_the_stage_has_open() {
 }
 
 #[test]
-fn keys_stand_for_commands() {
-    use ShortcutKey::{Char, Down, End, Home, Left, PageDown, Right, Shift, Space, Super, Up};
-    // name, keys, command
-    let cases: [(&str, &[ShortcutKey], Option<StageCommand>); 15] = [
-        ("plus", &[Char('+')], Some(StageCommand::ZoomIn)),
-        ("equals", &[Char('=')], Some(StageCommand::ZoomIn)),
-        ("minus", &[Char('-')], Some(StageCommand::ZoomOut)),
-        ("zero", &[Char('0')], Some(StageCommand::ZoomToFit)),
-        ("one", &[Char('1')], Some(StageCommand::ZoomToActual)),
-        ("find", &[Super, Char('f')], Some(StageCommand::Find)),
+fn presses_stand_for_commands() {
+    use ShortcutKey::{Char, Down, End, Home, Left, PageDown, Right, Shift, Space, Up};
+    let key = |keys: &[ShortcutKey]| Press::Key(Shortcut(keys.to_vec()));
+    // name, the press, command
+    let cases: [(&str, Press, Option<StageCommand>); 17] = [
+        ("plus", key(&[Char('+')]), Some(StageCommand::ZoomIn)),
+        ("equals", key(&[Char('=')]), Some(StageCommand::ZoomIn)),
+        ("minus", key(&[Char('-')]), Some(StageCommand::ZoomOut)),
+        ("zero", key(&[Char('0')]), Some(StageCommand::ZoomToFit)),
+        ("one", key(&[Char('1')]), Some(StageCommand::ZoomToActual)),
+        (
+            "the zoom in action",
+            Press::Act(Act::ZoomIn),
+            Some(StageCommand::ZoomIn),
+        ),
+        (
+            "the actual size action",
+            Press::Act(Act::ZoomToActual),
+            Some(StageCommand::ZoomToActual),
+        ),
+        ("find", Press::Act(Act::Find), Some(StageCommand::Find)),
         (
             "find previous",
-            &[Shift, Super, Char('g')],
+            Press::Act(Act::FindPrevious),
             Some(StageCommand::FindPrevious),
         ),
-        ("space", &[Space], Some(StageCommand::TogglePlayback)),
+        ("space", key(&[Space]), Some(StageCommand::TogglePlayback)),
         (
             "shift left seeks, bare left does not",
-            &[Shift, Left],
+            key(&[Shift, Left]),
             Some(StageCommand::SeekBack),
         ),
-        ("page down", &[PageDown], Some(StageCommand::NextPage)),
-        ("bare right walks the sequence instead", &[Right], None),
+        ("page down", key(&[PageDown]), Some(StageCommand::NextPage)),
+        ("bare right walks the sequence instead", key(&[Right]), None),
         (
             "home scrolls to the start of a text",
-            &[Home],
+            key(&[Home]),
             Some(StageCommand::ScrollToStart),
         ),
         (
             "end scrolls to the end",
-            &[End],
+            key(&[End]),
             Some(StageCommand::ScrollToEnd),
         ),
-        ("up is a line up", &[Up], Some(StageCommand::LineUp)),
-        ("down is a line down", &[Down], Some(StageCommand::LineDown)),
+        ("up is a line up", key(&[Up]), Some(StageCommand::LineUp)),
+        (
+            "down is a line down",
+            key(&[Down]),
+            Some(StageCommand::LineDown),
+        ),
     ];
-    for (name, keys, want) in cases {
-        assert_eq!(StageCommand::from_key(keys), want, "{name}");
+    for (name, press, want) in cases {
+        assert_eq!(StageCommand::from_press(&press), want, "{name}");
     }
 }
 

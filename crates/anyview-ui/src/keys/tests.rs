@@ -1,6 +1,7 @@
 use super::*;
 use crate::chrome::{ChromeIn, PinReason};
 use crate::context::{ContextIn, ContextMenu, Spot};
+use crate::edits::Rewind;
 use crate::io::{DesktopService, PlatformAbilities};
 use crate::navigate::NavigateIn;
 use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteScope};
@@ -13,7 +14,7 @@ use crate::stage::{
 use crate::typed::TypedText;
 use anyview_core::{DocPoint, DocUnit, PageIndex, Permille};
 use ds_core::vocab::ShortcutKey::{
-    Char, Down, Enter, Escape, Left, PageDown, Right, Shift, Space, Super, Tab, Up,
+    Char, Down, Enter, Escape, Left, PageDown, Right, Shift, Space, Tab, Up,
 };
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
@@ -69,21 +70,33 @@ const TEXT: Stage = Stage::Text(TextStage::Reading {
     },
 });
 
-/// Name, keys, sheet, palette, panel, stage, route.
-type Case = (
-    &'static str,
-    &'static [ShortcutKey],
-    Sheet,
-    Palette,
-    Panel,
-    Stage,
-    Route,
-);
+/// A press as a table writes it.
+#[derive(Clone, Copy)]
+enum In {
+    /// A key with no command modifier.
+    Plain(&'static [ShortcutKey]),
+    /// An action the keymap resolved.
+    Chord(Act),
+}
+
+impl In {
+    fn press(self) -> Press {
+        match self {
+            In::Plain(keys) => Press::Key(Shortcut(keys.to_vec())),
+            In::Chord(act) => Press::Act(act),
+        }
+    }
+}
+
+use In::{Chord, Plain};
+
+/// Name, press, sheet, palette, panel, stage, route.
+type Case = (&'static str, In, Sheet, Palette, Panel, Stage, Route);
 
 const CASES: &[Case] = &[
     (
         "a sheet takes Enter before the palette behind it",
-        &[Enter],
+        Plain(&[Enter]),
         Sheet::ConfirmTrash,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -92,7 +105,7 @@ const CASES: &[Case] = &[
     ),
     (
         "a sheet takes Esc",
-        &[Escape],
+        Plain(&[Escape]),
         Sheet::ConfirmTrash,
         Palette::Closed,
         INFO,
@@ -100,8 +113,8 @@ const CASES: &[Case] = &[
         Route::Sheet(SheetIn::Cancel),
     ),
     (
-        "a sheet swallows a global chord",
-        &[Super, Char('k')],
+        "a sheet swallows a global action",
+        Chord(Act::Palette),
         Sheet::ConfirmTrash,
         Palette::Closed,
         Panel::Hidden,
@@ -110,7 +123,7 @@ const CASES: &[Case] = &[
     ),
     (
         "a sheet swallows an arrow so the sequence does not move behind it",
-        &[Right],
+        Plain(&[Right]),
         Sheet::ConfirmTrash,
         Palette::Closed,
         Panel::Hidden,
@@ -119,7 +132,7 @@ const CASES: &[Case] = &[
     ),
     (
         "the palette takes the arrows",
-        &[Down],
+        Plain(&[Down]),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -128,7 +141,7 @@ const CASES: &[Case] = &[
     ),
     (
         "the palette takes Up",
-        &[Up],
+        Plain(&[Up]),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -137,7 +150,7 @@ const CASES: &[Case] = &[
     ),
     (
         "the palette takes Esc before the panel",
-        &[Escape],
+        Plain(&[Escape]),
         Sheet::Closed,
         OPEN_PALETTE,
         INFO,
@@ -145,8 +158,8 @@ const CASES: &[Case] = &[
         Route::Palette(PaletteIn::Close),
     ),
     (
-        "command k closes an open palette",
-        &[Super, Char('k')],
+        "the palette action closes an open palette",
+        Chord(Act::Palette),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -155,7 +168,7 @@ const CASES: &[Case] = &[
     ),
     (
         "typing in the palette is the field's, not a route",
-        &[Char('a')],
+        Plain(&[Char('a')]),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -163,8 +176,8 @@ const CASES: &[Case] = &[
         Route::Swallowed,
     ),
     (
-        "the palette swallows command w",
-        &[Super, Char('w')],
+        "the palette swallows close",
+        Chord(Act::Close),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -172,8 +185,8 @@ const CASES: &[Case] = &[
         Route::Swallowed,
     ),
     (
-        "command k opens the palette",
-        &[Super, Char('k')],
+        "the palette action opens the palette",
+        Chord(Act::Palette),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -181,17 +194,8 @@ const CASES: &[Case] = &[
         Route::OpenPalette,
     ),
     (
-        "modifiers in any order are the same chord",
-        &[Char('k'), Super],
-        Sheet::Closed,
-        Palette::Closed,
-        Panel::Hidden,
-        IMAGE,
-        Route::OpenPalette,
-    ),
-    (
-        "command i shows the info tab",
-        &[Super, Char('i')],
+        "the info action shows the info tab",
+        Chord(Act::Info),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -199,8 +203,8 @@ const CASES: &[Case] = &[
         Route::Panel(PanelIn::Choose(PanelTab::Info)),
     ),
     (
-        "command i on another tab switches to info",
-        &[Super, Char('i')],
+        "the info action on another tab switches to info",
+        Chord(Act::Info),
         Sheet::Closed,
         Palette::Closed,
         THUMBS,
@@ -208,8 +212,8 @@ const CASES: &[Case] = &[
         Route::Panel(PanelIn::Choose(PanelTab::Info)),
     ),
     (
-        "command i on the info tab closes the panel",
-        &[Super, Char('i')],
+        "the info action on the info tab closes the panel",
+        Chord(Act::Info),
         Sheet::Closed,
         Palette::Closed,
         INFO,
@@ -217,8 +221,8 @@ const CASES: &[Case] = &[
         Route::Panel(PanelIn::Close),
     ),
     (
-        "command w closes the window",
-        &[Super, Char('w')],
+        "close closes the window",
+        Chord(Act::Close),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -226,8 +230,8 @@ const CASES: &[Case] = &[
         Route::CloseWindow,
     ),
     (
-        "command o chooses another file",
-        &[Super, Char('o')],
+        "open chooses another file",
+        Chord(Act::OpenFile),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -236,7 +240,7 @@ const CASES: &[Case] = &[
     ),
     (
         "Esc closes a find before the panel",
-        &[Escape],
+        Plain(&[Escape]),
         Sheet::Closed,
         Palette::Closed,
         INFO,
@@ -245,7 +249,7 @@ const CASES: &[Case] = &[
     ),
     (
         "Esc closes the panel when the stage has nothing open",
-        &[Escape],
+        Plain(&[Escape]),
         Sheet::Closed,
         Palette::Closed,
         INFO,
@@ -254,7 +258,7 @@ const CASES: &[Case] = &[
     ),
     (
         "Esc with nothing open is a dismissal",
-        &[Escape],
+        Plain(&[Escape]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -262,8 +266,8 @@ const CASES: &[Case] = &[
         Route::Dismiss,
     ),
     (
-        "a global chord outranks the stage",
-        &[Super, Char('w')],
+        "a global action outranks the stage",
+        Chord(Act::Close),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -272,7 +276,7 @@ const CASES: &[Case] = &[
     ),
     (
         "plus zooms an image in",
-        &[Char('+')],
+        Plain(&[Char('+')]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -284,7 +288,7 @@ const CASES: &[Case] = &[
     ),
     (
         "space plays media",
-        &[Space],
+        Plain(&[Space]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -293,7 +297,7 @@ const CASES: &[Case] = &[
     ),
     (
         "shift right seeks media",
-        &[Shift, Right],
+        Plain(&[Shift, Right]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -302,7 +306,7 @@ const CASES: &[Case] = &[
     ),
     (
         "page down turns a pdf page",
-        &[PageDown],
+        Plain(&[PageDown]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -310,8 +314,8 @@ const CASES: &[Case] = &[
         Route::Stage(StageIn::Pdf(PdfIn::NextPage)),
     ),
     (
-        "command f opens the palette as a find in a text",
-        &[Super, Char('f')],
+        "find opens the palette as a find in a text",
+        Chord(Act::Find),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -319,8 +323,8 @@ const CASES: &[Case] = &[
         Route::OpenFind,
     ),
     (
-        "command f opens the palette as a find in a pdf",
-        &[Super, Char('f')],
+        "find opens the palette as a find in a pdf",
+        Chord(Act::Find),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -328,8 +332,8 @@ const CASES: &[Case] = &[
         Route::OpenFind,
     ),
     (
-        "command f has nothing to find in a picture",
-        &[Super, Char('f')],
+        "find has nothing to find in a picture",
+        Chord(Act::Find),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -337,8 +341,8 @@ const CASES: &[Case] = &[
         Route::Ignored,
     ),
     (
-        "command f in the open palette makes what is typed a find",
-        &[Super, Char('f')],
+        "find in the open palette makes what is typed a find",
+        Chord(Act::Find),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -346,8 +350,8 @@ const CASES: &[Case] = &[
         Route::Palette(PaletteIn::ToFind),
     ),
     (
-        "command f in the palette of a picture is swallowed",
-        &[Super, Char('f')],
+        "find in the palette of a picture is swallowed",
+        Chord(Act::Find),
         Sheet::Closed,
         OPEN_PALETTE,
         Panel::Hidden,
@@ -356,7 +360,7 @@ const CASES: &[Case] = &[
     ),
     (
         "space on a still image holds the hand out",
-        &[Space],
+        Plain(&[Space]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -365,7 +369,7 @@ const CASES: &[Case] = &[
     ),
     (
         "h on a still image is the pan tool",
-        &[Char('h')],
+        Plain(&[Char('h')]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -374,7 +378,7 @@ const CASES: &[Case] = &[
     ),
     (
         "c on a still image is the crop tool",
-        &[Char('c')],
+        Plain(&[Char('c')]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -382,8 +386,8 @@ const CASES: &[Case] = &[
         Route::Hand(crate::HandIn::Use(crate::Tool::Crop)),
     ),
     (
-        "command s on a picture saves its changes",
-        &[Super, Char('s')],
+        "save on a picture saves its changes",
+        Chord(Act::Save),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -391,8 +395,8 @@ const CASES: &[Case] = &[
         Route::Save,
     ),
     (
-        "command s on a PDF is nothing to this window",
-        &[Super, Char('s')],
+        "save on a PDF is nothing to this window",
+        Chord(Act::Save),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -401,7 +405,7 @@ const CASES: &[Case] = &[
     ),
     (
         "space on an animation plays it",
-        &[Space],
+        Plain(&[Space]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -410,7 +414,7 @@ const CASES: &[Case] = &[
     ),
     (
         "space on a pdf has no meaning and goes nowhere",
-        &[Space],
+        Plain(&[Space]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -419,7 +423,7 @@ const CASES: &[Case] = &[
     ),
     (
         "right walks the sequence",
-        &[Right],
+        Plain(&[Right]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -428,7 +432,7 @@ const CASES: &[Case] = &[
     ),
     (
         "left walks the sequence over media too",
-        &[Left],
+        Plain(&[Left]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -437,7 +441,7 @@ const CASES: &[Case] = &[
     ),
     (
         "tab moves focus into the chrome",
-        &[Tab],
+        Plain(&[Tab]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -446,7 +450,7 @@ const CASES: &[Case] = &[
     ),
     (
         "shift tab moves it out",
-        &[Shift, Tab],
+        Plain(&[Shift, Tab]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -454,8 +458,47 @@ const CASES: &[Case] = &[
         Route::Chrome(ChromeIn::Unpin(PinReason::KeyboardFocus)),
     ),
     (
+        "undo takes back the last edit",
+        Chord(Act::Undo),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        IMAGE,
+        Route::Rewind(Rewind::Undo),
+    ),
+    (
+        "redo does it again",
+        Chord(Act::Redo),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        IMAGE,
+        Route::Rewind(Rewind::Redo),
+    ),
+    (
+        "a file action is for the window to run, not a region",
+        Chord(Act::File(anyview_core::FileAction::Print)),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        IMAGE,
+        Route::Ignored,
+    ),
+    (
+        "zoom in by its action reaches the stage",
+        Chord(Act::ZoomIn),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        IMAGE,
+        Route::Stage(StageIn::Raster(RasterIn::ZoomStep {
+            dir: ZoomDir::In,
+            at: CENTRE,
+        })),
+    ),
+    (
         "an unbound key goes nowhere",
-        &[Char('q')],
+        Plain(&[Char('q')]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -464,7 +507,7 @@ const CASES: &[Case] = &[
     ),
     (
         "no stage still routes the chords and the arrows",
-        &[Right],
+        Plain(&[Right]),
         Sheet::Closed,
         Palette::Closed,
         Panel::Hidden,
@@ -486,7 +529,7 @@ fn every_row_of_the_table_routes_as_written() {
             stage_params: &params,
             platform: PlatformAbilities::ALL,
         };
-        let got = route(&Shortcut(keys.to_vec()), regions);
+        let got = route(&keys.press(), regions);
         assert_eq!(&got, want, "{name}");
     }
 }
@@ -507,44 +550,44 @@ fn the_menu_key_and_shift_f10_open_the_context_menu_and_an_open_menu_takes_escap
         at: Spot { x: 1, y: 2 },
     };
     // name, the menu, the keys, where they go
-    let cases: Vec<(&str, &'static ContextMenu, Vec<ShortcutKey>, Route)> = vec![
+    let cases: Vec<(&str, &'static ContextMenu, In, Route)> = vec![
         (
             "the menu key opens it",
             &ContextMenu::Closed,
-            vec![ShortcutKey::ContextMenu],
+            Plain(&[ShortcutKey::ContextMenu]),
             Route::OpenContextMenu,
         ),
         (
             "Escape closes it",
             &OPEN,
-            vec![Escape],
+            Plain(&[Escape]),
             Route::Context(ContextIn::Close),
         ),
         (
             "the global chords wait while it is open",
             &OPEN,
-            vec![Super, Char('k')],
+            Chord(Act::Palette),
             Route::Swallowed,
         ),
         (
             "so do the arrows, which are the menu's own",
             &OPEN,
-            vec![Down],
+            Plain(&[Down]),
             Route::Swallowed,
         ),
     ];
     for (name, context, keys, want) in cases {
-        let got = route(&Shortcut(keys), regions(context));
+        let got = route(&keys.press(), regions(context));
         assert_eq!(got, want, "{name}");
     }
 }
 
 #[test]
-fn command_o_is_a_chord_only_where_the_platform_has_a_file_chooser() {
+fn open_is_an_action_only_where_the_platform_has_a_file_chooser() {
     let params = StageParams::default();
     let routed = |platform| {
         route(
-            &Shortcut(vec![ShortcutKey::Super, ShortcutKey::Char('o')]),
+            &Press::Act(Act::OpenFile),
             Regions {
                 sheet: &Sheet::Closed,
                 palette: &Palette::Closed,

@@ -1,6 +1,6 @@
 //! A PDF in the viewer window under the harness: it opens, its tiles arrive as the workers answer
 //! and show as texture layers, ⌘F finds text and the next hit moves the page, a link goes where it
-//! points, and the zoom follows a pinch and the wheel under Control. Workers run each job where it
+//! points, and the zoom follows a pinch and the wheel under Command. Workers run each job where it
 //! is submitted, so an answer is in the mailbox by the time the harness looks.
 
 use crate::pdf_fixture;
@@ -83,7 +83,7 @@ fn a_pdf_opens_with_its_pages_laid_out_and_its_tiles_drawn() {
 fn command_f_finds_text_in_the_palette_and_the_next_hit_moves_the_page() {
     let (_dir, mut harness, _) = opened();
     assert_eq!(harness.count(".ds-palette"), 0, "no palette until asked");
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('f')));
     settle(&mut harness);
     assert_eq!(harness.count(".ds-palette"), 1, "the palette is up");
     type_text(&mut harness, "fox");
@@ -107,7 +107,7 @@ fn command_f_finds_text_in_the_palette_and_the_next_hit_moves_the_page() {
         capsule(&harness)
     );
 
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('g')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('g')));
     settle(&mut harness);
     assert!(
         capsule(&harness).contains("2 of 3"),
@@ -117,7 +117,7 @@ fn command_f_finds_text_in_the_palette_and_the_next_hit_moves_the_page() {
     saved(&mut harness, "pdf-find-next.png");
 
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Char('g'),
     ));
     settle(&mut harness);
@@ -140,7 +140,7 @@ fn command_f_finds_text_in_the_palette_and_the_next_hit_moves_the_page() {
 fn keys_typed_in_the_find_palette_are_text_and_not_commands_of_the_stage() {
     let (_dir, mut harness, _) = opened();
     let before = capsule(&harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('f')));
     settle(&mut harness);
     // `9` fits the width and `+` zooms in when a stage hears them.
     type_text(&mut harness, "9+");
@@ -217,10 +217,10 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
             y: Px(40.0),
         },
         at,
-        held: Modifiers::CONTROL,
+        held: Modifiers::SUPER,
     }));
     settle(&mut harness);
-    assert_ne!(pinched, capsule(&harness), "the wheel under Control zooms");
+    assert_ne!(pinched, capsule(&harness), "the wheel under Command zooms");
     let _ = zoom_of;
     saved(&mut harness, "pdf-zoomed.png");
 
@@ -239,7 +239,10 @@ fn a_pinch_and_the_wheel_under_control_zoom_and_the_wheel_alone_scrolls() {
 #[test]
 fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     let (_dir, mut harness, _) = opened();
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     harness.send(Input::click(
         harness.centre(".ds-segmented-segment").unwrap(),
@@ -327,7 +330,7 @@ fn dragging_the_page_scrolls_it_with_the_pointer() {
 #[test]
 fn the_markup_of_a_pdf_with_the_find_palette_open_lints_clean() {
     let (_dir, mut harness, _) = opened();
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('f')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('f')));
     settle(&mut harness);
     let css = format!("{}\n{}", ds::stylesheet(), anyview_ui::stylesheet());
     let config = ds_lint::LintConfig::new(&ds::kits());

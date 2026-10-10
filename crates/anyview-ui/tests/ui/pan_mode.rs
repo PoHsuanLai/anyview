@@ -173,7 +173,7 @@ fn the_palette_row_names_the_tool_it_switches_to() {
     for scale in SCALES {
         let (_dir, mut harness) = zoomed(scale);
         let open = |harness: &mut Harness| {
-            harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+            harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
             settle(harness);
             harness.html()
         };

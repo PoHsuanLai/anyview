@@ -11,9 +11,9 @@ use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
-use super::keys::{for_the_window, shortcut_of};
 use super::palette::Palette;
 use super::panel::InfoPanel;
+use super::press::{press_of, use_viewer_keys};
 use super::resize::ResizeSheet;
 use super::scrub::{levelled, scrubbed};
 use super::session::{Probe, WHOLE_HITS, offered_slots};
@@ -32,6 +32,7 @@ use crate::{
     Viewer, ViewerIn, Zone,
 };
 use anyview_core::FilePath;
+use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec, SplitPane};
 use ds::components::chrome::split_view::view::SplitView;
@@ -61,6 +62,7 @@ const PANEL: PaneSpec = PaneSpec {
 #[component]
 pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let edge = use_hook(consume_context::<crate::Edge>);
+    let keymap = use_viewer_keys();
     let gpu = use_gpu();
     let scope = use_scope();
     let scale = try_consume_context::<HostSignals>().map_or(Scale::ONE, |host| (host.scale)());
@@ -348,30 +350,33 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     return;
                 }
                 // The text being edited has the keys: the window hears only what is meant for it.
-                if editing
-                    && !sheet_open
-                    && !shortcut_of(&event).is_some_and(|key| for_the_window(&key.keys()))
-                {
+                let context = if editing {
+                    Context::TextEntry
+                } else {
+                    Context::Normal
+                };
+                let Some(press) = press_of(keymap, &event, context) else {
+                    return;
+                };
+                if editing && !sheet_open && !press.for_the_window() {
                     return;
                 }
                 if sheet_open {
-                    if let Some(key) = shortcut_of(&event)
-                        && SheetIn::from_key(&key.keys()).is_some()
-                    {
+                    if SheetIn::from_press(&press).is_some() {
                         event.prevent_default();
-                        dispatch.send(ViewerIn::Key(key));
+                        dispatch.send(ViewerIn::Key(press));
                     }
                     return;
                 }
-                if let Some(key) = shortcut_of(&event) {
-                    event.prevent_default();
-                    dispatch.send(ViewerIn::Key(key));
-                }
+                event.prevent_default();
+                dispatch.send(ViewerIn::Key(press));
             },
             // Space coming up lets the hand go; so does the window losing the keyboard, since the
             // key-up then goes elsewhere.
             onkeyup: move |event: KeyboardEvent| {
-                if shortcut_of(&event).is_some_and(|key| key.keys() == [ShortcutKey::Space]) {
+                let space = press_of(keymap, &event, Context::Normal)
+                    .is_some_and(|press| press.keys() == [ShortcutKey::Space]);
+                if space {
                     dispatch.send(ViewerIn::Hand(HandIn::SpaceUp));
                 }
             },
@@ -463,8 +468,8 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     ontyped: move |text: TypedText| dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text))),
                     onpick: move |row| dispatch.send(ViewerIn::Palette(PaletteIn::Pick(row))),
                     onkey: move |event: KeyboardEvent| {
-                        if let Some(key) = shortcut_of(&event) {
-                            dispatch.send(ViewerIn::Key(key));
+                        if let Some(press) = press_of(keymap, &event, Context::TextEntry) {
+                            dispatch.send(ViewerIn::Key(press));
                         }
                     },
                     onclose: move |()| dispatch.send(ViewerIn::Palette(PaletteIn::Close)),

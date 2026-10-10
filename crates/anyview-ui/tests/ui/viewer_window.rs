@@ -77,7 +77,7 @@ fn command_k_lists_every_viewer_action_of_the_file() {
     let (_dir, paths) = folder(FILES);
     let (mut harness, _) = window(&paths, 0, Appearance::default());
     assert_eq!(harness.count(".ds-palette"), 0, "closed to begin with");
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     harness.advance(Duration::from_millis(300));
     let text = harness.text_of(".ds-palette").unwrap_or_default();
     let shared: Vec<FileAction> = actions_for(anyview_core::FormatKind::PlainText)
@@ -139,7 +139,7 @@ fn the_markup_the_window_renders_lints_clean() {
     let config = ds_lint::LintConfig::new(&ds::kits());
     let shown = ds_lint::markup(&harness.html(), &css, &config);
     assert!(shown.is_empty(), "chrome shown: {shown:#?}");
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     harness.advance(Duration::from_millis(300));
     let palette = ds_lint::markup(&harness.html(), &css, &config);
     assert!(palette.is_empty(), "palette open: {palette:#?}");

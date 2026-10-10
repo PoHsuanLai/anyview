@@ -499,7 +499,10 @@ fn the_panel_lists_the_tracks_and_the_chapters_and_each_row_tells_the_player() {
         ]),
     ]);
     settle(&mut harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     let tab = |harness: &Harness, at: usize| {
         harness
@@ -600,7 +603,7 @@ fn the_speed_chapter_track_and_frame_keys_reach_the_player() {
 #[test]
 fn the_palette_lists_the_recordings_commands() {
     let Opened { mut harness, .. } = open();
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(&mut harness);
     let text = harness.text_of(".ds-palette").unwrap_or_default();
     for want in [
@@ -644,7 +647,10 @@ fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_
         "the speed: {}",
         readouts(&harness)
     );
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     assert_eq!(harness.count(".ds-segmented-segment"), 3, "all three tabs");
 
@@ -669,7 +675,7 @@ fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_
         !html.contains("Faster") && !html.contains("Slower"),
         "no speed buttons in the capsule"
     );
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(&mut harness);
     let palette = harness.text_of(".ds-palette").unwrap_or_default();
     for gone in [
@@ -694,7 +700,10 @@ fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_
     );
     harness.send(Input::key(ShortcutKey::Escape));
     settle(&mut harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     assert_eq!(
         harness.count(".ds-segmented-segment"),
@@ -753,7 +762,7 @@ fn marking_a_start_and_an_end_cuts_the_export_there() {
     settle(&mut harness);
 
     // Export is a palette command.
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(&mut harness);
     for letter in "export".chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));
@@ -959,7 +968,10 @@ fn what_a_recording_looks_like_is_saved_for_a_person_to_see() {
     if let Some(path) = shot("media-video.png") {
         harness.render().unwrap().save(path).unwrap();
     }
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     if let Some(path) = shot("media-video-panel.png") {
         harness.render().unwrap().save(path).unwrap();
@@ -1004,7 +1016,7 @@ fn needs(package: &str, purpose: &str) -> Fact {
 
 /// The export command from the palette.
 fn export_from_the_palette(harness: &mut Harness) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in "export".chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));
@@ -1311,7 +1323,10 @@ fn a_panel_open_on_a_tab_the_player_then_withholds_shows_the_facts_not_a_blank()
     let line = player.latest().unwrap();
     playing(&line, 25);
     settle(&mut harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('i')));
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(&mut harness);
     // A player that offers everything opens the panel on its first tab, the chapters.
     assert!(harness.html().contains("viewer-chapters") || harness.html().contains("no chapters"));

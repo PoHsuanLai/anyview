@@ -163,7 +163,7 @@ no other public path. A module names only modules above it in this list.
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind`, and `Adjust` (a picture's whole adjustment as one value: cut to a `PixelRect`, `Reflection`, `QuarterTurn`, resized; `turned`, `flipped` and `cropped` fold each new step into it, so a series of edits is one `Edit::Adjust`) |
 | `trail` | `Trail`, `TrailIn`, `TrailOut`, `TrailStacks`: undo and redo for one file as a pure machine over the versions its saves kept, generic over what names a version |
-| `action` | `FileAction`, `Reach`, `reach`, `shortcut` |
+| `action` | `FileAction`, `Reach`, `reach`, `shortcut`, `own_keys`, `file_action_of` |
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
 | `facts` | `Fact`, `Facts`, `FactLabel` (and where each label is listed by default: `group`, `tier`), `FactGroup` (the sections of the Info panel, in display order, `General` last), `Tier` (headline rows make the summary line, `Facts::summary`), `FactValue` and its constructors (size with exact bytes, date, coordinate, altitude, version), `FactTime`, `LocalZone` (the person's time zone, read from the system by `jiff`; every shown time is converted to it and never names a zone), `Coordinate`, `kind_name` (Finder's "JPEG image"), and `FileDetails` with `Facts::general` (the General section: kind, size, created, modified, where, where from, permissions); `label`, `group`, `value`, `when`, `place`, `summary`, `kind_name` and `file` are private |
@@ -232,7 +232,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `typed` | `TypedText`: a query or a name, a static literal or typed |
 | `io` | the effects: `Job` and `Done` (probe a file, open it, read a window of lines, draw tiles of a PDF), `WorkLane` (how soon a job is wanted: `Job::lane` is its one decision), `Workers` (the pool the binary owns), `Work`, `Reply`, `Services` (the pool, the request handler and the seams one window is built over, with `with_*` builders; `#[non_exhaustive]`) and `Edge` (what one window is wired to, made by `Edge::new(services)`), `HostRequest` (what it asks of the binary), `Backend` and `Stop`; `media` is the seam to the player: `MediaHost` (starts one for a file), `MediaLine` (what a window holds of it), `MediaNotice` (what it reports, in the machine's terms), `MediaWake`, `SlotPixels` |
 | `families` | the full tier: `StageView` (one implementation per family of formats), the registry (`visit`, `family_of`, the one match on `FormatKind`), the views `raster`, `text`, `table` (a header over a `VirtualList` of rows, a sheet list in the panel's Contents tab), `tree` (visible nodes in a `VirtualList`, JSON Lines as one tree of its lines), `pdf` (and, in `pdf/bound`, a book bound as a PDF), `media` and `peek_only` (office facts and the document's thumbnail), `card` (`InfoCard`, the one file card: the Info panel's Info tab and the facts-only stage draw it) and `found` (the capsule's part of a find: the `3 of 17` readout and the steps; finding itself is the palette's, below); the text view's `edit` module is the editor (the surface, the key table and the translation of what it hears into `Session` commands). A family's `hit_lines` gives the palette the places the find found, as `HitLine`s. The media view: `MediaDoc` (the player started for a file), `MediaShelf` and `MediaLive` (what the window last heard of it: position, volume, tracks, chapters, trim marks), the capsule's slots, the panel's Tracks and Chapters tabs, and the album card of an audio file with no picture |
-| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, and Show in Folder where there is a file manager); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `editing` (the text being edited: reading the file for it, saving it, the stamp of the file under it, its find), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel (the body of the window's left `SplitView` pane, never quire's `SidePanel`: it shrinks the stage, not the window, and its width is the split view's), the sheets (`resize`: Adjust Size; `unsaved`: the Save, Don't Save, Cancel question, which knows nothing of what the changes are so that a text editor can ask it too), key events as shortcuts, `stylesheet` (one sheet for each concept: `window.css`, `peek.css`, `sheets.css`, `welcome.css`, and one beside each family's view) |
+| `views` | the window: `ViewerApp`, `Launch`, `WelcomeApp` (the window of a launch with no file: an Open button, a drop target, ⌘O); `failed` (the screen of a file that did not open: the reason in words, and Show in Folder where there is a file manager); `window` (the component), `shelf` (the results the window holds, and `Dispatch`), `carry` (what each output of the root does), `arrive` (each result of a worker as an input), `effects` (what waits on a probe or the device), `editing` (the text being edited: reading the file for it, saving it, the stamp of the file under it, its find), `preloads` (the files opened ahead); the chrome, the palette, `context` (the right-click menu: quire's `Menu` with `MenuPlacement::Context`, placed at the point the machine holds), the panel (the body of the window's left `SplitView` pane, never quire's `SidePanel`: it shrinks the stage, not the window, and its width is the split view's), the sheets (`resize`: Adjust Size; `unsaved`: the Save, Don't Save, Cancel question, which knows nothing of what the changes are so that a text editor can ask it too), key events as presses (`press`: the keymap's action for a chord, else the plain key), `stylesheet` (one sheet for each concept: `window.css`, `peek.css`, `sheets.css`, `welcome.css`, and one beside each family's view) |
 
 **Editing text.** Plain text, code and Markdown source are edited in place (`TextStage::Editing`: Return or Edit
 in the palette starts it, Done ends it). The machines hold only whether the text has unsaved changes and whether
@@ -244,7 +244,7 @@ are drawn from the surface's geometry. A file is read whole on a worker (`Job::E
 it is not UTF-8, and written by `HostRequest::SaveText` through the store's pipeline (the original kept first,
 then the atomic write in place); the host says how it ended with `Edge::saved`, not by `Edge::changed`, so the
 window's own write is not taken for another program's and the editor keeps its place. While the text is edited
-the window's key handler passes on only the window's chords (`for_the_window`); everything else is the surface's.
+the window's key handler passes on only the window's presses (`Press::for_the_window`: Esc and the actions that are not the text's own); everything else, undo and redo included, is the surface's.
 Leaving with unsaved changes (another file, closing by key, Done) is held as a `Departure` behind the one
 `Unsaved` sheet (the picture's changes ask it the same way) and goes ahead once the host reports the save or the person lets the text go. A find over the
 text searches the `Session`, and again after every change. Wrapping starts by kind (`WrapChoices`: text and
@@ -1279,7 +1279,8 @@ The single place a concept lives. Extend it; never write a second one.
 | Which PDF tiles a cache lets go of | `families/pdf/cache.rs` (`evictions`) |
 | Drawing, uploading and searching for a PDF stage on a worker | `families/pdf/work.rs` (`PdfTask`, `PdfAnswer`) |
 | How the PDF room moves (scroll, drag, pinch, a jump, a hit) | `families/pdf/steer.rs` |
-| A key event as a `Shortcut` (⌘ is Control or Command) | `views/keys.rs` |
+| A key event as a `Press` (the keymap's action for a chord, else the key with at most Shift) | `views/press.rs` |
+| The viewer's actions and their default chords | `keys/act.rs` (`Act`), `anyview_core::own_keys` |
 | Running a blocking job off the UI thread | `anyview_ui::Workers`, `Work`, `Job::run` (`io/`) |
 | What a window asks of the binary | `anyview_ui::HostRequest` (`io/workers.rs`) |
 | The viewer's own stylesheet and the token colours of code | `anyview_ui::stylesheet`, `TOKEN_CSS` |
@@ -1528,14 +1529,31 @@ quire's, with its `Scrub` and `Level` slots: a drag on the progress bar is `Scru
 it. A place left (`Resume::Media`) is put back by `MediaIn::Restore`, which the view sends when the
 document lands, and a place the person is at is kept by the window as it moves.
 
-Key routing is `route(key, Regions) -> Route`, not a machine: a sheet, then the palette, then the
-context menu, then the global chords (⌘K, ⌘I, ⌘W, ⌘O, the Menu key and ⇧F10, Esc), then the stage,
-then navigation, then the chrome. A sheet, the palette and an open context menu take every key, so
-a key that means nothing to one is `Swallowed` (the menu's own arrows, Enter and letters are quire's
+Keys are actions, not modifiers. The window never asks which modifier is held: quire's `Keys` (chordkit's
+keymap, which follows the system's own shortcut settings and the platform's conventions) says what a chord
+means, and `views/press.rs` turns a key event into a `Press`, either `Press::Act(Act)` (the action the keymap
+resolved, when the viewer answers it) or `Press::Key(Shortcut)` (a key with at most Shift: letters, arrows,
+Space, Esc, Enter, Tab). `Act` is the viewer's vocabulary: the standard actions it answers (Find, Find Next,
+Find Previous, Close, Open, Save, Undo, Redo, Bigger as zoom in, Smaller as zoom out; Print, Reveal, Copy
+and Save As through `FileAction`) and its own, declared once per window with a `Primary+…` default chord
+(`keys/act.rs`; the file actions' own rows come from `anyview_core::own_keys`): the palette (⌘K), Info (⌥⌘I,
+since ⌘I is Italic), Zoom to Fit (⌘0), Actual Size (⌥⌘0), Done (⌘Return), Delete Page and Move Page (⇧⌘⌫,
+⇧⌘↑, ⇧⌘↓), Next and Previous Sheet (⌘PageDown, ⌘PageUp), Copy Path, Duplicate, Move to Trash, Export and
+Rotate. Each row is registered on its own, so a chord the system keeps for itself leaves that action unbound
+and no other. A text field has the focus in `Context::TextEntry`, where the keymap keeps the typing keys
+for the field.
+
+Key routing is `route(press, Regions) -> Route`, not a machine: a sheet, then the palette, then the
+context menu, then the global actions (the palette, Info, Close, Open, Save, Undo, Redo, the Menu key and ⇧F10,
+Esc), then the stage, then navigation, then the chrome. A sheet, the palette and an open context menu take every
+press, so a press that means nothing to one is `Swallowed` (the menu's own arrows, Enter and letters are quire's
 `Menu`, which has the keyboard while it is up; the window leaves those keys to it, and Esc closes it).
 Esc undoes the innermost thing: what the stage has open, then the panel, then a quick look. The Menu
-key and ⇧F10 (read as `ShortcutKey::ContextMenu` by `views/keys.rs`) open the context menu at the
-middle of the content.
+key and ⇧F10 (read as `ShortcutKey::ContextMenu` by `views/press.rs`) open the context menu at the
+middle of the content. `StageCommand` has two tables: the actions that mean a command (`CHORDS`) and the
+plain keys (`KEYS`); the palette draws a command's action as the keymap binds it, else its plain key. A file
+action's chord that no region claims runs as the palette's row does (`Act::File`). Duplicate's chord is also
+Don't Save in the question about unsaved changes, as in a Mac's dialogs.
 
 The right-click menu is the palette's command list under a Mac's grouping, so the menu, the palette
 and the shortcuts cannot drift: `views/session.rs` builds the one `commands` list (with what the

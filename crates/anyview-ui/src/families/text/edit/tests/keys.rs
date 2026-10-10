@@ -67,18 +67,16 @@ fn undo_and_redo_step_through_typing_by_word() {
     for scale in SCALES {
         let mut rig = Rig::open("", false, 3, 400, scale);
         rig.type_text("one two");
-        rig.ctrl('z');
+        rig.command('z');
         assert_eq!(rig.text(), "one ", "scale {scale}");
-        rig.ctrl('z');
+        rig.command('z');
         assert_eq!(rig.text(), "one");
-        rig.ctrl('z');
+        rig.command('z');
         assert_eq!(rig.text(), "");
-        rig.chord(
-            &[ShortcutKey::Ctrl, ShortcutKey::Shift],
-            ShortcutKey::Char('z'),
-        );
+        let redo = [ShortcutKey::Super, ShortcutKey::Shift];
+        rig.chord(&redo, ShortcutKey::Char('z'));
         assert_eq!(rig.text(), "one");
-        rig.ctrl('y');
+        rig.chord(&redo, ShortcutKey::Char('z'));
         assert_eq!(rig.text(), "one ");
     }
 }

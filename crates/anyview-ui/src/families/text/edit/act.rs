@@ -13,7 +13,7 @@ use ds::edit::pointer::{EditPointer, Extend};
 use ds::host::captured::PointerPhase;
 use ds::host::pasted::Pasted;
 use ds::host::position::TextPosition;
-use ds::prelude::{Point, Px, Rect};
+use ds::prelude::{Keys, Point, Px, Rect};
 
 /// The editor's state and its way out, all of it `Copy`: a handler takes a copy.
 #[derive(Clone, Copy)]
@@ -33,6 +33,8 @@ pub(super) struct Act {
     pub scroll: EventHandler<u32>,
     /// The text changed, and has unsaved changes or has not.
     pub changed: EventHandler<Changes>,
+    /// The window's keymap, which says what a chord on a letter means in the text.
+    pub keys: Keys,
 }
 
 impl Act {
@@ -107,7 +109,10 @@ impl Act {
     }
 
     fn key(mut self, key: &KeyInput) {
-        let Some(command) = command_of(&key.key, key.modifiers) else {
+        let command = self
+            .keys
+            .with_keymap(|keymap| command_of(keymap, &key.key, key.modifiers));
+        let Some(command) = command else {
             return;
         };
         let vertical = matches!(

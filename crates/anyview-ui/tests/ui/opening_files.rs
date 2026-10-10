@@ -58,7 +58,7 @@ fn drop_files_at(harness: &mut Harness, files: Vec<PathBuf>, point: Point) {
 }
 
 fn palette(harness: &mut Harness, words: &str) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in words.chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));
@@ -73,7 +73,7 @@ fn command_o_the_palette_and_the_menu_each_ask_the_host_for_one_chooser() {
         let (mut harness, requests, edge) =
             wired(&files, 0, Appearance::default(), viewport(scale));
         settle(&mut harness);
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('o')));
+        harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('o')));
         settle(&mut harness);
         assert_eq!(picks(&requests), 1, "{scale}: command-O");
         // The chooser is cancelled; only then is another asked for.
@@ -101,7 +101,7 @@ fn command_o_twice_while_the_chooser_is_pending_asks_for_one_chooser() {
         let (mut harness, requests, _) = wired(&files, 0, Appearance::default(), viewport(scale));
         settle(&mut harness);
         for _ in 0..2 {
-            harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('o')));
+            harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('o')));
             settle(&mut harness);
         }
         assert_eq!(

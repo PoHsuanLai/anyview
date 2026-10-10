@@ -26,8 +26,12 @@ fn at(x: f32, y: f32) -> Point {
     Point { x: Px(x), y: Px(y) }
 }
 
-fn chord(harness: &mut Harness, key: char) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(key)));
+/// The Info action's chord (Command and Option with I).
+fn info(harness: &mut Harness) {
+    harness.send(Input::chord(
+        &[ShortcutKey::Super, ShortcutKey::Alt],
+        ShortcutKey::Char('i'),
+    ));
     settle(harness);
 }
 
@@ -455,7 +459,7 @@ fn a_file_that_is_only_its_card_has_no_panel_to_open() {
         };
         let (mut harness, _, _) = wired(&[blob], 0, Appearance::default(), wiring);
         settle(&mut harness);
-        chord(&mut harness, 'i');
+        info(&mut harness);
         assert_eq!(
             harness.attr(".ds-split-pane", "data-shown"),
             None,

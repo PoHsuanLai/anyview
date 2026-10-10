@@ -1,6 +1,7 @@
 //! The palette's states, inputs and outputs.
 
 use crate::command::Command;
+use crate::keys::{Act, Press};
 use crate::typed::TypedText;
 use ds_core::vocab::ShortcutKey;
 
@@ -87,17 +88,19 @@ impl From<ds_core::machine::Elapsed> for PaletteIn {
 }
 
 impl PaletteIn {
-    /// What a key means to an open palette: arrows move, Enter runs, Esc and ⌘K close. Anything
-    /// else is typed into the field, which reports it as `Typed`.
-    pub fn from_key(keys: &[ShortcutKey]) -> Option<PaletteIn> {
-        match keys {
-            [ShortcutKey::Up] => Some(PaletteIn::Move(PaletteMove::Up)),
-            [ShortcutKey::Down] => Some(PaletteIn::Move(PaletteMove::Down)),
-            [ShortcutKey::Enter] => Some(PaletteIn::Enter),
-            [ShortcutKey::Escape] | [ShortcutKey::Super, ShortcutKey::Char('k')] => {
-                Some(PaletteIn::Close)
-            }
-            _ => None,
+    /// What a press means to an open palette: arrows move, Enter runs, Esc and the palette's own
+    /// action close. Anything else is typed into the field, which reports it as `Typed`.
+    pub fn from_press(press: &Press) -> Option<PaletteIn> {
+        match press {
+            Press::Key(shortcut) => match shortcut.keys().as_slice() {
+                [ShortcutKey::Up] => Some(PaletteIn::Move(PaletteMove::Up)),
+                [ShortcutKey::Down] => Some(PaletteIn::Move(PaletteMove::Down)),
+                [ShortcutKey::Enter] => Some(PaletteIn::Enter),
+                [ShortcutKey::Escape] => Some(PaletteIn::Close),
+                _ => None,
+            },
+            Press::Act(Act::Palette) => Some(PaletteIn::Close),
+            Press::Act(_) => None,
         }
     }
 }

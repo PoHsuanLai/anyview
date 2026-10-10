@@ -19,7 +19,7 @@ fn picture() -> (tempfile::TempDir, Harness, Requests) {
 }
 
 fn palette(harness: &mut Harness, words: &str) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in words.chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));
@@ -81,25 +81,25 @@ fn every_shortcut_the_palette_shows_for_a_file_action_runs_that_action() {
     let cases: Vec<(&str, Vec<ShortcutKey>, char, HostRequest)> = vec![
         (
             "print",
-            vec![ShortcutKey::Ctrl],
+            vec![ShortcutKey::Super],
             'p',
             HostRequest::Run(FileAction::Print),
         ),
         (
             "duplicate",
-            vec![ShortcutKey::Ctrl],
+            vec![ShortcutKey::Super],
             'd',
             HostRequest::Run(FileAction::Duplicate),
         ),
         (
             "reveal",
-            vec![ShortcutKey::Ctrl],
+            vec![ShortcutKey::Super],
             'r',
             HostRequest::Run(FileAction::RevealInFolder),
         ),
         (
             "copy the path",
-            vec![ShortcutKey::Ctrl, ShortcutKey::Alt],
+            vec![ShortcutKey::Super, ShortcutKey::Alt],
             'c',
             HostRequest::Run(FileAction::CopyPath),
         ),
@@ -121,13 +121,13 @@ fn the_rotate_shortcuts_turn_the_picture_and_the_save_shortcut_asks_the_host_to_
     ];
     for (name, key, turn) in CASES {
         let (_dir, mut harness, requests) = picture();
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char(*key)));
+        harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char(*key)));
         settle(&mut harness);
         assert!(
             asked(&requests).is_empty(),
             "{name}: nothing is written yet"
         );
-        harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('s')));
+        harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('s')));
         settle(&mut harness);
         assert_eq!(
             asked(&requests),
@@ -137,15 +137,6 @@ fn the_rotate_shortcuts_turn_the_picture_and_the_save_shortcut_asks_the_host_to_
             "{name}"
         );
     }
-}
-
-#[test]
-fn the_command_key_is_the_one_the_desktop_maps_to_command() {
-    // Command and Control are one key to the viewer: the platform layer resolves it.
-    let (_dir, mut harness, requests) = picture();
-    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('d')));
-    settle(&mut harness);
-    assert_eq!(asked(&requests), [HostRequest::Run(FileAction::Duplicate)]);
 }
 
 #[test]

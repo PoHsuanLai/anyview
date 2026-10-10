@@ -491,7 +491,7 @@ fn the_sheet_that_says_nothing_can_be_exported_offers_to_install_what_adds_it() 
         },
     );
     settle(&mut harness);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(&mut harness);
     for letter in "export".chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));

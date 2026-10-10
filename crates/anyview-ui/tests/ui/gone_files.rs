@@ -59,7 +59,7 @@ fn confirm_trash(harness: &mut Harness) {
 }
 
 fn ask_to_trash(harness: &mut Harness) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Backspace));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Backspace));
     settle(harness);
 }
 

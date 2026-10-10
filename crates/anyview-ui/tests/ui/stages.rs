@@ -211,7 +211,7 @@ fn the_window_wears_the_dark_look_too() {
     let (mut harness, _) = window(&paths, 0, dark);
     harness.send(Input::pointer_move(centre()));
     harness.advance(Duration::from_millis(500));
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     harness.advance(Duration::from_millis(500));
     save(&mut harness, "palette-dark.png");
     assert!(harness.count(".ds-palette") > 0);

@@ -7,6 +7,7 @@ use crate::command::Command;
 use crate::context::{
     ContextEntry, ContextIn, ContextMenu, ContextParams, ContextPick, Spot, entries,
 };
+use crate::keys::Press;
 use crate::load::{Load, Ticket};
 use crate::panel::{Panel, PanelTab};
 use crate::sheet::Sheet;
@@ -44,7 +45,7 @@ fn step(viewer: Viewer, input: ViewerIn) -> (Viewer, Vec<ViewerOut>) {
 }
 
 fn menu_key() -> ViewerIn {
-    ViewerIn::Key(Shortcut(vec![ShortcutKey::ContextMenu]))
+    ViewerIn::Key(Press::Key(Shortcut(vec![ShortcutKey::ContextMenu])))
 }
 
 #[test]
@@ -81,7 +82,10 @@ fn the_menu_key_opens_it_at_the_middle_and_escape_closes_it() {
             at: Spot { x: 450, y: 300 }
         }
     );
-    let (viewer, _) = step(viewer, ViewerIn::Key(Shortcut(vec![ShortcutKey::Escape])));
+    let (viewer, _) = step(
+        viewer,
+        ViewerIn::Key(Press::Key(Shortcut(vec![ShortcutKey::Escape]))),
+    );
     assert_eq!(viewer.context, ContextMenu::Closed);
 }
 

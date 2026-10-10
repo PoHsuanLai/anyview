@@ -22,6 +22,8 @@ anyview-peek = { workspace = true }
 # The file's own details (dates, folder, permissions, where it came from) for the General section.
 anyview-store = { workspace = true }
 anyview-text = { workspace = true }
+# The keymap's nouns (actions, chords, contexts): the viewer resolves its keys through them.
+chordkit = { workspace = true }
 dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true, features = ["pdf"] }

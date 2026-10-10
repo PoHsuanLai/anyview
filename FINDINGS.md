@@ -321,11 +321,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   `viewer.media.seek_step`) likewise. The reveal and hide fades are the motion token `--t-quick`
   (150 ms) and stay tokens. Ends when quire's `22-SETTINGS` has the `viewer.chrome.*`,
   `viewer.zoom.*` and `viewer.media.*` keys; the view then builds `ViewerParams` from them.
-- **The viewer's chords bypass `Shortcut::custom`.** ⌘I is the info panel here, and
-  `StandardAction::Italic` reserves it, so `Shortcut::custom` would refuse it. `route` matches
-  raw `ShortcutKey`s instead. The viewer edits no rich text, so the clash is harmless in the
-  window; it matters if a text field in the viewer ever takes ⌘I. Ends when design/27 names ⌘I
-  for the viewer or the panel moves to another chord.
 - **Which tabs a kind has is the family's, not the profile table's.** `PanelTabs` and `PanelTab` live in
   `anyview-ui`, so `anyview-core`'s `profile` cannot carry a `panel_tabs` column without moving them down.
   `StageView::tabs(doc)` supplies them per document (a PDF's Contents tab exists only when it has an
@@ -357,17 +352,34 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A rendered Markdown page is a sealed frame that carries the whole design-system stylesheet** (about
   280 KB) in its own document, since a frame inherits nothing; scrolling inside the frame by the wheel is
   Blitz's and untested here. Ends if quire offers the frame's token block alone.
-- **The viewer's chords treat Control and Command as one.** `views/keys.rs` folds both to `Super` (⌘), so
-  Ctrl+K opens the palette on Linux. A person's own keymap is the settings item above.
 - **The launch presentation is not applied.** `Launch` carries no presentation: the window starts as
   `Presentation::Window`, and `Mini` and `Background` need the binary to create the window that way.
 - **The capsule's rotate buttons borrow quire's `Undo` and `Refresh` glyphs.** quire has no rotate marks.
   Ends when they are added there (quire FINDINGS).
-- **Stage keys are a fixed table.** `StageCommand::from_key` binds `+ = - 0 1 9 v w Space ⇧← ⇧→
-  PageUp PageDown ⌘F ⌘G ⇧⌘G` and, for a recording, `[ ] ⌫ n p a s . , i o` (slower, faster, normal speed,
-  next and previous chapter, next audio track, next subtitles, a frame forward and back, the trim's start and
-  end). Ends when the viewer has a keymap setting; the palette shows the
-  same keys.
+- **Plain keys are a fixed table.** The keys with no command modifier (`+ = - 0 1 9 v w c h Space ⇧← ⇧→
+  PageUp PageDown Home End Return` and, for a recording, `[ ] ⌫ n p a s . , i o`) are `StageCommand`'s `KEYS`
+  and the hand's, not actions, so a person cannot rebind them in the system's settings. The chords (⌘F, ⌘G,
+  ⇧⌘G, ⌘+, ⌘−, ⌘0, ⌥⌘0, ⌘Return, the page edits, the sheets) are actions and can be. Ends when plain keys
+  are declared as actions too (a `DefaultChord` with no Primary) and read from the keymap.
+- **The editor's word, line and document moves read Ctrl, Alt and Command themselves.** `families/text/edit`
+  resolves the letter chords (select all, undo, redo) through the keymap, but an arrow or Home with a
+  modifier is the text's own table, as Blitz's text hook is. Ends when quire feeds the keymap's text
+  actions to the surface.
+- **A rebound action keeps its declared chord in the menus.** The palette draws a standard action's chord as
+  the keymap really binds it (Redo is Ctrl+Y on Windows), but quire draws a `Shortcut` of the viewer's own
+  as it was declared, so a person's own change to Info shows the old chord there. Ends when `Keys::text_of`
+  draws an app action's live chord.
+- **Zoom to Fit and Actual Size are the viewer's own actions.** chordkit has no standard action for them:
+  Bigger and Smaller are ⌘+ and ⌘−, Fit is ⌘0 and Actual Size ⌥⌘0, and Zoom to Width has only its key `9`.
+  ⌘1 and ⌘9 are left to the tab and Space convention. Ends when chordkit names them.
+- **Info is ⌥⌘I.** ⌘I is the standard Italic, which the keymap refuses to give to another action, and the
+  viewer registers each of its actions on its own so one refusal costs one chord. Ends if the viewer may
+  forgo Italic (`Registration::forgo`) once quire's `use_register_actions` takes it.
+- **⌘D is two actions.** Duplicate takes it, and the unsaved-changes question reads it as Don't Save because
+  the keymap gives a chord to one action. Rebinding Duplicate rebinds Don't Save with it.
+- **The viewer registers its actions row by row, not with `use_register_actions`.** That hook is all or
+  nothing, and one refused chord would unbind the rest. Ends when quire's registration reports the rows it
+  took.
 - **Mini stays when the file stops being media.** Walking the sequence from a video in the mini
   window to an image leaves the presentation `Mini`; `Presentation` only leaves `Mini` on
   `ToWindow`. Ends when the root promotes the window as the stage family changes.

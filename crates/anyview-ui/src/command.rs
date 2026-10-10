@@ -1,5 +1,6 @@
 //! What the palette can run: a file action, or a command for the stage that is showing.
 
+use crate::keys::{Act, Press};
 use anyview_core::{FileAction, Helper};
 use ds_core::vocab::{Shortcut, ShortcutKey};
 use ds_core::word::Word;
@@ -107,110 +108,96 @@ pub enum StageCommand {
     Save,
 }
 
-impl StageCommand {
-    /// The command a key stands for, before the stage has said whether it has it. Modifiers come
-    /// first, in the order `Shortcut::keys` normalises to.
-    pub fn from_key(keys: &[ShortcutKey]) -> Option<StageCommand> {
-        use ShortcutKey::{
-            Backspace, Char, Down, End, Enter, Home, Left, PageDown, PageUp, Right, Shift, Space,
-            Super, Up,
-        };
-        match keys {
-            [Char('+' | '=')] | [Shift, Char('+')] | [Super, Char('+' | '=')] => {
-                Some(StageCommand::ZoomIn)
-            }
-            [Char('-')] | [Super, Char('-')] => Some(StageCommand::ZoomOut),
-            [Char('0')] | [Super, Char('0')] => Some(StageCommand::ZoomToFit),
-            [Char('9')] | [Super, Char('9')] => Some(StageCommand::ZoomToWidth),
-            [Char('1')] | [Super, Char('1')] => Some(StageCommand::ZoomToActual),
-            [Super, Char('f')] => Some(StageCommand::Find),
-            [Super, Char('g')] => Some(StageCommand::FindNext),
-            [Shift, Super, Char('g')] => Some(StageCommand::FindPrevious),
-            [Char('v')] => Some(StageCommand::ToggleSource),
-            [Char('w')] => Some(StageCommand::ToggleWrap),
-            [Space] => Some(StageCommand::TogglePlayback),
-            [Shift, Left] => Some(StageCommand::SeekBack),
-            [Shift, Right] => Some(StageCommand::SeekForward),
-            [PageDown] => Some(StageCommand::NextPage),
-            [PageUp] => Some(StageCommand::PreviousPage),
-            [Up] => Some(StageCommand::LineUp),
-            [Down] => Some(StageCommand::LineDown),
-            [Home] => Some(StageCommand::ScrollToStart),
-            [End] => Some(StageCommand::ScrollToEnd),
-            [Char('[')] => Some(StageCommand::SlowDown),
-            [Char(']')] => Some(StageCommand::SpeedUp),
-            [Backspace] => Some(StageCommand::NormalSpeed),
-            [Char('n')] => Some(StageCommand::NextChapter),
-            [Char('p')] => Some(StageCommand::PreviousChapter),
-            [Char('a')] => Some(StageCommand::NextAudioTrack),
-            [Char('s')] => Some(StageCommand::NextSubtitles),
-            [Char('.')] => Some(StageCommand::StepFrameForward),
-            [Char(',')] => Some(StageCommand::StepFrameBack),
-            [Char('i')] => Some(StageCommand::MarkTrimStart),
-            [Char('o')] => Some(StageCommand::MarkTrimEnd),
-            [Shift, Super, Backspace] => Some(StageCommand::DeletePage),
-            [Shift, Super, Up] => Some(StageCommand::MovePageEarlier),
-            [Shift, Super, Down] => Some(StageCommand::MovePageLater),
-            [Super, Char(']')] => Some(StageCommand::NextSheet),
-            [Super, Char('[')] => Some(StageCommand::PreviousSheet),
-            [Char('c')] => Some(StageCommand::CollapseAll),
-            [Enter] => Some(StageCommand::Edit),
-            [Super, Enter] => Some(StageCommand::Done),
-            [Super, Char('s')] => Some(StageCommand::Save),
-            _ => None,
-        }
-    }
-}
+/// The commands a chord stands for. The first row of a command is the one the palette shows.
+const CHORDS: &[(Act, StageCommand)] = &[
+    (Act::ZoomIn, StageCommand::ZoomIn),
+    (Act::ZoomOut, StageCommand::ZoomOut),
+    (Act::ZoomToFit, StageCommand::ZoomToFit),
+    (Act::ZoomToActual, StageCommand::ZoomToActual),
+    (Act::Find, StageCommand::Find),
+    (Act::FindNext, StageCommand::FindNext),
+    (Act::FindPrevious, StageCommand::FindPrevious),
+    (Act::DeletePage, StageCommand::DeletePage),
+    (Act::MovePageEarlier, StageCommand::MovePageEarlier),
+    (Act::MovePageLater, StageCommand::MovePageLater),
+    (Act::NextSheet, StageCommand::NextSheet),
+    (Act::PreviousSheet, StageCommand::PreviousSheet),
+    (Act::Done, StageCommand::Done),
+    (Act::Save, StageCommand::Save),
+];
+
+/// The commands a key with no command modifier stands for. The first row of a command is the one
+/// the palette shows when it has no chord.
+const KEYS: &[(&[ShortcutKey], StageCommand)] = &[
+    (&[ShortcutKey::Char('+')], StageCommand::ZoomIn),
+    (&[ShortcutKey::Char('=')], StageCommand::ZoomIn),
+    (&[ShortcutKey::Char('-')], StageCommand::ZoomOut),
+    (&[ShortcutKey::Char('0')], StageCommand::ZoomToFit),
+    (&[ShortcutKey::Char('9')], StageCommand::ZoomToWidth),
+    (&[ShortcutKey::Char('1')], StageCommand::ZoomToActual),
+    (&[ShortcutKey::Char('v')], StageCommand::ToggleSource),
+    (&[ShortcutKey::Char('w')], StageCommand::ToggleWrap),
+    (&[ShortcutKey::Space], StageCommand::TogglePlayback),
+    (
+        &[ShortcutKey::Shift, ShortcutKey::Left],
+        StageCommand::SeekBack,
+    ),
+    (
+        &[ShortcutKey::Shift, ShortcutKey::Right],
+        StageCommand::SeekForward,
+    ),
+    (&[ShortcutKey::PageDown], StageCommand::NextPage),
+    (&[ShortcutKey::PageUp], StageCommand::PreviousPage),
+    (&[ShortcutKey::Up], StageCommand::LineUp),
+    (&[ShortcutKey::Down], StageCommand::LineDown),
+    (&[ShortcutKey::Home], StageCommand::ScrollToStart),
+    (&[ShortcutKey::End], StageCommand::ScrollToEnd),
+    (&[ShortcutKey::Char('[')], StageCommand::SlowDown),
+    (&[ShortcutKey::Char(']')], StageCommand::SpeedUp),
+    (&[ShortcutKey::Backspace], StageCommand::NormalSpeed),
+    (&[ShortcutKey::Char('n')], StageCommand::NextChapter),
+    (&[ShortcutKey::Char('p')], StageCommand::PreviousChapter),
+    (&[ShortcutKey::Char('a')], StageCommand::NextAudioTrack),
+    (&[ShortcutKey::Char('s')], StageCommand::NextSubtitles),
+    (&[ShortcutKey::Char('.')], StageCommand::StepFrameForward),
+    (&[ShortcutKey::Char(',')], StageCommand::StepFrameBack),
+    (&[ShortcutKey::Char('i')], StageCommand::MarkTrimStart),
+    (&[ShortcutKey::Char('o')], StageCommand::MarkTrimEnd),
+    (&[ShortcutKey::Char('c')], StageCommand::CollapseAll),
+    (&[ShortcutKey::Enter], StageCommand::Edit),
+];
 
 impl StageCommand {
-    /// The keys the palette shows beside the command: the first key `from_key` turns back into
-    /// it.
-    pub fn shortcut(self) -> Shortcut {
-        use ShortcutKey::{
-            Backspace, Char, Down, End, Enter, Home, Left, PageDown, PageUp, Right, Shift, Space,
-            Super, Up,
-        };
-        Shortcut(match self {
-            StageCommand::ZoomIn => vec![Char('+')],
-            StageCommand::ZoomOut => vec![Char('-')],
-            StageCommand::ZoomToFit => vec![Char('0')],
-            StageCommand::ZoomToWidth => vec![Char('9')],
-            StageCommand::ZoomToActual => vec![Char('1')],
-            StageCommand::Find => vec![Super, Char('f')],
-            StageCommand::FindNext => vec![Super, Char('g')],
-            StageCommand::FindPrevious => vec![Shift, Super, Char('g')],
-            StageCommand::ToggleSource => vec![Char('v')],
-            StageCommand::ToggleWrap => vec![Char('w')],
-            StageCommand::TogglePlayback => vec![Space],
-            StageCommand::SeekBack => vec![Shift, Left],
-            StageCommand::SeekForward => vec![Shift, Right],
-            StageCommand::NextPage => vec![PageDown],
-            StageCommand::PreviousPage => vec![PageUp],
-            StageCommand::LineUp => vec![Up],
-            StageCommand::LineDown => vec![Down],
-            StageCommand::ScrollToStart => vec![Home],
-            StageCommand::ScrollToEnd => vec![End],
-            StageCommand::SlowDown => vec![Char('[')],
-            StageCommand::SpeedUp => vec![Char(']')],
-            StageCommand::NormalSpeed => vec![Backspace],
-            StageCommand::NextChapter => vec![Char('n')],
-            StageCommand::PreviousChapter => vec![Char('p')],
-            StageCommand::NextAudioTrack => vec![Char('a')],
-            StageCommand::NextSubtitles => vec![Char('s')],
-            StageCommand::StepFrameForward => vec![Char('.')],
-            StageCommand::StepFrameBack => vec![Char(',')],
-            StageCommand::MarkTrimStart => vec![Char('i')],
-            StageCommand::MarkTrimEnd => vec![Char('o')],
-            StageCommand::DeletePage => vec![Shift, Super, Backspace],
-            StageCommand::MovePageEarlier => vec![Shift, Super, Up],
-            StageCommand::MovePageLater => vec![Shift, Super, Down],
-            StageCommand::NextSheet => vec![Super, Char(']')],
-            StageCommand::PreviousSheet => vec![Super, Char('[')],
-            StageCommand::CollapseAll => vec![Char('c')],
-            StageCommand::Edit => vec![Enter],
-            StageCommand::Done => vec![Super, Enter],
-            StageCommand::Save => vec![Super, Char('s')],
-        })
+    /// The command a press stands for, before the stage has said whether it has it: the command of
+    /// the chord's action, or of the plain key. Modifiers come first in a plain key, in the
+    /// order `Shortcut::keys` normalises to.
+    pub fn from_press(press: &Press) -> Option<StageCommand> {
+        match press {
+            Press::Act(act) => CHORDS
+                .iter()
+                .find(|(known, _)| known == act)
+                .map(|(_, command)| *command),
+            Press::Key(shortcut) => {
+                let keys = shortcut.keys();
+                KEYS.iter()
+                    .find(|(known, _)| *known == keys.as_slice())
+                    .map(|(_, command)| *command)
+            }
+        }
+    }
+
+    /// The keys the palette shows beside the command: its action's chord as the keymap binds it,
+    /// else the first plain key that turns back into it.
+    pub fn shortcut(self) -> Option<Shortcut> {
+        CHORDS
+            .iter()
+            .filter(|(_, command)| *command == self)
+            .find_map(|(act, _)| act.shortcut())
+            .or_else(|| {
+                KEYS.iter()
+                    .find(|(_, command)| *command == self)
+                    .map(|(keys, _)| Shortcut(keys.to_vec()))
+            })
     }
 }
 
@@ -268,14 +255,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_command_has_the_key_that_means_it() {
+    fn every_command_has_the_press_that_means_it_and_a_shortcut_to_show() {
         for command in StageCommand::ALL {
-            let keys = command.shortcut().keys();
-            assert_eq!(
-                StageCommand::from_key(&keys),
-                Some(*command),
-                "{command:?} is shown as {keys:?}"
-            );
+            let chord = CHORDS
+                .iter()
+                .find(|(_, known)| known == command)
+                .map(|(act, _)| Press::Act(*act));
+            let key = KEYS
+                .iter()
+                .find(|(_, known)| known == command)
+                .map(|(keys, _)| Press::Key(Shortcut(keys.to_vec())));
+            let press = chord
+                .or(key)
+                .unwrap_or_else(|| panic!("{command:?} has no press"));
+            assert_eq!(StageCommand::from_press(&press), Some(*command));
+            assert!(command.shortcut().is_some(), "{command:?} shows nothing");
         }
     }
 }

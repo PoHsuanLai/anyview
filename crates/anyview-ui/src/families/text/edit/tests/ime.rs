@@ -61,7 +61,7 @@ fn a_commit_replaces_a_selection_and_one_undo_takes_back_the_whole_word() {
         rig.harness.send(Input::ime_commit("你好"));
         rig.settle();
         assert_eq!(rig.text(), "a你好def", "scale {scale}");
-        rig.ctrl('z');
+        rig.command('z');
         assert_eq!(rig.text(), "adef");
     }
 }

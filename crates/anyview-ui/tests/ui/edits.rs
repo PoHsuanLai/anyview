@@ -33,7 +33,7 @@ fn picture(versions: Vec<VersionRow>) -> (tempfile::TempDir, Harness, Requests) 
 }
 
 fn from_the_palette(harness: &mut Harness, words: &str) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('k')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('k')));
     settle(harness);
     for letter in words.chars() {
         harness.send(Input::key(ShortcutKey::Char(letter)));
@@ -81,7 +81,7 @@ fn row(key: &'static str, saved_at: u64, size: u64) -> VersionRow {
 
 /// The save chord.
 fn save(harness: &mut Harness) {
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('s')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('s')));
     settle(harness);
 }
 
@@ -137,7 +137,7 @@ fn a_flip_is_shown_at_once_and_control_z_takes_it_back_before_the_file_is_asked(
         let got = rgb(&image, dx, dy);
         assert!(is(got, want), "{name}: {got:?} is not {want:?}");
     }
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('z')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('z')));
     settle(&mut harness);
     assert_eq!(harness.count(".ds-titlebar-edited"), 0, "taken back");
     assert!(
@@ -145,7 +145,7 @@ fn a_flip_is_shown_at_once_and_control_z_takes_it_back_before_the_file_is_asked(
         "the step was the window's, not the file's"
     );
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Char('z'),
     ));
     settle(&mut harness);
@@ -187,10 +187,10 @@ fn the_palette_flips_a_picture_across_either_axis() {
 #[test]
 fn control_z_undoes_and_shift_control_z_redoes() {
     let (_dir, mut harness, requests) = picture(vec![]);
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('z')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('z')));
     settle(&mut harness);
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Char('z'),
     ));
     settle(&mut harness);
@@ -273,17 +273,17 @@ fn deleting_and_moving_the_page_on_screen_ask_the_host_for_the_page_edit() {
     let (mut harness, requests) = window(&paths, 0, Appearance::default());
     settle(&mut harness);
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Down,
     ));
     settle(&mut harness);
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Backspace,
     ));
     settle(&mut harness);
     harness.send(Input::chord(
-        &[ShortcutKey::Ctrl, ShortcutKey::Shift],
+        &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Up,
     ));
     settle(&mut harness);
@@ -481,7 +481,7 @@ fn adjust_size_opens_a_dialog_on_the_size_the_picture_has_and_cancel_changes_not
 fn closing_a_picture_with_changes_asks_and_cancel_keeps_the_window() {
     let (_dir, mut harness, requests) = picture(vec![]);
     from_the_palette(&mut harness, "rotate right");
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('w')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
     settle(&mut harness);
     assert!(harness.centre(".ds-alert").is_some(), "the question is up");
     let text = harness.text_of(".ds-alert").unwrap_or_default();
@@ -500,7 +500,7 @@ fn closing_a_picture_with_changes_asks_and_cancel_keeps_the_window() {
     assert!(!closes(&requests), "and the window stays");
     assert_eq!(harness.count(".ds-titlebar-edited"), 1, "with its changes");
     // Return is Save: the file is asked to be written, and the window waits for it.
-    harness.send(Input::chord(&[ShortcutKey::Ctrl], ShortcutKey::Char('w')));
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
     settle(&mut harness);
     harness.send(Input::key(ShortcutKey::Enter));
     settle(&mut harness);
