@@ -107,6 +107,36 @@ fn the_rows_follow_the_palettes_commands_in_the_context_order() {
             ],
         ),
         (
+            "a text being edited offers Save and Done above its other rows",
+            vec![
+                Command::Stage(StageCommand::Done),
+                Command::Stage(StageCommand::Save),
+                run(FileAction::CopyPath),
+            ],
+            PanelTabs::NONE,
+            vec![
+                ContextEntry::Item {
+                    pick: ContextPick::Run(Command::Stage(StageCommand::Save)),
+                    title: "Save",
+                },
+                ContextEntry::Item {
+                    pick: ContextPick::Run(Command::Stage(StageCommand::Done)),
+                    title: "Done",
+                },
+                RULE,
+                row(FileAction::CopyPath, "Copy Path"),
+            ],
+        ),
+        (
+            "a text that can be edited offers Edit",
+            vec![Command::Stage(StageCommand::Edit)],
+            PanelTabs::NONE,
+            vec![ContextEntry::Item {
+                pick: ContextPick::Run(Command::Stage(StageCommand::Edit)),
+                title: "Edit",
+            }],
+        ),
+        (
             "a file copy is a row only when the palette lists one",
             vec![run(FileAction::CopyFile)],
             PanelTabs::NONE,

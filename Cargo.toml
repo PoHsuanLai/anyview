@@ -329,6 +329,8 @@ miniz_oxide = { version = "0.8", default-features = false, features = ["with-all
 
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
+# Grapheme and word boundaries for the text editor's caret motion: MIT OR Apache-2.0 (already in the tree).
+unicode-segmentation = "1"
 
 # `anyview-platform`: the one crate that names D-Bus and the freedesktop file formats.
 # MD5 of a file URI, which names its thumbnail (the freedesktop thumbnail spec): MIT OR Apache-2.0.

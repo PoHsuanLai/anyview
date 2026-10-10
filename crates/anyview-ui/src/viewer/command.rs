@@ -1,5 +1,6 @@
 //! What a palette row does: the root decides which region a command belongs to.
 
+use super::departure::{leaving, save_text};
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::picture::{adjust_size, picture, save};
 use super::region::{Step, presentation, sheet, stage};
@@ -8,7 +9,7 @@ use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
 use crate::picture::PictureEditIn;
 use crate::presentation::PresentationIn;
-use crate::sheet::{ExportDraft, ExportFamily, SheetIn};
+use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn};
 use crate::stage::{Stage, StageIn, TextIn};
 use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
 use ds_core::time::stamp::Stamp;
@@ -17,10 +18,10 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
     match command {
         // Finding is the palette's: the Find button and the Find row open it as a find.
         Command::Stage(StageCommand::Find) => super::step::open_find(viewer, at, params),
-        Command::Stage(command) => match viewer.stage.input_for(command, &params.stage) {
-            Some(input) => stage(viewer, input, at, params),
-            None => (viewer, vec![]),
-        },
+        // Done with changes unsaved asks first; Save over another program's changes asks too.
+        Command::Stage(StageCommand::Done) => leaving(viewer, Departure::Finish, at, params),
+        Command::Stage(StageCommand::Save) => save_text(viewer, at, params),
+        Command::Stage(command) => run_stage(viewer, command, at, params),
         Command::File(action) => file_action(viewer, action, at, params),
         Command::UseTool(tool) => (super::step::hand(viewer, HandIn::Use(tool)), vec![]),
         Command::Picture(PictureCommand::AdjustSize) => adjust_size(viewer, at, params),
@@ -49,6 +50,19 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
         }
         Command::OpenFile => super::step::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
+    }
+}
+
+/// `command` as the stage that is showing makes of it, if it has it.
+pub(super) fn run_stage(
+    viewer: Viewer,
+    command: StageCommand,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
+    match viewer.stage.input_for(command, &params.stage) {
+        Some(input) => stage(viewer, input, at, params),
+        None => (viewer, vec![]),
     }
 }
 

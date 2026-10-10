@@ -1,5 +1,6 @@
 use super::support::*;
 use crate::Command;
+use crate::SaveEnd;
 use crate::chrome::*;
 use crate::hand::{HandIn, Tool};
 use crate::load::*;
@@ -458,4 +459,110 @@ fn pan_is_the_tool_until_chosen_otherwise_and_the_choice_goes_with_the_person_to
     };
     let (text, _) = text.step(key(&[ShortcutKey::Char('h')]), Stamp(0), &(), &params);
     assert_eq!(text.hand.tool, Tool::Pan, "H changed nothing on text");
+}
+
+fn editing_text(changes: Changes, outside: Outside) -> Viewer {
+    Viewer {
+        stage: Stage::Text(TextStage::Editing {
+            place: TextPlace {
+                line: LineIndex(0),
+                wrap: Wrap::On,
+                view: TextView::Source,
+            },
+            edited: Edited { changes, outside },
+            find: None,
+        }),
+        ..Viewer::default()
+    }
+}
+
+fn probes(outs: &[ViewerOut], file: &str) -> bool {
+    outs.iter()
+        .any(|out| matches!(out, ViewerOut::Probe { path: at, .. } if *at == path(file)))
+}
+
+#[test]
+fn leaving_a_text_with_unsaved_changes_asks_first_and_goes_on_once_the_text_is_kept_or_let_go() {
+    use crate::sheet::{Departure, Sheet, SheetIn};
+    let params = params();
+    let editing = editing_text(Changes::Unsaved, Outside::Unchanged);
+    let step = |viewer: Viewer, input: ViewerIn| viewer.step(input, Stamp(0), &(), &params);
+    let there = Departure::Open(path("/b.txt"));
+    // Another file asked for is held back by the question.
+    let (asked, outs) = step(editing.clone(), ViewerIn::Open(path("/b.txt")));
+    assert_eq!(asked.sheet, Sheet::Unsaved(there.clone()));
+    assert!(!probes(&outs, "/b.txt"), "nothing is opened yet");
+    // Cancel stays where the person was.
+    let (cancelled, outs) = step(asked.clone(), ViewerIn::Sheet(SheetIn::Cancel));
+    assert_eq!(cancelled.sheet, Sheet::Closed);
+    assert_eq!(cancelled.stage, editing.stage);
+    assert!(!probes(&outs, "/b.txt"));
+    // Don't Save lets the text go and opens the file.
+    let (_, outs) = step(asked.clone(), ViewerIn::Sheet(SheetIn::Discard));
+    assert!(probes(&outs, "/b.txt"));
+    // Save asks the stage to write, and the file is opened only when the host says it has.
+    let (saving, outs) = step(asked, ViewerIn::Sheet(SheetIn::Confirm));
+    assert!(outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Save))));
+    assert!(!probes(&outs, "/b.txt"), "the open waits for the host");
+    assert_eq!(saving.after_save, Some(there));
+    let (refused, _) = step(saving.clone(), ViewerIn::Saved(SaveEnd::Refused));
+    assert_eq!(refused.after_save, None, "a refused save opens nothing");
+    assert_eq!(refused.stage, editing.stage);
+    let (written, _) = step(
+        saving,
+        ViewerIn::Stage(StageIn::Text(TextIn::Edited(Changes::Saved))),
+    );
+    let (_, outs) = step(written, ViewerIn::Saved(SaveEnd::Written));
+    assert!(
+        probes(&outs, "/b.txt"),
+        "the text is in the file: the open goes ahead"
+    );
+}
+
+#[test]
+fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
+    use crate::sheet::{Departure, Sheet};
+    use ShortcutKey::{Char, Super};
+    let params = params();
+    let step = |viewer: Viewer, input: ViewerIn| viewer.step(input, Stamp(0), &(), &params);
+    let unsaved = editing_text(Changes::Unsaved, Outside::Unchanged);
+    let (closing, outs) = step(unsaved.clone(), key(&[Super, Char('w')]));
+    assert_eq!(
+        closing.sheet,
+        Sheet::Unsaved(Departure::Close),
+        "command W asks"
+    );
+    assert!(!outs.contains(&ViewerOut::CloseWindow));
+    let (done, _) = step(
+        unsaved,
+        ViewerIn::Run(Command::Stage(crate::StageCommand::Done)),
+    );
+    assert_eq!(done.sheet, Sheet::Unsaved(Departure::Finish), "Done asks");
+    let saved = editing_text(Changes::Saved, Outside::Unchanged);
+    let (_, outs) = step(saved.clone(), key(&[Super, Char('w')]));
+    assert!(
+        outs.contains(&ViewerOut::CloseWindow),
+        "a saved text closes at once"
+    );
+    let (finished, outs) = step(
+        saved,
+        ViewerIn::Run(Command::Stage(crate::StageCommand::Done)),
+    );
+    assert_eq!(finished.sheet, Sheet::Closed);
+    assert!(outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::EndEdit))));
+    let (saving, outs) = step(
+        editing_text(Changes::Unsaved, Outside::Unchanged),
+        key(&[Super, Char('s')]),
+    );
+    assert_eq!(saving.sheet, Sheet::Closed);
+    assert!(outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Save))));
+    let (replacing, _) = step(
+        editing_text(Changes::Unsaved, Outside::Changed),
+        key(&[Super, Char('s')]),
+    );
+    assert_eq!(
+        replacing.sheet,
+        Sheet::ConfirmReplace,
+        "saving over another program's changes asks first"
+    );
 }

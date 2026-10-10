@@ -25,6 +25,11 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
         stage(StageCommand::StepFrameForward, "Next Frame"),
     ],
     &[
+        stage(StageCommand::Edit, "Edit"),
+        stage(StageCommand::Save, "Save"),
+        stage(StageCommand::Done, "Done"),
+    ],
+    &[
         file(FileAction::RotateLeft, "Rotate Left"),
         file(FileAction::RotateRight, "Rotate Right"),
     ],

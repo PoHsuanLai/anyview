@@ -6,6 +6,7 @@ use crate::context::entries;
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{DesktopService, NaturalSize, Opened};
 use crate::sheet::ExportFacts;
+use crate::stage::WrapChoices;
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, FileAccess, HitIndex, HitList, MediaOffer,
     Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities, Playing,
@@ -142,6 +143,8 @@ pub(super) struct Live {
     pub picture: PictureOffer,
     /// What has been done to the open picture.
     pub adjust: Adjust,
+    /// How the person last chose to wrap each kind of text.
+    pub wraps: WrapChoices,
 }
 
 /// What editing the open picture offers.
@@ -194,19 +197,20 @@ pub(super) fn commands(
     let stages = StageCommand::ALL
         .iter()
         .filter(|_| offers.playback == Playback::Playable)
-        .filter(|command| offers.access == FileAccess::Writable || !edits_pages(**command))
+        .filter(|command| offers.access == FileAccess::Writable || !changes_file(**command))
         // The two views of a text file are listed as "Show Preview" and "Show Source" below.
         .filter(|command| **command != StageCommand::ToggleSource)
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     let views = match (stage, params.text.views) {
-        (Stage::Text(text), TextViews::RenderedAndSource) => {
+        // The text being edited is its source: there is no page to switch to.
+        (Stage::Text(text), TextViews::RenderedAndSource) if text.edited().is_none() => {
             Some(Command::ShowView(match text.place().view {
                 TextView::Rendered => TextView::Source,
                 TextView::Source => TextView::Rendered,
             }))
         }
-        (Stage::Text(_), TextViews::SourceOnly)
+        (Stage::Text(_), TextViews::RenderedAndSource | TextViews::SourceOnly)
         | (
             Stage::NoStage
             | Stage::Raster(_)
@@ -251,11 +255,15 @@ fn picture_commands(stage: &Stage, offer: PictureOffer, tool: crate::Tool) -> Ve
     }
 }
 
-/// Whether `command` changes the pages of the PDF it is run on.
-fn edits_pages(command: StageCommand) -> bool {
+/// Whether `command` changes the file it is run on: the pages of a PDF, the text of a text.
+fn changes_file(command: StageCommand) -> bool {
     matches!(
         command,
-        StageCommand::DeletePage | StageCommand::MovePageEarlier | StageCommand::MovePageLater
+        StageCommand::DeletePage
+            | StageCommand::MovePageEarlier
+            | StageCommand::MovePageLater
+            | StageCommand::Edit
+            | StageCommand::Save
     )
 }
 
@@ -394,6 +402,7 @@ pub(super) fn params(
         marks,
         picture,
         adjust,
+        wraps,
     } = live;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
@@ -422,6 +431,9 @@ pub(super) fn params(
             crate::families::adjusted_raster(measured.raster.clone(), raster, base, adjust, area);
     }
     measured.media.abilities = abilities;
+    if let Some(kind) = kind {
+        measured.text.wrap = wraps.of(kind);
+    }
     measured.raster.motion = match level {
         MotionLevel::Reduced => Motion::Reduced,
         MotionLevel::Standard => Motion::Standard,
@@ -793,6 +805,79 @@ mod tests {
             if offers.access == FileAccess::ReadOnly || offers.edit == EditOffer::Withheld {
                 assert!(!in_menu("Rotate Left"), "{name}: menu");
             }
+        }
+    }
+
+    #[test]
+    fn a_text_lists_edit_when_it_can_be_edited_and_done_and_save_while_it_is() {
+        use crate::{Editable, Edited, TextPlace, TextStage, Wrap};
+        use anyview_core::LineIndex;
+        let reading = Stage::Text(TextStage::default());
+        let editing = Stage::Text(TextStage::Editing {
+            place: TextPlace {
+                line: LineIndex(0),
+                wrap: Wrap::On,
+                view: TextView::Source,
+            },
+            edited: Edited::default(),
+            find: None,
+        });
+        let params = |editable| StageParams {
+            text: TextParams {
+                editable,
+                ..TextParams::default()
+            },
+            ..StageParams::default()
+        };
+        let locked = Offers {
+            access: FileAccess::ReadOnly,
+            ..plain()
+        };
+        const THREE: [StageCommand; 3] =
+            [StageCommand::Edit, StageCommand::Done, StageCommand::Save];
+        // name, stage, whether the file can be edited, what the file allows, the three it lists
+        let cases = [
+            (
+                "a text that can be edited lists Edit",
+                &reading,
+                Editable::Yes,
+                plain(),
+                vec![StageCommand::Edit],
+            ),
+            (
+                "a text too large to edit lists none",
+                &reading,
+                Editable::No,
+                plain(),
+                vec![],
+            ),
+            (
+                "a text that refuses a save lists none",
+                &reading,
+                Editable::Yes,
+                locked,
+                vec![],
+            ),
+            (
+                "a text being edited lists Done and Save",
+                &editing,
+                Editable::Yes,
+                plain(),
+                vec![StageCommand::Done, StageCommand::Save],
+            ),
+        ];
+        for (name, stage, editable, offers, want) in cases {
+            let listed = commands(
+                Some(FormatKind::PlainText),
+                stage,
+                &params(editable),
+                offers,
+            );
+            let got: Vec<StageCommand> = THREE
+                .into_iter()
+                .filter(|command| listed.contains(&Command::Stage(*command)))
+                .collect();
+            assert_eq!(got, want, "{name}");
         }
     }
 

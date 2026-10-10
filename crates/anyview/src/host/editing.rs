@@ -3,9 +3,9 @@
 
 use super::outcome::{Declined, Outcome};
 use super::route::{Carry, Shown, Task};
-use anyview_core::{FileName, FilePath, Trail, TrailIn, TrailOut, edits_for};
+use anyview_core::{FileName, FilePath, FormatKind, Trail, TrailIn, TrailOut, edits_for};
 use anyview_store::VersionId;
-use anyview_ui::{EditRequest, HostRequest, Rewind, TypedText, VersionKey};
+use anyview_ui::{EditRequest, HostRequest, Rewind, TextSave, TypedText, VersionKey};
 use std::path::Path;
 
 impl Shown {
@@ -103,6 +103,33 @@ pub(super) fn edit(shown: Shown, request: EditRequest) -> (Shown, Carry) {
         file: probed,
         request,
     })
+}
+
+/// The text of the open file as the person edited it, saved in place when the file is text and
+/// no other save is being written.
+pub(super) fn save_text(shown: Shown, save: TextSave) -> (Shown, Carry) {
+    let Some(probed) = shown.file().cloned() else {
+        return declined(shown, Declined::NoFileShown);
+    };
+    if !is_text(probed.sniffed.kind()) {
+        return declined(shown, Declined::Edit);
+    }
+    if anyview_store::is_read_only(probed.source.path().as_path()) {
+        return declined(shown, Declined::Locked);
+    }
+    let (shown, outs) = shown.stepped(TrailIn::Save);
+    if is_busy(&outs) {
+        return shown.queueing(HostRequest::SaveText(save));
+    }
+    saves(shown, outs, || Task::SaveText { file: probed, save })
+}
+
+/// Whether files of `kind` are edited as text.
+fn is_text(kind: FormatKind) -> bool {
+    matches!(
+        kind,
+        FormatKind::PlainText | FormatKind::Markdown | FormatKind::Code
+    )
 }
 
 /// Undo or redo: the version the trail names is put back.

@@ -35,6 +35,9 @@ pub enum Doing {
     OpenLink,
     /// Saving a change in place, or putting a kept version back.
     Save,
+    /// Saving the text the person edited. It ends in the window's own account (`Edge::saved`),
+    /// which the text's editor waits on.
+    SaveText,
 }
 
 impl Doing {
@@ -53,6 +56,7 @@ impl Doing {
             Task::PickFile => Some(Doing::Pick),
             Task::OpenLink(_) => Some(Doing::OpenLink),
             Task::Edit { .. } | Task::Restore { .. } | Task::RevertTo { .. } => Some(Doing::Save),
+            Task::SaveText { .. } => Some(Doing::SaveText),
             // The install sheet says how it went; the log has the package manager's words.
             Task::Provide(_) | Task::RecordView(_) | Task::Remember { .. } => None,
         }
@@ -82,7 +86,8 @@ pub fn subject_of(task: &Task) -> Option<FilePath> {
         | Task::PlayInBackground(probed)
         | Task::ExportDocument { file: probed, .. }
         | Task::ExportMedia { file: probed, .. }
-        | Task::Edit { file: probed, .. } => Some(probed.source.path().clone()),
+        | Task::Edit { file: probed, .. }
+        | Task::SaveText { file: probed, .. } => Some(probed.source.path().clone()),
         Task::RecordView(_)
         | Task::Remember { .. }
         | Task::PickFile
@@ -151,7 +156,7 @@ pub fn notice_of(doing: Doing, subject: Option<&FilePath>, outcome: &Outcome) ->
         (Doing::Play, Outcome::Failed(_)) => {
             Some(Notice::say(format!("Couldn\u{2019}t play {name}")))
         }
-        (Doing::Save, Outcome::NotWritten(_)) => Some(Notice::say(format!(
+        (Doing::Save | Doing::SaveText, Outcome::NotWritten(_)) => Some(Notice::say(format!(
             "Couldn\u{2019}t save the change. {name} is unchanged"
         ))),
         (
@@ -166,7 +171,8 @@ pub fn notice_of(doing: Doing, subject: Option<&FilePath>, outcome: &Outcome) ->
             | Doing::Play
             | Doing::Pick
             | Doing::OpenLink
-            | Doing::Save,
+            | Doing::Save
+            | Doing::SaveText,
             _,
         ) => None,
     }

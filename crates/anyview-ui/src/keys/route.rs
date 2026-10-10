@@ -47,7 +47,9 @@ pub fn route(key: &Shortcut, regions: Regions<'_>) -> Route {
             helper: _,
             phase: _,
         }
-        | Sheet::Picture(_) => {
+        | Sheet::Picture(_)
+        | Sheet::Unsaved(_)
+        | Sheet::ConfirmReplace => {
             return SheetIn::from_key(keys).map_or(Route::Swallowed, Route::Sheet);
         }
         Sheet::Closed => {}

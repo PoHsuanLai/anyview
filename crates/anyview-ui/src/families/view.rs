@@ -128,6 +128,14 @@ pub struct StageCx {
     pub frame: FrameLook,
     /// What the platform can do: a control of a service it lacks is not drawn.
     pub platform: crate::PlatformAbilities,
+    /// Whether the open file takes a save in place: a file that refuses one is not offered for
+    /// editing.
+    pub access: crate::FileAccess,
+    /// The text being edited, once it is read: the window holds it so that saving, the find and
+    /// the title bar's edited dot all see the one text.
+    pub text_edit: Signal<Option<anyview_text::Session>>,
+    /// The handle on the edit surface, so the window can give it the keyboard back.
+    pub text_editor: ds::edit::handle::EditHandle,
 }
 
 /// One place a find found, as the palette lists it under "In This File": the words around the match
@@ -236,6 +244,11 @@ pub trait StageView: 'static {
     fn lines(_doc: &Arc<Self::Doc>, _ticket: Ticket, _first: LineIndex, _rows: u32) -> Option<Job> {
         None
     }
+    /// The job that reads the document's file whole to edit it in place, for a family whose
+    /// files are edited as text.
+    fn edit_read(_doc: &Arc<Self::Doc>, _ticket: Ticket) -> Option<Job> {
+        None
+    }
     /// The job that finds `query` in the document, for a family that can search.
     fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
         None
@@ -281,6 +294,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn panel(&self, tab: PanelTab, cx: &StageCx) -> Option<Element>;
     fn modes(&self, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
+    fn edit_read(&self, ticket: Ticket) -> Option<Job>;
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
@@ -347,6 +361,10 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job> {
         S::lines(&self.doc, ticket, first, rows)
+    }
+
+    fn edit_read(&self, ticket: Ticket) -> Option<Job> {
+        S::edit_read(&self.doc, ticket)
     }
 
     fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {

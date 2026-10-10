@@ -7,7 +7,7 @@ use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use support::{VIEW, shot, window};
+use support::{VIEW, Wiring, shot, window, wired};
 
 fn middle() -> Point {
     Point {
@@ -242,4 +242,84 @@ fn a_long_line_wraps_to_the_window_when_wrap_is_on_and_runs_on_when_it_is_off() 
         (single - 20.0).abs() < 1.0,
         "with wrap off the line is one row: {single}"
     );
+}
+
+/// The bytes of the save the window asked of its host last, if it asked.
+fn saved_bytes(requests: &support::Requests) -> Option<Vec<u8>> {
+    requests.lock().unwrap().iter().rev().find_map(|request| {
+        if let anyview_ui::HostRequest::SaveText(save) = request {
+            Some(save.clone().into_bytes())
+        } else {
+            None
+        }
+    })
+}
+
+#[test]
+fn a_text_is_edited_in_place_saved_and_asked_about_before_the_window_closes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = file(dir.path(), "notes.txt", "hello\nworld\n");
+    let (mut harness, requests, edge) = wired(
+        std::slice::from_ref(&path),
+        0,
+        Appearance::default(),
+        Wiring::default(),
+    );
+    settle(&mut harness);
+    harness.send(Input::pointer_move(middle()));
+    settle(&mut harness);
+    // Return edits; the text is read and the surface has the keyboard.
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(
+        harness.count(".ds-edit"),
+        1,
+        "the lines are an edit surface now"
+    );
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        0,
+        "nothing is changed yet"
+    );
+    type_text(&mut harness, "x");
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        1,
+        "the title bar's dot says there are unsaved changes"
+    );
+    assert_eq!(
+        harness.text_of(".viewer-code").as_deref(),
+        Some("xhello"),
+        "typed at the caret"
+    );
+    chord(&mut harness, 's');
+    assert_eq!(
+        saved_bytes(&requests).as_deref(),
+        Some(&b"xhello\nworld\n"[..]),
+        "command S asks the host to write the text, line endings and all"
+    );
+    // The host wrote it and says so: the dot goes.
+    edge.saved(
+        anyview_core::FilePath::new(&path).unwrap(),
+        anyview_ui::SaveEnd::Written,
+    );
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-titlebar-edited"), 0, "saved");
+    // Another change, and the window will not close on it without asking.
+    type_text(&mut harness, "y");
+    assert_eq!(harness.count(".ds-titlebar-edited"), 1);
+    chord(&mut harness, 'w');
+    assert!(
+        harness
+            .html()
+            .contains("Do you want to save the changes made to"),
+        "closing asks what to do with the changes"
+    );
+    press(&mut harness, ShortcutKey::Escape);
+    assert!(
+        !harness
+            .html()
+            .contains("Do you want to save the changes made to"),
+        "Cancel keeps the person where they were"
+    );
+    assert_eq!(harness.count(".ds-edit"), 1, "still editing");
 }

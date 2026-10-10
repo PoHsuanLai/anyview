@@ -279,6 +279,8 @@ fn a_text_file_menu_has_no_picture_rows() {
     assert_eq!(
         lines,
         [
+            "Edit",
+            RULE,
             "Copy Path",
             RULE,
             "Open\u{2026}",

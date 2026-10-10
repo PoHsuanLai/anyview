@@ -1,8 +1,7 @@
 //! The sheets of editing a picture: Adjust Size, and the question asked when a picture with
 //! changes that are not saved is about to be left.
 
-use crate::navigate::NavigateIn;
-use anyview_core::{FilePath, PixelLen, PixelSize};
+use anyview_core::{PixelLen, PixelSize};
 
 /// The most a side of a resized picture may be, so that a mistyped number cannot ask for a
 /// picture no memory holds.
@@ -193,28 +192,11 @@ pub enum ResizeChange {
     Proportion(ResizeProportion),
 }
 
-/// Where the person is going when a picture with changes that are not saved is in the way.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PictureDeparture {
-    /// Closing the window.
-    Close,
-    /// Opening this file.
-    Open(FilePath),
-    /// Opening these files, as the file chooser answered.
-    Chosen(Vec<FilePath>),
-    /// Opening these files, as dropped on the window.
-    Dropped(Vec<FilePath>),
-    /// Walking to another file of the list.
-    Walk(NavigateIn),
-}
-
 /// Which sheet of editing a picture is up.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PictureSheet {
     /// Choosing a new size.
     Resize(ResizeDraft),
-    /// Asking what to do with the changes before going where the person asked.
-    Unsaved(PictureDeparture),
 }
 
 /// What moves a sheet of editing a picture.
@@ -222,8 +204,6 @@ pub enum PictureSheet {
 pub enum PictureSheetIn {
     /// A size changed.
     Resize(ResizeChange),
-    /// Don't Save: go on without the changes.
-    Decline,
 }
 
 /// What a sheet of editing a picture wants done.
@@ -231,10 +211,6 @@ pub enum PictureSheetIn {
 pub enum PictureSheetOut {
     /// Scale the picture to this size.
     Resize(PixelSize),
-    /// Save the changes, then go on.
-    Save(PictureDeparture),
-    /// Let the changes go, and go on.
-    Discard(PictureDeparture),
 }
 
 #[cfg(test)]

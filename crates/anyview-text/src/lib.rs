@@ -9,6 +9,8 @@
 //!   a `LocalFiles` the caller injects (`DiskFiles`, or `NoFiles` for a peek).
 //! - Tables and trees: `Table` for CSV and TSV, `Workbook` and `Sheet` for spreadsheets, `Tree`
 //!   for JSON.
+//! - Editing: `EditText` is a file read for editing, a `Session` its text with a caret, a
+//!   selection and undo, and `Session::file_bytes` what is written back.
 //! - The light tier: the `*Peek` types describe a file in a few lines without opening it whole.
 //! - Exports: `plan_export` and `plan_print` plan what a text document is written or printed
 //!   as, and `printable_html` is the page a renderer lays out.
@@ -32,6 +34,7 @@
 
 mod bytes;
 mod code;
+mod edit;
 mod encoding;
 mod error;
 mod escape;
@@ -47,6 +50,9 @@ pub use bytes::FileBytes;
 pub use code::{
     CodeLines, Highlighter, SyntaxId, TOKEN_CLASS_PREFIX, TokenClass, TokenLine, TokenSpan,
     tokens_html,
+};
+pub use edit::{
+    Buffer, EDIT_BYTES, EditRefusal, EditText, Motion, Preedit, Revision, Selection, Session,
 };
 pub use encoding::{Coverage, DETECT_BYTES, Detected, TextCodec, detect};
 pub use error::TextError;

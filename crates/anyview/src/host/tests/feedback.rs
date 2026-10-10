@@ -95,6 +95,20 @@ fn what_the_person_is_told_follows_what_was_done_and_how_it_ended() {
             Some("Couldn\u{2019}t save the change. \u{201c}photo.png\u{201d} is unchanged"),
             false,
         ),
+        (
+            "so does a save of edited text",
+            Doing::SaveText,
+            Outcome::NotWritten("x".to_owned()),
+            Some("Couldn\u{2019}t save the change. \u{201c}photo.png\u{201d} is unchanged"),
+            false,
+        ),
+        (
+            "a save of edited text that worked is quiet",
+            Doing::SaveText,
+            Outcome::Done,
+            None,
+            false,
+        ),
     ];
     for (name, doing, outcome, words, reveals) in cases {
         let notice = notice_of(doing, Some(&photo), &outcome);

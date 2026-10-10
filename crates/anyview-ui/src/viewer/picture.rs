@@ -3,17 +3,15 @@
 //! the question asked when the person is about to leave a picture with changes that are not saved.
 
 use super::command::export;
+use super::departure::{discard, leave, save_open};
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::region::{Step, sheet, stage};
-use super::step::{begin, dropped, navigate_now};
 use crate::context::ContextMenu;
 use crate::edits::{EditOffer, EditRequest};
 use crate::hand::{Hand, Tool};
 use crate::palette::Palette;
 use crate::picture::PictureEditIn;
-use crate::sheet::{
-    PictureDeparture, PictureSheet, PictureSheetOut, ResizeDraft, Sheet, SheetIn, SheetOut,
-};
+use crate::sheet::{PictureSheet, PictureSheetOut, ResizeDraft, Sheet, SheetIn, SheetOut};
 use crate::stage::{RasterIn, Stage, StageIn};
 use anyview_core::{DocPoint, Edit, Zoom};
 use ds_core::time::stamp::Stamp;
@@ -154,51 +152,6 @@ pub(super) fn adjust_size(viewer: Viewer, at: Stamp, params: &ViewerParams) -> S
     }
 }
 
-/// Whether going to another file or closing the window would lose changes to the picture.
-fn unsaved(viewer: &Viewer) -> bool {
-    viewer.picture.is_edited() && matches!(viewer.stage, Stage::Raster(_))
-}
-
-/// Go where `departure` says, or first ask what to do with changes that are not saved.
-pub(super) fn leaving(
-    viewer: Viewer,
-    departure: PictureDeparture,
-    at: Stamp,
-    params: &ViewerParams,
-) -> Step {
-    if unsaved(&viewer) {
-        sheet(
-            viewer,
-            SheetIn::AskPicture(PictureSheet::Unsaved(departure)),
-            at,
-            params,
-        )
-    } else {
-        leave(viewer, departure, at, params)
-    }
-}
-
-/// Go where `departure` says.
-fn leave(viewer: Viewer, departure: PictureDeparture, at: Stamp, params: &ViewerParams) -> Step {
-    match departure {
-        PictureDeparture::Close => (viewer, vec![ViewerOut::CloseWindow]),
-        PictureDeparture::Open(path) => begin(viewer, &path, at, params),
-        PictureDeparture::Chosen(paths) | PictureDeparture::Dropped(paths) => {
-            dropped(viewer, paths, at, params)
-        }
-        PictureDeparture::Walk(input) => navigate_now(viewer, input, at, params),
-    }
-}
-
-/// Whether `input` walks to another file, so that it would leave the picture.
-pub(super) fn walks(input: &crate::navigate::NavigateIn) -> bool {
-    use crate::navigate::NavigateIn;
-    match input {
-        NavigateIn::Next | NavigateIn::Previous | NavigateIn::First | NavigateIn::Last => true,
-        NavigateIn::Start(_) | NavigateIn::Leave | NavigateIn::Gone | NavigateIn::Elapsed => false,
-    }
-}
-
 /// A sheet of editing a picture was answered: a new size is applied, Save writes the changes (and
 /// the person goes on once the saved file has been read again), Don't Save lets them go and goes
 /// on at once.
@@ -208,25 +161,54 @@ pub(super) fn answered(
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
-    let answers: Vec<PictureSheetOut> = outs
+    let answers: Vec<SheetOut> = outs
         .iter()
-        .filter_map(|out| {
-            if let ViewerOut::Sheet(SheetOut::Picture(answer)) = out {
-                Some(answer.clone())
-            } else {
-                None
-            }
+        .filter_map(|out| match out {
+            ViewerOut::Sheet(
+                answer @ (SheetOut::Picture(_) | SheetOut::Save(_) | SheetOut::Discard(_)),
+            ) => Some(answer.clone()),
+            ViewerOut::Sheet(
+                SheetOut::Opened
+                | SheetOut::Closed
+                | SheetOut::Export(_)
+                | SheetOut::Trash
+                | SheetOut::Edit(_)
+                | SheetOut::Rename(_)
+                | SheetOut::SaveCopy(_)
+                | SheetOut::Revert(_)
+                | SheetOut::Provide(_)
+                | SheetOut::Reopen
+                | SheetOut::Replace,
+            )
+            | ViewerOut::Probe { .. }
+            | ViewerOut::Reload { .. }
+            | ViewerOut::ListFolder(_)
+            | ViewerOut::Load(_)
+            | ViewerOut::Chrome(_)
+            | ViewerOut::Panel(_)
+            | ViewerOut::Palette(_)
+            | ViewerOut::Preload(_)
+            | ViewerOut::Presentation(_)
+            | ViewerOut::Stage(_)
+            | ViewerOut::Run(_)
+            | ViewerOut::Edit(_)
+            | ViewerOut::Rewind(_)
+            | ViewerOut::ListVersions
+            | ViewerOut::NameRename
+            | ViewerOut::NameCopy
+            | ViewerOut::PickFile
+            | ViewerOut::CloseWindow => None,
         })
         .collect();
     let mut state = (viewer, outs);
     for answer in answers {
         let (viewer, mut outs) = state;
         let (viewer, more) = match answer {
-            PictureSheetOut::Resize(size) => {
+            SheetOut::Picture(PictureSheetOut::Resize(size)) => {
                 picture(viewer, PictureEditIn::Resize(size), at, params)
             }
-            PictureSheetOut::Save(then) => {
-                let (viewer, more) = save(viewer, at, params);
+            SheetOut::Save(then) => {
+                let (viewer, more) = save_open(viewer, at, params);
                 (
                     Viewer {
                         after_save: Some(then),
@@ -235,12 +217,23 @@ pub(super) fn answered(
                     more,
                 )
             }
-            PictureSheetOut::Discard(then) => {
-                let (viewer, mut first) = picture(viewer, PictureEditIn::Discard, at, params);
+            SheetOut::Discard(then) => {
+                let (viewer, mut first) = discard(viewer, at, params);
                 let (viewer, second) = leave(viewer, then, at, params);
                 first.extend(second);
                 (viewer, first)
             }
+            SheetOut::Opened
+            | SheetOut::Closed
+            | SheetOut::Export(_)
+            | SheetOut::Trash
+            | SheetOut::Edit(_)
+            | SheetOut::Rename(_)
+            | SheetOut::SaveCopy(_)
+            | SheetOut::Revert(_)
+            | SheetOut::Provide(_)
+            | SheetOut::Reopen
+            | SheetOut::Replace => (viewer, Vec::new()),
         };
         outs.extend(more);
         state = (viewer, outs);

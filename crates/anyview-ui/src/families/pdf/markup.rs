@@ -54,6 +54,9 @@ fn cx(stage: Stage) -> StageCx {
         media: crate::families::use_media_shelf(),
         frame: FrameLook::default(),
         platform: crate::PlatformAbilities::ALL,
+        access: crate::FileAccess::Writable,
+        text_edit: use_signal(|| None),
+        text_editor: ds::edit::handle::use_edit_handle(),
     }
 }
 

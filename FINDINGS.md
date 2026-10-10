@@ -763,6 +763,22 @@ on. It is a reference, not a log: how each was found lives in git history.
   (`ViewerIn::Reload`, with the recording's place not kept). Ends when `MediaOffer` can be read again without
   restarting the player.
 
+- **A text is edited whole, up to 8 MiB.** `EditText::read` holds the file in memory as a piece table's original,
+  so editing never reads the file again and a save of the file under it cannot change what the pieces point at.
+  A larger file is not offered for editing (no technical reason is shown). Ends if a file people edit is larger,
+  which wants the table over a ranged source and a streamed save.
+- **Closing the window with the title bar's button, or by the desktop, does not ask about unsaved changes.** The
+  question is asked for the keys, Done, opening another file and walking the folder; quire closes the window on a
+  close request without asking the app (`WindowEvent::CloseRequested` in `ds-blitz`'s window shell). Ends when
+  quire lets an app veto the close.
+- **Wrapping is remembered for the window, not across launches.** The last choice for plain text, Markdown and
+  code is kept by the window and used for the next file of the kind; no `viewer.*` setting stores it yet.
+  Ends with the desktop settings keys.
+- **A selection across lines draws no box over the line numbers only because the editor drops them.** The edit
+  surface boxes every run of text between a selection's ends, the gutter's included; `families/text/edit`
+  drops the boxes left of the text. quire's `edit_tree` can leave unmarked text out itself (a small patch to
+  `ds-blitz`'s `edit_tree.rs`, not in v0.3.1); nothing here waits for it.
+
 ## Standing facts
 
 - **A capsule thins itself to the stage's width, and quire's capsule has no overflow of its own.** quire's capsule is as
@@ -1004,6 +1020,15 @@ on. It is a reference, not a log: how each was found lives in git history.
   the cursor (`RowStep`); while a row is picked Left and Right walk nothing, and Esc puts the cursor away so they
   walk the folder again.
 ## Saves, versions and the install receipt
+
+- **Editing text keeps the file as it was, apart from the edits.** The text is read as UTF-8 (a UTF-16 or
+  Windows-1252 file is refused in words, and so is a file with bytes that are no text), its byte-order mark and its
+  line endings are written back as they were (a line break the person types follows the first break of the file,
+  and pasted text is brought to it), and the write is the store's: the original is kept as a version first, so
+  Revert To undoes a save that was a mistake. A file that another program changed while it is edited is told to the
+  person; with no changes of their own it is read again, with some, Save asks before replacing what the other
+  program wrote. A save of the text moves the stamp the window knows the file by, so the window's own write never
+  reads as another program's (`Settle` in `views/shelf.rs`).
 
 - **Save and store limits that stand.** A save keeps the mode, owner (where the process may chown), extended
   attributes and ACLs, and writes a file with other hard links in place so the links stay one file; that write is

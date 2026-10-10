@@ -32,4 +32,6 @@ pub use seams::{
     FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeSource, VersionSource,
 };
 pub use services::Services;
-pub use workers::{Edge, HostRequest, NaturalSize, Reply, SizeBasis, Work, WorkKind, Workers};
+pub use workers::{
+    Edge, HostRequest, NaturalSize, Reply, SaveEnd, SizeBasis, TextSave, Work, WorkKind, Workers,
+};

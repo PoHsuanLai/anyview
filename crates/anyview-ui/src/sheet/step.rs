@@ -1,5 +1,6 @@
 //! The sheet's transitions: modal, so a sheet that is up ignores every request to open another.
 
+use super::departure::Departure;
 use super::draft::ExportDraft;
 use super::helper::{HelperEnd, HelperPhase};
 use super::model::{Sheet, SheetIn, SheetOut, SheetParams};
@@ -33,6 +34,8 @@ impl Machine for Sheet {
             Sheet::NoVersions => no_versions(input),
             Sheet::Helper { helper, phase } => helping(helper, phase, input),
             Sheet::Picture(sheet) => picture(sheet, input),
+            Sheet::Unsaved(departure) => unsaved(departure, input),
+            Sheet::ConfirmReplace => confirm_replace(input),
         }
     }
 
@@ -60,7 +63,9 @@ impl Machine for Sheet {
                 helper: _,
                 phase: _,
             }
-            | Sheet::Picture(_) => None,
+            | Sheet::Picture(_)
+            | Sheet::Unsaved(_)
+            | Sheet::ConfirmReplace => None,
         }
     }
 }
@@ -90,6 +95,8 @@ fn closed(input: SheetIn, params: &SheetParams) -> Step {
         }),
         SheetIn::AskTrash => opened(Sheet::ConfirmTrash),
         SheetIn::AskPicture(sheet) => opened(Sheet::Picture(sheet)),
+        SheetIn::AskUnsaved(departure) => opened(Sheet::Unsaved(departure)),
+        SheetIn::AskReplace => opened(Sheet::ConfirmReplace),
         SheetIn::AskEdit(request, caution) => opened(Sheet::ConfirmEdit { request, caution }),
         SheetIn::AskRename(name) => opened(Sheet::Rename { name }),
         SheetIn::AskSaveCopy(name) => opened(Sheet::SaveCopy { name }),
@@ -105,6 +112,7 @@ fn closed(input: SheetIn, params: &SheetParams) -> Step {
         | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
+        | SheetIn::Discard
         | SheetIn::Confirm
         | SheetIn::Cancel
         | SheetIn::Elapsed => (Sheet::Closed, vec![]),
@@ -133,6 +141,9 @@ fn export(draft: ExportDraft, span: PageSpan, input: SheetIn, params: &SheetPara
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -163,6 +174,9 @@ fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -187,6 +201,9 @@ fn confirm_trash(input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -213,6 +230,9 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -238,6 +258,9 @@ fn save_copy(name: TypedText, input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -271,6 +294,9 @@ fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -294,6 +320,9 @@ fn no_versions(input: SheetIn) -> Step {
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(_, _)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -318,6 +347,9 @@ fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> S
         | SheetIn::AskTrash
         | SheetIn::AskPicture(_)
         | SheetIn::Picture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Discard
         | SheetIn::AskEdit(..)
         | SheetIn::AskRename(_)
         | SheetIn::AskSaveCopy(_)
@@ -370,6 +402,9 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
             | SheetIn::AskTrash
             | SheetIn::AskPicture(_)
             | SheetIn::Picture(_)
+            | SheetIn::AskUnsaved(_)
+            | SheetIn::AskReplace
+            | SheetIn::Discard
             | SheetIn::AskEdit(_, _)
             | SheetIn::AskRename(_)
             | SheetIn::AskSaveCopy(_)
@@ -400,7 +435,7 @@ fn ended_with(helper: Helper, end: HelperEnd) -> Step {
 }
 
 /// A sheet of editing a picture. Adjust Size keeps the sizes being chosen and Return takes them;
-/// the question asked on leaving is Save (Return), Don't Save and Cancel (Esc).
+/// Esc puts it away.
 fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
     match (sheet, input) {
         (PictureSheet::Resize(draft), SheetIn::Confirm) => {
@@ -410,12 +445,6 @@ fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
             Sheet::Picture(PictureSheet::Resize(draft.changed(change))),
             vec![],
         ),
-        (PictureSheet::Unsaved(then), SheetIn::Confirm) => {
-            closing(SheetOut::Picture(PictureSheetOut::Save(then)))
-        }
-        (PictureSheet::Unsaved(then), SheetIn::Picture(PictureSheetIn::Decline)) => {
-            closing(SheetOut::Picture(PictureSheetOut::Discard(then)))
-        }
         (_, SheetIn::Cancel) => cancelled(),
         (
             sheet,
@@ -425,7 +454,9 @@ fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
             | SheetIn::HelperEnded(_, _)
             | SheetIn::AskTrash
             | SheetIn::AskPicture(_)
-            | SheetIn::Picture(_)
+            | SheetIn::AskUnsaved(_)
+            | SheetIn::AskReplace
+            | SheetIn::Discard
             | SheetIn::AskEdit(_, _)
             | SheetIn::AskRename(_)
             | SheetIn::AskSaveCopy(_)
@@ -437,5 +468,64 @@ fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
             | SheetIn::Typed(_)
             | SheetIn::Elapsed,
         ) => (Sheet::Picture(sheet), vec![]),
+    }
+}
+
+/// The question asked before going on with changes that are not saved: Return saves them first,
+/// Don't Save lets them go, Esc keeps the person where they were. What is saved, and where the
+/// person goes after, are the viewer's.
+fn unsaved(departure: Departure, input: SheetIn) -> Step {
+    match input {
+        SheetIn::Confirm => closing(SheetOut::Save(departure)),
+        SheetIn::Discard => closing(SheetOut::Discard(departure)),
+        SheetIn::Cancel => cancelled(),
+        SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OfferHelper(_)
+        | SheetIn::HelperEnded(_, _)
+        | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Picture(_)
+        | SheetIn::AskEdit(_, _)
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Tune(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::Unsaved(departure), vec![]),
+    }
+}
+
+/// Another program changed the file under the edited text: Return replaces what it wrote with
+/// the text, Esc keeps the person where they were.
+fn confirm_replace(input: SheetIn) -> Step {
+    match input {
+        SheetIn::Confirm => closing(SheetOut::Replace),
+        SheetIn::Cancel => cancelled(),
+        SheetIn::Discard
+        | SheetIn::OpenExport(_)
+        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OfferHelper(_)
+        | SheetIn::HelperEnded(_, _)
+        | SheetIn::AskTrash
+        | SheetIn::AskPicture(_)
+        | SheetIn::AskUnsaved(_)
+        | SheetIn::AskReplace
+        | SheetIn::Picture(_)
+        | SheetIn::AskEdit(_, _)
+        | SheetIn::AskRename(_)
+        | SheetIn::AskSaveCopy(_)
+        | SheetIn::OpenRevert(_)
+        | SheetIn::PickVersion(_)
+        | SheetIn::PickKind(_)
+        | SheetIn::Change(_)
+        | SheetIn::Tune(_)
+        | SheetIn::Typed(_)
+        | SheetIn::Elapsed => (Sheet::ConfirmReplace, vec![]),
     }
 }

@@ -56,8 +56,9 @@ pub use io::{
     Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,
     HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart,
     MediaStarted, MediaWake, NaturalSize, Need, Notice, OpenError, OpenPort, Opened,
-    PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeSource, Services,
-    SizeBasis, SlotPixels, Stop, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
+    PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeSource, SaveEnd, Services,
+    SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work, WorkKind, WorkLane, Workers,
+    folder_sequence,
 };
 pub use keys::{Regions, Route, route};
 pub use load::{
@@ -76,22 +77,22 @@ pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
 pub use sheet::{
-    ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption, HelperEnd,
-    HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureDeparture,
-    PictureSheet, PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion,
-    ResizeUnit, Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList,
-    VersionRow, format_of, kind_hint, kind_name, quality_of,
+    Departure, ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption,
+    HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
+    PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
+    Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList, VersionRow,
+    format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
-    AfterScrub, Animation, ControlOffer, Destination, EndReason, FindHits, FindOut, FrameCount,
-    FrameDelays, FrameIndex, HitCount, HitCursor, HitIndex, HitStep, LineTotal, MediaAbilities,
-    MediaError, MediaIn, MediaOut, MediaParams, MediaStage, Motion, Pace, PageEdits, PageLines,
-    PageView, PdfIn, PdfOut, PdfParams, PdfStage, PlayerCommand, PlayerEvent, Playing, RasterIn,
-    RasterOut, RasterParams, RasterStage, RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage,
-    StageAbilities, StageFamily, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut,
-    TableParams, TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage,
-    TextStep, TextView, TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge,
-    Viewport, Wrap, ZoomDir,
+    AfterScrub, Animation, Changes, ControlOffer, Destination, EditFind, Editable, Edited,
+    EndReason, FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor,
+    HitIndex, HitStep, LineTotal, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
+    MediaStage, Motion, Outside, Pace, PageEdits, PageLines, PageView, PdfIn, PdfOut, PdfParams,
+    PdfStage, PlayerCommand, PlayerEvent, Playing, RasterIn, RasterOut, RasterParams, RasterStage,
+    RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage, StageAbilities, StageFamily, StageIn,
+    StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent,
+    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind,
+    TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
 };
 pub use typed::TypedText;
 pub use viewer::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};

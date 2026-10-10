@@ -6,9 +6,10 @@ use anyview_core::{LineIndex, Resume};
 use ds_core::word::Word;
 
 /// Whether long lines wrap at the window's edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word, Default)]
 pub enum Wrap {
     /// Lines wrap.
+    #[default]
     On,
     /// Lines run on and scroll sideways.
     Off,
@@ -44,6 +45,45 @@ pub struct TextPlace {
     pub view: TextView,
 }
 
+/// Whether the text being edited has changes that are not on disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Changes {
+    /// The text is what the file holds.
+    #[default]
+    Saved,
+    /// The text has been changed since it was opened or last saved.
+    Unsaved,
+}
+
+/// Whether the file was changed on disk, by another program, since it was opened or last saved
+/// here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Outside {
+    /// The file is as this window last knew it.
+    #[default]
+    Unchanged,
+    /// Another program changed it.
+    Changed,
+}
+
+/// What the person has done to the text, and what the disk has done to the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Edited {
+    /// Whether the text has unsaved changes.
+    pub changes: Changes,
+    /// Whether the file changed under it.
+    pub outside: Outside,
+}
+
+/// The find that is up while editing: its text, and where its search stands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditFind {
+    /// What is searched for.
+    pub query: TypedText,
+    /// Where the search stands.
+    pub hits: FindHits,
+}
+
 /// What the text stage is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextStage {
@@ -55,13 +95,29 @@ pub enum TextStage {
         hits: FindHits,
         place: TextPlace,
     },
+    /// The source is being edited in place; a find may be up over it.
+    Editing {
+        place: TextPlace,
+        edited: Edited,
+        find: Option<EditFind>,
+    },
 }
 
 impl TextStage {
     /// Where the reader is and how the text is shown.
     pub fn place(&self) -> TextPlace {
         match self {
-            TextStage::Reading { place } | TextStage::Finding { place, .. } => *place,
+            TextStage::Reading { place }
+            | TextStage::Finding { place, .. }
+            | TextStage::Editing { place, .. } => *place,
+        }
+    }
+
+    /// What has been done to the text, while it is being edited.
+    pub fn edited(&self) -> Option<Edited> {
+        match self {
+            TextStage::Editing { edited, .. } => Some(*edited),
+            TextStage::Reading { .. } | TextStage::Finding { .. } => None,
         }
     }
 
@@ -132,6 +188,17 @@ pub enum TextIn {
     ToggleSource,
     /// Switch line wrapping.
     ToggleWrap,
+    /// Start editing the source in place.
+    Edit,
+    /// Stop editing and go back to reading.
+    Done,
+    /// Write the edited text to the file.
+    Save,
+    /// The edited text changed (or was undone or saved): this is whether it has unsaved changes
+    /// now. Told after every change, so a find over the text searches it again.
+    Edited(Changes),
+    /// Whether the file differs on disk from what this window last knew of it.
+    Disk(Outside),
     /// Restore where the person left the file.
     Restore(Resume),
     /// The clock; the stage keeps no timer.
@@ -155,6 +222,14 @@ pub enum TextOut {
     Show(TextView),
     /// Something for the search: run it, show a hit, clear the marks.
     Find(FindOut),
+    /// Read the file whole and make its text editable.
+    BeginEdit,
+    /// Let go of the text being edited.
+    EndEdit,
+    /// Write the edited text to the file.
+    Save,
+    /// The person chose this wrapping: it is kept for the next file of the same kind.
+    Wrapped(Wrap),
 }
 
 /// How many lines the open file has.
@@ -175,6 +250,16 @@ pub struct TextExtent {
     pub page: PageLines,
 }
 
+/// Whether the open file can be edited in place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Editable {
+    /// It is small enough to hold whole, and is text.
+    Yes,
+    /// It is not offered for editing.
+    #[default]
+    No,
+}
+
 /// What the stage needs to know of the open file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TextParams {
@@ -182,4 +267,9 @@ pub struct TextParams {
     pub views: TextViews,
     /// How long the file is and how much of it shows.
     pub extent: TextExtent,
+    /// Whether the file can be edited.
+    pub editable: Editable,
+    /// Whether a file of this kind starts with its long lines wrapped: the person's last choice
+    /// for the kind, else the kind's own.
+    pub wrap: Wrap,
 }

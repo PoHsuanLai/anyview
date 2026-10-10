@@ -1,5 +1,6 @@
 //! The sheet's states, inputs and outputs.
 
+use super::departure::Departure;
 use super::draft::{ExportDraft, ExportKindPick};
 use super::facts::ExportFacts;
 use super::helper::{HelperEnd, HelperPhase};
@@ -57,8 +58,12 @@ pub enum Sheet {
     NoVersions,
     /// Asking to install a tool the open file needs, and then following the install.
     Helper { helper: Helper, phase: HelperPhase },
-    /// Editing a picture: its new size, or what to do with changes that are not saved.
+    /// Editing a picture: its new size.
     Picture(PictureSheet),
+    /// Asking what to do with changes that are not saved before going where the person asked.
+    Unsaved(Departure),
+    /// Asking before the edited text replaces what another program wrote in the file.
+    ConfirmReplace,
 }
 
 /// What moves the sheet.
@@ -85,6 +90,12 @@ pub enum SheetIn {
     AskPicture(PictureSheet),
     /// The open sheet of editing a picture changed.
     Picture(PictureSheetIn),
+    /// Ask what to do with changes that are not saved before going to this departure.
+    AskUnsaved(Departure),
+    /// Ask whether to replace what another program wrote with the edited text.
+    AskReplace,
+    /// Don't Save: leave the changes behind.
+    Discard,
     /// Asking the system to install this tool ended like this.
     HelperEnded(Helper, HelperEnd),
     /// The list chose a version.
@@ -118,6 +129,7 @@ impl SheetIn {
         match keys {
             [ShortcutKey::Enter] => Some(SheetIn::Confirm),
             [ShortcutKey::Escape] => Some(SheetIn::Cancel),
+            [ShortcutKey::Super, ShortcutKey::Char('d')] => Some(SheetIn::Discard),
             _ => None,
         }
     }
@@ -148,4 +160,10 @@ pub enum SheetOut {
     Reopen,
     /// A sheet of editing a picture was answered.
     Picture(PictureSheetOut),
+    /// Save the changes, then go on to the departure.
+    Save(Departure),
+    /// Let the changes go, and go on to the departure.
+    Discard(Departure),
+    /// Write the edited text over the file, replacing another program's changes.
+    Replace,
 }

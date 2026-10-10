@@ -3,10 +3,13 @@
 //! native scroll), so the machine's `Scroll(line)` is the one place the reader's position lives.
 
 use super::doc::TextDoc;
+use super::edit::lines::EditLines;
 use super::find::{FoundHits, Mark, pieces};
 use super::frame;
 use crate::families::view::{Held, StageCx};
-use crate::{FindHits, Stage, StageIn, TextIn, TextPlace, TextStage, TextView as Shown, Wrap};
+use crate::{
+    Changes, FindHits, Stage, StageIn, TextIn, TextPlace, TextStage, TextView as Shown, Wrap,
+};
 use anyview_core::LineIndex;
 use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
 use dioxus::prelude::*;
@@ -34,15 +37,23 @@ pub(super) fn place_of(stage: &Stage) -> Option<TextPlace> {
 /// Where the text stage is.
 pub(super) fn place_of_text(stage: &TextStage) -> TextPlace {
     match stage {
-        TextStage::Reading { place } | TextStage::Finding { place, .. } => *place,
+        TextStage::Reading { place }
+        | TextStage::Finding { place, .. }
+        | TextStage::Editing { place, .. } => *place,
     }
 }
 
 /// The find the stage has up: its text and where its search stands.
 fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
     match stage {
-        Stage::Text(TextStage::Finding { query, hits, .. }) => Some((query.clone(), *hits)),
-        Stage::Text(TextStage::Reading { .. })
+        Stage::Text(
+            TextStage::Finding { query, hits, .. }
+            | TextStage::Editing {
+                find: Some(crate::EditFind { query, hits }),
+                ..
+            },
+        ) => Some((query.clone(), *hits)),
+        Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
         | Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)
@@ -63,7 +74,7 @@ fn class_of(class: TokenClass) -> String {
 }
 
 /// The class a piece of a line wears: its token class, and a mark when it is part of a hit.
-fn piece_class(class: TokenClass, mark: Mark) -> String {
+pub(super) fn piece_class(class: TokenClass, mark: Mark) -> String {
     match mark {
         Mark::Plain => class_of(class),
         Mark::Hit => format!("{} viewer-hit", class_of(class)),
@@ -89,7 +100,7 @@ fn line(line: &TokenLine, wrap: Wrap, hits: &[FindHit], current: Option<usize>) 
 }
 
 /// The hits on `line` and the position among them of the current hit (`current`, among all).
-fn hits_on(
+pub(super) fn hits_on(
     found: Option<&Held<FoundHits>>,
     line: LineIndex,
     current: Option<crate::HitIndex>,
@@ -128,7 +139,11 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         let lines = (total / ROW).trunc();
         carry.set(total - lines * ROW);
         if lines != 0.0 {
-            let last = count.saturating_sub(1);
+            // The text being edited has the lines the edits left it.
+            let total = scrolled.text_edit.peek().as_ref().map_or(count, |text| {
+                u32::try_from(text.buffer().line_count()).unwrap_or(u32::MAX)
+            });
+            let last = total.saturating_sub(1);
             let line = (i64::from(place.line.0) + lines as i64).clamp(0, i64::from(last));
             send.call(StageIn::Text(TextIn::Scroll(LineIndex(
                 u32::try_from(line).unwrap_or(0),
@@ -141,11 +156,15 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     };
     let rows = rows_of(area.size.height.0);
     let first = place.line;
-    let covered = cx.lines.as_ref().is_some_and(|window| {
-        window
-            .0
-            .covers(first.0..first.0.saturating_add(rows).min(count))
-    });
+    // Once the text is read for editing, the room shows it and not the lines a worker read.
+    let editing =
+        matches!(cx.stage, Stage::Text(TextStage::Editing { .. })) && cx.text_edit.read().is_some();
+    let covered = editing
+        || cx.lines.as_ref().is_some_and(|window| {
+            window
+                .0
+                .covers(first.0..first.0.saturating_add(rows).min(count))
+        });
     let ask = cx.ask_lines;
     use_effect(use_reactive!(|first, rows, covered| {
         if !covered {
@@ -163,6 +182,24 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     }
     let find = find_of(&cx.stage);
     let current = find.as_ref().and_then(|(_, hits)| hits.current());
+    if editing {
+        return rsx! {
+            div { class: "viewer-text", "data-view": "source", "data-editing": "on",
+                EditLines {
+                    session: cx.text_edit,
+                    handle: cx.text_editor,
+                    doc: Some(doc.clone()),
+                    first: first.0,
+                    rows,
+                    wrap: place.wrap,
+                    hits: cx.hits.clone(),
+                    current,
+                    onscroll: move |line: u32| send.call(StageIn::Text(TextIn::Scroll(LineIndex(line)))),
+                    onchanged: move |changes: Changes| send.call(StageIn::Text(TextIn::Edited(changes))),
+                }
+            }
+        };
+    }
     rsx! {
         div { class: "viewer-text", "data-view": "source",
             if let Some(window) = cx.lines.as_ref() {

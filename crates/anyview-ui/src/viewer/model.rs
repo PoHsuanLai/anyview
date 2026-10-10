@@ -5,15 +5,15 @@ use crate::command::Command;
 use crate::context::{ContextIn, ContextMenu, ContextParams};
 use crate::edits::{EditRequest, Rewind};
 use crate::hand::{Hand, HandIn};
-use crate::io::PlatformAbilities;
+use crate::io::{PlatformAbilities, SaveEnd};
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
 use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
-use crate::sheet::{PictureDeparture, Sheet, SheetIn, SheetOut, SheetParams};
-use crate::stage::{Stage, StageIn, StageOut, StageParams};
+use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
+use crate::stage::{Changes, Stage, StageIn, StageOut, StageParams};
 use anyview_core::{FileAction, FilePath};
 use ds_core::vocab::Shortcut;
 
@@ -51,7 +51,7 @@ pub struct Viewer {
     pub picture: PictureEdits,
     /// Where the person was going when they chose to save the picture's changes first: they go
     /// when the saved file has been read again.
-    pub after_save: Option<PictureDeparture>,
+    pub after_save: Option<Departure>,
 }
 
 /// Whether the person has said what they want of the side panel. Until they have, a PDF or a
@@ -88,6 +88,17 @@ pub enum Trashing {
 }
 
 impl Viewer {
+    /// Whether going away from the file shown would lose changes that are not saved: a picture's
+    /// edits, or a text's.
+    pub(crate) fn unsaved(&self) -> bool {
+        let picture = self.picture.is_edited() && matches!(self.stage, Stage::Raster(_));
+        let text = self
+            .stage
+            .edited()
+            .is_some_and(|edited| edited.changes == Changes::Unsaved);
+        picture || text
+    }
+
     /// A viewer launched in `presentation` (a quick look, a window, a background session): it is
     /// so from the start, and nothing is asked of the host (it made the window that way). The
     /// window seeds the machine with it.
@@ -142,6 +153,8 @@ pub enum ViewerIn {
     Run(Command),
     /// A key press, routed by `route`.
     Key(Shortcut),
+    /// The host's save of the edited text ended like this.
+    Saved(SaveEnd),
     /// The time `wake()` named has come.
     Elapsed,
 }

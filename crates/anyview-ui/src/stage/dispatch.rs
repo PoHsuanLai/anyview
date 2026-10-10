@@ -10,7 +10,7 @@ use super::pdf::{LineDir, PageEdits, PdfIn, PdfParams, PdfStage, end, nudged, st
 use super::raster::{RasterIn, RasterParams, RasterStage};
 use super::row::RowStep;
 use super::table::{TableIn, TableStage};
-use super::text::{TextIn, TextStage, TextStep};
+use super::text::{EditFind, Editable, Edited, TextIn, TextParams, TextStage, TextStep};
 use super::tree::{TreeIn, TreeStage};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
@@ -26,9 +26,22 @@ impl Stage {
             Stage::Raster(stage) => raster(command, stage, &params.raster).map(StageIn::Raster),
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command, &params.media.abilities).map(StageIn::Media),
-            Stage::Text(_) => text(command).map(StageIn::Text),
+            Stage::Text(stage) => text(command, stage, &params.text).map(StageIn::Text),
             Stage::Table(_) => table(command).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
+        }
+    }
+
+    /// What has been done to the text, while the stage is editing it.
+    pub fn edited(&self) -> Option<Edited> {
+        match self {
+            Stage::Text(stage) => stage.edited(),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Table(_)
+            | Stage::Tree(_) => None,
         }
     }
 
@@ -65,13 +78,15 @@ impl Stage {
     /// The input that makes `hit` the current one of the find that is up.
     pub fn hit_input(&self, hit: HitIndex) -> Option<StageIn> {
         match self {
-            Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::GoToHit(hit))),
+            Stage::Text(TextStage::Finding { .. } | TextStage::Editing { find: Some(_), .. }) => {
+                Some(StageIn::Text(TextIn::GoToHit(hit)))
+            }
             Stage::Pdf(PdfStage::Finding { .. }) => Some(StageIn::Pdf(PdfIn::GoToHit(hit))),
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
             | Stage::Table(_)
             | Stage::Tree(_) => None,
         }
@@ -81,12 +96,18 @@ impl Stage {
     pub fn find_state(&self) -> Option<(&TypedText, FindHits)> {
         match self {
             Stage::Pdf(PdfStage::Finding { query, hits, .. })
-            | Stage::Text(TextStage::Finding { query, hits, .. }) => Some((query, *hits)),
+            | Stage::Text(
+                TextStage::Finding { query, hits, .. }
+                | TextStage::Editing {
+                    find: Some(EditFind { query, hits }),
+                    ..
+                },
+            ) => Some((query, *hits)),
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
             | Stage::Table(_)
             | Stage::Tree(_) => None,
         }
@@ -95,12 +116,15 @@ impl Stage {
     /// Whether a find is up: its hits are marked, and Esc puts it away.
     pub fn is_finding(&self) -> bool {
         match self {
-            Stage::Pdf(PdfStage::Finding { .. }) | Stage::Text(TextStage::Finding { .. }) => true,
+            Stage::Pdf(PdfStage::Finding { .. })
+            | Stage::Text(TextStage::Finding { .. } | TextStage::Editing { find: Some(_), .. }) => {
+                true
+            }
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. })
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
             | Stage::Table(_)
             | Stage::Tree(_) => false,
         }
@@ -128,8 +152,10 @@ impl Stage {
                 | MediaStage::Ended { .. }
                 | MediaStage::Failed(_),
             ) => None,
-            Stage::Text(TextStage::Finding { .. }) => Some(StageIn::Text(TextIn::CloseFind)),
-            Stage::Text(TextStage::Reading { .. }) => None,
+            Stage::Text(TextStage::Finding { .. } | TextStage::Editing { find: Some(_), .. }) => {
+                Some(StageIn::Text(TextIn::CloseFind))
+            }
+            Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. }) => None,
             Stage::Table(TableStage::Selected { .. }) => Some(StageIn::Table(TableIn::Deselect)),
             Stage::Tree(TreeStage::Selected { .. }) => Some(StageIn::Tree(TreeIn::Deselect)),
             Stage::Table(TableStage::Browsing { .. }) | Stage::Tree(TreeStage::Browsing { .. }) => {
@@ -196,7 +222,10 @@ fn raster(command: StageCommand, stage: &RasterStage, params: &RasterParams) -> 
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
-        | StageCommand::CollapseAll => None,
+        | StageCommand::CollapseAll
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save => None,
     }
 }
 
@@ -254,7 +283,10 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::DeletePage
         | StageCommand::MovePageEarlier
         | StageCommand::MovePageLater
-        | StageCommand::CollapseAll => None,
+        | StageCommand::CollapseAll
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save => None,
     }
 }
 
@@ -318,24 +350,35 @@ fn media(command: StageCommand, abilities: &MediaAbilities) -> Option<MediaIn> {
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
-        | StageCommand::CollapseAll => None,
+        | StageCommand::CollapseAll
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save => None,
     }
 }
 
-fn text(command: StageCommand) -> Option<TextIn> {
+fn text(command: StageCommand, stage: &TextStage, params: &TextParams) -> Option<TextIn> {
+    let editing = stage.edited().is_some();
     match command {
         StageCommand::Find => Some(TextIn::Find(TypedText::EMPTY)),
         StageCommand::FindNext => Some(TextIn::NextHit),
         StageCommand::FindPrevious => Some(TextIn::PreviousHit),
-        StageCommand::ToggleSource => Some(TextIn::ToggleSource),
+        StageCommand::ToggleSource if !editing => Some(TextIn::ToggleSource),
         StageCommand::ToggleWrap => Some(TextIn::ToggleWrap),
+        StageCommand::Edit if !editing && params.editable == Editable::Yes => Some(TextIn::Edit),
+        StageCommand::Done if editing => Some(TextIn::Done),
+        StageCommand::Save if editing => Some(TextIn::Save),
         StageCommand::NextPage => Some(TextIn::Step(TextStep::PageDown)),
         StageCommand::PreviousPage => Some(TextIn::Step(TextStep::PageUp)),
         StageCommand::LineUp => Some(TextIn::Step(TextStep::LineUp)),
         StageCommand::LineDown => Some(TextIn::Step(TextStep::LineDown)),
         StageCommand::ScrollToStart => Some(TextIn::Step(TextStep::Top)),
         StageCommand::ScrollToEnd => Some(TextIn::Step(TextStep::Bottom)),
-        StageCommand::ZoomIn
+        StageCommand::ToggleSource
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save
+        | StageCommand::ZoomIn
         | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
@@ -400,7 +443,10 @@ fn table(command: StageCommand) -> Option<TableIn> {
         | StageCommand::DeletePage
         | StageCommand::MovePageEarlier
         | StageCommand::MovePageLater
-        | StageCommand::CollapseAll => None,
+        | StageCommand::CollapseAll
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save => None,
     }
 }
 
@@ -441,6 +487,9 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::MovePageEarlier
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
-        | StageCommand::PreviousSheet => None,
+        | StageCommand::PreviousSheet
+        | StageCommand::Edit
+        | StageCommand::Done
+        | StageCommand::Save => None,
     }
 }

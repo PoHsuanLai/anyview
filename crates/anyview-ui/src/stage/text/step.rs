@@ -2,7 +2,8 @@
 
 use super::super::find::{FindHits, FindOut, HitIndex, HitStep};
 use super::model::{
-    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
+    EditFind, Editable, Edited, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
+    TextView, TextViews, Wrap,
 };
 use super::steps::stepped as step_line;
 use crate::typed::TypedText;
@@ -22,6 +23,11 @@ impl Machine for TextStage {
         match self {
             TextStage::Reading { place } => reading(place, input, params),
             TextStage::Finding { query, hits, place } => finding(query, hits, place, input, params),
+            TextStage::Editing {
+                place,
+                edited,
+                find,
+            } => editing(place, edited, find, input, params),
         }
     }
 
@@ -32,6 +38,11 @@ impl Machine for TextStage {
                 query: _,
                 hits: _,
                 place: _,
+            }
+            | TextStage::Editing {
+                place: _,
+                edited: _,
+                find: _,
             } => None,
         }
     }
@@ -49,6 +60,47 @@ fn other_wrap(wrap: Wrap) -> Wrap {
     match wrap {
         Wrap::On => Wrap::Off,
         Wrap::Off => Wrap::On,
+    }
+}
+
+/// The place with its wrapping switched, and the output that keeps the choice.
+fn rewrapped(place: TextPlace) -> (TextPlace, Vec<TextOut>) {
+    let wrap = other_wrap(place.wrap);
+    (TextPlace { wrap, ..place }, vec![TextOut::Wrapped(wrap)])
+}
+
+/// Editing starts in the source: the place with that view, and the output that shows it when
+/// the view changes.
+fn source_for_edit(place: TextPlace) -> (TextPlace, Vec<TextOut>) {
+    match place.view {
+        TextView::Source => (place, vec![]),
+        TextView::Rendered => (
+            TextPlace {
+                view: TextView::Source,
+                ..place
+            },
+            vec![TextOut::Show(TextView::Source)],
+        ),
+    }
+}
+
+/// The stage that starts editing from `place`, carrying `find` over, and what it asks for.
+fn begun(place: TextPlace, find: Option<EditFind>, params: &TextParams) -> Step {
+    match params.editable {
+        Editable::No => match find {
+            Some(EditFind { query, hits }) => (TextStage::Finding { query, hits, place }, vec![]),
+            None => (TextStage::Reading { place }, vec![]),
+        },
+        Editable::Yes => {
+            let (place, mut outs) = source_for_edit(place);
+            outs.push(TextOut::BeginEdit);
+            let stage = TextStage::Editing {
+                place,
+                edited: Edited::default(),
+                find,
+            };
+            (stage, outs)
+        }
     }
 }
 
@@ -117,10 +169,11 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             ),
             None => stay(place),
         },
-        TextIn::ToggleWrap => stay(TextPlace {
-            wrap: other_wrap(place.wrap),
-            ..place
-        }),
+        TextIn::ToggleWrap => {
+            let (place, outs) = rewrapped(place);
+            (TextStage::Reading { place }, outs)
+        }
+        TextIn::Edit => begun(place, None, params),
         TextIn::Restore(Resume::Text { line }) => (
             TextStage::Reading {
                 place: TextPlace { line, ..place },
@@ -143,6 +196,10 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
         | TextIn::PreviousHit
         | TextIn::GoToHit(_)
         | TextIn::CloseFind
+        | TextIn::Done
+        | TextIn::Save
+        | TextIn::Edited(_)
+        | TextIn::Disk(_)
         | TextIn::Elapsed => stay(place),
     }
 }
@@ -235,18 +292,140 @@ fn finding(
             None => stay(query, hits, place),
         },
         TextIn::ToggleWrap => {
-            let place = TextPlace {
-                wrap: other_wrap(place.wrap),
-                ..place
-            };
-            stay(query, hits, place)
+            let (place, outs) = rewrapped(place);
+            (TextStage::Finding { query, hits, place }, outs)
         }
+        TextIn::Edit => begun(place, Some(EditFind { query, hits }), params),
         TextIn::Results {
             query: _,
             count: _,
             nearest: _,
         }
+        | TextIn::Done
+        | TextIn::Save
+        | TextIn::Edited(_)
+        | TextIn::Disk(_)
         | TextIn::Restore(_)
         | TextIn::Elapsed => stay(query, hits, place),
+    }
+}
+
+/// The outputs that show the current hit of `hits`, if there is one.
+fn shown(hits: FindHits) -> Vec<TextOut> {
+    hits.current()
+        .map(|hit| TextOut::Find(FindOut::ShowHit(hit)))
+        .into_iter()
+        .collect()
+}
+
+/// The editing stage after the current hit of its find moved by `moved`, showing the hit it
+/// lands on; with no find up, nothing moves.
+fn hit_moved(
+    place: TextPlace,
+    edited: Edited,
+    find: Option<EditFind>,
+    moved: impl FnOnce(FindHits) -> FindHits,
+) -> Step {
+    match find {
+        Some(EditFind { query, hits }) => {
+            let hits = moved(hits);
+            let stage = TextStage::Editing {
+                place,
+                edited,
+                find: Some(EditFind { query, hits }),
+            };
+            (stage, shown(hits))
+        }
+        None => (
+            TextStage::Editing {
+                place,
+                edited,
+                find: None,
+            },
+            vec![],
+        ),
+    }
+}
+
+/// Editing. A find over the text is asked again after every change, so its hits follow the
+/// typing; only a find the person has just typed moves the view to a hit.
+fn editing(
+    place: TextPlace,
+    edited: Edited,
+    find: Option<EditFind>,
+    input: TextIn,
+    params: &TextParams,
+) -> Step {
+    let keep = |place: TextPlace, edited: Edited, find: Option<EditFind>| TextStage::Editing {
+        place,
+        edited,
+        find,
+    };
+    let stay = |find: Option<EditFind>| (keep(place, edited, find), vec![]);
+    match input {
+        TextIn::Scroll(line) => (
+            keep(TextPlace { line, ..place }, edited, find),
+            vec![remember(line)],
+        ),
+        TextIn::Step(step) => {
+            let (place, outs) = walked(place, step, params);
+            (keep(place, edited, find), outs)
+        }
+        TextIn::Find(query) => {
+            let outs = vec![search(&query)];
+            let hits = FindHits::asked(&query);
+            (keep(place, edited, Some(EditFind { query, hits })), outs)
+        }
+        TextIn::Results {
+            query: answered,
+            count,
+            nearest,
+        } => match find {
+            Some(EditFind {
+                query,
+                hits: before,
+            }) if query == answered => {
+                let hits = FindHits::answered(count, nearest);
+                let outs = match before {
+                    FindHits::Pending => shown(hits),
+                    FindHits::Idle | FindHits::NoMatch | FindHits::Found(_) => vec![],
+                };
+                (keep(place, edited, Some(EditFind { query, hits })), outs)
+            }
+            other => stay(other),
+        },
+        TextIn::NextHit => hit_moved(place, edited, find, |hits| hits.stepped(HitStep::Next)),
+        TextIn::PreviousHit => {
+            hit_moved(place, edited, find, |hits| hits.stepped(HitStep::Previous))
+        }
+        TextIn::GoToHit(hit) => hit_moved(place, edited, find, |hits| hits.jumped(hit)),
+        TextIn::CloseFind => match find {
+            Some(_) => (
+                keep(place, edited, None),
+                vec![TextOut::Find(FindOut::Clear)],
+            ),
+            None => stay(None),
+        },
+        TextIn::Edited(changes) => {
+            let outs = match &find {
+                Some(EditFind { query, hits: _ }) if !query.is_empty() => vec![search(query)],
+                Some(_) | None => vec![],
+            };
+            (keep(place, Edited { changes, ..edited }, find), outs)
+        }
+        TextIn::Disk(outside) => (keep(place, Edited { outside, ..edited }, find), vec![]),
+        TextIn::Save => (keep(place, edited, find), vec![TextOut::Save]),
+        TextIn::Done => {
+            let mut outs = vec![TextOut::EndEdit];
+            if find.is_some() {
+                outs.push(TextOut::Find(FindOut::Clear));
+            }
+            (TextStage::Reading { place }, outs)
+        }
+        TextIn::ToggleWrap => {
+            let (place, outs) = rewrapped(place);
+            (keep(place, edited, find), outs)
+        }
+        TextIn::Edit | TextIn::ToggleSource | TextIn::Restore(_) | TextIn::Elapsed => stay(find),
     }
 }

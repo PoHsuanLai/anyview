@@ -10,8 +10,7 @@ use crate::load::{Load, Ticket};
 use crate::navigate::NavigateIn;
 use crate::picture::{PictureEditIn, PictureEditing};
 use crate::sheet::{
-    PictureDeparture, PictureSheet, PictureSheetIn, ResizeChange, ResizeDraft, Sheet, SheetIn,
-    SheetParams,
+    Departure, PictureSheet, PictureSheetIn, ResizeChange, ResizeDraft, Sheet, SheetIn, SheetParams,
 };
 use crate::stage::Stage;
 use crate::viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
@@ -72,10 +71,7 @@ const COMMAND_S: [ShortcutKey; 2] = [ShortcutKey::Super, ShortcutKey::Char('s')]
 #[test]
 fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
     let (asked, outs) = press(turned(), &COMMAND_W);
-    assert_eq!(
-        asked.sheet,
-        Sheet::Picture(PictureSheet::Unsaved(PictureDeparture::Close))
-    );
+    assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Close));
     assert!(!closes(&outs), "the window waits for the answer");
 
     let (cancelled, outs) = step(asked.clone(), ViewerIn::Sheet(SheetIn::Cancel));
@@ -83,10 +79,7 @@ fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
     assert!(cancelled.picture.is_edited(), "Cancel keeps the changes");
     assert!(!closes(&outs));
 
-    let (declined, outs) = step(
-        asked.clone(),
-        ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Decline)),
-    );
+    let (declined, outs) = step(asked.clone(), ViewerIn::Sheet(SheetIn::Discard));
     assert!(closes(&outs), "Don't Save closes at once");
     assert!(!declined.picture.is_edited(), "and the changes are gone");
 
@@ -99,7 +92,7 @@ fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
         !closes(&outs),
         "and the window closes once the file is read again"
     );
-    assert_eq!(saving.after_save, Some(PictureDeparture::Close));
+    assert_eq!(saving.after_save, Some(Departure::Close));
     let (done, outs) = step(
         saving,
         ViewerIn::Picture(PictureEditIn::Landed {
@@ -125,20 +118,12 @@ fn a_picture_with_nothing_unsaved_closes_without_asking() {
 #[test]
 fn opening_another_file_asks_first_and_not_saving_goes_on_to_it() {
     let (asked, outs) = step(turned(), ViewerIn::Open(path("/b.png")));
-    assert_eq!(
-        asked.sheet,
-        Sheet::Picture(PictureSheet::Unsaved(PictureDeparture::Open(path(
-            "/b.png"
-        ))))
-    );
+    assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Open(path("/b.png"))));
     assert!(
         !probes(&outs, "/b.png"),
         "nothing is opened before the answer"
     );
-    let (declined, outs) = step(
-        asked,
-        ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Decline)),
-    );
+    let (declined, outs) = step(asked, ViewerIn::Sheet(SheetIn::Discard));
     assert!(probes(&outs, "/b.png"));
     assert!(!declined.picture.is_edited());
 }
@@ -152,16 +137,11 @@ fn an_arrow_key_asks_before_leaving_the_picture_and_does_not_move_the_walk() {
     let (asked, outs) = press(walking.clone(), &[ShortcutKey::Right]);
     assert_eq!(
         asked.sheet,
-        Sheet::Picture(PictureSheet::Unsaved(PictureDeparture::Walk(
-            NavigateIn::Next
-        )))
+        Sheet::Unsaved(Departure::Walk(NavigateIn::Next))
     );
     assert_eq!(asked.navigate, walking.navigate, "the walk has not moved");
     assert!(!probes(&outs, "/b.png"));
-    let (_, outs) = step(
-        asked,
-        ViewerIn::Sheet(SheetIn::Picture(PictureSheetIn::Decline)),
-    );
+    let (_, outs) = step(asked, ViewerIn::Sheet(SheetIn::Discard));
     assert!(probes(&outs, "/b.png"));
 }
 
