@@ -144,7 +144,7 @@ fn linking_book(dir: &std::path::Path, sheets: &[(&str, Vec<u8>)], links: &[&str
         ("OEBPS/nav.xhtml", b"<html/>"),
     ];
     entries.extend(sheets.iter().map(|(name, bytes)| (*name, bytes.as_slice())));
-    Epub::open(&write_zip(dir, "css.epub", &entries)).unwrap()
+    Epub::open(write_zip(dir, "css.epub", &entries)).unwrap()
 }
 
 #[test]
