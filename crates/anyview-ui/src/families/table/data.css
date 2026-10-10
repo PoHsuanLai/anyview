@@ -1,13 +1,9 @@
 /* Data views: a table and a tree share a row height (the compact row), the data face and the body
-   size. The table is quire's VirtualTable, whose header is above its rows and so stays put; the
-   header reads once the content scrolls under it. Columns are ruled with hairlines, the Numbers
-   look. Tokens only. */
+   size. The table is quire's VirtualTable, whose header is above its rows and so stays put. Its
+   header and cells are quire's to style (ds-lint DsInternals), so the Numbers-look column rules
+   wait on a quire option for them. Tokens only. */
 
 .viewer-data{ position:absolute; inset:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
-.viewer-data[*|data-body=table] .ds-table-header{ box-sizing:border-box; border-bottom:var(--hair) solid transparent; }
-.viewer-data[*|data-scrolled=yes] .ds-table-header{ border-bottom-color:var(--line); }
-.viewer-data .ds-table-cell{ box-sizing:border-box; line-height:var(--row-compact-h); border-inline-end:var(--hair) solid var(--line); font-variant-numeric:tabular-nums; }
-.viewer-data .ds-table-cell:last-child{ border-inline-end:0; }
 .viewer-row-number{ color:var(--ink-faint); }
 .viewer-node{ display:inline-flex; gap:0; white-space:pre; }
 .viewer-node-key{ flex:none; }

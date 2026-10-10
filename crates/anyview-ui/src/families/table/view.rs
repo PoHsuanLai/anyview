@@ -101,9 +101,9 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
             |row| sheet.table.cell(RowIndex(row), column),
         ))
     }));
-    // Another order or another sheet starts at the top.
-    use_effect(use_reactive!(|sheet_no, by| {
-        let _ = (sheet_no, by);
+    // Another file, another order or another sheet starts at the top.
+    use_effect(use_reactive!(|doc, sheet_no, by| {
+        let _ = (doc, sheet_no, by);
         scroller.scroll_to(Px(0.0));
     }));
     let scrolled = use_memo(move || scroller.scroll().read().offset.0 > 0.0);
