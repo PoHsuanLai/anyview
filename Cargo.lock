@@ -380,6 +380,7 @@ dependencies = [
 name = "anyview-core"
 version = "0.1.0-beta.1"
 dependencies = [
+ "chordkit",
  "ds-core",
  "infer",
  "jiff",
@@ -657,6 +658,7 @@ dependencies = [
  "anyview-peek",
  "anyview-store",
  "anyview-text",
+ "chordkit",
  "dioxus",
  "dioxus-ssr",
  "ds",
