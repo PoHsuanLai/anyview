@@ -803,10 +803,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   which handles the three inputs that change the scope (opening as a find, the Find row, "Show All") and hands the rest
   to quire. A second host with a scope of its own (a bar with tabs) will want the same, and then the scope belongs in
   quire's machine as a type parameter; until a second one does, it stays here.
-- **A pane's store writes are not coalesced.** `PaneEdge::with_store` writes a place for each settled gesture whose
-  place differs from the last written, as one `Job::Keep` on the pool (each takes the store's lock and replaces one
-  file), where the viewer's window waits `REMEMBER_EVERY` and writes the latest. The time stamped on a view is the
-  system clock's, not a host's `Clock`. Ends when `Remembering` moves to a library crate both can share.
+- **A pane's store writes have no timer and its views no host clock.** `PaneEdge::with_store` shares the window's
+  `Remembering` policy, but a pane has nothing to sleep on, so a place held back for the interval is written by the next
+  place after it or when the file changes or the pane goes away, not at the interval's end; a kill in between loses at
+  most that place. The time stamped on a recorded view is the system clock's, since `PaneEdge` has no `Clock` seam.
+  Ends when the edge takes a clock and a wake from the host.
 - **A pane's activity is its own only under a `look` feed.** Without a feed the pane takes the host's tokens and draws
   in the host's `Ds` root, whose `HostSignals.activity` is the host's window, so the pane cannot mark its selection
   and caret at rest without marking the whole window. With a feed the pane is a `Ds` root of its own and provides

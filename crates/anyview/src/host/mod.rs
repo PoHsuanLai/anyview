@@ -43,7 +43,7 @@ pub use outcome::{Declined, Outcome};
 pub use path_watch::{PATH_SETTLE, PathWatch};
 pub use pictures::CachedPictures;
 pub use plugin_registry::PluginRegistry;
-pub use remembering::{REMEMBER_EVERY, Remembering};
+pub use remembering::{PlaceWriter, REMEMBER_EVERY};
 pub use resume::HostedResume;
 pub use resume_handed::HandedResume;
 pub use route::{Carry, Shown, Task, WindowTask, route};

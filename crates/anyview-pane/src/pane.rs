@@ -108,16 +108,24 @@ fn Seated(props: PaneProps) -> Element {
     });
     let heard = answer.clone();
     let writing = edge.clone();
+    // What the pane has kept, which the pane's end writes the last place of.
+    let kept = use_hook(|| Rc::new(RefCell::new(Kept::default())));
+    use_drop({
+        let (kept, edge) = (kept.clone(), edge.clone());
+        move || kept.borrow_mut().finish(&edge)
+    });
+    let keeping = kept.clone();
     use_future(move || {
         let taken: Option<UnboundedReceiver<HostRequest>> = inbox.borrow_mut().take();
         let answer = heard.clone();
         let edge = writing.clone();
+        let kept = keeping.clone();
         async move {
             let Some(mut requests) = taken else { return };
-            let mut kept = Kept::default();
             while let Some(request) = requests.next().await {
                 // With a store, the pane keeps the views and places itself, on the workers.
-                if kept.answers(&request, &edge) {
+                let answered = kept.borrow_mut().answers(&request, &edge);
+                if answered {
                     continue;
                 }
                 if let Some(request) = PaneRequest::from_host(request) {

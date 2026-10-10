@@ -4,9 +4,12 @@
 
 use anyview_core::{FilePath, FileStamp, Resume, Source};
 use anyview_store::{HistoryCap, StoreWriter, Viewed};
-use anyview_ui::{Edge, HostRequest, Keeping, Opened, ResumeKeeper, ResumeSource};
+use anyview_ui::{
+    Edge, HostRequest, Keeping, Noted, Opened, REMEMBER_EVERY, Remembering, ResumeKeeper,
+    ResumeSource,
+};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// The store at one root, read when a file opens and written by the host's workers.
 #[derive(Debug, Clone)]
@@ -22,7 +25,8 @@ impl PaneStore {
     }
 }
 
-/// Seconds since the Unix epoch; a clock before it reads as the epoch itself.
+/// Seconds since the Unix epoch, on the system clock: an edge has no clock of the host's to stamp a
+/// view with. A clock before it reads as the epoch itself.
 fn now() -> Viewed {
     Viewed(
         SystemTime::now()
@@ -63,14 +67,40 @@ impl ResumeKeeper for PaneStore {
     }
 }
 
-/// What one pane has told the store so far: the file it shows, and the last place written for it.
-#[derive(Debug, Default)]
+/// What one pane has told the store so far: the file it shows, and the places the viewer's one
+/// remembering policy ([`Remembering`]) has let through. A place is written at most once in
+/// [`REMEMBER_EVERY`], and the latest one held back is written when the file is let go of
+/// ([`Kept::finish`]), so the last place is never lost. The pane has no timer: a place that has to
+/// wait is written by the next one after the interval, or by the finish.
+#[derive(Debug)]
 pub(crate) struct Kept {
     open: Option<Source>,
-    last: Option<Resume>,
+    policy: Remembering,
+    /// Zero of the clock the policy is told the time on.
+    origin: Instant,
+}
+
+impl Default for Kept {
+    fn default() -> Kept {
+        Kept {
+            open: None,
+            policy: Remembering::new(REMEMBER_EVERY),
+            origin: Instant::now(),
+        }
+    }
 }
 
 impl Kept {
+    /// The pane is done with its file (another opened, or the pane is going away): write the place
+    /// held back, on the edge's workers.
+    pub(crate) fn finish(&mut self, edge: &Edge) {
+        if let Some(source) = self.open.take()
+            && let Some((source, resume)) = self.policy.release(source.path())
+        {
+            edge.keep(Keeping::Place { source, resume });
+        }
+    }
+
     /// Hand what `request` asks the pane to keep to the edge's workers. True when the store
     /// answered the request, so the host is not asked; the host still hears that a file opened.
     /// An edge with no store answers nothing.
@@ -80,20 +110,18 @@ impl Kept {
         }
         match request {
             HostRequest::Opened(opened) => {
+                self.finish(edge);
                 self.open = Some(opened.source.clone());
-                self.last = None;
                 edge.keep(Keeping::Viewed(opened.clone()));
                 false
             }
             HostRequest::Remember(resume) => {
                 if let Some(source) = &self.open
-                    && self.last.as_ref() != Some(resume)
+                    && let Noted::Write(source, resume) =
+                        self.policy
+                            .note(source.clone(), resume.clone(), self.origin.elapsed())
                 {
-                    self.last = Some(resume.clone());
-                    edge.keep(Keeping::Place {
-                        source: source.clone(),
-                        resume: resume.clone(),
-                    });
+                    edge.keep(Keeping::Place { source, resume });
                 }
                 true
             }

@@ -11,6 +11,7 @@ versioning, with pre-releases while the program is in beta.
 
 ### Resume
 
+- A viewer pane writes where you are in a file at most twice a second instead of after every gesture, the same as the viewer's own windows, and the last place is written when the pane shows another file or goes away.
 - Where you left off in a file is now safe when two programs that use Viewer run at once, such as Viewer and a terminal with a viewer pane in it: each remembers its own files without erasing the other's.
 
 ### Embedding

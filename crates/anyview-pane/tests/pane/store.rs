@@ -58,6 +58,31 @@ fn a_store_backed_pane_records_the_view_and_keeps_the_place_without_asking_the_h
 }
 
 #[test]
+fn many_settled_gestures_make_few_writes() {
+    const PAGES: usize = 12;
+    let files = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let mut host = hosted_over(
+        vec![(long_text(&files), None)],
+        in_a_corner(),
+        Some(root.path()),
+    );
+    let before = host.workers.submitted();
+    for _ in 0..PAGES {
+        host.harness.send(Input::key(ShortcutKey::PageDown));
+        host.settle();
+    }
+    // Each place differs from the last, so without coalescing every page would be its own write.
+    // The pane writes the first at once and holds the rest back for the pane's end; the bound
+    // leaves room for a slow machine to let an interval pass.
+    let writes = host.workers.submitted() - before;
+    assert!(
+        writes <= PAGES / 4,
+        "{PAGES} pages made {writes} writes, where one every half second is allowed"
+    );
+}
+
+#[test]
 fn a_pane_without_a_store_hands_the_place_to_its_host() {
     let files = tempfile::tempdir().unwrap();
     let mut host = hosted_over(vec![(long_text(&files), None)], in_a_corner(), None);
