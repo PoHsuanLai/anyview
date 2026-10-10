@@ -47,9 +47,76 @@ const CASES: &[Case] = &[
             panel: Panel::Shown {
                 tab: PanelTab::Info,
             },
+            panel_said: PanelSay::Said,
             ..Viewer::default()
         },
         || vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Info))],
+    ),
+    (
+        "a PDF's probe opens the panel on its pages until the person has said otherwise",
+        || Viewer {
+            load: Load::Probing { ticket: Ticket(1) },
+            ..Viewer::default()
+        },
+        || {
+            ViewerIn::Load(LoadIn::Probed {
+                ticket: Ticket(1),
+                flow: LoadFlow::PeekThenOpen,
+                stage: StageFamily::Pdf,
+            })
+        },
+        0,
+        || Viewer {
+            load: Load::Peeking {
+                ticket: Ticket(1),
+                frame: PeekFrame::Pending,
+            },
+            stage: Stage::Pdf(PdfStage::default()),
+            panel: Panel::Shown {
+                tab: PanelTab::Thumbnails,
+            },
+            ..Viewer::default()
+        },
+        || {
+            vec![
+                ViewerOut::Load(LoadOut::UseStage(StageFamily::Pdf)),
+                ViewerOut::Load(LoadOut::Peek(Ticket(1))),
+                ViewerOut::Load(LoadOut::Open(Ticket(1))),
+                ViewerOut::Panel(PanelOut::Show(PanelTab::Thumbnails)),
+            ]
+        },
+    ),
+    (
+        "a PDF's probe leaves a panel the person closed closed",
+        || Viewer {
+            load: Load::Probing { ticket: Ticket(1) },
+            panel_said: PanelSay::Said,
+            ..Viewer::default()
+        },
+        || {
+            ViewerIn::Load(LoadIn::Probed {
+                ticket: Ticket(1),
+                flow: LoadFlow::PeekThenOpen,
+                stage: StageFamily::Pdf,
+            })
+        },
+        0,
+        || Viewer {
+            load: Load::Peeking {
+                ticket: Ticket(1),
+                frame: PeekFrame::Pending,
+            },
+            stage: Stage::Pdf(PdfStage::default()),
+            panel_said: PanelSay::Said,
+            ..Viewer::default()
+        },
+        || {
+            vec![
+                ViewerOut::Load(LoadOut::UseStage(StageFamily::Pdf)),
+                ViewerOut::Load(LoadOut::Peek(Ticket(1))),
+                ViewerOut::Load(LoadOut::Open(Ticket(1))),
+            ]
+        },
     ),
     (
         "opening the palette holds the chrome up",

@@ -12,7 +12,7 @@ use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query, Viewport};
 use std::path::PathBuf;
-use support::{Memory, Requests, Wiring, settle, wired};
+use support::{Memory, PanelStart, Requests, Wiring, settle, wired};
 
 const SCALES: [u16; 2] = [100, 200];
 
@@ -344,9 +344,12 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
             ("anyview-image", "quadrants.png", "c.png"),
         ]);
         files.truncate(3);
-        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), viewport(scale));
+        let wiring = Wiring {
+            panel: PanelStart::AsOpened,
+            ..viewport(scale)
+        };
+        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
         settle(&mut harness);
-        chord(&mut harness, 'i');
         harness.send(Input::click(
             harness.centre(".ds-segmented-segment").unwrap(),
         ));
@@ -396,4 +399,66 @@ fn sizes_of(requests: &Requests) -> Vec<SizeBasis> {
             }
         })
         .collect()
+}
+
+#[test]
+fn a_pdf_opens_its_panel_on_the_pages_and_a_closed_panel_stays_closed_for_the_next() {
+    for scale in SCALES {
+        let (_dir, files) = pair("anyview-ui", "formats/multi.pdf", "pdf");
+        let wiring = Wiring {
+            panel: PanelStart::AsOpened,
+            ..viewport(scale)
+        };
+        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
+        settle(&mut harness);
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some("visible"),
+            "{scale}: the pages are beside the first page"
+        );
+        assert!(
+            harness.count(".viewer-panel .ds-segmented") > 0,
+            "{scale}: the pages tab is one of several"
+        );
+        let on_pages = harness.attr(".viewer-panel [aria-checked=true]", "aria-label");
+        assert!(on_pages.is_some(), "{scale}: a tab is chosen");
+        press(&mut harness, ShortcutKey::Escape);
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown"),
+            None,
+            "{scale}: Esc puts the panel away"
+        );
+        next(&mut harness, Arrival::Arrow, &files[1]);
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown"),
+            None,
+            "{scale}: the next PDF does not bring back a panel the person closed"
+        );
+    }
+}
+
+#[test]
+fn a_file_that_is_only_its_card_has_no_panel_to_open() {
+    for scale in SCALES {
+        let dir = tempfile::tempdir().unwrap();
+        let blob = dir.path().join("blob.xyz");
+        std::fs::write(&blob, [0u8, 159, 146, 150, 1, 2, 3, 0, 0, 255]).unwrap();
+        let blob = std::fs::canonicalize(blob).unwrap();
+        let wiring = Wiring {
+            panel: PanelStart::AsOpened,
+            ..viewport(scale)
+        };
+        let (mut harness, _, _) = wired(&[blob], 0, Appearance::default(), wiring);
+        settle(&mut harness);
+        chord(&mut harness, 'i');
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown"),
+            None,
+            "{scale}: the stage is the card, so Info opens nothing beside it"
+        );
+        assert!(
+            harness.count(".viewer-peek") > 0,
+            "{scale}: the card is the stage"
+        );
+    }
 }

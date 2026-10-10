@@ -35,8 +35,23 @@ pub(super) fn panel(
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
+    // The person's own opening, closing or switching is their word on the panel; the file
+    // changing under it (`TabsChanged`) is not.
+    let panel_said = match input {
+        crate::panel::PanelIn::Toggle
+        | crate::panel::PanelIn::Choose(_)
+        | crate::panel::PanelIn::Close => super::model::PanelSay::Said,
+        crate::panel::PanelIn::TabsChanged | crate::panel::PanelIn::Elapsed => viewer.panel_said,
+    };
     let (panel, outs) = stepped(viewer.panel, input, at, &params.panel, ViewerOut::Panel);
-    (Viewer { panel, ..viewer }, outs)
+    (
+        Viewer {
+            panel,
+            panel_said,
+            ..viewer
+        },
+        outs,
+    )
 }
 
 pub(super) fn sheet(

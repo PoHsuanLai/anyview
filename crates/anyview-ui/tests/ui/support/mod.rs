@@ -297,6 +297,19 @@ pub struct Wiring {
     pub viewport: Option<Viewport>,
     /// Give the viewer a window host that counts the moves it is asked for ([`window_moves`]).
     pub record_moves: bool,
+    /// Whether the side panel is left as a PDF or a book opens it.
+    pub panel: PanelStart,
+}
+
+/// What a test sees of the side panel when its window has opened.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum PanelStart {
+    /// The panel is shut, as the pages' tests measure them: if the window opened it on the pages
+    /// the way a PDF does, Esc has put it away (so it stays away from file to file).
+    #[default]
+    Closed,
+    /// As the window opened it.
+    AsOpened,
 }
 
 thread_local! {
@@ -366,6 +379,7 @@ pub fn wired(
     let requests: Requests = Arc::default();
     let seen = Arc::clone(&requests);
     let memory = wiring.memory.clone();
+    let panel = wiring.panel;
     let workers: Arc<dyn Workers> = wiring.workers.unwrap_or_else(|| Arc::new(Inline));
     let mut services = Services::new(workers, move |request| {
         if let Some(memory) = &memory {
@@ -420,6 +434,12 @@ pub fn wired(
     };
     let mut harness = Harness::new(app, config);
     harness.advance(Duration::from_millis(500));
+    if panel == PanelStart::Closed
+        && harness.attr(".ds-split-pane", "data-shown").as_deref() == Some("visible")
+    {
+        harness.send(Input::key(ShortcutKey::Escape));
+        harness.advance(Duration::from_millis(300));
+    }
     (harness, requests, edge)
 }
 

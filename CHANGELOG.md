@@ -14,6 +14,8 @@ versioning, with pre-releases while the program is in beta.
 - The side panel is now a pane on the left of the window, as in Preview and Finder. It stays open from file to file on the tab it was on (or the first tab, when the next file has not got that one), you can drag its edge to make it wider or narrower or to fold it away, and opening it makes the picture smaller rather than the window bigger. Page thumbnails fill its width.
 - Get Info is now a card: the file's icon or picture, its name, one line saying what it is, and a Details section that lists everything else with each caption above its value. A file Viewer cannot show uses the same card in the middle of the window.
 
+- A PDF or a book opens with its pages beside it, as in Preview, until you open or close the panel yourself; after that it stays as you left it from file to file. A file Viewer can only describe, such as an archive or a font, has no panel to open, because the window already shows its card.
+
 ### Find
 
 - Find is in the command palette. Command F opens it as a find, with the last find's text selected: what you type is searched for in the file, the matches are marked behind the palette, and the places are listed under "In This File" (with the line or page), followed by the commands that match. Moving through the list shows each match, Return goes to it and closes the palette, and Esc clears the marks. The bottom bar then reads "3 of 17" with Previous Match and Next Match buttons, and Command G and Shift-Command G step through the matches as before. The find bar is gone.

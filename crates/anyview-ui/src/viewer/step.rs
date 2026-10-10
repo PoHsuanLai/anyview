@@ -2,7 +2,7 @@
 //! crosses regions.
 
 use super::command::run;
-use super::model::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+use super::model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::pins::{synced, wanted};
 use super::region::{Step, chrome, panel, presentation, sheet, stage, stepped};
 use crate::command::Command;
@@ -13,7 +13,7 @@ use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
 use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope};
-use crate::panel::{PanelIn, PanelTab};
+use crate::panel::{Panel, PanelIn, PanelOut, PanelTab};
 use crate::presentation::Presentation;
 use crate::sheet::{Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn};
@@ -230,12 +230,23 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
                 .map_or(viewer.stage.clone(), |family| {
                     kept_or_new(&viewer.stage, family, params)
                 });
-            let outs = outs.into_iter().map(ViewerOut::Load).collect();
+            let family = outs.iter().find_map(|out| match out {
+                LoadOut::UseStage(family) => Some(*family),
+                LoadOut::Probe(_)
+                | LoadOut::Peek(_)
+                | LoadOut::Open(_)
+                | LoadOut::Cancel(_)
+                | LoadOut::ShowFirstFrame(_)
+                | LoadOut::ShowFull(_) => None,
+            });
+            let mut outs: Vec<ViewerOut> = outs.into_iter().map(ViewerOut::Load).collect();
             let viewer = Viewer {
                 load,
                 stage,
                 ..viewer
             };
+            let (viewer, opened) = paged(viewer, family);
+            outs.extend(opened);
             if vanished {
                 gone(viewer, at, params)
             } else {
@@ -243,6 +254,27 @@ fn load(viewer: Viewer, input: LoadIn, at: Stamp, params: &ViewerParams) -> Step
             }
         }
     }
+}
+
+/// A PDF or a book opens the side panel on its pages, as Preview does, until the person has said
+/// what they want of the panel in this window. (The tab is set directly: the file's tabs are not
+/// known until it lands, and the window shows the first tab the file has when this one is not.)
+fn paged(viewer: Viewer, family: Option<StageFamily>) -> Step {
+    let opens = family == Some(StageFamily::Pdf)
+        && viewer.panel_said == PanelSay::Unsaid
+        && viewer.panel == Panel::Hidden;
+    if !opens {
+        return (viewer, vec![]);
+    }
+    (
+        Viewer {
+            panel: Panel::Shown {
+                tab: PanelTab::Thumbnails,
+            },
+            ..viewer
+        },
+        vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Thumbnails))],
+    )
 }
 
 /// The file on screen is not on disk. With others in the list the walk moves on and the file

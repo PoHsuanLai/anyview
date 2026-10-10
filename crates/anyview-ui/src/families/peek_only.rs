@@ -213,8 +213,9 @@ impl StageView for PeekOnlyStageView {
         doc.facts.clone()
     }
 
+    // The stage is the file's card already: a panel beside it would say the same again.
     fn tabs(_doc: &PeekOnlyDoc) -> PanelTabs {
-        PanelTabs::of(&[PanelTab::Info])
+        PanelTabs::NONE
     }
 
     fn params(_doc: &PeekOnlyDoc, _stage: &Stage, _area: Option<Area>) -> StageParams {

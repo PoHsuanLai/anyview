@@ -10,4 +10,4 @@ mod step;
 #[cfg(test)]
 mod tests;
 
-pub use model::{Choosing, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
+pub use model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};

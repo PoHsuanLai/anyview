@@ -44,6 +44,20 @@ pub struct Viewer {
     pub trashing: Trashing,
     /// Whether a file chooser has been asked for and has not answered.
     pub choosing: Choosing,
+    /// Whether the person has opened or closed the side panel in this window.
+    pub panel_said: PanelSay,
+}
+
+/// Whether the person has said what they want of the side panel. Until they have, a PDF or a
+/// book opens it on its pages, as Preview does; once they have, the panel stays as they left it
+/// from file to file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PanelSay {
+    /// The panel is as the viewer left it: no choice yet.
+    #[default]
+    Unsaid,
+    /// The person opened, closed or switched the panel.
+    Said,
 }
 
 /// Whether the window is waiting on a file chooser.

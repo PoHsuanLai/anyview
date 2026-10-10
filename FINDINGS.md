@@ -61,9 +61,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   `ToolbarItem` has no key to give a button, so the capsule says the name alone ("Zoom In"); the mode controls
   in the titlebar (`Pointer Tool  H`, `View Mode  V`) carry theirs. `~/av-wt/design/quire-capsule-shortcut.patch`
   adds `ToolbarItem::shortcut`. Ends when quire takes it.
-- **The panel is not open by default for a PDF or a book.** The design standard opens the thumbnails for them;
-  the panel machine starts closed for every file and stays as the person left it from file to file. Ends when
-  the open-by-default rule is wanted.
 - **The Data modality is not built.** Tables are still a header and quire `Row`s in a `VirtualList` with guessed column
   widths, and no sticky header rule, resizable columns or sort. It needs quire's virtual-row `Table` (lane Q).
 - **The text view's wrap is on for every text file.** The standard has it on for plain text and off for code;
