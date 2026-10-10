@@ -6,7 +6,7 @@
 use anyview_core::Source;
 use anyview_pane::{
     FilePath, HitList, NonEmpty, PaneCommand, PaneEdge, PaneRequest, Sequence, SequenceOrigin,
-    ViewerPane, Work, Workers, use_pane_handle,
+    ViewerPane, Work, WorkKind, Workers, use_pane_handle,
 };
 use dioxus::prelude::*;
 use ds::components::menus::palette::palette_group::{GroupEntries, PaletteGroup};
@@ -22,18 +22,29 @@ use std::time::Duration;
 /// Runs each job on the thread that submitted it, so a result is in the mailbox by the time the
 /// harness looks, and counts them: panes that share a pool share the count.
 #[derive(Debug, Default)]
-pub struct Counting(AtomicUsize);
+pub struct Counting {
+    submitted: AtomicUsize,
+    kept: AtomicUsize,
+}
 
 impl Counting {
     /// How many pieces of work every pane has submitted to this pool.
     pub fn submitted(&self) -> usize {
-        self.0.load(Ordering::SeqCst)
+        self.submitted.load(Ordering::SeqCst)
+    }
+
+    /// How many of those were writes to the store.
+    pub fn kept(&self) -> usize {
+        self.kept.load(Ordering::SeqCst)
     }
 }
 
 impl Workers for Counting {
     fn submit(&self, work: Work) {
-        self.0.fetch_add(1, Ordering::SeqCst);
+        self.submitted.fetch_add(1, Ordering::SeqCst);
+        if work.kind() == WorkKind::Keep {
+            self.kept.fetch_add(1, Ordering::SeqCst);
+        }
         work.run();
     }
 }

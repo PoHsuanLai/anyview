@@ -25,6 +25,7 @@ mod palette;
 mod panel;
 mod picture;
 mod presentation;
+mod remembering;
 mod sheet;
 mod stage;
 #[cfg(test)]
@@ -56,6 +57,7 @@ pub use picture::{
 pub use presentation::{
     ContentClass, Presentation, PresentationIn, PresentationOut, PresentationParams,
 };
+pub use remembering::{Noted, REMEMBER_EVERY, Remembering};
 pub use sheet::{
     Departure, ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption,
     HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
