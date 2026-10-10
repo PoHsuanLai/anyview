@@ -405,17 +405,14 @@ pub(super) fn params(
     doc: Option<&LoadedDoc>,
     probe: &Probe,
     area: Option<crate::Area>,
-    palette: &Palette,
+    palette: (&Palette, PaletteScope),
     lines: Option<&LineWindow>,
     live: Live,
 ) -> ViewerParams {
-    let (query, scope) = match palette {
-        Palette::Open {
-            query,
-            selection: _,
-            scope,
-        } => (query.clone(), *scope),
-        Palette::Closed => (TypedText::EMPTY, PaletteScope::Commands),
+    let (palette, scope) = palette;
+    let query = match palette {
+        Palette::Open { query, .. } => query.clone(),
+        Palette::Closed => TypedText::EMPTY,
     };
     let Live {
         level,

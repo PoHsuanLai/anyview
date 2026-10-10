@@ -4,7 +4,6 @@ use crate::keys::{Act, Press};
 use crate::stage::HitIndex;
 use crate::typed::TypedText;
 use anyview_core::FileAction;
-use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
@@ -12,23 +11,6 @@ const EXPORT: Command = Command::File(FileAction::Export);
 const ROTATE: Command = Command::File(FileAction::RotateRight);
 const FIND: Command = Command::Stage(StageCommand::Find);
 const ROWS: &[Command] = &[EXPORT, ROTATE, FIND];
-
-const fn open(query: &'static str, row: usize) -> Palette {
-    Palette::Open {
-        query: TypedText::from_static(query),
-        selection: PaletteIndex(row),
-        scope: PaletteScope::Commands,
-    }
-}
-
-const fn finding(query: &'static str, row: usize, list: HitList) -> Palette {
-    Palette::Open {
-        query: TypedText::from_static(query),
-        selection: PaletteIndex(row),
-        scope: PaletteScope::Find(list),
-    }
-}
-
 const HIT_ROWS: &[Command] = &[
     Command::FindHit(HitIndex(0)),
     Command::FindHit(HitIndex(1)),
@@ -36,208 +18,130 @@ const HIT_ROWS: &[Command] = &[
     EXPORT,
 ];
 
-/// Name, ranked rows, state before, input, state after, outputs.
+const fn open(query: &'static str, row: usize) -> Palette {
+    Palette::open(TypedText::from_static(query), PaletteIndex(row))
+}
+
+const COMMANDS: PaletteScope = PaletteScope::Commands;
+const BRIEF: PaletteScope = PaletteScope::Find(HitList::Brief);
+const WHOLE: PaletteScope = PaletteScope::Find(HitList::Whole);
+
+/// Name, ranked rows, state and scope before, input, state and scope after, outputs. The generic
+/// walk (moves, Enter, a click, Esc, the clamps) is quire's to test; these are the scope's.
 type Case = (
     &'static str,
     &'static [Command],
-    Palette,
+    (Palette, PaletteScope),
     PaletteIn,
-    Palette,
+    (Palette, PaletteScope),
     &'static [PaletteOut],
 );
 
 const CASES: &[Case] = &[
     (
-        "open shows an empty query on the first row",
-        ROWS,
-        Palette::Closed,
-        PaletteIn::Open,
-        open("", 0),
-        &[PaletteOut::Opened],
-    ),
-    (
-        "typing replaces the query and returns to the first row",
-        ROWS,
-        open("ex", 2),
-        PaletteIn::Typed(TypedText::from_static("exp")),
-        open("exp", 0),
-        &[],
-    ),
-    (
-        "down moves one row",
-        ROWS,
-        open("", 0),
-        PaletteIn::Move(PaletteMove::Down),
-        open("", 1),
-        &[],
-    ),
-    (
-        "down stops at the last row",
-        ROWS,
-        open("", 2),
-        PaletteIn::Move(PaletteMove::Down),
-        open("", 2),
-        &[],
-    ),
-    (
-        "up stops at the first row",
-        ROWS,
-        open("", 0),
-        PaletteIn::Move(PaletteMove::Up),
-        open("", 0),
-        &[],
-    ),
-    (
-        "last jumps to the end",
-        ROWS,
-        open("", 0),
-        PaletteIn::Move(PaletteMove::Last),
-        open("", 2),
-        &[],
-    ),
-    (
-        "first jumps to the start",
-        ROWS,
-        open("", 2),
-        PaletteIn::Move(PaletteMove::First),
-        open("", 0),
-        &[],
-    ),
-    (
-        "moving over no rows stays on row zero",
-        &[],
-        open("zzz", 0),
-        PaletteIn::Move(PaletteMove::Down),
-        open("zzz", 0),
-        &[],
-    ),
-    (
-        "a shorter list pulls a stale selection back in range",
-        &[EXPORT],
-        open("e", 2),
-        PaletteIn::Move(PaletteMove::Up),
-        open("e", 0),
-        &[],
-    ),
-    (
-        "enter runs the highlighted row and closes",
-        ROWS,
-        open("", 1),
-        PaletteIn::Enter,
-        Palette::Closed,
-        &[PaletteOut::Run(ROTATE), PaletteOut::Closed],
-    ),
-    (
-        "enter with no rows stays open",
-        &[],
-        open("zzz", 0),
-        PaletteIn::Enter,
-        open("zzz", 0),
-        &[],
-    ),
-    (
-        "a click runs the row it landed on",
-        ROWS,
-        open("", 0),
-        PaletteIn::Pick(PaletteIndex(1)),
-        Palette::Closed,
-        &[PaletteOut::Run(ROTATE), PaletteOut::Closed],
-    ),
-    (
         "the find row makes what is typed a find and stays open",
         ROWS,
-        open("fox", 2),
+        (open("fox", 2), COMMANDS),
         PaletteIn::Pick(PaletteIndex(2)),
-        finding("fox", 0, HitList::Brief),
+        (open("fox", 0), BRIEF),
         &[],
     ),
     (
         "command f opens a closed palette as a find on the last text",
         ROWS,
-        Palette::Closed,
+        (Palette::Closed, COMMANDS),
         PaletteIn::OpenFind(TypedText::from_static("fox")),
-        finding("fox", 0, HitList::Brief),
+        (open("fox", 0), BRIEF),
         &[PaletteOut::Opened],
     ),
     (
         "command f in an open palette keeps the text and lists the hits",
         ROWS,
-        open("fox", 1),
+        (open("fox", 1), COMMANDS),
         PaletteIn::ToFind,
-        finding("fox", 0, HitList::Brief),
+        (open("fox", 0), BRIEF),
+        &[],
+    ),
+    (
+        "command f in a find changes nothing",
+        HIT_ROWS,
+        (open("fox", 1), WHOLE),
+        PaletteIn::ToFind,
+        (open("fox", 1), WHOLE),
+        &[],
+    ),
+    (
+        "command f on a closed palette is nothing",
+        ROWS,
+        (Palette::Closed, COMMANDS),
+        PaletteIn::ToFind,
+        (Palette::Closed, COMMANDS),
         &[],
     ),
     (
         "typing in a find lists the first hits again",
         HIT_ROWS,
-        finding("fo", 2, HitList::Whole),
+        (open("fo", 2), WHOLE),
         PaletteIn::Typed(TypedText::from_static("fox")),
-        finding("fox", 0, HitList::Brief),
+        (open("fox", 0), BRIEF),
+        &[],
+    ),
+    (
+        "typing in the commands stays in the commands",
+        ROWS,
+        (open("ex", 2), COMMANDS),
+        PaletteIn::Typed(TypedText::from_static("exp")),
+        (open("exp", 0), COMMANDS),
         &[],
     ),
     (
         "show all lists every hit and stays open",
         HIT_ROWS,
-        finding("fox", 2, HitList::Brief),
+        (open("fox", 2), BRIEF),
         PaletteIn::Enter,
-        finding("fox", 2, HitList::Whole),
+        (open("fox", 2), WHOLE),
         &[],
     ),
     (
-        "a hit runs and closes the palette",
+        "a hit runs and closes the palette, and the scope with it",
         HIT_ROWS,
-        finding("fox", 1, HitList::Brief),
+        (open("fox", 1), BRIEF),
         PaletteIn::Enter,
-        Palette::Closed,
+        (Palette::Closed, COMMANDS),
         &[
             PaletteOut::Run(Command::FindHit(HitIndex(1))),
             PaletteOut::Closed,
         ],
     ),
     (
-        "a click past the rows is nothing",
+        "a command runs and closes in the commands",
         ROWS,
-        open("", 0),
-        PaletteIn::Pick(PaletteIndex(9)),
-        open("", 0),
-        &[],
-    ),
-    (
-        "escape closes",
-        ROWS,
-        open("ex", 1),
-        PaletteIn::Close,
-        Palette::Closed,
-        &[PaletteOut::Closed],
-    ),
-    (
-        "opening again keeps the query",
-        ROWS,
-        open("ex", 1),
-        PaletteIn::Open,
-        open("ex", 1),
-        &[],
-    ),
-    (
-        "a closed palette ignores enter",
-        ROWS,
-        Palette::Closed,
+        (open("", 1), COMMANDS),
         PaletteIn::Enter,
-        Palette::Closed,
-        &[],
+        (Palette::Closed, COMMANDS),
+        &[PaletteOut::Run(ROTATE), PaletteOut::Closed],
+    ),
+    (
+        "escape closes a find, and the scope with it",
+        HIT_ROWS,
+        (open("fox", 1), WHOLE),
+        PaletteIn::Close,
+        (Palette::Closed, COMMANDS),
+        &[PaletteOut::Closed],
     ),
 ];
 
 #[test]
 fn every_row_of_the_table_steps_as_written() {
-    for (name, rows, from, input, state, outs) in CASES {
+    for (name, rows, (palette, scope), input, (state, after), outs) in CASES {
         let params = PaletteParams {
             rows: rows.to_vec(),
         };
-        let (next, out) = from.clone().step(input.clone(), Stamp(0), &params, &());
+        let (next, next_scope, out) =
+            step_with_scope(palette.clone(), *scope, input.clone(), Stamp(0), &params);
         assert_eq!(next, *state, "{name}: state");
+        assert_eq!(next_scope, *after, "{name}: scope");
         assert_eq!(out.as_slice(), *outs, "{name}: outputs");
-        assert_eq!(next.wake(), None, "{name}: a palette keeps no timer");
     }
 }
 

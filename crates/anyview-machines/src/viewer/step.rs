@@ -15,7 +15,7 @@ use crate::keys::{Act, Chords, Press, Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
-use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope};
+use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope, step_with_scope};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelTab};
 use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::Presentation;
@@ -372,7 +372,7 @@ pub(super) fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &View
     if viewer.presentation == Presentation::Pane {
         return (viewer, vec![]);
     }
-    let before = viewer.palette.clone();
+    let before = (viewer.palette.clone(), viewer.palette_scope);
     let closing = matches!(input, PaletteIn::Close);
     let (viewer, mut outs) = palette_stepped(viewer, input, at, params);
     let (viewer, more) = find_synced(viewer, &before, closing, at, params);
@@ -381,8 +381,18 @@ pub(super) fn palette(viewer: Viewer, input: PaletteIn, at: Stamp, params: &View
 }
 
 fn palette_stepped(viewer: Viewer, input: PaletteIn, at: Stamp, params: &ViewerParams) -> Step {
-    let (palette, outs) = viewer.palette.clone().step(input, at, &params.palette, &());
-    let viewer = Viewer { palette, ..viewer };
+    let (palette, palette_scope, outs) = step_with_scope(
+        viewer.palette.clone(),
+        viewer.palette_scope,
+        input,
+        at,
+        &params.palette,
+    );
+    let viewer = Viewer {
+        palette,
+        palette_scope,
+        ..viewer
+    };
     outs.into_iter()
         .fold((viewer, vec![]), |(viewer, mut outs), out| match out {
             PaletteOut::Run(command) => {
@@ -413,51 +423,46 @@ pub(super) fn open_find(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Ste
 /// its marks on the file and ⌘G to step.
 fn find_synced(
     viewer: Viewer,
-    before: &Palette,
+    before: &(Palette, PaletteScope),
     closing: bool,
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
-    match (before, viewer.palette.clone()) {
+    let (was, was_scope) = before;
+    let finding_before = matches!(was_scope, PaletteScope::Find(_));
+    let finding_now = matches!(viewer.palette_scope, PaletteScope::Find(_));
+    match (was, viewer.palette.clone()) {
+        (Palette::Open { .. }, Palette::Closed)
+            if finding_before && closing && viewer.stage.is_finding() =>
+        {
+            match viewer.stage.dismissal() {
+                Some(input) => stage(viewer, input, at, params),
+                None => (viewer, vec![]),
+            }
+        }
         (
             Palette::Open {
-                query: _,
-                selection: _,
-                scope: PaletteScope::Find(_),
-            },
-            Palette::Closed,
-        ) if closing && viewer.stage.is_finding() => match viewer.stage.dismissal() {
-            Some(input) => stage(viewer, input, at, params),
-            None => (viewer, vec![]),
-        },
-        (
-            _,
-            Palette::Open {
-                query,
-                selection,
-                scope: PaletteScope::Find(_),
-            },
-        ) => match before {
-            // The same text: the highlight may have moved to another hit.
-            Palette::Open {
-                query: was,
+                query: was_query,
                 selection: row,
-                scope: PaletteScope::Find(_),
-            } if *was == query => {
-                if *row == selection {
-                    (viewer, vec![])
-                } else {
-                    jumped(viewer, selection, at, params)
-                }
-            }
+                ..
+            },
             Palette::Open {
-                query: _,
-                selection: _,
-                scope: _,
+                query, selection, ..
+            },
+        ) if finding_now && finding_before && *was_query == query => {
+            // The same text: the highlight may have moved to another hit.
+            if *row == selection {
+                (viewer, vec![])
+            } else {
+                jumped(viewer, selection, at, params)
             }
-            | Palette::Closed => searched(viewer, &query, at, params),
-        },
-        _ => (viewer, vec![]),
+        }
+        (Palette::Open { .. } | Palette::Closed, Palette::Open { query, .. }) if finding_now => {
+            searched(viewer, &query, at, params)
+        }
+        (Palette::Open { .. } | Palette::Closed, Palette::Open { .. } | Palette::Closed) => {
+            (viewer, vec![])
+        }
     }
 }
 

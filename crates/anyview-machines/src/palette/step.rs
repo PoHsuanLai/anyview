@@ -1,175 +1,122 @@
-//! The palette's transitions.
+//! The palette's transitions: quire's machine, and the scope on top of it. The machine knows rows,
+//! a query and a highlight; the three things that are anyview's are handled here before it
+//! is asked: opening as a find, the Find row, and "Show All", which keep the palette open and
+//! change what it lists, and typing in a find, which lists its first hits again.
 
 use super::model::{
-    HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
+    HitList, Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteParams, PaletteScope,
 };
 use crate::command::{Command, StageCommand};
-use crate::typed::TypedText;
 use ds_core::machine::Machine;
+use ds_core::palette::model::PaletteIn as Base;
 use ds_core::time::stamp::Stamp;
 
-type Step = (Palette, Vec<PaletteOut>);
+/// The palette, its scope and what it wants done, after one input.
+pub(crate) type ScopedStep = (Palette, PaletteScope, Vec<PaletteOut>);
 
-impl Machine for Palette {
-    type In = PaletteIn;
-    type Out = PaletteOut;
-    type Params = PaletteParams;
-    type Ctx = ();
-
-    fn step(self, input: PaletteIn, _at: Stamp, params: &PaletteParams, _cx: &()) -> Step {
-        match self {
-            Palette::Closed => closed(input),
-            Palette::Open {
-                query,
-                selection,
-                scope,
-            } => open(query, selection, scope, input, params),
-        }
-    }
-
-    fn wake(&self) -> Option<Stamp> {
-        match self {
-            Palette::Closed
-            | Palette::Open {
-                query: _,
-                selection: _,
-                scope: _,
-            } => None,
-        }
-    }
-}
-
-fn closed(input: PaletteIn) -> Step {
-    match input {
-        PaletteIn::Open => {
-            let state = Palette::Open {
-                query: TypedText::EMPTY,
-                selection: PaletteIndex(0),
-                scope: PaletteScope::Commands,
-            };
-            (state, vec![PaletteOut::Opened])
-        }
-        PaletteIn::OpenFind(query) => {
-            let state = Palette::Open {
-                query,
-                selection: PaletteIndex(0),
-                scope: PaletteScope::Find(HitList::Brief),
-            };
-            (state, vec![PaletteOut::Opened])
-        }
-        PaletteIn::ToFind
-        | PaletteIn::Typed(_)
-        | PaletteIn::Move(_)
-        | PaletteIn::Pick(_)
-        | PaletteIn::Enter
-        | PaletteIn::Close
-        | PaletteIn::Elapsed => (Palette::Closed, vec![]),
-    }
-}
-
-fn open(
-    query: TypedText,
-    selection: PaletteIndex,
+/// `palette` and its `scope` after `input` over the rows in `params`. The scope is `Commands`
+/// whenever the palette is closed.
+pub(crate) fn step_with_scope(
+    palette: Palette,
     scope: PaletteScope,
     input: PaletteIn,
+    at: Stamp,
     params: &PaletteParams,
-) -> Step {
-    let this = Palette::Open {
-        query: query.clone(),
-        selection,
-        scope,
+) -> ScopedStep {
+    let (palette, scope, outs) = dispatch(palette, scope, input, at, params);
+    let scope = match palette {
+        Palette::Open { .. } => scope,
+        Palette::Closed => PaletteScope::Commands,
     };
+    (palette, scope, outs)
+}
+
+fn dispatch(
+    palette: Palette,
+    scope: PaletteScope,
+    input: PaletteIn,
+    at: Stamp,
+    params: &PaletteParams,
+) -> ScopedStep {
     match input {
+        PaletteIn::Open => through(palette, scope, Base::Open, at, params),
+        PaletteIn::OpenFind(text) => match palette {
+            Palette::Closed => {
+                let (opened, outs) = palette.step(Base::Open, at, params, &());
+                let (typed, _) = opened.step(Base::Typed(text), at, params, &());
+                (typed, PaletteScope::Find(HitList::Brief), outs)
+            }
+            Palette::Open { .. } => to_find(palette, scope),
+        },
+        PaletteIn::ToFind => to_find(palette, scope),
         // New text is a new list: a find lists its first hits again.
         PaletteIn::Typed(text) => {
             let scope = match scope {
                 PaletteScope::Commands => PaletteScope::Commands,
                 PaletteScope::Find(_) => PaletteScope::Find(HitList::Brief),
             };
-            let state = Palette::Open {
-                query: text,
-                selection: PaletteIndex(0),
-                scope,
+            through(palette, scope, Base::Typed(text), at, params)
+        }
+        PaletteIn::Move(movement) => through(palette, scope, Base::Move(movement), at, params),
+        PaletteIn::Pick(row) => picked(palette, scope, Base::Pick(row), Some(row), at, params),
+        PaletteIn::Enter => {
+            let row = match &palette {
+                Palette::Open { selection, .. } => Some(*selection),
+                Palette::Closed => None,
             };
-            (state, vec![])
+            picked(palette, scope, Base::Enter, row, at, params)
         }
-        PaletteIn::Move(movement) => {
-            let selection = moved(selection, movement, params.rows.len());
-            (
-                Palette::Open {
-                    query,
-                    selection,
-                    scope,
-                },
-                vec![],
-            )
-        }
-        PaletteIn::ToFind | PaletteIn::OpenFind(_) => match scope {
-            PaletteScope::Commands => (
-                Palette::Open {
-                    query,
-                    selection: PaletteIndex(0),
-                    scope: PaletteScope::Find(HitList::Brief),
-                },
-                vec![],
-            ),
-            PaletteScope::Find(_) => (this, vec![]),
-        },
-        PaletteIn::Enter => run(this, selection, params),
-        PaletteIn::Pick(row) => run(this, row, params),
-        PaletteIn::Close => (Palette::Closed, vec![PaletteOut::Closed]),
-        PaletteIn::Open | PaletteIn::Elapsed => (this, vec![]),
+        PaletteIn::Close => through(palette, scope, Base::Close, at, params),
+        PaletteIn::Elapsed => through(palette, scope, Base::Elapsed, at, params),
     }
 }
 
-/// `row`'s command, with the palette closed after it; nothing when there is no such row. Two rows
-/// keep the palette open: "Show All", which lists every hit, and "Find", which makes the text a
-/// find.
-fn run(this: Palette, row: PaletteIndex, params: &PaletteParams) -> Step {
-    let Palette::Open {
-        query,
-        selection,
-        scope,
-    } = this.clone()
-    else {
-        return (this, vec![]);
+/// The input as quire's machine takes it, the scope as it is.
+fn through(
+    palette: Palette,
+    scope: PaletteScope,
+    input: Base,
+    at: Stamp,
+    params: &PaletteParams,
+) -> ScopedStep {
+    let (palette, outs) = palette.step(input, at, params, &());
+    (palette, scope, outs)
+}
+
+/// What is typed becomes a find, listing its first hits from the top; a find stays as it is.
+fn to_find(palette: Palette, scope: PaletteScope) -> ScopedStep {
+    let query = match &palette {
+        Palette::Open { query, .. } => query.clone(),
+        Palette::Closed => return (palette, scope, vec![]),
     };
-    match params.rows.get(row.0) {
-        Some(Command::ShowAllHits) => (
-            Palette::Open {
-                query,
-                selection,
-                scope: PaletteScope::Find(HitList::Whole),
-            },
+    match scope {
+        PaletteScope::Commands => (
+            Palette::open(query, PaletteIndex(0)),
+            PaletteScope::Find(HitList::Brief),
             vec![],
         ),
-        Some(Command::Stage(StageCommand::Find)) => match scope {
-            PaletteScope::Commands => (
-                Palette::Open {
-                    query,
-                    selection: PaletteIndex(0),
-                    scope: PaletteScope::Find(HitList::Brief),
-                },
-                vec![],
-            ),
-            PaletteScope::Find(_) => (this, vec![]),
-        },
-        Some(command) => (
-            Palette::Closed,
-            vec![PaletteOut::Run(*command), PaletteOut::Closed],
-        ),
-        None => (this, vec![]),
+        PaletteScope::Find(_) => (palette, scope, vec![]),
     }
 }
 
-/// The highlight after `movement` over `rows` rows, clamped to the first and last.
-fn moved(selection: PaletteIndex, movement: PaletteMove, rows: usize) -> PaletteIndex {
-    let last = rows.saturating_sub(1);
-    let target = match movement {
-        PaletteMove::Up => selection.0.saturating_sub(1),
-        PaletteMove::Down => selection.0.saturating_add(1),
-        PaletteMove::First => 0,
-        PaletteMove::Last => last,
-    };
-    PaletteIndex(target.min(last))
+/// `row` chosen with `input`. Two rows keep the palette open: "Show All", which lists every hit,
+/// and "Find", which makes the text a find. Any other is the machine's: it runs and closes, and
+/// a row that is not there is nothing.
+fn picked(
+    palette: Palette,
+    scope: PaletteScope,
+    input: Base,
+    row: Option<PaletteIndex>,
+    at: Stamp,
+    params: &PaletteParams,
+) -> ScopedStep {
+    let command = row.and_then(|row| params.rows.get(row.0));
+    let open = matches!(palette, Palette::Open { .. });
+    if open && command == Some(&Command::ShowAllHits) {
+        return (palette, PaletteScope::Find(HitList::Whole), vec![]);
+    }
+    if open && command == Some(&Command::Stage(StageCommand::Find)) {
+        return to_find(palette, scope);
+    }
+    through(palette, scope, input, at, params)
 }

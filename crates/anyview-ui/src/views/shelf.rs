@@ -177,7 +177,7 @@ pub(super) fn viewer_params(
         doc.as_ref(),
         &shelf.probe.peek(),
         *area.peek(),
-        &state.palette,
+        (&state.palette, state.palette_scope),
         lines.as_ref().map(|held| held.0.as_ref()),
         Live {
             level: shelf.level.now(),

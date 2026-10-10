@@ -408,15 +408,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         }));
     };
     // What the palette lists under "In This File" when it is a find.
-    let hit_lines = match (&state.palette, current.as_ref()) {
-        (
-            PaletteState::Open {
-                query: _,
-                selection: _,
-                scope: PaletteScope::Find(_),
-            },
-            Some((_, doc)),
-        ) => doc.view().hit_lines(&cx, WHOLE_HITS),
+    let hit_lines = match (&state.palette, state.palette_scope, current.as_ref()) {
+        (PaletteState::Open { .. }, PaletteScope::Find(_), Some((_, doc))) => {
+            doc.view().hit_lines(&cx, WHOLE_HITS)
+        }
         _ => Vec::new(),
     };
     let found = state
@@ -582,12 +577,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     }
                 },
             }
-            if let PaletteState::Open { query: typed, selection, scope } = &keyed.palette {
+            if let PaletteState::Open { query: typed, selection, .. } = &keyed.palette {
                 Palette {
                     query: typed.clone(),
                     rows,
                     selection: *selection,
-                    scope: *scope,
+                    scope: keyed.palette_scope,
                     hits: hit_lines,
                     found,
                     ontyped: move |text: TypedText| dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text))),

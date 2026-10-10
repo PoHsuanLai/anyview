@@ -60,11 +60,7 @@ pub fn route(press: &Press, regions: Regions<'_>) -> Route {
         Sheet::Closed => {}
     }
     match regions.palette {
-        Palette::Open {
-            query: _,
-            selection: _,
-            scope: _,
-        } => {
+        Palette::Open { .. } => {
             // Find in the open palette makes what is typed a find, where the file can be searched.
             if press.act() == Some(Act::Find) {
                 return if can_find(regions.stage) {

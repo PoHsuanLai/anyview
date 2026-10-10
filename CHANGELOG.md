@@ -5,6 +5,10 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Palette
+
+- The command palette runs on the machine quire shares with other apps (Viewer, the terminal's tab bar and a Viewer pane in a host's window), so its keys, highlight and Enter behave as they do there. Nothing changes on screen: the same scopes, the same order and the same find rows.
+
 ### Resume
 
 - Where you left off in a file is now safe when two programs that use Viewer run at once, such as Viewer and a terminal with a viewer pane in it: each remembers its own files without erasing the other's.

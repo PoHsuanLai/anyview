@@ -1,13 +1,24 @@
-//! The palette's states, inputs and outputs.
+//! The palette's states, inputs and outputs: quire's machine over [`Command`], and the scope that
+//! anyview keeps beside it.
 
 use crate::command::Command;
 use crate::keys::{Act, Press};
 use crate::typed::TypedText;
+use ds_core::palette::model as base;
 use ds_core::vocab::ShortcutKey;
 
-/// A position in the ranked rows, from 0.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct PaletteIndex(pub usize);
+pub use base::{PaletteIndex, PaletteMove};
+
+/// Whether the palette is open, and its query and highlight: quire's palette over the viewer's
+/// commands. What it lists (its [`PaletteScope`]) is the viewer's, beside it.
+pub type Palette = base::PaletteState<Command>;
+
+/// What the palette wants done; [`PaletteOut::Run`] carries the command to run.
+pub type PaletteOut = base::PaletteOut<Command>;
+
+/// The rows for the query now in the field, best first. Matching and ranking happen outside, each
+/// time the query changes; the palette only walks the list it is given.
+pub type PaletteParams = base::PaletteParams<Command>;
 
 /// How many of a find's hits the palette lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -21,7 +32,7 @@ pub enum HitList {
 
 /// What the palette lists under its field: the commands the text names, or, as in mailo, the
 /// places in the open file the text names and then the commands. Finding is the palette's, so there
-/// is no find bar.
+/// is no find bar. It is `Commands` whenever the palette is closed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PaletteScope {
     /// The commands the text names (⌘K).
@@ -31,34 +42,7 @@ pub enum PaletteScope {
     Find(HitList),
 }
 
-/// Whether the palette is open.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum Palette {
-    /// Not showing.
-    #[default]
-    Closed,
-    /// Showing, with what was typed, the highlighted row and what it lists.
-    Open {
-        query: TypedText,
-        selection: PaletteIndex,
-        scope: PaletteScope,
-    },
-}
-
-/// Where the highlight goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PaletteMove {
-    /// One row up.
-    Up,
-    /// One row down.
-    Down,
-    /// The first row.
-    First,
-    /// The last row.
-    Last,
-}
-
-/// What moves the palette.
+/// What moves the palette: quire's inputs, and the two that make it a find.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaletteIn {
     /// Open with an empty query.
@@ -103,23 +87,4 @@ impl PaletteIn {
             Press::Act(_) => None,
         }
     }
-}
-
-/// What the palette wants done.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PaletteOut {
-    /// Show the palette and focus its field.
-    Opened,
-    /// Hide the palette and give focus back.
-    Closed,
-    /// Run this command.
-    Run(Command),
-}
-
-/// The rows for the query now in the field, best first. Matching and ranking happen outside,
-/// each time the query changes; the palette only walks the list it is given.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct PaletteParams {
-    /// The ranked rows.
-    pub rows: Vec<Command>,
 }

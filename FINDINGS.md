@@ -792,8 +792,14 @@ on. It is a reference, not a log: how each was found lives in git history.
   `ds-blitz`'s `edit_tree.rs`, not in v0.3.1); nothing here waits for it.
 - **Find does not work in a pane.** Find is the palette's (⌘F opens it as a find), and a pane draws no palette, so the
   pane lists no Find command and the capsule has no Find button; a find already running on the stage still closes on
-  Esc. Ends when the find is data a host can show (the palette machine generic over its rows and moved into quire,
-  which temor was asked for), so that the host's palette can be the pane's find.
+  Esc. Ends when the find is data a host can show (the palette machine is now quire's, generic over its rows and
+  below the renderer in `ds_core::palette`, and anyview's palette runs on it; what remains is the find's hits as rows
+  of the host's own palette), so that the host's palette can be the pane's find.
+- **The palette's scope is not in quire's machine.** `PaletteState<Command>` holds the query and the highlight only;
+  whether the palette lists commands or a find's hits is `Viewer::palette_scope`, stepped with it by `step_with_scope`,
+  which handles the three inputs that change the scope (opening as a find, the Find row, "Show All") and hands the rest
+  to quire. A second host with a scope of its own (a bar with tabs) will want the same, and then the scope belongs in
+  quire's machine as a type parameter; until a second one does, it stays here.
 - **A pane's Remember goes to the host, not to a store.** The agreed default is a store-backed handler that merges one
   file's entry on write under a cross-process lock, so temor and the viewer can both run; the store's writer guard is
   in-process only and a library cannot spawn the thread a blocking write needs. `PaneRequest::Remember` is passed
