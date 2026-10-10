@@ -1,5 +1,6 @@
 //! What a pane is wired to: the host's workers and the seams it has an implementation for.
 
+use crate::store::PaneStore;
 #[cfg(feature = "player")]
 use anyview_media_host::PlayerHost;
 use anyview_peek::StillSource;
@@ -7,6 +8,7 @@ use anyview_ui::{
     FileLocks, HelperSource, ImagePlugins, MediaHost, PlatformAbilities, ResumeSource, Services,
     VersionSource, Workers,
 };
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// The workers and the seams one pane runs over: [`anyview_ui::Services`] without the request
@@ -59,6 +61,25 @@ impl PaneEdge {
     #[must_use]
     pub fn portable(workers: Arc<dyn Workers>) -> PaneEdge {
         PaneEdge::over(Services::new(workers, |_request| {}).with_platform(PlatformAbilities::NONE))
+    }
+
+    /// The same edge keeping the viewer's memory in the store at `root`: it reads where each file
+    /// was left, records each file shown in the recently viewed, and writes where the person is
+    /// as gestures settle, all on the host's workers. [`PaneRequest::Remember`](crate::PaneRequest::Remember) is then answered
+    /// by the pane and never sent to the host. The store is shared with the viewer's own windows
+    /// (give `root` the one they use) and with any other program that opens it: each write
+    /// merges only its own file's entry under a lock across processes. Unix only.
+    ///
+    /// Without a store a pane remembers nothing itself: the host hears every
+    /// [`PaneRequest::Remember`](crate::PaneRequest::Remember) and keeps it, or drops it.
+    #[must_use]
+    pub fn with_store(self, root: impl Into<PathBuf>) -> PaneEdge {
+        let store = Arc::new(PaneStore::at(root.into()));
+        self.changed(|services| {
+            services
+                .with_resume_source(store.clone())
+                .with_resume_keeper(store)
+        })
     }
 
     /// The same edge reading where files were left from `source`.

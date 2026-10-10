@@ -5,6 +5,7 @@
 mod keys;
 mod mapping;
 mod region;
+mod store;
 mod support;
 
 #[path = "../../../../dev/test_guard.rs"]

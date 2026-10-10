@@ -6,7 +6,9 @@
 use super::error::OpenError;
 use super::folder::folder_sequence;
 use super::notice::Notice;
-use super::seams::{FileAccess, FileLocks, ImagePlugins, ResumeSource, VersionSource};
+use super::seams::{
+    FileAccess, FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource,
+};
 use crate::families::{
     FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
 };
@@ -75,6 +77,15 @@ pub enum WorkLane {
     Preload,
 }
 
+/// What a window has to keep of the person's views, written by a worker through a [`ResumeKeeper`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Keeping {
+    /// This file was shown.
+    Viewed(Opened),
+    /// The person is here in this file.
+    Place { source: Source, resume: Resume },
+}
+
 /// One unit of blocking work.
 #[derive(Debug)]
 pub enum Job {
@@ -117,6 +128,11 @@ pub enum Job {
     Pdf(PdfTask),
     /// List the versions kept of the file `path`, for the Revert To sheet.
     Versions { path: FilePath },
+    /// Write a view or a place to the host's store.
+    Keep {
+        keeper: Arc<dyn ResumeKeeper>,
+        keeping: Keeping,
+    },
 }
 
 /// What a worker made of a job.
@@ -185,6 +201,8 @@ pub enum Done {
         path: FilePath,
         rows: Vec<VersionRow>,
     },
+    /// A view or a place was written (or could not be, which the keeper has logged): nothing to do.
+    Kept,
     /// The person chose these files in the host's file dialog.
     Chosen { files: Vec<FilePath> },
     /// The host renamed the open file: it is `to` now.
@@ -206,7 +224,7 @@ impl Job {
             | Job::Stat { .. }
             | Job::Folder { .. }
             | Job::Versions { .. } => WorkLane::Visible,
-            Job::Preload { .. } => WorkLane::Preload,
+            Job::Preload { .. } | Job::Keep { .. } => WorkLane::Preload,
             Job::Pdf(task) => task.lane(),
         }
     }
@@ -221,9 +239,11 @@ impl Job {
             | Job::Search { ticket, .. }
             | Job::EditRead { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
-            Job::Preload { .. } | Job::Stat { .. } | Job::Folder { .. } | Job::Versions { .. } => {
-                Ticket::default()
-            }
+            Job::Preload { .. }
+            | Job::Stat { .. }
+            | Job::Folder { .. }
+            | Job::Versions { .. }
+            | Job::Keep { .. } => Ticket::default(),
         }
     }
 
@@ -276,6 +296,7 @@ impl Job {
                 path: path.clone(),
                 rows: Vec::new(),
             },
+            Job::Keep { .. } => Done::Kept,
         }
     }
 
@@ -346,6 +367,13 @@ impl Job {
                 rows: versions.list(&path),
                 path,
             },
+            Job::Keep { keeper, keeping } => {
+                match keeping {
+                    Keeping::Viewed(opened) => keeper.viewed(&opened),
+                    Keeping::Place { source, resume } => keeper.remember(&source, &resume),
+                }
+                Done::Kept
+            }
         }
     }
 }

@@ -22,6 +22,8 @@ anyview-media = { workspace = true, features = ["player"], optional = true }
 anyview-media-host = { workspace = true, optional = true }
 # `StillSource`, the seam of the host's small pictures (re-exported, so a host names this crate alone).
 anyview-peek = { workspace = true }
+# The viewer's memory on disk, which `PaneEdge::with_store` opens (Unix only, like the store).
+anyview-store = { workspace = true }
 anyview-ui = { workspace = true }
 dioxus = { workspace = true }
 # The palette's group and row, which the pane's commands are handed over as.

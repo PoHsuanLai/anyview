@@ -5,10 +5,10 @@
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
 use super::helpers::HelperSource;
-use super::job::{Done, Job, OpenPort, Opened, WorkLane};
+use super::job::{Done, Job, Keeping, OpenPort, Opened, WorkLane};
 use super::media::{MediaHost, MediaPort, MediaSupport};
 use super::notice::Notice;
-use super::seams::{FileLocks, ImagePlugins, ResumeSource, VersionSource};
+use super::seams::{FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource};
 use super::services::Services;
 use crate::{EditRequest, ExportDraft, Presentation, Rewind, Ticket, TypedText, VersionKey};
 use anyview_core::work::{Stop, StopState};
@@ -53,6 +53,8 @@ pub enum WorkKind {
     Pdf,
     /// List the versions kept of a file.
     Versions,
+    /// Write a view or a place to the host's store.
+    Keep,
 }
 
 /// One job and the way back from it.
@@ -120,6 +122,7 @@ impl Work {
             Job::Folder { .. } => WorkKind::Folder,
             Job::Pdf(_) => WorkKind::Pdf,
             Job::Versions { .. } => WorkKind::Versions,
+            Job::Keep { .. } => WorkKind::Keep,
         }
     }
 }
@@ -245,6 +248,7 @@ pub struct Edge {
     requests: Arc<dyn Fn(HostRequest) + Send + Sync>,
     highlighter: Arc<Highlighter>,
     resume: Arc<dyn ResumeSource>,
+    keeper: Option<Arc<dyn ResumeKeeper>>,
     locks: Arc<dyn FileLocks>,
     versions: Arc<dyn VersionSource>,
     first_frames: Arc<dyn StillSource>,
@@ -307,6 +311,7 @@ impl Edge {
             workers,
             on_request,
             resume,
+            keeper,
             locks,
             versions,
             first_frames,
@@ -323,6 +328,7 @@ impl Edge {
             requests: on_request,
             highlighter: Arc::new(Highlighter::new()),
             resume,
+            keeper,
             locks,
             versions,
             first_frames,
@@ -392,6 +398,23 @@ impl Edge {
     /// thread, and a no-op once the window is gone.
     pub fn notify(&self, notice: Notice) {
         self.reply.post(Done::Notice(notice));
+    }
+
+    /// Whether this edge was given a keeper, so the window writes the views and places itself.
+    #[must_use]
+    pub fn keeps(&self) -> bool {
+        self.keeper.is_some()
+    }
+
+    /// Have a worker write `keeping` to the keeper the services gave. Nothing is written when
+    /// there is none. Callable from any thread.
+    pub fn keep(&self, keeping: Keeping) {
+        if let Some(keeper) = &self.keeper {
+            self.submit(Job::Keep {
+                keeper: Arc::clone(keeper),
+                keeping,
+            });
+        }
     }
 
     /// Ask a worker to do `job`; its result arrives in the mailbox.

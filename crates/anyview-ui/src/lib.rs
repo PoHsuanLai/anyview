@@ -55,11 +55,11 @@ pub use families::{
 };
 pub use io::{
     Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,
-    HostRequest, ImagePlugins, Job, MediaHost, MediaLine, MediaNotice, MediaPlayback, MediaStart,
-    MediaStarted, MediaSupport, MediaWake, NaturalSize, Need, Notice, OpenError, OpenPort, Opened,
-    PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeSource, SaveEnd, Services,
-    SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work, WorkKind, WorkLane, Workers,
-    folder_sequence,
+    HostRequest, ImagePlugins, Job, Keeping, MediaHost, MediaLine, MediaNotice, MediaPlayback,
+    MediaStart, MediaStarted, MediaSupport, MediaWake, NaturalSize, Need, Notice, OpenError,
+    OpenPort, Opened, PlatformAbilities, PluginPicture, Preloaded, Readable, Reply, ResumeKeeper,
+    ResumeSource, SaveEnd, Services, SizeBasis, SlotPixels, Stop, TextSave, VersionSource, Work,
+    WorkKind, WorkLane, Workers, folder_sequence,
 };
 pub use look::{Look, LookFeed};
 pub use views::{

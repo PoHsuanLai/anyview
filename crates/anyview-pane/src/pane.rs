@@ -3,6 +3,7 @@
 use crate::edge::PaneEdge;
 use crate::handle::PaneHandle;
 use crate::request::PaneRequest;
+use crate::store::Kept;
 use anyview_core::{FilePath, Sequence};
 use anyview_ui::{
     Edge, HostRequest, Launch, Look, LookFeed, PaneApp, PaneChrome, PaneSeat, Presentation,
@@ -106,12 +107,19 @@ fn Seated(props: PaneProps) -> Element {
         (Edge::new(services), Rc::new(RefCell::new(Some(receiver))))
     });
     let heard = answer.clone();
+    let writing = edge.clone();
     use_future(move || {
         let taken: Option<UnboundedReceiver<HostRequest>> = inbox.borrow_mut().take();
         let answer = heard.clone();
+        let edge = writing.clone();
         async move {
             let Some(mut requests) = taken else { return };
+            let mut kept = Kept::default();
             while let Some(request) = requests.next().await {
+                // With a store, the pane keeps the views and places itself, on the workers.
+                if kept.answers(&request, &edge) {
+                    continue;
+                }
                 if let Some(request) = PaneRequest::from_host(request) {
                     answer.get().call(request);
                 }
@@ -119,10 +127,34 @@ fn Seated(props: PaneProps) -> Element {
         }
     });
 
+    // Esc has given the keyboard back; the host may take a while to say so, and the focus leaving
+    // the pane in the meantime is the same loss, not a second one.
+    let asked = use_hook(|| Rc::new(Cell::new(false)));
     let unfocus = {
-        let answer = answer.clone();
-        use_callback(move |(): ()| answer.get().call(PaneRequest::Unfocus))
+        let (answer, asked) = (answer.clone(), asked.clone());
+        use_callback(move |(): ()| {
+            asked.set(true);
+            answer.get().call(PaneRequest::Unfocus);
+        })
     };
+    let lost = {
+        let (answer, asked) = (answer.clone(), asked.clone());
+        use_callback(move |(): ()| {
+            if !asked.replace(true) {
+                answer.get().call(PaneRequest::Unfocus);
+            }
+        })
+    };
+    // Given the keyboard again, the pane may ask to give it back again.
+    let given = props.focused;
+    use_effect({
+        let asked = asked.clone();
+        move || {
+            if given() {
+                asked.set(false);
+            }
+        }
+    });
     let (file, sequence) = (props.file.clone(), props.sequence.clone());
     use_context_provider(|| Launch {
         file,
@@ -132,7 +164,11 @@ fn Seated(props: PaneProps) -> Element {
     });
     use_context_provider(|| edge.clone());
     let (focused, chrome) = (props.focused, props.chrome);
-    use_context_provider(|| PaneSeat::new(focused, link, unfocus).with_chrome(chrome));
+    use_context_provider(|| {
+        PaneSeat::new(focused, link, unfocus)
+            .with_focus_lost(lost)
+            .with_chrome(chrome)
+    });
 
     match props.look.clone() {
         Some(feed) => rsx! {

@@ -12,7 +12,7 @@ use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
 use super::palette::Palette;
-use super::pane::PaneSeat;
+use super::pane::{PaneSeat, after_events};
 use super::panel::InfoPanel;
 use super::press::{press_of, use_viewer_keys};
 use super::resize::ResizeSheet;
@@ -132,6 +132,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let window = use_hook(try_consume_context::<WindowHost>);
     let mut zone = use_signal(|| Zone::Content);
     let mut root = use_signal(|| None::<Rc<MountedData>>);
+    // A pane hears that the focus left it for the host's other parts: the focus moving to one of
+    // its own parts is a `focusin` the root hears right after the `focusout`.
+    let entered = use_hook(|| CopyValue::new(0_u32));
+    let lost = seat.and_then(|seat| seat.lost);
+    // A menu or the palette closing inside the pane drops the focus with it: that is the pane's
+    // own layer going away, not the host taking the keyboard, so the root takes the focus back.
+    let layered = use_hook(|| CopyValue::new(false));
+    let mut dropped_layer = use_hook(|| CopyValue::new(false));
 
     // The window opens its file once it has drawn.
     let first = launch.clone();
@@ -425,6 +433,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
     let context_rows = machine_params.context.entries;
     let context_open = matches!(state.context, ContextMenu::Open { .. });
+    {
+        let mut layered = layered;
+        let open = palette_open || context_open;
+        if *layered.peek() && !open {
+            *dropped_layer.write() = true;
+        }
+        *layered.write() = open;
+    }
     let keyed = state.clone();
     let editing = state.stage.edited().is_some();
     let chrome = (shelf.chrome)();
@@ -498,6 +514,39 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 }
             },
             onblur: move |_| dispatch.send(ViewerIn::Hand(HandIn::SpaceUp)),
+            onfocusin: move |_| {
+                let mut entered = entered;
+                *entered.write() += 1;
+                // The focus is in the pane again, so a layer that closed earlier is settled.
+                *dropped_layer.write() = false;
+            },
+            onfocusout: move |_| {
+                let Some(lost) = lost else { return };
+                let before = *entered.read();
+                spawn(async move {
+                    after_events().await;
+                    if *entered.read() != before || !heard() {
+                        return;
+                    }
+                    // A menu or the palette of the pane's own is drawn in a layer over the window,
+                    // outside the root, so the focus going into one is not the host's.
+                    let now = dispatch.machine.state();
+                    let now = now.peek();
+                    if matches!(now.context, ContextMenu::Open { .. })
+                        || matches!(now.palette, PaletteState::Open { .. })
+                    {
+                        return;
+                    }
+                    if *dropped_layer.peek() {
+                        *dropped_layer.write() = false;
+                        if let Some(element) = root.peek().clone() {
+                            focus_soon(element);
+                        }
+                        return;
+                    }
+                    lost.call(());
+                });
+            },
             onpointermove: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerMoved(zone()))),
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             SplitView {

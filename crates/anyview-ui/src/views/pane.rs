@@ -5,6 +5,9 @@
 
 use crate::Command;
 use dioxus::prelude::*;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 /// How much of the viewer's own chrome a pane draws. The pane never draws a titlebar, traffic
 /// lights, a palette, sheets or a welcome window, whatever this says: those are the host's.
@@ -117,6 +120,7 @@ pub struct PaneSeat {
     pub(super) link: PaneLink,
     pub(super) chrome: PaneChrome,
     pub(super) unfocus: Callback<()>,
+    pub(super) lost: Option<Callback<()>>,
 }
 
 impl std::fmt::Debug for PaneSeat {
@@ -137,6 +141,18 @@ impl PaneSeat {
             link,
             chrome: PaneChrome::default(),
             unfocus,
+            lost: None,
+        }
+    }
+
+    /// The same seat calling `lost` when the pane's root loses the keyboard focus to something
+    /// else in the host while `focused` still says the pane has it (a click elsewhere, Tab out).
+    /// Focus moving between the pane's own parts is not a loss.
+    #[must_use]
+    pub fn with_focus_lost(self, lost: Callback<()>) -> PaneSeat {
+        PaneSeat {
+            lost: Some(lost),
+            ..self
         }
     }
 
@@ -145,4 +161,24 @@ impl PaneSeat {
     pub fn with_chrome(self, chrome: PaneChrome) -> PaneSeat {
         PaneSeat { chrome, ..self }
     }
+}
+
+/// Wait until the events being dispatched now have all been: a task spawned from a handler is
+/// polled only after the focus change's `focusout` and `focusin` have both been heard.
+pub(super) async fn after_events() {
+    struct Once(bool);
+    impl Future for Once {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+            if self.0 {
+                Poll::Ready(())
+            } else {
+                self.0 = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }
+    }
+    Once(false).await;
 }

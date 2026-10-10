@@ -118,9 +118,10 @@ A camera raw file shows its embedded preview with no plugin at all. `dist/instal
 use anyview_pane::{PaneEdge, ViewerPane, use_pane_handle};
 
 #[component]
-fn Preview(file: FilePath, workers: Arc<dyn Workers>, focused: ReadSignal<bool>) -> Element {
+fn Preview(file: FilePath, workers: Arc<dyn Workers>, store_root: PathBuf, focused: ReadSignal<bool>) -> Element {
     let handle = use_pane_handle();
-    let edge = use_hook(|| PaneEdge::portable(workers));
+    // `with_store` gives the pane the viewer's memory: it records the views and keeps the place itself.
+    let edge = use_hook(|| PaneEdge::portable(workers).with_store(store_root));
     // In the app's palette: `handle.commands()` is a `PaletteGroup<PaneCommand>`, and a picked
     // row is `handle.run(command)`.
     rsx! {
@@ -139,7 +140,7 @@ fn Preview(file: FilePath, workers: Arc<dyn Workers>, focused: ReadSignal<bool>)
 }
 ```
 
-All panes of a window share the one `Workers` pool. A recording opens in a viewer window of its own (`PaneRequest::OpenElsewhere`) until the player can be hosted in a pane.
+All panes of a window share the one `Workers` pool. With `with_store(root)` the pane reads where each file was left and writes the recently viewed and the place on that pool, merging only its own file's entry under a lock across processes, so the viewer and the app can use one `root`; without it the app hears `PaneRequest::Remember` and keeps the place itself, or drops it. The pane gives the keyboard back (`PaneRequest::Unfocus`) on Esc and when the focus moves from it to another part of the app. With a `look` the pane draws its selection and caret at rest while `focused` is false. A recording opens in a viewer window of its own (`PaneRequest::OpenElsewhere`) until the player can be hosted in a pane.
 
 ## Known limitations
 
