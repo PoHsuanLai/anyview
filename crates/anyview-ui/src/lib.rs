@@ -20,24 +20,24 @@ mod testing;
 mod views;
 
 pub use anyview_machines::{
-    Act, AfterScrub, Animation, Changes, Choosing, Chrome, ChromeIn, ChromeOut, ChromeParams,
-    Command, ContentClass, ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams,
-    ContextPick, ControlOffer, CropAspect, CropBox, CropGrip, CropLean, CropShape, Departure,
-    Destination, EditCaution, EditFind, EditOffer, EditRequest, Editable, Edited, EndReason,
-    ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption, FindHits,
-    FindOut, FrameCount, FrameDelays, FrameIndex, Freshness, Hand, HandIn, HelperEnd, HelperPhase,
-    HitCount, HitCursor, HitIndex, HitList, HitStep, LineTotal, Load, LoadFailure, LoadFlow,
-    LoadIn, LoadOut, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaAbilities, MediaError, MediaIn,
-    MediaOffer, MediaOut, MediaParams, MediaStage, Motion, Navigate, NavigateIn, NavigateOut,
-    Outside, Pace, PageEdits, PageLines, PageSpan, PageView, Palette, PaletteIn, PaletteIndex,
-    PaletteMove, PaletteOut, PaletteParams, PaletteScope, Panel, PanelIn, PanelOut, PanelParams,
-    PanelSay, PanelTab, PanelTabs, PdfIn, PdfOut, PdfParams, PdfStage, PeekFrame, PictureCommand,
-    PictureEditIn, PictureEditing, PictureEdits, PictureSheet, PictureSheetIn, PictureSheetOut,
-    PinReason, PinReasons, PlayerCommand, PlayerEvent, Playing, Presentation, PresentationIn,
-    PresentationOut, PresentationParams, Press, RasterIn, RasterOut, RasterParams, RasterStage,
-    Regions, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit, Rewind, Route, RowNo,
-    RowStep, Runs, Sheet, SheetIn, SheetNo, SheetOut, SheetParams, SheetTotal, SizePick, Space,
-    Spot, Stage, StageAbilities, StageCommand, StageFamily, StageIn, StageOut, StageParams,
+    Act, AfterScrub, Animation, Changes, Choosing, Chords, Chrome, ChromeIn, ChromeOut,
+    ChromeParams, Command, ContentClass, ContextEntry, ContextIn, ContextMenu, ContextOut,
+    ContextParams, ContextPick, ControlOffer, CropAspect, CropBox, CropGrip, CropLean, CropShape,
+    Departure, Destination, EditCaution, EditFind, EditOffer, EditRequest, Editable, Edited,
+    EndReason, ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption,
+    FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, Freshness, Hand, HandIn, HelperEnd,
+    HelperPhase, HitCount, HitCursor, HitIndex, HitList, HitStep, LineTotal, Load, LoadFailure,
+    LoadFlow, LoadIn, LoadOut, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaAbilities, MediaError,
+    MediaIn, MediaOffer, MediaOut, MediaParams, MediaStage, Motion, Navigate, NavigateIn,
+    NavigateOut, Outside, Pace, PageEdits, PageLines, PageSpan, PageView, Palette, PaletteIn,
+    PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope, Panel, PanelIn, PanelOut,
+    PanelParams, PanelSay, PanelTab, PanelTabs, PdfIn, PdfOut, PdfParams, PdfStage, PeekFrame,
+    PictureCommand, PictureEditIn, PictureEditing, PictureEdits, PictureSheet, PictureSheetIn,
+    PictureSheetOut, PinReason, PinReasons, PlayerCommand, PlayerEvent, Playing, Presentation,
+    PresentationIn, PresentationOut, PresentationParams, Press, RasterIn, RasterOut, RasterParams,
+    RasterStage, Regions, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit, Rewind, Route,
+    RowNo, RowStep, Runs, Sheet, SheetIn, SheetNo, SheetOut, SheetParams, SheetTotal, SizePick,
+    Space, Spot, Stage, StageAbilities, StageCommand, StageFamily, StageIn, StageOut, StageParams,
     StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent, TextIn, TextOut,
     TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Ticket, Tool, TrackKind,
     Trashing, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, TrimSpan, TypedText, VersionKey,
@@ -62,4 +62,7 @@ pub use io::{
     folder_sequence,
 };
 pub use look::{Look, LookFeed};
-pub use views::{Launch, ViewerApp, WelcomeApp, stylesheet};
+pub use views::{
+    Launch, PaneApp, PaneChrome, PaneLink, PaneSeat, ViewerApp, WelcomeApp, stylesheet,
+    use_pane_link,
+};

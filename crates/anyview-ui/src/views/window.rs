@@ -12,11 +12,12 @@ use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
 use super::failed::{FailedScreen, Offer};
 use super::palette::Palette;
+use super::pane::PaneSeat;
 use super::panel::InfoPanel;
 use super::press::{press_of, use_viewer_keys};
 use super::resize::ResizeSheet;
 use super::scrub::{levelled, scrubbed};
-use super::session::{Probe, WHOLE_HITS, offered_slots};
+use super::session::{Probe, WHOLE_HITS, offered_slots, without_find};
 use super::sheet::{
     EditSheet, InstallSheet, NameSheet, NoVersionsSheet, ReplaceSheet, RevertSheet, TrashSheet,
     UnavailableSheet,
@@ -26,12 +27,12 @@ use super::unsaved::UnsavedSheet;
 use crate::families::FrameLook;
 use crate::io::{FileAccess, HostRequest, Job};
 use crate::{
-    ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, NavigateIn,
-    Palette as PaletteState, PaletteIn, PaletteScope, Panel, PanelIn, PanelTab, PictureEditIn,
-    PictureSheet, PictureSheetIn, Presentation, Sheet, SheetIn, Spot, StageCx, StageIn, TypedText,
-    Viewer, ViewerIn, Zone,
+    Chords, ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure,
+    NavigateIn, Palette as PaletteState, PaletteIn, PaletteScope, PaneChrome, Panel, PanelIn,
+    PanelTab, PictureEditIn, PictureSheet, PictureSheetIn, Presentation, Sheet, SheetIn, Spot,
+    StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
 };
-use anyview_core::FilePath;
+use anyview_core::{FilePath, FormatKind};
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec, SplitPane};
@@ -58,16 +59,37 @@ const PANEL: PaneSpec = PaneSpec {
     collapsing: Collapsing::Snaps,
 };
 
-/// What the viewer window draws for `launch`.
+/// Below this width the info panel of a pane lies over the content instead of beside it: opening
+/// it would leave the content too little room.
+const NARROW_BELOW: f32 = 480.0;
+
+/// What the viewer window draws for `launch`. A pane (`Presentation::Pane`) is the same window as
+/// a region of its host's: no titlebar, welcome window, sheets, palette or file drop, none of the
+/// viewer's chords, no key while the host does not give it the focus, and Esc giving the focus
+/// back once there is nothing left to undo.
 #[component]
 pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let edge = use_hook(consume_context::<crate::Edge>);
-    let keymap = use_viewer_keys();
+    let hosted = launch.presentation == Presentation::Pane;
+    let seat = use_hook(|| {
+        if hosted {
+            try_consume_context::<PaneSeat>()
+        } else {
+            None
+        }
+    });
+    let chords = if hosted { Chords::None } else { Chords::Viewer };
+    let pane_chrome = seat.map_or_else(PaneChrome::default, |seat| seat.chrome);
+    // The host's focus: a pane with no seat has been given nothing to wait for.
+    let heard = move || seat.is_none_or(|seat| (seat.focused)());
+    let keymap = use_viewer_keys(chords);
     let gpu = use_gpu();
     let scope = use_scope();
     let scale = try_consume_context::<HostSignals>().map_or(Scale::ONE, |host| (host.scale)());
-    let shelf = Shelf::empty(edge.platform());
+    let mut shelf = Shelf::empty(edge.platform());
+    shelf.pane_chrome = pane_chrome;
     let (area, measured) = use_area(scale);
+    let (whole, whole_probe) = use_area(scale);
     let slot = use_hook(|| CopyValue::new(None));
     let carry = Carry {
         shelf,
@@ -75,6 +97,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         gpu: gpu.clone(),
         toasts: ds::prelude::use_toasts(),
         machine: slot,
+        seat,
     };
     let handler = carry.clone();
     let presentation = launch.presentation;
@@ -95,14 +118,17 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     // The frame's close button and the compositor's close leave as ⌘W does: a window with changes
     // that are not saved asks Save, Don't Save or Cancel first, and the app closes it itself once
     // the person has answered.
-    use_close_request(move || {
-        if dispatch.machine.state().peek().unsaved() {
-            dispatch.send(ViewerIn::CloseRequested);
-            CloseAnswer::Keep
-        } else {
-            CloseAnswer::Close
-        }
-    });
+    // A pane has no window of its own to close: the handler would take the host's.
+    if !hosted {
+        use_close_request(move || {
+            if dispatch.machine.state().peek().unsaved() {
+                dispatch.send(ViewerIn::CloseRequested);
+                CloseAnswer::Keep
+            } else {
+                CloseAnswer::Close
+            }
+        });
+    }
     let window = use_hook(try_consume_context::<WindowHost>);
     let mut zone = use_signal(|| Zone::Content);
     let mut root = use_signal(|| None::<Rc<MountedData>>);
@@ -114,6 +140,30 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             dispatch.send(ViewerIn::Navigate(NavigateIn::Start(sequence)));
         }
         dispatch.send(ViewerIn::Open(first.file.clone()));
+    });
+
+    // The host gives the pane the keyboard: the root takes the focus, as a window's does when it
+    // opens. (The pane never takes it unasked.)
+    use_effect(move || {
+        if hosted
+            && heard()
+            && let Some(element) = root.peek().clone()
+        {
+            focus_soon(element);
+        }
+    });
+    // The host's palette lists what the pane can do, and runs it through the machine's own path.
+    use_effect(move || {
+        if let Some(seat) = seat {
+            seat.link.serve(Callback::new(move |command: Command| {
+                dispatch.send(ViewerIn::Run(command));
+            }));
+        }
+    });
+    use_drop(move || {
+        if let Some(seat) = seat {
+            seat.link.withdraw();
+        }
     });
 
     // A window that stops being the active one never hears Space come up, and `onblur` on the root
@@ -172,6 +222,24 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
 
     let current = shelf.shown();
     let ticket = shelf.probe.read().ticket().unwrap_or_default();
+    // A recording in a pane opens in a viewer window of its own, until the player can be hosted:
+    // the host hears it as a file to open elsewhere.
+    let elsewhere = if hosted {
+        shelf
+            .probe
+            .read()
+            .found()
+            .filter(|probed| matches!(probed.sniffed.kind(), FormatKind::Video | FormatKind::Audio))
+            .map(|probed| probed.source.path().clone())
+    } else {
+        None
+    };
+    let elsewhere_edge = carry.edge.clone();
+    use_effect(use_reactive!(|elsewhere| {
+        if let Some(file) = elsewhere {
+            elsewhere_edge.request(HostRequest::OpenFiles(vec![file]));
+        }
+    }));
     let worker = carry.edge.clone();
     let requester = carry.edge.clone();
     let reveal_edge = carry.edge.clone();
@@ -209,11 +277,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             ),
         },
         platform: shelf.platform,
-        access: shelf
-            .probe
-            .read()
-            .found()
-            .map_or(FileAccess::Writable, |probed| probed.access),
+        // A pane changes nothing in the file: what edits is the host's to offer.
+        access: if hosted {
+            FileAccess::ReadOnly
+        } else {
+            shelf
+                .probe
+                .read()
+                .found()
+                .map_or(FileAccess::Writable, |probed| probed.access)
+        },
         text_edit: shelf.edit.session,
         text_editor: shelf.edit.handle,
     };
@@ -229,13 +302,25 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             tabs
         }
     });
+    // A pane draws the info panel only when its host asked for it.
+    let tabs = if hosted && pane_chrome != PaneChrome::WithPanel {
+        crate::PanelTabs::default()
+    } else {
+        tabs
+    };
     let machine_params = dispatch.params();
     // The capsule lists from what the palette and the menu list: a button for a file action the
     // file does not take (a rotate on a file that refuses a save) is not drawn.
     let slots = current
         .as_ref()
-        .map(|(_, doc)| offered_slots(doc.view().slots(&cx), &machine_params.files))
+        .map(|(_, doc)| {
+            let listed = doc.view().slots(&cx);
+            // A pane has no palette for the Find button to open.
+            let listed = if hosted { without_find(listed) } else { listed };
+            offered_slots(listed, &machine_params.files)
+        })
         .unwrap_or_default();
+    let capsule_drawn = !(hosted && pane_chrome == PaneChrome::Minimal);
     let failure = match state.load {
         Load::Failed { reason, .. } => Some(reason),
         Load::Idle { .. }
@@ -260,6 +345,14 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             .and_then(FilePath::file_name)
             .map_or_else(String::new, |name| name.as_str().to_owned())
     });
+    // What the host's palette lists of this pane: every command of the file on screen, under its name.
+    let offered = machine_params.palette.rows.clone();
+    let named = title.clone();
+    use_effect(use_reactive!(|offered, named| {
+        if let Some(seat) = seat {
+            seat.link.publish(named, offered);
+        }
+    }));
     let failed_offer = if failure == Some(LoadFailure::NotFound) {
         Offer::Nothing
     } else {
@@ -302,6 +395,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             onchoose: move |tab: PanelTab| dispatch.send(ViewerIn::Panel(PanelIn::Choose(tab))),
         }
     };
+    // A pane too narrow to share its room with the panel lays the panel over the content.
+    let overlay = hosted
+        && whole().is_some_and(|whole| whole.size.width.0 < NARROW_BELOW)
+        && pane_shown == Shown::Visible;
     // A pane dragged open or shut asks the machine for the same: opening is idempotent (the tab
     // is the one the panel would show), so a drag that reports it twice does not close it again.
     let panel_wanted = move |(_, shown): (usize, Shown)| {
@@ -347,13 +444,27 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         div {
             class: "viewer",
             tabindex: "0",
-            "data-drop": drop.drop_attr(),
+            "data-hosting": if hosted { "pane" },
+            "data-drop": if hosted { None } else { drop.drop_attr() },
             onmounted: move |event| {
                 root.set(Some(event.data()));
+                whole_probe.on_mounted(event.clone());
+                if hosted {
+                    // The host decides when the pane has the keyboard: it takes it now only if
+                    // the host has already given it (the effect above takes it later).
+                    if heard() {
+                        focus_soon(event.data());
+                    }
+                    return;
+                }
                 focus_soon(event.data());
                 drop.mounted(event);
             },
             onkeydown: move |event: KeyboardEvent| {
+                // A pane hears keys only while the host says it has the focus.
+                if !heard() {
+                    return;
+                }
                 // The palette and the context menu take their own keys. A sheet does too, but when
                 // focus is still on the window Return and Esc reach it here, so the machine's sheet
                 // answers them.
@@ -366,7 +477,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 } else {
                     Context::Normal
                 };
-                let Some(press) = press_of(keymap, &event, context) else {
+                let Some(press) = press_of(keymap, &event, context, chords) else {
                     return;
                 };
                 if editing && !sheet_open && !press.for_the_window() {
@@ -385,7 +496,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             // Space coming up lets the hand go; so does the window losing the keyboard, since the
             // key-up then goes elsewhere.
             onkeyup: move |event: KeyboardEvent| {
-                let space = press_of(keymap, &event, Context::Normal)
+                let space = press_of(keymap, &event, Context::Normal, chords)
                     .is_some_and(|press| press.keys() == [ShortcutKey::Space]);
                 if space {
                     dispatch.send(ViewerIn::Hand(HandIn::SpaceUp));
@@ -398,9 +509,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 label: "Viewer",
                 // A folded pane leaves the split view altogether: its divider would take a strip at the
                 // stage's left edge (a right-click there, a drag that starts there).
-                panes: match pane_shown {
-                    Shown::Visible => vec![SplitPane::new(PANEL, panel)],
-                    Shown::Hidden => Vec::new(),
+                panes: match (pane_shown, overlay) {
+                    (Shown::Visible, false) => vec![SplitPane::new(PANEL, panel.clone())],
+                    (Shown::Visible, true) | (Shown::Hidden, _) => Vec::new(),
                 },
                 on_shown: panel_wanted,
                 common: Common {
@@ -440,7 +551,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                             }
                         }
                     }
-                    if !slots.is_empty() {
+                    if overlay {
+                        div { class: "viewer-panel-overlay", {panel} }
+                    }
+                    if capsule_drawn && !slots.is_empty() {
                         Controls {
                             slots,
                             shown: chrome,
@@ -456,7 +570,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             // The small borderless window has no titlebar: the picture is what is dragged. The bar
             // lies over the panel's pane and the stage alike.
             match keyed.presentation {
-                Presentation::Mini => rsx! {},
+                Presentation::Mini | Presentation::Pane => rsx! {},
                 Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
                     Titlebar {
                         title,
@@ -479,7 +593,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     ontyped: move |text: TypedText| dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text))),
                     onpick: move |row| dispatch.send(ViewerIn::Palette(PaletteIn::Pick(row))),
                     onkey: move |event: KeyboardEvent| {
-                        if let Some(press) = press_of(keymap, &event, Context::TextEntry) {
+                        if let Some(press) = press_of(keymap, &event, Context::TextEntry, chords) {
                             dispatch.send(ViewerIn::Key(press));
                         }
                     },

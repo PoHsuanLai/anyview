@@ -63,6 +63,37 @@ pub fn ViewerApp() -> Element {
     }
 }
 
+/// The root of a viewer pane: the stylesheet and the window, drawn as a region of the host's
+/// window. The host provides the same contexts as for a window (`Launch` with
+/// `Presentation::Pane`, and the `Edge`), and a `PaneSeat`. With a `LookFeed` the pane is a `Ds`
+/// root of its own and follows the feed; with none it takes the host's tokens and follows the host.
+#[component]
+pub fn PaneApp() -> Element {
+    let launch = use_hook(consume_context::<Launch>);
+    let look = use_look(launch.look.clone());
+    let followed = use_hook(|| try_consume_context::<LookFeed>().is_some());
+    let now = look();
+    let window = rsx! {
+        AppStyle { css: stylesheet() }
+        ViewerWindow { launch: launch.clone() }
+    };
+    if followed {
+        rsx! {
+            Ds {
+                appearance: now.appearance,
+                system: now.system,
+                tint_alpha: now.tint_alpha,
+                typeface: now.typeface,
+                stack: now.stack,
+                material: Material::Window,
+                {window}
+            }
+        }
+    } else {
+        window
+    }
+}
+
 /// The look the window draws now: the feed's latest, which follows the desktop while the window is
 /// open, or `launched`, the one it was opened with. The feed is read once, so every render takes one branch.
 pub(super) fn use_look(launched: Look) -> ReadSignal<Look> {

@@ -57,7 +57,10 @@ pub(super) fn spec_for(seed: &Seed, screen: Option<ScreenArea>) -> WindowSpec {
     let title = title_of(&seed.opening.file);
     match seed.presentation {
         Presentation::Mini => WindowSpec::new(title, MINI).with_decorations(Decorations::Client),
-        Presentation::Window | Presentation::Peek | Presentation::Background => WindowSpec::new(
+        Presentation::Window
+        | Presentation::Peek
+        | Presentation::Background
+        | Presentation::Pane => WindowSpec::new(
             title,
             window_for(&seed.opening.file, screen, seed.factory.window_screen),
         ),
@@ -302,7 +305,10 @@ fn fit_of(
 ) -> Rc<Option<WindowFit>> {
     let sizer = match presentation {
         Presentation::Mini => None,
-        Presentation::Window | Presentation::Peek | Presentation::Background => sizer,
+        Presentation::Window
+        | Presentation::Peek
+        | Presentation::Background
+        | Presentation::Pane => sizer,
     };
     Rc::new(sizer.map(|sizer| WindowFit::new(sizer, replaced)))
 }
@@ -324,7 +330,10 @@ pub(super) fn stacking_for(
 ) -> Option<StackingOutcome> {
     match presentation {
         Presentation::Mini => Some(desktop.ask(Stacking::KeepAbove)),
-        Presentation::Window | Presentation::Peek | Presentation::Background => None,
+        Presentation::Window
+        | Presentation::Peek
+        | Presentation::Background
+        | Presentation::Pane => None,
     }
 }
 

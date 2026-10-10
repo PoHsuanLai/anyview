@@ -5,7 +5,7 @@
 //! root as they arrive, so the machine is the one place they mean anything.
 
 use super::press::press_of;
-use crate::{Act, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, TypedText};
+use crate::{Act, Chords, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, TypedText};
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
@@ -121,7 +121,7 @@ pub(super) fn Palette(
                 // The keys the palette machine reads are the machine's: they never reach the
                 // field or the palette's own selection.
                 // Find is also the window's: it makes what is typed a find.
-                let press = press_of(keymap, &key.event, Context::TextEntry);
+                let press = press_of(keymap, &key.event, Context::TextEntry, Chords::Viewer);
                 if press.is_some_and(|press| {
                     PaletteIn::from_press(&press).is_some() || press.act() == Some(Act::Find)
                 }) {

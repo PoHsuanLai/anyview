@@ -2,7 +2,7 @@
 //! that resolves to an action of the viewer's is that action, and a key with no command modifier is
 //! the key itself. Which modifier is Command or Ctrl is never decided here.
 
-use crate::{Act, Press};
+use crate::{Act, Chords, Press};
 use anyview_machines::seam::{app, rows, standing};
 use chordkit::{Context, DefaultChord, Modifier, Platform, PrimaryUse};
 use dioxus::html::ModifiersInteraction as _;
@@ -14,10 +14,14 @@ use ds_core::vocab::{Shortcut, ShortcutKey};
 /// The window's keymap, with the viewer's own actions declared on it once. An app's registration
 /// replaces its earlier one, so the rows are added one at a time to a growing registration and a
 /// row the keymap refuses (a chord the person's system keeps for itself) is left out, leaving that
-/// one action unbound and no other.
-pub(super) fn use_viewer_keys() -> Keys {
+/// one action unbound and no other. A hosted viewer (`Chords::None`) declares nothing: the host's
+/// keymap is its own, and the viewer's actions are not in it.
+pub(super) fn use_viewer_keys(chords: Chords) -> Keys {
     let keys = use_keys();
     use_hook(|| {
+        if chords == Chords::None {
+            return;
+        }
         if let Some(app) = app() {
             let mut held = standing(&app);
             let _forgone = keys.register(&app, &held);
@@ -34,8 +38,16 @@ pub(super) fn use_viewer_keys() -> Keys {
 
 /// What `event` is to the viewer, or `None` for a modifier alone, a chord nothing here answers and
 /// a key it has no use for. `context` is `Context::TextEntry` where a text field has the focus.
-pub(super) fn press_of(keys: Keys, event: &KeyboardEvent, context: Context) -> Option<Press> {
-    if let Some(act) = keys.action_of(event, context).as_ref().and_then(Act::of) {
+/// With `Chords::None` the keymap is not asked: a chord is the host's, whatever it is bound to.
+pub(super) fn press_of(
+    keys: Keys,
+    event: &KeyboardEvent,
+    context: Context,
+    chords: Chords,
+) -> Option<Press> {
+    if chords == Chords::Viewer
+        && let Some(act) = keys.action_of(event, context).as_ref().and_then(Act::of)
+    {
         return Some(Press::Act(act));
     }
     plain_key(keys.platform(), &event.key(), event.modifiers()).map(Press::Key)

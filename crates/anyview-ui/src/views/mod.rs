@@ -13,6 +13,7 @@ mod export;
 mod export_options;
 mod failed;
 mod palette;
+mod pane;
 mod panel;
 mod preloads;
 mod press;
@@ -25,7 +26,8 @@ mod unsaved;
 mod welcome;
 mod window;
 
-pub use app::{Launch, ViewerApp, stylesheet};
+pub use app::{Launch, PaneApp, ViewerApp, stylesheet};
+pub use pane::{PaneChrome, PaneLink, PaneSeat, use_pane_link};
 pub use welcome::WelcomeApp;
 
 #[cfg(test)]

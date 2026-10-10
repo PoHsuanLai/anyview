@@ -6,9 +6,10 @@ use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{DesktopService, NaturalSize, Opened};
 use crate::{
     ChromeParams, Command, ContextParams, EditOffer, ExportFacts, FileAccess, HitIndex, HitList,
-    MediaOffer, Motion, Palette, PaletteParams, PaletteScope, PanelParams, PlatformAbilities,
-    Playing, PresentationParams, SheetParams, Spot, Stage, StageAbilities, StageCommand,
-    StageParams, TextParams, TextView, TextViews, Ticket, TypedText, ViewerParams,
+    MediaOffer, Motion, Palette, PaletteParams, PaletteScope, PaneChrome, PanelParams,
+    PlatformAbilities, Playing, Presentation, PresentationParams, SheetParams, Spot, Stage,
+    StageAbilities, StageCommand, StageParams, TextParams, TextView, TextViews, Ticket, TypedText,
+    ViewerParams,
 };
 use anyview_core::{Adjust, FileAction, FormatKind, Reach, actions_for, reach};
 use anyview_machines::seam::{WrapChoices, entries};
@@ -143,6 +144,10 @@ pub(super) struct Live {
     pub adjust: Adjust,
     /// How the person last chose to wrap each kind of text.
     pub wraps: WrapChoices,
+    /// How the viewer is on screen: a pane is read-only and has no palette, so it lists no Find.
+    pub presentation: Presentation,
+    /// How much chrome a pane draws; a window ignores it.
+    pub chrome: PaneChrome,
 }
 
 /// What editing the open picture offers.
@@ -317,6 +322,20 @@ pub(super) fn offered_slots(
     kept
 }
 
+/// The capsule's `slots` without the Find button, for a pane, which has no palette to find in.
+pub(super) fn without_find(slots: Vec<RankedSlot<Command>>) -> Vec<RankedSlot<Command>> {
+    slots
+        .into_iter()
+        .filter(|ranked| match &ranked.slot {
+            CapsuleSlot::Item(item) => item.value != Command::Stage(StageCommand::Find),
+            CapsuleSlot::Readout(_)
+            | CapsuleSlot::Divider
+            | CapsuleSlot::Scrub(_)
+            | CapsuleSlot::Level(_) => true,
+        })
+        .collect()
+}
+
 /// Whether `query` names `label`: every letter of the query, in order, ignoring case.
 pub(super) fn names(label: &str, query: &str) -> bool {
     let mut wanted = query
@@ -407,16 +426,24 @@ pub(super) fn params(
         picture,
         adjust,
         wraps,
+        presentation,
+        chrome,
     } = live;
+    let pane = presentation == Presentation::Pane;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
     let playback = doc.map_or(Playback::Playable, |doc| match (kind, doc.view().line()) {
         (Some(FormatKind::Video | FormatKind::Audio), None) => Playback::Unplayable,
         _ => Playback::Playable,
     });
     let offer = doc.map_or(EditOffer::Plain, |doc| doc.view().edit_offer());
-    let access = probe
-        .found()
-        .map_or(FileAccess::Writable, |probed| probed.access);
+    // A pane shows a file and changes nothing in it: what edits is the host's to offer.
+    let access = if pane {
+        FileAccess::ReadOnly
+    } else {
+        probe
+            .found()
+            .map_or(FileAccess::Writable, |probed| probed.access)
+    };
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
         None => StageParams {
@@ -433,6 +460,9 @@ pub(super) fn params(
     {
         measured.raster =
             crate::families::adjusted_raster(measured.raster.clone(), raster, base, adjust, area);
+    }
+    if pane {
+        measured.text.editable = crate::Editable::No;
     }
     measured.media.abilities = abilities;
     if let Some(kind) = kind {
@@ -463,7 +493,14 @@ pub(super) fn params(
     };
     let mut listed = commands(kind, stage, &measured, offers);
     listed.extend(picture_commands(stage, picture, tool));
+    if pane {
+        // Finding is the palette's, and a pane draws none.
+        listed.retain(|command| *command != Command::Stage(StageCommand::Find));
+    }
     let mut panel = doc.map_or_else(PanelParams::default, |doc| doc.view().panel_params());
+    if pane && chrome != PaneChrome::WithPanel {
+        panel.tabs = crate::PanelTabs::default();
+    }
     if matches!(stage, Stage::Media(_)) {
         panel.tabs = crate::families::media_tabs(panel.tabs, abilities);
     }

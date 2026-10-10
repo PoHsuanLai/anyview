@@ -8,7 +8,7 @@ use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
     use_pdf_shelf,
 };
-use crate::{PlatformAbilities, Ticket, Viewer, ViewerIn, ViewerParams};
+use crate::{PaneChrome, PlatformAbilities, Presentation, Ticket, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
 use anyview_machines::seam::WrapChoices;
 use dioxus::prelude::*;
@@ -62,6 +62,8 @@ pub(super) struct Shelf {
     pub edit: EditShelf,
     /// What the platform can do: fixed for the window's life, so not a signal.
     pub platform: PlatformAbilities,
+    /// How much chrome a pane draws: fixed for its life, and read by a pane alone.
+    pub pane_chrome: PaneChrome,
 }
 
 /// Where a save of the edited text stands, as far as the file's stamp is concerned: while the
@@ -132,6 +134,7 @@ impl Shelf {
                 doc: use_signal(|| Doc::Current),
             },
             platform,
+            pane_chrome: PaneChrome::default(),
         }
     }
 
@@ -182,7 +185,9 @@ pub(super) fn viewer_params(
             platform: shelf.platform,
             tool: state.hand.tool,
             marks: shelf.media.peek().marks,
-            picture: if state.picture.is_edited() {
+            picture: if state.presentation == Presentation::Pane {
+                PictureOffer::Unavailable
+            } else if state.picture.is_edited() {
                 PictureOffer::Edited
             } else if state.picture.can_edit() {
                 PictureOffer::Pristine
@@ -191,6 +196,8 @@ pub(super) fn viewer_params(
             },
             adjust: state.picture.adjust(),
             wraps: *shelf.wraps.peek(),
+            presentation: state.presentation,
+            chrome: shelf.pane_chrome,
         },
     )
 }

@@ -16,3 +16,9 @@
 .viewer-panel{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; height:100%; overflow-y:auto; padding:calc(var(--chrome-titlebar-height) + var(--s-8)) var(--s-12) var(--s-12); background:var(--surface); }
 .viewer-panel-tabs{ display:flex; justify-content:center; }
 .viewer-modes{ display:flex; align-items:center; }
+
+/* A pane is a region of the host's window: it fills that region, not the screen, and its panel has
+   no titlebar to clear. Too narrow to share its room, the panel lies over the content instead. */
+.viewer[*|data-hosting=pane]{ height:100%; }
+.viewer[*|data-hosting=pane] .viewer-panel{ padding-top:var(--s-12); }
+.viewer-panel-overlay{ position:absolute; top:0; bottom:0; left:0; z-index:var(--z-raise); box-sizing:border-box; width:80%; max-width:calc(var(--s-12) * 18); box-shadow:var(--shadow-pop); }
