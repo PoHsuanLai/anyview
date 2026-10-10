@@ -821,10 +821,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   host's renderer shares; whether one queue and one `TextureHandle` namespace hold with two panes and the host's
   terminal is unmeasured (the harness tests run the Hybrid backend). Ends with a run on a real output.
 
-- **A recording plays in a pane only where a host gave the pane a player, and nothing has run one in a real pane yet.**
+- **A recording plays in a pane only where a host gave the pane a player, and no real mpv has run in a pane yet.**
   `PaneEdge::with_player` (feature `player`) and `with_media` start the player of `anyview-media-host`, and the pane then
   stops handing recordings to its host as `OpenElsewhere`. The tests cover the hub's choice of whom to pause, the
-  boundary and the manifests; none starts mpv in a pane or has two panes play at once. A pane has no desktop
+  boundary and the manifests, and that a pane with a (scripted) player shows the media stage and hands nothing to its
+  host while one without hands the file over (`tests/pane/playback.rs`); none starts mpv in a pane or has two panes play
+  at once. The hub's pause cannot be driven without mpv: its sessions are built from live lines, and the `Exclusive`
+  gate over `Sounding::heard` is one `if`, so the table in `focus.rs` is the whole test of it. A pane has no desktop
   now-playing entry (`MediaHub::standalone` shows none), no facts of its own for a recording (`FixedMpv` reads none, so
   the info panel shows what the file says of itself) and no built-in audio player (a sound card is not in the pane's
   tree): with no mpv a recording shows the row that names it. Ends when temor has played a video and two panes in one
