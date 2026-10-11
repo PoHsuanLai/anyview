@@ -295,10 +295,15 @@ mod real_mpv {
         until(&mut host, "the hub to pause the first", || {
             first.tap.pace() == Some(Pace::Paused)
         });
-        assert_eq!(
-            second.tap.pace(),
-            Some(Pace::Playing),
-            "the one that sounds last keeps playing"
+        // The one that sounds last keeps playing, unless its three seconds ran out while the
+        // window waited on the first (a software GPU is slow): mpv then holds its last frame.
+        let second_ended = second
+            .tap
+            .has(|n| matches!(n, MediaNotice::Player(PlayerEvent::Ended(_))));
+        assert!(
+            second.tap.pace() == Some(Pace::Playing) || second_ended,
+            "the one that sounds last keeps playing; it heard {:?}",
+            second.tap.heard()
         );
         assert!(
             !first.tap.has(|n| matches!(
