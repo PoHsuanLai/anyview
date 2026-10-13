@@ -4,19 +4,17 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::helpers::HelperSource;
 use super::job::{Done, Job, Keeping, OpenPort, Opened, WorkLane};
-use super::media::{MediaHost, MediaPort, MediaSupport};
+use super::media::{MediaPort, MediaSupport};
 use super::notice::Notice;
-use super::seams::{FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource};
-use super::services::Services;
+use super::seam_set::Seams;
+use super::seams::{FileLocks, ResumeSource, VersionSource};
 use crate::{
     EditRequest, ExportDraft, LoadFailure, Presentation, Rewind, Ticket, TypedText, VersionKey,
 };
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
 use anyview_machines::{PlatformAbilities, SaveEnd};
-use anyview_peek::StillSource;
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
@@ -275,15 +273,7 @@ pub struct Edge {
     mailbox: Arc<Mutex<Option<UnboundedReceiver<Done>>>>,
     requests: Arc<dyn Fn(HostRequest) + Send + Sync>,
     highlighter: Arc<Highlighter>,
-    resume: Arc<dyn ResumeSource>,
-    keeper: Option<Arc<dyn ResumeKeeper>>,
-    locks: Arc<dyn FileLocks>,
-    versions: Arc<dyn VersionSource>,
-    first_frames: Arc<dyn StillSource>,
-    media: Arc<dyn MediaHost>,
-    image_plugins: Arc<dyn ImagePlugins>,
-    helpers: Arc<dyn HelperSource>,
-    platform: PlatformAbilities,
+    seams: Seams,
     held: Arc<Mutex<Held>>,
 }
 
@@ -332,38 +322,22 @@ impl std::fmt::Debug for Edge {
 }
 
 impl Edge {
-    /// An edge over `services`: its workers, its request handler and its seams.
+    /// An edge over `workers`, handing the window's requests to `on_request`, with the host's
+    /// `seams`.
     #[must_use]
-    pub fn new(services: Services) -> Edge {
-        let Services {
-            workers,
-            on_request,
-            resume,
-            keeper,
-            locks,
-            versions,
-            first_frames,
-            media,
-            image_plugins,
-            helpers,
-            platform,
-        } = services;
+    pub fn new(
+        workers: Arc<dyn Workers>,
+        on_request: impl Fn(HostRequest) + Send + Sync + 'static,
+        seams: Seams,
+    ) -> Edge {
         let (sender, receiver) = unbounded();
         Edge {
             workers,
             reply: Reply(sender),
             mailbox: Arc::new(Mutex::new(Some(receiver))),
-            requests: on_request,
+            requests: Arc::new(on_request),
             highlighter: Arc::new(Highlighter::new()),
-            resume,
-            keeper,
-            locks,
-            versions,
-            first_frames,
-            media,
-            image_plugins,
-            helpers,
-            platform,
+            seams,
             held: Arc::default(),
         }
     }
@@ -372,19 +346,19 @@ impl Edge {
     /// recording plays in it or is handed to the host.
     #[must_use]
     pub fn media_support(&self) -> MediaSupport {
-        self.media.support()
+        self.seams.media.support()
     }
 
     /// What the platform can do, for the window to decide what to offer.
     #[must_use]
     pub fn platform(&self) -> PlatformAbilities {
-        self.platform
+        self.seams.platform
     }
 
     /// What the install sheet says of `helper`, or `None` when the host does not know the tool.
     #[must_use]
     pub fn helper_words(&self, helper: Helper) -> Option<super::helpers::HelperWords> {
-        self.helpers.words(helper)
+        self.seams.helpers.words(helper)
     }
 
     /// Tell the window that a tool a plugin runs is on the machine now (the person installed it
@@ -434,13 +408,13 @@ impl Edge {
     /// Whether this edge was given a keeper, so the window writes the views and places itself.
     #[must_use]
     pub fn keeps(&self) -> bool {
-        self.keeper.is_some()
+        self.seams.keeper.is_some()
     }
 
-    /// Have a worker write `keeping` to the keeper the services gave. Nothing is written when
+    /// Have a worker write `keeping` to the keeper the seams gave. Nothing is written when
     /// there is none. Callable from any thread.
     pub fn keep(&self, keeping: Keeping) {
-        if let Some(keeper) = &self.keeper {
+        if let Some(keeper) = &self.seams.keeper {
             self.submit(Job::Keep {
                 keeper: Arc::clone(keeper),
                 keeping,
@@ -454,9 +428,9 @@ impl Edge {
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
-            resume: Arc::clone(&self.resume),
-            locks: Arc::clone(&self.locks),
-            versions: Arc::clone(&self.versions),
+            resume: Arc::clone(&self.seams.resume),
+            locks: Arc::clone(&self.seams.locks),
+            versions: Arc::clone(&self.seams.versions),
             stop: self.stop_for(job_ticket),
         });
     }
@@ -487,7 +461,7 @@ impl Edge {
     pub(crate) fn link(&self, texture: TextureHandle) -> OpenPort {
         OpenPort {
             media: Some(MediaPort {
-                host: Arc::clone(&self.media),
+                host: Arc::clone(&self.seams.media),
                 reply: self.reply.clone(),
             }),
             ..self.link_for_preload(texture)
@@ -499,8 +473,8 @@ impl Edge {
         OpenPort {
             texture,
             highlighter: Arc::clone(&self.highlighter),
-            first_frames: Arc::clone(&self.first_frames),
-            image_plugins: Arc::clone(&self.image_plugins),
+            first_frames: Arc::clone(&self.seams.first_frames),
+            image_plugins: Arc::clone(&self.seams.image_plugins),
             media: None,
         }
     }
@@ -536,7 +510,7 @@ mod tests {
         impl Workers for Nowhere {
             fn submit(&self, _work: Work) {}
         }
-        Edge::new(Services::new(Arc::new(Nowhere), |_| {}))
+        Edge::new(Arc::new(Nowhere), |_| {}, Seams::default())
     }
 
     #[test]

@@ -3,26 +3,22 @@
 use crate::store::PaneStore;
 #[cfg(feature = "player")]
 use anyview_media_host::PlayerHost;
-use anyview_peek::StillSource;
 use anyview_store::{Clock, Viewed};
-use anyview_ui::{
-    FileLocks, HelperSource, ImagePlugins, MediaHost, PlatformAbilities, ResumeSource, Services,
-    VersionSource, Workers,
-};
+use anyview_ui::{PlatformAbilities, Seams, Workers};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// The workers and the seams one pane runs over: [`anyview_ui::Services`] without the request
-/// handler, which the pane owns (what it asks of its host is [`ViewerPane`](crate::ViewerPane)'s
-/// `on_request`). Every pane of a window shares the host's one pool; a clone of an edge is the
+/// The workers and the [`Seams`] one pane runs over, without the request handler, which the pane
+/// owns (what it asks of its host is [`ViewerPane`](crate::ViewerPane)'s `on_request`). A host
+/// names the seams it has when it makes the edge ([`PaneEdge::new`]). Every pane of a window shares the host's one pool; a clone of an edge is the
 /// same edge, and two edges are equal when they are the same value.
 ///
 /// A seam left alone does nothing: nothing is remembered, no recording plays, no tool is offered.
 /// The platform of [`PaneEdge::portable`] has no abilities, so what needs the desktop is not listed.
 ///
 /// ```
-/// use anyview_pane::{PaneEdge, PlatformAbilities, Work, Workers};
+/// use anyview_pane::{PaneEdge, PlatformAbilities, Seams, Work, Workers};
 /// use std::sync::Arc;
 ///
 /// #[derive(Debug)]
@@ -35,10 +31,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 ///
 /// let edge = PaneEdge::portable(Arc::new(Inline));
 /// assert_eq!(edge, edge.clone());
+///
+/// let seams = Seams::default().with_platform(PlatformAbilities::NONE);
+/// let own = PaneEdge::new(Arc::new(Inline), seams);
+/// assert_ne!(own, edge);
 /// ```
 #[derive(Clone)]
 pub struct PaneEdge {
-    services: Arc<Services>,
+    workers: Arc<dyn Workers>,
+    seams: Arc<Seams>,
     /// Where the viewer's store is, once [`PaneEdge::with_store`] named it.
     store: Option<PathBuf>,
     /// The time a recorded view is stamped with.
@@ -47,7 +48,7 @@ pub struct PaneEdge {
 
 impl PartialEq for PaneEdge {
     fn eq(&self, other: &PaneEdge) -> bool {
-        Arc::ptr_eq(&self.services, &other.services)
+        Arc::ptr_eq(&self.seams, &other.seams)
     }
 }
 
@@ -56,17 +57,34 @@ impl Eq for PaneEdge {}
 impl std::fmt::Debug for PaneEdge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PaneEdge")
-            .field("platform", &self.services.platform)
+            .field("seams", &self.seams)
             .finish_non_exhaustive()
     }
 }
 
 impl PaneEdge {
+    /// An edge over `workers` and the host's `seams`. A seam the host leaves alone does nothing,
+    /// and the default platform offers every desktop service: a host with no desktop under it
+    /// gives `Seams::default().with_platform(PlatformAbilities::NONE)`, or uses
+    /// [`portable`](PaneEdge::portable).
+    #[must_use]
+    pub fn new(workers: Arc<dyn Workers>, seams: Seams) -> PaneEdge {
+        PaneEdge {
+            workers,
+            seams: Arc::new(seams),
+            store: None,
+            clock: system_clock(),
+        }
+    }
+
     /// An edge over `workers` that asks the OS for nothing: every seam absent, and no desktop
     /// service on offer.
     #[must_use]
     pub fn portable(workers: Arc<dyn Workers>) -> PaneEdge {
-        PaneEdge::over(Services::new(workers, |_request| {}).with_platform(PlatformAbilities::NONE))
+        PaneEdge::new(
+            workers,
+            Seams::default().with_platform(PlatformAbilities::NONE),
+        )
     }
 
     /// The same edge keeping the viewer's memory in the store at `root`: it reads where each file
@@ -102,77 +120,19 @@ impl PaneEdge {
         self.rewired()
     }
 
-    /// The same edge reading where files were left from `source`.
-    #[must_use]
-    pub fn with_resume_source(self, source: Arc<dyn ResumeSource>) -> PaneEdge {
-        self.changed(|services| services.with_resume_source(source))
-    }
-
-    /// The same edge asking `locks` which files refuse a save in place.
-    #[must_use]
-    pub fn with_locks(self, locks: Arc<dyn FileLocks>) -> PaneEdge {
-        self.changed(|services| services.with_locks(locks))
-    }
-
-    /// The same edge listing a file's kept versions from `source`.
-    #[must_use]
-    pub fn with_version_source(self, source: Arc<dyn VersionSource>) -> PaneEdge {
-        self.changed(|services| services.with_version_source(source))
-    }
-
-    /// The same edge showing the host's small pictures while a file opens.
-    #[must_use]
-    pub fn with_first_frames(self, source: Arc<dyn StillSource>) -> PaneEdge {
-        self.changed(|services| services.with_first_frames(source))
-    }
-
-    /// The same edge starting players with `host`, so a recording plays in the pane. With none (the
-    /// default, and `MediaHost`s that say [`MediaSupport::Absent`](anyview_ui::MediaSupport)) a
-    /// recording is handed to the host as [`PaneRequest::OpenElsewhere`](crate::PaneRequest).
-    #[must_use]
-    pub fn with_media(self, host: Arc<dyn MediaHost>) -> PaneEdge {
-        self.changed(|services| services.with_media(host))
-    }
-
     /// The same edge playing recordings with `player`: the person's own mpv as a child process,
     /// drawing into the pane. Panes that share a window share one [`MediaHub`](crate::MediaHub),
     /// and so one source of sound at a time. Feature `player`.
     #[cfg(feature = "player")]
     #[must_use]
     pub fn with_player(self, player: PlayerHost) -> PaneEdge {
-        self.with_media(Arc::new(player))
+        self.changed(|seams| seams.with_media(Arc::new(player)))
     }
 
-    /// The same edge decoding the pictures the viewer cannot through `plugins`.
-    #[must_use]
-    pub fn with_image_plugins(self, plugins: Arc<dyn ImagePlugins>) -> PaneEdge {
-        self.changed(|services| services.with_image_plugins(plugins))
-    }
-
-    /// The same edge wording the install sheet from `helpers`. A pane has no sheets, so this only
-    /// matters to a host that shows the words itself.
-    #[must_use]
-    pub fn with_helpers(self, helpers: Arc<dyn HelperSource>) -> PaneEdge {
-        self.changed(|services| services.with_helpers(helpers))
-    }
-
-    /// The same edge offering only what `platform` can do.
-    #[must_use]
-    pub fn with_platform(self, platform: PlatformAbilities) -> PaneEdge {
-        self.changed(|services| services.with_platform(platform))
-    }
-
-    fn over(services: Services) -> PaneEdge {
+    fn changed(self, change: impl FnOnce(Seams) -> Seams) -> PaneEdge {
         PaneEdge {
-            services: Arc::new(services),
-            store: None,
-            clock: system_clock(),
-        }
-    }
-
-    fn changed(self, change: impl FnOnce(Services) -> Services) -> PaneEdge {
-        PaneEdge {
-            services: Arc::new(change(Arc::unwrap_or_clone(self.services))),
+            workers: self.workers,
+            seams: Arc::new(change(Arc::unwrap_or_clone(self.seams))),
             store: self.store,
             clock: self.clock,
         }
@@ -184,16 +144,21 @@ impl PaneEdge {
             return self;
         };
         let store = Arc::new(PaneStore::at(root, self.clock.clone()));
-        self.changed(|services| {
-            services
+        self.changed(|seams| {
+            seams
                 .with_resume_source(store.clone())
                 .with_resume_keeper(store)
         })
     }
 
-    /// The services this edge was built from, for the pane to wire its own request handler into.
-    pub(crate) fn services(&self) -> Services {
-        (*self.services).clone()
+    /// The workers this edge was built over.
+    pub(crate) fn workers(&self) -> Arc<dyn Workers> {
+        Arc::clone(&self.workers)
+    }
+
+    /// The seams this edge was built from, for the pane to wire its own request handler over.
+    pub(crate) fn seams(&self) -> Seams {
+        (*self.seams).clone()
     }
 }
 

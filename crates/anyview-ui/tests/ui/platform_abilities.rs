@@ -8,7 +8,7 @@ use crate::support;
 
 use anyview_core::FileAction;
 use anyview_ui::{
-    DesktopService, Edge, HostRequest, PlatformAbilities, Services, WelcomeApp, Workers,
+    DesktopService, Edge, HostRequest, PlatformAbilities, Seams, WelcomeApp, Workers,
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_core::press::PointerButton;
@@ -188,8 +188,9 @@ fn welcome(platform: PlatformAbilities) -> (Harness, Requests) {
     let seen = Arc::clone(&requests);
     let workers: Arc<dyn Workers> = Arc::new(support::Inline);
     let edge = Edge::new(
-        Services::new(workers, move |request| seen.lock().unwrap().push(request))
-            .with_platform(platform),
+        workers,
+        move |request| seen.lock().unwrap().push(request),
+        Seams::default().with_platform(platform),
     );
     let config = HarnessConfig::new(VIEW)
         .with_clock(Clock::Virtual)

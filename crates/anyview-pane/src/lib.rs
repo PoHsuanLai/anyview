@@ -16,13 +16,14 @@
 //! The pane never asks the OS for anything: no D-Bus, no file chooser. The platform abilities of a
 //! [`PaneEdge::portable`] edge are none, so Open, Print, Share, Open With and Show in Folder are
 //! simply not there. A recording opens in a viewer window of its own, which the host hears as
-//! [`PaneRequest::OpenElsewhere`], unless the host gave the edge a player ([`PaneEdge::with_media`],
+//! [`PaneRequest::OpenElsewhere`], unless the host gave the edge a player ([`Seams::with_media`],
 //! or [`PaneEdge::with_player`] with the feature `player`): then it plays in the pane.
 //!
 //! ```ignore
 //! let focused = use_signal(|| true);
 //! let handle = use_pane_handle();
-//! let edge = use_hook(|| PaneEdge::portable(workers.clone()).with_resume_source(store.clone()));
+//! let seams = Seams::default().with_resume_source(store.clone());
+//! let edge = use_hook(|| PaneEdge::new(workers.clone(), seams));
 //! rsx! {
 //!     ViewerPane {
 //!         file,
@@ -64,6 +65,6 @@ pub use anyview_store::{Clock, STORE_FOLDER};
 pub use anyview_ui::{
     DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, HitList,
     ImagePlugins, LoadFailure, Look, LookFeed, LookSender, MediaHost, MediaSupport, NaturalSize,
-    NotOpened, Opened, PaneChrome, PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText,
-    VersionKey, VersionSource, Work, WorkKind, WorkLane, Workers,
+    NotOpened, Opened, PaneChrome, PlatformAbilities, ResumeSource, Rewind, Seams, TextSave,
+    TypedText, VersionKey, VersionSource, Work, WorkKind, WorkLane, Workers,
 };

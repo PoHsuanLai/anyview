@@ -11,7 +11,7 @@ pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
     Edge, FileAccess, FileLocks, HelperSource, HostRequest, ImagePlugins, Launch, LookFeed,
-    MediaHost, PlatformAbilities, Presentation, ResumeSource, Services, VersionRow, VersionSource,
+    MediaHost, PlatformAbilities, Presentation, ResumeSource, Seams, VersionRow, VersionSource,
     ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use dioxus::prelude::*;
@@ -383,37 +383,41 @@ pub fn wired(
     let memory = wiring.memory.clone();
     let panel = wiring.panel;
     let workers: Arc<dyn Workers> = wiring.workers.unwrap_or_else(|| Arc::new(Inline));
-    let mut services = Services::new(workers, move |request| {
-        if let Some(memory) = &memory {
-            memory.hear(&request);
-        }
-        seen.lock().unwrap().push(request);
-    });
+    let mut seams = Seams::default();
     if let Some(memory) = wiring.memory {
-        services = services.with_resume_source(memory);
+        seams = seams.with_resume_source(memory);
     }
     if let Some(versions) = wiring.versions {
-        services = services.with_version_source(versions);
+        seams = seams.with_version_source(versions);
     }
     if let Some(pictures) = wiring.pictures {
-        services = services.with_first_frames(pictures);
+        seams = seams.with_first_frames(pictures);
     }
     if let Some(locks) = wiring.locks {
-        services = services.with_locks(locks);
+        seams = seams.with_locks(locks);
     }
     if let Some(plugins) = wiring.image_plugins {
-        services = services.with_image_plugins(plugins);
+        seams = seams.with_image_plugins(plugins);
     }
     if let Some(helpers) = wiring.helpers {
-        services = services.with_helpers(helpers);
+        seams = seams.with_helpers(helpers);
     }
     if let Some(platform) = wiring.platform {
-        services = services.with_platform(platform);
+        seams = seams.with_platform(platform);
     }
     if let Some(player) = wiring.player {
-        services = services.with_media(player as Arc<dyn MediaHost>);
+        seams = seams.with_media(player as Arc<dyn MediaHost>);
     }
-    let edge = Edge::new(services);
+    let edge = Edge::new(
+        workers,
+        move |request| {
+            if let Some(memory) = &memory {
+                memory.hear(&request);
+            }
+            seen.lock().unwrap().push(request);
+        },
+        seams,
+    );
     let launch = Launch::new(current)
         .with_sequence(Some(sequence))
         .with_look(appearance.into())
