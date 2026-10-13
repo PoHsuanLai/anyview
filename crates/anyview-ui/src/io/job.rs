@@ -10,9 +10,10 @@ use super::seams::{
     FileAccess, FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource,
 };
 use crate::families::{
-    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, TextDoc, open_for, peek_for,
+    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SortedOrder, TableDoc, TextDoc, open_for,
+    peek_for, sort_sheet,
 };
-use crate::{SaveEnd, StageFamily, Ticket, TypedText, VersionRow};
+use crate::{ColumnSort, SaveEnd, SheetNo, StageFamily, Ticket, TypedText, VersionRow};
 use anyview_core::work::Stop;
 use anyview_core::{
     FilePath, FileStamp, FindOptions, LineIndex, Resume, Sequence, Sniffed, Source,
@@ -143,6 +144,17 @@ pub enum Job {
         /// How it is matched.
         options: FindOptions,
     },
+    /// Sort a sheet of an open table by a column.
+    Sort {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The open table.
+        doc: Arc<TableDoc>,
+        /// The sheet to sort.
+        sheet: SheetNo,
+        /// The column and the way it runs.
+        sort: ColumnSort,
+    },
     /// Read an open text file whole, to edit it in place.
     EditRead {
         /// The load this work belongs to.
@@ -217,6 +229,13 @@ pub enum Done {
         ticket: Ticket,
         /// What came of it.
         result: Result<LineWindow, OpenError>,
+    },
+    /// The order a sort gave a sheet of the table of `ticket`; `None` when it was cut short.
+    Sorted {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// What came of it.
+        order: Option<SortedOrder>,
     },
     /// The text of the file of `ticket`, read for editing, or why it cannot be.
     EditText {
@@ -314,6 +333,7 @@ impl Job {
             | Job::Open { .. }
             | Job::Lines { .. }
             | Job::Search { .. }
+            | Job::Sort { .. }
             | Job::EditRead { .. }
             | Job::Stat { .. }
             | Job::Folder { .. }
@@ -332,6 +352,7 @@ impl Job {
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
             | Job::Search { ticket, .. }
+            | Job::Sort { ticket, .. }
             | Job::EditRead { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
             Job::Preload { .. }
@@ -372,6 +393,10 @@ impl Job {
                 query: query.clone(),
                 options: *options,
                 result: Err(OpenError::Crashed),
+            },
+            Job::Sort { ticket, .. } => Done::Sorted {
+                ticket: *ticket,
+                order: None,
             },
             Job::EditRead { ticket, .. } => Done::EditText {
                 ticket: *ticket,
@@ -449,6 +474,15 @@ impl Job {
                 result: doc.find(&query, options, stop).map_err(OpenError::from),
                 query,
                 options,
+            },
+            Job::Sort {
+                ticket,
+                doc,
+                sheet,
+                sort,
+            } => Done::Sorted {
+                ticket,
+                order: sort_sheet(&doc, sheet, sort, stop),
             },
             Job::EditRead { ticket, doc } => Done::EditText {
                 ticket,

@@ -53,9 +53,9 @@ pub use families::{
     LineWindow, LoadedDoc, MEDIA_CSS, MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView,
     PDF_CSS, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfOrigin, PdfShelf, PdfStageView, PdfTask,
     PeekOnlyDoc, PeekOnlyStageView, RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen,
-    RasterStageView, ReadyTile, SheetDoc, StageCx, StageView, TOKEN_CSS, TableDoc, TableStageView,
-    TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size, family_of,
-    flow_of, use_media_shelf, use_pdf_shelf, visit,
+    RasterStageView, ReadyTile, SheetDoc, SortedOrder, StageCx, StageView, TOKEN_CSS, TableDoc,
+    TableStageView, TextDoc, TextStageView, TreeDoc, TreeStageView, TrimMarks, audio_window_size,
+    family_of, flow_of, use_media_shelf, use_pdf_shelf, visit,
 };
 pub use io::{
     Backend, DesktopService, Done, Edge, FileAccess, FileLocks, HelperSource, HelperWords,

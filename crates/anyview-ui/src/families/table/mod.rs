@@ -4,9 +4,12 @@
 
 mod doc;
 mod panel;
+mod sort;
 mod view;
 
 pub use doc::{SheetDoc, TableDoc};
+pub use sort::SortedOrder;
+pub(crate) use sort::sort_sheet;
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{OpenError, OpenPort};

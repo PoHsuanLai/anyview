@@ -41,6 +41,8 @@ pub enum WorkKind {
     Lines,
     /// Search a text for a phrase.
     Search,
+    /// Sort a table sheet by a column.
+    Sort,
     /// Read a text whole, to edit it.
     EditRead,
     /// Open a neighbour ahead of time.
@@ -119,6 +121,7 @@ impl Work {
             Job::Open { .. } => WorkKind::Open,
             Job::Lines { .. } => WorkKind::Lines,
             Job::Search { .. } => WorkKind::Search,
+            Job::Sort { .. } => WorkKind::Sort,
             Job::EditRead { .. } => WorkKind::EditRead,
             Job::Preload { .. } => WorkKind::Preload,
             Job::Stat { .. } => WorkKind::Stat,

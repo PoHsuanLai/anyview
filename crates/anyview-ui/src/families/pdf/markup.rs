@@ -46,6 +46,7 @@ fn cx(stage: Stage) -> StageCx {
         send: EventHandler::new(|_: StageIn| {}),
         run: EventHandler::new(|_| {}),
         lines: None,
+        sorted: None,
         ask_lines: EventHandler::new(|_| {}),
         hits: None,
         work: EventHandler::new(|_| {}),
