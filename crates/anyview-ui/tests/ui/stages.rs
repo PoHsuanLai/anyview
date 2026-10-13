@@ -118,6 +118,54 @@ fn a_key_and_a_pinch_zoom_the_picture_and_the_capsule_says_how_far() {
 }
 
 #[test]
+fn zooming_out_goes_below_fit_to_a_tenth_and_the_minus_button_greys_out_there() {
+    let (_dir, mut harness) = picture();
+    harness.send(Input::pointer_move(centre()));
+    harness.advance(Duration::from_millis(300));
+    let readout = |harness: &Harness| harness.text_of(".ds-capsule-readout");
+    let minus = |harness: &Harness| harness.attr(".ds-capsule .ds-button", "aria-disabled");
+    assert_eq!(readout(&harness).as_deref(), Some("100%"));
+    assert_ne!(minus(&harness).as_deref(), Some("true"), "room to zoom out");
+    harness.send(Input::key(ShortcutKey::Char('-')));
+    harness.advance(Duration::from_millis(100));
+    assert_eq!(
+        readout(&harness).as_deref(),
+        Some("80%"),
+        "a step out from fit goes below it"
+    );
+    for _ in 0..80 {
+        harness.send(Input::key(ShortcutKey::Char('-')));
+    }
+    harness.advance(Duration::from_millis(300));
+    assert_eq!(
+        readout(&harness).as_deref(),
+        Some("10%"),
+        "and stops at a tenth"
+    );
+    assert_eq!(
+        minus(&harness).as_deref(),
+        Some("true"),
+        "Zoom Out is greyed"
+    );
+    harness.send(Input::key(ShortcutKey::Char('0')));
+    harness.advance(Duration::from_millis(100));
+    assert_eq!(
+        readout(&harness).as_deref(),
+        Some("100%"),
+        "0 is actual size"
+    );
+    harness.send(Input::key(ShortcutKey::Char('-')));
+    harness.send(Input::key(ShortcutKey::Char('9')));
+    harness.advance(Duration::from_millis(100));
+    assert_eq!(readout(&harness).as_deref(), Some("100%"), "9 fits again");
+    assert_eq!(
+        harness.attr(".viewer-raster", "data-zoom").as_deref(),
+        Some("fit")
+    );
+    assert_ne!(minus(&harness).as_deref(), Some("true"));
+}
+
+#[test]
 fn a_wheel_scrolls_a_text_file_by_whole_lines_and_the_lines_are_highlighted() {
     let (_dir, paths) = folder(&[("anyview-text", "sample.rs", "sample.rs")]);
     let (mut harness, _) = window(&paths, 0, Appearance::default());

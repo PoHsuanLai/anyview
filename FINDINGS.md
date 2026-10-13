@@ -12,6 +12,15 @@ on. It is a reference, not a log: how each was found lives in git history.
   first when the file's headers say something would be lost); a GIF, an icon, an AVIF and the rest have no writer,
   so their edit tools are not offered and ⌘S offers the Export dialog. Ends when an `Adjust` can be exported
   (`PixelSource` takes one), so that a picture with no writer can be edited and exported.
+- **Leaving a picture that was only turned or mirrored writes it without asking; a cut or a resize still asks.** As in
+  Preview and Loupe a turn is part of looking at a picture, and it is lossless where the file has a writer (a JPEG's
+  orientation tag, a PNG's samples), so `Departure` saves first (`after_save`) and goes on once the file is read
+  again; the original stays a version for Revert To. A turn that would lose something (`EditOffer::Asks`) and a cut
+  or resize keep the Save, Cancel, Don't Save question, since the person did not only look. Ends if cuts should be
+  kept without a question too.
+- **A zoom step out goes below fit, down to the smaller of 10% and a quarter of fit.** `stepped_past_fit`; a step that
+  crosses fit either way lands on fit itself, and the capsule's Zoom Out greys out at the floor. A picture zoomed below
+  fit keeps the centre a step left it at, so one zoomed about the pointer may sit off the middle of the room.
 - **Adjust Size does not estimate the file's new size, and a resized picture is not drawn at its new size.** The
   dialog says the new width and height; the stage keeps showing the kept part at its own pixels until it is saved
   and read again. Ends when the size of the encoded file can be had cheaply (a lossless estimate from the area

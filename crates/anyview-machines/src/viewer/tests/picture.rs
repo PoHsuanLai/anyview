@@ -43,6 +43,14 @@ fn turned() -> Viewer {
     }
 }
 
+/// A picture showing, scaled smaller and not saved: a change a question is asked about.
+fn resized() -> Viewer {
+    Viewer {
+        picture: editable().step(PictureEditIn::Resize(size(200, 150))),
+        ..turned()
+    }
+}
+
 fn step(viewer: Viewer, input: ViewerIn) -> (Viewer, Vec<ViewerOut>) {
     viewer.step(input, Stamp(0), &(), &params())
 }
@@ -65,12 +73,19 @@ fn the_save() -> EditRequest {
     EditRequest::of_picture(Edit::Adjust(Adjust::NONE.turned(QuarterTurn::Quarter)))
 }
 
+fn the_resize() -> EditRequest {
+    EditRequest::of_picture(Edit::Adjust(Adjust {
+        size: Some(size(200, 150)),
+        ..Adjust::NONE
+    }))
+}
+
 const CLOSE: ViewerIn = ViewerIn::Key(Press::Act(Act::Close));
 const SAVE: ViewerIn = ViewerIn::Key(Press::Act(Act::Save));
 
 #[test]
 fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
-    let (asked, outs) = step(turned(), CLOSE);
+    let (asked, outs) = step(resized(), CLOSE);
     assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Close));
     assert!(!closes(&outs), "the window waits for the answer");
 
@@ -85,8 +100,8 @@ fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
 
     let (saving, outs) = step(asked, ViewerIn::Sheet(SheetIn::Confirm));
     assert!(
-        outs.contains(&ViewerOut::Edit(the_save())),
-        "Save writes the turn"
+        outs.contains(&ViewerOut::Edit(the_resize())),
+        "Save writes the new size"
     );
     assert!(
         !closes(&outs),
@@ -105,6 +120,70 @@ fn closing_a_picture_with_changes_asks_and_each_answer_goes_where_it_should() {
 }
 
 #[test]
+fn a_turned_picture_is_kept_without_asking_when_the_person_goes_on() {
+    let files = NonEmpty::from_vec(vec![path("/a.png"), path("/b.png")]).unwrap();
+    let sequence =
+        Sequence::starting_at(files, &path("/a.png"), SequenceOrigin::Selection).unwrap();
+    let (walking, _) = step(turned(), ViewerIn::Navigate(NavigateIn::Start(sequence)));
+    let landed = ViewerIn::Picture(PictureEditIn::Landed {
+        size: Some(size(300, 400)),
+        editing: PictureEditing::Allowed,
+    });
+    // name, what the person does, where they go once the file has been written
+    let cases = [
+        ("Close", CLOSE, Departure::Close),
+        (
+            "an arrow key",
+            ViewerIn::Key(Press::Key(Shortcut(vec![ShortcutKey::Right]))),
+            Departure::Walk(NavigateIn::Next),
+        ),
+        (
+            "opening another file",
+            ViewerIn::Open(path("/b.png")),
+            Departure::Open(path("/b.png")),
+        ),
+    ];
+    for (name, input, then) in cases {
+        let (saving, outs) = step(walking.clone(), input);
+        assert_eq!(saving.sheet, Sheet::Closed, "{name}: no question");
+        assert!(
+            outs.contains(&ViewerOut::Edit(the_save())),
+            "{name}: written"
+        );
+        assert_eq!(saving.after_save, Some(then), "{name}: goes on afterwards");
+        // A key held down walks again while the write is on its way: nothing is written twice.
+        let (waiting, outs) = press(saving.clone(), &[ShortcutKey::Right]);
+        assert!(
+            !outs.iter().any(|out| matches!(out, ViewerOut::Edit(_))),
+            "{name}: not written twice"
+        );
+        assert_eq!(
+            waiting.after_save, saving.after_save,
+            "{name}: still going on"
+        );
+        let (_, outs) = step(saving, landed.clone());
+        assert!(
+            closes(&outs) || probes(&outs, "/b.png"),
+            "{name}: goes on once the file is read again"
+        );
+    }
+}
+
+#[test]
+fn a_turn_that_loses_something_is_still_asked_about_on_leaving() {
+    let params = ViewerParams {
+        sheet: SheetParams {
+            edit: EditOffer::Asks(EditCaution::Loses("Only the first frame will be kept.")),
+            ..SheetParams::default()
+        },
+        ..params()
+    };
+    let (viewer, outs) = turned().step(CLOSE, Stamp(0), &(), &params);
+    assert_eq!(viewer.sheet, Sheet::Unsaved(Departure::Close));
+    assert!(!outs.iter().any(|out| matches!(out, ViewerOut::Edit(_))));
+}
+
+#[test]
 fn a_picture_with_nothing_unsaved_closes_without_asking() {
     let viewer = Viewer {
         picture: editable(),
@@ -117,7 +196,7 @@ fn a_picture_with_nothing_unsaved_closes_without_asking() {
 
 #[test]
 fn opening_another_file_asks_first_and_not_saving_goes_on_to_it() {
-    let (asked, outs) = step(turned(), ViewerIn::Open(path("/b.png")));
+    let (asked, outs) = step(resized(), ViewerIn::Open(path("/b.png")));
     assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Open(path("/b.png"))));
     assert!(
         !probes(&outs, "/b.png"),
@@ -133,7 +212,7 @@ fn an_arrow_key_asks_before_leaving_the_picture_and_does_not_move_the_walk() {
     let files = NonEmpty::from_vec(vec![path("/a.png"), path("/b.png")]).unwrap();
     let sequence =
         Sequence::starting_at(files, &path("/a.png"), SequenceOrigin::Selection).unwrap();
-    let (walking, _) = step(turned(), ViewerIn::Navigate(NavigateIn::Start(sequence)));
+    let (walking, _) = step(resized(), ViewerIn::Navigate(NavigateIn::Start(sequence)));
     let (asked, outs) = press(walking.clone(), &[ShortcutKey::Right]);
     assert_eq!(
         asked.sheet,

@@ -13,6 +13,16 @@ pub struct Viewport {
     pub fit: Permille,
 }
 
+impl Viewport {
+    /// The smallest scale a picture is zoomed out to by a step: a tenth of actual size, or a
+    /// quarter of the fit scale when that is smaller (a picture far larger than the window), and
+    /// never below [`Zoom::MIN_SCALE`].
+    #[must_use]
+    pub fn floor(&self) -> Permille {
+        Permille((self.fit.0 / 4).clamp(Zoom::MIN_SCALE.0, 100))
+    }
+}
+
 /// Which way a zoom step goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZoomDir {
@@ -36,6 +46,28 @@ pub fn stepped(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
     match dir {
         ZoomDir::Out if target <= viewport.fit => Zoom::Fit,
         ZoomDir::In | ZoomDir::Out => Zoom::scaled(target),
+    }
+}
+
+/// The zoom one step from the scale shown, for content that may be shown smaller than it fits:
+/// a step out goes on below the fit scale down to [`Viewport::floor`], and a step that crosses
+/// the fit scale, either way, is the fit zoom itself, so fit is always a stop on the way.
+pub fn stepped_past_fit(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
+    let shown = u64::from(viewport.shown.0.max(1));
+    let step = u64::from(step.0.max(1001));
+    let target = match dir {
+        ZoomDir::In => shown * step / 1000,
+        ZoomDir::Out => shown * 1000 / step,
+    };
+    let target = Permille(u32::try_from(target).unwrap_or(u32::MAX));
+    let crosses = match dir {
+        ZoomDir::Out => u64::from(viewport.fit.0) < shown && target <= viewport.fit,
+        ZoomDir::In => viewport.shown < viewport.fit && target >= viewport.fit,
+    };
+    if crosses {
+        Zoom::Fit
+    } else {
+        Zoom::scaled(Permille(target.0.max(viewport.floor().0)))
     }
 }
 
@@ -118,6 +150,62 @@ mod tests {
         ];
         for (name, viewport, dir, want) in CASES {
             assert_eq!(stepped(*viewport, *dir, STEP), *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_step_past_fit_goes_below_it_to_the_floor_and_crosses_fit_as_fit() {
+        let at = |shown, fit| Viewport {
+            shown: Permille(shown),
+            fit: Permille(fit),
+        };
+        // name, viewport, direction, zoom
+        let cases = [
+            (
+                "out from fit goes below it",
+                at(1000, 1000),
+                ZoomDir::Out,
+                Zoom::Scale(Permille(800)),
+            ),
+            (
+                "out that crosses fit is fit",
+                at(1200, 1000),
+                ZoomDir::Out,
+                Zoom::Fit,
+            ),
+            (
+                "out stops at a tenth",
+                at(110, 1000),
+                ZoomDir::Out,
+                Zoom::Scale(Permille(100)),
+            ),
+            (
+                "out stays at the floor",
+                at(100, 1000),
+                ZoomDir::Out,
+                Zoom::Scale(Permille(100)),
+            ),
+            (
+                "the floor of a large picture is a quarter of its fit",
+                at(60, 200),
+                ZoomDir::Out,
+                Zoom::Scale(Permille(50)),
+            ),
+            (
+                "in from below fit that reaches it is fit",
+                at(900, 1000),
+                ZoomDir::In,
+                Zoom::Fit,
+            ),
+            (
+                "in from below fit stays below",
+                at(400, 1000),
+                ZoomDir::In,
+                Zoom::Scale(Permille(500)),
+            ),
+        ];
+        for (name, viewport, dir, want) in cases {
+            assert_eq!(stepped_past_fit(viewport, dir, STEP), want, "{name}");
         }
     }
 

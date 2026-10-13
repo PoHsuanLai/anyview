@@ -478,9 +478,14 @@ fn adjust_size_opens_a_dialog_on_the_size_the_picture_has_and_cancel_changes_not
 }
 
 #[test]
-fn closing_a_picture_with_changes_asks_and_cancel_keeps_the_window() {
-    let (_dir, mut harness, requests) = picture(vec![]);
-    from_the_palette(&mut harness, "rotate right");
+fn closing_a_picture_that_was_cut_asks_and_cancel_keeps_the_window() {
+    let (_dir, mut harness, requests) = picture_at(100);
+    harness.send(Input::key(ShortcutKey::Char('c')));
+    settle(&mut harness);
+    harness.send(Input::drag(at(474.0, 300.0), at(458.0, 300.0), 4));
+    settle(&mut harness);
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(&mut harness);
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
     settle(&mut harness);
     assert!(harness.centre(".ds-alert").is_some(), "the question is up");
@@ -504,14 +509,40 @@ fn closing_a_picture_with_changes_asks_and_cancel_keeps_the_window() {
     settle(&mut harness);
     harness.send(Input::key(ShortcutKey::Enter));
     settle(&mut harness);
-    assert_eq!(
-        asked(&requests),
-        [write_of(Adjust::NONE.turned(QuarterTurn::Quarter))]
-    );
+    assert_eq!(asked(&requests), [write_of(cut(0, 0, 32, 32))]);
     assert!(
         !closes(&requests),
         "it closes once the saved file is read again"
     );
+}
+
+#[test]
+fn a_turned_picture_is_written_without_a_question_when_the_person_closes_or_moves_on() {
+    let (_dir, paths) = folder(&[
+        ("anyview-image", "quadrants.png", "a.png"),
+        ("anyview-image", "quadrants.png", "b.png"),
+    ]);
+    // name, what the person does after turning the picture
+    let cases = [
+        (
+            "close",
+            Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')),
+        ),
+        ("right arrow", Input::key(ShortcutKey::Right)),
+    ];
+    for (name, leave) in cases {
+        let (mut harness, requests, _) = wired(&paths, 0, Appearance::default(), Wiring::default());
+        settle(&mut harness);
+        from_the_palette(&mut harness, "rotate right");
+        harness.send(leave);
+        settle(&mut harness);
+        assert!(harness.centre(".ds-alert").is_none(), "{name}: no question");
+        assert_eq!(
+            asked(&requests),
+            [write_of(Adjust::NONE.turned(QuarterTurn::Quarter))],
+            "{name}: the turn is written"
+        );
+    }
 }
 
 #[test]
