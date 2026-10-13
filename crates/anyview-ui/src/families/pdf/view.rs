@@ -191,9 +191,13 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
         if let Some(found) = found {
             steer.show(found.page, &found.rects);
         }
-        if let Some(query) = wants.search.clone() {
-            let stop = live.with_mut(|live| live.searching(query.clone()));
-            let ask = PdfAsk::Search { query, stop };
+        if let Some((query, options)) = wants.search.clone() {
+            let stop = live.with_mut(|live| live.searching(query.clone(), options));
+            let ask = PdfAsk::Search {
+                query,
+                options,
+                stop,
+            };
             let task = PdfTask::new(ticket, Arc::clone(&wants_doc), wants_gpu.clone(), ask);
             work.call(Job::Pdf(task));
         }

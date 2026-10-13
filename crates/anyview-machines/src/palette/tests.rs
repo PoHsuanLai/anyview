@@ -3,7 +3,7 @@ use crate::command::{Command, StageCommand};
 use crate::keys::{Act, Press};
 use crate::stage::HitIndex;
 use crate::typed::TypedText;
-use anyview_core::FileAction;
+use anyview_core::{FileAction, FindOption};
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
@@ -11,10 +11,12 @@ const EXPORT: Command = Command::File(FileAction::Export);
 const ROTATE: Command = Command::File(FileAction::RotateRight);
 const FIND: Command = Command::Stage(StageCommand::Find);
 const ROWS: &[Command] = &[EXPORT, ROTATE, FIND];
+const CASE_OPTION: Command = Command::FindOption(FindOption::MatchCase);
 const HIT_ROWS: &[Command] = &[
     Command::FindHit(HitIndex(0)),
     Command::FindHit(HitIndex(1)),
     Command::ShowAllHits,
+    CASE_OPTION,
     EXPORT,
 ];
 
@@ -101,6 +103,14 @@ const CASES: &[Case] = &[
         PaletteIn::Enter,
         (open("fox", 2), WHOLE),
         &[],
+    ),
+    (
+        "a find option runs and stays open with the find as it is",
+        HIT_ROWS,
+        (open("fox", 3), WHOLE),
+        PaletteIn::Enter,
+        (open("fox", 3), WHOLE),
+        &[PaletteOut::Run(CASE_OPTION)],
     ),
     (
         "a hit runs and closes the palette, and the scope with it",

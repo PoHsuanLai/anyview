@@ -1,18 +1,22 @@
 //! The ⌘K palette: every command of the open file, each with its keys. As a find (⌘F) it lists the
-//! places in the file the text names first, under "In This File", and then the commands, as mailo's
+//! places in the file the text names first, under "In This File", then the find's options (Match
+//! Case, Whole Words) as checked rows that leave the palette up, and then the commands, as mailo's
 //! search lists mail before commands. The palette machine owns the query, the selection and what
 //! Enter runs; this draws its rows and hands the keys it takes (arrows, Enter, Esc, ⌘K, ⌘F) to the
 //! root as they arrive, so the machine is the one place they mean anything.
 
 use super::press::press_of;
 use crate::{Act, Chords, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, TypedText};
+use anyview_core::{FindOption, FindOptions};
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
 use ds::components::menus::palette::palette_claim::{Claim, FieldKey};
 use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
 use ds::host::caret::InitialCaret;
-use ds::prelude::{CommandPalette, RunTone, TextLine, TextRun, use_keys};
+use ds::prelude::{
+    Accessory, AfterPick, Check, CommandPalette, RunTone, TextLine, TextRun, use_keys,
+};
 
 /// The row of one hit: the words around it with the match marked, and where it is. A hit whose
 /// words were not kept is listed by where it is. `value` is what picking the row yields, and
@@ -48,9 +52,29 @@ pub(super) fn hit_row<T>(value: T, index: usize, line: Option<&HitLine>) -> Pale
     }
 }
 
+/// The row of a find option: its name, checked while the option is on. Picking it leaves the palette
+/// up, so the find can be refined and its hits watched change. The name is drawn as given: the text
+/// typed is the find's, and marks nothing here.
+fn option_row(index: usize, option: FindOption, options: FindOptions) -> PaletteRow<usize> {
+    let check = if options.has(option) {
+        Check::On
+    } else {
+        Check::Off
+    };
+    PaletteRow {
+        accessory: Accessory::Check(check),
+        after: AfterPick::KeepOpen,
+        ..PaletteRow::new(
+            index,
+            TextLine::Runs(vec![TextRun::new(option.label(), RunTone::Plain)]),
+        )
+    }
+}
+
 /// The palette over the window. `rows` are the machine's ranked rows; `selection` its highlight.
-/// As a find (`scope`), the rows that are hits are drawn from `hits` (the first `rows` of them) and
-/// `found` is how many there are in all.
+/// As a find (`scope`), the rows that are hits are drawn from `hits` (the first `rows` of them),
+/// `found` is how many there are in all, and the rows that are find options are drawn checked as
+/// `options` have them.
 #[component]
 pub(super) fn Palette(
     query: TypedText,
@@ -59,6 +83,7 @@ pub(super) fn Palette(
     scope: PaletteScope,
     hits: Vec<HitLine>,
     found: u32,
+    options: FindOptions,
     ontyped: EventHandler<TypedText>,
     onpick: EventHandler<PaletteIndex>,
     onkey: EventHandler<KeyboardEvent>,
@@ -67,6 +92,7 @@ pub(super) fn Palette(
     let keymap = use_keys();
     let finding = matches!(scope, PaletteScope::Find(_));
     let mut in_file: Vec<PaletteRow<usize>> = Vec::new();
+    let mut refining: Vec<PaletteRow<usize>> = Vec::new();
     let mut commands: Vec<PaletteRow<usize>> = Vec::new();
     for (index, command) in rows.iter().enumerate() {
         match command {
@@ -76,6 +102,7 @@ pub(super) fn Palette(
             Command::ShowAllHits => {
                 in_file.push(PaletteRow::new(index, format!("Show All {found}")));
             }
+            Command::FindOption(option) => refining.push(option_row(index, *option, options)),
             Command::File(_)
             | Command::Stage(_)
             | Command::OpenFile
@@ -96,6 +123,7 @@ pub(super) fn Palette(
     let groups = if finding {
         vec![
             PaletteGroup::list("In This File", in_file),
+            PaletteGroup::list("Options", refining),
             PaletteGroup::list("Commands", commands),
         ]
     } else {

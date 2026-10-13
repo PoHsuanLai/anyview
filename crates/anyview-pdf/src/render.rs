@@ -4,6 +4,7 @@
 use crate::document::{DocId, PdfDocument};
 use crate::error::PdfError;
 use crate::halt::Halt;
+use crate::search::PageTexts;
 use crate::tile::{TileBatch, TileKey, ZoomBucket, tile_rect};
 use anyview_core::work::Stop;
 use anyview_core::{Dpi, PageIndex, PixelLen, PixelSize};
@@ -23,6 +24,8 @@ pub struct PdfWorker {
     session: RenderSession,
     prepared: Option<Prepared>,
     prepares: u64,
+    /// The text of the pages searched, for the next search.
+    pub(crate) texts: PageTexts,
 }
 
 /// What a prepared page was prepared for. A different zoom needs a new one: its images were

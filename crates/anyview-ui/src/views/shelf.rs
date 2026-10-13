@@ -198,6 +198,7 @@ pub(super) fn viewer_params(
             wraps: *shelf.wraps.peek(),
             presentation: state.presentation,
             chrome: shelf.pane_chrome,
+            find: state.find_options,
         },
     )
 }

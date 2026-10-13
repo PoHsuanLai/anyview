@@ -1,6 +1,7 @@
 //! Finding text in a file: every place a typed phrase occurs, read window by window so a large
-//! file is never held whole. Matching ignores case and works on whole characters, so a hit's
-//! byte range always cuts the line at character boundaries.
+//! file is never held whole. Matching works on whole characters, so a hit's byte range always
+//! cuts the line at character boundaries; it ignores case and may be part of a word unless the
+//! phrase's options say otherwise.
 
 mod needle;
 

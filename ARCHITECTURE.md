@@ -176,6 +176,7 @@ no other public path. A module names only modules above it in this list.
 | `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind`, and `Adjust` (a picture's whole adjustment as one value: cut to a `PixelRect`, `Reflection`, `QuarterTurn`, resized; `turned`, `flipped` and `cropped` fold each new step into it, so a series of edits is one `Edit::Adjust`) |
+| `find` | `FindOptions` (how a find matches: `CaseMatch` and `WordMatch`, `#[non_exhaustive]` with `DEFAULT` and `with_*`; the one set text and PDF search both read) and `FindOption` (`MatchCase`, `WholeWords`: one toggle of it, with its label) |
 | `action` | `FileAction`, `Reach`, `reach`, `shortcut`, `own_keys`, `file_action_of` |
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
@@ -238,7 +239,7 @@ region is a directory with `model.rs` (the states, inputs, outputs and params), 
 | `chrome` | `Chrome`, `PinReasons` (a never-empty set), `ChromeParams` |
 | `panel` | `Panel`, `PanelTab`, `PanelTabs` |
 | `picture` | `PictureEdits` (the open picture's changes that are not saved: one `Adjust`, the steps ⌘Z takes back and ⇧⌘Z does again, and the crop rectangle while it is drawn), `PictureEditIn`, `PictureEditing`, and the rectangle's arithmetic (`CropBox`, `CropGrip`, `CropShape` and `CropLean` as `CropAspect`: where a press takes hold, how a drag moves it, what a held aspect makes of it, all in whole pixels of the picture as shown). A plain state like `Hand`, held by the `Viewer`; the file is written only when the host is asked to (⌘S, as `Edit::Adjust`) |
-| `palette` | quire's `PaletteState<Command>` (`ds_core::palette`: closed, or open with its text and highlight), under the names `Palette`, `PaletteOut` and `PaletteParams` (the ranked rows: commands, and for a find `Command::FindHit` rows and "Show All"); the `PaletteScope` (the commands the text names, or, as a find, the file's hits first) is not in it but in `Viewer::palette_scope`, and `step_with_scope` steps the two together: opening as a find, the Find row and "Show All" keep the palette open and change the scope, and every other input is quire's machine's, so anyview, temor's bar and a host of the pane walk rows by one machine |
+| `palette` | quire's `PaletteState<Command>` (`ds_core::palette`: closed, or open with its text and highlight), under the names `Palette`, `PaletteOut` and `PaletteParams` (the ranked rows: commands, and for a find `Command::FindHit` rows, "Show All" and the `Command::FindOption` rows of Match Case and Whole Words); the `PaletteScope` (the commands the text names, or, as a find, the file's hits first) is not in it but in `Viewer::palette_scope`, and `step_with_scope` steps the two together: opening as a find, the Find row and "Show All" keep the palette open and change the scope, a find option is run and keeps it open as it is, and every other input is quire's machine's, so anyview, temor's bar and a host of the pane walk rows by one machine |
 | `context` | `ContextMenu` (closed, or open with its corner), `ContextParams` (the rows and where a key opens it), `ContextPick`, `ContextEntry`, `Spot`, and `entries`: which of the palette's commands a Mac's context menu shows, in what order, under what titles, with its rules |
 | `sheet` | `Sheet`, `ExportDraft` (one format's export choice), `Sheet::Picture` with `PictureSheet` (Adjust Size: `ResizeDraft`, which keeps a width and a height in pixels or percent in proportion; and the Save, Don't Save, Cancel question asked before the window closes or another file opens, with the `PictureDeparture` it holds), and the install question for a missing tool: `Sheet::Helper` with `HelperPhase` (`Ask`, `Installing`, `Failed`, `NotFound`, `Unsupported`), `SheetIn::OfferHelper` and `HelperEnded(Helper, HelperEnd)`, `SheetOut::Provide` and `Reopen` |
 | `navigate` | `Navigate` over the core `Sequence`; `Leave` ends a walk when a dropped file is not one of the list |
@@ -318,7 +319,7 @@ one file.
 | `bytes` | `ByteSource` (read a range), `FileBytes`, `HeldBytes` |
 | `encoding` | `TextCodec`, `detect` (byte-order mark, UTF-8 validity, Windows-1252 fallback), `Coverage`, `Detected` |
 | `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest |
-| `find` | `Needle` (a phrase, lower-cased, never empty), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
+| `find` | `Needle` (a phrase, never empty; it ignores case and finds parts of words until `with_options` gives it a `FindOptions`: `CaseMatch::Exact` compares characters as they are, `WordMatch::Whole` rejects a hit that runs into a letter, digit or underscore beside it, but only on a side where the hit itself ends in a word character), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
 | `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
 | `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `DiskFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
 | `table` | `Table`, `HeaderMode`, `RowCount`, `RowIndex`, `ColumnCount`, `Separator` (comma, tab, semicolon or pipe, chosen by the rows), `CharWidth` and the read caps (`TABLE_BYTES`, `TABLE_ROWS`); `Workbook` and `Sheet` (calamine: XLSX, ODS, XLS, one `Table` per sheet, capped by `SHEET_ROWS` and `WORKBOOK_CELLS`; XLSX and XLSB are streamed cell by cell, so a sheet that claims a grid it does not hold costs the cells it has; `open_start` reads the first sheet's start for a peek); `header` (the guess) is private |
@@ -513,8 +514,8 @@ CPU memory.
 | `geometry` | `MilliPoints`, `PageSize`, `PageRect` (a rectangle as thousandths of the displayed page) and `displayed`, the one place page space becomes displayed space (crop box and `/Rotate`) |
 | `layout` | `PageLayout`, `PagePlace`: pages stacked at one scale, a height to a page and back |
 | `tile` | the pure scheduler: `ZoomBucket` (four steps to the doubling), `TileKey` (page, bucket, column, row), `schedule`, `Schedule`, `TileBatch`, `ViewWindow`; `key` and `zoom` hold the tile arithmetic |
-| `render` | `PdfWorker` (pdfrum's caches and the last prepared page, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
-| `search` | `SearchQuery`, `Hit`, `Hits`, `search_page`, `search_document` |
+| `render` | `PdfWorker` (pdfrum's caches, the last prepared page and the text of the pages searched, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
+| `search` | `SearchQuery` (the text and its `FindOptions`), `Hit` (a page, its rectangles and the `Snippet` of words around it), `Hits`, `search_page`, `search_document`; `texts` (`PageTexts`: the search text of the pages a worker has searched, kept by document and page under a budget of 4 Mi characters and let go oldest first, so a repeat search extracts only the pages that hit) and `snippet` (the clip of one line around a match). A phrase that begins at the end of a page and ends on the next is a hit of the page it begins on, found by matching the ends of two neighbouring pages joined by a line break; its rectangles mark the part on its own page |
 | `outline` | `OutlineEntry`, `Disclosure`, `outline`; `PdfLink`, `LinkTarget`, `page_links` |
 | `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file) |
 | `export` | `plan_export` (a PDF choice as `ExportJob`s: one for a PDF or a text file, one for each page of page images), `selected`, `write_pages`, `write_text` |
@@ -1242,7 +1243,8 @@ The single place a concept lives. Extend it; never write a second one.
 | Which tiles a view needs, in what order, at what zoom | `anyview_pdf::schedule`, `ZoomBucket` (`tile/schedule.rs`) |
 | A tile's pixels, and the page as laid out | `anyview_pdf::PdfBackend::run` (`PdfJob::Tiles`), `PageLayout` |
 | Page space to displayed space (crop box, `/Rotate`) | `anyview_pdf::displayed` (`geometry.rs`) |
-| Searching a PDF, and the hit a find shows | `anyview_pdf::search_document`, `Hits` |
+| Searching a PDF, and the hit a find shows | `anyview_pdf::search_document`, `Hits`, `Hit::snippet` |
+| Whether a find ignores case and finds parts of words, and the toggles that change it | `anyview_core::FindOptions`, `FindOption`; `Viewer::find_options` |
 | A PDF's outline and the links on a page | `anyview_pdf::outline`, `page_links` |
 | Rotating, deleting and moving PDF pages | `anyview_pdf::apply`, `PageOp` |
 | What a PDF export is made of | `anyview_pdf::plan_export` |
@@ -1662,7 +1664,14 @@ dialog instead. The title bar's edited dot is `PictureEdits::is_edited`. Leaving
 (`sheet/picture.rs`, `views/unsaved.rs`).
 
 Hits of a find live with whoever searched (a document can have thousands): the stages hold the
-hit count and a cursor, and ask for a hit to be shown by index. The root couples regions in three
+hit count and a cursor, and ask for a hit to be shown by index. How a find matches is not the
+stage's: `Viewer::find_options` (`FindOptions`) is kept for the window, so Match Case and Whole Words
+stay across finds and files. The palette lists them as `Command::FindOption` rows, checked, under
+"Options" between a find's hits and the commands, when there are hits to narrow or an option to undo;
+`run` switches the option and searches again through `searched`, as typing does. The edge reads the
+options from the machine when a stage's `FindOut::Search` reaches it and hands them to the job
+(`Job::Search`, `PdfAsk::Search`); an answer carries the options it was made with and is dropped when they
+are no longer the window's (the stage's own check is of the query alone). The root couples regions in three
 places only: a file starting to load (the stage goes, a new ticket is issued), a palette command
 (which region it belongs to), and the chrome's derived pins (a sheet, the palette or the
 context menu open, media paused).

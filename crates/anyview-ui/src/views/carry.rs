@@ -12,7 +12,7 @@ use crate::{
     SheetIn, SheetOut, Stage, StageIn, StageOut, TextIn, TextOut, Ticket, TypedText, ViewerIn,
     ViewerOut,
 };
-use anyview_core::{FilePath, Neighbours, Resume};
+use anyview_core::{FilePath, FindOptions, Neighbours, Resume};
 use dioxus::prelude::*;
 use ds::motion::detail::operation::{Operation, PendingToken};
 use ds::stack::toast_hub::ToastHub;
@@ -274,7 +274,7 @@ fn staged(c: &Carry, out: &StageOut) {
     }
     if let StageOut::Pdf(pdf) = out {
         // The pages and their search are drawn from the PDF shelf, not the text's.
-        shelf.pdf.carry(pdf.clone());
+        shelf.pdf.carry(pdf.clone(), find_options(c));
         return;
     }
     match out.find() {
@@ -306,16 +306,24 @@ fn remember(c: &Carry, resume: &Resume) {
     c.edge.request(HostRequest::Remember(resume.clone()));
 }
 
+/// How the window's find matches now: the options the person left on, which the machine keeps.
+fn find_options(c: &Carry) -> FindOptions {
+    c.dispatch()
+        .map(|dispatch| dispatch.machine.state().peek().find_options)
+        .unwrap_or_default()
+}
+
 /// Search the open file for `query`. A first frame is only the start of the file, so only the
 /// full open is searched; the stage asks again when it lands.
 fn search(c: &Carry, query: &TypedText) {
+    let options = find_options(c);
     if editing::searches_text(c) {
-        return editing::search(c, query);
+        return editing::search(c, query, options);
     }
     let Some((ticket, doc)) = c.shelf.loaded.peek().clone() else {
         return;
     };
-    if let Some(job) = doc.view().search(ticket, query) {
+    if let Some(job) = doc.view().search(ticket, query, options) {
         c.edge.submit(job);
     }
 }

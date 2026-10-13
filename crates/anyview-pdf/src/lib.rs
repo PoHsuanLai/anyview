@@ -70,7 +70,7 @@ pub use layout::{PageLayout, PagePlace};
 pub use outline::{Disclosure, LinkTarget, OutlineEntry, PdfLink, outline, page_links};
 pub use pictures::{PagePicture, pdf_of_pictures};
 pub use render::{End, PdfWorker, Raster, Tile};
-pub use search::{CaseMatch, Hit, Hits, SearchQuery, WordMatch, search_document, search_page};
+pub use search::{Hit, Hits, SearchQuery, Snippet, search_document, search_page};
 pub use tile::{
     Priority, Schedule, TILE_SIDE, TileBatch, TileCoord, TileKey, TileRect, ViewWindow, ZoomBucket,
     device_bound, schedule, tile_grid, tile_rect,

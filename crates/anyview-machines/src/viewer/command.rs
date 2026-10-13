@@ -11,7 +11,7 @@ use crate::picture::PictureEditIn;
 use crate::presentation::{Presentation, PresentationIn};
 use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn};
 use crate::stage::{Stage, StageIn, TextIn};
-use anyview_core::{Axis, Edit, FileAction, QuarterTurn};
+use anyview_core::{Axis, Edit, FileAction, FindOption, QuarterTurn};
 use ds_core::time::stamp::Stamp;
 
 pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerParams) -> Step {
@@ -32,6 +32,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
         },
         // The palette lists every hit and stays open; the row never reaches the viewer.
         Command::ShowAllHits => (viewer, vec![]),
+        Command::FindOption(option) => find_option(viewer, option, at, params),
         Command::ShowView(view) => {
             let other = match &viewer.stage {
                 Stage::Text(text) => text.place().view != view,
@@ -50,6 +51,20 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
         }
         Command::OpenFile => super::step::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
+    }
+}
+
+/// A find option switched: the window keeps it from now on, and the find that is up searches
+/// again with it.
+fn find_option(viewer: Viewer, option: FindOption, at: Stamp, params: &ViewerParams) -> Step {
+    let viewer = Viewer {
+        find_options: viewer.find_options.toggled(option),
+        ..viewer
+    };
+    let asked = viewer.stage.find_state().map(|(query, _)| query.clone());
+    match asked {
+        Some(query) => super::step::searched(viewer, &query, at, params),
+        None => (viewer, vec![]),
     }
 }
 

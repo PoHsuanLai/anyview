@@ -12,7 +12,7 @@ use crate::{
     PictureEditing, Sheet, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
     VersionList, ViewerIn, freshness,
 };
-use anyview_core::{FilePath, Helper, Resume};
+use anyview_core::{FilePath, FindOptions, Helper, Resume};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastAction;
 use std::sync::Arc;
@@ -36,8 +36,9 @@ pub(super) fn arrived(done: Done, c: &Carry) {
         Done::Found {
             ticket,
             query,
+            options,
             result,
-        } => found(c, ticket, query, result.unwrap_or_default()),
+        } => found(c, ticket, (query, options), result.unwrap_or_default()),
         Done::Pdf { ticket, answer } => pdf_arrived(c, ticket, answer),
         Done::Media { ticket } => media_arrived(c, ticket),
         Done::Preloaded { path, loaded } => {
@@ -400,7 +401,8 @@ fn told_of(c: &Carry, doc: &crate::LoadedDoc) -> Vec<StageIn> {
 
 /// A search answered: the hits are kept for the view, and the stage is told how many there are
 /// and which is nearest the reader.
-fn found(c: &Carry, ticket: Ticket, query: TypedText, hits: FoundHits) {
+fn found(c: &Carry, ticket: Ticket, asked: (TypedText, FindOptions), hits: FoundHits) {
+    let (query, options) = asked;
     let mut shelf = c.shelf;
     if shelf.loaded.peek().as_ref().map(|(held, _)| *held) != Some(ticket) {
         return;
@@ -408,15 +410,19 @@ fn found(c: &Carry, ticket: Ticket, query: TypedText, hits: FoundHits) {
     let Some(dispatch) = c.dispatch() else {
         return;
     };
+    let (stage, current) = {
+        let signal = dispatch.machine.state();
+        let state = signal.peek();
+        (state.stage.clone(), state.find_options)
+    };
     let Stage::Text(TextStage::Finding {
-        query: asked,
-        place,
-        ..
-    }) = dispatch.machine.state().peek().stage.clone()
+        query: up, place, ..
+    }) = stage
     else {
         return;
     };
-    if asked != query {
+    // An answer for another text, or for options since switched, is no answer to the find now up.
+    if up != query || current != options {
         return;
     }
     let (count, nearest) = (hits.count(), hits.nearest(place.line));

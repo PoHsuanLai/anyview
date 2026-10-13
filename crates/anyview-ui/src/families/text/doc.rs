@@ -6,8 +6,8 @@ use super::find::{FoundHits, Snippet, clip};
 use crate::io::{OpenError, OpenPort, Stop};
 use crate::{Editable, TypedText};
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FilePath, FormatDetail, FormatKind, LineIndex, Sniffed,
-    Source,
+    ByteLen, FactLabel, FactValue, Facts, FilePath, FindOptions, FormatDetail, FormatKind,
+    LineIndex, Sniffed, Source,
 };
 use anyview_text::{
     CodeLines, DiskFiles, EDIT_BYTES, EditRefusal, EditText, FileBytes, Highlighter, LineCount,
@@ -158,14 +158,15 @@ impl TextDoc {
             .collect()
     }
 
-    /// Every place `query` occurs, ignoring case; none for an empty query. Blocking; the hits
+    /// Every place `query` occurs as `options` say; none for an empty query. Blocking; the hits
     /// found so far when `stop` is raised.
     pub fn find(
         &self,
         query: &TypedText,
+        options: FindOptions,
         stop: &Stop,
     ) -> Result<FoundHits, anyview_text::TextError> {
-        match Needle::new(query.as_str()) {
+        match Needle::new(query.as_str()).map(|needle| needle.with_options(options)) {
             Some(needle) => {
                 let hits = self.text.find(&needle, stop)?;
                 let snippets = self.snippets(&hits);

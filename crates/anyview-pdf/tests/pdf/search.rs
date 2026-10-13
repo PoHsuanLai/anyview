@@ -3,10 +3,10 @@
 
 use crate::support;
 
-use anyview_core::{Dpi, Edit, PageIndex, QuarterTurn};
+use anyview_core::{CaseMatch, Dpi, Edit, FindOptions, PageIndex, QuarterTurn, WordMatch};
 use anyview_pdf::{
-    CaseMatch, PageRect, PdfDocument, PdfWorker, SearchQuery, Stop, WordMatch, apply, page_op,
-    search_document, search_page,
+    PageRect, PdfDocument, PdfWorker, SearchQuery, Stop, apply, page_op, search_document,
+    search_page,
 };
 use support::{drawn, fixture, has_ink};
 
@@ -18,13 +18,12 @@ fn pages_of(doc: &PdfDocument, query: &SearchQuery) -> Vec<u32> {
 #[test]
 fn hits_come_in_document_order_under_each_option() {
     let doc = fixture();
-    let query = |text: &str, case: CaseMatch, words: WordMatch| SearchQuery {
-        text: text.into(),
-        case,
-        words,
+    let query = |text: &str, case: CaseMatch, words: WordMatch| {
+        SearchQuery::new(text)
+            .with_options(FindOptions::default().with_case(case).with_words(words))
     };
     // name, query, pages of the hits
-    let cases: [(&str, SearchQuery, &[u32]); 8] = [
+    let cases: [(&str, SearchQuery, &[u32]); 11] = [
         (
             "part of a word, any case",
             query("fox", CaseMatch::Ignore, WordMatch::Part),
@@ -49,6 +48,21 @@ fn hits_come_in_document_order_under_each_option() {
             "a phrase across words",
             query("quick brown", CaseMatch::Ignore, WordMatch::Part),
             &[0],
+        ),
+        (
+            "a phrase over a page break is on the page it starts on",
+            query("dog. Chapter", CaseMatch::Ignore, WordMatch::Part),
+            &[0],
+        ),
+        (
+            "a phrase over a page break, case and whole words kept",
+            query("quick. Appendix", CaseMatch::Exact, WordMatch::Whole),
+            &[1],
+        ),
+        (
+            "words that no page break joins",
+            query("dog. Appendix", CaseMatch::Ignore, WordMatch::Part),
+            &[],
         ),
         (
             "a word on the last page",
@@ -93,6 +107,50 @@ fn a_hit_is_found_by_its_index_and_the_nearest_to_a_page_is_known() {
         assert_eq!(hits.nearest(PageIndex(page)), want, "{name}");
     }
     assert_eq!(anyview_pdf::Hits::default().nearest(PageIndex(4)), 0);
+}
+
+#[test]
+fn a_hit_carries_the_words_around_it_and_a_second_search_finds_the_same_hits() {
+    let doc = fixture();
+    let mut worker = PdfWorker::new();
+    let words = |hits: &anyview_pdf::Hits| -> Vec<(String, String)> {
+        hits.iter()
+            .map(|hit| {
+                let snippet = &hit.snippet;
+                (
+                    snippet.text.clone(),
+                    snippet.text[snippet.matched.clone()].to_owned(),
+                )
+            })
+            .collect()
+    };
+    // name, query, the match in each hit's words, a clip every hit's words hold
+    let cases = [
+        ("a word", "fox", vec!["fox", "fox", "Fox"], "fox"),
+        (
+            "a phrase over a page break",
+            "dog. Chapter",
+            vec!["dog. Chapter"],
+            "lazy dog. Chapter",
+        ),
+    ];
+    for (name, text, matched, clip) in cases {
+        let query = SearchQuery::new(text);
+        let (first, _) = search_document(&doc, &mut worker, &query, &Stop::new());
+        let (again, _) = search_document(&doc, &mut worker, &query, &Stop::new());
+        assert_eq!(
+            first, again,
+            "{name}: the second search reads the kept text"
+        );
+        let got = words(&first);
+        let marked: Vec<&str> = got.iter().map(|(_, matched)| matched.as_str()).collect();
+        assert_eq!(marked, matched, "{name}");
+        assert!(
+            got.iter()
+                .all(|(text, _)| text.to_lowercase().contains(&clip.to_lowercase())),
+            "{name}: {got:?}"
+        );
+    }
 }
 
 #[test]

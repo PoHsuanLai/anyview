@@ -10,7 +10,7 @@ use crate::io::{HostRequest, Job, SaveEnd, TextSave};
 use crate::{
     Changes, Freshness, Outside, Stage, StageIn, TextIn, Ticket, TypedText, ViewerIn, freshness,
 };
-use anyview_core::{FilePath, FileStamp, LineIndex, Source};
+use anyview_core::{FilePath, FileStamp, FindOptions, LineIndex, Source};
 use anyview_machines::seam::WrapChoices;
 use anyview_text::{EditRefusal, EditText, Needle, Session};
 use dioxus::prelude::*;
@@ -265,8 +265,9 @@ pub(super) fn searches_text(c: &Carry) -> bool {
 }
 
 /// Search the edited text for `query` as it is now, and tell the stage what was found.
-pub(super) fn search(c: &Carry, query: &TypedText) {
-    let Some(needle) = Needle::new(query.as_str()) else {
+pub(super) fn search(c: &Carry, query: &TypedText, options: FindOptions) {
+    let Some(needle) = Needle::new(query.as_str()).map(|needle| needle.with_options(options))
+    else {
         return;
     };
     let mut hits = c.shelf.hits;

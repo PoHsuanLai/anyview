@@ -224,7 +224,10 @@ impl Command {
                 PictureCommand::AdjustSize => None,
             },
             Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
-            Command::FindHit(_) | Command::ShowAllHits | Command::Install(_) => None,
+            Command::FindHit(_)
+            | Command::ShowAllHits
+            | Command::FindOption(_)
+            | Command::Install(_) => None,
         }
     }
 
@@ -242,6 +245,7 @@ impl Command {
             Command::Picture(command) => command.label().to_owned(),
             Command::FindHit(hit) => format!("Match {}", hit.0 + 1),
             Command::ShowAllHits => "Show All Matches".to_owned(),
+            Command::FindOption(option) => option.label().to_owned(),
             Command::ShowView(view) => match view {
                 crate::TextView::Rendered => "Show Preview".to_owned(),
                 crate::TextView::Source => "Show Source".to_owned(),
@@ -272,6 +276,9 @@ pub enum Command {
     FindHit(crate::HitIndex),
     /// List every hit of the find, not the first few. Only the palette lists it.
     ShowAllHits,
+    /// Switch one of the find's options (Match Case, Whole Words) and search again. Only the
+    /// palette lists it, in a find, and it stays open.
+    FindOption(anyview_core::FindOption),
     /// Offer to install the tool the open file needs: the Install… of a `Needs` row. The palette
     /// never lists it; a row of the stage's own sends it.
     Install(Helper),

@@ -8,7 +8,7 @@ use super::scene::{Frame, Scene, drawn, fits, percent, pinched, scale_of};
 use super::work::{Finish, FlightId, PdfAnswer};
 use crate::{FindOut, PdfOut, Stage, StageIn, TypedText};
 use anyview_core::work::StopState;
-use anyview_core::{PageIndex, Permille, Zoom};
+use anyview_core::{CaseMatch, FindOptions, PageIndex, Permille, Zoom};
 use anyview_pdf::Hits;
 use anyview_pdf::{MilliPoints, PageRect, PageSize, Priority, TileKey, ZoomBucket};
 
@@ -472,17 +472,36 @@ fn a_tile_that_cannot_be_drawn_is_not_asked_for_again() {
 fn a_search_answers_the_machine_once_and_only_for_the_query_asked() {
     let mut live = PdfLive::default();
     let query = TypedText::new("fox");
-    let _stop = live.searching(query.clone());
-    let answer = |text: &str, end| PdfAnswer::Searched {
+    let _stop = live.searching(query.clone(), FindOptions::default());
+    let answer = |text: &str, options, end| PdfAnswer::Searched {
         query: TypedText::new(text),
+        options,
         hits: Hits::default(),
         end,
     };
+    let exact = FindOptions::default().with_case(CaseMatch::Exact);
     // name, answer, whether the machine is told
     let cases = [
-        ("the query asked", answer("fox", Finish::Complete), true),
-        ("another query", answer("dog", Finish::Complete), false),
-        ("a search cut short", answer("fox", Finish::Cut), false),
+        (
+            "the query asked",
+            answer("fox", FindOptions::default(), Finish::Complete),
+            true,
+        ),
+        (
+            "another query",
+            answer("dog", FindOptions::default(), Finish::Complete),
+            false,
+        ),
+        (
+            "the same text under other options",
+            answer("fox", exact, Finish::Complete),
+            false,
+        ),
+        (
+            "a search cut short",
+            answer("fox", FindOptions::default(), Finish::Cut),
+            false,
+        ),
     ];
     for (name, reply, told) in cases {
         let input = live.received(reply, &Stage::NoStage);
@@ -493,19 +512,22 @@ fn a_search_answers_the_machine_once_and_only_for_the_query_asked() {
 #[test]
 fn a_newer_search_stops_the_one_before_it() {
     let mut live = PdfLive::default();
-    let before = live.searching(TypedText::new("fo"));
+    let before = live.searching(TypedText::new("fo"), FindOptions::default());
     assert_eq!(before.stopped(), StopState::Running);
-    let _after = live.searching(TypedText::new("fox"));
+    let _after = live.searching(TypedText::new("fox"), FindOptions::default());
     assert_eq!(before.stopped(), StopState::Stopped);
 }
 
 #[test]
 fn closing_the_find_ends_the_search_and_forgets_its_hits() {
     let mut live = PdfLive::default();
-    let stop = live.searching(TypedText::new("fox"));
-    live.carry(PdfOut::Find(FindOut::Search(TypedText::new("fox"))));
+    let stop = live.searching(TypedText::new("fox"), FindOptions::default());
+    live.carry(
+        PdfOut::Find(FindOut::Search(TypedText::new("fox"))),
+        FindOptions::default(),
+    );
     assert!(live.wants.search.is_some());
-    live.carry(PdfOut::Find(FindOut::Clear));
+    live.carry(PdfOut::Find(FindOut::Clear), FindOptions::default());
     assert_eq!(stop.stopped(), StopState::Stopped);
     assert!(live.wants.search.is_none());
     assert!(live.hits().is_empty());
@@ -518,9 +540,12 @@ fn what_the_machine_asks_waits_for_the_view() {
         page: PageIndex(2),
         offset: Permille(250),
     };
-    live.carry(PdfOut::ScrollTo(place));
+    live.carry(PdfOut::ScrollTo(place), FindOptions::default());
     assert_eq!(live.wants.scroll, Some(place));
-    live.carry(PdfOut::Find(FindOut::ShowHit(crate::HitIndex(3))));
+    live.carry(
+        PdfOut::Find(FindOut::ShowHit(crate::HitIndex(3))),
+        FindOptions::default(),
+    );
     assert_eq!(live.wants.show, Some(crate::HitIndex(3)));
 }
 
