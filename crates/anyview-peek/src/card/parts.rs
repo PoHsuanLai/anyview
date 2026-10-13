@@ -1,9 +1,9 @@
-//! What a caller asks the pane to draw: the picture (or page, lines, table), the file's name, the
+//! What a caller asks the card to draw: the picture (or page, lines, table), the file's name, the
 //! rows of facts.
 
 use ds::prelude::Word;
 
-/// One of the pieces the pane is made of.
+/// One of the pieces the card is made of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
 pub enum Part {
     /// The media box: the picture, page, lines, table or glyph the body stands for.
@@ -14,14 +14,14 @@ pub enum Part {
     Facts,
 }
 
-/// The parts of the pane a caller wants drawn, a set of [`Part`]. The default is all of them, which
-/// is the pane as it was before callers could choose: a mail attachment strip asks for
+/// The parts of the card a caller wants drawn, a set of [`Part`]. The default is all of them, which
+/// is the card as it was before callers could choose: a mail attachment strip asks for
 /// `Parts::of([Part::Media])`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Parts(u8);
 
 impl Parts {
-    /// Every part: the whole pane.
+    /// Every part: the whole card.
     pub const ALL: Parts = Parts(0b111);
 
     /// Just `parts`.

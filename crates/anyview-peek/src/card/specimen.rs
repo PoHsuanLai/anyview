@@ -1,5 +1,5 @@
 //! A font's specimen: each sample line is an inline SVG of the face's own outlines, filled with
-//! the pane's ink, so the face shown is exactly the one the file holds. The `data-ds-svg` marker is
+//! the card's ink, so the face shown is exactly the one the file holds. The `data-ds-svg` marker is
 //! quire's word for a component that draws its own vector, which its markup lint then allows.
 
 use anyview_font::{FontPeeked, SpecimenLine};

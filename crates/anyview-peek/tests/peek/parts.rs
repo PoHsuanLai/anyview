@@ -5,7 +5,7 @@
 
 use crate::support;
 
-use anyview_peek::{AnyPeeked, Pane, Part, Parts, peek};
+use anyview_peek::{AnyPeeked, Card, Part, Parts, peek};
 use dioxus::core::VirtualDom;
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
@@ -28,9 +28,9 @@ fn Root(setup: Setup) -> Element {
             material: Material::Window,
             stylesheet: Inject::Host,
             if let Some(parts) = setup.parts {
-                Pane { peeked, parts }
+                Card { peeked, parts }
             } else {
-                Pane { peeked }
+                Card { peeked }
             }
         }
     }

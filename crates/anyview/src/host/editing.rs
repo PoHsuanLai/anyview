@@ -3,7 +3,8 @@
 
 use super::outcome::{Declined, Outcome};
 use super::route::{Carry, Shown, Task};
-use anyview_core::{FileName, FilePath, FormatKind, Trail, TrailIn, TrailOut, edits_for};
+use anyview_core::{FileName, FilePath, FormatKind, edits_for};
+use anyview_machines::{Trail, TrailIn, TrailOut};
 use anyview_store::VersionId;
 use anyview_ui::{EditRequest, HostRequest, Rewind, TextSave, TypedText, VersionKey};
 use std::path::Path;

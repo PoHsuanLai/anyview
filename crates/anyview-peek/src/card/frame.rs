@@ -12,7 +12,7 @@ use dioxus::prelude::*;
 const FRAME_TAG: &str = "anyview-peek-markdown";
 
 /// The frame's own stylesheet: literal values, because a frame's document cannot read the
-/// pane's tokens. Dark on white, whatever the scheme.
+/// card's tokens. Dark on white, whatever the scheme.
 const FRAME_STYLE: &str = "body{margin:0;padding:12px;background:#fff;color:#1d1d1f;\
 font:13px/1.45 sans-serif}h1,h2,h3,h4,h5,h6{margin:0 0 6px;line-height:1.25}\
 h1{font-size:20px}h2{font-size:17px}h3{font-size:15px}p,ul,ol,pre,blockquote,table{margin:0 0 8px}\

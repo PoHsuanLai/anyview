@@ -5,7 +5,7 @@
 
 use crate::support;
 
-use anyview_peek::{AnyPeeked, Body, Pane, peek};
+use anyview_peek::{AnyPeeked, Body, Card, peek};
 use dioxus::prelude::*;
 use ds::prelude::{Appearance, Ds, Material};
 use ds_harness::{Backdrop, Backend, Harness, HarnessConfig, Query, Viewport};
@@ -24,7 +24,7 @@ fn app() -> Element {
         Ds {
             appearance: Appearance::default(),
             material: Material::Window,
-            Pane { peeked }
+            Card { peeked }
         }
     }
 }

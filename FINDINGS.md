@@ -193,20 +193,20 @@ on. It is a reference, not a log: how each was found lives in git history.
   budget pays for (4 KiB each), so on a large folder the named kinds are those of the first files by name.
   Ends if a recursive size matters: it needs a deadline the peeks do not have yet (`PeekBudget::time` is
   not enforced).
-- **The pane fills the box its host gives it, but a PDF page is told its size.** `Pane` has no padding of its
+- **The card fills the box its host gives it, but a PDF page is told its size.** `Card` has no padding of its
   own (the host pads), is as tall as its parent, and its media box (220 px when the parent has no height)
   shrinks so the name and every fact stay inside; a picture, lines, a table and the Markdown frame take
-  their size from that box. `PdfThumb` cannot (it draws a page into the `Size` it is given), so `Pane`'s
+  their size from that box. `PdfThumb` cannot (it draws a page into the `Size` it is given), so `Card`'s
   `page_room` prop (default `PANE_MEDIA`, 328 by 220 px) is the page's box and the host passes what its box
   leaves. A table still shows at most six columns and forty rows, and code and plain lines are clipped, not
-  wrapped or scrolled. Ends when quire's `PdfPage::Ready` becomes a texture the pane draws like a picture.
+  wrapped or scrolled. Ends when quire's `PdfPage::Ready` becomes a texture the card draws like a picture.
 - **The Markdown start is shown on a white sheet.** The peek's HTML goes into an `<iframe srcdoc>` whose own
   stylesheet has literal colours, because a frame cannot read the pane's tokens; it is dark on white in both
   schemes, as a mail's original message is (`--foreign-ground`). Ends when the Markdown stage's stylesheet
   lands in `anyview-ui` and the frame takes the same one (see the highlighted fences item above).
-- **Each `Pane` writes its stylesheet.** `Pane` draws `AppStyle { css: STYLE }` itself, so the markup holds
-  one `<style>` per pane. Ends if the launcher wants it once for the window: it can draw `AppStyle` with
-  `anyview_peek::STYLE` at its root and the pane's copy is then redundant but harmless.
+- **Each `Card` writes its stylesheet.** `Card` draws `AppStyle { css: STYLE }` itself, so the markup holds
+  one `<style>` per card. Ends if the launcher wants it once for the window: it can draw `AppStyle` with
+  `anyview_peek::STYLE` at its root and the card's copy is then redundant but harmless.
 - **The picture needs the window's GPU.** `TextureLayer` draws nothing on the CPU painter and until the
   device arrives with the first frame; the pane shows a placeholder block meanwhile and for good on a CPU
   renderer. Ends if a CPU-only launcher matters: it then needs a fallback (a PNG `data:` URL from
@@ -904,8 +904,8 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **What sill consumes in phase C.** `anyview_peek::look` on a worker (`PeekWorker::looking`; it probes the file and peeks at it as sniffed: the `Sniffed`
   replaces `Preview`'s `Image`, `TextFile`, `Pdf` and file-facts variants: a picture is `Body::Picture`, a text
   file `Body::Plain` or `Body::Code`, a PDF `Body::Page`, any other file or a folder `Body::FactsOnly` or
-  `Body::Folder`), `anyview_peek::Pane` to draw the `Arc<AnyPeeked>` it gets back, and `PeekBudget` from
-  its settings. `App`, `Clipboard`, `Emoji` and `Web` stay sill's own. The pane replaces
+  `Body::Folder`), `anyview_peek::Card` to draw the `Arc<AnyPeeked>` it gets back, and `PeekBudget` from
+  its settings. `App`, `Clipboard`, `Emoji` and `Web` stay sill's own. The card replaces
   `use_pdf_page(path, PANE_MEDIA)` and the image `data:` URLs in
   `sill-launcher-ui/src/launcher/preview/`; see the open item on `PreviewPane` for the frame around it.
 

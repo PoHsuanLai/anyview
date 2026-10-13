@@ -1,6 +1,5 @@
 use super::*;
 use crate::stage::row::{RowNo, RowStep};
-use anyview_core::{ColumnSort, SortDirection};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 

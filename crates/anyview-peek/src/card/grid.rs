@@ -8,7 +8,7 @@ use ds::components::lists::table::model::{Sorting, TableColumn, TableRow};
 use ds::components::lists::table::view::Table;
 use ds::prelude::Px;
 
-/// The most columns the pane draws; the facts say how many the table has.
+/// The most columns the card draws; the facts say how many the table has.
 const MAX_COLUMNS: usize = 6;
 
 /// How wide each column starts.

@@ -5,9 +5,9 @@
 //! is a cache hit when the pane asks for it again at the same size.
 
 use super::{PageLook, PageTrouble, PdfPeeked};
+use crate::card::page::look;
 use crate::error::PeekError;
 use crate::looking::PANE_FIT;
-use crate::pane::page::look;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, PixelSize, Sniffed,
 };

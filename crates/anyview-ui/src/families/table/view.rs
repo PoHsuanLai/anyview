@@ -7,8 +7,7 @@
 use super::doc::{SheetDoc, TableDoc};
 use crate::families::rows::compact_px;
 use crate::families::view::{Held, StageCx};
-use crate::{RowNo, SheetNo, Stage, StageIn, TableIn};
-use anyview_core::{ColumnSort, SortDirection, sorted_rows};
+use crate::{ColumnSort, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn, sorted_rows};
 use anyview_text::RowIndex;
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;

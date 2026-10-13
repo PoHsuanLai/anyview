@@ -5,7 +5,7 @@
 use crate::skip::skipped;
 use anyview::host::Appearances;
 use anyview::host::{
-    CachedPictures, Clock, Desktop, HelperHost, ImageHost, Media, SETTLE, Services, Store, Trash,
+    CachedPictures, Desktop, HelperHost, ImageHost, Media, SETTLE, Services, Store, Trash,
     TrashError, Watcher,
 };
 use anyview::media::{MediaHub, MediaPlugins, PlayerHost};
@@ -19,7 +19,7 @@ use anyview_platform::testing::{
     FakeStacking, FakeThumbnails, PluginSet, StackingSupport, plugins_with,
 };
 use anyview_platform::{PickOutcome, PluginRunner, PrintOutcome};
-use anyview_store::Viewed;
+use anyview_store::{Clock, Viewed};
 use anyview_ui::Look;
 use ds_harness::{
     Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, SizerAck, Viewport,

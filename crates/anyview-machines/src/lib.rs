@@ -33,6 +33,7 @@ mod stage;
 #[cfg(test)]
 mod testing;
 mod time;
+mod trail;
 mod typed;
 mod viewer;
 
@@ -68,16 +69,18 @@ pub use sheet::{
     format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
-    AfterScrub, Animation, Changes, ControlOffer, Destination, EditFind, Editable, Edited,
-    EndReason, FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor,
+    AfterScrub, Animation, Changes, ColumnSort, ControlOffer, Destination, EditFind, Editable,
+    Edited, EndReason, FindHits, FindOut, FrameCount, FrameDelays, FrameIndex, HitCount, HitCursor,
     HitIndex, HitStep, LineTotal, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
     MediaStage, Motion, Outside, Pace, PageEdits, PageLines, PageView, PdfIn, PdfOut, PdfParams,
     PdfStage, PlayerCommand, PlayerEvent, Playing, RasterIn, RasterOut, RasterParams, RasterStage,
-    RowNo, RowStep, Runs, SheetNo, SheetTotal, Stage, StageAbilities, StageFamily, StageIn,
-    StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage, TextExtent,
-    TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, TrackKind,
-    TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
+    RowNo, RowStep, Runs, SheetNo, SheetTotal, SortDirection, Stage, StageAbilities, StageFamily,
+    StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams, TableStage,
+    TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews,
+    TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
+    is_numeric, sorted_rows,
 };
+pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use typed::TypedText;
 pub use viewer::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 

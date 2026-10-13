@@ -2,10 +2,10 @@
 //! ask for, and the rows of the Info tab.
 
 use crate::io::OpenError;
+use crate::is_numeric;
 use anyview_archive::office_look;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Sniffed, Source,
-    is_numeric,
 };
 use anyview_fs::OnDisk;
 use anyview_text::{CharWidth, Coverage, HeaderMode, RowIndex, Table, Workbook};

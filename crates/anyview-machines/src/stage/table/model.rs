@@ -1,7 +1,7 @@
 //! The table stage's states, inputs and parameters.
 
+use super::column::ColumnSort;
 use crate::stage::row::{RowNo, RowStep};
-use anyview_core::ColumnSort;
 
 /// A sheet of the open file, zero-based. A delimited file has one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]

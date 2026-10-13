@@ -60,7 +60,7 @@ fn the_peek_lists_the_camera_but_neither_the_place_nor_a_serial_number() {
 #[cfg(feature = "pane")]
 mod pane {
     use super::*;
-    use anyview_peek::{AnyPeeked, Pane};
+    use anyview_peek::{AnyPeeked, Card};
     use dioxus::core::VirtualDom;
     use dioxus::prelude::*;
     use ds::assembly::ds::Inject;
@@ -80,7 +80,7 @@ mod pane {
                 appearance: Appearance::default(),
                 material: Material::Window,
                 stylesheet: Inject::Host,
-                Pane { peeked }
+                Card { peeked }
             }
         }
     }

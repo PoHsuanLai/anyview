@@ -3,7 +3,7 @@
 //! anyview_peek::prelude::*;` brings them in.
 //!
 //! What belongs here is the front door ([`look`], [`Peeking`]), the answer ([`AnyPeeked`],
-//! [`Body`], [`Unavailable`]), the worker, and the pane with the parts it is asked to draw. The
+//! [`Body`], [`Unavailable`]), the worker, and the card with the parts it is asked to draw. The
 //! per-format peeks, the registry and the helpers stay at the crate root.
 
 pub use crate::{
@@ -12,4 +12,4 @@ pub use crate::{
 };
 
 #[cfg(feature = "pane")]
-pub use crate::{Pane, Part, Parts};
+pub use crate::{Card, Part, Parts};

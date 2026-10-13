@@ -3,8 +3,9 @@
 
 use super::editing;
 use super::outcome::Declined;
-use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, Trail, actions_for};
+use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, actions_for};
 use anyview_export::DocumentExport;
+use anyview_machines::Trail;
 use anyview_store::VersionId;
 use anyview_ui::{
     EditRequest, ExportDraft, HostRequest, Opened, Presentation, SizeBasis, TextSave, VersionKey,

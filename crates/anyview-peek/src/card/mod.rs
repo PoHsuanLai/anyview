@@ -1,10 +1,10 @@
-//! The pane: what a peek looks like. One component draws every kind from the type-erased
+//! The card: what a peek looks like. One component draws every kind from the type-erased
 //! [`AnyPeeked`]: a picture, a page, highlighted lines, a table, a tree's top level, a rendered
 //! Markdown start, a folder or a file's facts, over the file's name and its rows of facts.
 //!
 //! It is drawn with quire's components (`FactList`, `Table`, `PdfThumb`, `TextureLayer`,
 //! `InlineBanner`) and a small stylesheet of its own in the `app` layer, made of design-system
-//! tokens only. The pane never takes the keyboard and holds no state of its own beyond the texture
+//! tokens only. The card never takes the keyboard and holds no state of its own beyond the texture
 //! it shows: the actions under it are the host's (the launcher's rows, the viewer's capsule).
 
 mod frame;
@@ -32,7 +32,7 @@ use std::sync::Arc;
 
 pub use parts::{Part, Parts};
 
-// The page is rasterised for the box the pane fits it into; the two must stay one size.
+// The page is rasterised for the box the card fits it into; the two must stay one size.
 const _: () = {
     let mine = crate::looking::PANE_FIT;
     assert!(
@@ -40,19 +40,19 @@ const _: () = {
     );
 };
 
-/// The pane's stylesheet: the `app` layer, tokens only (`tests/coherence.rs` lints it Strict).
-pub const STYLE: &str = include_str!("pane.css");
+/// The card's stylesheet: the `app` layer, tokens only (`tests/coherence.rs` lints it Strict).
+pub const STYLE: &str = include_str!("card.css");
 
-/// What a peeked file looks like. Draw it inside a `Ds` root, in a column as wide as the pane
+/// What a peeked file looks like. Draw it inside a `Ds` root, in a column as wide as the card
 /// (328 px of content is what `PANE_MEDIA` fits a picture or a page into).
 ///
 /// `parts` says which of the media, the name and the facts are drawn; the default is all three. A
 /// strip that shows an attachment as a picture alone asks for `Parts::of([Part::Media])`.
 ///
-/// `peeked` is shared so a host can keep one result and hand it to the pane on every render
+/// `peeked` is shared so a host can keep one result and hand it to the card on every render
 /// without copying pixels or comparing them (`Arc` equality starts at the pointer).
 #[component]
-pub fn Pane(
+pub fn Card(
     peeked: Arc<AnyPeeked>,
     #[props(default)] parts: Parts,
     #[props(default = PANE_MEDIA)] page_room: Size,

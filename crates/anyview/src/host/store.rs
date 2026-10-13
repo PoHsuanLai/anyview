@@ -2,11 +2,9 @@
 //! has one writer (anyview-store), so every window of the process goes through this one lock.
 
 use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
-use anyview_store::{HistoryCap, SavedAt, StoreError, StoreWriter};
+use anyview_store::{Clock, HistoryCap, SavedAt, StoreError, StoreWriter};
 use std::path::Path;
 use std::sync::{Mutex, PoisonError};
-
-pub use anyview_store::Clock;
 
 /// The store of recently viewed files and per-file view memory.
 pub struct Store {
