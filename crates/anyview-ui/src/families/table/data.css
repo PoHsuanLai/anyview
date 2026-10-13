@@ -4,11 +4,9 @@
    the header's hairline once scrolled are its `ColumnRules::Hairline` and `HeaderRule`. Tokens
    only. */
 
-/* A table's header stays put at the top, so the titlebar would cover it the way it covers the top
-   of a page: the data starts under the bar, as Numbers' sheet starts under its toolbar. A pane has
-   no titlebar. */
-.viewer-data{ position:absolute; inset:var(--chrome-titlebar-height) 0 0 0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
-.viewer[*|data-hosting=pane] .viewer-data{ top:0; }
+/* The data starts under the titlebar by the shared `.viewer-scrolls` rule (views/window.css); this
+   sets the other three edges. */
+.viewer-data{ position:absolute; left:0; right:0; bottom:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
 .viewer-row-number{ color:var(--ink-faint); }
 .viewer-node{ display:inline-flex; gap:0; white-space:pre; }
 .viewer-node-key{ flex:none; }

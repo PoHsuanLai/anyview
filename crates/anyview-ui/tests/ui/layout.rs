@@ -34,6 +34,18 @@ fn open(kind: &str, w: u32, ht: u32, scale: u32) -> (tempfile::TempDir, Harness)
             wiring.player = Some(FakePlayer::answering(Answer::Plays));
             folder(&[("anyview-media", "clip.mkv", "c.mkv")])
         }
+        "tree" | "markdown" => {
+            let (name, body) = if kind == "tree" {
+                ("t.json", "{\"a\": 1}\n")
+            } else {
+                ("m.md", "# Title\n\nbody\n")
+            };
+            let d = tempfile::tempdir().unwrap();
+            let p = d.path().join(name);
+            std::fs::write(&p, body).unwrap();
+            let p = std::fs::canonicalize(p).unwrap();
+            (d, vec![p])
+        }
         "pdf" => {
             let d = tempfile::tempdir().unwrap();
             let p = d.path().join("f.pdf");
@@ -250,4 +262,34 @@ fn the_titlebar_does_not_cover_the_top_of_the_panel_tabs() {
         bar.y + bar.h,
         tabs.y
     );
+}
+
+#[test]
+fn a_stage_that_scrolls_a_document_from_its_top_starts_below_the_titlebar() {
+    // kind, the first thing of the document drawn
+    const CASES: &[(&str, &str)] = &[
+        ("text", ".viewer-line"),
+        ("markdown", ".viewer-text"),
+        ("table", ".viewer-data"),
+        ("tree", ".viewer-data"),
+    ];
+    for scale in [100, 200] {
+        for (kind, top) in CASES {
+            let (_d, mut h) = open(kind, 900, 600, scale);
+            pointer(&mut h, 900, 600);
+            assert_eq!(
+                h.attr(".viewer-titlebar", "data-shown").as_deref(),
+                Some("visible"),
+                "{kind}@{scale}"
+            );
+            let bar = all(&h, ".viewer-titlebar")[0];
+            let first = all(&h, top)[0];
+            assert!(
+                first.y >= bar.y + bar.h,
+                "{kind}@{scale}: the document starts at {} under the titlebar's bottom {}",
+                first.y,
+                bar.y + bar.h
+            );
+        }
+    }
 }

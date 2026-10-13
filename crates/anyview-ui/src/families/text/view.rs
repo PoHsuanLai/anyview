@@ -6,9 +6,12 @@ use super::doc::TextDoc;
 use super::edit::lines::EditLines;
 use super::find::{FoundHits, Mark, pieces};
 use super::frame;
+use super::tabs;
 use crate::families::view::{Held, StageCx};
+use crate::views::failed::{FailedScreen, Offer};
 use crate::{
-    Changes, FindHits, Stage, StageIn, TextIn, TextPlace, TextStage, TextView as Shown, Wrap,
+    Changes, FindHits, LoadFailure, Stage, StageIn, TextIn, TextPlace, TextStage,
+    TextView as Shown, Wrap,
 };
 use anyview_core::LineIndex;
 use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
@@ -18,6 +21,14 @@ use ds::prelude::Word;
 
 /// The height of one line in logical pixels: the `--s-20` step of the stylesheet.
 const ROW: f32 = 20.0;
+
+/// The height of the titlebar in logical pixels: the `--chrome-titlebar-height` token, which the
+/// stage's top starts below (`.viewer-scrolls`, views/window.css). A pane has no titlebar, so
+/// counting it there only makes a page a line or so short.
+const TITLEBAR: f32 = 28.0;
+
+/// Lines drawn past the ones that fit, so a partial row at the bottom is never blank.
+const SPARE: u32 = 2;
 
 /// Lines asked for beyond the room, so a short scroll lands on lines already read.
 const OVERSCAN: u32 = 8;
@@ -63,10 +74,10 @@ fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
     }
 }
 
-/// How many lines the room holds.
+/// How many lines fit the room that the stage's `height` leaves below the titlebar.
 pub(super) fn rows_of(height: f32) -> u32 {
     // A positive, finite height over a constant: truncating to whole rows is the point.
-    (height / ROW).floor().max(1.0) as u32
+    ((height - TITLEBAR) / ROW).floor().max(1.0) as u32
 }
 
 fn class_of(class: TokenClass) -> String {
@@ -87,12 +98,18 @@ pub(super) fn piece_class(class: TokenClass, mark: Mark) -> String {
 fn line(line: &TokenLine, wrap: Wrap, hits: &[FindHit], current: Option<usize>) -> Element {
     let number = line.number.0 + 1;
     let cut = pieces(line, hits, current);
+    // A tab is drawn as spaces to the next stop, the line's pieces counting on from each other.
+    let mut column = 0;
+    let drawn: Vec<String> = cut
+        .iter()
+        .map(|piece| tabs::expand(&piece.text, &mut column))
+        .collect();
     rsx! {
         div { class: "viewer-line", "data-wrap": wrap.slug(),
             span { class: "viewer-lineno", "{number}" }
             span { class: "viewer-code",
-                for piece in cut.iter() {
-                    span { class: piece_class(piece.class, piece.mark), "{piece.text}" }
+                for (piece, text) in cut.iter().zip(drawn.iter()) {
+                    span { class: piece_class(piece.class, piece.mark), "{text}" }
                 }
             }
         }
@@ -152,9 +169,10 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     });
 
     let (Some(area), Some(place)) = (cx.area, place_of(&cx.stage)) else {
-        return rsx! { div { class: "viewer-text" } };
+        return rsx! { div { class: "viewer-text viewer-scrolls" } };
     };
-    let rows = rows_of(area.size.height.0);
+    let page = rows_of(area.size.height.0);
+    let rows = page + SPARE;
     let first = place.line;
     // Once the text is read for editing, the room shows it and not the lines a worker read.
     let editing =
@@ -172,10 +190,22 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         }
     }));
 
+    // A file of no bytes shows what an empty picture or recording shows. Editing it is still
+    // offered, and the editor over it is empty.
+    if doc.0.is_empty() && !matches!(cx.stage, Stage::Text(TextStage::Editing { .. })) {
+        return rsx! {
+            FailedScreen {
+                reason: LoadFailure::Empty,
+                name: String::new(),
+                offer: Offer::Nothing,
+                onreveal: |()| {},
+            }
+        };
+    }
     if let (Shown::Rendered, Some(rendered)) = (place.view, doc.0.rendered.as_ref()) {
         let page = frame::document(rendered, &cx.frame);
         return rsx! {
-            div { class: "viewer-text", "data-view": "rendered",
+            div { class: "viewer-text viewer-scrolls", "data-view": "rendered",
                 iframe { class: "viewer-frame", "data-frame-tag": "page", srcdoc: page }
             }
         };
@@ -184,13 +214,14 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     let current = find.as_ref().and_then(|(_, hits)| hits.current());
     if editing {
         return rsx! {
-            div { class: "viewer-text", "data-view": "source", "data-editing": "on",
+            div { class: "viewer-text viewer-scrolls", "data-view": "source", "data-editing": "on",
                 EditLines {
                     session: cx.text_edit,
                     handle: cx.text_editor,
                     doc: Some(doc.clone()),
                     first: first.0,
                     rows,
+                    page,
                     wrap: place.wrap,
                     hits: cx.hits.clone(),
                     current,
@@ -201,7 +232,7 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         };
     }
     rsx! {
-        div { class: "viewer-text", "data-view": "source",
+        div { class: "viewer-text viewer-scrolls", "data-view": "source",
             if let Some(window) = cx.lines.as_ref() {
                 for visible in window.0.lines.iter().filter(|line| {
                     line.number.0 >= first.0 && line.number.0 < first.0.saturating_add(rows)
@@ -212,6 +243,24 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
                     }
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_rows_that_fit_are_counted_below_the_titlebar_and_are_at_least_one() {
+        // name, the stage's height, rows
+        const CASES: &[(&str, f32, u32)] = &[
+            ("a few", 100.0, 3),
+            ("exactly two", TITLEBAR + 2.0 * ROW, 2),
+            ("less than the bar", 10.0, 1),
+        ];
+        for (name, height, rows) in CASES {
+            assert_eq!(rows_of(*height), *rows, "{name}");
         }
     }
 }

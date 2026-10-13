@@ -9,7 +9,7 @@ use ds::prelude::{Button, EmptyState, Icon};
 
 /// What the screen offers besides its words.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Offer {
+pub(crate) enum Offer {
     /// The file is there to be found: its folder may be shown.
     Reveal,
     /// Nothing but the words.
@@ -69,7 +69,7 @@ pub(super) fn words(reason: LoadFailure, name: &str) -> (&'static str, String) {
 
 /// A file that did not open: the reason, and the buttons `offer` allows.
 #[component]
-pub(super) fn FailedScreen(
+pub(crate) fn FailedScreen(
     reason: LoadFailure,
     name: String,
     offer: Offer,
