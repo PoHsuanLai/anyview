@@ -19,6 +19,7 @@ pub struct Lookup {
 
 impl Lookup {
     /// The lookup of this process: its arguments and `PATH`, and the variables named in `vars`.
+    #[must_use]
     pub fn from_process(vars: &[&str]) -> Lookup {
         Lookup {
             args: std::env::args().skip(1).collect(),

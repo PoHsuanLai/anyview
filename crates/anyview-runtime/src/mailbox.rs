@@ -54,6 +54,7 @@ impl<T> fmt::Debug for Outbox<T> {
 
 impl<T: Send> Mailbox<T> {
     /// A mailbox and its outbox; `waker` is called when the first message arrives after a drain.
+    #[must_use]
     pub fn new(waker: impl UiWaker) -> (Mailbox<T>, Outbox<T>) {
         let inner = Arc::new(Inner {
             queue: Mutex::new(VecDeque::new()),

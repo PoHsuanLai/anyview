@@ -17,6 +17,7 @@ pub struct Opening {
 
 impl Opening {
     /// `file` with the files of its folder. Blocking: it lists the folder.
+    #[must_use]
     pub fn around(file: FilePath) -> Opening {
         let sequence = sequence_around(&file);
         Opening {
@@ -28,6 +29,7 @@ impl Opening {
 
     /// The file the launcher handed over, with the results and the place it brought: nothing is
     /// listed, since the results are the sequence.
+    #[must_use]
     pub fn handed(handoff: Handoff) -> Opening {
         Opening {
             file: handoff.file,

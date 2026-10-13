@@ -22,6 +22,7 @@ pub enum TreeStage {
 
 impl TreeStage {
     /// The nodes that are open.
+    #[must_use]
     pub fn open(&self) -> &OpenNodes {
         match self {
             TreeStage::Browsing { open } | TreeStage::Selected { open, .. } => open,
@@ -29,6 +30,7 @@ impl TreeStage {
     }
 
     /// The row the cursor is on, when there is one.
+    #[must_use]
     pub fn row(&self) -> Option<RowNo> {
         match self {
             TreeStage::Browsing { .. } => None,

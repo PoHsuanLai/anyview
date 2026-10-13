@@ -33,16 +33,19 @@ pub struct PinReasons(u8);
 
 impl PinReasons {
     /// The set holding only `reason`.
+    #[must_use]
     pub const fn of(reason: PinReason) -> Self {
         PinReasons(reason.bit())
     }
 
     /// This set and `reason`.
+    #[must_use]
     pub const fn with(self, reason: PinReason) -> Self {
         PinReasons(self.0 | reason.bit())
     }
 
     /// This set without `reason`, or `None` when nothing is left to hold the chrome.
+    #[must_use]
     pub const fn without(self, reason: PinReason) -> Option<Self> {
         let bits = self.0 & !reason.bit();
         if bits == 0 {
@@ -53,6 +56,7 @@ impl PinReasons {
     }
 
     /// Whether `reason` is in the set.
+    #[must_use]
     pub const fn contains(self, reason: PinReason) -> bool {
         self.0 & reason.bit() != 0
     }

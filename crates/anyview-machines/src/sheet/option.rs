@@ -56,6 +56,7 @@ impl SizePick {
 
     /// The segment `resize` is, or `None` for a scale that is neither half nor a quarter: no
     /// segment is lit for a size the person did not pick from them.
+    #[must_use]
     pub fn of(resize: Resize) -> Option<SizePick> {
         match resize {
             Resize::Original => Some(SizePick::Original),
@@ -67,6 +68,7 @@ impl SizePick {
     }
 
     /// The resize this segment asks for; `long` is the edge a long-edge pick starts on.
+    #[must_use]
     pub fn resize(self, long: PixelLen) -> Resize {
         match self {
             SizePick::Original => Resize::Original,
@@ -239,6 +241,7 @@ pub fn format_of(target: RasterTarget) -> RasterExportKind {
 impl ExportDraft {
     /// The options the sheet shows for this draft, top to bottom. None for a format with nothing
     /// to choose.
+    #[must_use]
     pub fn controls(self, facts: &ExportFacts, span: PageSpan) -> Vec<ExportControl> {
         let pages = |controls: &mut Vec<ExportControl>| {
             if facts.several_pages().is_some() {
@@ -295,6 +298,7 @@ impl ExportDraft {
 
     /// The draft as the sheet first shows it for `facts`: a trim starts on the marks when there
     /// are some.
+    #[must_use]
     pub fn seeded(self, facts: &ExportFacts) -> ExportDraft {
         match (self, facts.marks) {
             (ExportDraft::Media(MediaExport::Trim(_)), Some(marks)) => {
@@ -306,6 +310,7 @@ impl ExportDraft {
 
     /// The draft and page choice after `option` changed. An option that means nothing for this
     /// draft changes nothing; one outside its limits lands on the nearest value inside them.
+    #[must_use]
     pub fn tuned(
         self,
         option: ExportOption,

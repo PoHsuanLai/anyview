@@ -32,6 +32,7 @@ impl Default for PluginRegistry {
 impl PluginRegistry {
     /// A registry that starts as `plugins` and becomes what `reread` finds each time it is
     /// refreshed.
+    #[must_use]
     pub fn rereading(
         plugins: Plugins,
         reread: impl Fn() -> Plugins + Send + Sync + 'static,
@@ -43,6 +44,7 @@ impl PluginRegistry {
     }
 
     /// A registry that is always `plugins`: refreshing finds the same ones.
+    #[must_use]
     pub fn fixed(plugins: Plugins) -> PluginRegistry {
         let again = plugins.clone();
         PluginRegistry::rereading(plugins, move || again.clone())
@@ -50,6 +52,7 @@ impl PluginRegistry {
 
     /// The plugins now. A caller holds one answer for the whole of a request, so a refresh in the
     /// middle of it changes nothing it is already doing.
+    #[must_use]
     pub fn current(&self) -> Arc<Plugins> {
         Arc::clone(&self.current.read().unwrap_or_else(PoisonError::into_inner))
     }

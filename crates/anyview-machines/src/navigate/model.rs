@@ -49,6 +49,7 @@ impl From<ds_core::machine::Elapsed> for NavigateIn {
 
 impl NavigateIn {
     /// What a key means to navigation: the arrows and Home and End.
+    #[must_use]
     pub fn from_key(keys: &[ShortcutKey]) -> Option<NavigateIn> {
         match keys {
             [ShortcutKey::Right] => Some(NavigateIn::Next),

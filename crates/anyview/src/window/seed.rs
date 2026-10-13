@@ -58,6 +58,7 @@ impl<T: WindowStacking + Send + Sync + 'static> StackingAsk for T {
 impl Factory {
     /// The wiring of the program: the views read where files were left through `hosting`, and
     /// first frames from `first_frames`.
+    #[must_use]
     pub fn new(
         workers: Arc<dyn Workers>,
         hosting: Arc<dyn Hosting>,
@@ -85,6 +86,7 @@ impl Factory {
 
     /// The same wiring fitting windows to the screen `text` names, as `WIDTHxHEIGHT` logical
     /// pixels, in place of the desktop's: for tests. Text that names no screen is ignored.
+    #[must_use]
     pub fn with_window_screen(self, text: Option<&str>) -> Factory {
         Factory {
             window_screen: text.and_then(parse_screen),
@@ -93,6 +95,7 @@ impl Factory {
     }
 
     /// The same wiring offering to install the tools `helpers` knows when a plugin lacks one.
+    #[must_use]
     pub fn with_helpers(self, helpers: Arc<HelperHost>) -> Factory {
         Factory {
             helpers: Some(helpers),
@@ -101,6 +104,7 @@ impl Factory {
     }
 
     /// The same wiring decoding pictures through `plugins`.
+    #[must_use]
     pub fn with_image_plugins(self, plugins: Arc<dyn ImagePlugins>) -> Factory {
         Factory {
             image_plugins: plugins,

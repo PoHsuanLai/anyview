@@ -85,6 +85,7 @@ pub fn kind_hint(pick: ExportKindPick) -> &'static str {
 
 impl ExportDraft {
     /// The extension of the file this draft writes.
+    #[must_use]
     pub fn extension(self) -> ExportExtension {
         match self {
             ExportDraft::Raster(choice) => choice.extension(),
@@ -97,6 +98,7 @@ impl ExportDraft {
     /// The name the export is saved under beside `original`: its name with the new extension. A
     /// trim or a copied track keeps the original's extension, as the back end does. `None` when
     /// the file has no name to build on, so there is nothing true to say.
+    #[must_use]
     pub fn saved_as(self, original: &str) -> Option<String> {
         if original.is_empty() {
             return None;

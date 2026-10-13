@@ -17,6 +17,7 @@ pub enum Tool {
 
 impl Tool {
     /// The other of Select and Pan, which H switches between; Crop goes back to Pan.
+    #[must_use]
     pub fn other(self) -> Tool {
         match self {
             Tool::Select | Tool::Crop => Tool::Pan,
@@ -25,6 +26,7 @@ impl Tool {
     }
 
     /// The word the control and the palette name it by.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             Tool::Select => "Select",
@@ -68,11 +70,13 @@ pub enum HandIn {
 
 impl Hand {
     /// Whether a drag pans now: the tool is on, or Space is held.
+    #[must_use]
     pub fn pans(self) -> bool {
         self.tool == Tool::Pan || self.space == Space::Down
     }
 
     /// The hand after `input`.
+    #[must_use]
     pub fn step(self, input: HandIn) -> Hand {
         match input {
             HandIn::Toggle => Hand {

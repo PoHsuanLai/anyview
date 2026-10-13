@@ -16,6 +16,7 @@ pub enum PictureCommand {
 
 impl PictureCommand {
     /// The words the palette lists the command by.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             PictureCommand::AdjustSize => "Adjust Size\u{2026}",
@@ -171,6 +172,7 @@ impl StageCommand {
     /// The command a press stands for, before the stage has said whether it has it: the command of
     /// the chord's action, or of the plain key. Modifiers come first in a plain key, in the
     /// order `Shortcut::keys` normalises to.
+    #[must_use]
     pub fn from_press(press: &Press) -> Option<StageCommand> {
         match press {
             Press::Act(act) => CHORDS
@@ -188,6 +190,7 @@ impl StageCommand {
 
     /// The keys the palette shows beside the command: its action's chord as the keymap binds it,
     /// else the first plain key that turns back into it.
+    #[must_use]
     pub fn shortcut(self) -> Option<Shortcut> {
         CHORDS
             .iter()
@@ -226,6 +229,7 @@ impl Command {
     }
 
     /// The words the palette lists the command by.
+    #[must_use]
     pub fn label(&self) -> String {
         match self {
             Command::File(action) => action.label().to_string(),

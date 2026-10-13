@@ -15,6 +15,7 @@ pub struct WrapChoices {
 
 impl WrapChoices {
     /// How a file of `kind` starts.
+    #[must_use]
     pub fn of(self, kind: FormatKind) -> Wrap {
         match kind {
             FormatKind::PlainText => self.plain.unwrap_or(Wrap::On),
@@ -37,6 +38,7 @@ impl WrapChoices {
     }
 
     /// The same, once the person has chosen `wrap` for `kind`.
+    #[must_use]
     pub fn chose(self, kind: FormatKind, wrap: Wrap) -> WrapChoices {
         let chosen = Some(wrap);
         match kind {

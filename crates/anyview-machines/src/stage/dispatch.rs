@@ -20,6 +20,7 @@ use anyview_core::{Speed, Zoom};
 impl Stage {
     /// The input that carries out `command` on this stage, or `None` when this stage has no
     /// such command (a PDF has no source view, an image no playback to toggle).
+    #[must_use]
     pub fn input_for(&self, command: StageCommand, params: &StageParams) -> Option<StageIn> {
         match self {
             Stage::NoStage => None,
@@ -33,6 +34,7 @@ impl Stage {
     }
 
     /// What has been done to the text, while the stage is editing it.
+    #[must_use]
     pub fn edited(&self) -> Option<Edited> {
         match self {
             Stage::Text(stage) => stage.edited(),
@@ -47,6 +49,7 @@ impl Stage {
 
     /// Whether the person has a row picked in a table or a tree: Esc puts it away, and until then
     /// the keys that would walk the folder are the reader's.
+    #[must_use]
     pub fn has_cursor(&self) -> bool {
         match self {
             Stage::Table(TableStage::Selected { .. }) | Stage::Tree(TreeStage::Selected { .. }) => {
@@ -63,6 +66,7 @@ impl Stage {
     }
 
     /// The input that searches the file for `query`, for a stage that can search.
+    #[must_use]
     pub fn find_input(&self, query: &TypedText) -> Option<StageIn> {
         match self {
             Stage::Text(_) => Some(StageIn::Text(TextIn::Find(query.clone()))),
@@ -76,6 +80,7 @@ impl Stage {
     }
 
     /// The input that makes `hit` the current one of the find that is up.
+    #[must_use]
     pub fn hit_input(&self, hit: HitIndex) -> Option<StageIn> {
         match self {
             Stage::Text(TextStage::Finding { .. } | TextStage::Editing { find: Some(_), .. }) => {
@@ -93,6 +98,7 @@ impl Stage {
     }
 
     /// The text of the find that is up and where its search stands.
+    #[must_use]
     pub fn find_state(&self) -> Option<(&TypedText, FindHits)> {
         match self {
             Stage::Pdf(PdfStage::Finding { query, hits, .. })
@@ -114,6 +120,7 @@ impl Stage {
     }
 
     /// Whether a find is up: its hits are marked, and Esc puts it away.
+    #[must_use]
     pub fn is_finding(&self) -> bool {
         match self {
             Stage::Pdf(PdfStage::Finding { .. })
@@ -132,6 +139,7 @@ impl Stage {
 
     /// The input that closes what the stage has open on top of its content (a find bar, a
     /// scrub), or `None` when it has nothing open: Esc undoes this before anything else.
+    #[must_use]
     pub fn dismissal(&self) -> Option<StageIn> {
         match self {
             Stage::NoStage => None,

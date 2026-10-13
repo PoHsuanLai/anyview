@@ -14,6 +14,7 @@ pub struct MediaOffer {
 
 impl MediaOffer {
     /// `kinds` on offer; `needs` is the package that would add the exports that are not.
+    #[must_use]
     pub fn new(kinds: Vec<MediaExportKind>, needs: Option<Fact>) -> MediaOffer {
         MediaOffer {
             kinds,
@@ -24,6 +25,7 @@ impl MediaOffer {
 
     /// The same offer, whose missing exports `helper` would add: the sheet that names what is
     /// missing then offers to install it.
+    #[must_use]
     pub fn installable(self, helper: Helper) -> MediaOffer {
         MediaOffer {
             helper: Some(helper),
@@ -32,21 +34,25 @@ impl MediaOffer {
     }
 
     /// The tool to offer to install for the exports that are not on offer, when the host can.
+    #[must_use]
     pub fn helper(&self) -> Option<Helper> {
         self.helper
     }
 
     /// The kinds on offer, in the order the dialog lists them.
+    #[must_use]
     pub fn kinds(&self) -> &[MediaExportKind] {
         &self.kinds
     }
 
     /// The row that says which package adds what is not on offer, when something is missing.
+    #[must_use]
     pub fn needs(&self) -> Option<&Fact> {
         self.needs.as_ref()
     }
 
     /// The export the sheet opens on: the first kind on offer with its default options.
+    #[must_use]
     pub fn first(&self) -> Option<MediaExport> {
         self.kinds
             .first()
@@ -54,6 +60,7 @@ impl MediaOffer {
     }
 
     /// Whether `kind` is on offer.
+    #[must_use]
     pub fn offers(&self, kind: MediaExportKind) -> bool {
         self.kinds.contains(&kind)
     }

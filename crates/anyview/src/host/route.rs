@@ -25,6 +25,7 @@ pub struct Shown {
 
 impl Shown {
     /// What the window shows, once it has told the host.
+    #[must_use]
     pub fn file(&self) -> Option<&Opened> {
         self.file.as_ref()
     }
@@ -43,6 +44,7 @@ impl Shown {
     }
 
     /// The window is now at `resume` in its file, as the last request said.
+    #[must_use]
     pub fn remembering(self, resume: Resume) -> Shown {
         Shown {
             file: self.file.map(|probed| Opened { resume, ..probed }),
@@ -52,6 +54,7 @@ impl Shown {
 
     /// The window shows the file `path` names now, after the host moved it: the versions kept
     /// were of the file at its old name, so the trail starts again.
+    #[must_use]
     pub fn moved_to(self, path: FilePath) -> Shown {
         Shown {
             file: self.file.map(|mut probed| {

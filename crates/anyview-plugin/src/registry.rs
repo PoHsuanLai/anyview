@@ -52,27 +52,32 @@ impl From<Registry<Provision>> for Plugins {
 
 impl Plugins {
     /// No plugins.
+    #[must_use]
     pub fn none() -> Plugins {
         Plugins::default()
     }
 
     /// The registry for `candidates`, applying the precedence above.
+    #[must_use]
     pub fn resolve(candidates: Vec<Candidate>) -> Plugins {
         Plugins::from(Registry::resolve(candidates, PROTOCOL_VERSION))
     }
 
     /// The usable plugins, in serving order.
+    #[must_use]
     pub fn installed(&self) -> &[Installed] {
         self.registry.installed()
     }
 
     /// The plugins that were found and cannot be used.
+    #[must_use]
     pub fn unusable(&self) -> &[Unusable] {
         self.registry.unusable()
     }
 
     /// The plugin that serves `capability` for `subject`: one that lists the subject's MIME type
     /// beats one that lists only its kind; ties go in serving order.
+    #[must_use]
     pub fn serving(&self, capability: Capability, subject: &Subject<'_>) -> Option<&Installed> {
         self.registry.serving(capability, |provision| {
             let handles = provision.handles();
@@ -87,6 +92,7 @@ impl Plugins {
     }
 
     /// What a request for `capability` on `subject` comes to.
+    #[must_use]
     pub fn route(&self, capability: Capability, subject: &Subject<'_>) -> Route<'_> {
         if let Some(plugin) = self.serving(capability, subject) {
             return Route::Served(plugin);
@@ -104,6 +110,7 @@ impl Plugins {
     /// Whether the plugin `package` names is installed and cannot run only because the program of
     /// the system's that its manifest names is absent: the tool is what is missing, not the
     /// plugin, and installing the tool is what makes the plugin usable.
+    #[must_use]
     pub fn tool_absent(&self, package: Package) -> bool {
         let Some(tool) = package.tool() else {
             return false;
@@ -118,6 +125,7 @@ impl Plugins {
     /// The targets the plugins that export `subject` can write, each with the plugin that
     /// writes it: what an export sheet offers. A target two plugins write is listed for the
     /// first of them.
+    #[must_use]
     pub fn export_targets(&self, subject: &Subject<'_>) -> Vec<(&Installed, &TargetName)> {
         let mut offered: Vec<(&Installed, &TargetName)> = Vec::new();
         for plugin in self.installed() {

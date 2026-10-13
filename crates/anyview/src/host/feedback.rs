@@ -42,6 +42,7 @@ pub enum Doing {
 
 impl Doing {
     /// What `task` does, when the person would want to hear how it went.
+    #[must_use]
     pub fn of(task: &Task) -> Option<Doing> {
         match task {
             Task::Trash(_) => Some(Doing::Trash),

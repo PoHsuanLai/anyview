@@ -36,11 +36,13 @@ pub struct MediaPlugins {
 
 impl MediaPlugins {
     /// The plugins `plugins` holds, run by `runner`.
+    #[must_use]
     pub fn new(plugins: Plugins, runner: PluginRunner) -> MediaPlugins {
         MediaPlugins::following(PluginRegistry::fixed(plugins), runner)
     }
 
     /// The plugins `registry` holds now (it may read them again), run by `runner`.
+    #[must_use]
     pub fn following(registry: PluginRegistry, runner: PluginRunner) -> MediaPlugins {
         MediaPlugins {
             registry,
@@ -50,6 +52,7 @@ impl MediaPlugins {
     }
 
     /// The same plugins, offering to install the tools `helpers` knows when one is missing.
+    #[must_use]
     pub fn offering(self, helpers: Arc<HelperHost>) -> MediaPlugins {
         MediaPlugins {
             helpers: Some(helpers),
@@ -58,6 +61,7 @@ impl MediaPlugins {
     }
 
     /// The registry as it is now.
+    #[must_use]
     pub fn plugins(&self) -> Arc<Plugins> {
         self.registry.current()
     }
@@ -65,6 +69,7 @@ impl MediaPlugins {
     /// The row that says what would play, or read, a recording `missing` names, with the tool to
     /// offer to install when the plugin is installed and the system's tool is what is absent (a
     /// plugin that is itself absent is not something to install a tool for).
+    #[must_use]
     pub fn need_of(&self, missing: &MissingPlugin) -> Need {
         let fact = missing.fact();
         match &self.helpers {
@@ -76,11 +81,13 @@ impl MediaPlugins {
     }
 
     /// The runner.
+    #[must_use]
     pub fn runner(&self) -> &PluginRunner {
         &self.runner
     }
 
     /// The programs that play a file of `subject`'s kind.
+    #[must_use]
     pub fn player(&self, subject: &Subject<'_>) -> PlayRoute {
         let plugins = self.plugins();
         match plugins.route(Capability::Play, subject) {
@@ -138,6 +145,7 @@ impl MediaPlugins {
     }
 
     /// The writer of `subject`'s exports.
+    #[must_use]
     pub fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
         match self.plugins().route(Capability::Export, subject) {
             Route::Served(plugin) => WriteRoute::Ready(Arc::new(ExportTool {
@@ -153,6 +161,7 @@ impl MediaPlugins {
     /// says this machine can write (its greeting, since an FFmpeg may lack an encoder the plugin
     /// knows), and the frame of a video when a player shows it. What is missing is named by the
     /// package that adds it.
+    #[must_use]
     pub fn offer(&self, sniffed: &Sniffed, playing: Playing) -> MediaOffer {
         let subject = Subject {
             kind: sniffed.kind(),

@@ -80,11 +80,13 @@ impl Workforce {
     }
 
     /// What the views submit their work to; clones share the pool.
+    #[must_use]
     pub fn workers(&self) -> Arc<dyn Workers> {
         Arc::clone(&self.workers)
     }
 
     /// The pool's runner for media exports; clones share the pool.
+    #[must_use]
     pub fn exports(&self) -> Arc<Exports> {
         Arc::clone(&self.exports)
     }

@@ -114,6 +114,7 @@ pub enum TextStage {
 
 impl TextStage {
     /// Where the reader is and how the text is shown.
+    #[must_use]
     pub fn place(&self) -> TextPlace {
         match self {
             TextStage::Reading { place }
@@ -123,6 +124,7 @@ impl TextStage {
     }
 
     /// What has been done to the text, while it is being edited.
+    #[must_use]
     pub fn edited(&self) -> Option<Edited> {
         match self {
             TextStage::Editing { edited, .. } => Some(*edited),
@@ -132,6 +134,7 @@ impl TextStage {
 
     /// A stage at the top of a file with these views: rendered first when there is a rendering,
     /// wrapped.
+    #[must_use]
     pub fn opened(views: TextViews) -> TextStage {
         let view = match views {
             TextViews::RenderedAndSource => TextView::Rendered,

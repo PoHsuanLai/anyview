@@ -68,6 +68,7 @@ pub enum MediaStage {
 
 impl MediaStage {
     /// How long the recording runs, once the player has said.
+    #[must_use]
     pub fn length(&self) -> Option<MediaLength> {
         match self {
             MediaStage::Playing { length, .. }

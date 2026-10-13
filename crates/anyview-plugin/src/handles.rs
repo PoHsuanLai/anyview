@@ -25,16 +25,19 @@ impl Handles {
     }
 
     /// The kinds, as written.
+    #[must_use]
     pub fn kinds(&self) -> &[FormatKind] {
         &self.kinds
     }
 
     /// The MIME types, as written.
+    #[must_use]
     pub fn mimes(&self) -> &[Mime] {
         &self.mimes
     }
 
     /// Whether `subject` is one of the kinds or one of the MIME types.
+    #[must_use]
     pub fn handles(&self, subject: &Subject<'_>) -> bool {
         self.names_kind(subject.kind) || self.names_mime(subject)
     }

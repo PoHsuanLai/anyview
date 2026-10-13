@@ -59,6 +59,7 @@ pub enum ToolError {
 
 impl ToolError {
     /// What the host is told to act on.
+    #[must_use]
     pub fn code(&self) -> ErrorCode {
         match self {
             ToolError::Unreadable(_) => ErrorCode::Unreadable,
@@ -75,6 +76,7 @@ impl ToolError {
     }
 
     /// An I/O failure while doing `op`.
+    #[must_use]
     pub fn io(op: &'static str, error: &std::io::Error) -> ToolError {
         ToolError::Io {
             op,

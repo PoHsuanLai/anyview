@@ -44,6 +44,7 @@ pub struct HitCursor {
 
 impl FindHits {
     /// What a search's answer means: `count` hits, the one nearest where the person is first.
+    #[must_use]
     pub const fn answered(count: HitCount, nearest: HitIndex) -> FindHits {
         match NonZeroU32::new(count.0) {
             Some(count) => FindHits::Found(HitCursor {
@@ -56,6 +57,7 @@ impl FindHits {
 
     /// Where a search stands the moment `query` is asked for: nothing typed has nothing to
     /// wait for.
+    #[must_use]
     pub fn asked(query: &TypedText) -> FindHits {
         if query.is_empty() {
             FindHits::Idle
@@ -65,6 +67,7 @@ impl FindHits {
     }
 
     /// The hits after stepping; the other states have nowhere to go and stay as they are.
+    #[must_use]
     pub fn stepped(self, step: HitStep) -> FindHits {
         match self {
             FindHits::Found(cursor) => FindHits::Found(cursor.stepped(step)),
@@ -74,6 +77,7 @@ impl FindHits {
 
     /// The hits after making `hit` the current one (past the last it wraps); the other states
     /// have no hit to go to and stay as they are.
+    #[must_use]
     pub fn jumped(self, hit: HitIndex) -> FindHits {
         match self {
             FindHits::Found(cursor) => FindHits::Found(HitCursor {
@@ -85,6 +89,7 @@ impl FindHits {
     }
 
     /// How many hits there are, when the search found some.
+    #[must_use]
     pub fn count(self) -> Option<HitCount> {
         match self {
             FindHits::Found(cursor) => Some(HitCount(cursor.count.get())),
@@ -93,6 +98,7 @@ impl FindHits {
     }
 
     /// The current hit, when there is one.
+    #[must_use]
     pub fn current(self) -> Option<HitIndex> {
         match self {
             FindHits::Found(cursor) => Some(HitIndex(cursor.current)),
@@ -114,6 +120,7 @@ impl HitCursor {
 
 impl FindOut {
     /// What asking for `query` calls for: a search, or clearing the marks when nothing is typed.
+    #[must_use]
     pub fn asked(query: &TypedText) -> FindOut {
         if query.is_empty() {
             FindOut::Clear

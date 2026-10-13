@@ -11,16 +11,19 @@ pub struct VersionKey(Cow<'static, str>);
 
 impl VersionKey {
     /// A key the host made, owned.
+    #[must_use]
     pub fn new(key: impl Into<String>) -> Self {
         VersionKey(Cow::Owned(key.into()))
     }
 
     /// A literal, held without a copy.
+    #[must_use]
     pub const fn from_static(key: &'static str) -> Self {
         VersionKey(Cow::Borrowed(key))
     }
 
     /// The key's text.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -39,6 +42,7 @@ pub struct VersionRow {
 
 impl VersionRow {
     /// The row as the sheet words it: when it was kept (local time) and its size.
+    #[must_use]
     pub fn label(&self) -> String {
         format!("{} ({})", when_label(self.saved_at), size_label(self.size))
     }
@@ -50,26 +54,31 @@ pub struct VersionList(Cow<'static, [VersionRow]>);
 
 impl VersionList {
     /// The list of `rows`, owned; `None` when there are none.
+    #[must_use]
     pub fn new(rows: Vec<VersionRow>) -> Option<Self> {
         (!rows.is_empty()).then_some(VersionList(Cow::Owned(rows)))
     }
 
     /// A list written out as a constant.
+    #[must_use]
     pub const fn from_static(rows: &'static [VersionRow]) -> Self {
         VersionList(Cow::Borrowed(rows))
     }
 
     /// The rows, newest first.
+    #[must_use]
     pub fn rows(&self) -> &[VersionRow] {
         &self.0
     }
 
     /// The key of the newest row, the one the sheet opens on.
+    #[must_use]
     pub fn newest(&self) -> Option<&VersionKey> {
         self.0.first().map(|row| &row.key)
     }
 
     /// Whether `key` names a row.
+    #[must_use]
     pub fn holds(&self, key: &VersionKey) -> bool {
         self.0.iter().any(|row| row.key == *key)
     }

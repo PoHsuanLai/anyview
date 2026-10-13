@@ -102,41 +102,49 @@ pub enum PictureEditIn {
 
 impl PictureEdits {
     /// What has been done to the picture.
+    #[must_use]
     pub fn adjust(&self) -> Adjust {
         self.now
     }
 
     /// Whether anything has been done that is not saved.
+    #[must_use]
     pub fn is_edited(&self) -> bool {
         !self.now.is_none()
     }
 
     /// Whether the picture can be changed: it is decoded and its file takes a save.
+    #[must_use]
     pub fn can_edit(&self) -> bool {
         self.base.is_some() && self.editing == PictureEditing::Allowed
     }
 
     /// The picture's size as it was opened.
+    #[must_use]
     pub fn base(&self) -> Option<PixelSize> {
         self.base
     }
 
     /// The picture's size as it is shown now, before a resize: what a crop is drawn on.
+    #[must_use]
     pub fn shown_size(&self) -> Option<PixelSize> {
         self.base.map(|base| self.now.turned_size(base))
     }
 
     /// The size the saved picture will have.
+    #[must_use]
     pub fn result_size(&self) -> Option<PixelSize> {
         self.base.map(|base| self.now.result_size(base))
     }
 
     /// Whether the crop tool is up.
+    #[must_use]
     pub fn is_cropping(&self) -> bool {
         matches!(self.crop, Cropping::On(_))
     }
 
     /// The crop rectangle, while the tool is up.
+    #[must_use]
     pub fn draft(&self) -> Option<CropBox> {
         match &self.crop {
             Cropping::On(crop) => Some(crop.draft),
@@ -145,6 +153,7 @@ impl PictureEdits {
     }
 
     /// The proportions the rectangle is held to.
+    #[must_use]
     pub fn aspect(&self) -> CropAspect {
         match &self.crop {
             Cropping::On(crop) => crop.aspect,
@@ -153,16 +162,19 @@ impl PictureEdits {
     }
 
     /// Whether a grip of the rectangle is held.
+    #[must_use]
     pub fn is_dragging(&self) -> bool {
         matches!(&self.crop, Cropping::On(crop) if crop.held.is_some())
     }
 
     /// Whether there is an edit to take back.
+    #[must_use]
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
     }
 
     /// Whether there is an edit to do again.
+    #[must_use]
     pub fn can_redo(&self) -> bool {
         !self.redo.is_empty()
     }

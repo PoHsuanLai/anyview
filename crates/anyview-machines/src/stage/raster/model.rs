@@ -124,6 +124,7 @@ impl Default for RasterStage {
 
 impl RasterStage {
     /// Whether the open image moves: only then are playback and frame stepping its commands.
+    #[must_use]
     pub fn is_animated(&self) -> bool {
         let (RasterStage::Fitted { anim, .. }
         | RasterStage::Zoomed { anim, .. }

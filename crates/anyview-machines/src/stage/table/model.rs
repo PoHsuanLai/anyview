@@ -44,6 +44,7 @@ impl TableStage {
     }
 
     /// The sheet being read.
+    #[must_use]
     pub fn sheet(&self) -> SheetNo {
         match self {
             TableStage::Browsing { sheet, .. } | TableStage::Selected { sheet, .. } => *sheet,
@@ -51,6 +52,7 @@ impl TableStage {
     }
 
     /// The row the cursor is on, when there is one.
+    #[must_use]
     pub fn row(&self) -> Option<RowNo> {
         match self {
             TableStage::Browsing { .. } => None,
@@ -59,6 +61,7 @@ impl TableStage {
     }
 
     /// The column the rows are sorted by, when they are.
+    #[must_use]
     pub fn sort(&self) -> Option<ColumnSort> {
         match self {
             TableStage::Browsing { sort, .. } | TableStage::Selected { sort, .. } => *sort,

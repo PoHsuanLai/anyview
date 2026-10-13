@@ -148,6 +148,7 @@ impl SheetIn {
     /// What a press means to an open sheet: Enter confirms and Esc cancels, and Duplicate's chord
     /// (⌘D) is Don't Save in the question about unsaved changes, as in a Mac's dialogs. Every other
     /// press means nothing to the sheet, and it keeps them from the content behind it.
+    #[must_use]
     pub fn from_press(press: &Press) -> Option<SheetIn> {
         match press {
             Press::Key(shortcut) => match shortcut.keys().as_slice() {

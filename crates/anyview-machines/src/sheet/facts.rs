@@ -20,6 +20,7 @@ pub struct ExportFacts {
 impl ExportFacts {
     /// The page count when the document has more than one page: a range of a one-page document
     /// is not a choice.
+    #[must_use]
     pub fn several_pages(&self) -> Option<PageCount> {
         self.pages.filter(|count| count.get() > 1)
     }
