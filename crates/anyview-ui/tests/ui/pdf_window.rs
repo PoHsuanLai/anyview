@@ -477,9 +477,12 @@ fn a_pdf_that_opens_with_the_panel_shown_asks_for_a_window_the_panel_widens() {
         .lock()
         .unwrap()
         .iter()
-        .filter_map(|request| match request {
-            HostRequest::SizeWindow(size) => Some(*size),
-            _ => None,
+        .filter_map(|request| {
+            if let HostRequest::SizeWindow(size) = request {
+                Some(*size)
+            } else {
+                None
+            }
         })
         .collect();
     let [SizeBasis::Natural(NaturalSize::Points(size))] = sizes[..] else {

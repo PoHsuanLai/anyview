@@ -27,11 +27,12 @@ pub(super) enum BarRoom {
 }
 
 impl BarRoom {
-    fn slug(self) -> &'static str {
+    /// The bar's `data-room`: none in a roomy window, whose bar is the plain one.
+    fn slug(self) -> Option<&'static str> {
         match self {
-            BarRoom::Roomy => "roomy",
-            BarRoom::Tight => "tight",
-            BarRoom::Bare => "bare",
+            BarRoom::Roomy => None,
+            BarRoom::Tight => Some("tight"),
+            BarRoom::Bare => Some("bare"),
         }
     }
 }
