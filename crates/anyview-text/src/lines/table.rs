@@ -11,6 +11,13 @@ use std::ops::Range;
 /// Lines between two recorded offsets.
 const STRIDE: u32 = 64;
 
+/// The most bytes of one line a window holds; the rest of a longer line is read past and dropped, so
+/// a file that is one enormous line costs this much memory rather than its size. A person writes
+/// lines of a few hundred bytes, and a minified bundle or an inlined data URI that passes a
+/// mebibyte (the same size as the span [`DETECT_BYTES`](crate::DETECT_BYTES) reads to name the encoding) is not read
+/// line by line anyway. Even, so a UTF-16 unit never splits.
+pub const MAX_LINE_BYTES: usize = 1 << 20;
+
 /// Bytes read at a time while scanning. A multiple of 2 so a UTF-16 unit never splits.
 const CHUNK: u64 = 64 * 1024;
 
@@ -73,13 +80,13 @@ impl LineTable {
         self.lines
     }
 
-    /// The bytes of lines `range`, each with its line break, read by scanning forward from the
-    /// nearest recorded offset.
+    /// The lines `range`, each with its line break and at most [`MAX_LINE_BYTES`] of its text,
+    /// read by scanning forward from the nearest recorded offset.
     pub(super) fn read(
         &self,
         source: &impl ReadAt,
         range: Range<u32>,
-    ) -> Result<Vec<u8>, TextError> {
+    ) -> Result<Vec<RawLine>, TextError> {
         let first = range.start.min(self.lines);
         let last = range.end.min(self.lines);
         if first >= last {
@@ -94,6 +101,28 @@ impl LineTable {
     }
 }
 
+/// One line of a window as it lies in the file.
+#[derive(Debug, Default)]
+pub(super) struct RawLine {
+    /// Up to [`MAX_LINE_BYTES`] of the line's text, then its line break if it has one.
+    pub(super) bytes: Vec<u8>,
+    /// Whether the line was longer than the cap and the rest of its text was dropped.
+    pub(super) cut: bool,
+}
+
+impl RawLine {
+    /// Adds `part` of the line's text, as much as the cap leaves room for.
+    fn push_text(&mut self, part: &[u8]) {
+        let room = MAX_LINE_BYTES - self.bytes.len();
+        if part.len() > room {
+            self.bytes.extend_from_slice(&part[..room]);
+            self.cut = true;
+        } else {
+            self.bytes.extend_from_slice(part);
+        }
+    }
+}
+
 /// Whether the scan is still passing lines it was told to skip.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Phase {
@@ -101,18 +130,19 @@ enum Phase {
     Taking,
 }
 
-/// From `span.0`, skips `lines.0` lines and returns the bytes of the next `lines.1`, line breaks
-/// included. `span.1` is where the bytes end.
+/// From `span.0`, skips `lines.0` lines and returns the next `lines.1`, each with its line break
+/// and cut to [`MAX_LINE_BYTES`] of text. `span.1` is where the bytes end.
 fn scan(
     source: &impl ReadAt,
     codec: TextCodec,
     span: (u64, u64),
     lines: (u32, u32),
-) -> Result<Vec<u8>, TextError> {
+) -> Result<Vec<RawLine>, TextError> {
     let (offset, end) = span;
     let (skip, wanted) = lines;
     let unit = codec.unit();
-    let mut out = Vec::new();
+    let mut done: Vec<RawLine> = Vec::new();
+    let mut current = RawLine::default();
     let mut phase = if skip == 0 {
         Phase::Taking
     } else {
@@ -140,17 +170,26 @@ fn scan(
                     phase = Phase::Taking;
                     from = Some(after);
                 }
-                Phase::Taking if seen == skip + wanted => {
-                    out.extend_from_slice(&chunk[from.unwrap_or(0)..after]);
-                    return Ok(out);
+                Phase::Taking => {
+                    current.push_text(&chunk[from.unwrap_or(0)..i]);
+                    current.bytes.extend_from_slice(&chunk[i..after]);
+                    done.push(std::mem::take(&mut current));
+                    if done.len() as u64 == u64::from(wanted) {
+                        // a usize fits a u64
+                        return Ok(done);
+                    }
+                    from = Some(after);
                 }
-                Phase::Skipping | Phase::Taking => {}
+                Phase::Skipping => {}
             }
         }
         if let Some(from) = from {
-            out.extend_from_slice(&chunk[from..]);
+            current.push_text(&chunk[from..]);
         }
         at += chunk.len() as u64;
     }
-    Ok(out)
+    if !current.bytes.is_empty() {
+        done.push(current); // the last line of a file with no final line break
+    }
+    Ok(done)
 }

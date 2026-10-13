@@ -18,6 +18,23 @@ pub(super) fn encoding(head: &FileHead) -> Option<TextEncoding> {
     }
 }
 
+/// Whether a head that is not UTF-8 and has no byte-order mark still reads as text in some legacy
+/// single- or double-byte encoding (Windows-1252, Shift_JIS, GBK, KOI8-R): no NUL, and at most one
+/// byte in twenty a control character other than tab, line feed, form feed, carriage return or
+/// escape. The bytes at 0x80 and above are all taken as printable, since which encoding they are in
+/// is not decided here. A head that is valid UTF-8 is [`encoding`]'s, not this function's.
+pub(super) fn is_legacy_text(head: &FileHead) -> bool {
+    let bytes = head.bytes();
+    if bytes.is_empty() || bytes.contains(&0) {
+        return false;
+    }
+    let control = bytes
+        .iter()
+        .filter(|byte| matches!(byte, 0x01..=0x08 | 0x0B | 0x0E..=0x1A | 0x1C..=0x1F | 0x7F))
+        .count();
+    control * 20 <= bytes.len()
+}
+
 fn valid_utf8(bytes: &[u8], head: &FileHead) -> bool {
     match std::str::from_utf8(bytes) {
         Ok(_) => true,
@@ -61,6 +78,39 @@ mod tests {
         ];
         for (name, bytes, want) in CASES {
             assert_eq!(encoding(&FileHead::new(bytes)), *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_head_that_is_not_utf8_may_be_legacy_text() {
+        const CASES: &[(&str, &[u8], bool)] = &[
+            ("windows-1252", b"caf\xE9 cr\xE8me\r\n", true),
+            (
+                "shift_jis",
+                b"\x82\xB1\x82\xF1\x82\xC9\x82\xBF\x82\xCD\n",
+                true,
+            ),
+            ("koi8-r", b"\xF0\xD2\xC9\xD7\xC5\xD4, \xCD\xC9\xD2\n", true),
+            ("a nul", b"caf\xE9\0", false),
+            ("empty", b"", false),
+            (
+                "mostly control bytes",
+                b"\x01\x02\x03\x04\x05\x06\xE9\xE9\x07\x08",
+                false,
+            ),
+            (
+                "a stray control byte in a long line",
+                b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x01",
+                true,
+            ),
+            (
+                "a binary header with high bytes",
+                b"\x01\x02\x03\x04abc\xE9",
+                false,
+            ),
+        ];
+        for (name, bytes, want) in CASES {
+            assert_eq!(is_legacy_text(&FileHead::new(bytes)), *want, "{name}");
         }
     }
 

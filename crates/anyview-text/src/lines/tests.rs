@@ -126,6 +126,63 @@ fn a_legacy_encoded_file_decodes_with_the_fallback() {
     assert_eq!(window(&text, 0, 2), ["café", "naïve"]);
 }
 
+#[test]
+fn a_line_past_the_cap_is_cut_with_a_mark_and_the_lines_after_it_stay_put() {
+    let long = |extra: usize| "x".repeat(MAX_LINE_BYTES + extra);
+    let cut = format!("{}{LINE_CUT}", "x".repeat(MAX_LINE_BYTES));
+    // name, file, lines
+    let cases: Vec<(&str, String, Vec<String>)> = vec![
+        (
+            "a line of exactly the cap is whole",
+            format!("a\n{}\nz\n", long(0)),
+            vec!["a".into(), long(0), "z".into()],
+        ),
+        (
+            "a line one byte over is cut",
+            format!("a\n{}\nz\n", long(1)),
+            vec!["a".into(), cut.clone(), "z".into()],
+        ),
+        (
+            "a much longer crlf line is cut",
+            format!("a\r\n{}\r\nz\r\n", long(300_000)),
+            vec!["a".into(), cut.clone(), "z".into()],
+        ),
+        (
+            "an enormous last line with no line break",
+            format!("a\n{}", long(300_000)),
+            vec!["a".into(), cut.clone()],
+        ),
+        (
+            "a file that is one enormous line",
+            long(300_000),
+            vec![cut.clone()],
+        ),
+    ];
+    for (name, file, want) in cases {
+        let text = TextLines::open(file.into_bytes()).unwrap();
+        let count = u32::try_from(want.len()).unwrap();
+        assert_eq!(text.line_count(), LineCount(count), "{name} count");
+        assert_eq!(window(&text, 0, count), want, "{name} whole window");
+        let last = count - 1;
+        assert_eq!(
+            window(&text, last, count),
+            &want[last as usize..],
+            "{name} last line"
+        );
+    }
+}
+
+#[test]
+fn a_cut_line_in_utf_16_keeps_whole_units() {
+    let mut bytes = vec![0xFF, 0xFE];
+    for unit in format!("{}\nz\n", "x".repeat(MAX_LINE_BYTES)).encode_utf16() {
+        bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+    let text = TextLines::open(bytes).unwrap();
+    let want = format!("{}{LINE_CUT}", "x".repeat(MAX_LINE_BYTES / 2));
+    assert_eq!(window(&text, 0, 2), [want, "z".to_owned()]);
+}
+
 /// Counts the bytes handed out, to show a window does not read the whole file.
 #[derive(Debug)]
 struct Counting {

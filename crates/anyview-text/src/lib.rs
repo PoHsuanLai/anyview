@@ -54,11 +54,11 @@ pub use code::{
 pub use edit::{
     Buffer, EDIT_BYTES, EditRefusal, EditText, Motion, Preedit, Revision, Selection, Session,
 };
-pub use encoding::{Coverage, DETECT_BYTES, Detected, TextCodec, detect};
+pub use encoding::{Coverage, DETECT_BYTES, Detected, LegacyEncoding, TextCodec, detect};
 pub use error::TextError;
 pub use export::{plan_export, plan_print, printable_html};
 pub use find::{ByteOffset, FindHit, MAX_HITS, Needle};
-pub use lines::{LineCount, TextLines};
+pub use lines::{LINE_CUT, LineCount, MAX_LINE_BYTES, TextLines};
 pub use markdown::{
     Anchor, DiskFiles, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,
 };

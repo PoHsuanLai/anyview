@@ -14,6 +14,7 @@ anyview-core = { workspace = true }
 anyview-fs = { workspace = true }
 ds-core = { workspace = true }
 calamine = { workspace = true }
+chardetng = { workspace = true }
 csv = { workspace = true }
 encoding_rs = { workspace = true }
 pulldown-cmark = { workspace = true }

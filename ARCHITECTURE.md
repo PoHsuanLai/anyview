@@ -173,7 +173,7 @@ no other public path. A module names only modules above it in this list.
 | `media` | what a player says of a recording: `StreamKind`, `MediaTrack`, `TrackPlay`, `MediaChapter`, `VideoPresence`, `MediaTags` |
 | `source` | `FilePath`, `FileName`, `FileStamp`, `Source` (a file's serialisable identity), `ReadAt` (bytes read by offset: a byte slice, a `Vec`, an `Arc`, an open `File`, or anything a host implements it for) and `ReadAtStream` (a `Read + Seek` over one), and `Input` (what a peek reads: name, stamp, shared bytes and, when they are a file of their own, the path; made from `&FilePath`, `&Source` or a name and a `Vec<u8>`) |
 | `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
-| `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read |
+| `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read; a head that is not UTF-8 but is printable bytes is plain text under a text extension (a legacy encoding) |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind`, and `Adjust` (a picture's whole adjustment as one value: cut to a `PixelRect`, `Reflection`, `QuarterTurn`, resized; `turned`, `flipped` and `cropped` fold each new step into it, so a series of edits is one `Edit::Adjust`) |
 | `find` | `FindOptions` (how a find matches: `CaseMatch` and `WordMatch`, `#[non_exhaustive]` with `DEFAULT` and `with_*`; the one set text and PDF search both read) and `FindOption` (`MatchCase`, `WholeWords`: one toggle of it, with its label) |
@@ -317,8 +317,8 @@ one file.
 | --- | --- |
 | `error` | `TextError` |
 | `bytes` | `ByteSource` (read a range), `FileBytes`, `HeldBytes` |
-| `encoding` | `TextCodec`, `detect` (byte-order mark, UTF-8 validity, Windows-1252 fallback), `Coverage`, `Detected` |
-| `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest |
+| `encoding` | `TextCodec`, `LegacyEncoding`, `detect` (byte-order mark, UTF-8 validity, else the encoding `chardetng` guesses from the first `DETECT_BYTES`, Windows-1252 when nothing else fits), `Coverage`, `Detected` |
+| `lines` | `TextLines`, `LineCount`: a sparse line index (every 64th line) so any window of lines is read and decoded without the rest; a line past `MAX_LINE_BYTES` (1 MiB) comes back cut there and ending in `LINE_CUT` (an ellipsis) |
 | `find` | `Needle` (a phrase, never empty; it ignores case and finds parts of words until `with_options` gives it a `FindOptions`: `CaseMatch::Exact` compares characters as they are, `WordMatch::Whole` rejects a hit that runs into a letter, digit or underscore beside it, but only on a side where the hit itself ends in a word character), `FindHit` (a line and the bytes of it a phrase covers), `ByteOffset`, `MAX_HITS`; `TextLines::find` reads the file once, in batches |
 | `code` | `Highlighter`, `SyntaxId`, `CodeLines` (windowed highlighting with saved parser states), `TokenClass`, `TokenSpan`, `TokenLine`, `tokens_html`; `class` is the one table from syntect scopes to classes, `state` and `html` are private |
 | `markdown` | `render`, `Rendered`, `RenderEnv`, `LocalFiles`, `NoFiles`, `DiskFiles`, `Heading`, `HeadingLevel`, `Anchor`; `events` (the safety pass), `images`, `links` and `outline` are private |
