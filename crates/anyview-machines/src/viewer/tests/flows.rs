@@ -187,6 +187,51 @@ fn find_opens_the_palette_as_a_find_that_searches_what_is_typed_and_escape_puts_
 }
 
 #[test]
+fn a_find_option_is_kept_for_the_window_and_searches_the_find_again_with_the_palette_up() {
+    let mut params = params();
+    params.palette.rows = vec![Command::FindOption(FindOption::MatchCase)];
+    let viewer = Viewer {
+        stage: Stage::Text(TextStage::Finding {
+            query: TypedText::new("fox"),
+            hits: FindHits::answered(HitCount(3), HitIndex(0)),
+            place: TextPlace {
+                line: LineIndex(0),
+                wrap: Wrap::On,
+                view: TextView::Source,
+            },
+        }),
+        palette: Palette::open(TypedText::new("fox"), PaletteIndex(0)),
+        palette_scope: PaletteScope::Find(HitList::Brief),
+        ..Viewer::default()
+    };
+    assert_eq!(viewer.find_options, FindOptions::default());
+    let (viewer, outs) = viewer.step(key(&[ShortcutKey::Enter]), Stamp(0), &(), &params);
+    assert!(viewer.find_options.has(FindOption::MatchCase));
+    assert!(!viewer.find_options.has(FindOption::WholeWords));
+    assert!(
+        matches!(viewer.palette, Palette::Open { .. }),
+        "it stays up"
+    );
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Text(TextOut::Find(
+            FindOut::Search(TypedText::new("fox"))
+        )))),
+        "the find searches again: {outs:?}"
+    );
+    let (viewer, _) = viewer.step(
+        ViewerIn::Run(Command::FindOption(FindOption::MatchCase)),
+        Stamp(1),
+        &(),
+        &params,
+    );
+    assert_eq!(
+        viewer.find_options,
+        FindOptions::default(),
+        "it switches back"
+    );
+}
+
+#[test]
 fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_step() {
     use ShortcutKey::{Down, Enter};
     let mut params = params();

@@ -121,18 +121,17 @@ impl StageView for PdfStageView {
     }
 
     fn hit_lines(_doc: &Arc<PdfDoc>, cx: &StageCx, upto: u32) -> Vec<HitLine> {
-        let Some((query, _)) = cx.stage.find_state() else {
+        if cx.stage.find_state().is_none() {
             return Vec::new();
-        };
-        let words = query.as_str();
+        }
         cx.pdf
             .read()
             .hits()
             .iter()
             .take(upto as usize)
             .map(|hit| HitLine {
-                context: words.to_owned(),
-                matched: 0..words.len(),
+                context: hit.snippet.text.clone(),
+                matched: hit.snippet.matched.clone(),
                 place: format!("Page {}", hit.page.0 + 1),
             })
             .collect()

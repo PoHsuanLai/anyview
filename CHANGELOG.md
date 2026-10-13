@@ -7,6 +7,8 @@ versioning, with pre-releases while the program is in beta.
 
 ### Palette
 
+- Find has Match Case and Whole Words, listed as checked rows under "Options" beside a find's matches. They stay as you left them for the window, for text and PDF files alike, and switching one searches again with the palette still up.
+- A PDF's matches in the find list show the words around them, as a text file's do, and a phrase that runs over a page break is found (it is listed under the page it begins on). Searching a PDF a second time reuses the text of the pages already read.
 - The command palette runs on the machine quire shares with other apps (Viewer, the terminal's tab bar and a Viewer pane in a host's window), so its keys, highlight and Enter behave as they do there. Nothing changes on screen: the same scopes, the same order and the same find rows.
 
 ### Resume

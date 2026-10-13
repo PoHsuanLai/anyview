@@ -74,8 +74,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   (`PaneSpec` 220, between 180 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
   reports only whether the pane is open (`on_shown`), so a new window opens at 220. Ends when the split view
   reports a pane's size to persist.
-- **Find has no case or word options, and a PDF's hits have no words around them.** The palette lists a PDF's
-  hit as the phrase and its page ("Page 7"): `anyview-pdf`'s `Hit` keeps the rectangles, not the text.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
   a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
   pure `hand` machine's cases and the viewer step, not by a held key in the harness.
@@ -333,8 +331,8 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A first frame of a text is only its start.** The first 256 KiB are indexed, so a Markdown file shows as its
   source until the page is rendered, the facts list no line count, a line remembered beyond the start is blank
   until the open lands, and a find waits for the whole file. Ends if a start must be searchable.
-- **A search keeps at most 10,000 hits and ignores case only.** `anyview_text::MAX_HITS`; there is no
-  whole-word or regular-expression search. Ends when the find palette has options.
+- **A search keeps at most 10,000 hits and has no regular expressions.** `anyview_text::MAX_HITS`; Match Case and
+  Whole Words are the find's only options. Ends if a pattern search is wanted.
 - **An animation holds every frame in a texture.** The decode cap (512 MiB of frames) bounds the GPU memory too,
   and an animation near it uploads for as long as it takes to decode. Ends if frames must stream.
 - **A rendered Markdown page is a sealed frame that carries the whole design-system stylesheet** (about
@@ -451,10 +449,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   never leaves a tile out. The render cuts each tile to the real size and leaves out one that starts past
   it, and the scheduler cuts a tile's area to the page as laid out so the spare pixel never makes a tile
   look visible. A scheduled tile that does not exist is therefore silently absent from its batch's result.
-- **Search finds within a page's text and a phrase across lines, not across pages.** `search_document`
-  loops pages on the caller's worker and extracts each page's text every time; nothing is cached between
-  searches. Ends if repeated finds on a large document are slow: keep each page's `TextPage` (or its
-  search text) in the worker.
+- **A PDF's kept search text is per scratch worker.** `PdfWorker::texts` holds the search text of the pages a worker has
+  searched (4 Mi characters, oldest let go first), and a document's scratch workers (`PdfDoc::with_scratch`) are a
+  pool, so a repeat search that is handed another worker extracts again. A phrase across a page break marks only the part on
+  the page it begins on. Ends if a document keeps one cache for all its workers.
 - **A PDF's outline and links keep only pages of the document.** A link to a web address is `Uri`; a named
   action, a script, another file or a page the document lacks is `Other`; a bookmark that leads to none
   of this document's pages has `page: None`. Nothing in the crate opens a URI.

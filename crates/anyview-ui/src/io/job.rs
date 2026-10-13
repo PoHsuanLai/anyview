@@ -14,7 +14,9 @@ use crate::families::{
 };
 use crate::{SaveEnd, StageFamily, Ticket, TypedText, VersionRow};
 use anyview_core::work::Stop;
-use anyview_core::{FilePath, FileStamp, LineIndex, Resume, Sequence, Sniffed, Source};
+use anyview_core::{
+    FilePath, FileStamp, FindOptions, LineIndex, Resume, Sequence, Sniffed, Source,
+};
 use anyview_peek::StillSource;
 use anyview_text::{EditRefusal, EditText, Highlighter};
 use ds_blitz::TextureHandle;
@@ -138,6 +140,8 @@ pub enum Job {
         doc: Arc<TextDoc>,
         /// What the person typed.
         query: TypedText,
+        /// How it is matched.
+        options: FindOptions,
     },
     /// Read an open text file whole, to edit it in place.
     EditRead {
@@ -234,6 +238,8 @@ pub enum Done {
         ticket: Ticket,
         /// What the person typed.
         query: TypedText,
+        /// How it was matched.
+        options: FindOptions,
         /// What came of it.
         result: Result<FoundHits, OpenError>,
     },
@@ -356,9 +362,15 @@ impl Job {
                 ticket: *ticket,
                 result: Err(OpenError::Crashed),
             },
-            Job::Search { ticket, query, .. } => Done::Found {
+            Job::Search {
+                ticket,
+                query,
+                options,
+                ..
+            } => Done::Found {
                 ticket: *ticket,
                 query: query.clone(),
+                options: *options,
                 result: Err(OpenError::Crashed),
             },
             Job::EditRead { ticket, .. } => Done::EditText {
@@ -427,10 +439,16 @@ impl Job {
                 ticket,
                 result: doc.window(first, rows).map_err(OpenError::from),
             },
-            Job::Search { ticket, doc, query } => Done::Found {
+            Job::Search {
                 ticket,
-                result: doc.find(&query, stop).map_err(OpenError::from),
+                doc,
                 query,
+                options,
+            } => Done::Found {
+                ticket,
+                result: doc.find(&query, options, stop).map_err(OpenError::from),
+                query,
+                options,
             },
             Job::EditRead { ticket, doc } => Done::EditText {
                 ticket,

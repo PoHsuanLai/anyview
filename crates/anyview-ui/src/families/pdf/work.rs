@@ -6,7 +6,7 @@
 use super::doc::PdfDoc;
 use crate::io::{Stop, WorkLane};
 use crate::{Ticket, TypedText};
-use anyview_core::{Dpi, PageIndex, PixelSize};
+use anyview_core::{Dpi, FindOptions, PageIndex, PixelSize};
 use anyview_pdf::{
     Backend, End, Hits, PdfBackend, PdfDone, PdfJob, PdfLink, Priority, Raster, SearchQuery,
     TileBatch, TileKey, page_links,
@@ -38,6 +38,8 @@ pub enum PdfAsk {
     Search {
         /// What to look for.
         query: TypedText,
+        /// How it is matched.
+        options: FindOptions,
         /// Raised when another search replaces this one.
         stop: Stop,
     },
@@ -91,6 +93,8 @@ pub enum PdfAnswer {
     Searched {
         /// The text searched for.
         query: TypedText,
+        /// How it was matched.
+        options: FindOptions,
         /// The hits of the pages searched.
         hits: Hits,
         /// Whether every page was searched.
@@ -164,8 +168,9 @@ impl PdfTask {
                 unfinished: Vec::new(),
                 failed: keys_of(batch),
             },
-            PdfAsk::Search { query, .. } => PdfAnswer::Searched {
+            PdfAsk::Search { query, options, .. } => PdfAnswer::Searched {
                 query: query.clone(),
+                options: *options,
                 hits: Hits::default(),
                 end: Finish::Cut,
             },
@@ -194,7 +199,11 @@ impl PdfTask {
                 batch,
                 stop,
             } => tiles(ticket, &doc, &gpu, flight, batch, &stop),
-            PdfAsk::Search { query, stop } => search(ticket, &doc, query, &stop),
+            PdfAsk::Search {
+                query,
+                options,
+                stop,
+            } => search(ticket, &doc, (query, options), &stop),
             PdfAsk::Thumb { page } => PdfAnswer::Thumb {
                 page,
                 texture: thumb(ticket, &doc, &gpu, page),
@@ -297,10 +306,11 @@ fn tiles(
     }
 }
 
-fn search(ticket: Ticket, doc: &PdfDoc, query: TypedText, stop: &Stop) -> PdfAnswer {
+fn search(ticket: Ticket, doc: &PdfDoc, asked: (TypedText, FindOptions), stop: &Stop) -> PdfAnswer {
+    let (query, options) = asked;
     let job = PdfJob::Search {
         ticket,
-        query: SearchQuery::new(query.as_str()),
+        query: SearchQuery::new(query.as_str()).with_options(options),
     };
     let done = doc.with_scratch(|worker| PdfBackend::run(&doc.document, worker, job, stop));
     let (hits, end) = match done {
@@ -310,7 +320,12 @@ fn search(ticket: Ticket, doc: &PdfDoc, query: TypedText, stop: &Stop) -> PdfAns
         | PdfDone::Text { .. }
         | PdfDone::Written { .. } => (Hits::default(), Finish::Cut),
     };
-    PdfAnswer::Searched { query, hits, end }
+    PdfAnswer::Searched {
+        query,
+        options,
+        hits,
+        end,
+    }
 }
 
 fn finish(end: &End) -> Finish {

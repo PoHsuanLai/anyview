@@ -15,7 +15,7 @@ use crate::presentation::{Presentation, PresentationIn, PresentationOut, Present
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Changes, Stage, StageIn, StageOut, StageParams};
 use crate::{PlatformAbilities, SaveEnd};
-use anyview_core::{FileAction, FilePath};
+use anyview_core::{FileAction, FilePath, FindOptions};
 
 /// One window's viewer: a state per region. Regions are independent machines; what couples them
 /// is in `step`.
@@ -31,6 +31,9 @@ pub struct Viewer {
     pub palette: Palette,
     /// What the palette lists: the commands, or a find's hits. `Commands` while it is closed.
     pub palette_scope: PaletteScope,
+    /// How the find matches, kept for the window: Match Case and Whole Words stay as the person
+    /// left them from one find, and one file, to the next.
+    pub find_options: FindOptions,
     /// The right-click menu.
     pub context: ContextMenu,
     /// The modal sheet.

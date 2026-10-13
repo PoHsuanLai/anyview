@@ -22,7 +22,7 @@ use crate::{
     Stage, StageCommand, StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams,
     TextStage, TextViews, Ticket, TypedText,
 };
-use anyview_core::{Facts, FormatKind, LineIndex, Resume, Sniffed, Source};
+use anyview_core::{Facts, FindOptions, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
@@ -212,11 +212,17 @@ impl StageView for TextStageView {
         })
     }
 
-    fn search(doc: &Arc<TextDoc>, ticket: Ticket, query: &TypedText) -> Option<Job> {
+    fn search(
+        doc: &Arc<TextDoc>,
+        ticket: Ticket,
+        query: &TypedText,
+        options: FindOptions,
+    ) -> Option<Job> {
         Some(Job::Search {
             ticket,
             doc: Arc::clone(doc),
             query: query.clone(),
+            options,
         })
     }
 

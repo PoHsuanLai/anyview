@@ -11,7 +11,9 @@ use crate::{
     StageAbilities, StageCommand, StageParams, TextParams, TextView, TextViews, Ticket, TypedText,
     ViewerParams,
 };
-use anyview_core::{Adjust, FileAction, FormatKind, Reach, actions_for, reach};
+use anyview_core::{
+    Adjust, FileAction, FindOption, FindOptions, FormatKind, Reach, actions_for, reach,
+};
 use anyview_machines::seam::{WrapChoices, entries};
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -148,6 +150,8 @@ pub(super) struct Live {
     pub presentation: Presentation,
     /// How much chrome a pane draws; a window ignores it.
     pub chrome: PaneChrome,
+    /// How the find matches: its option rows are listed with a find.
+    pub find: FindOptions,
 }
 
 /// What editing the open picture offers.
@@ -295,6 +299,7 @@ pub(super) fn offered_slots(
                 | Command::ShowView(_)
                 | Command::FindHit(_)
                 | Command::ShowAllHits
+                | Command::FindOption(_)
                 | Command::Install(_) => true,
             },
             CapsuleSlot::Readout(_)
@@ -371,8 +376,9 @@ fn rows_for(
     listed: Vec<Command>,
     query: &TypedText,
     scope: PaletteScope,
-    stage: &Stage,
+    finding: (&Stage, FindOptions),
 ) -> Vec<Command> {
+    let (stage, options) = finding;
     match scope {
         PaletteScope::Commands => ranked(listed, query),
         PaletteScope::Find(list) => {
@@ -386,6 +392,12 @@ fn rows_for(
             };
             let more =
                 (list == HitList::Brief && found > BRIEF_HITS).then_some(Command::ShowAllHits);
+            // Something to narrow, or an option to undo: switching one on can only lose hits, so a
+            // find with none and every option off has no use for them.
+            let refine = (found > 0 || options != FindOptions::default())
+                .then(|| FindOption::ALL.map(Command::FindOption))
+                .into_iter()
+                .flatten();
             let commands: Vec<Command> = listed
                 .into_iter()
                 .filter(|command| *command != Command::Stage(StageCommand::Find))
@@ -393,6 +405,7 @@ fn rows_for(
             (0..shown)
                 .map(|hit| Command::FindHit(HitIndex(hit)))
                 .chain(more)
+                .chain(refine)
                 .chain(ranked(commands, query))
                 .collect()
         }
@@ -425,6 +438,7 @@ pub(super) fn params(
         wraps,
         presentation,
         chrome,
+        find,
     } = live;
     let pane = presentation == Presentation::Pane;
     let kind = probe.found().map(|probed| probed.sniffed.kind());
@@ -513,6 +527,7 @@ pub(super) fn params(
             | Command::ShowView(_)
             | Command::FindHit(_)
             | Command::ShowAllHits
+            | Command::FindOption(_)
             | Command::Install(_) => None,
         })
         .collect();
@@ -524,7 +539,7 @@ pub(super) fn params(
             centre: centre_of(area),
         },
         palette: PaletteParams {
-            rows: rows_for(listed, &query, scope, stage),
+            rows: rows_for(listed, &query, scope, (stage, find)),
         },
         panel,
         platform,

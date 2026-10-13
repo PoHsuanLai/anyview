@@ -11,7 +11,7 @@ use crate::{
     Destination, FindOut, HitCount, HitIndex, PageView, PdfIn, PdfOut, PdfStage, Stage, StageIn,
     TypedText,
 };
-use anyview_core::PageIndex;
+use anyview_core::{FindOptions, PageIndex};
 use anyview_pdf::{Hits, PdfLink, Schedule, TileBatch, TileCoord, TileKey};
 use ds_blitz::TextureHandle;
 use std::collections::{HashMap, HashSet};
@@ -39,8 +39,8 @@ pub(super) struct Asked {
 /// What the machine's outputs ask the view to do the next time it can.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct Wants {
-    /// Search for this.
-    pub search: Option<TypedText>,
+    /// Search for this text, matched as these options say.
+    pub search: Option<(TypedText, FindOptions)>,
     /// Show this hit.
     pub show: Option<HitIndex>,
     /// Scroll here.
@@ -50,7 +50,7 @@ pub(super) struct Wants {
 /// The state of the document's search.
 #[derive(Debug, Default)]
 struct Search {
-    asked: Option<TypedText>,
+    asked: Option<(TypedText, FindOptions)>,
     stop: Option<Stop>,
     hits: Hits,
 }
@@ -147,14 +147,15 @@ impl PdfLive {
         }
     }
 
-    /// Notes that a search for `query` is being asked for, ending the one before it.
-    pub(super) fn searching(&mut self, query: TypedText) -> Stop {
+    /// Notes that a search for `query` as `options` say is being asked for, ending the one before
+    /// it.
+    pub(super) fn searching(&mut self, query: TypedText, options: FindOptions) -> Stop {
         if let Some(before) = self.search.stop.take() {
             before.request();
         }
         let stop = Stop::new();
         self.search = Search {
-            asked: Some(query),
+            asked: Some((query, options)),
             stop: Some(stop.clone()),
             hits: Hits::default(),
         };
@@ -194,7 +195,12 @@ impl PdfLive {
                 self.failed.extend(failed);
                 None
             }
-            PdfAnswer::Searched { query, hits, end } => self.searched(query, hits, end, stage),
+            PdfAnswer::Searched {
+                query,
+                options,
+                hits,
+                end,
+            } => self.searched((query, options), hits, end, stage),
             PdfAnswer::Thumb { page, texture } => {
                 match texture {
                     Some(texture) => {
@@ -215,14 +221,15 @@ impl PdfLive {
 
     fn searched(
         &mut self,
-        query: TypedText,
+        asked: (TypedText, FindOptions),
         hits: Hits,
         end: Finish,
         stage: &Stage,
     ) -> Option<StageIn> {
-        if end == Finish::Cut || self.search.asked.as_ref() != Some(&query) {
+        if end == Finish::Cut || self.search.asked.as_ref() != Some(&asked) {
             return None;
         }
+        let (query, _) = asked;
         let count = HitCount(u32::try_from(hits.len()).unwrap_or(u32::MAX));
         let nearest = HitIndex(hits.nearest(reader_page(stage)));
         self.search.hits = hits;
@@ -233,11 +240,11 @@ impl PdfLive {
         }))
     }
 
-    /// What an output of the stage machine asks of the view.
-    pub(super) fn carry(&mut self, out: PdfOut) {
+    /// What an output of the stage machine asks of the view; a search is as `options` say.
+    pub(super) fn carry(&mut self, out: PdfOut, options: FindOptions) {
         match out {
             PdfOut::ScrollTo(place) => self.wants.scroll = Some(place),
-            PdfOut::Find(FindOut::Search(query)) => self.wants.search = Some(query),
+            PdfOut::Find(FindOut::Search(query)) => self.wants.search = Some((query, options)),
             PdfOut::Find(FindOut::ShowHit(hit)) => self.wants.show = Some(hit),
             PdfOut::Find(FindOut::Clear) => {
                 if let Some(stop) = self.search.stop.take() {

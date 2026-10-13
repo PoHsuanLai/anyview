@@ -468,7 +468,12 @@ fn find_synced(
 
 /// The find asked for `query`: nothing is searched until something is typed, so opening the
 /// palette as a find does not turn a Markdown page into its source.
-fn searched(viewer: Viewer, query: &TypedText, at: Stamp, params: &ViewerParams) -> Step {
+pub(super) fn searched(
+    viewer: Viewer,
+    query: &TypedText,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
     if query.is_empty() && !viewer.stage.is_finding() {
         return (viewer, vec![]);
     }

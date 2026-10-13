@@ -42,8 +42,9 @@ impl PdfShelf {
         self.with_mut(|live| live.received(answer, stage))
     }
 
-    /// The PDF stage machine asked for something the view carries out: a scroll, a search, a hit.
-    pub fn carry(&self, out: PdfOut) {
-        self.with_mut(|live| live.carry(out));
+    /// The PDF stage machine asked for something the view carries out: a scroll, a search (matched
+    /// as `options` say), a hit.
+    pub fn carry(&self, out: PdfOut, options: anyview_core::FindOptions) {
+        self.with_mut(|live| live.carry(out, options));
     }
 }

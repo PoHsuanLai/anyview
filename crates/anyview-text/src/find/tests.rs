@@ -1,4 +1,5 @@
 use super::*;
+use anyview_core::{CaseMatch, FindOptions, WordMatch};
 
 fn hit(line: u32, from: u32, to: u32) -> FindHit {
     FindHit {
@@ -8,33 +9,117 @@ fn hit(line: u32, from: u32, to: u32) -> FindHit {
     }
 }
 
+const LOOSE: FindOptions = FindOptions::DEFAULT;
+const EXACT: FindOptions = FindOptions::DEFAULT.with_case(CaseMatch::Exact);
+const WHOLE: FindOptions = FindOptions::DEFAULT.with_words(WordMatch::Whole);
+const BOTH: FindOptions = EXACT.with_words(WordMatch::Whole);
+
 #[test]
-fn a_phrase_is_found_in_a_line_ignoring_case_and_never_overlapping() {
-    // name, phrase, line text, hits as (from, to)
+fn a_phrase_is_found_in_a_line_under_each_option_and_never_overlaps() {
+    // name, phrase, options, line text, hits as (from, to)
     type Case = (
         &'static str,
         &'static str,
+        FindOptions,
         &'static str,
         &'static [(u32, u32)],
     );
     const CASES: &[Case] = &[
-        ("once", "fn", "pub fn main", &[(4, 6)]),
-        ("case is ignored", "FN", "pub fn main", &[(4, 6)]),
-        ("twice", "ab", "ab cab", &[(0, 2), (4, 6)]),
-        ("overlap takes the first", "aa", "aaa", &[(0, 2)]),
-        ("none", "zz", "pub fn main", &[]),
+        ("once", "fn", LOOSE, "pub fn main", &[(4, 6)]),
+        ("case is ignored", "FN", LOOSE, "pub fn main", &[(4, 6)]),
+        ("twice", "ab", LOOSE, "ab cab", &[(0, 2), (4, 6)]),
+        ("overlap takes the first", "aa", LOOSE, "aaa", &[(0, 2)]),
+        ("none", "zz", LOOSE, "pub fn main", &[]),
         (
             "a multi-byte letter keeps its bytes",
             "é",
+            LOOSE,
             "café au lait",
             &[(3, 5)],
         ),
-        ("the phrase has spaces", "au l", "café au lait", &[(6, 10)]),
-        ("longer than the line", "abcdef", "abc", &[]),
-        ("an empty line", "a", "", &[]),
+        (
+            "the phrase has spaces",
+            "au l",
+            LOOSE,
+            "café au lait",
+            &[(6, 10)],
+        ),
+        ("longer than the line", "abcdef", LOOSE, "abc", &[]),
+        ("an empty line", "a", LOOSE, "", &[]),
+        (
+            "exact case finds its case",
+            "Fox",
+            EXACT,
+            "Fox fox",
+            &[(0, 3)],
+        ),
+        ("exact case misses the other", "FOX", EXACT, "Fox fox", &[]),
+        (
+            "exact case tells a capital apart in any script",
+            "Éa",
+            EXACT,
+            "éa Éa",
+            &[(4, 7)],
+        ),
+        (
+            "a whole word is not the start of a longer one",
+            "cat",
+            WHOLE,
+            "cat concat cats cat_x cat",
+            &[(0, 3), (22, 25)],
+        ),
+        (
+            "punctuation and the line's ends bound a word",
+            "cat",
+            WHOLE,
+            "(cat), cat. \"cat\"",
+            &[(1, 4), (7, 10), (13, 16)],
+        ),
+        (
+            "a digit or an underscore joins a word",
+            "id",
+            WHOLE,
+            "id2 2id _id id_ id",
+            &[(16, 18)],
+        ),
+        (
+            "a non-ASCII letter joins a word",
+            "caf",
+            WHOLE,
+            "café caf",
+            &[(6, 9)],
+        ),
+        (
+            "a non-ASCII word is whole between spaces and punctuation",
+            "é",
+            WHOLE,
+            "é, (é) aé",
+            &[(0, 2), (5, 7)],
+        ),
+        (
+            "a hit that begins or ends in punctuation has no word to join there",
+            ".rs",
+            WHOLE,
+            "a.rs",
+            &[(1, 4)],
+        ),
+        (
+            "a rejected spot does not hide the next one",
+            "ab",
+            WHOLE,
+            "abab ab",
+            &[(5, 7)],
+        ),
+        (
+            "case and whole word together",
+            "Fox",
+            BOTH,
+            "Fox Foxes fox (Fox)",
+            &[(0, 3), (15, 18)],
+        ),
     ];
-    for (name, phrase, text, want) in CASES {
-        let needle = Needle::new(phrase).unwrap();
+    for (name, phrase, options, text, want) in CASES {
+        let needle = Needle::new(phrase).unwrap().with_options(*options);
         let got: Vec<(u32, u32)> = needle
             .hits_in(LineIndex(0), text)
             .iter()

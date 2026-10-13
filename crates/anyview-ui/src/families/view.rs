@@ -11,7 +11,7 @@ use crate::{
     Command, EditOffer, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn,
     StageParams, Ticket, TypedText,
 };
-use anyview_core::{Facts, LineIndex, Resume, Sniffed, Source};
+use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::{Point, Size};
@@ -250,8 +250,13 @@ pub trait StageView: 'static {
     fn edit_read(_doc: &Arc<Self::Doc>, _ticket: Ticket) -> Option<Job> {
         None
     }
-    /// The job that finds `query` in the document, for a family that can search.
-    fn search(_doc: &Arc<Self::Doc>, _ticket: Ticket, _query: &TypedText) -> Option<Job> {
+    /// The job that finds `query` in the document as `options` say, for a family that can search.
+    fn search(
+        _doc: &Arc<Self::Doc>,
+        _ticket: Ticket,
+        _query: &TypedText,
+        _options: FindOptions,
+    ) -> Option<Job> {
         None
     }
     /// The first `upto` hits of the find that is up, as the palette lists them, for a family that
@@ -296,7 +301,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn modes(&self, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn edit_read(&self, ticket: Ticket) -> Option<Job>;
-    fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job>;
+    fn search(&self, ticket: Ticket, query: &TypedText, options: FindOptions) -> Option<Job>;
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
@@ -368,8 +373,8 @@ impl<S: StageView> DocView for Loaded<S> {
         S::edit_read(&self.doc, ticket)
     }
 
-    fn search(&self, ticket: Ticket, query: &TypedText) -> Option<Job> {
-        S::search(&self.doc, ticket, query)
+    fn search(&self, ticket: Ticket, query: &TypedText, options: FindOptions) -> Option<Job> {
+        S::search(&self.doc, ticket, query, options)
     }
 
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine> {

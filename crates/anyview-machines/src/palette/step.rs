@@ -1,7 +1,7 @@
 //! The palette's transitions: quire's machine, and the scope on top of it. The machine knows rows,
-//! a query and a highlight; the three things that are anyview's are handled here before it
-//! is asked: opening as a find, the Find row, and "Show All", which keep the palette open and
-//! change what it lists, and typing in a find, which lists its first hits again.
+//! a query and a highlight; what is anyview's is handled here before it is asked: opening as a
+//! find, the Find row, "Show All" and the find options, which keep the palette open (the first
+//! three change what it lists), and typing in a find, which lists its first hits again.
 
 use super::model::{
     HitList, Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteParams, PaletteScope,
@@ -99,8 +99,9 @@ fn to_find(palette: Palette, scope: PaletteScope) -> ScopedStep {
     }
 }
 
-/// `row` chosen with `input`. Two rows keep the palette open: "Show All", which lists every hit,
-/// and "Find", which makes the text a find. Any other is the machine's: it runs and closes, and
+/// `row` chosen with `input`. Three rows keep the palette open: "Show All", which lists every hit,
+/// "Find", which makes the text a find, and a find option, which is run and leaves the palette as
+/// it is (the viewer switches the option and searches again). Any other is the machine's: it runs and closes, and
 /// a row that is not there is nothing.
 fn picked(
     palette: Palette,
@@ -117,6 +118,13 @@ fn picked(
     }
     if open && command == Some(&Command::Stage(StageCommand::Find)) {
         return to_find(palette, scope);
+    }
+    if let (true, Some(&Command::FindOption(option))) = (open, command) {
+        return (
+            palette,
+            scope,
+            vec![PaletteOut::Run(Command::FindOption(option))],
+        );
     }
     through(palette, scope, input, at, params)
 }

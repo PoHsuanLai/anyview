@@ -661,6 +661,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     scope: keyed.palette_scope,
                     hits: hit_lines,
                     found,
+                    options: keyed.find_options,
                     ontyped: move |text: TypedText| dispatch.send(ViewerIn::Palette(PaletteIn::Typed(text))),
                     onpick: move |row| dispatch.send(ViewerIn::Palette(PaletteIn::Pick(row))),
                     onkey: move |event: KeyboardEvent| {

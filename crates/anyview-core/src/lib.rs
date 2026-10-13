@@ -13,6 +13,7 @@ mod edit;
 mod error;
 mod export;
 mod facts;
+mod find;
 mod helper;
 mod kind;
 mod media;
@@ -45,6 +46,7 @@ pub use facts::{
     Coordinate, Fact, FactGroup, FactLabel, FactTime, FactValue, FactZone, Facts, FileDetails,
     LocalZone, Tier, kind_name,
 };
+pub use find::{CaseMatch, FindOption, FindOptions, WordMatch};
 pub use helper::Helper;
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
