@@ -33,7 +33,7 @@ fn value_class(kind: NodeKind) -> &'static str {
         NodeKind::String => "tok-string",
         NodeKind::Number => "tok-number",
         NodeKind::True | NodeKind::False | NodeKind::Null => "tok-constant",
-        NodeKind::Object | NodeKind::Array => "viewer-node-count",
+        NodeKind::Object | NodeKind::Array | NodeKind::Unreadable => "viewer-node-count",
     }
 }
 

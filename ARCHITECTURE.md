@@ -173,7 +173,7 @@ no other public path. A module names only modules above it in this list.
 | `media` | what a player says of a recording: `StreamKind`, `MediaTrack`, `TrackPlay`, `MediaChapter`, `VideoPresence`, `MediaTags` |
 | `source` | `FilePath`, `FileName`, `FileStamp`, `Source` (a file's serialisable identity), `ReadAt` (bytes read by offset: a byte slice, a `Vec`, an `Arc`, an open `File`, or anything a host implements it for) and `ReadAtStream` (a `Read + Seek` over one), and `Input` (what a peek reads: name, stamp, shared bytes and, when they are a file of their own, the path; made from `&FilePath`, `&Source` or a name and a `Vec<u8>`) |
 | `kind` | `FormatKind`, `Mime`, `FormatDetail`, `SyntaxName`, `kind_of_mime` and the format families |
-| `sniff` | `sniff`, `sniff_zip`, `Sniffed` and the head and entries they read; a head that is not UTF-8 but is printable bytes is plain text under a text extension (a legacy encoding) |
+| `sniff` | `sniff`, `sniff_zip`, `sniff_ole`, `Sniffed` and the head, entries and OLE directory names (`OleStreams`) they read; a head that is not UTF-8 but is printable bytes is plain text under a text extension (a legacy encoding) |
 | `sequence` | `NonEmpty`, `Sequence`, `moved`, `neighbours` |
 | `edit` | `Edit`, `EditKind`, and `Adjust` (a picture's whole adjustment as one value: cut to a `PixelRect`, `Reflection`, `QuarterTurn`, resized; `turned`, `flipped` and `cropped` fold each new step into it, so a series of edits is one `Edit::Adjust`) |
 | `find` | `FindOptions` (how a find matches: `CaseMatch` and `WordMatch`, `#[non_exhaustive]` with `DEFAULT` and `with_*`; the one set text and PDF search both read) and `FindOption` (`MatchCase`, `WholeWords`: one toggle of it, with its label) |

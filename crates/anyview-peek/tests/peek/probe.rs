@@ -43,6 +43,90 @@ fn a_file_is_sniffed_from_its_head_and_stamped_as_it_is() {
     assert_eq!(probed.sniffed.kind(), FormatKind::Folder);
 }
 
+/// An OLE compound file of 512-byte sectors whose directory is sector 10, past the first 4 KiB, and
+/// names `streams`.
+fn compound(streams: &[&str]) -> Vec<u8> {
+    let mut bytes = vec![0_u8; 512 * 12];
+    bytes[..8].copy_from_slice(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+    bytes[0x1E..0x20].copy_from_slice(&9_u16.to_le_bytes());
+    bytes[0x30..0x34].copy_from_slice(&10_u32.to_le_bytes());
+    bytes[0x4C..0x50].copy_from_slice(&0_u32.to_le_bytes()); // the FAT is sector 0
+    // Sector 0, the FAT: the directory's one sector ends its chain.
+    bytes[512 + 10 * 4..512 + 10 * 4 + 4].copy_from_slice(&0xFFFF_FFFE_u32.to_le_bytes());
+    for (index, name) in ["Root Entry"].iter().chain(streams).enumerate() {
+        let entry = 512 * 11 + index * 128;
+        let units: Vec<u16> = name.encode_utf16().collect();
+        for (slot, unit) in units.iter().enumerate() {
+            bytes[entry + slot * 2..entry + slot * 2 + 2].copy_from_slice(&unit.to_le_bytes());
+        }
+        let len = u16::try_from((units.len() + 1) * 2).unwrap();
+        bytes[entry + 64..entry + 66].copy_from_slice(&len.to_le_bytes());
+        bytes[entry + 66] = 2;
+    }
+    bytes
+}
+
+#[test]
+fn a_compound_file_is_told_by_the_streams_in_its_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    // name, file name, streams, kind, format
+    type Case = (
+        &'static str,
+        &'static str,
+        &'static [&'static str],
+        FormatKind,
+        Option<OfficeFormat>,
+    );
+    let cases: Vec<Case> = vec![
+        (
+            "excel",
+            "people.xls",
+            &["Workbook"],
+            FormatKind::Table,
+            Some(OfficeFormat::Xls),
+        ),
+        (
+            "excel, named for nothing",
+            "people.bin",
+            &["Workbook"],
+            FormatKind::Table,
+            Some(OfficeFormat::Xls),
+        ),
+        (
+            "word",
+            "letter.doc",
+            &["WordDocument"],
+            FormatKind::Office,
+            Some(OfficeFormat::Doc),
+        ),
+        (
+            "powerpoint",
+            "talk.ppt",
+            &["PowerPoint Document"],
+            FormatKind::Office,
+            Some(OfficeFormat::Ppt),
+        ),
+        (
+            "an installer",
+            "setup.msi",
+            &["Property"],
+            FormatKind::Other,
+            None,
+        ),
+    ];
+    for (name, file, streams, kind, format) in cases {
+        let file = dir.path().join(file);
+        std::fs::write(&file, compound(streams)).unwrap();
+        let probed = probe(FilePath::new(file).unwrap().on_disk()).unwrap();
+        assert_eq!(probed.sniffed.kind(), kind, "{name}");
+        assert_eq!(
+            probed.sniffed.detail(),
+            &format.map_or(FormatDetail::None, FormatDetail::Office),
+            "{name}"
+        );
+    }
+}
+
 #[test]
 fn a_zip_is_told_from_a_document_by_what_is_inside() {
     let dir = tempfile::tempdir().unwrap();

@@ -32,6 +32,8 @@ const FLAC: &[u8] = b"fLaC\0\0\0\x22";
 const WAV: &[u8] = b"RIFF\x24\0\0\0WAVEfmt ";
 const AIFF: &[u8] = b"FORM\0\0\0\x26AIFFCOMM";
 const OGG: &[u8] = b"OggS\0\x02\0\0\0\0\0\0\0\0\x12\x34\x56\x78\0\0\0\0\0\0\0\0\x01\x13vorbis";
+const SPEEX: &[u8] =
+    b"OggS\0\x02\0\0\0\0\0\0\0\0\x12\x34\x56\x78\0\0\0\0\0\0\0\0\x01\x50Speex   1.2";
 const OPUS: &[u8] =
     b"OggS\0\x02\0\0\0\0\0\0\0\0\x12\x34\x56\x78\0\0\0\0\0\0\0\0\x01\x13OpusHead\x01\x02";
 const M4A: &[u8] = b"\0\0\0\x20ftypM4A \0\0\0\0M4A mp42isom";
@@ -103,6 +105,10 @@ const CASES: &[Case] = &[
     Case { name: "aiff", file: "a.aiff", head: AIFF, kind: FormatKind::Audio, mime: "audio/aiff", detail: FormatDetail::Media(MediaContainer::Aiff) },
     Case { name: "ogg", file: "a.ogg", head: OGG, kind: FormatKind::Audio, mime: "audio/ogg", detail: FormatDetail::Media(MediaContainer::Ogg) },
     Case { name: "opus", file: "a.opus", head: OPUS, kind: FormatKind::Audio, mime: "audio/opus", detail: FormatDetail::Media(MediaContainer::Opus) },
+    Case { name: "opus named ogg", file: "a.ogg", head: OPUS, kind: FormatKind::Audio, mime: "audio/opus", detail: FormatDetail::Media(MediaContainer::Opus) },
+    Case { name: "opus named oga", file: "a.oga", head: OPUS, kind: FormatKind::Audio, mime: "audio/opus", detail: FormatDetail::Media(MediaContainer::Opus) },
+    Case { name: "vorbis named oga", file: "a.oga", head: OGG, kind: FormatKind::Audio, mime: "audio/ogg", detail: FormatDetail::Media(MediaContainer::Ogg) },
+    Case { name: "speex named spx", file: "a.spx", head: SPEEX, kind: FormatKind::Audio, mime: "audio/ogg", detail: FormatDetail::Media(MediaContainer::Ogg) },
     Case { name: "m4a", file: "a.m4a", head: M4A, kind: FormatKind::Audio, mime: "audio/mp4", detail: FormatDetail::Media(MediaContainer::M4a) },
     Case { name: "ttf", file: "a.ttf", head: TTF, kind: FormatKind::Font, mime: "font/ttf", detail: FormatDetail::Font(FontFormat::Ttf) },
     Case { name: "otf", file: "a.otf", head: OTF, kind: FormatKind::Font, mime: "font/otf", detail: FormatDetail::Font(FontFormat::Otf) },

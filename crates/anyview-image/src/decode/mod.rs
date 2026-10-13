@@ -12,6 +12,7 @@ mod jxl;
 mod layered;
 mod look;
 mod natural;
+mod photoshop;
 mod plays;
 mod raw;
 mod stills;

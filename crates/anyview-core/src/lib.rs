@@ -62,7 +62,8 @@ pub use sequence::{
     SequencePosition, moved, neighbours, without_current,
 };
 pub use sniff::{
-    FileHead, SniffStep, Sniffed, ZipEntries, ZipProbe, sniff, sniff_folder, sniff_zip,
+    FileHead, OleStreams, SniffStep, Sniffed, ZipEntries, ZipProbe, is_ole, sniff, sniff_folder,
+    sniff_ole, sniff_zip,
 };
 pub use source::{
     ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, ReadAtStream, Source,

@@ -5,7 +5,7 @@
 
 use super::cursor::Cursor;
 use super::grammar::{
-    Child, Fault, Form, MAX_DEPTH, Why, bad, closing, eof, read_child, unexpected,
+    Child, Fault, Form, MAX_DEPTH, Shape, Why, bad, closing, eof, read_child, unexpected,
 };
 use crate::encoding::Coverage;
 use std::ops::Range;
@@ -58,6 +58,41 @@ impl Level {
     }
 }
 
+/// Reads the next value of a JSON Lines file. A line that is not a value is a child of its own, an
+/// unreadable one holding the rest of the line, so one bad line does not fail the file and the
+/// lines after it are still read. When `reach` says the bytes are a start, a line cut by their end
+/// is no child yet and the fault says the bytes ended.
+fn read_line(c: &mut Cursor<'_>, depth: usize, reach: Coverage) -> Result<Child, Fault> {
+    let start = c.pos();
+    match read_child(c, Form::Stream, depth) {
+        Ok(child) => Ok(child),
+        Err(fault) if fault.why == Why::Eof && reach == Coverage::Prefix => Err(fault),
+        Err(_) => {
+            c.seek(start);
+            loop {
+                let rest = c.rest();
+                if rest.is_empty() {
+                    break;
+                }
+                if let Some(at) = rest.iter().position(|byte| *byte == b'\n') {
+                    c.advance(at);
+                    break;
+                }
+                let all = rest.len();
+                c.advance(all);
+            }
+            if c.peek().is_none() && reach == Coverage::Prefix {
+                return Err(eof(c));
+            }
+            Ok(Child {
+                key: None,
+                value: start..c.pos(),
+                shape: Shape::Unreadable,
+            })
+        }
+    }
+}
+
 /// Reads the children of the container at the cursor (at its opening bracket; a stream has none,
 /// and starts at its first value), checking every one is well formed. `depth` is how many
 /// containers enclose it. When `reach` says the bytes are only the start of a file, a child cut
@@ -99,7 +134,11 @@ fn fill(c: &mut Cursor<'_>, level: &mut Level, depth: usize, reach: Coverage) ->
     }
     loop {
         let start = c.pos();
-        read_child(c, form, depth + 1)?;
+        if form == Form::Stream {
+            read_line(c, depth + 1, reach)?;
+        } else {
+            read_child(c, form, depth + 1)?;
+        }
         let more = match close {
             Some(close) => {
                 c.skip_ws();
@@ -158,7 +197,11 @@ pub(super) fn read_window(
     c.seek(offset);
     let mut found = Vec::new();
     loop {
-        let child = read_child(c, level.form, depth + 1)?;
+        let child = if level.form == Form::Stream {
+            read_line(c, depth + 1, Coverage::Whole)?
+        } else {
+            read_child(c, level.form, depth + 1)?
+        };
         if index >= first {
             found.push((index, child));
         }

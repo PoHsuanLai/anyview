@@ -22,6 +22,8 @@ pub enum NodeKind {
     False,
     /// `null`.
     Null,
+    /// A line of a JSON Lines file that is not a value; its preview is the line as written.
+    Unreadable,
 }
 
 /// What a row is called: its key in an object, its position in an array, or the document itself.
@@ -82,6 +84,15 @@ fn string_preview(text: &str) -> String {
     format!("\"{shown}\"")
 }
 
+/// An unreadable line as written, cut to [`PREVIEW_CHARS`] characters, headed by what it is.
+fn unreadable_preview(text: &str) -> String {
+    let mut shown: String = text.chars().take(PREVIEW_CHARS).collect();
+    if text.chars().count() > PREVIEW_CHARS {
+        shown.push('…');
+    }
+    format!("unreadable: {shown}")
+}
+
 /// The row for a node of `shape` under `label`. `text` is what a scalar shows: a string's
 /// characters, or a number as it was written; `len` is how many children a container has.
 pub(super) fn row(label: RowLabel, shape: Shape, text: &str, len: u32) -> TreeRow {
@@ -93,6 +104,11 @@ pub(super) fn row(label: RowLabel, shape: Shape, text: &str, len: u32) -> TreeRo
         Shape::True => (NodeKind::True, "true".to_owned(), ChildCount(0)),
         Shape::False => (NodeKind::False, "false".to_owned(), ChildCount(0)),
         Shape::Null => (NodeKind::Null, "null".to_owned(), ChildCount(0)),
+        Shape::Unreadable => (
+            NodeKind::Unreadable,
+            unreadable_preview(text),
+            ChildCount(0),
+        ),
     };
     TreeRow {
         label,

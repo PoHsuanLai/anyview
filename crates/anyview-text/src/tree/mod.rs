@@ -135,7 +135,12 @@ fn document(c: &mut Cursor<'_>, cut: Coverage) -> Result<(Root, Coverage), Fault
             let (level, reached) = scan_level(c, form, 0, cut)?;
             (Some(Arc::new(level)), reached)
         }
-        Shape::String | Shape::Number | Shape::True | Shape::False | Shape::Null => {
+        Shape::String
+        | Shape::Number
+        | Shape::True
+        | Shape::False
+        | Shape::Null
+        | Shape::Unreadable => {
             skip_value(c, 0)?;
             (None, Coverage::Whole)
         }
@@ -354,10 +359,24 @@ impl Tree {
                 }
                 Ok(text)
             }
+            Shape::Unreadable => self.raw_text(span),
             Shape::Object | Shape::Array | Shape::True | Shape::False | Shape::Null => {
                 Ok(String::new())
             }
         }
+    }
+
+    /// The bytes of an unreadable line as text, with its line end cut off; one longer than a row
+    /// can show is cut.
+    fn raw_text(&self, span: &Range<u64>) -> Result<String, TextError> {
+        let len = span.end.saturating_sub(span.start);
+        let read = len.min(STRING_READ);
+        let bytes = read_range(&*self.store.source, span.start..span.start + read)?;
+        let mut text = self.store.codec.decode(&bytes).trim_end().to_owned();
+        if read < len {
+            text.push('…');
+        }
+        Ok(text)
     }
 
     /// The index of the container at `path`, whose value starts at `start`: found from the cache,
@@ -403,33 +422,42 @@ impl Tree {
         found.map_err(|fault| self.fail(&mut c, fault))
     }
 
+    /// The node at `path`, found by walking down from the root one step at a time, so a path as
+    /// deep as the document nests costs no stack.
     fn locate(&self, path: &TreePath) -> Result<Located, TextError> {
-        let Some((last, parent_path)) = path.split_last() else {
-            let root = &self.store.root;
-            return Ok(Located {
-                label: RowLabel::Root,
-                shape: root.shape,
-                span: root.span.clone(),
-                level: root.level.clone(),
-            });
+        let root = &self.store.root;
+        let mut at = Located {
+            label: RowLabel::Root,
+            shape: root.shape,
+            span: root.span.clone(),
+            level: root.level.clone(),
         };
-        let parent = self.locate(&parent_path)?;
-        let level = parent.level.ok_or(TextError::NoSuchNode)?;
-        let found = self.read_children(&parent_path, &level, last..last.saturating_add(1))?;
-        let (index, child) = found.into_iter().next().ok_or(TextError::NoSuchNode)?;
-        let label = self.label_of(index, &child)?;
-        let level = match child.shape {
-            Shape::Object | Shape::Array => {
-                Some(self.level_of(path, child.shape, child.value.start)?)
-            }
-            Shape::String | Shape::Number | Shape::True | Shape::False | Shape::Null => None,
-        };
-        Ok(Located {
-            label,
-            shape: child.shape,
-            span: child.value,
-            level,
-        })
+        let mut walked = TreePath::root();
+        for &step in path.steps() {
+            let level = at.level.ok_or(TextError::NoSuchNode)?;
+            let found = self.read_children(&walked, &level, step..step.saturating_add(1))?;
+            let (index, child) = found.into_iter().next().ok_or(TextError::NoSuchNode)?;
+            let label = self.label_of(index, &child)?;
+            walked = walked.child(step);
+            let level = match child.shape {
+                Shape::Object | Shape::Array => {
+                    Some(self.level_of(&walked, child.shape, child.value.start)?)
+                }
+                Shape::String
+                | Shape::Number
+                | Shape::True
+                | Shape::False
+                | Shape::Null
+                | Shape::Unreadable => None,
+            };
+            at = Located {
+                label,
+                shape: child.shape,
+                span: child.value,
+                level,
+            };
+        }
+        Ok(at)
     }
 
     /// The row for the node at `path`, labelled as the root when the path is empty and otherwise
@@ -458,7 +486,12 @@ impl Tree {
                         let level = self.level_of(&at, child.shape, child.value.start)?;
                         Ok(rows::row(label, child.shape, "", level.count))
                     }
-                    Shape::String | Shape::Number | Shape::True | Shape::False | Shape::Null => {
+                    Shape::String
+                    | Shape::Number
+                    | Shape::True
+                    | Shape::False
+                    | Shape::Null
+                    | Shape::Unreadable => {
                         let text = self.scalar_text(child.shape, &child.value)?;
                         Ok(rows::row(label, child.shape, &text, 0))
                     }
