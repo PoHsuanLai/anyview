@@ -8,7 +8,9 @@ use crate::{PanelTab, PanelTabs};
 use anyview_core::{Facts, FormatKind};
 use dioxus::prelude::*;
 use ds::components::controls::segmented::Tracking;
-use ds::prelude::{Choice, SegmentedControl};
+use ds::prelude::{Choice, Common, SegmentedControl};
+use ds::root::pass_through::ExtraClass;
+use ds::style::tokens::control_size::ControlSize;
 use ds_core::word::Word;
 
 /// How wide the panel opens, in logical pixels: a window that opens with it shown is this much wider
@@ -40,6 +42,11 @@ pub(super) fn InfoPanel(
                         label: "Panel tab",
                         choices: choices.iter().map(|choice| Choice::new(*choice, choice.label())).collect::<Vec<_>>(),
                         tracking: Tracking::SelectOne(tab),
+                        size: ControlSize::Small,
+                        common: Common {
+                            extra_class: ExtraClass::parse("viewer-panel-segments").ok(),
+                            ..Common::default()
+                        },
                         onchange: move |picked: PanelTab| onchoose.call(picked),
                     }
                 }

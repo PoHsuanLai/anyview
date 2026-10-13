@@ -9,7 +9,7 @@ use ds::components::chrome::capsule::model::ScrubEvent;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::capsule::view::Capsule;
 use ds::components::chrome::titlebar_parts::{DocumentState, TitleParts};
-use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
+use ds::components::chrome::window_frame::{TitleRoom, TrafficLights, WindowTitlebar};
 use ds::prelude::{Material, Shown, Surface};
 use ds_core::vocab::Fraction;
 use ds_core::word::Word;
@@ -27,12 +27,12 @@ pub(super) enum BarRoom {
 }
 
 impl BarRoom {
-    /// The bar's `data-room`: none in a roomy window, whose bar is the plain one.
-    fn slug(self) -> Option<&'static str> {
+    /// Where the title sits: beside the mode control when it takes the right of the bar, else
+    /// centred.
+    fn title_room(self) -> TitleRoom {
         match self {
-            BarRoom::Roomy => None,
-            BarRoom::Tight => Some("tight"),
-            BarRoom::Bare => Some("bare"),
+            BarRoom::Tight => TitleRoom::Beside,
+            BarRoom::Roomy | BarRoom::Bare => TitleRoom::Centred,
         }
     }
 }
@@ -54,7 +54,6 @@ pub(super) fn Titlebar(
         div {
             class: "viewer-titlebar",
             "data-shown": shown.slug(),
-            "data-room": room.slug(),
             onpointerenter: move |_| onpointerenter.call(()),
             onpointerleave: move |_| onpointerleave.call(()),
             Surface { material: Material::Bar,
@@ -65,6 +64,7 @@ pub(super) fn Titlebar(
                         ..TitleParts::default()
                     },
                     lights: TrafficLights::Shown,
+                    title_room: room.title_room(),
                     // The family's mode controls (Select | Pan) are part of the bar.
                     trailing,
                 }

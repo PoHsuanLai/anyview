@@ -300,7 +300,11 @@ fn a_stage_that_scrolls_a_document_from_its_top_starts_below_the_titlebar() {
 fn the_panel_tabs_fit_inside_the_panel_at_each_window_width_and_scale() {
     for scale in [100, 200] {
         for (w, ht) in [(900, 600), (380, 520), (200, 150)] {
-            let (_d, h) = open("pdf", w, ht, scale);
+            let (_d, mut h) = open("pdf", w, ht, scale);
+            if h.count(".viewer-panel") == 0 {
+                h.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
+                settle(&mut h);
+            }
             let panel = all(&h, ".viewer-panel")[0];
             let tabs = all(&h, ".viewer-panel-tabs .ds-segmented")[0];
             let segments = all(&h, ".viewer-panel-tabs .ds-segmented-segment");

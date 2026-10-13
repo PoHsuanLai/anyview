@@ -16,19 +16,17 @@
    in it. */
 .viewer-scrolls{ top:var(--chrome-titlebar-height); }
 .viewer[*|data-hosting=pane] .viewer-scrolls{ top:0; }
-/* A narrow window: the title ends before the mode control instead of running under it. */
-.viewer-titlebar[*|data-room=tight] .ds-titlebar-title{ right:calc(var(--s-12) * 16); }
 /* The window is a split view: the left panel's pane, then the stage. The titlebar lies over both. */
 .viewer-split{ flex:1 1 auto; min-width:0; }
 /* The panel's body: padded by the window's own step, and by the titlebar's height at the top so
    the bar never covers the top of its tabs. Thumbnails and the card fill its width. */
 .viewer-panel{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; height:100%; overflow-y:auto; padding:calc(var(--chrome-titlebar-height) + var(--s-8)) var(--s-12) var(--s-12); background:var(--surface); }
 .viewer-panel-tabs{ display:flex; justify-content:center; min-width:0; }
-/* The tabs shrink with the panel: equal columns that may go below their words, which then end in an
-   ellipsis, and a small face so the three of a PDF's fit its least width whole. */
-.viewer-panel-tabs .ds-segmented{ --sg-fs:var(--ctl-fs-s); --sg-pad:var(--s-4); grid-auto-columns:minmax(0, 1fr); min-width:0; max-width:100%; }
-.viewer-panel-tabs .ds-segmented-segment{ min-width:0; overflow:hidden; }
-.viewer-panel-tabs .ds-segmented-label{ overflow:hidden; text-overflow:ellipsis; }
+/* The tabs shrink with the panel: equal columns that may go below their words (the control is
+   small, so the three of a PDF's fit its least width whole), and a segment that still does not fit
+   is cut at its edge rather than running into the next. */
+.viewer-panel-tabs .viewer-panel-segments{ grid-auto-columns:minmax(0, 1fr); min-width:0; max-width:100%; }
+.viewer-panel-segments > button{ min-width:0; overflow:hidden; }
 .viewer-modes{ display:flex; align-items:center; }
 
 /* A pane is a region of the host's window: it fills that region, not the screen, and its panel has
