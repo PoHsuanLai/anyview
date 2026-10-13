@@ -325,7 +325,7 @@ zip = { version = "8", default-features = false, features = ["deflate"] }
 # gzip streams, pure-Rust backend (already in the tree): MIT OR Apache-2.0.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 # Zstandard streams, pure Rust: MIT.
-ruzstd = "0.9"
+ruzstd = "0.9.1"
 # xz fixtures for tests, pure Rust: MIT.
 lzma-rs = "0.3"
 # bzip2 streams, the pure-Rust libbz2-rs-sys back end: MIT OR Apache-2.0.
