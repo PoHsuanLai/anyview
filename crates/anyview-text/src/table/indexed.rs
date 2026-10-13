@@ -65,7 +65,9 @@ fn unit_char(codec: TextCodec, bytes: &[u8], at: usize) -> Option<u8> {
             (Some(&0), Some(&low)) => Some(low),
             _ => None,
         },
-        TextCodec::Unicode(TextEncoding::Utf8) | TextCodec::Windows1252 => bytes.get(at).copied(),
+        TextCodec::Unicode(TextEncoding::Utf8) | TextCodec::Windows1252 | TextCodec::Legacy(_) => {
+            bytes.get(at).copied()
+        }
     }
 }
 
