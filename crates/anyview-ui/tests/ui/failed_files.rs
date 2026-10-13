@@ -7,7 +7,6 @@ use anyview_core::FilePath;
 use anyview_ui::{HostRequest, LoadFailure, NotOpened};
 use ds::prelude::Appearance;
 use ds_harness::{Driver, Input, Query};
-use std::io::Write;
 use support::{Wiring, settle, text_file, wired};
 
 #[test]
@@ -39,19 +38,10 @@ fn a_file_deleted_while_it_is_open_says_so_instead_of_showing_the_stale_copy() {
 }
 
 #[test]
-fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
+fn a_json_that_is_cut_short_says_it_looks_damaged_and_offers_the_way_out() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("big.json");
-    // A valid array just past the 64 MiB the tree reads.
-    let mut big = std::io::BufWriter::new(std::fs::File::create(&path).unwrap());
-    big.write_all(b"[").unwrap();
-    let chunk = [b"0,".repeat(512 * 1024)].concat();
-    for _ in 0..65 {
-        big.write_all(&chunk).unwrap();
-    }
-    big.write_all(b"0]").unwrap();
-    big.flush().unwrap();
-    drop(big);
+    let path = dir.path().join("cut.json");
+    std::fs::write(&path, br#"{"a":[1,2,"#).unwrap();
     let path = std::fs::canonicalize(path).unwrap();
     let file = FilePath::new(&path).unwrap();
     let (mut harness, requests, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
@@ -63,12 +53,11 @@ fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
     }
     let said = harness.text_of(".viewer-failed").unwrap_or_default();
     assert!(
-        said.contains("too large"),
+        said.contains("damaged"),
         "{said:?} / {:?}",
         harness.text_of(".viewer")
     );
     assert!(!said.contains("Unsupported"), "{said:?}");
-    assert!(!said.contains("Open With"), "{said:?}");
     assert!(said.contains("Show in Folder"), "{said:?}");
     let told: Vec<HostRequest> = requests
         .lock()
@@ -81,7 +70,7 @@ fn a_valid_json_over_the_limit_says_it_is_too_large_and_offers_the_way_out() {
         told,
         [HostRequest::NotOpened(NotOpened {
             file,
-            reason: LoadFailure::TooLarge
+            reason: LoadFailure::Damaged
         })],
         "the host hears of the failed open once, with why"
     );

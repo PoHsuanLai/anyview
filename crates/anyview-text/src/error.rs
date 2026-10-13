@@ -39,8 +39,8 @@ pub enum TextError {
         /// The parser's own words.
         reason: String,
     },
-    /// A JSON file too large for a peek to parse as one value.
-    #[error("a JSON document larger than the peek budget is not parsed")]
+    /// A JSON document that is one value (a string, say) longer than the bytes read.
+    #[error("a JSON value larger than the bytes read cannot be shown")]
     JsonOverBudget,
     /// A delimited table that does not parse.
     #[error("invalid table: {reason}")]

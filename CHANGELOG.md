@@ -48,7 +48,8 @@ versioning, with pre-releases while the program is in beta.
 
 ### Tables and JSON
 
-- A CSV, TSV or spreadsheet sheet is a table as in Numbers: a row-number gutter, a header that stays put (a hairline appears under it once the rows scroll), hairline rules between the columns, numbers at the right edge of their columns, and columns you can drag wider or narrower. Click a header to sort by it, again to reverse, and once more to go back to the file's own order; sorting is only how you look at the sheet and never changes the file. A two-hundred-thousand-row file still costs a screenful.
+- A CSV, TSV or spreadsheet sheet is a table as in Numbers: a row-number gutter, a header that stays put (a hairline appears under it once the rows scroll), hairline rules between the columns, numbers at the right edge of their columns, and columns you can drag wider or narrower. Click a header to sort by it, again to reverse, and once more to go back to the file's own order; sorting is only how you look at the sheet and never changes the file. A table of millions of rows costs a screenful: the file is indexed, not held, and only the rows on screen are read.
+- A JSON file of any size opens: the tree lists the top level and reads a node's children when you open it, so a file larger than a peek's budget is no longer refused, and a number shows as it is written (`1.0` stays `1.0`). A JSON Lines file is indexed by line, not held.
 - A JSON tree uses the same row height and face as a table: keys in the ordinary text colour, values tinted by what they are, and the counts of objects and arrays faint.
 - A workbook's panel has a Sheets tab with a row for each sheet, beside Info. When a file is longer than what Viewer shows, the panel says "Showing the first 200000 rows" at its foot instead of putting a banner over the rows.
 

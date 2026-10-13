@@ -1,5 +1,6 @@
-//! A table file read for showing: its sheets as tables, each with the column widths its first rows
-//! ask for, and the rows of the Info tab.
+//! A table file opened for showing: its sheets as tables, each with the column widths its first rows
+//! ask for, and the rows of the Info tab. A delimited file is indexed, not held; a workbook's sheets
+//! are held.
 
 use crate::io::OpenError;
 use crate::is_numeric;
@@ -35,11 +36,24 @@ pub struct TableDoc {
     pub facts: Facts,
 }
 
-/// Whether each column of `table` is a column of numbers.
+/// How many rows at the top of a table decide whether a column is numbers.
+const NUMERIC_SAMPLE_ROWS: u32 = 10_000;
+
+/// Whether each column of `table` is a column of numbers, as far as its first
+/// [`NUMERIC_SAMPLE_ROWS`] rows say: a table of millions of rows is read for this once, in
+/// windows, and only that much of it.
 fn numeric_columns(table: &Table) -> Vec<bool> {
-    let rows = table.row_count().0;
+    let sample = table
+        .rows(RowIndex(0)..RowIndex(NUMERIC_SAMPLE_ROWS))
+        .unwrap_or_default();
     (0..table.columns().0 as usize) // a u32 fits a usize
-        .map(|column| is_numeric((0..rows).map(|row| table.cell(RowIndex(row), column))))
+        .map(|column| {
+            is_numeric(
+                sample
+                    .iter()
+                    .map(|row| row.get(column).map_or("", String::as_str)),
+            )
+        })
         .collect()
 }
 
@@ -65,8 +79,8 @@ fn count_text(table: &Table) -> String {
     }
 }
 
-/// Open the table file `src`. Blocking: reads and parses it whole, up to the caps of the text
-/// crate (a delimited file's bytes and rows, a workbook's rows and cells).
+/// Open the table file `src`. Blocking: indexes a delimited file (one pass, up to the text crate's
+/// cap) and reads a workbook whole (up to its caps on rows and cells).
 pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TableDoc, OpenError> {
     if sniffed.kind() != FormatKind::Table {
         return Err(OpenError::Unrecognised);

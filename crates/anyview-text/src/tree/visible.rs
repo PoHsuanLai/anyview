@@ -1,10 +1,9 @@
 //! The rows a tree shows when some of its nodes are open: the document flattened in reading
 //! order, read one window at a time so a million-item array costs the rows on screen.
 
-use super::node::Node;
-use super::rows::{self, RowLabel, TreeRow};
-use super::{Tree, TreePath};
-use anyview_core::OpenNodes;
+use super::Tree;
+use super::rows::TreeRow;
+use anyview_core::{OpenNodes, TreePath};
 use std::ops::Range;
 
 /// Whether a visible node opens, and whether it is open now.
@@ -31,32 +30,19 @@ pub struct VisibleRow {
     pub row: TreeRow,
 }
 
-fn children_of(node: &Node) -> Option<usize> {
-    match node {
-        Node::Object(entries) => Some(entries.len()),
-        Node::Array(items) => Some(items.len()),
-        Node::Scalar { .. } => None,
-    }
+/// The row of `path`'s child at `at`, when the file still has it.
+fn child_row(tree: &Tree, path: &TreePath, at: usize) -> Option<TreeRow> {
+    let at = u32::try_from(at).ok()?;
+    tree.children(path, at..at.saturating_add(1))
+        .ok()?
+        .into_iter()
+        .next()
 }
 
-fn child(node: &Node, at: usize) -> Option<(RowLabel, &Node)> {
-    match node {
-        Node::Object(entries) => entries
-            .get(at)
-            .map(|(key, node)| (RowLabel::Key(key.clone()), node)),
-        Node::Array(items) => items
-            .get(at)
-            .map(|node| (RowLabel::Index(u32::try_from(at).unwrap_or(u32::MAX)), node)),
-        Node::Scalar { .. } => None,
-    }
-}
-
-/// How many rows `node` and its open descendants make.
-fn count(node: &Node, path: &TreePath, open: &OpenNodes) -> u64 {
-    let Some(len) = children_of(node) else {
-        return 1;
-    };
-    if !open.is_open(path) {
+/// How many rows the node of `row` at `path` and its open descendants make.
+fn count(tree: &Tree, row: &TreeRow, path: &TreePath, open: &OpenNodes) -> u64 {
+    let len = row.children.0 as usize; // a u32 fits a usize
+    if len == 0 || !open.is_open(path) {
         return 1;
     }
     let opened: Vec<u32> = open
@@ -66,8 +52,8 @@ fn count(node: &Node, path: &TreePath, open: &OpenNodes) -> u64 {
         .collect();
     let nested: u64 = opened
         .iter()
-        .filter_map(|at| child(node, *at as usize).map(|(_, node)| (at, node)))
-        .map(|(at, node)| count(node, &path.child(*at), open))
+        .filter_map(|at| child_row(tree, path, *at as usize).map(|row| (at, row))) // a u32 fits a usize
+        .map(|(at, row)| count(tree, &row, &path.child(*at), open))
         .sum();
     1 + (len - opened.len()) as u64 + nested // a usize fits a u64
 }
@@ -94,28 +80,27 @@ impl Cut {
     }
 }
 
-fn openness(node: &Node, path: &TreePath, open: &OpenNodes) -> Openness {
-    match children_of(node) {
-        None | Some(0) => Openness::Leaf,
-        Some(_) if open.is_open(path) => Openness::Open,
-        Some(_) => Openness::Closed,
+fn openness(len: usize, path: &TreePath, open: &OpenNodes) -> Openness {
+    match len {
+        0 => Openness::Leaf,
+        _ if open.is_open(path) => Openness::Open,
+        _ => Openness::Closed,
     }
 }
 
-/// Collect the rows of `node` into `cut`: itself, then its open children.
-fn walk(node: &Node, label: RowLabel, path: &TreePath, open: &OpenNodes, cut: &mut Cut) {
+/// Collect the rows of the node of `row` at `path` into `cut`: itself, then its open children.
+fn walk(tree: &Tree, row: TreeRow, path: &TreePath, open: &OpenNodes, cut: &mut Cut) {
     let depth = u32::try_from(path.depth()).unwrap_or(u32::MAX);
+    let len = row.children.0 as usize; // a u32 fits a usize
     cut.push(|| VisibleRow {
         path: path.clone(),
         depth,
-        openness: openness(node, path, open),
-        row: rows::row(label, node),
+        openness: openness(len, path, open),
+        row,
     });
-    let Some(len) = children_of(node).filter(|_| open.is_open(path)) else {
+    if len == 0 || !open.is_open(path) {
         return;
-    };
-    let mut at = 0usize;
-    let opened = open.open_children(path);
+    }
     let plain = |from: usize, to: usize, cut: &mut Cut| {
         // The children from..to are closed or leaves: one row each, so most are skipped by sum.
         let run = (to - from) as u64; // a usize fits a u64
@@ -125,34 +110,40 @@ fn walk(node: &Node, label: RowLabel, path: &TreePath, open: &OpenNodes, cut: &m
         }
         let first = from + cut.skip as usize; // skip < run, a usize
         cut.skip = 0;
-        for position in first..to {
-            if cut.full() {
-                return;
-            }
-            if let Some((label, node)) = child(node, position) {
-                let at_path = path.child(u32::try_from(position).unwrap_or(u32::MAX));
-                cut.push(|| VisibleRow {
-                    depth: depth + 1,
-                    openness: openness(node, &at_path, open),
-                    path: at_path.clone(),
-                    row: rows::row(label, node),
-                });
-            }
+        let want = (to - first).min(usize::try_from(cut.take).unwrap_or(usize::MAX));
+        if want == 0 {
+            return;
+        }
+        let window = u32::try_from(first).unwrap_or(u32::MAX)
+            ..u32::try_from(first + want).unwrap_or(u32::MAX);
+        let Ok(children) = tree.children(path, window) else {
+            return;
+        };
+        for (position, child) in (first..).zip(children) {
+            let at_path = path.child(u32::try_from(position).unwrap_or(u32::MAX));
+            cut.push(|| VisibleRow {
+                depth: depth + 1,
+                openness: openness(child.children.0 as usize, &at_path, open), // a u32 fits a usize
+                path: at_path,
+                row: child,
+            });
         }
     };
+    let mut at = 0usize;
+    let opened = open.open_children(path);
     for position in opened.into_iter().map(|p| p as usize).filter(|p| *p < len) {
         plain(at, position, cut);
         if cut.full() {
             return;
         }
-        if let Some((label, node)) = child(node, position) {
+        if let Some(child) = child_row(tree, path, position) {
             let at_path = path.child(u32::try_from(position).unwrap_or(u32::MAX));
             // A skip that covers the whole subtree passes over it without building rows.
-            let size = count(node, &at_path, open);
+            let size = count(tree, &child, &at_path, open);
             if cut.skip >= size {
                 cut.skip -= size;
             } else {
-                walk(node, label, &at_path, open, cut);
+                walk(tree, child, &at_path, open, cut);
             }
         }
         at = position + 1;
@@ -161,9 +152,17 @@ fn walk(node: &Node, label: RowLabel, path: &TreePath, open: &OpenNodes, cut: &m
 }
 
 impl Tree {
+    /// The row of the root, or an empty document's.
+    fn root_row(&self) -> Option<TreeRow> {
+        self.row(&TreePath::root()).ok()
+    }
+
     /// How many rows the tree shows with `open` nodes open.
     pub fn visible_count(&self, open: &OpenNodes) -> u32 {
-        u32::try_from(count(&self.root, &TreePath::root(), open)).unwrap_or(u32::MAX)
+        let Some(root) = self.root_row() else {
+            return 0;
+        };
+        u32::try_from(count(self, &root, &TreePath::root(), open)).unwrap_or(u32::MAX)
     }
 
     /// The rows in `window` of the flattened tree, cut to the rows that exist.
@@ -173,13 +172,9 @@ impl Tree {
             take: u64::from(window.end.saturating_sub(window.start)),
             rows: Vec::new(),
         };
-        walk(
-            &self.root,
-            RowLabel::Root,
-            &TreePath::root(),
-            open,
-            &mut cut,
-        );
+        if let Some(root) = self.root_row() {
+            walk(self, root, &TreePath::root(), open, &mut cut);
+        }
         cut.rows
     }
 }
@@ -187,6 +182,7 @@ impl Tree {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tree::RowLabel;
     use anyview_core::TreeFormat;
 
     const DOC: &str = r#"{"a":[10,20,{"x":1}],"b":"s","c":{"d":null,"e":[]}}"#;

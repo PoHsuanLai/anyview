@@ -1,30 +1,36 @@
-//! CSV and TSV as a table: rows that can be windowed, a header the viewer guesses or is told.
+//! CSV and TSV as a table: rows that can be windowed, a header the viewer guesses or is told. A
+//! delimited file is indexed by record and its rows are parsed a window at a time (`indexed`); a
+//! spreadsheet's sheet, and a table parsed from text, hold their rows.
 
 mod header;
+mod indexed;
 mod separator;
 mod workbook;
 
 #[cfg(test)]
 mod tests;
 
-use crate::encoding::{Coverage, TextCodec, detect};
+use crate::bytes::read_range;
+use crate::encoding::{Coverage, DETECT_BYTES, Detected, TextCodec, detect};
 use crate::error::TextError;
-use crate::peek::head::read_limited;
 use anyview_core::{ByteLen, Delimiter, Input};
 use header::looks_like_header;
+use indexed::{Indexed, RecordIndex, WINDOW_ROWS};
 use std::ops::Range;
+use std::sync::Arc;
 
 pub use separator::Separator;
 pub use workbook::{SHEET_ROWS, Sheet, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook};
 
-/// The most bytes of a delimited file a table reads.
-pub const TABLE_BYTES: ByteLen = ByteLen(64 * 1024 * 1024);
-
-/// The most rows a table keeps of a delimited file.
-pub const TABLE_ROWS: usize = 200_000;
+/// The most bytes of a delimited file a table indexes; a longer file shows its start. The index
+/// holds an offset for every 64th record, not the file, so this is far above what a person opens.
+pub const TABLE_BYTES: ByteLen = ByteLen(1024 * 1024 * 1024);
 
 /// How many rows are looked at to size the columns.
-const WIDTH_SAMPLE_ROWS: usize = 100;
+const WIDTH_SAMPLE_ROWS: u32 = 100;
+
+/// The bytes at the start of a file that the separator is chosen from.
+const SNIFF_BYTES: usize = 32 * 1024;
 
 /// A column's width in characters, as far as a sample of its cells says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -57,15 +63,26 @@ pub enum HeaderMode {
     Absent,
 }
 
-/// A parsed table. Rows keep the cells they were written with: a short row stays short, so
-/// [`Table::cell`] is the way to read a position that may not exist.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A table. A delimited file read with [`Table::read`] is not held: its rows are parsed from the
+/// file a window at a time, and a row that cannot be read (the file went away) reads as empty.
+/// Rows keep the cells they were written with: a short row stays short, so [`Table::cell`] is the
+/// way to read a position that may not exist.
+#[derive(Debug, Clone)]
 pub struct Table {
     separator: Separator,
     coverage: Coverage,
     header: Option<Vec<String>>,
-    rows: Vec<Vec<String>>,
+    rows: Rows,
     columns: ColumnCount,
+}
+
+/// Where a table's rows are.
+#[derive(Debug, Clone)]
+enum Rows {
+    /// In memory: a table parsed from text, or a sheet.
+    Held(Vec<Vec<String>>),
+    /// In a file, found by the record index.
+    Indexed(Indexed),
 }
 
 impl Table {
@@ -73,17 +90,6 @@ impl Table {
     /// otherwise, by the separator they use (a semicolon, a pipe), and quoted the usual way
     /// (`"a,b"`, with `""` for a quote). Rows may differ in width.
     pub fn parse(text: &str, delimiter: Delimiter, mode: HeaderMode) -> Result<Self, TextError> {
-        Table::parse_limited(text, delimiter, mode, usize::MAX)
-    }
-
-    /// [`Table::parse`] keeping at most `max_rows` rows; a table that stopped there says it holds
-    /// only the start of its text.
-    fn parse_limited(
-        text: &str,
-        delimiter: Delimiter,
-        mode: HeaderMode,
-        max_rows: usize,
-    ) -> Result<Self, TextError> {
         let separator = separator::sniff(text, delimiter);
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(separator.byte())
@@ -91,63 +97,13 @@ impl Table {
             .flexible(true)
             .from_reader(text.as_bytes());
         let mut records: Vec<Vec<String>> = Vec::new();
-        let mut coverage = Coverage::Whole;
         for record in reader.records() {
             let record = record.map_err(|e| TextError::Table {
                 reason: e.to_string(),
             })?;
-            if records.len() >= max_rows {
-                coverage = Coverage::Prefix;
-                break;
-            }
             records.push(record.iter().map(str::to_owned).collect());
         }
-        Ok(Table::of_records(separator, records, mode, coverage))
-    }
-
-    /// The start of the table in `text`: its first `keep` data rows (the header, when there is
-    /// one, comes besides them), and how many data rows the text has in all. Counting the rest
-    /// holds none of them, so a file of ten million rows costs `keep`. The column count is the
-    /// widest row's of all of them.
-    pub(crate) fn parse_start(
-        text: &str,
-        delimiter: Delimiter,
-        mode: HeaderMode,
-        keep: usize,
-    ) -> Result<(Self, RowCount), TextError> {
-        let separator = separator::sniff(text, delimiter);
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(separator.byte())
-            .has_headers(false)
-            .flexible(true)
-            .from_reader(text.as_bytes());
-        let mut record = csv::StringRecord::new();
-        let mut records: Vec<Vec<String>> = Vec::new();
-        let (mut total, mut widest) = (0_usize, 0_usize);
-        while reader
-            .read_record(&mut record)
-            .map_err(|e| TextError::Table {
-                reason: e.to_string(),
-            })?
-        {
-            total += 1;
-            widest = widest.max(record.len());
-            // One more than `keep`: the first record may turn out to be the header.
-            if records.len() <= keep {
-                records.push(record.iter().map(str::to_owned).collect());
-            }
-        }
-        let table = Table::of_records(separator, records, mode, Coverage::Whole);
-        let header = usize::from(table.header.is_some());
-        let table = Table {
-            columns: ColumnCount(u32::try_from(widest).unwrap_or(u32::MAX)),
-            ..table
-        };
-        let data_rows = total - header;
-        Ok((
-            table,
-            RowCount(u32::try_from(data_rows).unwrap_or(u32::MAX)),
-        ))
+        Ok(Table::of_records(separator, records, mode, Coverage::Whole))
     }
 
     /// The table of `rows` read from a spreadsheet, `coverage` saying whether they are all of
@@ -175,25 +131,62 @@ impl Table {
             separator,
             coverage,
             header,
-            rows: records,
+            rows: Rows::Held(records),
             columns: ColumnCount(u32::try_from(columns).unwrap_or(u32::MAX)),
         }
     }
 
-    /// The delimited file `src` names, reading at most [`TABLE_BYTES`] and keeping at most
-    /// [`TABLE_ROWS`] rows; what is left out shows in [`Table::coverage`].
+    /// The delimited file `src` names, indexed by record up to [`TABLE_BYTES`] of it; what is left
+    /// out shows in [`Table::coverage`]. One pass over the bytes finds the record count, the
+    /// widest row and the offset of every 64th record; the rows themselves are read when asked for.
     pub fn read(
         src: impl Into<Input>,
         delimiter: Delimiter,
         mode: HeaderMode,
     ) -> Result<Self, TextError> {
-        let head = read_limited(&src.into(), TABLE_BYTES)?;
-        let table = Table::parse_limited(&head.text, delimiter, mode, TABLE_ROWS)?;
-        let coverage = match (head.coverage, table.coverage) {
-            (Coverage::Whole, Coverage::Whole) => Coverage::Whole,
-            (Coverage::Prefix, _) | (_, Coverage::Prefix) => Coverage::Prefix,
+        Table::open(src, delimiter, mode, TABLE_BYTES).map(|(table, _)| table)
+    }
+
+    /// [`Table::read`] indexing at most `cap` bytes, and the encoding the file is read as.
+    pub(crate) fn open(
+        src: impl Into<Input>,
+        delimiter: Delimiter,
+        mode: HeaderMode,
+        cap: ByteLen,
+    ) -> Result<(Self, TextCodec), TextError> {
+        if cap.0 == 0 {
+            return Err(TextError::NoBudget);
+        }
+        let input: Input = src.into();
+        let source = Arc::clone(input.bytes());
+        let len = source.len().0;
+        let head = read_range(&*source, 0..DETECT_BYTES as u64)?; // a usize fits a u64
+        let looked = if len > head.len() as u64 {
+            Coverage::Prefix
+        } else {
+            Coverage::Whole
         };
-        Ok(Table { coverage, ..table })
+        let detected = detect(&head, looked);
+        let end = len.min(cap.0);
+        let coverage = if len > end {
+            Coverage::Prefix
+        } else {
+            Coverage::Whole
+        };
+        let separator = separator::sniff(&sample(&head, detected), delimiter);
+        let span = (u64::from(detected.mark), end);
+        let index = RecordIndex::build(&*source, detected.codec, separator.byte(), span, coverage)?;
+        let columns = ColumnCount(index.widest);
+        let indexed = Indexed::new(source, detected.codec, separator.byte(), index);
+        let (header, indexed) = with_header(indexed, mode)?;
+        let table = Table {
+            separator,
+            coverage,
+            header,
+            rows: Rows::Indexed(indexed),
+            columns,
+        };
+        Ok((table, detected.codec))
     }
 
     /// Whether the table holds every row of its source or only the start.
@@ -210,13 +203,16 @@ impl Table {
     /// sample of the first rows, held between 4 and 40 characters.
     pub fn column_widths(&self) -> Vec<CharWidth> {
         let (least, most) = WIDTH_RANGE;
+        let sample = self
+            .rows(RowIndex(0)..RowIndex(WIDTH_SAMPLE_ROWS))
+            .unwrap_or_default();
         (0..self.columns.0 as usize) // a u32 fits a usize
             .map(|column| {
                 let chars = |cell: &String| cell.chars().count();
                 let widest = self
                     .header
                     .iter()
-                    .chain(self.rows.iter().take(WIDTH_SAMPLE_ROWS))
+                    .chain(sample.iter())
                     .filter_map(|row| row.get(column))
                     .map(chars)
                     .max()
@@ -226,7 +222,8 @@ impl Table {
             .collect()
     }
 
-    /// The table in a file's bytes: the encoding is detected, a byte-order mark skipped.
+    /// The table in a file's bytes, held whole: the encoding is detected, a byte-order mark
+    /// skipped.
     pub fn parse_bytes(
         bytes: &[u8],
         delimiter: Delimiter,
@@ -244,7 +241,10 @@ impl Table {
 
     /// The number of data rows.
     pub fn row_count(&self) -> RowCount {
-        RowCount(u32::try_from(self.rows.len()).unwrap_or(u32::MAX))
+        match &self.rows {
+            Rows::Held(rows) => RowCount(u32::try_from(rows.len()).unwrap_or(u32::MAX)),
+            Rows::Indexed(indexed) => RowCount(indexed.total()),
+        }
     }
 
     /// The width of the widest row, header included.
@@ -252,18 +252,86 @@ impl Table {
         self.columns
     }
 
-    /// The data rows in `range`, cut to the rows that exist.
-    pub fn rows(&self, range: Range<RowIndex>) -> &[Vec<String>] {
-        let end = (range.end.0 as usize).min(self.rows.len()); // a u32 fits a usize
-        let start = (range.start.0 as usize).min(end);
-        &self.rows[start..end]
+    /// The data rows in `range`, cut to the rows that exist. A file's rows are parsed here, a
+    /// window at a time, and the last windows are kept for the next ask.
+    pub fn rows(&self, range: Range<RowIndex>) -> Result<Vec<Vec<String>>, TextError> {
+        match &self.rows {
+            Rows::Held(rows) => {
+                let end = (range.end.0 as usize).min(rows.len()); // a u32 fits a usize
+                let start = (range.start.0 as usize).min(end);
+                Ok(rows.get(start..end).unwrap_or_default().to_vec())
+            }
+            Rows::Indexed(indexed) => indexed.rows(range.start.0..range.end.0),
+        }
     }
 
-    /// The cell at `row` and `column`, or an empty string where the row is shorter.
-    pub fn cell(&self, row: RowIndex, column: usize) -> &str {
-        self.rows
-            .get(row.0 as usize)
-            .and_then(|cells| cells.get(column))
-            .map_or("", String::as_str)
+    /// The cell at `row` and `column`, or an empty string where the row is shorter, is missing or
+    /// cannot be read.
+    pub fn cell(&self, row: RowIndex, column: usize) -> String {
+        match &self.rows {
+            Rows::Held(rows) => rows
+                .get(row.0 as usize) // a u32 fits a usize
+                .and_then(|cells| cells.get(column))
+                .cloned()
+                .unwrap_or_default(),
+            Rows::Indexed(indexed) => indexed.cell(row.0, column),
+        }
+    }
+
+    /// The cells of one column, top to bottom, an empty string where a row is shorter. A file's
+    /// rows are read as the iterator goes, a window at a time, so a column of a table of any size
+    /// costs one window; a caller that wants to keep something of every row (a sort's key) keeps
+    /// only that.
+    pub fn column(&self, column: usize) -> impl Iterator<Item = String> + '_ {
+        let total = self.row_count().0;
+        (0..total)
+            .step_by(WINDOW_ROWS as usize) // a u32 fits a usize
+            .flat_map(move |from| {
+                let to = from.saturating_add(WINDOW_ROWS).min(total);
+                match self.rows(RowIndex(from)..RowIndex(to)) {
+                    Ok(rows) => rows
+                        .into_iter()
+                        .map(|mut row| {
+                            if column < row.len() {
+                                row.swap_remove(column)
+                            } else {
+                                String::new()
+                            }
+                        })
+                        .collect::<Vec<String>>(),
+                    Err(_) => vec![String::new(); (to - from) as usize], // a u32 fits a usize
+                }
+            })
+    }
+}
+
+/// The start of a file decoded, to choose its separator from.
+fn sample(head: &[u8], detected: Detected) -> String {
+    let body = head.get(usize::from(detected.mark)..).unwrap_or_default();
+    let take = body.len().min(SNIFF_BYTES);
+    let take = take - take % detected.codec.unit();
+    let text = detected.codec.decode(body.get(..take).unwrap_or_default());
+    text.into_owned()
+}
+
+/// `indexed` with its header taken off the rows, when the first record is one.
+fn with_header(
+    indexed: Indexed,
+    mode: HeaderMode,
+) -> Result<(Option<Vec<String>>, Indexed), TextError> {
+    if indexed.records() == 0 {
+        return Ok((None, indexed));
+    }
+    let first = indexed.window(0)?;
+    let is_header = match mode {
+        HeaderMode::Present => true,
+        HeaderMode::Absent => false,
+        HeaderMode::Detect => first
+            .split_first()
+            .is_some_and(|(top, below)| looks_like_header(top, below)),
+    };
+    match first.first() {
+        Some(top) if is_header => Ok((Some(top.clone()), indexed.with_skip(1))),
+        Some(_) | None => Ok((None, indexed)),
     }
 }

@@ -1,5 +1,5 @@
 use super::*;
-use anyview_core::TreePath;
+use anyview_core::{FileName, TreePath};
 
 fn json(text: &str) -> Tree {
     Tree::parse(text, TreeFormat::Json).unwrap()
@@ -147,7 +147,9 @@ fn scalar_roots_and_empty_containers_parse() {
             "18446744073709551615",
             0,
         ),
-        ("a whole float prints without its point", "1.0", "1", 0),
+        ("a whole float keeps its point", "1.0", "1.0", 0),
+        ("a number keeps its trailing zeros", "1.50", "1.50", 0),
+        ("an exponent is kept as written", "-1E+3", "-1E+3", 0),
     ];
     for (name, text, preview, children) in CASES {
         let row = json(text).row(&TreePath::root()).unwrap();
@@ -202,6 +204,83 @@ fn malformed_json_names_its_line_and_column() {
             }
             other => panic!("{name}: {other:?}"),
         }
+    }
+}
+
+#[test]
+fn a_file_longer_than_the_limit_shows_its_start_and_a_deep_node_opens_when_asked() {
+    let items: Vec<String> = (0..2000)
+        .map(|n| format!("{{\"id\":{n},\"inner\":{{\"deep\":[{n},1.0]}}}}"))
+        .collect();
+    let text = format!("[{}]", items.join(",\n"));
+    let input = Input::from((
+        FileName::new("big.json").unwrap(),
+        text.clone().into_bytes(),
+    ));
+    // name, limit, coverage, items counted
+    let cases = [
+        (
+            "the whole file",
+            text.len() as u64 + 1,
+            Coverage::Whole,
+            2000,
+        ),
+        ("a tenth of it", text.len() as u64 / 10, Coverage::Prefix, 0),
+    ];
+    for (name, limit, coverage, count) in cases {
+        let (tree, got) = Tree::read(&input, TreeFormat::Json, ByteLen(limit)).unwrap();
+        assert_eq!(got, coverage, "{name}: coverage");
+        let root = tree.row(&TreePath::root()).unwrap();
+        if count > 0 {
+            assert_eq!(root.children, ChildCount(count), "{name}: items");
+        } else {
+            assert!(root.children.0 > 100, "{name}: the start is counted");
+            assert!(root.children.0 < 2000, "{name}: the rest is not");
+        }
+        let at = root.children.0 - 1;
+        let item = TreePath::root().child(at);
+        let inner = item.child(1);
+        let deep = inner.child(0);
+        assert_eq!(
+            under(&tree, &item)[0],
+            ("id".to_owned(), at.to_string()),
+            "{name}: an item opens"
+        );
+        assert_eq!(
+            under(&tree, &deep),
+            [
+                ("[0]".to_owned(), at.to_string()),
+                ("[1]".to_owned(), "1.0".to_owned())
+            ],
+            "{name}: a deep node opens"
+        );
+    }
+}
+
+#[test]
+fn a_single_value_cut_by_the_limit_is_over_budget() {
+    let input = Input::from((FileName::new("s.json").unwrap(), b"\"abcdefghij\"".to_vec()));
+    assert_eq!(
+        Tree::read(&input, TreeFormat::Json, ByteLen(5)).map(|(_, coverage)| coverage),
+        Err(TextError::JsonOverBudget)
+    );
+}
+
+#[test]
+fn json_lines_past_the_limit_count_only_whole_lines() {
+    let text = "1\n22\n333\n4444\n";
+    // name, limit, coverage, lines counted
+    const CASES: &[(&str, u64, Coverage, u32)] = &[
+        ("all of it", 99, Coverage::Whole, 4),
+        ("a cut inside a line", 8, Coverage::Prefix, 2),
+        ("a cut after a line break", 9, Coverage::Prefix, 3),
+    ];
+    for (name, limit, coverage, count) in CASES {
+        let input = Input::from((FileName::new("a.jsonl").unwrap(), text.as_bytes().to_vec()));
+        let (tree, got) = Tree::read(&input, TreeFormat::JsonLines, ByteLen(*limit)).unwrap();
+        assert_eq!(got, *coverage, "{name}: coverage");
+        let root = tree.row(&TreePath::root()).unwrap();
+        assert_eq!(root.children, ChildCount(*count), "{name}: lines");
     }
 }
 

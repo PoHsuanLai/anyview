@@ -684,7 +684,6 @@ dependencies = [
  "encoding_rs",
  "pulldown-cmark",
  "rustix",
- "serde",
  "serde_json",
  "syntect",
  "tempfile",

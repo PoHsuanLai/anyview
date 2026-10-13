@@ -1,4 +1,4 @@
-//! A JSON file parsed for showing: the whole tree, and the rows of the Info tab.
+//! A JSON file indexed for showing: its tree, read a window at a time, and the rows of the Info tab.
 
 use crate::io::OpenError;
 use anyview_core::{
@@ -7,16 +7,16 @@ use anyview_core::{
 use anyview_fs::OnDisk;
 use anyview_text::{Coverage, Tree};
 
-/// The most bytes of a file the tree reads. A JSON document is one value and is refused above
-/// this; a JSON Lines file is read as far as it reaches.
-pub const TREE_BYTES: anyview_core::ByteLen = anyview_core::ByteLen(64 * 1024 * 1024);
+/// The most bytes of a file the tree scans. The scan holds an index, not the file, so this is far
+/// above what a person opens; a file longer than this shows its start.
+pub const TREE_BYTES: anyview_core::ByteLen = anyview_core::ByteLen(1024 * 1024 * 1024);
 
 /// An opened JSON or JSON Lines file.
 #[derive(Debug)]
 pub struct TreeDoc {
-    /// The document, or for JSON Lines the array of its lines' values.
+    /// The document, or for JSON Lines the array of its values.
     pub tree: Tree,
-    /// Whether every line of a JSON Lines file is in the tree.
+    /// Whether the tree reaches the end of the file.
     pub coverage: Coverage,
     /// The rows of the Info tab.
     pub facts: Facts,

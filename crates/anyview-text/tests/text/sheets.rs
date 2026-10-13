@@ -1,4 +1,4 @@
-//! Tables read from disk the way the viewer opens them: a cap on rows, an encoding, a separator
+//! Tables read from disk the way the viewer opens them: an index of records, an encoding, a separator
 //! the rows choose, and the sheets of a workbook built in the test.
 
 use crate::support;
@@ -6,24 +6,27 @@ use crate::support;
 use anyview_core::{Delimiter, FormatDetail, FormatKind, Peek};
 use anyview_fs::OnDisk;
 use anyview_text::{
-    CharWidth, Coverage, HeaderMode, Separator, TABLE_ROWS, Table, TablePeek, TableSource, Tally,
-    Workbook,
+    CharWidth, Coverage, HeaderMode, Separator, Table, TablePeek, TableSource, Tally, Workbook,
 };
 use support::{budget, rows, workbook, written};
 
 #[test]
-fn a_file_with_more_rows_than_the_cap_keeps_the_start_and_says_so() {
+fn a_big_file_is_indexed_and_its_rows_are_read_where_they_are_asked_for() {
+    const ROWS: usize = 150_000;
     let dir = tempfile::tempdir().unwrap();
     let mut text = String::from("id,name\n");
-    for n in 0..TABLE_ROWS + 50 {
+    for n in 0..ROWS {
         text.push_str(&format!("{n},row{n}\n"));
     }
     let (src, _) = written(dir.path(), "big.csv", text.as_bytes());
     let table = Table::read(src.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
-    // The cap counts the file's records, the header line among them.
-    assert_eq!(table.row_count().0 as usize, TABLE_ROWS - 1);
-    assert_eq!(table.coverage(), Coverage::Prefix);
+    assert_eq!(table.row_count().0 as usize, ROWS);
+    assert_eq!(table.coverage(), Coverage::Whole);
     assert_eq!(table.header().map(<[String]>::len), Some(2));
+    assert_eq!(
+        table.cell(anyview_text::RowIndex(ROWS as u32 - 1), 1),
+        format!("row{}", ROWS - 1)
+    );
     let small = written(dir.path(), "small.csv", b"a,b\n1,2\n").0;
     let whole = Table::read(small.on_disk(), Delimiter::Comma, HeaderMode::Detect).unwrap();
     assert_eq!(whole.coverage(), Coverage::Whole);
