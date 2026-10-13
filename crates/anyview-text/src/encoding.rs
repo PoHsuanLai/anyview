@@ -141,10 +141,18 @@ pub fn detect(head: &[u8], coverage: Coverage) -> Detected {
     Detected { codec, mark: 0 }
 }
 
+/// Fewer non-ASCII bytes than this are too little for a guess: a word or two with an accent
+/// (`café`) reads as Windows-1252, the Western default, rather than whichever Latin encoding
+/// the guesser leans to on one byte.
+const GUESS_BYTES: usize = 4;
+
 /// The legacy encoding of bytes that are not UTF-8, guessed over at most [`DETECT_BYTES`] of them.
 /// The guess is told the stream ended only when `head` is the whole file and all of it was fed.
 fn guess_legacy(head: &[u8], coverage: Coverage) -> TextCodec {
     let fed = &head[..head.len().min(DETECT_BYTES)];
+    if fed.iter().filter(|byte| !byte.is_ascii()).count() < GUESS_BYTES {
+        return TextCodec::Windows1252;
+    }
     let ends = matches!(coverage, Coverage::Whole) && fed.len() == head.len();
     let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
     detector.feed(fed, ends);
