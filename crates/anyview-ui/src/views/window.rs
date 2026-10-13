@@ -6,7 +6,7 @@
 
 use super::arrive::arrived;
 use super::carry::{Carry, carry_out};
-use super::chrome::{Controls, Titlebar};
+use super::chrome::{BarRoom, Controls, Titlebar};
 use super::context::ContextPopup;
 use super::effects::{use_announce, use_work};
 use super::export::ExportSheet;
@@ -24,7 +24,7 @@ use super::sheet::{
 };
 use super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use super::unsaved::UnsavedSheet;
-use crate::families::FrameLook;
+use crate::families::{Area, FrameLook};
 use crate::io::{FileAccess, HostRequest, Job, MediaSupport};
 use crate::{
     Chords, ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure,
@@ -35,6 +35,8 @@ use crate::{
 use anyview_core::{FilePath, FormatKind};
 use chordkit::Context;
 use dioxus::prelude::*;
+use ds::components::chrome::capsule::fit::{SlotShown, fit};
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec, SplitPane};
 use ds::components::chrome::split_view::view::SplitView;
 use ds::components::chrome::titlebar_parts::DocumentState;
@@ -50,18 +52,35 @@ use ds_core::word::Word;
 use futures_util::StreamExt;
 use std::rc::Rc;
 
-/// The left panel's pane: 220 wide, between 180 and 320, and it folds away when dragged past half
+/// The left panel's pane: 240 wide, between 220 and 320, and it folds away when dragged past half
 /// its least. It sits beside the stage, so opening it shrinks the stage and not the window.
 const PANEL: PaneSpec = PaneSpec {
-    preferred: PaneSize::Fixed(Px(220.0)),
-    min: PaneSize::Fixed(Px(180.0)),
+    preferred: PaneSize::Fixed(Px(super::panel::WIDTH as f32)),
+    min: PaneSize::Fixed(Px(220.0)),
     max: PaneSize::Fixed(Px(320.0)),
     collapsing: Collapsing::Snaps,
 };
 
-/// Below this width the info panel of a pane lies over the content instead of beside it: opening
-/// it would leave the content too little room.
+/// Below this width the info panel lies over the content instead of beside it (a pane or a window
+/// alike): opening it would leave the content too little room.
 const NARROW_BELOW: f32 = 480.0;
+
+/// Below this width the titlebar's mode control (Select, Pan, Crop) takes the right of the bar, so
+/// the title ends before it instead of running under it.
+const BAR_TIGHT_BELOW: f32 = 560.0;
+
+/// Below this width the bar has no room for the mode control beside the lights and a title, so the
+/// control steps aside (its commands stay in the palette and the menu).
+const BAR_BARE_BELOW: f32 = 300.0;
+
+/// Whether the capsule would draw anything on a stage `area` wide: quire thins a capsule by rank
+/// and an unlucky width leaves none, which would draw as an empty pill.
+fn capsule_shows_something(slots: &[RankedSlot<Command>], area: Option<Area>) -> bool {
+    let width = area
+        .map(|area| area.size.width.0.floor().max(0.0) as u32)
+        .filter(|width| *width > 0);
+    fit(slots, width).contains(&SlotShown::Shown)
+}
 
 /// What the viewer window draws for `launch`. A pane (`Presentation::Pane`) is the same window as
 /// a region of its host's: no titlebar, welcome window, sheets, palette or file drop, none of the
@@ -346,7 +365,8 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             offered_slots(listed, &machine_params.files)
         })
         .unwrap_or_default();
-    let capsule_drawn = !(hosted && pane_chrome == PaneChrome::Minimal);
+    let capsule_drawn =
+        !(hosted && pane_chrome == PaneChrome::Minimal) && capsule_shows_something(&slots, area());
     let failure = match state.load {
         Load::Failed { reason, .. } => Some(reason),
         Load::Idle { .. }
@@ -422,9 +442,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         }
     };
     // A pane too narrow to share its room with the panel lays the panel over the content.
-    let overlay = hosted
-        && whole().is_some_and(|whole| whole.size.width.0 < NARROW_BELOW)
+    let overlay = whole().is_some_and(|whole| whole.size.width.0 < NARROW_BELOW)
         && pane_shown == Shown::Visible;
+    // How much of the titlebar the mode control takes, by the window's width.
+    let bar = match whole().map(|whole| whole.size.width.0) {
+        Some(width) if width < BAR_BARE_BELOW => BarRoom::Bare,
+        Some(width) if width < BAR_TIGHT_BELOW => BarRoom::Tight,
+        Some(_) | None => BarRoom::Roomy,
+    };
+    let trailing = if bar == BarRoom::Bare { None } else { trailing };
     // A pane dragged open or shut asks the machine for the same: opening is idempotent (the tab
     // is the one the panel would show), so a drag that reports it twice does not close it again.
     let panel_wanted = move |(_, shown): (usize, Shown)| {
@@ -646,6 +672,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
                     Titlebar {
                         title,
+                        room: bar,
                         shown: chrome,
                         trailing,
                         document,

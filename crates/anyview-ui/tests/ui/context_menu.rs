@@ -256,6 +256,11 @@ fn the_menu_key_opens_it_at_the_middle_of_the_content_on_screen_at_every_scale()
             "{scale}%: the menu's corner {:?} is at the middle {middle:?}",
             rect.origin
         );
+        assert_eq!(
+            harness.count(".ds-menu-scroll"),
+            0,
+            "{scale}%: a menu that fits the window shifts up whole, it does not scroll: {rect:?}"
+        );
         assert!(
             rect.origin.x.0 >= 0.0
                 && rect.origin.y.0 >= 0.0

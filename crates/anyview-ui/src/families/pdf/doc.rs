@@ -5,7 +5,7 @@
 use crate::families::view::Area;
 use crate::io::OpenError;
 use crate::{EditCaution, EditOffer};
-use anyview_core::{Facts, PageCount, PageIndex, Sniffed, Source};
+use anyview_core::{BookFormat, Facts, FormatDetail, PageCount, PageIndex, Sniffed, Source};
 use anyview_machines::{OutlineFold, OutlineShape};
 use anyview_pdf::{Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
 use std::io::ErrorKind;
@@ -64,8 +64,11 @@ impl PdfFailure {
 pub enum PdfOrigin {
     /// A PDF file.
     File,
-    /// A book bound as a PDF in the window, which opens at reading width and takes no page edit.
+    /// An EPUB bound as a PDF in the window, which opens at reading width and takes no page edit.
     Book,
+    /// A comic bound as a PDF in the window: its pages are pictures, so it opens on the whole
+    /// page, and it takes no page edit.
+    Comic,
 }
 
 /// An opened PDF. Shared in an `Arc` by the window and every job; nothing in it changes.
@@ -97,11 +100,11 @@ impl PdfDoc {
 
     /// The document a book was bound as, with the rows the book's own Info tab has (not the bound
     /// PDF's Info dictionary, which is the binder's). Its pages take no edit.
-    pub(super) fn of_book(document: PdfDocument, facts: Facts) -> PdfDoc {
+    pub(super) fn of_book(document: PdfDocument, facts: Facts, origin: PdfOrigin) -> PdfDoc {
         // The book's pages are a PDF only in the window: no edit of them could be written back.
         PdfDoc {
             offer: EditOffer::Withheld,
-            origin: PdfOrigin::Book,
+            origin,
             ..PdfDoc::with_facts(facts, document)
         }
     }
@@ -195,7 +198,11 @@ pub(super) fn open(src: &Source) -> Result<PdfDoc, OpenError> {
 /// session has bound this version of it already.
 pub(super) fn open_book(src: &Source, sniffed: &Sniffed) -> Result<PdfDoc, OpenError> {
     let bound = super::bound::bind(src, sniffed)?;
-    Ok(PdfDoc::of_book(bound.document, bound.facts))
+    let origin = match sniffed.detail() {
+        FormatDetail::Book(BookFormat::Cbz) => PdfOrigin::Comic,
+        _ => PdfOrigin::Book,
+    };
+    Ok(PdfDoc::of_book(bound.document, bound.facts, origin))
 }
 
 /// The room a window gives the pages, as the PDF stage reads it.

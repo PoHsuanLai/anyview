@@ -111,8 +111,12 @@ impl StageView for PdfStageView {
         match stage.restoring(left_at) {
             Some(restore) => vec![restore],
             // A book opens at reading width, as Books and Preview do; a place left wins.
-            None if doc.origin == PdfOrigin::Book => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fill))],
-            None => Vec::new(),
+            None => match doc.origin {
+                PdfOrigin::Book => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fill))],
+                // A comic's pages are pictures: the whole page, as comic readers and Preview show one.
+                PdfOrigin::Comic => vec![StageIn::Pdf(PdfIn::SetZoom(Zoom::Fit))],
+                PdfOrigin::File => Vec::new(),
+            },
         }
     }
 

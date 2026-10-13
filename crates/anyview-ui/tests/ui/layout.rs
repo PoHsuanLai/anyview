@@ -293,3 +293,85 @@ fn a_stage_that_scrolls_a_document_from_its_top_starts_below_the_titlebar() {
         }
     }
 }
+
+/// The tabs of the PDF's panel, whole, inside the panel: the panel at its width (900), and over a
+/// narrow window, where it is less than its least (380, 200).
+#[test]
+fn the_panel_tabs_fit_inside_the_panel_at_each_window_width_and_scale() {
+    for scale in [100, 200] {
+        for (w, ht) in [(900, 600), (380, 520), (200, 150)] {
+            let (_d, h) = open("pdf", w, ht, scale);
+            let panel = all(&h, ".viewer-panel")[0];
+            let tabs = all(&h, ".viewer-panel-tabs .ds-segmented")[0];
+            let segments = all(&h, ".viewer-panel-tabs .ds-segmented-segment");
+            let label = format!("{w}x{ht}@{scale}: tabs {tabs:?} in panel {panel:?}");
+            assert!(
+                tabs.x >= panel.x - 0.5 && tabs.x + tabs.w <= panel.x + panel.w + 0.5,
+                "L-tabs: the control is clipped by the panel, {label}"
+            );
+            assert_eq!(segments.len(), 3, "{label}");
+            for segment in segments {
+                assert!(
+                    segment.w > 0.0
+                        && segment.x >= tabs.x - 0.5
+                        && segment.x + segment.w <= tabs.x + tabs.w + 0.5,
+                    "L-tabs: a segment {segment:?} is outside the control, {label}"
+                );
+            }
+        }
+    }
+}
+
+/// A narrow window with the info panel open: the panel lies over the content (the stage keeps the
+/// window's width), the file's name ends before the mode control, and nothing is empty.
+#[test]
+fn a_narrow_window_with_the_info_panel_open_keeps_its_content_title_and_capsule() {
+    for scale in [100, 200] {
+        for (w, ht) in [(380, 520), (200, 150)] {
+            let (_d, mut h) = open("picture", w, ht, scale);
+            h.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
+            settle(&mut h);
+            pointer(&mut h, w, ht);
+            let label = format!("{w}x{ht}@{scale}");
+            assert_eq!(
+                h.count(".viewer-panel-overlay"),
+                1,
+                "{label}: the panel lies over"
+            );
+            let stage = all(&h, ".viewer-stage")[0];
+            assert!(
+                stage.w >= w as f32 - 0.5,
+                "L-narrow: the panel squeezes the content to {stage:?} in {label}"
+            );
+            for sel in [".ds-titlebar-name", ".viewer-stage", ".viewer-panel"] {
+                for b in all(&h, sel) {
+                    assert!(
+                        b.w > 0.0 && b.h > 0.0,
+                        "L-narrow: {sel} is empty {b:?} in {label}"
+                    );
+                }
+            }
+            for capsule in all(&h, ".ds-capsule") {
+                assert!(
+                    capsule.w > 40.0,
+                    "L-narrow: a sliver of a capsule {capsule:?} in {label}"
+                );
+            }
+            let name = all(&h, ".ds-titlebar-name")[0];
+            let lights = all(&h, ".ds-lights")[0];
+            assert!(
+                name.x >= lights.x + lights.w - 0.5,
+                "{label}: name over the lights"
+            );
+            let modes = all(&h, ".viewer-titlebar .ds-segmented");
+            match (w, modes.first()) {
+                (200, modes) => assert!(modes.is_none(), "{label}: no room for the mode control"),
+                (_, Some(modes)) => assert!(
+                    name.x + name.w <= modes.x + 0.5,
+                    "L-narrow: the name {name:?} runs under the mode control {modes:?} in {label}"
+                ),
+                (_, None) => panic!("{label}: the mode control is not drawn"),
+            }
+        }
+    }
+}

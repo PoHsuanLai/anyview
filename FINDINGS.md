@@ -84,8 +84,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   size). It starts working when the blitz fork patches winit to report them. The unit test covers it
   through the vocabulary: a window told it is tiled on any edge is never asked for a size.
 - **The left panel's width is kept for the window's life, not across launches.** The panel is a `SplitView` pane
-  (`PaneSpec` 220, between 180 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
-  reports only whether the pane is open (`on_shown`), so a new window opens at 220. Ends when the split view
+  (`PaneSpec` 240, between 220 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
+  reports only whether the pane is open (`on_shown`), so a new window opens at 240. Ends when the split view
   reports a pane's size to persist.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
   a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the

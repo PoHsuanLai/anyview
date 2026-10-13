@@ -7,7 +7,7 @@ use crate::pdf_fixture;
 use crate::support;
 
 use anyview_core::{PageIndex, Permille, Resume, Zoom};
-use anyview_ui::HostRequest;
+use anyview_ui::{HostRequest, NaturalSize, SizeBasis};
 use dioxus::prelude::Modifiers;
 use ds::host::gesture::{Gesture, GesturePhase, Magnification, ScrollSource};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
@@ -467,5 +467,28 @@ fn a_pdf_capsule_fits_a_window_at_its_least_width() {
         harness.count(".ds-capsule .ds-button"),
         7,
         "all seven buttons at 480"
+    );
+}
+
+#[test]
+fn a_pdf_that_opens_with_the_panel_shown_asks_for_a_window_the_panel_widens() {
+    let (_dir, _harness, requests) = opened();
+    let sizes: Vec<SizeBasis> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|request| match request {
+            HostRequest::SizeWindow(size) => Some(*size),
+            _ => None,
+        })
+        .collect();
+    let [SizeBasis::Natural(NaturalSize::Points(size))] = sizes[..] else {
+        panic!("one size from the loaded page, in points: {sizes:?}");
+    };
+    // The first page is 612 by 792; the panel (240) opens beside it, so the page keeps its width.
+    assert_eq!(
+        (size.width.0, size.height.0),
+        (612 + 240, 792),
+        "the window is the page and the panel"
     );
 }

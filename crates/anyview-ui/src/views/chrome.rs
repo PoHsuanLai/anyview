@@ -14,12 +14,35 @@ use ds::prelude::{Material, Shown, Surface};
 use ds_core::vocab::Fraction;
 use ds_core::word::Word;
 
+/// How much of the titlebar the family's mode control takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum BarRoom {
+    /// The title is centred and the control sits right of it.
+    #[default]
+    Roomy,
+    /// The window is narrow: the title ends before the control.
+    Tight,
+    /// The window has no room for the control; it is not drawn.
+    Bare,
+}
+
+impl BarRoom {
+    fn slug(self) -> &'static str {
+        match self {
+            BarRoom::Roomy => "roomy",
+            BarRoom::Tight => "tight",
+            BarRoom::Bare => "bare",
+        }
+    }
+}
+
 /// The titlebar: the window's title and lights on the bar material, over the top of the content.
 /// It takes no pointer while it is hidden, so it never blocks the content under it.
 #[component]
 pub(super) fn Titlebar(
     title: String,
     #[props(default)] edited: DocumentState,
+    #[props(default)] room: BarRoom,
     shown: Shown,
     trailing: Option<Element>,
     #[props(default)] document: DocumentState,
@@ -30,6 +53,7 @@ pub(super) fn Titlebar(
         div {
             class: "viewer-titlebar",
             "data-shown": shown.slug(),
+            "data-room": room.slug(),
             onpointerenter: move |_| onpointerenter.call(()),
             onpointerleave: move |_| onpointerleave.call(()),
             Surface { material: Material::Bar,
