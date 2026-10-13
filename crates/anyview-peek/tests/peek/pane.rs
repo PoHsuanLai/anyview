@@ -10,7 +10,7 @@ mod golden;
 use crate::support;
 
 use anyview_core::FormatKind;
-use anyview_peek::{AnyPeeked, Body, PageLook, Pane, PdfPeeked, STYLE, peek};
+use anyview_peek::{AnyPeeked, Body, Card, PageLook, PdfPeeked, STYLE, peek};
 use anyview_text::{TokenClass, TokenLine, TokenSpan};
 use dioxus::core::VirtualDom;
 use dioxus::prelude::*;
@@ -71,7 +71,7 @@ fn Root(setup: Setup) -> Element {
             appearance: Appearance::default(),
             material: Material::Window,
             stylesheet: Inject::Host,
-            Pane { peeked: setup.peeked }
+            Card { peeked: setup.peeked }
         }
     }
 }
@@ -239,7 +239,7 @@ fn app() -> Element {
         Ds {
             appearance: Appearance::default(),
             material: Material::Window,
-            Pane { peeked }
+            Card { peeked }
         }
     }
 }
@@ -311,7 +311,7 @@ fn hosted() -> Element {
             div {
                 id: "host",
                 style: "position:relative;display:flex;flex-direction:column;width:328px;height:318px;overflow:hidden",
-                Pane { peeked }
+                Card { peeked }
             }
         }
     }

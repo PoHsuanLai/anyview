@@ -314,6 +314,7 @@ dependencies = [
  "anyview-export",
  "anyview-fs",
  "anyview-image",
+ "anyview-machines",
  "anyview-media",
  "anyview-media-host",
  "anyview-pdf",

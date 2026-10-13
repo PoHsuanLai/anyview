@@ -1,4 +1,4 @@
-//! A PDF page across the boundary: `ds_blitz` hands back quire's `PdfPage`, the pane draws quire's
+//! A PDF page across the boundary: `ds_blitz` hands back quire's `PdfPage`, the card draws quire's
 //! `PdfThumb`, and the peek in between speaks its own [`PageLook`].
 
 use crate::pdf::{PageLook, PageTrouble};
@@ -22,7 +22,7 @@ pub(crate) fn look(page: PdfPage) -> PageLook {
     }
 }
 
-/// What the pane's `PdfThumb` draws for a peeked page.
+/// What the card's `PdfThumb` draws for a peeked page.
 pub(crate) fn thumb(look: &PageLook) -> PdfPage {
     match look {
         PageLook::Drawn {

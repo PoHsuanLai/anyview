@@ -5,8 +5,8 @@ use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
 use crate::host::{
-    Appearances, CachedPictures, Clock, HelperHost, Hosting, ImageHost, Media, PATH_SETTLE,
-    PathWatch, PlatformDesktop, PluginRegistry, SETTLE, Services, Store, Watcher,
+    Appearances, CachedPictures, HelperHost, Hosting, ImageHost, Media, PATH_SETTLE, PathWatch,
+    PlatformDesktop, PluginRegistry, SETTLE, Services, Store, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -16,7 +16,7 @@ use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::portable::{FreedesktopThumbnails, NoStacking};
 use anyview_platform::{Env, Instance, PluginRunner, Request, discover};
-use anyview_store::{STORE_FOLDER, Versions, Viewed};
+use anyview_store::{Clock, STORE_FOLDER, Versions, Viewed};
 use ds_blitz::{
     AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
 };

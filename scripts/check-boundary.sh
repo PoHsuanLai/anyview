@@ -369,7 +369,7 @@ fi
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
+  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-machines anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core"
   "anyview-fs: anyview-core"

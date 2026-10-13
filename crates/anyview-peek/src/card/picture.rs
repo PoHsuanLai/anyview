@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// `image` fitted into the pane's media box (the box is the picture's: it fills it and the layer fits the
+/// `image` fitted into the card's media box (the box is the picture's: it fills it and the layer fits the
 /// picture inside at its own aspect). The device arrives with the window's first frame, so
 /// until then (and on a renderer with no device, which draws no texture at all) the box shows a
 /// placeholder block instead of a blank.

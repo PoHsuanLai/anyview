@@ -1,6 +1,6 @@
+use super::column::ColumnSort;
 use super::model::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
 use crate::stage::row::RowNo;
-use anyview_core::ColumnSort;
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 

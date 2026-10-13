@@ -3,8 +3,8 @@
 //! facts that come out. `use anyview_core::prelude::*;` brings them in.
 //!
 //! What belongs here is a type a caller names to *start* (an [`Input`], a [`Source`], a
-//! [`PeekBudget`]) or to read an answer (a [`FormatKind`], [`Facts`]). Units, export options, the
-//! sequence and the trail are reached from the crate root by the code that needs them.
+//! [`PeekBudget`]) or to read an answer (a [`FormatKind`], [`Facts`]). Units, export options and the
+//! sequence are reached from the crate root by the code that needs them.
 
 pub use crate::{
     Facts, FileAction, FileHead, FileName, FilePath, FileStamp, FormatKind, Input, PeekBudget,

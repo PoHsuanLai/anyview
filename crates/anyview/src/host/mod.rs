@@ -48,7 +48,7 @@ pub use resume::HostedResume;
 pub use resume_handed::HandedResume;
 pub use route::{Carry, Shown, Task, WindowTask, route};
 pub use saving::prune_versions;
-pub use store::{Clock, Store};
+pub use store::Store;
 pub use trash::{SystemTrash, Trash, TrashError};
 pub use version_rows::HostedVersions;
 pub use watch::{SETTLE, Told, Watcher, WindowWatch};

@@ -1,6 +1,6 @@
 //! Files, fakes and a desktop made of them.
 
-use crate::host::{Clock, Desktop, HelperHost, Media, Services, Store, Trash, TrashError};
+use crate::host::{Desktop, HelperHost, Media, Services, Store, Trash, TrashError};
 use crate::media::{Exports, MediaHub};
 use crate::runtime::{Mailbox, Pool, PoolSize};
 use crate::seam::NoticeWaker;
@@ -12,7 +12,7 @@ use anyview_platform::testing::{
     FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
 };
 use anyview_platform::{PickOutcome, PrintOutcome};
-use anyview_store::Viewed;
+use anyview_store::{Clock, Viewed};
 use anyview_ui::{Opened, StageFamily, family_of};
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};

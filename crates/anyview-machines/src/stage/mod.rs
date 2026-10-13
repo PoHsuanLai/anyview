@@ -32,7 +32,10 @@ pub use raster::{
     RasterStage, Runs,
 };
 pub use row::{RowNo, RowStep};
-pub use table::{SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
+pub use table::{
+    ColumnSort, SheetNo, SheetTotal, SortDirection, TableIn, TableOut, TableParams, TableStage,
+    is_numeric, sorted_rows,
+};
 pub use text::WrapChoices;
 pub use text::{
     Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,

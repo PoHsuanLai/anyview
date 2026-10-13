@@ -1,4 +1,4 @@
-/* The pane (anyview-peek): a column of the media box, the file's name and its facts, filling the box the
+/* The card (anyview-peek): a column of the media box, the file's name and its facts, filling the box the
    host gives it with no padding of its own (the host pads). The media box takes what the name and the
    facts leave, so the facts always show; in a parent with no height of its own it is 220px tall. Tokens only;
    the code colours are the label hues' text-safe members, so they read on the card in both

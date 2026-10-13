@@ -9,7 +9,6 @@
 #![warn(missing_docs)]
 
 mod action;
-mod column;
 mod edit;
 mod error;
 mod export;
@@ -24,7 +23,6 @@ mod resume;
 mod sequence;
 mod sniff;
 mod source;
-mod trail;
 mod tree_path;
 mod units;
 pub mod work;
@@ -35,7 +33,6 @@ mod xml_depth;
 pub const APP_NAME: &str = "Viewer";
 
 pub use action::{FileAction, Reach, file_action_of, own_keys, reach, shortcut};
-pub use column::{ColumnSort, SortDirection, is_numeric, sorted_rows};
 pub use edit::{Adjust, Edit, EditKind, PixelRect, Reflection};
 pub use error::CoreError;
 pub use export::{
@@ -68,7 +65,6 @@ pub use sniff::{
 pub use source::{
     ByteLen, FileName, FilePath, FileStamp, Input, ModTime, ReadAt, ReadAtStream, Source,
 };
-pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use tree_path::{OpenNodes, TreePath};
 pub use units::{
     Axis, Bitrate, ChapterIndex, DocPoint, DocUnit, Dpi, LineIndex, MediaLength, MediaTime,

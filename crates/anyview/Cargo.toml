@@ -26,6 +26,8 @@ anyview-core = { workspace = true }
 anyview-fs = { workspace = true }
 anyview-export = { workspace = true, features = ["print"] }
 anyview-image = { workspace = true, features = ["encode"] }
+# `Trail`: the pure undo and redo machine the editing host steps.
+anyview-machines = { workspace = true }
 anyview-media = { workspace = true, features = ["player"] }
 # The player host and the hub of sessions, which the pane links too.
 anyview-media-host = { workspace = true }

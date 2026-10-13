@@ -1,6 +1,6 @@
 [package]
 name = "anyview-peek"
-description = "The viewer's light tier: one peek per kind of file, the registry that maps every kind to its peek, and the pane that draws what was peeked at."
+description = "The viewer's light tier: one peek per kind of file, the registry that maps every kind to its peek, and the card that draws what was peeked at."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ publish.workspace = true
 
 # `media` (on by default) is the recording's peek: pure-Rust parsers read its facts and, for audio,
 # its cover (symphonia, mp4parse, matroska-demuxer). Off, a recording is peeked as a file of a kind with no back end: its type, size and date.
-# `pane` (on by default) is everything that draws or rasterises: the `Pane` component (dioxus) and a
+# `pane` (on by default) is everything that draws or rasterises: the `Card` component (dioxus) and a
 # PDF's first page (ds-blitz, which brings the renderer). Off, a headless caller (a mail client
 # peeking at attachments, a terminal) builds none of that, and a PDF is peeked as facts only.
 [features]
@@ -28,7 +28,7 @@ anyview-image = { workspace = true }
 anyview-fs = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
-# The `pane` feature: the component, and the PDF page cache. Nothing outside `pane/` names a type of
+# The `pane` feature: the component, and the PDF page cache. Nothing outside `card/` names a type of
 # `ds` or dioxus, so a headless build links neither.
 dioxus = { workspace = true, optional = true }
 ds = { workspace = true, optional = true }
