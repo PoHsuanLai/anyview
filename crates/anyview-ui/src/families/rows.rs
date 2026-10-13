@@ -8,3 +8,9 @@ use ds::style::tokens::row_scale::ROW_SCALE;
 pub(super) fn compact_px() -> f32 {
     f32::from(ROW_SCALE.compact_height.0)
 }
+
+/// A compact row's height at `scale`, in logical pixels: a zoomed table or tree draws taller or
+/// shorter rows, and every count of rows to a page and every scroll offset follows.
+pub(super) fn scaled_px(scale: crate::ContentScale) -> f32 {
+    compact_px() * scale.factor()
+}

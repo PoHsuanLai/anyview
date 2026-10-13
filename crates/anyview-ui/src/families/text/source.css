@@ -1,13 +1,15 @@
 /* The text stage. Two faces, as the design standard has them. Source: the code face at the mono
    size, 20-step lines, a line-number gutter in the data face and side padding of --s-20. Reading
-   (the Markdown page in its sealed frame, page.css): the UI face at the reading size. Tokens only. */
+   (the Markdown page in its sealed frame, page.css): the UI face at the reading size. Tokens only.
+   The zoom (--zoom, set on the room by the view) scales the glyphs and the line height together;
+   the gutter and the padding keep their size. */
 
-.viewer-text{ position:absolute; left:0; right:0; bottom:0; overflow:hidden; font-family:var(--font-code); font-size:var(--fs-mono); }
+.viewer-text{ --zoom:1; position:absolute; left:0; right:0; bottom:0; overflow:hidden; font-family:var(--font-code); font-size:calc(var(--fs-mono) * var(--zoom)); }
 .viewer-text[*|data-view=rendered]{ font-family:var(--font-ui); }
-.viewer-line{ display:flex; box-sizing:border-box; height:var(--s-20); line-height:var(--s-20); padding:0 var(--s-20); white-space:pre; overflow:hidden; }
-.viewer-lineno{ flex:none; box-sizing:border-box; width:var(--s-36); padding-right:var(--s-8); text-align:right; color:var(--ink-faint); font-family:var(--font-data); font-size:var(--fs-caption); font-variant-numeric:tabular-nums; user-select:none; }
+.viewer-line{ display:flex; box-sizing:border-box; height:calc(var(--s-20) * var(--zoom)); line-height:calc(var(--s-20) * var(--zoom)); padding:0 var(--s-20); white-space:pre; overflow:hidden; }
+.viewer-lineno{ flex:none; box-sizing:border-box; width:var(--s-36); padding-right:var(--s-8); text-align:right; color:var(--ink-faint); font-family:var(--font-data); font-size:calc(var(--fs-caption) * var(--zoom)); font-variant-numeric:tabular-nums; user-select:none; }
 .viewer-code{ flex:1 1 auto; min-width:0; padding-left:var(--s-8); }
-.viewer-line[*|data-wrap=on]{ height:auto; min-height:var(--s-20); white-space:pre-wrap; overflow:visible; }
+.viewer-line[*|data-wrap=on]{ height:auto; min-height:calc(var(--s-20) * var(--zoom)); white-space:pre-wrap; overflow:visible; }
 .viewer-line[*|data-wrap=on] .viewer-code{ white-space:pre-wrap; overflow-wrap:anywhere; }
 .viewer-hit{ background:var(--accent-soft); border-radius:var(--r-micro); }
 .viewer-hit-current{ background:var(--accent); color:var(--accent-ink); }

@@ -94,9 +94,9 @@ pub enum StageOut {
     Media(MediaOut),
     /// From the text stage.
     Text(TextOut),
-    /// From the table stage, which asks for nothing.
+    /// From the table stage.
     Table(TableOut),
-    /// From the tree stage, which asks for nothing.
+    /// From the tree stage.
     Tree(TreeOut),
 }
 
@@ -119,9 +119,9 @@ impl StageOut {
                 | TextOut::Wrapped(_),
             )
             | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
-            | StageOut::Media(_) => None,
-            StageOut::Table(out) => match *out {},
-            StageOut::Tree(out) => match *out {},
+            | StageOut::Media(_)
+            | StageOut::Table(TableOut::Find(_))
+            | StageOut::Tree(TreeOut::Find(_)) => None,
         }
     }
 
@@ -129,7 +129,10 @@ impl StageOut {
     #[must_use]
     pub fn find(&self) -> Option<&FindOut> {
         match self {
-            StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),
+            StageOut::Text(TextOut::Find(find))
+            | StageOut::Pdf(PdfOut::Find(find))
+            | StageOut::Table(TableOut::Find(find))
+            | StageOut::Tree(TreeOut::Find(find)) => Some(find),
             StageOut::Raster(_)
             | StageOut::Text(
                 TextOut::Remember(_)
@@ -142,8 +145,6 @@ impl StageOut {
             )
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
             | StageOut::Media(_) => None,
-            StageOut::Table(out) => match *out {},
-            StageOut::Tree(out) => match *out {},
         }
     }
 }

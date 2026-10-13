@@ -39,7 +39,7 @@ pub enum WorkKind {
     Open,
     /// Read a window of lines.
     Lines,
-    /// Search a text for a phrase.
+    /// Search an open file for a phrase: a text, a table's cells, a tree's keys and values.
     Search,
     /// Sort a table sheet by a column.
     Sort,
@@ -120,7 +120,9 @@ impl Work {
             Job::Peek { .. } => WorkKind::Peek,
             Job::Open { .. } => WorkKind::Open,
             Job::Lines { .. } => WorkKind::Lines,
-            Job::Search { .. } => WorkKind::Search,
+            Job::Search { .. } | Job::SearchCells { .. } | Job::SearchNodes { .. } => {
+                WorkKind::Search
+            }
             Job::Sort { .. } => WorkKind::Sort,
             Job::EditRead { .. } => WorkKind::EditRead,
             Job::Preload { .. } => WorkKind::Preload,

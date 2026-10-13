@@ -53,6 +53,7 @@ const CASES: &[Case] = &[
                 line: LineIndex(3),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::stage::ContentScale::ACTUAL,
             },
         }),
         StageIn::Elapsed,
@@ -61,6 +62,7 @@ const CASES: &[Case] = &[
                 line: LineIndex(3),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::stage::ContentScale::ACTUAL,
             },
         }),
         &[],
@@ -115,6 +117,8 @@ fn a_command_means_what_the_showing_stage_makes_of_it() {
     let pdf = Stage::Pdf(PdfStage::default());
     let text = Stage::Text(TextStage::default());
     let media = Stage::Media(MediaStage::default());
+    let table = Stage::Table(TableStage::default());
+    let tree = Stage::Tree(TreeStage::default());
     // name, stage, command, input
     let cases = [
         (
@@ -163,6 +167,48 @@ fn a_command_means_what_the_showing_stage_makes_of_it() {
             None,
         ),
         (
+            "zoom in on a text steps its scale",
+            &text,
+            StageCommand::ZoomIn,
+            Some(StageIn::Text(TextIn::ZoomStep(ZoomDir::In))),
+        ),
+        (
+            "actual size on a table",
+            &table,
+            StageCommand::ZoomToActual,
+            Some(StageIn::Table(TableIn::ZoomActual)),
+        ),
+        (
+            "zoom out on a tree steps its scale",
+            &tree,
+            StageCommand::ZoomOut,
+            Some(StageIn::Tree(TreeIn::ZoomStep(ZoomDir::Out))),
+        ),
+        (
+            "fit on a table means nothing",
+            &table,
+            StageCommand::ZoomToFit,
+            None,
+        ),
+        (
+            "find on a table opens an empty bar",
+            &table,
+            StageCommand::Find,
+            Some(StageIn::Table(TableIn::Find(TypedText::EMPTY))),
+        ),
+        (
+            "find on a tree opens an empty bar",
+            &tree,
+            StageCommand::Find,
+            Some(StageIn::Tree(TreeIn::Find(TypedText::EMPTY))),
+        ),
+        (
+            "next hit on a tree",
+            &tree,
+            StageCommand::FindNext,
+            Some(StageIn::Tree(TreeIn::NextHit)),
+        ),
+        (
             "anything on no stage means nothing",
             &Stage::NoStage,
             StageCommand::Find,
@@ -187,6 +233,36 @@ fn escape_undoes_what_the_stage_has_open() {
     });
     assert_eq!(finding.dismissal(), Some(StageIn::Pdf(PdfIn::CloseFind)));
     assert_eq!(Stage::Pdf(PdfStage::default()).dismissal(), None);
+    // A find over a table is put away before the cursor is.
+    let table_finding = Stage::Table(TableStage::Selected {
+        sheet: SheetNo(0),
+        row: RowNo(2),
+        sort: None,
+        find: Some(StageFind::asked(TypedText::from_static("cat"))),
+        scale: ContentScale::ACTUAL,
+    });
+    assert_eq!(
+        table_finding.dismissal(),
+        Some(StageIn::Table(TableIn::CloseFind))
+    );
+    assert!(table_finding.is_finding());
+    assert_eq!(
+        table_finding
+            .find_state()
+            .map(|(query, hits)| (query.as_str(), hits)),
+        Some(("cat", FindHits::Pending))
+    );
+    let tree_cursor = Stage::Tree(TreeStage::Selected {
+        open: anyview_core::OpenNodes::top_level(),
+        row: RowNo(2),
+        find: None,
+        scale: ContentScale::ACTUAL,
+    });
+    assert_eq!(
+        tree_cursor.dismissal(),
+        Some(StageIn::Tree(TreeIn::Deselect))
+    );
+    assert!(!tree_cursor.is_finding());
     assert_eq!(Stage::NoStage.dismissal(), None);
 }
 
@@ -271,6 +347,18 @@ fn only_a_stage_that_has_a_place_or_a_search_says_so_in_its_outputs() {
             Some(FindOut::ShowHit(HitIndex(2))),
         ),
         (
+            "a table searches",
+            StageOut::Table(TableOut::Find(FindOut::ShowHit(HitIndex(1)))),
+            None,
+            Some(FindOut::ShowHit(HitIndex(1))),
+        ),
+        (
+            "a tree searches",
+            StageOut::Tree(TreeOut::Find(FindOut::Clear)),
+            None,
+            Some(FindOut::Clear),
+        ),
+        (
             "a text scrolling is neither",
             StageOut::Text(TextOut::ScrollTo(LineIndex(4))),
             None,
@@ -304,6 +392,7 @@ fn a_find_holds_the_keys_only_while_it_is_up() {
             line: LineIndex(0),
             wrap: Wrap::On,
             view: TextView::Source,
+            scale: crate::stage::ContentScale::ACTUAL,
         },
     });
     assert!(finding.is_finding());

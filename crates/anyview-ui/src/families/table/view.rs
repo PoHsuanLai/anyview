@@ -5,10 +5,13 @@
 //! only (the stage machine keeps the sort, the file is never reordered).
 
 use super::doc::{SheetDoc, TableDoc};
-use crate::families::rows::compact_px;
+use crate::families::rows::scaled_px;
 use crate::families::view::{Held, StageCx};
+use crate::families::{Mark, cut};
 use crate::io::Job;
-use crate::{ColumnSort, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn};
+use crate::{
+    ColumnSort, ContentScale, HitIndex, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn,
+};
 use anyview_text::RowIndex;
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;
@@ -25,16 +28,16 @@ const GUTTER: u32 = u32::MAX;
 
 /// How many rows a page up or down moves by: the room's height in rows, less one for the header,
 /// so the row the cursor left stays in view.
-pub(super) fn page_of(area: Option<crate::Area>) -> u32 {
+pub(super) fn page_of(area: Option<crate::Area>, scale: ContentScale) -> u32 {
     area.map_or(1, |area| {
-        let rows = (area.size.height.0 / compact_px()).floor();
+        let rows = (area.size.height.0 / scaled_px(scale)).floor();
         // a count of rows on screen is far below u32's range, and a negative one is none
         (rows as u32).saturating_sub(2).max(1)
     })
 }
 
 /// The title of column `at`: the header's cell, or `Column N` when the file has no header.
-fn title(sheet: &SheetDoc, at: usize) -> String {
+pub(super) fn title(sheet: &SheetDoc, at: usize) -> String {
     match sheet.table.header() {
         Some(header) => header.get(at).cloned().unwrap_or_default(),
         None => format!("Column {}", at + 1),
@@ -43,9 +46,9 @@ fn title(sheet: &SheetDoc, at: usize) -> String {
 
 /// The columns: the row-number gutter, then each column of the sheet at the width its first rows
 /// ask for. A character is a quarter of a row's height wide and a cell keeps half a row of room
-/// around its text, so the widths follow the row token.
-fn columns_of(sheet: &SheetDoc) -> Vec<TableColumn<u32>> {
-    let pitch = row_pitch().0;
+/// around its text, so the widths follow the row token, and the zoom.
+fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
+    let pitch = row_pitch().0 * scale.factor();
     let gutter = TableColumn::new(GUTTER, "#", Px(pitch * 2.0))
         .aligned(CellAlign::Trailing)
         .sorting(Sorting::Fixed);
@@ -75,15 +78,17 @@ fn drawn(by: ColumnSort) -> Sort<u32> {
 
 #[component]
 pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
-    let (sheet_no, by, cursor) = match &cx.stage {
-        Stage::Table(stage) => (stage.sheet(), stage.sort(), stage.row()),
+    let (sheet_no, by, cursor, scale) = match &cx.stage {
+        Stage::Table(stage) => (stage.sheet(), stage.sort(), stage.row(), stage.scale()),
         Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)
         | Stage::Media(_)
         | Stage::Text(_)
-        | Stage::Tree(_) => (SheetNo(0), None, None),
+        | Stage::Tree(_) => (SheetNo(0), None, None, ContentScale::ACTUAL),
     };
+    // The hit the find is on, so its cell is marked apart from the others.
+    let current = cx.stage.find_state().and_then(|(_, hits)| hits.current());
     // The hooks come first: a sheet with no rows returns early below, and the next sheet must
     // find the same hooks in the same order.
     let scroller = use_scroller();
@@ -113,6 +118,16 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         let _ = (doc, sheet_no, by);
         scroller.scroll_to(Px(0.0));
     }));
+    // A zoom changes how tall a row is: the row at the top stays the row at the top.
+    let mut zoomed_from = use_signal(|| scale);
+    use_effect(use_reactive!(|scale| {
+        let before = *zoomed_from.peek();
+        if before != scale {
+            zoomed_from.set(scale);
+            let offset = scroller.scroll().peek().offset;
+            scroller.scroll_to(Px(offset.0 * scale.factor() / before.factor()));
+        }
+    }));
     let send = cx.send;
     let sheet: Arc<SheetDoc> = match doc.0.sheets.get(sheet_no.0 as usize) {
         // a u32 fits a usize
@@ -121,10 +136,11 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     };
     let rows = sheet.table.row_count().0 as usize; // a u32 fits a usize
     let held = Arc::clone(&sheet);
+    let marked = cx.hits.clone();
     let cell = use_callback(move |(row, column): (usize, usize)| {
         let Some(column) = column.checked_sub(1) else {
             return rsx! {
-                span { class: "viewer-row-number", "{row + 1}" }
+                span { class: "viewer-row-number viewer-cell", "{row + 1}" }
             };
         };
         let sorted = order.read();
@@ -134,7 +150,34 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         }
         .unwrap_or_else(|| u32::try_from(row).unwrap_or(u32::MAX));
         let text = held.table.cell(RowIndex(file_row), column);
-        rsx! { "{text}" }
+        let marks: Vec<(std::ops::Range<usize>, Mark)> = match marked.as_ref() {
+            Some(found) => {
+                let (first, on_row) = found.0.in_row(file_row);
+                on_row
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, hit)| hit.column as usize == column) // a u32 fits a usize
+                    .map(|(at, hit)| {
+                        let this = HitIndex(first.0 + u32::try_from(at).unwrap_or(u32::MAX));
+                        let mark = if current == Some(this) {
+                            Mark::Current
+                        } else {
+                            Mark::Hit
+                        };
+                        (hit.from as usize..hit.to as usize, mark) // a u32 fits a usize
+                    })
+                    .collect()
+            }
+            None => Vec::new(),
+        };
+        let pieces = cut(&text, &marks);
+        rsx! {
+            span { class: "viewer-cell",
+                for (piece , mark) in pieces {
+                    span { class: mark.class(), "{piece}" }
+                }
+            }
+        }
     });
     if rows == 0 {
         return rsx! {
@@ -147,9 +190,11 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         div {
             class: "viewer-data viewer-scrolls",
             "data-body": "table",
+            style: "--zoom:{scale.factor()}",
             VirtualTable::<u32> {
                 label: "Rows",
-                columns: columns_of(&sheet),
+                columns: columns_of(&sheet, scale),
+                pitch: Px(row_pitch().0 * scale.factor()),
                 rows,
                 cell,
                 scroller,

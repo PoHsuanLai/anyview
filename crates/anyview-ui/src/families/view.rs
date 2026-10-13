@@ -8,8 +8,8 @@ use crate::families::media::MediaShelf;
 use crate::families::pdf::PdfShelf;
 use crate::io::{HostRequest, Job, MediaLine, NaturalSize, OpenError, OpenPort};
 use crate::{
-    Command, EditOffer, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage, StageIn,
-    StageParams, Ticket, TypedText,
+    Command, EditOffer, HitIndex, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage,
+    StageIn, StageParams, Ticket, TypedText,
 };
 use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -253,13 +253,29 @@ pub trait StageView: 'static {
         None
     }
     /// The job that finds `query` in the document as `options` say, for a family that can search.
+    /// `stage` is what the stage shows now (the sheet of a table, the view of a text): a search
+    /// is of what is on screen.
     fn search(
         _doc: &Arc<Self::Doc>,
+        _stage: &Stage,
         _ticket: Ticket,
         _query: &TypedText,
         _options: FindOptions,
     ) -> Option<Job> {
         None
+    }
+    /// The inputs that show the hit numbered `hit` of the find that is up, for a family whose
+    /// hits are not lines the window scrolls to (a table's cell, a tree's node): the cursor goes
+    /// to it, and the nodes above it open. `sorted` is the order the rows of the table are shown
+    /// in, when they are sorted.
+    fn show_hit(
+        _doc: &Arc<Self::Doc>,
+        _stage: &Stage,
+        _hits: &super::FoundHits,
+        _sorted: Option<&super::SortedOrder>,
+        _hit: HitIndex,
+    ) -> Vec<StageIn> {
+        Vec::new()
     }
     /// The first `upto` hits of the find that is up, as the palette lists them, for a family that
     /// can search.
@@ -303,7 +319,20 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn modes(&self, cx: &StageCx) -> Option<Element>;
     fn lines(&self, ticket: Ticket, first: LineIndex, rows: u32) -> Option<Job>;
     fn edit_read(&self, ticket: Ticket) -> Option<Job>;
-    fn search(&self, ticket: Ticket, query: &TypedText, options: FindOptions) -> Option<Job>;
+    fn search(
+        &self,
+        stage: &Stage,
+        ticket: Ticket,
+        query: &TypedText,
+        options: FindOptions,
+    ) -> Option<Job>;
+    fn show_hit(
+        &self,
+        stage: &Stage,
+        hits: &super::FoundHits,
+        sorted: Option<&super::SortedOrder>,
+        hit: HitIndex,
+    ) -> Vec<StageIn>;
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
@@ -375,8 +404,24 @@ impl<S: StageView> DocView for Loaded<S> {
         S::edit_read(&self.doc, ticket)
     }
 
-    fn search(&self, ticket: Ticket, query: &TypedText, options: FindOptions) -> Option<Job> {
-        S::search(&self.doc, ticket, query, options)
+    fn search(
+        &self,
+        stage: &Stage,
+        ticket: Ticket,
+        query: &TypedText,
+        options: FindOptions,
+    ) -> Option<Job> {
+        S::search(&self.doc, stage, ticket, query, options)
+    }
+
+    fn show_hit(
+        &self,
+        stage: &Stage,
+        hits: &super::FoundHits,
+        sorted: Option<&super::SortedOrder>,
+        hit: HitIndex,
+    ) -> Vec<StageIn> {
+        S::show_hit(&self.doc, stage, hits, sorted, hit)
     }
 
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine> {

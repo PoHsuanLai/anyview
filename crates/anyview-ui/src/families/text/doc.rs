@@ -4,14 +4,14 @@
 
 use super::find::{FoundHits, Snippet, clip};
 use crate::io::{OpenError, OpenPort, Stop};
-use crate::{Editable, TypedText};
+use crate::{Editable, TextView, TypedText};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FilePath, FindOptions, FormatDetail, FormatKind,
     LineIndex, Sniffed, Source,
 };
 use anyview_text::{
     CodeLines, DiskFiles, EDIT_BYTES, EditRefusal, EditText, FileBytes, Highlighter, LineCount,
-    Needle, RenderEnv, Rendered, Session, SyntaxId, TextLines, TokenLine, render,
+    Needle, RenderEnv, Rendered, Session, SyntaxId, TextLines, TokenLine, page_hits, render,
 };
 use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -164,21 +164,35 @@ impl TextDoc {
             .collect()
     }
 
-    /// Every place `query` occurs as `options` say; none for an empty query. Blocking; the hits
-    /// found so far when `stop` is raised.
+    /// Every place `query` occurs as `options` say; none for an empty query. A Markdown page that
+    /// is showing (`view` is its rendering) is searched as it reads, in the text of the page;
+    /// anything else in its lines. Blocking; the hits found so far when `stop` is raised.
     pub fn find(
         &self,
         query: &TypedText,
         options: FindOptions,
+        view: TextView,
         stop: &Stop,
     ) -> Result<FoundHits, anyview_text::TextError> {
-        match Needle::new(query.as_str()).map(|needle| needle.with_options(options)) {
-            Some(needle) => {
+        let Some(needle) = Needle::new(query.as_str()).map(|needle| needle.with_options(options))
+        else {
+            return Ok(FoundHits::default());
+        };
+        match (view, &self.rendered) {
+            (TextView::Rendered, Some(rendered)) => {
+                let found = page_hits(&rendered.html, &needle, SNIPPETS);
+                let snippets = found
+                    .first
+                    .iter()
+                    .map(|hit| clip(&hit.text, hit.matched.start, hit.matched.end))
+                    .collect();
+                Ok(FoundHits::page(found.count, needle).with_snippets(snippets))
+            }
+            (TextView::Rendered, None) | (TextView::Source, _) => {
                 let hits = self.text.find(&needle, stop)?;
                 let snippets = self.snippets(&hits);
                 Ok(FoundHits::new(hits).with_snippets(snippets))
             }
-            None => Ok(FoundHits::default()),
         }
     }
 }

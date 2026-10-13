@@ -8,11 +8,11 @@ use crate::families::{FoundHits, Held, SortedOrder};
 use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
 use crate::{
-    EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, LoadIn, NavigateIn, PictureEditIn,
-    PictureEditing, Sheet, SheetIn, Stage, StageIn, TextIn, TextStage, Ticket, TypedText,
-    VersionList, ViewerIn, freshness,
+    EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, HitCount, HitIndex, LoadIn,
+    NavigateIn, PictureEditIn, PictureEditing, Sheet, SheetIn, Stage, StageIn, TableIn, TextIn,
+    TextStage, Ticket, TreeIn, TypedText, VersionList, ViewerIn, freshness,
 };
-use anyview_core::{FilePath, FindOptions, Helper, Resume};
+use anyview_core::{FilePath, FindOptions, Helper, LineIndex, Resume};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastAction;
 use std::sync::Arc;
@@ -423,6 +423,66 @@ fn told_of(c: &Carry, doc: &crate::LoadedDoc) -> Vec<StageIn> {
     doc.view().arrived(&stage, &left_at)
 }
 
+/// How a stage is told its search answered.
+type Answer = fn(TypedText, HitCount, HitIndex) -> StageIn;
+
+fn text_results(query: TypedText, count: HitCount, nearest: HitIndex) -> StageIn {
+    StageIn::Text(TextIn::Results {
+        query,
+        count,
+        nearest,
+    })
+}
+
+fn table_results(query: TypedText, count: HitCount, nearest: HitIndex) -> StageIn {
+    StageIn::Table(TableIn::Results {
+        query,
+        count,
+        nearest,
+    })
+}
+
+fn tree_results(query: TypedText, count: HitCount, nearest: HitIndex) -> StageIn {
+    StageIn::Tree(TreeIn::Results {
+        query,
+        count,
+        nearest,
+    })
+}
+
+/// The find the stage has up, and what the answer to it needs: the text searched for, the line the
+/// reader is at (the hit nearest it is the one to show first), and how the stage hears the answer.
+/// `None` when no find is up, or when `hits` are of something the stage no longer shows (a table's
+/// hits are of one sheet).
+fn asking(stage: &Stage, hits: &FoundHits) -> Option<(TypedText, LineIndex, Answer)> {
+    match stage {
+        Stage::Text(TextStage::Finding { query, place, .. }) => {
+            Some((query.clone(), place.line, text_results as Answer))
+        }
+        Stage::Table(table) => {
+            let find = table.find()?;
+            // The rows a cursor is on are where the sort put them: only the file's own order
+            // says which hit a reader is near.
+            let row = table
+                .row()
+                .filter(|_| table.sort().is_none())
+                .map_or(0, |row| row.0);
+            hits.sheet()
+                .is_none_or(|sheet| sheet == table.sheet())
+                .then(|| (find.query.clone(), LineIndex(row), table_results as Answer))
+        }
+        Stage::Tree(tree) => {
+            let find = tree.find()?;
+            Some((find.query.clone(), LineIndex(0), tree_results as Answer))
+        }
+        Stage::Text(TextStage::Reading { .. } | TextStage::Editing { .. })
+        | Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Pdf(_)
+        | Stage::Media(_) => None,
+    }
+}
+
 /// A search answered: the hits are kept for the view, and the stage is told how many there are
 /// and which is nearest the reader.
 fn found(c: &Carry, ticket: Ticket, asked: (TypedText, FindOptions), hits: FoundHits) {
@@ -439,23 +499,16 @@ fn found(c: &Carry, ticket: Ticket, asked: (TypedText, FindOptions), hits: Found
         let state = signal.peek();
         (state.stage.clone(), state.find_options)
     };
-    let Stage::Text(TextStage::Finding {
-        query: up, place, ..
-    }) = stage
-    else {
+    let Some((up, at, answer)) = asking(&stage, &hits) else {
         return;
     };
     // An answer for another text, or for options since switched, is no answer to the find now up.
     if up != query || current != options {
         return;
     }
-    let (count, nearest) = (hits.count(), hits.nearest(place.line));
+    let (count, nearest) = (hits.count(), hits.nearest(at));
     shelf.hits.set(Some(Held(Arc::new(hits))));
-    dispatch.send(ViewerIn::Stage(StageIn::Text(TextIn::Results {
-        query,
-        count,
-        nearest,
-    })));
+    dispatch.send(ViewerIn::Stage(answer(query, count, nearest)));
 }
 
 /// The stamp of the file on screen as the disk has it now: a file that differs is opened again.

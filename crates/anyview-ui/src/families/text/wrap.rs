@@ -5,7 +5,7 @@
 //! breaks one row earlier or later than estimated makes a page step a line short or long, and
 //! nothing else.
 
-use crate::Wrap;
+use crate::{ContentScale, Wrap};
 use anyview_text::TokenLine;
 
 /// The width of one glyph of the code face at the viewer's text size, in logical pixels.
@@ -15,10 +15,13 @@ pub(super) const GLYPH_PX: f32 = 7.4;
 /// (`--s-36`) and the code's own padding (`--s-8`), in logical pixels.
 pub(super) const GUTTER_PX: f32 = 84.0;
 
-/// How many glyphs a row holds in a room `width` logical pixels wide; at least one.
-pub(super) fn columns(width: f32) -> u32 {
-    // A positive, finite width over a positive constant: truncating to whole glyphs is the point.
-    ((width - GUTTER_PX) / GLYPH_PX).floor().max(1.0) as u32
+/// How many glyphs a row holds in a room `width` logical pixels wide with the text drawn at
+/// `scale`; at least one. The gutter keeps its width when the text is zoomed; the glyphs do not.
+pub(super) fn columns(width: f32, scale: ContentScale) -> u32 {
+    // A positive, finite width over a positive length: truncating to whole glyphs is the point.
+    ((width - GUTTER_PX) / (GLYPH_PX * scale.factor()))
+        .floor()
+        .max(1.0) as u32
 }
 
 /// How many rows a line of `glyphs` characters takes in rows of `columns`: one when it is empty.
@@ -29,11 +32,17 @@ pub(super) fn rows_of(glyphs: usize, columns: u32) -> u32 {
 
 /// How many of `lines`, from the first, fit `rows` rows of a room `width` wide: at least one.
 /// Without wrapping every line is one row, so it is `rows`.
-pub(super) fn lines_per_page(lines: &[TokenLine], rows: u32, width: f32, wrap: Wrap) -> u32 {
+pub(super) fn lines_per_page(
+    lines: &[TokenLine],
+    rows: u32,
+    width: f32,
+    wrap: Wrap,
+    scale: ContentScale,
+) -> u32 {
     match wrap {
         Wrap::Off => rows.max(1),
         Wrap::On => {
-            let columns = columns(width);
+            let columns = columns(width, scale);
             let mut used = 0_u32;
             let mut fitted = 0_u32;
             for line in lines {
@@ -82,13 +91,17 @@ mod tests {
 
     #[test]
     fn a_room_holds_the_glyphs_its_width_has_after_the_gutter() {
-        // name, width, glyphs
-        const CASES: &[(&str, f32, u32)] = &[
-            ("a window", 900.0, 110),
-            ("narrower than the gutter", 40.0, 1),
+        let bigger = ContentScale::ACTUAL
+            .stepped(crate::ZoomDir::In)
+            .stepped(crate::ZoomDir::In);
+        // name, width, scale, glyphs
+        let cases: Vec<(&str, f32, ContentScale, u32)> = vec![
+            ("a window", 900.0, ContentScale::ACTUAL, 110),
+            ("narrower than the gutter", 40.0, ContentScale::ACTUAL, 1),
+            ("zoomed text has fewer glyphs to a row", 900.0, bigger, 73),
         ];
-        for (name, width, want) in CASES {
-            assert_eq!(columns(*width), *want, "{name}");
+        for (name, width, scale, want) in cases {
+            assert_eq!(columns(width, scale), want, "{name}");
         }
     }
 
@@ -104,7 +117,11 @@ mod tests {
             ("a room of no rows still holds one line", 0, Wrap::On, 1),
         ];
         for (name, rows, wrap, want) in CASES {
-            assert_eq!(lines_per_page(&lines, *rows, 900.0, *wrap), *want, "{name}");
+            assert_eq!(
+                lines_per_page(&lines, *rows, 900.0, *wrap, ContentScale::ACTUAL),
+                *want,
+                "{name}"
+            );
         }
     }
 }

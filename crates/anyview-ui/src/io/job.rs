@@ -10,10 +10,10 @@ use super::seams::{
     FileAccess, FileLocks, ImagePlugins, ResumeKeeper, ResumeSource, VersionSource,
 };
 use crate::families::{
-    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SortedOrder, TableDoc, TextDoc, open_for,
-    peek_for, sort_sheet,
+    FoundHits, LineWindow, LoadedDoc, PdfAnswer, PdfTask, SortedOrder, TableDoc, TextDoc, TreeDoc,
+    open_for, peek_for, search_sheet, search_tree, sort_sheet,
 };
-use crate::{ColumnSort, SaveEnd, SheetNo, StageFamily, Ticket, TypedText, VersionRow};
+use crate::{ColumnSort, SaveEnd, SheetNo, StageFamily, TextView, Ticket, TypedText, VersionRow};
 use anyview_core::work::Stop;
 use anyview_core::{
     FilePath, FileStamp, FindOptions, LineIndex, Resume, Sequence, Sniffed, Source,
@@ -139,6 +139,32 @@ pub enum Job {
         ticket: Ticket,
         /// The open text file.
         doc: Arc<TextDoc>,
+        /// What the person typed.
+        query: TypedText,
+        /// How it is matched.
+        options: FindOptions,
+        /// What the stage shows of the file: a Markdown file's page is searched as a page.
+        view: TextView,
+    },
+    /// Find every cell of a sheet of an open table in which `query` occurs.
+    SearchCells {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The open table.
+        doc: Arc<TableDoc>,
+        /// The sheet to search.
+        sheet: SheetNo,
+        /// What the person typed.
+        query: TypedText,
+        /// How it is matched.
+        options: FindOptions,
+    },
+    /// Find every key and value of an open tree in which `query` occurs.
+    SearchNodes {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The open tree.
+        doc: Arc<TreeDoc>,
         /// What the person typed.
         query: TypedText,
         /// How it is matched.
@@ -333,6 +359,8 @@ impl Job {
             | Job::Open { .. }
             | Job::Lines { .. }
             | Job::Search { .. }
+            | Job::SearchCells { .. }
+            | Job::SearchNodes { .. }
             | Job::Sort { .. }
             | Job::EditRead { .. }
             | Job::Stat { .. }
@@ -352,6 +380,8 @@ impl Job {
             | Job::Open { ticket, .. }
             | Job::Lines { ticket, .. }
             | Job::Search { ticket, .. }
+            | Job::SearchCells { ticket, .. }
+            | Job::SearchNodes { ticket, .. }
             | Job::Sort { ticket, .. }
             | Job::EditRead { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
@@ -384,6 +414,18 @@ impl Job {
                 result: Err(OpenError::Crashed),
             },
             Job::Search {
+                ticket,
+                query,
+                options,
+                ..
+            }
+            | Job::SearchCells {
+                ticket,
+                query,
+                options,
+                ..
+            }
+            | Job::SearchNodes {
                 ticket,
                 query,
                 options,
@@ -469,9 +511,35 @@ impl Job {
                 doc,
                 query,
                 options,
+                view,
             } => Done::Found {
                 ticket,
-                result: doc.find(&query, options, stop).map_err(OpenError::from),
+                result: doc
+                    .find(&query, options, view, stop)
+                    .map_err(OpenError::from),
+                query,
+                options,
+            },
+            Job::SearchCells {
+                ticket,
+                doc,
+                sheet,
+                query,
+                options,
+            } => Done::Found {
+                ticket,
+                result: Ok(search_sheet(&doc, sheet, &query, options, stop)),
+                query,
+                options,
+            },
+            Job::SearchNodes {
+                ticket,
+                doc,
+                query,
+                options,
+            } => Done::Found {
+                ticket,
+                result: Ok(search_tree(&doc, &query, options, stop)),
                 query,
                 options,
             },

@@ -60,7 +60,8 @@ pub use export::{plan_export, plan_print, printable_html};
 pub use find::{ByteOffset, FindHit, MAX_HITS, Needle};
 pub use lines::{LINE_CUT, LineCount, MAX_LINE_BYTES, TextLines};
 pub use markdown::{
-    Anchor, DiskFiles, Heading, HeadingLevel, LocalFiles, NoFiles, RenderEnv, Rendered, render,
+    Anchor, DiskFiles, Heading, HeadingLevel, LocalFiles, NoFiles, PageHit, PageHits, RenderEnv,
+    Rendered, mark_page, page_hits, render,
 };
 pub use peek::{
     CodePeek, CodePeeked, MarkdownPeek, MarkdownPeeked, PEEK_LINES, PlainPeek, PlainPeeked,

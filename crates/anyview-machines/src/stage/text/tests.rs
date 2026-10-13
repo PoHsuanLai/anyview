@@ -1,5 +1,6 @@
-use super::super::find::{FindHits, FindOut, HitCount, HitIndex};
+use super::super::find::{FindHits, FindOut, HitCount, HitIndex, StageFind};
 use super::*;
+use crate::stage::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use anyview_core::{LineIndex, Resume};
 use ds_core::machine::Machine;
@@ -13,6 +14,7 @@ const fn place(line: u32, wrap: Wrap, view: TextView) -> TextPlace {
         line: LineIndex(line),
         wrap,
         view,
+        scale: ContentScale::ACTUAL,
     }
 }
 const fn reading(line: u32, wrap: Wrap, view: TextView) -> TextStage {
@@ -52,7 +54,7 @@ const fn editing_found(line: u32, hits: FindHits) -> TextStage {
     TextStage::Editing {
         place: place(line, On, Source),
         edited: edited(Changes::Saved),
-        find: Some(EditFind { query: CAT, hits }),
+        find: Some(StageFind { query: CAT, hits }),
     }
 }
 
@@ -104,6 +106,47 @@ const CASES: &[Case] = &[
         SOURCE_ONLY,
         reading(5, On, Source),
         TextIn::ToggleSource,
+        reading(5, On, Source),
+        &[],
+    ),
+    (
+        "zooming in takes a step up the ladder",
+        BOTH,
+        reading(5, On, Source),
+        TextIn::ZoomStep(ZoomDir::In),
+        TextStage::Reading {
+            place: TextPlace {
+                scale: ContentScale::ACTUAL.stepped(ZoomDir::In),
+                ..place(5, On, Source)
+            },
+        },
+        &[],
+    ),
+    (
+        "zooming out takes a step down",
+        BOTH,
+        reading(5, On, Rendered),
+        TextIn::ZoomStep(ZoomDir::Out),
+        TextStage::Reading {
+            place: TextPlace {
+                scale: ContentScale::ACTUAL.stepped(ZoomDir::Out),
+                ..place(5, On, Rendered)
+            },
+        },
+        &[],
+    ),
+    (
+        "actual size from a zoomed text",
+        BOTH,
+        TextStage::Reading {
+            place: TextPlace {
+                scale: ContentScale::ACTUAL
+                    .stepped(ZoomDir::In)
+                    .stepped(ZoomDir::In),
+                ..place(5, On, Source)
+            },
+        },
+        TextIn::ZoomActual,
         reading(5, On, Source),
         &[],
     ),
@@ -179,7 +222,7 @@ const CASES: &[Case] = &[
         TextStage::Editing {
             place: place(5, On, Source),
             edited: edited(Changes::Unsaved),
-            find: Some(EditFind {
+            find: Some(StageFind {
                 query: CAT,
                 hits: found(3, 1),
             }),
@@ -314,16 +357,16 @@ const CASES: &[Case] = &[
         &[TextOut::Find(FindOut::Search(CAT))],
     ),
     (
-        "a find in a rendered page starts in the source, where hits can be marked",
+        "a find in a rendered page searches the page and stays on it",
         BOTH,
         reading(5, On, Rendered),
         TextIn::Find(CAT),
         TextStage::Finding {
             query: CAT,
             hits: FindHits::Pending,
-            place: place(5, On, Source),
+            place: place(5, On, Rendered),
         },
-        &[TextOut::Show(Source), TextOut::Find(FindOut::Search(CAT))],
+        &[TextOut::Find(FindOut::Search(CAT))],
     ),
     (
         "a find in a file with only source stays in it",

@@ -165,6 +165,36 @@ impl Tree {
         u32::try_from(count(self, &root, &TreePath::root(), open)).unwrap_or(u32::MAX)
     }
 
+    /// The position among the rows `open` makes visible of the node at `path`, or `None` when
+    /// the node is not shown (a node above it is closed) or the file has no such node. Counts the
+    /// rows before it without reading them, so a node deep in a long array costs the open nodes
+    /// above it, not the rows.
+    pub fn visible_index(&self, open: &OpenNodes, path: &TreePath) -> Option<u32> {
+        let mut at = TreePath::root();
+        let mut before = 0_u64;
+        for step in path.steps().iter().copied() {
+            let len = self.row(&at).ok()?.children.0;
+            if step >= len || !open.is_open(&at) {
+                return None;
+            }
+            // The node itself comes before everything under it.
+            before += 1;
+            let earlier: Vec<u32> = open
+                .open_children(&at)
+                .into_iter()
+                .filter(|position| *position < step)
+                .collect();
+            // Siblings that are not open are one row each.
+            before += u64::from(step) - earlier.len() as u64; // a usize fits a u64
+            for position in earlier {
+                let row = child_row(self, &at, position as usize)?; // a u32 fits a usize
+                before += count(self, &row, &at.child(position), open);
+            }
+            at = at.child(step);
+        }
+        u32::try_from(before).ok()
+    }
+
     /// The rows in `window` of the flattened tree, cut to the rows that exist.
     pub fn visible(&self, open: &OpenNodes, window: Range<u32>) -> Vec<VisibleRow> {
         let mut cut = Cut {
@@ -239,6 +269,26 @@ mod tests {
                 "{name}: count"
             );
         }
+    }
+
+    #[test]
+    fn a_node_knows_which_row_it_is_once_the_way_to_it_is_open() {
+        let open = OpenNodes::top_level().opened(p(&[0])).opened(p(&[0, 2]));
+        let rows = tree().visible(&open, 0..u32::MAX);
+        // every visible row is found at its own position
+        for (at, row) in rows.iter().enumerate() {
+            assert_eq!(
+                tree().visible_index(&open, &row.path),
+                Some(at as u32),
+                "row {at}"
+            );
+        }
+        // a node under a closed one is not shown, and a node the file lacks is nowhere
+        assert_eq!(
+            tree().visible_index(&OpenNodes::top_level(), &p(&[0, 1])),
+            None
+        );
+        assert_eq!(tree().visible_index(&open, &p(&[9])), None);
     }
 
     #[test]

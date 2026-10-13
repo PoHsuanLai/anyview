@@ -9,6 +9,7 @@
 mod events;
 mod images;
 mod links;
+mod mark;
 mod outline;
 
 #[cfg(test)]
@@ -16,6 +17,7 @@ mod tests;
 
 pub use events::RenderEnv;
 pub use images::{DiskFiles, LocalFiles, NoFiles};
+pub use mark::{PageHit, PageHits, mark_page, page_hits};
 pub use outline::{Anchor, Heading, HeadingLevel};
 
 use pulldown_cmark::{Options, Parser, html};

@@ -324,27 +324,46 @@ fn search(c: &Carry, query: &TypedText) {
     let Some((ticket, doc)) = c.shelf.loaded.peek().clone() else {
         return;
     };
-    if let Some(job) = doc.view().search(ticket, query, options) {
+    let Some(dispatch) = c.dispatch() else {
+        return;
+    };
+    // What is searched is what the stage shows: the sheet of a table, the page of a Markdown file.
+    let stage = dispatch.machine.state().peek().stage.clone();
+    if let Some(job) = doc.view().search(&stage, ticket, query, options) {
         c.edge.submit(job);
     }
 }
 
-/// Scroll to the hit numbered `index` when it is not already in the page.
+/// Show the hit numbered `index`: a text scrolls to its line when it is not already in the page; a
+/// table or a tree, whose hits are cells and nodes, are told where to put the cursor.
 fn reveal(c: &Carry, index: HitIndex) {
     let (Some(dispatch), Some(found)) = (c.dispatch(), c.shelf.hits.peek().clone()) else {
         return;
     };
-    let Some(hit) = found.0.get(index) else {
-        return;
-    };
-    let Stage::Text(text) = dispatch.machine.state().peek().stage.clone() else {
-        return;
-    };
-    let place = text.place();
-    let page = dispatch.params().stage.text.extent.page.0;
-    let top = top_for(hit.line, place.line, page);
-    if top != place.line {
-        dispatch.send(ViewerIn::Stage(StageIn::Text(TextIn::Scroll(top))));
+    let stage = dispatch.machine.state().peek().stage.clone();
+    match &stage {
+        Stage::Text(text) => {
+            let Some(hit) = found.0.get(index) else {
+                return;
+            };
+            let place = text.place();
+            let page = dispatch.params().stage.text.extent.page.0;
+            let top = top_for(hit.line, place.line, page);
+            if top != place.line {
+                dispatch.send(ViewerIn::Stage(StageIn::Text(TextIn::Scroll(top))));
+            }
+        }
+        Stage::Table(_) | Stage::Tree(_) => {
+            let Some((_, doc)) = c.shelf.shown_now() else {
+                return;
+            };
+            let sorted = c.shelf.sorted.peek().clone();
+            let order = sorted.as_ref().map(|held| held.0.as_ref());
+            for input in doc.view().show_hit(&stage, &found.0, order, index) {
+                dispatch.send(ViewerIn::Stage(input));
+            }
+        }
+        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Media(_) => {}
     }
 }
 

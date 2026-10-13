@@ -8,11 +8,13 @@
 use super::press::press_of;
 use crate::{Act, Chords, Command, HitLine, PaletteIn, PaletteIndex, PaletteScope, TypedText};
 use anyview_core::{FindOption, FindOptions};
+use anyview_text::MAX_HITS;
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::lists::row::chord::RowChord;
 use ds::components::menus::palette::palette_claim::{Claim, FieldKey};
 use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
+use ds::focus::request::use_focus_request;
 use ds::host::caret::InitialCaret;
 use ds::prelude::{
     Accessory, AfterPick, Check, CommandPalette, RunTone, TextLine, TextRun, use_keys,
@@ -26,7 +28,12 @@ pub(super) fn hit_row<T>(value: T, index: usize, line: Option<&HitLine>) -> Pale
         return PaletteRow::new(value, format!("Match {}", index + 1));
     };
     if line.context.is_empty() {
-        return PaletteRow::new(value, line.place.clone());
+        let title = if line.place.is_empty() {
+            format!("Match {}", index + 1)
+        } else {
+            line.place.clone()
+        };
+        return PaletteRow::new(value, title);
     }
     let (context, matched) = (&line.context, &line.matched);
     let marked = matched.start < matched.end
@@ -47,7 +54,8 @@ pub(super) fn hit_row<T>(value: T, index: usize, line: Option<&HitLine>) -> Pale
         vec![TextRun::new(context.clone(), RunTone::Plain)]
     };
     PaletteRow {
-        detail: Some(TextLine::from(line.place.clone())),
+        // A hit with no place to name (a page's) is listed by its words alone.
+        detail: (!line.place.is_empty()).then(|| TextLine::from(line.place.clone())),
         ..PaletteRow::new(value, TextLine::Runs(runs))
     }
 }
@@ -94,13 +102,25 @@ pub(super) fn Palette(
     let mut in_file: Vec<PaletteRow<usize>> = Vec::new();
     let mut refining: Vec<PaletteRow<usize>> = Vec::new();
     let mut commands: Vec<PaletteRow<usize>> = Vec::new();
+    // A search keeps no more hits than it can step through: a count at that is a count of at least.
+    let at_least = if usize::try_from(found).is_ok_and(|found| found >= MAX_HITS) {
+        "+"
+    } else {
+        ""
+    };
+    let (mut listed, mut all_row) = (0_u32, false);
     for (index, command) in rows.iter().enumerate() {
         match command {
             Command::FindHit(hit) => {
+                listed += 1;
                 in_file.push(hit_row(index, hit.0 as usize, hits.get(hit.0 as usize)))
             }
             Command::ShowAllHits => {
-                in_file.push(PaletteRow::new(index, format!("Show All {found}")));
+                all_row = true;
+                in_file.push(PaletteRow::new(
+                    index,
+                    format!("Show All {found}{at_least}"),
+                ));
             }
             Command::FindOption(option) => refining.push(option_row(index, *option, options)),
             Command::File(_)
@@ -115,36 +135,39 @@ pub(super) fn Palette(
             }),
         }
     }
-    let tokens: Vec<String> = query
-        .as_str()
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect();
+    // A list that stops short of the hits says how far it goes, as Preview's says "More than 1,000".
+    let in_file_title = if all_row || found <= listed {
+        "In This File".to_owned()
+    } else {
+        format!("In This File \u{b7} the first {listed} of {found}{at_least}")
+    };
     let groups = if finding {
         vec![
-            PaletteGroup::list("In This File", in_file),
+            PaletteGroup::list(in_file_title, in_file),
             PaletteGroup::list("Options", refining),
             PaletteGroup::list("Commands", commands),
         ]
     } else {
         vec![PaletteGroup::list("Commands", commands)]
     };
-    // A find opened on the last find's text has it selected, so the first key typed replaces it.
+    // A find opened on the last find's text has it selected, so the first key typed replaces it;
+    // so does Find pressed again over the text of a find (below), as it does in Safari and GNOME.
     let caret = if finding && !query.is_empty() {
         InitialCaret::SelectAll
     } else {
         InitialCaret::End
     };
+    let field = use_focus_request().with_caret(caret);
+    let selects_again = finding && !query.is_empty();
     rsx! {
         CommandPalette::<usize> {
             label: if finding { "Find" } else { "Commands" },
             placeholder: if finding { "Find in this file" } else { "Type a command" },
             query: query.as_str().to_owned(),
-            tokens,
             groups,
             empty: if finding { "No matches" } else { "No matching command" },
             selected: Some(selection.0),
-            initial_caret: caret,
+            focus: Some(field),
             oninput: move |text: String| ontyped.call(TypedText::new(text)),
             onpick: move |index: usize| onpick.call(PaletteIndex(index)),
             onclose: move |()| onclose.call(()),
@@ -153,9 +176,15 @@ pub(super) fn Palette(
                 // field or the palette's own selection.
                 // Find is also the window's: it makes what is typed a find.
                 let press = press_of(keymap, &key.event, Context::TextEntry, Chords::Viewer);
-                if press.is_some_and(|press| {
-                    PaletteIn::from_press(&press).is_some() || press.act() == Some(Act::Find)
-                }) {
+                let find = press.as_ref().and_then(|press| press.act()) == Some(Act::Find);
+                if press
+                    .as_ref()
+                    .is_some_and(|press| PaletteIn::from_press(press).is_some() || find)
+                {
+                    // Find over the text of a find selects it all: the next key replaces it.
+                    if find && selects_again {
+                        field.request();
+                    }
                     onkey.call(key.event);
                     Claim::Take
                 } else {

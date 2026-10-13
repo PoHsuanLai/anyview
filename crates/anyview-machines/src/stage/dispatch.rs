@@ -1,7 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
-use super::find::{FindHits, HitIndex};
+use super::find::{FindHits, HitIndex, StageFind};
 use super::media::{
     ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
 };
@@ -10,7 +10,7 @@ use super::pdf::{LineDir, PageEdits, PdfIn, PdfParams, PdfStage, end, nudged, st
 use super::raster::{RasterIn, RasterParams, RasterStage};
 use super::row::RowStep;
 use super::table::{TableIn, TableStage};
-use super::text::{EditFind, Editable, Edited, TextIn, TextParams, TextStage, TextStep};
+use super::text::{Editable, Edited, TextIn, TextParams, TextStage, TextStep};
 use super::tree::{TreeIn, TreeStage};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
@@ -71,11 +71,9 @@ impl Stage {
         match self {
             Stage::Text(_) => Some(StageIn::Text(TextIn::Find(query.clone()))),
             Stage::Pdf(_) => Some(StageIn::Pdf(PdfIn::Find(query.clone()))),
-            Stage::NoStage
-            | Stage::Raster(_)
-            | Stage::Media(_)
-            | Stage::Table(_)
-            | Stage::Tree(_) => None,
+            Stage::Table(_) => Some(StageIn::Table(TableIn::Find(query.clone()))),
+            Stage::Tree(_) => Some(StageIn::Tree(TreeIn::Find(query.clone()))),
+            Stage::NoStage | Stage::Raster(_) | Stage::Media(_) => None,
         }
     }
 
@@ -87,6 +85,12 @@ impl Stage {
                 Some(StageIn::Text(TextIn::GoToHit(hit)))
             }
             Stage::Pdf(PdfStage::Finding { .. }) => Some(StageIn::Pdf(PdfIn::GoToHit(hit))),
+            Stage::Table(stage) if stage.find().is_some() => {
+                Some(StageIn::Table(TableIn::GoToHit(hit)))
+            }
+            Stage::Tree(stage) if stage.find().is_some() => {
+                Some(StageIn::Tree(TreeIn::GoToHit(hit)))
+            }
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
@@ -105,17 +109,19 @@ impl Stage {
             | Stage::Text(
                 TextStage::Finding { query, hits, .. }
                 | TextStage::Editing {
-                    find: Some(EditFind { query, hits }),
+                    find: Some(StageFind { query, hits }),
                     ..
                 },
             ) => Some((query, *hits)),
+            Stage::Table(stage) => stage.find().map(|find| (&find.query, find.hits)),
+            Stage::Tree(stage) => stage.find().map(|find| (&find.query, find.hits)),
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
-            | Stage::Table(_)
-            | Stage::Tree(_) => None,
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. }) => {
+                None
+            }
         }
     }
 
@@ -127,13 +133,15 @@ impl Stage {
             | Stage::Text(TextStage::Finding { .. } | TextStage::Editing { find: Some(_), .. }) => {
                 true
             }
+            Stage::Table(stage) => stage.find().is_some(),
+            Stage::Tree(stage) => stage.find().is_some(),
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Media(_)
             | Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. })
-            | Stage::Table(_)
-            | Stage::Tree(_) => false,
+            | Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. }) => {
+                false
+            }
         }
     }
 
@@ -164,11 +172,17 @@ impl Stage {
                 Some(StageIn::Text(TextIn::CloseFind))
             }
             Stage::Text(TextStage::Reading { .. } | TextStage::Editing { find: None, .. }) => None,
-            Stage::Table(TableStage::Selected { .. }) => Some(StageIn::Table(TableIn::Deselect)),
-            Stage::Tree(TreeStage::Selected { .. }) => Some(StageIn::Tree(TreeIn::Deselect)),
-            Stage::Table(TableStage::Browsing { .. }) | Stage::Tree(TreeStage::Browsing { .. }) => {
-                None
-            }
+            // A find is the innermost thing a table or a tree has open; the cursor is next.
+            Stage::Table(stage) => match (stage.find(), stage.row()) {
+                (Some(_), _) => Some(StageIn::Table(TableIn::CloseFind)),
+                (None, Some(_)) => Some(StageIn::Table(TableIn::Deselect)),
+                (None, None) => None,
+            },
+            Stage::Tree(stage) => match (stage.find(), stage.row()) {
+                (Some(_), _) => Some(StageIn::Tree(TreeIn::CloseFind)),
+                (None, Some(_)) => Some(StageIn::Tree(TreeIn::Deselect)),
+                (None, None) => None,
+            },
         }
     }
 }
@@ -373,6 +387,9 @@ fn text(command: StageCommand, stage: &TextStage, params: &TextParams) -> Option
         StageCommand::FindPrevious => Some(TextIn::PreviousHit),
         StageCommand::ToggleSource if !editing => Some(TextIn::ToggleSource),
         StageCommand::ToggleWrap => Some(TextIn::ToggleWrap),
+        StageCommand::ZoomIn => Some(TextIn::ZoomStep(ZoomDir::In)),
+        StageCommand::ZoomOut => Some(TextIn::ZoomStep(ZoomDir::Out)),
+        StageCommand::ZoomToActual => Some(TextIn::ZoomActual),
         StageCommand::Edit if !editing && params.editable == Editable::Yes => Some(TextIn::Edit),
         StageCommand::Done if editing => Some(TextIn::Done),
         StageCommand::Save if editing => Some(TextIn::Save),
@@ -386,11 +403,8 @@ fn text(command: StageCommand, stage: &TextStage, params: &TextParams) -> Option
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save
-        | StageCommand::ZoomIn
-        | StageCommand::ZoomOut
         | StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
-        | StageCommand::ZoomToActual
         | StageCommand::TogglePlayback
         | StageCommand::SeekBack
         | StageCommand::SeekForward
@@ -424,14 +438,14 @@ fn table(command: StageCommand) -> Option<TableIn> {
         StageCommand::NextPage => Some(TableIn::Move(RowStep::PageDown)),
         StageCommand::ScrollToStart => Some(TableIn::Move(RowStep::Top)),
         StageCommand::ScrollToEnd => Some(TableIn::Move(RowStep::Bottom)),
-        StageCommand::ZoomIn
-        | StageCommand::ZoomOut
-        | StageCommand::ZoomToFit
+        StageCommand::Find => Some(TableIn::Find(TypedText::EMPTY)),
+        StageCommand::FindNext => Some(TableIn::NextHit),
+        StageCommand::FindPrevious => Some(TableIn::PreviousHit),
+        StageCommand::ZoomIn => Some(TableIn::ZoomStep(ZoomDir::In)),
+        StageCommand::ZoomOut => Some(TableIn::ZoomStep(ZoomDir::Out)),
+        StageCommand::ZoomToActual => Some(TableIn::ZoomActual),
+        StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
-        | StageCommand::ZoomToActual
-        | StageCommand::Find
-        | StageCommand::FindNext
-        | StageCommand::FindPrevious
         | StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
@@ -467,14 +481,14 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         StageCommand::NextPage => Some(TreeIn::Move(RowStep::PageDown)),
         StageCommand::ScrollToStart => Some(TreeIn::Move(RowStep::Top)),
         StageCommand::ScrollToEnd => Some(TreeIn::Move(RowStep::Bottom)),
-        StageCommand::ZoomIn
-        | StageCommand::ZoomOut
-        | StageCommand::ZoomToFit
+        StageCommand::Find => Some(TreeIn::Find(TypedText::EMPTY)),
+        StageCommand::FindNext => Some(TreeIn::NextHit),
+        StageCommand::FindPrevious => Some(TreeIn::PreviousHit),
+        StageCommand::ZoomIn => Some(TreeIn::ZoomStep(ZoomDir::In)),
+        StageCommand::ZoomOut => Some(TreeIn::ZoomStep(ZoomDir::Out)),
+        StageCommand::ZoomToActual => Some(TreeIn::ZoomActual),
+        StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
-        | StageCommand::ZoomToActual
-        | StageCommand::Find
-        | StageCommand::FindNext
-        | StageCommand::FindPrevious
         | StageCommand::ToggleSource
         | StageCommand::ToggleWrap
         | StageCommand::TogglePlayback
