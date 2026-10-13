@@ -190,8 +190,8 @@ pub(super) fn Outline(doc: Held<PdfDoc>, cx: StageCx) -> Element {
         let page = entry.page;
         let leads = if page.is_some() { "page" } else { "nowhere" };
         let content = rsx! {
-            span {
-                class: "viewer-outline-title ds-truncate",
+            b {
+                class: "ds-row-title viewer-outline-title ds-truncate",
                 "data-leads": leads,
                 style: "padding-left:calc(var(--s-16) * {depth})",
                 "{entry.title}"
