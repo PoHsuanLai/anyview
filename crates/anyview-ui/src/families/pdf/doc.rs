@@ -200,7 +200,17 @@ pub(super) fn open_book(src: &Source, sniffed: &Sniffed) -> Result<PdfDoc, OpenE
     let bound = super::bound::bind(src, sniffed)?;
     let origin = match sniffed.detail() {
         FormatDetail::Book(BookFormat::Cbz) => PdfOrigin::Comic,
-        _ => PdfOrigin::Book,
+        FormatDetail::None
+        | FormatDetail::Raster(_)
+        | FormatDetail::Code(_)
+        | FormatDetail::Table(_)
+        | FormatDetail::Tree(_)
+        | FormatDetail::Text(_)
+        | FormatDetail::Media(_)
+        | FormatDetail::Font(_)
+        | FormatDetail::Archive(_)
+        | FormatDetail::Book(BookFormat::Epub)
+        | FormatDetail::Office(_) => PdfOrigin::Book,
     };
     Ok(PdfDoc::of_book(bound.document, bound.facts, origin))
 }

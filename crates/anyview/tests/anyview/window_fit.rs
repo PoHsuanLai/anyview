@@ -15,6 +15,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use support::{Rig, VIEW, Wired, open_wired, until};
 
+/// A PDF's window: its first page (612 by 792) and the side panel (240 wide), which a PDF opens
+/// shown, so the page keeps its width.
+const PAGE_AND_PANEL: Extent = Extent::new(612 + 240, 792);
+
 /// A folder of `a.pdf` (its first page 612 by 792) and `b.png` (a 900 by 500 picture), opened on
 /// the PDF.
 fn pdf_then_picture(dir: &Path, wired: Wired) -> Rig {
@@ -74,12 +78,12 @@ fn a_pdf_opened_into_a_new_window_asks_for_its_page_size_once() {
     settle(&mut rig);
     assert_eq!(
         requests(&rig),
-        vec![Extent::new(612, 792)],
+        vec![PAGE_AND_PANEL],
         "the first page at 100%, once"
     );
     assert_eq!(
         rig.harness.window_size(),
-        Extent::new(612, 792),
+        PAGE_AND_PANEL,
         "and the window took it"
     );
 }
@@ -98,7 +102,7 @@ fn a_page_is_the_same_logical_size_on_a_hidpi_screen() {
     settle(&mut rig);
     assert_eq!(
         requests(&rig),
-        vec![Extent::new(612, 792)],
+        vec![PAGE_AND_PANEL],
         "a point is a logical pixel"
     );
 }
@@ -149,7 +153,7 @@ fn a_window_the_person_resized_follows_the_next_file_as_preview_does() {
     settle(&mut rig);
     assert_eq!(
         requests(&rig),
-        vec![Extent::new(612, 792), Extent::new(900, 500)],
+        vec![PAGE_AND_PANEL, Extent::new(900, 500)],
         "the page sized it, and the picture again, over the person's size"
     );
     assert_eq!(rig.harness.window_size(), Extent::new(900, 500));
@@ -172,14 +176,10 @@ fn the_arrow_keys_move_to_the_next_file_and_size_the_window_to_it() {
     settle(&mut rig);
     assert_eq!(
         requests(&rig),
-        vec![
-            Extent::new(612, 792),
-            Extent::new(900, 500),
-            Extent::new(612, 792)
-        ],
+        vec![PAGE_AND_PANEL, Extent::new(900, 500), PAGE_AND_PANEL],
         "the page, the picture, and the page again on the way back"
     );
-    assert_eq!(rig.harness.window_size(), Extent::new(612, 792));
+    assert_eq!(rig.harness.window_size(), PAGE_AND_PANEL);
 }
 
 #[test]
@@ -203,14 +203,14 @@ fn at_scale_200_each_file_is_asked_for_in_logical_pixels() {
     assert_eq!(
         requests(&rig),
         vec![
-            Extent::new(612, 792),
+            PAGE_AND_PANEL,
             // 900 by 500 device pixels are 450 by 250 logical, held at the window's least.
             Extent::new(480, 320),
-            Extent::new(612, 792)
+            PAGE_AND_PANEL
         ],
         "a point is a logical pixel; a picture pixel is half of one"
     );
-    assert_eq!(rig.harness.window_size(), Extent::new(612, 792));
+    assert_eq!(rig.harness.window_size(), PAGE_AND_PANEL);
 }
 
 #[test]
@@ -240,7 +240,7 @@ fn a_compositor_that_ignores_the_request_is_not_asked_again() {
     // Past quire's 500 ms for an answer, and the request is spent, not retried.
     rig.harness.advance(Duration::from_millis(600));
     settle(&mut rig);
-    assert_eq!(requests(&rig), vec![Extent::new(612, 792)]);
+    assert_eq!(requests(&rig), vec![PAGE_AND_PANEL]);
     assert_eq!(
         rig.harness.window_size(),
         Extent::new(VIEW.width, VIEW.height)
@@ -257,6 +257,6 @@ fn a_slow_answer_is_the_windows_own_resize_and_the_window_is_not_asked_again() {
     let mut rig = pdf_then_picture(dir.path(), wired);
     page_is_up(&mut rig);
     settle(&mut rig);
-    assert_eq!(requests(&rig), vec![Extent::new(612, 792)]);
-    assert_eq!(rig.harness.window_size(), Extent::new(612, 792));
+    assert_eq!(requests(&rig), vec![PAGE_AND_PANEL]);
+    assert_eq!(rig.harness.window_size(), PAGE_AND_PANEL);
 }
