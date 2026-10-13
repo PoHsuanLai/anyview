@@ -1,5 +1,6 @@
-//! JSON and JSON Lines: the tree stage's view. A file is parsed whole on a worker (`doc`); the
-//! rows on screen are the visible nodes in a `VirtualList`, read a window at a time.
+//! JSON and JSON Lines: the tree stage's view. A file is scanned on a worker (`doc`), which indexes it
+//! without holding it; the rows on screen are the visible nodes in a `VirtualList`, read a window at a
+//! time.
 
 mod doc;
 mod view;

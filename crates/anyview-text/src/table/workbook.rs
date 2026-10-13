@@ -22,7 +22,7 @@ pub const WORKBOOK_CELLS: usize = 4_000_000;
 const START_CELLS: usize = 1_000_000;
 
 /// One sheet of a workbook.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Sheet {
     /// The name its tab carries.
     pub name: String,
@@ -31,7 +31,7 @@ pub struct Sheet {
 }
 
 /// A workbook's sheets, in the order the file lists them.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Workbook {
     sheets: Vec<Sheet>,
     sheet_count: u32,

@@ -1,6 +1,6 @@
 //! What a row of the tree view shows about one node.
 
-use super::node::{Node, ScalarKind};
+use super::grammar::Shape;
 
 /// The most characters of a string a row previews before an ellipsis.
 const PREVIEW_CHARS: usize = 80;
@@ -53,12 +53,8 @@ pub struct TreeRow {
     pub children: ChildCount,
 }
 
-fn count(len: usize) -> ChildCount {
-    ChildCount(u32::try_from(len).unwrap_or(u32::MAX))
-}
-
 /// `{3 keys}`, `{1 key}` or `{}`.
-fn object_preview(len: usize) -> String {
+fn object_preview(len: u32) -> String {
     match len {
         0 => "{}".to_owned(),
         1 => "{1 key}".to_owned(),
@@ -67,7 +63,7 @@ fn object_preview(len: usize) -> String {
 }
 
 /// `[2 items]`, `[1 item]` or `[]`.
-fn array_preview(len: usize) -> String {
+fn array_preview(len: u32) -> String {
     match len {
         0 => "[]".to_owned(),
         1 => "[1 item]".to_owned(),
@@ -86,29 +82,17 @@ fn string_preview(text: &str) -> String {
     format!("\"{shown}\"")
 }
 
-/// The row for `node` under `label`.
-pub(super) fn row(label: RowLabel, node: &Node) -> TreeRow {
-    let (kind, preview, children) = match node {
-        Node::Object(entries) => (
-            NodeKind::Object,
-            object_preview(entries.len()),
-            count(entries.len()),
-        ),
-        Node::Array(items) => (
-            NodeKind::Array,
-            array_preview(items.len()),
-            count(items.len()),
-        ),
-        Node::Scalar { kind, text } => {
-            let (kind, preview) = match kind {
-                ScalarKind::String => (NodeKind::String, string_preview(text)),
-                ScalarKind::Number => (NodeKind::Number, text.clone()),
-                ScalarKind::True => (NodeKind::True, text.clone()),
-                ScalarKind::False => (NodeKind::False, text.clone()),
-                ScalarKind::Null => (NodeKind::Null, text.clone()),
-            };
-            (kind, preview, ChildCount(0))
-        }
+/// The row for a node of `shape` under `label`. `text` is what a scalar shows: a string's
+/// characters, or a number as it was written; `len` is how many children a container has.
+pub(super) fn row(label: RowLabel, shape: Shape, text: &str, len: u32) -> TreeRow {
+    let (kind, preview, children) = match shape {
+        Shape::Object => (NodeKind::Object, object_preview(len), ChildCount(len)),
+        Shape::Array => (NodeKind::Array, array_preview(len), ChildCount(len)),
+        Shape::String => (NodeKind::String, string_preview(text), ChildCount(0)),
+        Shape::Number => (NodeKind::Number, text.to_owned(), ChildCount(0)),
+        Shape::True => (NodeKind::True, "true".to_owned(), ChildCount(0)),
+        Shape::False => (NodeKind::False, "false".to_owned(), ChildCount(0)),
+        Shape::Null => (NodeKind::Null, "null".to_owned(), ChildCount(0)),
     };
     TreeRow {
         label,
@@ -122,114 +106,116 @@ pub(super) fn row(label: RowLabel, node: &Node) -> TreeRow {
 mod tests {
     use super::*;
 
-    fn scalar(kind: ScalarKind, text: &str) -> Node {
-        Node::Scalar {
-            kind,
-            text: text.to_owned(),
-        }
-    }
-
     #[test]
     fn previews_summarise_containers_and_quote_and_cut_strings() {
         let long = "x".repeat(100);
         let cut = format!("\"{}…\"", "x".repeat(80));
-        let item = || scalar(ScalarKind::Null, "null");
-        // name, node, kind, preview, children
-        let cases: Vec<(&str, Node, NodeKind, String, u32)> = vec![
+        // name, shape, text, container length, kind, preview, children
+        let cases: Vec<(&str, Shape, &str, u32, NodeKind, String, u32)> = vec![
             (
                 "empty object",
-                Node::Object(vec![]),
+                Shape::Object,
+                "",
+                0,
                 NodeKind::Object,
                 "{}".into(),
                 0,
             ),
             (
                 "one key",
-                Node::Object(vec![("a".into(), item())]),
+                Shape::Object,
+                "",
+                1,
                 NodeKind::Object,
                 "{1 key}".into(),
                 1,
             ),
             (
                 "keys",
-                Node::Object(vec![("a".into(), item()), ("b".into(), item())]),
+                Shape::Object,
+                "",
+                2,
                 NodeKind::Object,
                 "{2 keys}".into(),
                 2,
             ),
             (
                 "empty array",
-                Node::Array(vec![]),
+                Shape::Array,
+                "",
+                0,
                 NodeKind::Array,
                 "[]".into(),
                 0,
             ),
             (
                 "one item",
-                Node::Array(vec![item()]),
+                Shape::Array,
+                "",
+                1,
                 NodeKind::Array,
                 "[1 item]".into(),
                 1,
             ),
             (
                 "items",
-                Node::Array(vec![item(), item(), item()]),
+                Shape::Array,
+                "",
+                3,
                 NodeKind::Array,
                 "[3 items]".into(),
                 3,
             ),
             (
                 "string",
-                scalar(ScalarKind::String, "hi"),
+                Shape::String,
+                "hi",
+                0,
                 NodeKind::String,
                 "\"hi\"".into(),
                 0,
             ),
             (
                 "long string is cut",
-                scalar(ScalarKind::String, &long),
+                Shape::String,
+                &long,
+                0,
                 NodeKind::String,
                 cut,
                 0,
             ),
             (
                 "string with a line break",
-                scalar(ScalarKind::String, "a\nb"),
+                Shape::String,
+                "a\nb",
+                0,
                 NodeKind::String,
                 "\"a\\nb\"".into(),
                 0,
             ),
             (
-                "number",
-                scalar(ScalarKind::Number, "1.5"),
+                "number as written",
+                Shape::Number,
+                "1.50",
+                0,
                 NodeKind::Number,
-                "1.5".into(),
+                "1.50".into(),
                 0,
             ),
-            (
-                "true",
-                scalar(ScalarKind::True, "true"),
-                NodeKind::True,
-                "true".into(),
-                0,
-            ),
+            ("true", Shape::True, "", 0, NodeKind::True, "true".into(), 0),
             (
                 "false",
-                scalar(ScalarKind::False, "false"),
+                Shape::False,
+                "",
+                0,
                 NodeKind::False,
                 "false".into(),
                 0,
             ),
-            (
-                "null",
-                scalar(ScalarKind::Null, "null"),
-                NodeKind::Null,
-                "null".into(),
-                0,
-            ),
+            ("null", Shape::Null, "", 0, NodeKind::Null, "null".into(), 0),
         ];
-        for (name, node, kind, preview, children) in cases {
-            let got = row(RowLabel::Root, &node);
+        for (name, shape, text, len, kind, preview, children) in cases {
+            let got = row(RowLabel::Root, shape, text, len);
             assert_eq!(got.kind, kind, "{name} kind");
             assert_eq!(got.preview, preview, "{name} preview");
             assert_eq!(got.children, ChildCount(children), "{name} children");

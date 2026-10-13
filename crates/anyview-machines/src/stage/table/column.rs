@@ -79,43 +79,58 @@ fn directed<T>(
     }
 }
 
-/// The rows `0..rows` in the order a sort by one column gives: each entry is a row of the file.
-/// `cell` reads that column of a row. A numeric column compares as numbers, any other as text
-/// without regard to case; rows that compare equal stay in the file's order.
-pub fn sorted_rows<'a>(
-    rows: u32,
+/// How many characters of a text cell decide where its row sorts. Cells that agree in their first
+/// 64 characters (after trimming and lowercasing) keep the file's order between them.
+const KEY_CHARS: usize = 64;
+
+/// The key a text cell sorts by, or `None` for a blank.
+fn text_key(cell: &str) -> Option<Box<str>> {
+    let text = cell.trim();
+    (!text.is_empty()).then(|| {
+        text.chars()
+            .take(KEY_CHARS)
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+            .into_boxed_str()
+    })
+}
+
+/// The rows in the order a sort by one column gives: each entry is a row of the file, numbered
+/// from 0 in the order `cells` come, which is the order of the column. A numeric column compares
+/// as numbers, any other as text without regard to case; rows that compare equal stay in the
+/// file's order.
+///
+/// The cells go by one at a time and only a key for each is kept (a number, or the start of the
+/// text) with its row number, so the rows of a table of any size are never held to sort it.
+pub fn sorted_rows<S: AsRef<str>>(
     direction: SortDirection,
     numeric: bool,
-    cell: impl Fn(u32) -> &'a str,
+    cells: impl IntoIterator<Item = S>,
 ) -> Vec<u32> {
-    let mut order: Vec<u32> = (0..rows).collect();
     if numeric {
-        let keys: Vec<Option<f64>> = (0..rows).map(|row| number(cell(row))).collect();
-        order.sort_by(|a, b| {
-            directed(
-                keys[*a as usize].as_ref(), // a u32 fits a usize
-                keys[*b as usize].as_ref(),
-                direction,
-                f64::total_cmp,
-            )
-        });
-    } else {
-        let keys: Vec<Option<String>> = (0..rows)
-            .map(|row| {
-                let text = cell(row).trim();
-                (!text.is_empty()).then(|| text.to_lowercase())
-            })
+        let mut keyed: Vec<(Option<f64>, u32)> = cells
+            .into_iter()
+            .zip(0..)
+            .map(|(cell, row)| (number(cell.as_ref()), row))
             .collect();
-        order.sort_by(|a, b| {
+        keyed.sort_by(|a, b| directed(a.0.as_ref(), b.0.as_ref(), direction, f64::total_cmp));
+        keyed.into_iter().map(|(_, row)| row).collect()
+    } else {
+        let mut keyed: Vec<(Option<Box<str>>, u32)> = cells
+            .into_iter()
+            .zip(0..)
+            .map(|(cell, row)| (text_key(cell.as_ref()), row))
+            .collect();
+        keyed.sort_by(|a, b| {
             directed(
-                keys[*a as usize].as_ref(), // a u32 fits a usize
-                keys[*b as usize].as_ref(),
+                a.0.as_ref(),
+                b.0.as_ref(),
                 direction,
-                String::cmp,
+                <Box<str> as Ord>::cmp,
             )
         });
+        keyed.into_iter().map(|(_, row)| row).collect()
     }
-    order
 }
 
 #[cfg(test)]
@@ -248,9 +263,16 @@ mod tests {
             ("no rows", &[], false, Ascending, &[]),
         ];
         for (name, cells, numeric, direction, want) in CASES {
-            let rows = u32::try_from(cells.len()).unwrap();
-            let got = sorted_rows(rows, *direction, *numeric, |row| cells[row as usize]);
+            let got = sorted_rows(*direction, *numeric, cells.iter().copied());
             assert_eq!(&got, want, "{name}");
         }
+    }
+
+    #[test]
+    fn text_that_agrees_in_its_first_characters_keeps_the_files_order() {
+        let early = format!("{}b", "x".repeat(KEY_CHARS));
+        let late = format!("{}a", "x".repeat(KEY_CHARS));
+        let got = sorted_rows(SortDirection::Ascending, false, [&early, &late]);
+        assert_eq!(got, [0, 1]);
     }
 }

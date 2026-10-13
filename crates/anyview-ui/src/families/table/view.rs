@@ -1,6 +1,6 @@
 //! A sheet on screen: quire's `VirtualTable`, a header over the rows it mounts. Only the rows
-//! near the viewport exist as elements and each is asked of the sheet by `(row, column)`, so a
-//! sheet of two hundred thousand rows costs a screenful. A row-number gutter leads the columns;
+//! near the viewport exist as elements and each is asked of the sheet by `(row, column)`, which
+//! parses the window of the file it is in, so a sheet of any size costs a screenful. A row-number gutter leads the columns;
 //! numeric columns sit at the trailing edge; the header's presses sort the rows for the eye
 //! only (the stage machine keeps the sort, the file is never reordered).
 
@@ -94,10 +94,9 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         let column = by.column as usize; // a u32 fits a usize
         let numeric = sheet.numeric.get(column) == Some(&true);
         Some(sorted_rows(
-            sheet.table.row_count().0,
             by.direction,
             numeric,
-            |row| sheet.table.cell(RowIndex(row), column),
+            sheet.table.column(column),
         ))
     }));
     // Another file, another order or another sheet starts at the top.

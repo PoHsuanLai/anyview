@@ -1,5 +1,6 @@
-//! Delimited tables and spreadsheets: the table stage's view. A file is read whole on a worker
-//! (`doc`), up to a cap; the rows on screen are the ones a `VirtualTable` mounts (`view`).
+//! Delimited tables and spreadsheets: the table stage's view. A delimited file is indexed on a
+//! worker (`doc`) and a workbook read there; the rows on screen are the ones a `VirtualTable` mounts
+//! (`view`), parsed from the file a window at a time.
 
 mod doc;
 mod panel;

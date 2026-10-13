@@ -1,6 +1,6 @@
 //! The peek of a delimited table: its first rows and its shape.
 
-use super::head::{PEEK_LINES, expect_kind, read_head};
+use super::head::{PEEK_LINES, expect_kind};
 use super::tally::Tally;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
@@ -113,19 +113,16 @@ fn delimited(
     delimiter: Delimiter,
     budget: &PeekBudget,
 ) -> Result<TablePeeked, TextError> {
-    {
-        let head = read_head(src, budget)?;
-        let (table, rows) =
-            Table::parse_start(&head.text, delimiter, HeaderMode::Detect, PEEK_LINES)?;
-        Ok(of_table(
-            &table,
-            Tally::of(rows.0 as usize, head.coverage), // a u32 fits a usize
-            TableSource::Delimited {
-                delimiter,
-                encoding: head.codec,
-            },
-        ))
-    }
+    let (table, encoding) = Table::open(src, delimiter, HeaderMode::Detect, budget.bytes)?;
+    let total = Tally::of(table.row_count().0 as usize, table.coverage()); // a u32 fits a usize
+    of_table(
+        &table,
+        total,
+        TableSource::Delimited {
+            delimiter,
+            encoding,
+        },
+    )
 }
 
 fn sheet(src: &Input, format: OfficeFormat, budget: &PeekBudget) -> Result<TablePeeked, TextError> {
@@ -143,7 +140,7 @@ fn sheet(src: &Input, format: OfficeFormat, budget: &PeekBudget) -> Result<Table
             reason: "the workbook has no sheets".to_owned(),
         })?;
     let total = Tally::of(first.table.row_count().0 as usize, first.table.coverage()); // a u32 fits a usize
-    Ok(of_table(
+    of_table(
         &first.table,
         total,
         TableSource::Sheet {
@@ -151,18 +148,20 @@ fn sheet(src: &Input, format: OfficeFormat, budget: &PeekBudget) -> Result<Table
             name: first.name.clone(),
             sheets,
         },
-    ))
+    )
 }
 
 /// What a peek holds of `table`: its header and first rows.
-fn of_table(table: &Table, total_rows: Tally, source: TableSource) -> TablePeeked {
-    TablePeeked {
+fn of_table(
+    table: &Table,
+    total_rows: Tally,
+    source: TableSource,
+) -> Result<TablePeeked, TextError> {
+    Ok(TablePeeked {
         header: table.header().map(<[String]>::to_vec),
-        rows: table
-            .rows(RowIndex(0)..RowIndex(PEEK_LINES as u32)) // 40
-            .to_vec(),
+        rows: table.rows(RowIndex(0)..RowIndex(PEEK_LINES as u32))?, // 40
         total_rows,
         columns: table.columns(),
         source,
-    }
+    })
 }

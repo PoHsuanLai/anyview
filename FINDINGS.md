@@ -260,10 +260,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Fenced code in rendered Markdown is highlighted only when the caller passes a `Highlighter`.** The
   `tok-<class>` classes need a stylesheet in the sealed frame that maps them to colour tokens. Ends when
   the Markdown stage's stylesheet lands in `anyview-ui`.
-- **JSON is parsed whole and shown as parsed.** A JSON file larger than the peek's byte budget is refused
-  with `TextError::JsonOverBudget` (a document cannot be read in part), a JSON Lines file is held in
-  memory whole when opened, and a number prints as its value (`1.0` reads `1`). Ends if big JSON matters:
-  scan the top level without parsing, and keep numbers as written (`arbitrary_precision`).
 - **A line is cut at 1 MiB.** `TextLines::lines` returns a line longer than `MAX_LINE_BYTES` cut there and
   ending in an ellipsis (`LINE_CUT`), so the view shows it as running on; the rest of that line cannot be
   read, searched or copied from the window (find sees the kept part only, and rendered Markdown with a
@@ -274,8 +270,14 @@ on. It is a reference, not a log: how each was found lives in git history.
   non-UTF-8 head text only under a text extension (`.txt`, `.log`, `.srt`, source, tables), so a
   legacy-encoded file with another name is `Other`. Ends if a person needs to pick the encoding: an
   encoding menu in the text view that re-opens the file with the chosen `TextCodec`.
-- **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
-  times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
+- **A big table or JSON document is indexed, and a few things still read more than a window.** A delimited file and a JSON
+  tree keep an offset for every 64th record or child, not the file, and parse a window when it is asked for. A UTF-16
+  JSON file is decoded and held up to its limit, because the scanner reads ASCII-compatible bytes. Sorting a column
+  reads the column once and keeps a key and a row number for every row (a number, or the first 64 characters of the
+  text, lower-cased, so text that agrees that far keeps the file's order). Whether a column is numbers is decided from
+  its first 10,000 rows. The scan of a file reads at most `TABLE_BYTES` (1 GiB) of a table and `TREE_BYTES` (1 GiB) of
+  a JSON file, one pass on the open worker. Ends if a sort of millions of rows is felt (it runs on the main thread, in
+  a memo) and moves to a worker, or if UTF-16 JSON of that size matters.
 - **A JPEG XL animation shows its first frame.** The export sheet exports an animation's first frame, not
   the one on screen. A peek decodes the first frame only and takes the frame count from the container
   (`frame_count.rs`), so a GIF, APNG or WebP whose container lies about its count shows the lie.
@@ -1085,10 +1087,10 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A component that returns early must have made its hooks first.** `TableContent` returns the "no rows" empty state
   for an empty sheet; a workbook can have an empty sheet 0 and a full sheet 1, so `use_scroller`, the order's
   `use_memo` and the scroll-to-top effect all come before that return, or the next sheet would find fewer hooks.
-- **Sorting is a permutation made on the main thread.** `sorted_rows` is O(n log n) over a sheet of up to
-  `TABLE_ROWS`/`SHEET_ROWS` rows, run once per (sheet, sort) in a memo. It keys numbers as `f64` and text as
-  lower-cased strings, blanks last whichever way it runs. If a sort of a sheet this large is ever felt, it moves to
-  a worker job like the other long reads.
+- **Sorting is a permutation made on the main thread.** `sorted_rows` is O(n log n) over the column's keys, run
+  once per (sheet, sort) in a memo, reading the column window by window (`Table::column`). It keys numbers as `f64`
+  and text as lower-cased strings cut to 64 characters, blanks last whichever way it runs. If a sort of a sheet this
+  large is ever felt, it moves to a worker job like the other long reads.
 
 ## Saves, versions and the install receipt
 

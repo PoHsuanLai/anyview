@@ -217,10 +217,14 @@ fn json_peeks_the_top_level_of_its_tree() {
 }
 
 #[test]
-fn a_json_document_larger_than_the_budget_is_not_parsed() {
+fn a_json_document_larger_than_the_budget_shows_the_keys_that_fit() {
+    let peeked = peek::<TreePeek>("config.json", 50).unwrap();
+    assert_eq!(peeked.keys, ["name", "version"]);
+    assert_eq!(peeked.values, Some(Tally::AtLeast(2)));
+    assert_eq!(peeked.top.len(), 2);
     assert_eq!(
-        peek::<TreePeek>("config.json", 50),
-        Err(TextError::JsonOverBudget)
+        rows(&TreePeek::facts(&peeked))[1],
+        ("keys", "name, version and more".to_owned())
     );
 }
 

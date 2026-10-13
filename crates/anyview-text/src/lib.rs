@@ -68,6 +68,6 @@ pub use peek::{
 };
 pub use table::{
     CharWidth, ColumnCount, HeaderMode, RowCount, RowIndex, SHEET_ROWS, Separator, Sheet,
-    TABLE_BYTES, TABLE_ROWS, Table, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook,
+    TABLE_BYTES, Table, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook,
 };
 pub use tree::{ChildCount, NodeKind, Openness, RowLabel, Tree, TreeRow, VisibleRow};

@@ -79,11 +79,9 @@ fn peeks_of_files_made_of_one_byte_rows_hold_a_small_multiple_of_the_file() {
                 assert_eq!(peeked.top.len(), 40, "{name}");
             }
             _ => {
-                // Over the size a document is parsed at: refused, and refused cheaply.
-                assert!(
-                    TreePeek::peek(&src.on_disk(), &sniffed, &budget).is_err(),
-                    "{name}"
-                );
+                // A document is scanned, not parsed: its top level is counted and indexed.
+                let peeked = TreePeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
+                assert_eq!(peeked.top.len(), 40, "{name}");
             }
         });
         assert!(
