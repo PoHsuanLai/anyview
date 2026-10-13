@@ -11,7 +11,9 @@ pub enum Navigate {
     Idle,
     /// Walking `sequence`; its position is the open file, and `heading` the way the last move went.
     Walking {
+        /// The files beside the open one, in walking order.
         sequence: Sequence,
+        /// The way the last move went.
         heading: Heading,
     },
 }

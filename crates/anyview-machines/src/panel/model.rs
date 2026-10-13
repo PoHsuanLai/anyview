@@ -86,7 +86,10 @@ pub enum Panel {
     #[default]
     Hidden,
     /// Showing `tab`.
-    Shown { tab: PanelTab },
+    Shown {
+        /// The tab showing.
+        tab: PanelTab,
+    },
 }
 
 /// What moves the panel.

@@ -32,7 +32,10 @@ pub enum Pace {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerEvent {
     /// The file finished opening; it is this long.
-    Loaded { length: MediaLength },
+    Loaded {
+        /// How long the recording runs.
+        length: MediaLength,
+    },
     /// The recording's length became known after `Loaded` said it had none.
     LengthKnown(MediaLength),
     /// The file stopped.
@@ -87,7 +90,9 @@ pub enum PlayerCommand {
     SetVolume(Volume),
     /// Choose a track.
     SelectTrack {
+        /// The kind of track.
         kind: TrackKind,
+        /// The track to use.
         choice: TrackChoice,
     },
     /// Step one frame; only meaningful while held.

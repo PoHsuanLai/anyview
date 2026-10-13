@@ -175,9 +175,19 @@ impl From<ds_core::machine::Elapsed> for ViewerIn {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ViewerOut {
     /// Sniff this file for this load.
-    Probe { ticket: Ticket, path: FilePath },
+    Probe {
+        /// The load that asked.
+        ticket: Ticket,
+        /// The file to sniff.
+        path: FilePath,
+    },
     /// Sniff this file again for this load, leaving what shows in place until the result lands.
-    Reload { ticket: Ticket, path: FilePath },
+    Reload {
+        /// The load that asked.
+        ticket: Ticket,
+        /// The file to sniff.
+        path: FilePath,
+    },
     /// List the files beside this one for the sequence: the answer is `Navigate(Start)`, or
     /// nothing when the folder cannot be read.
     ListFolder(FilePath),

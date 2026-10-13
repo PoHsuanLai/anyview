@@ -48,17 +48,39 @@ pub enum LoadFlow {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Load {
     /// Nothing has been asked for yet; `ticket` is the last one issued.
-    Idle { ticket: Ticket },
+    Idle {
+        /// The last ticket issued.
+        ticket: Ticket,
+    },
     /// Finding out what the file is.
-    Probing { ticket: Ticket },
+    Probing {
+        /// The load this state belongs to.
+        ticket: Ticket,
+    },
     /// Kind known; the peek and the full open run side by side.
-    Peeking { ticket: Ticket, frame: PeekFrame },
+    Peeking {
+        /// The load this state belongs to.
+        ticket: Ticket,
+        /// The cheap frame the peek makes.
+        frame: PeekFrame,
+    },
     /// Kind known, no peek exists; the full open runs.
-    Opening { ticket: Ticket },
+    Opening {
+        /// The load this state belongs to.
+        ticket: Ticket,
+    },
     /// The full open is showing.
-    Ready { ticket: Ticket },
+    Ready {
+        /// The load this state belongs to.
+        ticket: Ticket,
+    },
     /// The file did not open.
-    Failed { ticket: Ticket, reason: LoadFailure },
+    Failed {
+        /// The load this state belongs to.
+        ticket: Ticket,
+        /// Why it failed.
+        reason: LoadFailure,
+    },
 }
 
 impl Default for Load {
@@ -76,18 +98,35 @@ pub enum LoadIn {
     Begin,
     /// The probe of `ticket` named the file's stage and how to open it.
     Probed {
+        /// The load the probe answers.
         ticket: Ticket,
+        /// How the file is opened.
         flow: LoadFlow,
+        /// The stage that shows the file.
         stage: StageFamily,
     },
     /// The cheap first frame of `ticket` is ready.
-    Peeked { ticket: Ticket },
+    Peeked {
+        /// The load the result answers.
+        ticket: Ticket,
+    },
     /// The peek of `ticket` could not be made; the full open carries on.
-    PeekFailed { ticket: Ticket },
+    PeekFailed {
+        /// The load the result answers.
+        ticket: Ticket,
+    },
     /// The full open of `ticket` is ready.
-    Opened { ticket: Ticket },
+    Opened {
+        /// The load the result answers.
+        ticket: Ticket,
+    },
     /// The probe or the open of `ticket` failed.
-    Failed { ticket: Ticket, reason: LoadFailure },
+    Failed {
+        /// The load the result answers.
+        ticket: Ticket,
+        /// Why it failed.
+        reason: LoadFailure,
+    },
     /// The clock; a load keeps no timer.
     Elapsed,
 }

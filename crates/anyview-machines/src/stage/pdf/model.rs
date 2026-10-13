@@ -32,16 +32,27 @@ pub struct Destination {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PdfStage {
     /// Reading where `view` is.
-    Reading { view: PageView },
+    Reading {
+        /// Where the reader is.
+        view: PageView,
+    },
     /// A find is up: `hits` says where its search stands, and `view` is where the reader is.
     Finding {
+        /// The text being searched for.
         query: TypedText,
+        /// Where the search stands.
         hits: FindHits,
+        /// Where the reader is.
         view: PageView,
     },
     /// A scroll to `target` is under way (a link, a page key, the outline); it ends with
     /// `Arrived`, or when the reader scrolls.
-    Jumping { target: Destination, view: PageView },
+    Jumping {
+        /// Where the scroll is going.
+        target: Destination,
+        /// Where the reader is.
+        view: PageView,
+    },
 }
 
 impl Default for PdfStage {
@@ -60,7 +71,12 @@ impl Default for PdfStage {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PdfIn {
     /// The reader scrolled: this is the page at the top and how far down it.
-    Scroll { page: PageIndex, offset: Permille },
+    Scroll {
+        /// The page at the top.
+        page: PageIndex,
+        /// How far down it, in thousandths of its height.
+        offset: Permille,
+    },
     /// Zoom to this.
     SetZoom(Zoom),
     /// One zoom step in or out.
@@ -69,8 +85,11 @@ pub enum PdfIn {
     Find(TypedText),
     /// The search for `query` found `count` hits, `nearest` being the one closest to the reader.
     Results {
+        /// The text searched for.
         query: TypedText,
+        /// How many hits there are.
         count: HitCount,
+        /// The hit closest to the reader.
         nearest: HitIndex,
     },
     /// The next hit, wrapping to the first after the last.

@@ -5,6 +5,8 @@
 //!
 //! Results come back to the UI thread through a `Mailbox` that wakes it; the machines there drop stale tickets, the runtime only delivers.
 
+#![warn(missing_docs)]
+
 mod actor;
 mod error;
 mod mailbox;

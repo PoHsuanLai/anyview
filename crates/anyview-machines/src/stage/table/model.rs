@@ -18,13 +18,18 @@ pub struct SheetTotal(pub u32);
 pub enum TableStage {
     /// Reading a sheet with no row picked.
     Browsing {
+        /// The sheet being read.
         sheet: SheetNo,
+        /// How the rows are ordered, when they are.
         sort: Option<ColumnSort>,
     },
     /// Reading a sheet with the cursor on a row.
     Selected {
+        /// The sheet being read.
         sheet: SheetNo,
+        /// The row under the cursor.
         row: RowNo,
+        /// How the rows are ordered, when they are.
         sort: Option<ColumnSort>,
     },
 }

@@ -12,6 +12,8 @@
 //! Every public item is reached from this root, once. [`seam`] is the exception: a few names the
 //! views need that are not part of the machines' surface.
 
+#![warn(missing_docs)]
+
 mod abilities;
 mod chrome;
 mod command;

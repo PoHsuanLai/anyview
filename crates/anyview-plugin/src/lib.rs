@@ -9,6 +9,8 @@
 //!
 //! Every public item is reached from this root, once.
 
+#![warn(missing_docs)]
+
 mod error;
 mod handles;
 mod manifest;
