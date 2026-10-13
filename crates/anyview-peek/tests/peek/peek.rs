@@ -284,7 +284,7 @@ fn a_pdf_longer_than_the_byte_budget_is_not_read() {
     );
     assert_eq!(
         rows(&peeked.facts)[0],
-        ("kind", "application/pdf".to_owned())
+        ("kind", "PDF document".to_owned())
     );
 }
 
