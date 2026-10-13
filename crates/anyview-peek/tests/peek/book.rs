@@ -105,6 +105,6 @@ fn a_broken_epub_still_shows_what_it_is() {
     assert!(
         rows(&peeked.facts)
             .iter()
-            .any(|(k, v)| *k == "kind" && v == "Book (EPUB)")
+            .any(|(k, v)| *k == "kind" && v == "EPUB book")
     );
 }

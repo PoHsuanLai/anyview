@@ -82,7 +82,7 @@ fn look(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook
     let cover_len = cover.as_ref().map_or(0, |cover| cover.bytes.len() as u64);
     let cover = cover.and_then(|cover| cover_peek(&cover, budget));
     Ok(MediaLook {
-        described: Described::of(sniffed),
+        described: Described::of(src, sniffed),
         recording,
         stream_len: ByteLen(
             src.stamp()

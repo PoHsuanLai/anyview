@@ -181,7 +181,7 @@ pub(crate) fn failed_card(src: &Input, reason: Unavailable) -> AnyPeeked {
 fn unavailable(src: &Input, sniffed: &Sniffed, reason: Unavailable) -> AnyPeeked {
     let facts = Facts::empty().with(
         FactLabel::Kind,
-        FactValue::text(Described::of(sniffed).kind),
+        FactValue::text(Described::of(src, sniffed).kind),
     );
     AnyPeeked {
         kind: sniffed.kind(),

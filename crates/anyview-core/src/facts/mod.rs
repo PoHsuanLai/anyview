@@ -12,7 +12,7 @@ mod when;
 
 pub use file::FileDetails;
 pub use group::{FactGroup, Tier};
-pub use kind_name::kind_name;
+pub use kind_name::{kind_name, kind_name_of};
 pub use label::FactLabel;
 pub use place::Coordinate;
 pub use value::FactValue;

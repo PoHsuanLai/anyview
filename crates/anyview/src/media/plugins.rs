@@ -186,7 +186,7 @@ impl MediaPlugins {
             (None, Route::Missing(missing)) => Some(missing.fact()),
             (None, Route::Served(_) | Route::Unserved) => Some(Fact::new(
                 FactLabel::Needs,
-                FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
+                FactValue::text("FFmpeg (to convert it)"),
             )),
         };
         let offer = MediaOffer::new(kinds, needs);

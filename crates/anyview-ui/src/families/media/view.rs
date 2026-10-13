@@ -4,14 +4,11 @@
 
 use super::doc::MediaDoc;
 use crate::families::view::{Area, Held, StageCx};
+use crate::families::{UnavailableCard, listed, note_of};
 use crate::io::SlotPixels;
-use crate::{Command, MediaError, MediaIn, MediaStage, Need, Stage, StageIn};
-use anyview_core::{FileAction, FormatKind, VideoPresence};
+use crate::{MediaError, MediaIn, MediaStage, Need, Stage, StageIn};
+use anyview_core::{FormatKind, VideoPresence};
 use dioxus::prelude::*;
-use ds::components::content::text_runs::TextLine;
-use ds::components::controls::button::Button;
-use ds::components::fields::fact_list::FactList;
-use ds::components::overlays::empty_state::EmptyState;
 use ds::prelude::{Icon, IconSource, IconView};
 use ds::style::icon::render::{IconPx, IconSize};
 use ds_blitz::{Sampling, TextureFit, TextureLayer};
@@ -43,12 +40,11 @@ fn byline(tags: &anyview_core::MediaTags) -> Option<String> {
 fn status(stage: &Stage) -> Option<&'static str> {
     match stage {
         Stage::Media(MediaStage::Opening) => Some("Opening"),
-        Stage::Media(MediaStage::Failed(MediaError::OpenFailed)) => {
-            Some("This recording cannot be played")
-        }
         Stage::Media(MediaStage::Failed(MediaError::PlaybackFailed)) => Some("The player stopped"),
+        // A player that never opened leaves a card that says so, not a word on the cover.
         Stage::Media(
-            MediaStage::Playing { .. }
+            MediaStage::Failed(MediaError::OpenFailed)
+            | MediaStage::Playing { .. }
             | MediaStage::Paused { .. }
             | MediaStage::Scrubbing { .. }
             | MediaStage::Ended { .. },
@@ -73,7 +69,14 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
         }
     }));
     if let Some(needs) = doc.0.needs() {
-        return rsx! { Unplayable { doc: doc.clone(), needs: needs.clone(), cx: cx.clone() } };
+        return rsx! { Unplayable { doc: doc.clone(), needs: Some(needs.clone()), cx: cx.clone() } };
+    }
+    // A player that gave up on opening the file leaves the same card as a missing one.
+    if matches!(
+        cx.stage,
+        Stage::Media(MediaStage::Failed(MediaError::OpenFailed))
+    ) {
+        return rsx! { Unplayable { doc: doc.clone(), needs: None, cx: cx.clone() } };
     }
     let live = cx.media.read();
     let picture = live.picture;
@@ -130,48 +133,20 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
     }
 }
 
-/// A recording no plugin plays: its facts, the package that would play it, and Show in Folder.
+/// A recording nothing plays: the card every unusable file has, with the package that would play
+/// it (and Install… when the host offers the tool) or, when nothing is known to fix it, that it
+/// cannot be played.
 #[component]
-fn Unplayable(doc: Held<MediaDoc>, needs: Need, cx: StageCx) -> Element {
-    let run = cx.run;
-    let platform = cx.platform;
-    let facts: Vec<ds::components::fields::fact_list::Fact> = doc
-        .0
-        .facts
-        .rows()
-        .iter()
-        // The package that plays it is the line under the title; it is not listed twice.
-        .filter(|row| row.label != needs.fact.label)
-        .map(|row| {
-            ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
-        })
-        .collect();
+fn Unplayable(doc: Held<MediaDoc>, needs: Option<Need>, cx: StageCx) -> Element {
+    let note = note_of(needs.as_ref(), "This recording can\u{2019}t be played.");
     rsx! {
-        div { class: "viewer-peek",
-            div { class: "viewer-peek-body",
-                EmptyState {
-                    icon: Icon::File,
-                    title: doc.0.title().to_owned(),
-                    description: Some(TextLine::from(format!("{}: {}", needs.fact.label.label(), needs.fact.value.as_str()))),
-                    action: rsx! {
-                        div { class: "viewer-failed-actions",
-                            if let Some(helper) = needs.helper {
-                                Button {
-                                    label: "Install…",
-                                    onclick: move |_| run.call(Command::Install(helper)),
-                                }
-                            }
-                            if platform.offers(FileAction::RevealInFolder) {
-                                Button {
-                                    label: "Show in Folder",
-                                    onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
-                                }
-                            }
-                        }
-                    },
-                }
-                div { class: "viewer-peek-facts", FactList { facts } }
-            }
+        UnavailableCard {
+            name: doc.0.title().to_owned(),
+            kind: doc.0.kind,
+            facts: listed(&doc.0.facts),
+            note,
+            install: needs.and_then(|need| need.helper),
+            cx,
         }
     }
 }

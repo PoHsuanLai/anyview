@@ -125,7 +125,7 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
     });
     let card = rig.harness.text_of(".viewer-peek").unwrap_or_default();
     assert!(
-        card.contains("Needs") && card.contains("heif-dec"),
+        card.contains("Needs") && card.contains("libheif tools"),
         "{card}"
     );
     assert_eq!(rig.harness.count(".ds-alert"), 0, "nothing asks by itself");

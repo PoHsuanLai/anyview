@@ -2,7 +2,7 @@
 
 use crate::io::OpenError;
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source, TreeFormat,
+    Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
 use anyview_text::{Coverage, Tree};
@@ -29,18 +29,14 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TreeDoc, OpenError
     };
     let (tree, coverage) = Tree::read(src.on_disk(), *format, TREE_BYTES)?;
     let root = tree.row(&anyview_core::TreePath::root())?;
-    let kind = match format {
-        TreeFormat::Json => "JSON",
-        TreeFormat::JsonLines => "JSON Lines",
-    };
     let entries = match coverage {
         Coverage::Whole => root.children.0.to_string(),
         Coverage::Prefix => format!("{}+", root.children.0),
     };
     let facts = Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(kind))
+        .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len))
-        .with(FactLabel::Entries, FactValue::text(entries));
+        .with_fact(Fact::new(FactLabel::Items, FactValue::text(entries)).in_group(FactGroup::Data));
     Ok(TreeDoc {
         tree,
         coverage,

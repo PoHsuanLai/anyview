@@ -2,7 +2,7 @@
 //! the address it was downloaded from. Best effort: a file system that has no birth time or no
 //! extended attributes leaves that field absent.
 
-use anyview_core::{ByteLen, Facts, FileDetails, Input, ModTime, Sniffed};
+use anyview_core::{ByteLen, Facts, FileDetails, FileName, Input, ModTime, Sniffed};
 use rustix::fs::getxattr;
 use std::fs;
 use std::os::unix::fs::MetadataExt;
@@ -22,6 +22,10 @@ pub fn file_details(path: &Path) -> FileDetails {
         return FileDetails::default();
     };
     FileDetails {
+        name: path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| FileName::new(name).ok()),
         len: Some(ByteLen(meta.len())),
         created: meta.created().ok().map(ModTime::from_system_time),
         modified: meta.modified().ok().map(ModTime::from_system_time),
@@ -45,6 +49,7 @@ pub fn general_facts(input: &Input, sniffed: &Sniffed) -> Facts {
         None => Facts::general(
             sniffed,
             &FileDetails {
+                name: Some(input.name().clone()),
                 len: Some(input.stamp().len),
                 ..FileDetails::default()
             },
@@ -129,6 +134,45 @@ mod tests {
         let at_path = bytes.at(FilePath::new(&path).unwrap());
         let facts = general_facts(&at_path, &sniffed);
         assert!(!facts.rows().is_empty());
+    }
+
+    #[test]
+    fn a_file_of_no_known_kind_is_named_by_its_extension_never_by_its_media_type() {
+        // file name, words
+        const CASES: &[(&str, &str)] = &[
+            ("random.bin", "BIN file"),
+            ("nul-bytes.txt", "TXT file"),
+            ("blob", "Document"),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        for (name, words) in CASES {
+            let path = dir.path().join(name);
+            fs::write(&path, [1_u8, 0, 0, 254, 253, 0]).unwrap();
+            let file = anyview_core::FileName::new(name).unwrap();
+            let anyview_core::SniffStep::Done(sniffed) = anyview_core::sniff(
+                &anyview_core::FileHead::new(&[1_u8, 0, 0, 254, 253, 0]),
+                &file,
+            ) else {
+                panic!("{name} is answered from its head");
+            };
+            let input = Input::new(
+                file,
+                anyview_core::FileStamp {
+                    len: ByteLen(6),
+                    modified: ModTime(0),
+                },
+                std::sync::Arc::new(vec![1_u8, 0, 0, 254, 253, 0]),
+            )
+            .at(anyview_core::FilePath::new(&path).unwrap());
+            let facts = general_facts(&input, &sniffed);
+            assert_eq!(
+                facts
+                    .value(anyview_core::FactLabel::Kind)
+                    .map(|v| v.as_str()),
+                Some(*words),
+                "{name}"
+            );
+        }
     }
 
     #[test]

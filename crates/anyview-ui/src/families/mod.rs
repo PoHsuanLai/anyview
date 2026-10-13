@@ -13,7 +13,10 @@ mod rows;
 mod table;
 mod text;
 mod tree;
+mod unavailable;
 mod view;
+
+use anyview_core::{FactValue, FileName, Sniffed, Source, kind_name_of};
 
 pub(crate) use card::InfoCard;
 pub use media::{
@@ -39,7 +42,15 @@ pub use text::{FoundHits, LineWindow, TextDoc, TextStageView};
 pub(crate) use text::{Mark, Snippet, clip, cut};
 pub(crate) use tree::search_tree;
 pub use tree::{TreeDoc, TreeStageView};
+pub(crate) use unavailable::{UnavailableCard, listed, note_of};
 pub use view::{Area, FrameLook, Held, HitLine, Leaving, LoadedDoc, StageCx, StageView};
+
+/// The Kind row of the file `src`: what `sniffed` is in a person's words (`AVI video`, `BIN file`),
+/// never its media type.
+pub(crate) fn kind_row(src: &Source, sniffed: &Sniffed) -> FactValue {
+    let name = src.path().file_name().unwrap_or_else(FileName::unnamed);
+    FactValue::text(kind_name_of(sniffed, &name))
+}
 
 /// The colour of each token class of highlighted code, in tokens only.
 pub const TOKEN_CSS: &str = include_str!("text/tokens.css");

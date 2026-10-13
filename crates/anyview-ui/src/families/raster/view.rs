@@ -10,22 +10,20 @@ use super::geometry::{
     reach_in_picture, scale_of, turn_of,
 };
 use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
-use crate::{Command, PictureEditIn, RasterIn, RasterStage, Stage, StageIn, Tool};
-use anyview_core::{DocPoint, DocUnit, Permille, PixelSize, QuarterTurn, Reflection, Zoom};
+use crate::families::{UnavailableCard, listed, note_of};
+use crate::{PictureEditIn, RasterIn, RasterStage, Stage, StageIn, Tool};
+use anyview_core::{
+    DocPoint, DocUnit, FormatKind, Permille, PixelSize, QuarterTurn, Reflection, Zoom,
+};
 use dioxus::prelude::*;
-use ds::components::content::text_runs::TextLine;
-use ds::components::controls::button::Button;
 use ds::components::controls::segmented::Tracking;
-use ds::components::fields::fact_list::FactList;
-use ds::components::overlays::empty_state::EmptyState;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::{Choice, Icon, SegmentedControl, Shortcut, ShortcutKey, Tooltip};
+use ds::prelude::{Choice, SegmentedControl, Shortcut, ShortcutKey, Tooltip};
 use ds::prelude::{Point, use_platform};
 use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
 use ds_core::command::holds_primary;
-use ds_core::word::Word;
 
 /// Whether `at`, a point of the window, is over the room.
 fn over(area: Area, at: Point) -> bool {
@@ -56,40 +54,19 @@ pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     }
 }
 
-/// A file with no picture because the plugin that decodes it is not installed: its facts and the
-/// row that names the package, as a recording without a player shows.
+/// A file with no picture because the plugin that decodes it is not installed: the card a
+/// recording without a player has, with the package that would show it.
 #[component]
 fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
-    let run = cx.run;
-    let facts: Vec<ds::components::fields::fact_list::Fact> = doc
-        .0
-        .facts
-        .rows()
-        .iter()
-        .map(|row| {
-            ds::components::fields::fact_list::Fact::new(row.label.label(), row.value.as_str())
-        })
-        .collect();
+    let note = note_of(Some(&needs), "This picture can\u{2019}t be shown.");
     rsx! {
-        div { class: "viewer-peek",
-            div { class: "viewer-peek-body",
-                EmptyState {
-                    icon: Icon::File,
-                    title: "This picture cannot be shown yet".to_owned(),
-                    description: Some(TextLine::from(format!("{}: {}", needs.fact.label.label(), needs.fact.value.as_str()))),
-                    action: rsx! {
-                        div { class: "viewer-failed-actions",
-                            if let Some(helper) = needs.helper {
-                                Button {
-                                    label: "Install…",
-                                    onclick: move |_| run.call(Command::Install(helper)),
-                                }
-                            }
-                        }
-                    },
-                }
-                div { class: "viewer-peek-facts", FactList { facts } }
-            }
+        UnavailableCard {
+            name: doc.0.name.clone(),
+            kind: FormatKind::Raster,
+            facts: listed(&doc.0.facts),
+            note,
+            install: needs.helper,
+            cx,
         }
     }
 }

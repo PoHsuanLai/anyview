@@ -205,7 +205,7 @@ pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenPort) -> Result<T
     let rendered = markdown(src, sniffed, &text, count, &link.highlighter)?;
     let syntax = syntax_of(sniffed, &link.highlighter);
     let facts = Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+        .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len))
         .with(FactLabel::Lines, FactValue::text(count.0.to_string()))
         .with(FactLabel::Encoding, FactValue::text(encoding));
@@ -266,7 +266,7 @@ pub(crate) fn first_frame(
     let count = text.line_count();
     let syntax = syntax_of(sniffed, &link.highlighter);
     let facts = Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+        .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len));
     Ok(Some(TextDoc {
         text: text.clone(),

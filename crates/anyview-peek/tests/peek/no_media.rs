@@ -11,9 +11,9 @@ use support::{Home, fixture, pane_budget, rows};
 #[test]
 fn a_recording_shows_its_type_size_and_date_and_nothing_libav_would_give() {
     for (name, kind, label) in [
-        ("clip.mkv", FormatKind::Video, "Video ("),
-        ("cover.mp3", FormatKind::Audio, "Audio (MP3)"),
-        ("tone.flac", FormatKind::Audio, "Audio ("),
+        ("clip.mkv", FormatKind::Video, "Matroska video"),
+        ("cover.mp3", FormatKind::Audio, "MP3 audio"),
+        ("tone.flac", FormatKind::Audio, "FLAC audio"),
     ] {
         let (src, sniffed) = fixture(Home::Media, name);
         let peeked = peek(&src, &sniffed, &pane_budget());
@@ -22,6 +22,6 @@ fn a_recording_shows_its_type_size_and_date_and_nothing_libav_would_give() {
         let rows = rows(&peeked.facts);
         let slugs: Vec<&str> = rows.iter().map(|(slug, _)| *slug).collect();
         assert_eq!(slugs, vec!["kind", "size", "modified"], "{name}");
-        assert!(rows[0].1.starts_with(label), "{name}: {}", rows[0].1);
+        assert!(rows[0].1 == label, "{name}: {}", rows[0].1);
     }
 }

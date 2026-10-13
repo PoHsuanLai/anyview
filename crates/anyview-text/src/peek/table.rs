@@ -6,8 +6,8 @@ use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::table::{ColumnCount, HeaderMode, RowIndex, Table, Workbook};
 use anyview_core::{
-    Delimiter, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, OfficeFormat, Peek,
-    PeekBudget, Sniffed,
+    Delimiter, Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input,
+    OfficeFormat, Peek, PeekBudget, Sniffed,
 };
 use ds_core::word::Word;
 
@@ -97,9 +97,11 @@ impl Peek for TablePeek {
                 FactValue::text(peeked.columns.0.to_string()),
             );
         match &peeked.source {
-            TableSource::Delimited { encoding, .. } => {
-                facts.with(FactLabel::Encoding, FactValue::text(encoding.label()))
-            }
+            // The encoding belongs with the rows it was read for: one section, headed Table.
+            TableSource::Delimited { encoding, .. } => facts.with_fact(
+                Fact::new(FactLabel::Encoding, FactValue::text(encoding.label()))
+                    .in_group(FactGroup::Table),
+            ),
             TableSource::Sheet { name, sheets, .. } => facts.with(
                 FactLabel::Sheets,
                 FactValue::text(format!("{sheets}, showing {name}")),

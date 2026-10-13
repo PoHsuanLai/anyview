@@ -44,7 +44,7 @@ pub use export::{
 };
 pub use facts::{
     Coordinate, Fact, FactGroup, FactLabel, FactTime, FactValue, FactZone, Facts, FileDetails,
-    LocalZone, Tier, kind_name,
+    LocalZone, Tier, kind_name, kind_name_of,
 };
 pub use find::{CaseMatch, FindOption, FindOptions, WordMatch};
 pub use helper::Helper;
