@@ -539,7 +539,7 @@ mod tests {
             path,
         });
         let mut mailbox = edge.take_mailbox().unwrap();
-        let Ok(Some(Done::Probed { ticket, result })) = mailbox.try_next() else {
+        let Ok(Done::Probed { ticket, result }) = mailbox.try_recv() else {
             panic!("the abandoned probe left no answer");
         };
         assert_eq!(ticket, Ticket(1));

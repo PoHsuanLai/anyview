@@ -142,6 +142,17 @@ fn Thumb(
     }
 }
 
+/// The keys that move the outline, as Finder's and Preview's outlines take them: Left folds
+/// (or steps out), Right unfolds (or steps in).
+const OUTLINE_KEYS: [(Key, OutlineIn); 6] = [
+    (Key::ArrowUp, OutlineIn::Move(RowStep::Up)),
+    (Key::ArrowDown, OutlineIn::Move(RowStep::Down)),
+    (Key::Home, OutlineIn::Move(RowStep::Top)),
+    (Key::End, OutlineIn::Move(RowStep::Bottom)),
+    (Key::ArrowLeft, OutlineIn::Fold),
+    (Key::ArrowRight, OutlineIn::Unfold),
+];
+
 #[component]
 pub(super) fn Outline(doc: Held<PdfDoc>, cx: StageCx) -> Element {
     let (pdf, send) = (cx.pdf, cx.send);
@@ -208,25 +219,20 @@ pub(super) fn Outline(doc: Held<PdfDoc>, cx: StageCx) -> Element {
         if !event.modifiers().is_empty() {
             return;
         }
-        let input = match event.key() {
-            Key::ArrowUp => OutlineIn::Move(RowStep::Up),
-            Key::ArrowDown => OutlineIn::Move(RowStep::Down),
-            Key::Home => OutlineIn::Move(RowStep::Top),
-            Key::End => OutlineIn::Move(RowStep::Bottom),
-            Key::ArrowLeft => OutlineIn::Fold,
-            Key::ArrowRight => OutlineIn::Unfold,
-            Key::Enter => {
-                let page = cursor
-                    .and_then(|at| picked.outline.get(at as usize))
-                    .and_then(|entry| entry.page);
-                if let Some(page) = page {
-                    event.prevent_default();
-                    event.stop_propagation();
-                    send.call(go_to(page));
-                }
-                return;
+        let key = event.key();
+        if key == Key::Enter {
+            let page = cursor
+                .and_then(|at| picked.outline.get(at as usize))
+                .and_then(|entry| entry.page);
+            if let Some(page) = page {
+                event.prevent_default();
+                event.stop_propagation();
+                send.call(go_to(page));
             }
-            _ => return,
+            return;
+        }
+        let Some(&(_, input)) = OUTLINE_KEYS.iter().find(|(named, _)| *named == key) else {
+            return;
         };
         // The window would read the same key as a scroll or a step to another file.
         event.prevent_default();
