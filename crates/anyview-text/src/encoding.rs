@@ -7,15 +7,32 @@ use std::borrow::Cow;
 /// choice decodes with replacement characters instead of changing it.
 pub const DETECT_BYTES: usize = 1 << 20;
 
-/// An encoding the viewer decodes: what a byte-order mark or valid UTF-8 identifies, or the
-/// single-byte fallback every other file gets.
+/// An encoding the viewer decodes: what a byte-order mark or valid UTF-8 identifies, or the legacy
+/// encoding that `chardetng` guesses for every other file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextCodec {
     /// UTF-8, UTF-16 little endian or UTF-16 big endian.
     Unicode(TextEncoding),
-    /// Windows-1252, the web's default for bytes that are not UTF-8. Every byte maps to a
-    /// character, so decoding never fails.
+    /// Windows-1252, the web's default for bytes that are not UTF-8 and the guess when the bytes
+    /// say nothing else. Every byte maps to a character, so decoding never fails.
     Windows1252,
+    /// Another legacy encoding the bytes look like: Shift_JIS, GBK, Big5, EUC-JP, EUC-KR, KOI8-R,
+    /// Windows-1251 and the rest of the web's labels. A byte that is not valid in it decodes to a
+    /// replacement character.
+    Legacy(LegacyEncoding),
+}
+
+/// A legacy (non-Unicode) encoding that [`detect`] guessed. It is only made by `detect`, and a
+/// guess of Windows-1252 is [`TextCodec::Windows1252`] instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LegacyEncoding(&'static encoding_rs::Encoding);
+
+impl LegacyEncoding {
+    /// The encoding's name as the web labels it, such as `Shift_JIS` or `KOI8-R`.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        self.0.name()
+    }
 }
 
 /// What the start of a file says about how to read it.
@@ -28,13 +45,15 @@ pub struct Detected {
 }
 
 impl TextCodec {
-    /// `UTF-8`, `UTF-16 LE`, `UTF-16 BE` or `Windows-1252`, as a pane lists it.
+    /// `UTF-8`, `UTF-16 LE`, `UTF-16 BE`, `Windows-1252` or the guessed encoding's name (`Shift_JIS`,
+    /// `KOI8-R`), as a pane lists it.
     pub fn label(self) -> &'static str {
         match self {
             TextCodec::Unicode(TextEncoding::Utf8) => "UTF-8",
             TextCodec::Unicode(TextEncoding::Utf16Le) => "UTF-16 LE",
             TextCodec::Unicode(TextEncoding::Utf16Be) => "UTF-16 BE",
             TextCodec::Windows1252 => "Windows-1252",
+            TextCodec::Legacy(legacy) => legacy.name(),
         }
     }
 
@@ -42,7 +61,9 @@ impl TextCodec {
     pub(crate) fn unit(self) -> usize {
         match self {
             TextCodec::Unicode(TextEncoding::Utf16Le | TextEncoding::Utf16Be) => 2,
-            TextCodec::Unicode(TextEncoding::Utf8) | TextCodec::Windows1252 => 1,
+            TextCodec::Unicode(TextEncoding::Utf8)
+            | TextCodec::Windows1252
+            | TextCodec::Legacy(_) => 1,
         }
     }
 
@@ -55,9 +76,12 @@ impl TextCodec {
             TextCodec::Unicode(TextEncoding::Utf16Be) => {
                 bytes.get(at) == Some(&0x00) && bytes.get(at + 1) == Some(&0x0A)
             }
-            TextCodec::Unicode(TextEncoding::Utf8) | TextCodec::Windows1252 => {
-                bytes.get(at) == Some(&0x0A)
-            }
+            // No legacy encoding the detector offers has 0x0A as the second byte of a character
+            // (the trail bytes of Shift_JIS, GBK, Big5, EUC-JP and EUC-KR start at 0x40), and
+            // ISO-2022-JP is not offered.
+            TextCodec::Unicode(TextEncoding::Utf8)
+            | TextCodec::Windows1252
+            | TextCodec::Legacy(_) => bytes.get(at) == Some(&0x0A),
         }
     }
 
@@ -67,6 +91,7 @@ impl TextCodec {
             TextCodec::Unicode(TextEncoding::Utf16Le) => encoding_rs::UTF_16LE,
             TextCodec::Unicode(TextEncoding::Utf16Be) => encoding_rs::UTF_16BE,
             TextCodec::Windows1252 => encoding_rs::WINDOWS_1252,
+            TextCodec::Legacy(legacy) => legacy.0,
         }
     }
 
@@ -88,7 +113,8 @@ pub enum Coverage {
 }
 
 /// The encoding of a file whose first bytes are `head`: a byte-order mark if there is one, else
-/// UTF-8 when the bytes are valid UTF-8, else Windows-1252.
+/// UTF-8 when the bytes are valid UTF-8, else the legacy encoding `chardetng` guesses from the first
+/// [`DETECT_BYTES`] of them (Windows-1252 when they say nothing more).
 #[must_use]
 pub fn detect(head: &[u8], coverage: Coverage) -> Detected {
     const MARKS: &[(&[u8], TextEncoding)] = &[
@@ -110,9 +136,32 @@ pub fn detect(head: &[u8], coverage: Coverage) -> Detected {
     let codec = if utf8 {
         TextCodec::Unicode(TextEncoding::Utf8)
     } else {
-        TextCodec::Windows1252
+        guess_legacy(head, coverage)
     };
     Detected { codec, mark: 0 }
+}
+
+/// Fewer non-ASCII bytes than this are too little for a guess: a word or two with an accent
+/// (`café`) reads as Windows-1252, the Western default, rather than whichever Latin encoding
+/// the guesser leans to on one byte.
+const GUESS_BYTES: usize = 4;
+
+/// The legacy encoding of bytes that are not UTF-8, guessed over at most [`DETECT_BYTES`] of them.
+/// The guess is told the stream ended only when `head` is the whole file and all of it was fed.
+fn guess_legacy(head: &[u8], coverage: Coverage) -> TextCodec {
+    let fed = &head[..head.len().min(DETECT_BYTES)];
+    if fed.iter().filter(|byte| !byte.is_ascii()).count() < GUESS_BYTES {
+        return TextCodec::Windows1252;
+    }
+    let ends = matches!(coverage, Coverage::Whole) && fed.len() == head.len();
+    let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
+    detector.feed(fed, ends);
+    let guess = detector.guess(None, chardetng::Utf8Detection::Deny);
+    if guess == encoding_rs::WINDOWS_1252 {
+        TextCodec::Windows1252
+    } else {
+        TextCodec::Legacy(LegacyEncoding(guess))
+    }
 }
 
 #[cfg(test)]
@@ -145,6 +194,20 @@ mod tests {
                 b"a\x80b",
                 Coverage::Whole,
                 TextCodec::Windows1252,
+                0,
+            ),
+            (
+                "shift_jis text",
+                b"\x82\xB1\x82\xEA\x82\xCD\x93\xFA\x96\x7B\x8C\xEA\x82\xCC\x95\xB6\x8F\xCD\x82\xC5\x82\xB7\x81\x42\x8D\xA1\x93\xFA\x82\xCD\x82\xA2\x82\xA2\x93\x56\x8B\x43\x82\xC5\x82\xB7\x82\xCB\x81\x42\x0A",
+                Coverage::Whole,
+                TextCodec::Legacy(LegacyEncoding(encoding_rs::SHIFT_JIS)),
+                0,
+            ),
+            (
+                "koi8-r text, which chardetng names by its superset KOI8-U",
+                b"\xF0\xD2\xC9\xD7\xC5\xD4\x2C\x20\xCD\xC9\xD2\x21\x20\xFC\xD4\xCF\x20\xD2\xD5\xD3\xD3\xCB\xC9\xCA\x20\xD4\xC5\xCB\xD3\xD4\x20\xD7\x20\xCB\xCF\xC4\xC9\xD2\xCF\xD7\xCB\xC5\x20\xEB\xEF\xE9\x2D\x38\x2E\x20\xF3\xC5\xC7\xCF\xC4\xCE\xD1\x20\xC8\xCF\xD2\xCF\xDB\xC1\xD1\x20\xD0\xCF\xC7\xCF\xC4\xC1\x2E\x0A",
+                Coverage::Whole,
+                TextCodec::Legacy(LegacyEncoding(encoding_rs::KOI8_U)),
                 0,
             ),
             (
@@ -208,6 +271,12 @@ mod tests {
             ),
             ("windows-1252 euro", TextCodec::Windows1252, b"\x80", "€"),
             (
+                "shift_jis",
+                TextCodec::Legacy(LegacyEncoding(encoding_rs::SHIFT_JIS)),
+                b"\x82\xB1\x82\xF1",
+                "こん",
+            ),
+            (
                 "windows-1252 accent",
                 TextCodec::Windows1252,
                 b"caf\xE9",
@@ -228,5 +297,8 @@ mod tests {
         );
         assert_eq!(TextCodec::Unicode(TextEncoding::Utf16Le).unit(), 2);
         assert_eq!(TextCodec::Windows1252.unit(), 1);
+        let koi8 = TextCodec::Legacy(LegacyEncoding(encoding_rs::KOI8_R));
+        assert_eq!(koi8.label(), "KOI8-R");
+        assert_eq!(koi8.unit(), 1);
     }
 }

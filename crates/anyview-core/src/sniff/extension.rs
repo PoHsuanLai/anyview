@@ -48,8 +48,32 @@ pub(super) fn binary(extension: &str) -> Option<Sniffed> {
         .map(|format| of(format.kind(), format, FormatDetail::Office(format)))
 }
 
+/// Extensions that name text and no syntax, table or tree: plain text, logs and subtitles, the files
+/// most often saved in a legacy encoding.
+const PLAIN_TEXT: &[&str] = &[
+    "txt", "text", "log", "nfo", "srt", "ass", "ssa", "sub", "lrc", "readme",
+];
+
+/// Whether the name says text: Markdown, a table, a tree, SVG, source code or a plain-text
+/// extension. A head with no signature that is not UTF-8 is read as legacy text only under such a
+/// name; under any other it stays binary.
+pub(super) fn names_text(name: &FileName) -> bool {
+    let Some(extension) = name.extension() else {
+        return syntax_for_name(name.as_str()).is_some();
+    };
+    let is = |known: &[&str]| known.iter().any(|k| k.eq_ignore_ascii_case(extension));
+    is(MARKDOWN)
+        || is(PLAIN_TEXT)
+        || is(&["svg"])
+        || from_extension::<Delimiter>(extension).is_some()
+        || from_extension::<TreeFormat>(extension).is_some()
+        || syntax_for_extension(extension).is_some()
+        || syntax_for_name(name.as_str()).is_some()
+}
+
 /// The kind of a text file from its name: Markdown, a table, a tree, an SVG, source code, or plain
-/// text with the encoding its bytes had.
+/// text with the encoding its bytes had. A legacy-encoded file is reported as UTF-8 here: its real
+/// encoding is guessed by whoever decodes it.
 pub(super) fn text(name: &FileName, encoding: TextEncoding) -> Sniffed {
     let extension = name.extension();
     let is = |known: &[&str]| {

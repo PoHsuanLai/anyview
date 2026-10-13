@@ -3,6 +3,8 @@
 
 mod table;
 
+pub use table::MAX_LINE_BYTES;
+
 #[cfg(test)]
 mod tests;
 
@@ -12,6 +14,10 @@ use crate::error::TextError;
 use anyview_core::{LineIndex, ReadAt};
 use std::ops::Range;
 use table::LineTable;
+
+/// What ends a line that was cut at [`MAX_LINE_BYTES`]: an ellipsis, which a view shows as the line
+/// running on, the way an editor shows a line it does not lay out in full.
+pub const LINE_CUT: char = '\u{2026}';
 
 /// How many lines a text has.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -56,10 +62,23 @@ impl<B: ReadAt> TextLines<B> {
     }
 
     /// The lines in `range`, without their line breaks (`\n` or `\r\n`). A range past the end is
-    /// cut to the lines that exist.
+    /// cut to the lines that exist. A line longer than [`MAX_LINE_BYTES`] comes back cut there and
+    /// ends in [`LINE_CUT`], so a file that is one enormous line costs the cap, not its size; the
+    /// line numbers and offsets after it are unaffected.
     pub fn lines(&self, range: Range<LineIndex>) -> Result<Vec<String>, TextError> {
-        let bytes = self.table.read(&self.bytes, range.start.0..range.end.0)?;
-        Ok(split(&self.codec.decode(&bytes)))
+        let raw = self.table.read(&self.bytes, range.start.0..range.end.0)?;
+        Ok(raw
+            .into_iter()
+            .map(|line| {
+                let decoded = self.codec.decode(&line.bytes);
+                let text = decoded.strip_suffix('\n').unwrap_or(&decoded);
+                let mut text = text.strip_suffix('\r').unwrap_or(text).to_owned();
+                if line.cut {
+                    text.push(LINE_CUT);
+                }
+                text
+            })
+            .collect())
     }
 }
 

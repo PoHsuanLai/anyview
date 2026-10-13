@@ -345,6 +345,9 @@ miniz_oxide = { version = "0.8", default-features = false, features = ["with-all
 
 # Text encodings other than Unicode: (Apache-2.0 OR MIT) AND BSD-3-Clause.
 encoding_rs = "0.8"
+# Guesses which legacy encoding (Shift_JIS, GBK, KOI8-R...) a text file is in, for `anyview-text`, decoding with
+# encoding_rs: MIT OR Apache-2.0 (the detector Firefox uses).
+chardetng = "1"
 # Grapheme and word boundaries for the text editor's caret motion: MIT OR Apache-2.0 (already in the tree).
 unicode-segmentation = "1"
 

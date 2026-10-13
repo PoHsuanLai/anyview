@@ -2,13 +2,17 @@
 
 use super::magic::{self, Magic};
 use super::{FileHead, SniffStep, Sniffed, ZipProbe, extension, text};
-use crate::kind::{Family, FormatDetail, FormatKind, Mime, RasterFormat, from_extension};
+use crate::kind::{
+    Family, FormatDetail, FormatKind, Mime, RasterFormat, TextEncoding, from_extension,
+};
 use crate::source::FileName;
 
 /// What a file is, from its first bytes and its name.
 ///
 /// Magic bytes decide first. A head with no signature is text when it holds no NUL and is valid
-/// UTF-8, or starts with a UTF-16 byte-order mark; the name then picks Markdown, a table, a tree,
+/// UTF-8, or starts with a UTF-16 byte-order mark, or, under a text name, holds no NUL and almost
+/// no control bytes (a file in a legacy encoding such as Windows-1252 or Shift_JIS); the name then
+/// picks Markdown, a table, a tree,
 /// SVG, a syntax or plain text. Any other head is binary, and the name picks among the binary
 /// families or leaves it `Other`. A zip is not decided here: the answer asks for its entries.
 ///
@@ -77,6 +81,11 @@ fn by_name(head: &FileHead, name: &FileName) -> Sniffed {
             .and_then(extension::binary)
             .unwrap_or_else(|| extension::text(name, encoding)),
         Some(encoding) => extension::text(name, encoding),
+        // Not UTF-8, but printable bytes under a name that says text: a file in a legacy encoding.
+        // The decoder guesses which; the sniffer only says it is text.
+        None if text::is_legacy_text(head) && extension::names_text(name) => {
+            extension::text(name, TextEncoding::Utf8)
+        }
         None => name
             .extension()
             .and_then(extension::binary)

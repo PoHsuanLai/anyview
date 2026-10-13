@@ -235,13 +235,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   an `href` that is not a `data:` URL resolves to nothing (`Svg::parse` sets the resolver; usvg's default
   reads any path), so only what the SVG itself holds appears. Ends when
   `anyview-platform` can hand the decoder a font database (the `text` feature and `fontdb`).
-- **A legacy-encoded text file is not text to the sniffer.** `anyview_core::sniff` calls a head that is
-  not valid UTF-8 and has no byte-order mark `Other`, so a Windows-1252 or Shift_JIS `.txt` never reaches
-  `anyview-text`; the Windows-1252 fallback of `detect` serves files whose first 4 KiB is ASCII and whose
-  accents come later. Ends when `sniff` classifies a head with no NUL and mostly printable bytes as plain
-  text under a text extension; no change is needed in `anyview-text`.
-- **The only fallback encoding is Windows-1252.** A file in another legacy encoding (Shift_JIS, GBK,
-  KOI8-R) is shown as Windows-1252 with mojibake. Ends if that matters: guess with `chardetng`.
 - **The back ends' limits are constants.** `PEEK_LINES` (40), `DETECT_BYTES` (1 MiB), the largest image
   to decode (16384 by 16384), the largest animation in memory (512 MiB), the SVG long edge (1024 to 4096),
   the AVIF encoder speed (6), the longest line highlighted (4096 bytes), the largest inlined Markdown
@@ -271,8 +264,16 @@ on. It is a reference, not a log: how each was found lives in git history.
   with `TextError::JsonOverBudget` (a document cannot be read in part), a JSON Lines file is held in
   memory whole when opened, and a number prints as its value (`1.0` reads `1`). Ends if big JSON matters:
   scan the top level without parsing, and keep numbers as written (`arbitrary_precision`).
-- **`TextLines::lines` reads a line whole.** A file that is one enormous line is read into memory when its
-  window is asked for. Ends if lines get a byte cap with a marker for the cut.
+- **A line is cut at 1 MiB.** `TextLines::lines` returns a line longer than `MAX_LINE_BYTES` cut there and
+  ending in an ellipsis (`LINE_CUT`), so the view shows it as running on; the rest of that line cannot be
+  read, searched or copied from the window (find sees the kept part only, and rendered Markdown with a
+  paragraph on one line that long loses the rest). Ends if a view needs the whole line: window a line by
+  bytes (`lines` gains a column range) instead of cutting it.
+- **A guessed legacy encoding can be wrong.** `detect` asks `chardetng` over the first `DETECT_BYTES`; a
+  short or mostly ASCII file in a legacy encoding can come out as Windows-1252, and the sniffer calls a
+  non-UTF-8 head text only under a text extension (`.txt`, `.log`, `.srt`, source, tables), so a
+  legacy-encoded file with another name is `Other`. Ends if a person needs to pick the encoding: an
+  encoding menu in the text view that re-opens the file with the chosen `TextCodec`.
 - **A table is held in memory.** `Table::parse` keeps every row; a very large CSV costs its size several
   times over. Ends if that matters: index record offsets like `TextLines` does and parse windows.
 - **A JPEG XL animation shows its first frame.** The export sheet exports an animation's first frame, not
