@@ -3,7 +3,7 @@
 
 use crate::support;
 
-use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, PeekBudget, Source};
+use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Source};
 use anyview_fs::OnDisk;
 use anyview_peek::{Body, PeekError, peek, probe};
 use std::path::Path;
