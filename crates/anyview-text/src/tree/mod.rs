@@ -294,7 +294,7 @@ impl Tree {
     }
 
     /// Whether the tree holds all the document or only its start.
-    pub(crate) fn coverage(&self) -> Coverage {
+    pub fn coverage(&self) -> Coverage {
         self.store.coverage
     }
 
