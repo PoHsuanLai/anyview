@@ -203,6 +203,9 @@ DIRECT=(
 # with bayonet and latchkey, and what those bring). The pane with its `player` feature is 607: the pane's 590
 # and the media host's extra packages, which are the player's alone.
 # Both ratchet down when a change drops a dependency and are never raised without the reason.
+# chardetng (the legacy-encoding guess of anyview-text, MIT OR Apache-2.0, its own dependencies already in
+# every tree) is one package more in each tree that reaches anyview-text: the peek 576, the headless peek 195,
+# the viewer 697, the media host 607 and the pane with its player 608. The pane's 590 had room.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
 # links to look at a file: 192 packages (250 while `ds` was a hard dependency and carried dioxus,
@@ -210,17 +213,17 @@ DIRECT=(
 # own and `ds` is the `pane` feature's), with no renderer, no window system, no dioxus and no encoder.
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
-  "anyview-peek: 575"
-  "anyview: 696"
+  "anyview-peek: 576"
+  "anyview: 697"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
-  "anyview-media-host: 606"
+  "anyview-media-host: 607"
 )
-HEADLESS_BUDGET=194
+HEADLESS_BUDGET=195
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=607
+PANE_PLAYER_BUDGET=608
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
