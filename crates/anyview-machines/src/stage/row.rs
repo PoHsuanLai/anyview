@@ -26,6 +26,7 @@ impl RowStep {
     /// The row the cursor is on after this move from `from` (`None`: no cursor yet) over `rows`
     /// rows with `page` rows to a page. The first move with no cursor lands on the first row a
     /// move that way reaches; a list with no rows has no cursor.
+    #[must_use]
     pub fn from(self, from: Option<RowNo>, rows: u32, page: u32) -> Option<RowNo> {
         let last = rows.checked_sub(1)?;
         let page = page.max(1);

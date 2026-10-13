@@ -92,6 +92,7 @@ pub enum Trashing {
 impl Viewer {
     /// Whether going away from the file shown would lose changes that are not saved: a picture's
     /// edits, or a text's.
+    #[must_use]
     pub fn unsaved(&self) -> bool {
         let picture = self.picture.is_edited() && matches!(self.stage, Stage::Raster(_));
         let text = self
@@ -104,6 +105,7 @@ impl Viewer {
     /// A viewer launched in `presentation` (a quick look, a window, a background session): it is
     /// so from the start, and nothing is asked of the host (it made the window that way). The
     /// window seeds the machine with it.
+    #[must_use]
     pub fn launched(presentation: Presentation) -> Viewer {
         Viewer {
             presentation,
@@ -175,9 +177,19 @@ impl From<ds_core::machine::Elapsed> for ViewerIn {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ViewerOut {
     /// Sniff this file for this load.
-    Probe { ticket: Ticket, path: FilePath },
+    Probe {
+        /// The load that asked.
+        ticket: Ticket,
+        /// The file to sniff.
+        path: FilePath,
+    },
     /// Sniff this file again for this load, leaving what shows in place until the result lands.
-    Reload { ticket: Ticket, path: FilePath },
+    Reload {
+        /// The load that asked.
+        ticket: Ticket,
+        /// The file to sniff.
+        path: FilePath,
+    },
     /// List the files beside this one for the sequence: the answer is `Navigate(Start)`, or
     /// nothing when the folder cannot be read.
     ListFolder(FilePath),

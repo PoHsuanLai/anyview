@@ -14,6 +14,7 @@ pub struct HandedResume {
 
 impl HandedResume {
     /// `place` for `file` the first time it is asked, `inner` otherwise.
+    #[must_use]
     pub fn new(file: FilePath, place: Resume, inner: Arc<dyn ResumeSource>) -> Self {
         HandedResume {
             file,

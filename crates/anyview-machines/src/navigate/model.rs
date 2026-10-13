@@ -11,7 +11,9 @@ pub enum Navigate {
     Idle,
     /// Walking `sequence`; its position is the open file, and `heading` the way the last move went.
     Walking {
+        /// The files beside the open one, in walking order.
         sequence: Sequence,
+        /// The way the last move went.
         heading: Heading,
     },
 }
@@ -47,6 +49,7 @@ impl From<ds_core::machine::Elapsed> for NavigateIn {
 
 impl NavigateIn {
     /// What a key means to navigation: the arrows and Home and End.
+    #[must_use]
     pub fn from_key(keys: &[ShortcutKey]) -> Option<NavigateIn> {
         match keys {
             [ShortcutKey::Right] => Some(NavigateIn::Next),

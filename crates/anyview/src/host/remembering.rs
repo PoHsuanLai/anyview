@@ -39,6 +39,7 @@ impl std::fmt::Debug for PlaceWriter {
 
 impl PlaceWriter {
     /// Places kept in `store`, each written at most once in `every`, the waits run on `runtime`.
+    #[must_use]
     pub fn new(store: Arc<Store>, runtime: Handle, every: Duration) -> PlaceWriter {
         PlaceWriter {
             inner: Arc::new(Inner {

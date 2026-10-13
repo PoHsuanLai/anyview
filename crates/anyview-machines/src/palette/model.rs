@@ -74,6 +74,7 @@ impl From<ds_core::machine::Elapsed> for PaletteIn {
 impl PaletteIn {
     /// What a press means to an open palette: arrows move, Enter runs, Esc and the palette's own
     /// action close. Anything else is typed into the field, which reports it as `Typed`.
+    #[must_use]
     pub fn from_press(press: &Press) -> Option<PaletteIn> {
         match press {
             Press::Key(shortcut) => match shortcut.keys().as_slice() {

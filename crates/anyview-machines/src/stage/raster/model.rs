@@ -27,19 +27,31 @@ pub enum Animation {
     Still,
     /// Advancing: `frame` is on screen until `due`, and `run` runs have finished before this one.
     Playing {
+        /// The frame on screen.
         frame: FrameIndex,
+        /// How many frames there are.
         of: FrameCount,
+        /// When the frame gives way to the next.
         due: Stamp,
+        /// How many runs have finished.
         run: u32,
     },
     /// Held on a frame, in the run after `run` finished ones.
     Paused {
+        /// The frame on screen.
         frame: FrameIndex,
+        /// How many frames there are.
         of: FrameCount,
+        /// How many runs have finished.
         run: u32,
     },
     /// Every run the file asked for is done, and the last frame stays.
-    Ended { frame: FrameIndex, of: FrameCount },
+    Ended {
+        /// The frame on screen.
+        frame: FrameIndex,
+        /// How many frames there are.
+        of: FrameCount,
+    },
 }
 
 /// How many times an animation runs through its frames.
@@ -70,20 +82,33 @@ pub struct FrameDelays(pub Arc<[Duration]>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RasterStage {
     /// Fitted to the window, centred.
-    Fitted { turn: QuarterTurn, anim: Animation },
+    Fitted {
+        /// How far the image has been turned.
+        turn: QuarterTurn,
+        /// Whether the image moves.
+        anim: Animation,
+    },
     /// Drawn at `zoom` (never `Zoom::Fit`) with `centre` the content point at the middle of the
     /// view.
     Zoomed {
+        /// How far the image has been turned.
         turn: QuarterTurn,
+        /// How far in the image is drawn.
         zoom: Zoom,
+        /// The content point at the middle of the view.
         centre: DocPoint,
+        /// Whether the image moves.
         anim: Animation,
     },
     /// A drag is moving `centre` of a zoomed image.
     Panning {
+        /// How far the image has been turned.
         turn: QuarterTurn,
+        /// How far in the image is drawn.
         zoom: Zoom,
+        /// The content point at the middle of the view.
         centre: DocPoint,
+        /// Whether the image moves.
         anim: Animation,
     },
 }
@@ -99,6 +124,7 @@ impl Default for RasterStage {
 
 impl RasterStage {
     /// Whether the open image moves: only then are playback and frame stepping its commands.
+    #[must_use]
     pub fn is_animated(&self) -> bool {
         let (RasterStage::Fitted { anim, .. }
         | RasterStage::Zoomed { anim, .. }
@@ -111,11 +137,24 @@ impl RasterStage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RasterIn {
     /// One zoom step in or out, holding `at` still on screen.
-    ZoomStep { dir: ZoomDir, at: DocPoint },
+    ZoomStep {
+        /// In or out.
+        dir: ZoomDir,
+        /// The point held still on screen.
+        at: DocPoint,
+    },
     /// Zoom to `zoom`, holding `at` still on screen.
-    SetZoom { zoom: Zoom, at: DocPoint },
+    SetZoom {
+        /// The zoom to set.
+        zoom: Zoom,
+        /// The point held still on screen.
+        at: DocPoint,
+    },
     /// Fitted goes to 1:1 at `at`; any zoom goes back to fit.
-    DoubleClick { at: DocPoint },
+    DoubleClick {
+        /// The point held still on screen.
+        at: DocPoint,
+    },
     /// A drag began.
     PanStart,
     /// The drag moved the pointer by this much; the content follows it.
@@ -123,7 +162,12 @@ pub enum RasterIn {
     /// The drag ended.
     PanEnd,
     /// Restore where the person left the file.
-    Restore { zoom: Zoom, centre: DocPoint },
+    Restore {
+        /// The zoom to go back to.
+        zoom: Zoom,
+        /// The content point at the middle of the view.
+        centre: DocPoint,
+    },
     /// The file turned out to be animated.
     Animated(FrameCount),
     /// Play or pause an animation; one that has ended starts again.

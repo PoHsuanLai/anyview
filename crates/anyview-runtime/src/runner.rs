@@ -38,11 +38,13 @@ pub struct JobHandle {
 
 impl JobHandle {
     /// The load this job belongs to.
+    #[must_use]
     pub fn ticket(&self) -> Ticket {
         self.ticket
     }
 
     /// The job's stop; clones share it.
+    #[must_use]
     pub fn stop(&self) -> &Stop {
         &self.stop
     }

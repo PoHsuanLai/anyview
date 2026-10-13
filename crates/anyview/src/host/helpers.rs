@@ -78,6 +78,7 @@ fn needed_on_path(missing: &Missing) -> String {
 impl HelperHost {
     /// A host over `catalog`, looking for tools in `environment` and installing through
     /// `installer`. A tool that appears makes `registry` read the plugins again.
+    #[must_use]
     pub fn new(
         catalog: Catalog,
         environment: Environment,
@@ -95,6 +96,7 @@ impl HelperHost {
     /// The same host, offering to install a tool only where `installable`: the system has a way
     /// to install one (quire's `Helpers` capability, PackageKit). Without it a missing tool stays
     /// a row that names it, with no Install... beside it.
+    #[must_use]
     pub fn installing_where(self, installable: bool) -> HelperHost {
         HelperHost {
             installable,
@@ -104,11 +106,13 @@ impl HelperHost {
 
     /// Whether the viewer can offer to install `helper`: the helpers file declares it, so the
     /// viewer can word the question, and the system can install it.
+    #[must_use]
     pub fn offers(&self, helper: Helper) -> bool {
         self.installable && self.entry(helper).is_some()
     }
 
     /// The `Needs` row `fact`, with `helper` to install when the file declares it.
+    #[must_use]
     pub fn need(&self, fact: Fact, helper: Helper) -> Need {
         Need {
             fact,

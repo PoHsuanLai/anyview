@@ -60,7 +60,12 @@ pub enum Outcome {
     /// It failed; the text says what was being done and what refused.
     Failed(String),
     /// The file was saved in place, and this version holds what it was.
-    Written { file: FilePath, kept: VersionId },
+    Written {
+        /// The file saved.
+        file: FilePath,
+        /// The kept version holding what the file was.
+        kept: VersionId,
+    },
     /// A save in place wrote nothing, and the file is as it was; the text says what refused.
     NotWritten(String),
     /// Asking the system to install this tool ended like this.

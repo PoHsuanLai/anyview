@@ -26,16 +26,19 @@ pub struct PoolSize(NonZeroUsize);
 
 impl PoolSize {
     /// One less than the cores, leaving one for the UI thread, and never fewer than one.
+    #[must_use]
     pub fn from_cores(cores: NonZeroUsize) -> Self {
         PoolSize(NonZeroUsize::new(cores.get() - 1).unwrap_or(NonZeroUsize::MIN))
     }
 
     /// Exactly `threads` workers.
+    #[must_use]
     pub fn exactly(threads: NonZeroUsize) -> Self {
         PoolSize(threads)
     }
 
     /// The number of workers.
+    #[must_use]
     pub fn get(self) -> usize {
         self.0.get()
     }
@@ -158,6 +161,7 @@ impl Pool {
     }
 
     /// How many workers the pool runs.
+    #[must_use]
     pub fn size(&self) -> usize {
         self.threads.len()
     }

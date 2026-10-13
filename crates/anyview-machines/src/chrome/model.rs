@@ -15,14 +15,32 @@ pub enum Chrome {
     #[default]
     Hidden,
     /// Fading in; the fade ends at `until`.
-    Revealing { since: Stamp, until: Stamp },
+    Revealing {
+        /// When the fade began.
+        since: Stamp,
+        /// When the fade ends.
+        until: Stamp,
+    },
     /// On screen and counting idle time: it hides at `hide_at`, which is `idle_from` plus the
     /// hide delay.
-    Shown { idle_from: Stamp, hide_at: Stamp },
+    Shown {
+        /// When the idle count began.
+        idle_from: Stamp,
+        /// When the chrome hides.
+        hide_at: Stamp,
+    },
     /// Held on screen by at least one reason; no timer runs.
-    Pinned { by: PinReasons },
+    Pinned {
+        /// The reasons holding it.
+        by: PinReasons,
+    },
     /// Fading out; the fade ends at `until`.
-    Hiding { since: Stamp, until: Stamp },
+    Hiding {
+        /// When the fade began.
+        since: Stamp,
+        /// When the fade ends.
+        until: Stamp,
+    },
 }
 
 /// Where the pointer is.
@@ -59,7 +77,12 @@ impl From<ds_core::machine::Elapsed> for ChromeIn {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChromeOut {
     /// Fade to `to` over `over`; carried out by the view with `ds-motion`.
-    Fade { to: Shown, over: Duration },
+    Fade {
+        /// The state to fade to.
+        to: Shown,
+        /// How long the fade lasts.
+        over: Duration,
+    },
 }
 
 /// The chrome's timing.

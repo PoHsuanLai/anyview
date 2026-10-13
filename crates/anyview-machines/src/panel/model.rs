@@ -39,6 +39,7 @@ impl PanelTabs {
     pub const NONE: PanelTabs = PanelTabs(0);
 
     /// The set of `tabs`.
+    #[must_use]
     pub const fn of(tabs: &[PanelTab]) -> Self {
         let mut bits = 0;
         let mut index = 0;
@@ -50,11 +51,13 @@ impl PanelTabs {
     }
 
     /// Whether `tab` is in the set.
+    #[must_use]
     pub const fn contains(self, tab: PanelTab) -> bool {
         self.0 & tab.bit() != 0
     }
 
     /// The set without `tab`.
+    #[must_use]
     pub const fn without(self, tab: PanelTab) -> Self {
         PanelTabs(self.0 & !tab.bit())
     }
@@ -62,6 +65,7 @@ impl PanelTabs {
     /// The tab to show when the panel is on `wanted`: that tab, or the first one the file has when
     /// it has no `wanted` (the person walked to a file without the thumbnails the panel was on, or
     /// the player withheld the tracks), so the panel is never an empty body under no selected tab.
+    #[must_use]
     pub fn showing(self, wanted: PanelTab) -> PanelTab {
         if self.contains(wanted) {
             wanted
@@ -71,6 +75,7 @@ impl PanelTabs {
     }
 
     /// The first tab of the set, or `None` when the format has no panel.
+    #[must_use]
     pub fn first(self) -> Option<PanelTab> {
         PanelTab::ALL
             .iter()
@@ -86,7 +91,10 @@ pub enum Panel {
     #[default]
     Hidden,
     /// Showing `tab`.
-    Shown { tab: PanelTab },
+    Shown {
+        /// The tab showing.
+        tab: PanelTab,
+    },
 }
 
 /// What moves the panel.

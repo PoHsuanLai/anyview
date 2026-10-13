@@ -31,6 +31,7 @@ impl TargetName {
     }
 
     /// The name.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -83,6 +84,7 @@ pub enum Provision {
 
 impl Provision {
     /// Which capability this is.
+    #[must_use]
     pub fn capability(&self) -> Capability {
         match self {
             Provision::Probe(_) => Capability::Probe,
@@ -95,6 +97,7 @@ impl Provision {
     }
 
     /// What it handles.
+    #[must_use]
     pub fn handles(&self) -> &Handles {
         match self {
             Provision::Probe(handles)
@@ -107,6 +110,7 @@ impl Provision {
     }
 
     /// Whether the plugin's `program` speaks it over the protocol (everything but `play`).
+    #[must_use]
     pub fn needs_program(&self) -> bool {
         match self {
             Provision::Probe(_)

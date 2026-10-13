@@ -17,6 +17,7 @@ pub struct Stop(Arc<AtomicBool>);
 
 impl Stop {
     /// A stop not yet raised.
+    #[must_use]
     pub fn new() -> Stop {
         Stop::default()
     }
@@ -27,6 +28,7 @@ impl Stop {
     }
 
     /// Whether it was raised.
+    #[must_use]
     pub fn raised(&self) -> bool {
         self.0.load(Ordering::SeqCst)
     }

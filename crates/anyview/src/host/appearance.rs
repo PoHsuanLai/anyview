@@ -46,17 +46,20 @@ impl Appearances {
     }
 
     /// A look that never changes: for a window with no desktop to follow.
+    #[must_use]
     pub fn fixed(look: Look) -> Appearances {
         let (_sender, receiver) = watch::channel(look);
         Appearances { receiver }
     }
 
     /// The look now.
+    #[must_use]
     pub fn current(&self) -> Look {
         self.receiver.borrow().clone()
     }
 
     /// The feed a window follows.
+    #[must_use]
     pub fn feed(&self) -> LookFeed {
         LookFeed(self.receiver.clone())
     }

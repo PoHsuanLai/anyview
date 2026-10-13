@@ -88,23 +88,33 @@ pub struct EditFind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextStage {
     /// Reading.
-    Reading { place: TextPlace },
+    Reading {
+        /// Where the reader is.
+        place: TextPlace,
+    },
     /// A find is up: `hits` says where its search stands.
     Finding {
+        /// The text being searched for.
         query: TypedText,
+        /// Where the search stands.
         hits: FindHits,
+        /// Where the reader is.
         place: TextPlace,
     },
     /// The source is being edited in place; a find may be up over it.
     Editing {
+        /// Where the reader is.
         place: TextPlace,
+        /// What has been changed so far.
         edited: Edited,
+        /// The find over the edit, when one is up.
         find: Option<EditFind>,
     },
 }
 
 impl TextStage {
     /// Where the reader is and how the text is shown.
+    #[must_use]
     pub fn place(&self) -> TextPlace {
         match self {
             TextStage::Reading { place }
@@ -114,6 +124,7 @@ impl TextStage {
     }
 
     /// What has been done to the text, while it is being edited.
+    #[must_use]
     pub fn edited(&self) -> Option<Edited> {
         match self {
             TextStage::Editing { edited, .. } => Some(*edited),
@@ -123,6 +134,7 @@ impl TextStage {
 
     /// A stage at the top of a file with these views: rendered first when there is a rendering,
     /// wrapped.
+    #[must_use]
     pub fn opened(views: TextViews) -> TextStage {
         let view = match views {
             TextViews::RenderedAndSource => TextView::Rendered,
@@ -172,8 +184,11 @@ pub enum TextIn {
     Find(TypedText),
     /// The search for `query` found `count` hits, `nearest` being the one closest to the reader.
     Results {
+        /// The text searched for.
         query: TypedText,
+        /// How many hits there are.
         count: HitCount,
+        /// The hit closest to the reader.
         nearest: HitIndex,
     },
     /// The next hit, wrapping to the first after the last.

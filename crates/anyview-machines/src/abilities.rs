@@ -40,6 +40,7 @@ impl PlatformAbilities {
     }
 
     /// Whether `service` is there.
+    #[must_use]
     pub fn has(self, service: DesktopService) -> bool {
         self.0 & bit(service) != 0
     }
@@ -57,6 +58,7 @@ impl PlatformAbilities {
     }
 
     /// Whether `action` can be done here. An action no desktop service stands behind always can.
+    #[must_use]
     pub fn offers(self, action: FileAction) -> bool {
         match action {
             FileAction::Open => self.has(DesktopService::FileChooser),

@@ -7,13 +7,22 @@ use anyview_core::{OpenNodes, TreePath};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeStage {
     /// Reading, with no row picked.
-    Browsing { open: OpenNodes },
+    Browsing {
+        /// The nodes that are open.
+        open: OpenNodes,
+    },
     /// Reading with the cursor on a row.
-    Selected { open: OpenNodes, row: RowNo },
+    Selected {
+        /// The nodes that are open.
+        open: OpenNodes,
+        /// The row under the cursor.
+        row: RowNo,
+    },
 }
 
 impl TreeStage {
     /// The nodes that are open.
+    #[must_use]
     pub fn open(&self) -> &OpenNodes {
         match self {
             TreeStage::Browsing { open } | TreeStage::Selected { open, .. } => open,
@@ -21,6 +30,7 @@ impl TreeStage {
     }
 
     /// The row the cursor is on, when there is one.
+    #[must_use]
     pub fn row(&self) -> Option<RowNo> {
         match self {
             TreeStage::Browsing { .. } => None,

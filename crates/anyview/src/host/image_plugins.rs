@@ -25,11 +25,13 @@ pub struct ImageHost {
 
 impl ImageHost {
     /// The plugins `plugins` holds, run by `runner`.
+    #[must_use]
     pub fn new(plugins: Plugins, runner: PluginRunner) -> ImageHost {
         ImageHost::following(PluginRegistry::fixed(plugins), runner)
     }
 
     /// The plugins `registry` holds now (it may read them again), run by `runner`.
+    #[must_use]
     pub fn following(registry: PluginRegistry, runner: PluginRunner) -> ImageHost {
         ImageHost {
             registry,
@@ -39,6 +41,7 @@ impl ImageHost {
     }
 
     /// The same plugins, offering to install the tools `helpers` knows when one is missing.
+    #[must_use]
     pub fn offering(self, helpers: Arc<HelperHost>) -> ImageHost {
         ImageHost {
             helpers: Some(helpers),
@@ -47,6 +50,7 @@ impl ImageHost {
     }
 
     /// A host with no plugin installed: every kind a plugin serves says which package would.
+    #[must_use]
     pub fn without_plugins() -> ImageHost {
         ImageHost::new(Plugins::none(), PluginRunner::default())
     }

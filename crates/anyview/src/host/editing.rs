@@ -11,6 +11,7 @@ use std::path::Path;
 impl Shown {
     /// The window after a task ended: a save that kept a version, or one that did not write, moves
     /// its trail; every other outcome leaves it.
+    #[must_use]
     pub fn after(self, outcome: &Outcome) -> Shown {
         let input = match outcome {
             Outcome::Written { file: _, kept } => TrailIn::Kept(kept.clone()),
@@ -78,6 +79,7 @@ impl Shown {
     }
 
     /// The trail as it is now.
+    #[must_use]
     pub fn trail(&self) -> &Trail<VersionId> {
         &self.trail
     }

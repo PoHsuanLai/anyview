@@ -32,6 +32,7 @@ pub enum Stage {
 
 impl Stage {
     /// A new stage for a file of `family`; `views` says which views a text file has.
+    #[must_use]
     pub fn for_family(family: StageFamily, views: TextViews) -> Stage {
         match family {
             StageFamily::Raster => Stage::Raster(RasterStage::default()),
@@ -101,6 +102,7 @@ pub enum StageOut {
 
 impl StageOut {
     /// The place to keep for next time, when this is a stage saying where the person is.
+    #[must_use]
     pub fn remembered(&self) -> Option<&Resume> {
         match self {
             StageOut::Raster(RasterOut::Remember(resume))
@@ -124,6 +126,7 @@ impl StageOut {
     }
 
     /// What the stage asks of its search, when this is that.
+    #[must_use]
     pub fn find(&self) -> Option<&FindOut> {
         match self {
             StageOut::Text(TextOut::Find(find)) | StageOut::Pdf(PdfOut::Find(find)) => Some(find),

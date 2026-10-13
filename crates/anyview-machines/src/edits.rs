@@ -16,6 +16,7 @@ pub struct EditRequest {
 
 impl EditRequest {
     /// `edit` of a picture.
+    #[must_use]
     pub fn of_picture(edit: Edit) -> Self {
         EditRequest {
             edit,
@@ -24,6 +25,7 @@ impl EditRequest {
     }
 
     /// `edit` asked on `page` of a PDF.
+    #[must_use]
     pub fn on_page(edit: Edit, page: PageIndex) -> Self {
         EditRequest { edit, page }
     }

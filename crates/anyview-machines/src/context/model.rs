@@ -19,7 +19,10 @@ pub enum ContextMenu {
     #[default]
     Closed,
     /// Showing, with its top-left corner at `at`.
-    Open { at: Spot },
+    Open {
+        /// Where the top-left corner is.
+        at: Spot,
+    },
 }
 
 /// What a context menu row does when it is picked.
@@ -36,7 +39,9 @@ pub enum ContextPick {
 pub enum ContextEntry {
     /// A row, named as a Mac menu names it.
     Item {
+        /// What picking the row does.
         pick: ContextPick,
+        /// The row's text.
         title: &'static str,
     },
     /// A rule between two groups.

@@ -22,6 +22,7 @@ impl std::fmt::Debug for Store {
 
 impl Store {
     /// A store under `root`, stamping each view with `now()`.
+    #[must_use]
     pub fn new(root: &Path, now: Clock) -> Store {
         Store {
             writer: Mutex::new(StoreWriter::new(root, HistoryCap::DEFAULT)),
@@ -30,6 +31,7 @@ impl Store {
     }
 
     /// The time as the program's clock reads it now, for a version kept.
+    #[must_use]
     pub fn saved_at(&self) -> SavedAt {
         SavedAt((self.now)().0)
     }

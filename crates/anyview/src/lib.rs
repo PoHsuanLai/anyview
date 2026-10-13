@@ -2,6 +2,8 @@
 //! runs, the seam that puts the views' work on it, the host that carries out what the windows
 //! ask, the windows themselves and the program that joins them.
 
+#![warn(missing_docs)]
+
 pub mod cli;
 pub mod crash;
 pub mod host;

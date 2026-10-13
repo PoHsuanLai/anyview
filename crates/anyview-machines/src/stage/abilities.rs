@@ -66,6 +66,7 @@ const TEXT: StageAbilities = StageAbilities {
 
 impl Stage {
     /// What this stage can do. The one match on the stage for the file actions it carries out.
+    #[must_use]
     pub fn abilities(&self) -> StageAbilities {
         match self {
             Stage::Raster(_) => RASTER,

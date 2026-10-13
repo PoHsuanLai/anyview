@@ -6,6 +6,8 @@
 //! The plugin is a process and not a layer of the viewer, so it is the one place that reads the
 //! environment and starts programs.
 
+#![warn(missing_docs)]
+
 mod error;
 mod lookup;
 mod picture;

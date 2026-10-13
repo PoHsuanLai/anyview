@@ -123,6 +123,7 @@ impl<C: Send + 'static> Actor<C> {
     }
 
     /// A wake for the actor, to give to a callback.
+    #[must_use]
     pub fn waker(&self) -> ActorWake<C> {
         self.wake.clone()
     }

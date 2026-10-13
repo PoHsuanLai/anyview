@@ -5,6 +5,39 @@
 //! Everything blocks and runs on the caller's worker: the crate spawns nothing, and the binary's
 //! pool calls [`PdfBackend::run`]. Pixels come out as CPU buffers ([`Raster`]); uploading them to a
 //! texture belongs to the view. Page images are encoded by `anyview-image`, not here.
+//!
+//! The front door is [`PdfDocument`]: open the file once, then ask it for its pages.
+//!
+//! ```
+//! use anyview_core::{PageIndex, PixelLen, PixelSize};
+//! use anyview_pdf::{PagePicture, PdfDocument, pdf_of_pictures};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Two pages made in memory, each a grey picture the size of its page.
+//! let page = |width: u32, height: u32| PagePicture::Pixels {
+//!     size: PixelSize {
+//!         width: PixelLen(width),
+//!         height: PixelLen(height),
+//!     },
+//!     rgba: [128u8, 128, 128, 255]
+//!         .iter()
+//!         .copied()
+//!         .cycle()
+//!         .take(width as usize * height as usize * 4)
+//!         .collect(),
+//! };
+//! let bytes = pdf_of_pictures(&[page(80, 40), page(40, 80)])?;
+//!
+//! // Opened once, the document knows its pages and their sizes.
+//! let document = PdfDocument::from_bytes(bytes)?;
+//! assert_eq!(document.page_count().get(), 2);
+//! let first = document.page_size(PageIndex(0))?;
+//! let second = document.page_size(PageIndex(1))?;
+//! assert!(first.width > first.height);
+//! assert!(second.width < second.height);
+//! # Ok(())
+//! # }
+//! ```
 
 #![warn(missing_docs)]
 

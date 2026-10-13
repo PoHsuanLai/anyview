@@ -25,6 +25,7 @@ pub struct Shown {
 
 impl Shown {
     /// What the window shows, once it has told the host.
+    #[must_use]
     pub fn file(&self) -> Option<&Opened> {
         self.file.as_ref()
     }
@@ -43,6 +44,7 @@ impl Shown {
     }
 
     /// The window is now at `resume` in its file, as the last request said.
+    #[must_use]
     pub fn remembering(self, resume: Resume) -> Shown {
         Shown {
             file: self.file.map(|probed| Opened { resume, ..probed }),
@@ -52,6 +54,7 @@ impl Shown {
 
     /// The window shows the file `path` names now, after the host moved it: the versions kept
     /// were of the file at its old name, so the trail starts again.
+    #[must_use]
     pub fn moved_to(self, path: FilePath) -> Shown {
         Shown {
             file: self.file.map(|mut probed| {
@@ -95,7 +98,9 @@ pub enum WindowTask {
     /// else what the file's header says, else the default window. `file` is the one the window
     /// showed when it was asked, so an answer that comes late can tell the window has moved on.
     Size {
+        /// What the size is taken from.
         basis: SizeBasis,
+        /// The file the window showed when it was asked.
         file: Option<FilePath>,
     },
 }
@@ -107,7 +112,12 @@ pub enum Task {
     /// Add the file to the recently viewed.
     RecordView(Opened),
     /// Keep where the person is in the file.
-    Remember { source: Source, resume: Resume },
+    Remember {
+        /// The file.
+        source: Source,
+        /// Where the person is in it.
+        resume: Resume,
+    },
     /// Show the file in the file manager.
     Reveal(FilePath),
     /// Ask the person for a file in the desktop's dialog; what they choose opens in the window.
@@ -121,31 +131,65 @@ pub enum Task {
     /// Move the file to the trash.
     Trash(FilePath),
     /// Give the file another name in its folder.
-    Rename { file: FilePath, to: FileName },
+    Rename {
+        /// The file to rename.
+        file: FilePath,
+        /// The new name.
+        to: FileName,
+    },
     /// Copy the file beside itself under a free name.
     Duplicate(FilePath),
     /// Play the file with no window, from where the person left it.
     PlayInBackground(Opened),
     /// Write an export of an image, a PDF or a text document beside it.
     ExportDocument {
+        /// The file.
         file: Opened,
+        /// What to write.
         choice: DocumentExport,
     },
     /// Write a media export of the file beside it: a cut, the audio, or the frame on screen.
     ExportMedia {
+        /// The file.
         file: Opened,
+        /// What to write.
         choice: anyview_core::MediaExport,
     },
     /// Save the file in place with this change, after keeping the original.
-    Edit { file: Opened, request: EditRequest },
+    Edit {
+        /// The file.
+        file: Opened,
+        /// The change to make.
+        request: EditRequest,
+    },
     /// Write the text the person edited over the file, after keeping the original.
-    SaveText { file: Opened, save: TextSave },
+    SaveText {
+        /// The file.
+        file: Opened,
+        /// The text to write.
+        save: TextSave,
+    },
     /// Put a kept version back as the file; what it is now is kept first.
-    Restore { file: FilePath, version: VersionId },
+    Restore {
+        /// The file.
+        file: FilePath,
+        /// The kept version to put back.
+        version: VersionId,
+    },
     /// Put back the kept version this key names.
-    RevertTo { file: FilePath, key: VersionKey },
+    RevertTo {
+        /// The file.
+        file: FilePath,
+        /// The kept version to go back to.
+        key: VersionKey,
+    },
     /// Write a copy of the file at `to`, which must not exist.
-    SaveCopy { file: FilePath, to: FilePath },
+    SaveCopy {
+        /// The file.
+        file: FilePath,
+        /// Where to write the copy.
+        to: FilePath,
+    },
     /// Install this tool through the system's package service, which asks for the password.
     Provide(Helper),
 }

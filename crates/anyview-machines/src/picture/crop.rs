@@ -75,6 +75,7 @@ impl CropGrip {
     }
 
     /// The word the grip is named by in markup.
+    #[must_use]
     pub fn slug(self) -> &'static str {
         match self {
             CropGrip::NorthWest => "north-west",
@@ -117,6 +118,7 @@ impl CropShape {
     ];
 
     /// What the control calls it.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             CropShape::Free => "Free",
@@ -140,6 +142,7 @@ pub enum CropLean {
 
 impl CropLean {
     /// What the control calls it.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             CropLean::Wide => "Landscape",
@@ -160,6 +163,7 @@ pub struct CropAspect {
 impl CropAspect {
     /// The width and the height the crop is held to, for a picture shown at `shown`; `None` when
     /// the shape is free.
+    #[must_use]
     pub fn ratio(self, shown: PixelSize) -> Option<(u32, u32)> {
         let wide = match self.shape {
             CropShape::Free => return None,
@@ -190,6 +194,7 @@ fn to_u32(value: i64) -> u32 {
 
 impl CropBox {
     /// The whole picture.
+    #[must_use]
     pub fn whole(shown: PixelSize) -> CropBox {
         CropBox {
             left: 0,
@@ -200,16 +205,19 @@ impl CropBox {
     }
 
     /// The column just past the rectangle.
+    #[must_use]
     pub fn right(self) -> u32 {
         self.left.saturating_add(self.width)
     }
 
     /// The row just past the rectangle.
+    #[must_use]
     pub fn bottom(self) -> u32 {
         self.top.saturating_add(self.height)
     }
 
     /// The rectangle as a rectangle of pixels.
+    #[must_use]
     pub fn rect(self) -> PixelRect {
         PixelRect {
             left: PixelLen(self.left),
@@ -223,6 +231,7 @@ impl CropBox {
 
     /// The columns of the two vertical guides that cut the rectangle in thirds, and the rows of
     /// the two horizontal ones.
+    #[must_use]
     pub fn thirds(self) -> ([u32; 2], [u32; 2]) {
         let at = |from: u32, extent: u32, third: u32| from + extent * third / 3;
         (
@@ -233,6 +242,7 @@ impl CropBox {
 
     /// The grip a press at `at` takes hold of, with `reach` the distance from an edge that still
     /// counts as on it; `None` when the press is farther than that outside the rectangle.
+    #[must_use]
     pub fn grip_at(self, at: DocPoint, reach: DocUnit) -> Option<CropGrip> {
         let (west, east) = (px(self.left) * PER_PIXEL, px(self.right()) * PER_PIXEL);
         let (north, south) = (px(self.top) * PER_PIXEL, px(self.bottom()) * PER_PIXEL);
@@ -273,6 +283,7 @@ impl CropBox {
     /// 64ths of a pixel), kept inside a picture shown at `shown`. With a `ratio` the rectangle
     /// keeps its proportions as a corner or an edge moves: a corner grows from the opposite
     /// corner, an edge from the opposite edge, with the other side kept centred.
+    #[must_use]
     pub fn dragged(
         self,
         grip: CropGrip,
@@ -419,6 +430,7 @@ impl CropBox {
     }
 
     /// The largest rectangle of `ratio` that fits inside this one, about its middle.
+    #[must_use]
     pub fn shaped(self, (rw, rh): (u32, u32)) -> CropBox {
         let (rw, rh) = (px(rw.max(1)), px(rh.max(1)));
         let (width, height) = (px(self.width), px(self.height));

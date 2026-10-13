@@ -32,9 +32,15 @@ pub enum Sheet {
     #[default]
     Closed,
     /// Choosing an export: the draft, and which pages the page choice stands for.
-    Export { draft: ExportDraft, span: PageSpan },
+    Export {
+        /// The export being chosen.
+        draft: ExportDraft,
+        /// Which pages the page choice stands for.
+        span: PageSpan,
+    },
     /// An export the viewer cannot offer: the row says which package adds it.
     Unavailable {
+        /// What the export needs that the viewer lacks.
         needs: Fact,
         /// The tool to offer to install for it, when the host can.
         helper: Option<Helper>,
@@ -43,22 +49,37 @@ pub enum Sheet {
     ConfirmTrash,
     /// Asking before an edit that loses something is saved.
     ConfirmEdit {
+        /// The edit waiting on the answer.
         request: EditRequest,
+        /// What the edit would lose.
         caution: EditCaution,
     },
     /// Typing a new name.
-    Rename { name: TypedText },
+    Rename {
+        /// The name typed so far.
+        name: TypedText,
+    },
     /// Typing the name of a copy to save beside the file, or a path to save it at.
-    SaveCopy { name: TypedText },
+    SaveCopy {
+        /// The name or path typed so far.
+        name: TypedText,
+    },
     /// Choosing which kept version of the file to go back to, the newest picked to begin with.
     Revert {
+        /// The kept versions to choose from.
         versions: VersionList,
+        /// The version picked now.
         chosen: VersionKey,
     },
     /// The file has no kept version to go back to.
     NoVersions,
     /// Asking to install a tool the open file needs, and then following the install.
-    Helper { helper: Helper, phase: HelperPhase },
+    Helper {
+        /// The tool to install.
+        helper: Helper,
+        /// How far the install has got.
+        phase: HelperPhase,
+    },
     /// Editing a picture: its new size.
     Picture(PictureSheet),
     /// Asking what to do with changes that are not saved before going where the person asked.
@@ -127,6 +148,7 @@ impl SheetIn {
     /// What a press means to an open sheet: Enter confirms and Esc cancels, and Duplicate's chord
     /// (⌘D) is Don't Save in the question about unsaved changes, as in a Mac's dialogs. Every other
     /// press means nothing to the sheet, and it keeps them from the content behind it.
+    #[must_use]
     pub fn from_press(press: &Press) -> Option<SheetIn> {
         match press {
             Press::Key(shortcut) => match shortcut.keys().as_slice() {

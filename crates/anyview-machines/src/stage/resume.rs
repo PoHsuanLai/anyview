@@ -10,6 +10,7 @@ use anyview_core::{DocPoint, Resume, Zoom};
 
 impl Stage {
     /// The family of stage this is; no stage is as a file with nothing to show but its facts.
+    #[must_use]
     pub fn family(&self) -> StageFamily {
         match self {
             Stage::NoStage => StageFamily::PeekOnly,
@@ -24,6 +25,7 @@ impl Stage {
 
     /// Where the person is now, as the store keeps it. A stage with no place to keep (the media
     /// stage's position belongs to its player) is `Resume::Nothing`.
+    #[must_use]
     pub fn resume(&self) -> Resume {
         match self {
             Stage::NoStage | Stage::Media(_) | Stage::Table(_) | Stage::Tree(_) => Resume::Nothing,
@@ -57,6 +59,7 @@ impl Stage {
 
     /// The input that puts `resume` back, or `None` when it is not a place in this kind of stage
     /// (a place remembered for another kind of file, or nothing).
+    #[must_use]
     pub fn restoring(&self, resume: &Resume) -> Option<StageIn> {
         match (self, resume) {
             // A table's sheet and a tree's open nodes are not kept: no place is put back.

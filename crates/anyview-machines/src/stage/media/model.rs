@@ -30,25 +30,45 @@ pub enum MediaStage {
     #[default]
     Opening,
     /// Advancing.
-    Playing { at: MediaTime, length: MediaLength },
+    Playing {
+        /// The position.
+        at: MediaTime,
+        /// How long the recording runs.
+        length: MediaLength,
+    },
     /// Held.
-    Paused { at: MediaTime, length: MediaLength },
+    Paused {
+        /// The position.
+        at: MediaTime,
+        /// How long the recording runs.
+        length: MediaLength,
+    },
     /// The slider is being dragged: the player is held at `to` while `from` is where the drag
     /// began.
     Scrubbing {
+        /// Where the drag began.
         from: MediaTime,
+        /// Where the player is held.
         to: MediaTime,
+        /// How long the recording runs.
         length: MediaLength,
+        /// What the player does when the slider is let go.
         resume: AfterScrub,
     },
     /// Played to the end.
-    Ended { at: MediaTime, length: MediaLength },
+    Ended {
+        /// The position.
+        at: MediaTime,
+        /// How long the recording runs.
+        length: MediaLength,
+    },
     /// Could not play.
     Failed(MediaError),
 }
 
 impl MediaStage {
     /// How long the recording runs, once the player has said.
+    #[must_use]
     pub fn length(&self) -> Option<MediaLength> {
         match self {
             MediaStage::Playing { length, .. }
@@ -106,7 +126,9 @@ pub enum MediaIn {
     SetVolume(Volume),
     /// Choose a track.
     Select {
+        /// The kind of track.
         kind: TrackKind,
+        /// The track to use.
         choice: TrackChoice,
     },
     /// Step one frame.
@@ -126,9 +148,13 @@ pub enum MediaIn {
     /// Put the settings the person left back: the position, the volume and the tracks. They
     /// are told to the player at once and it applies them when the file opens.
     Restore {
+        /// The position to start at.
         at: MediaTime,
+        /// The volume.
         volume: Volume,
+        /// The audio track.
         audio: TrackChoice,
+        /// The subtitle track.
         subtitles: TrackChoice,
     },
     /// The player could not be started at all.
@@ -155,7 +181,12 @@ pub enum MediaOut {
     /// Read the track list again for the panel.
     TracksChanged,
     /// The position a trim's end is marked at: the window keeps the marks the export uses.
-    Marked { edge: TrimEdge, at: MediaTime },
+    Marked {
+        /// Which end of the trim.
+        edge: TrimEdge,
+        /// The position marked.
+        at: MediaTime,
+    },
 }
 
 /// Whether the player does a thing, so the window offers its control or leaves it out.

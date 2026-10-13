@@ -119,12 +119,14 @@ pub struct MissingPlugin {
 
 impl MissingPlugin {
     /// The row a facts card lists: `Needs`, then the package and what it is for.
+    #[must_use]
     pub fn fact(&self) -> Fact {
         self.fact_for(self.purpose())
     }
 
     /// The same row with a purpose of the caller's: a raw file that already shows from its
     /// preview says what the plugin adds to it.
+    #[must_use]
     pub fn fact_for(&self, purpose: &str) -> Fact {
         Fact::new(
             FactLabel::Needs,

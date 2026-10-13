@@ -19,6 +19,7 @@ pub enum ResizeUnit {
 
 impl ResizeUnit {
     /// What the control calls it.
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             ResizeUnit::Pixels => "Pixels",
@@ -59,6 +60,7 @@ fn held(value: u64) -> u32 {
 impl ResizeDraft {
     /// The sheet for a picture that is `from` now: its own size, in pixels, keeping its
     /// proportions.
+    #[must_use]
     pub fn of(from: PixelSize) -> ResizeDraft {
         ResizeDraft {
             from,
@@ -70,6 +72,7 @@ impl ResizeDraft {
     }
 
     /// The size the picture would become.
+    #[must_use]
     pub fn size(self) -> PixelSize {
         PixelSize {
             width: PixelLen(self.width),
@@ -78,16 +81,19 @@ impl ResizeDraft {
     }
 
     /// What the numbers count.
+    #[must_use]
     pub fn unit(self) -> ResizeUnit {
         self.unit
     }
 
     /// Whether the other side follows.
+    #[must_use]
     pub fn proportion(self) -> ResizeProportion {
         self.proportion
     }
 
     /// The width as the field shows it: in pixels, or as a percent of the size now.
+    #[must_use]
     pub fn width_shown(self) -> u32 {
         match self.unit {
             ResizeUnit::Pixels => self.width,
@@ -98,6 +104,7 @@ impl ResizeDraft {
     }
 
     /// The height as the field shows it.
+    #[must_use]
     pub fn height_shown(self) -> u32 {
         match self.unit {
             ResizeUnit::Pixels => self.height,
@@ -110,6 +117,7 @@ impl ResizeDraft {
     }
 
     /// The most a field accepts, in the unit it counts.
+    #[must_use]
     pub fn most(self) -> u32 {
         match self.unit {
             ResizeUnit::Pixels => MAX_RESIZED_SIDE,
@@ -130,6 +138,7 @@ impl ResizeDraft {
     }
 
     /// The draft after `change`.
+    #[must_use]
     pub fn changed(self, change: ResizeChange) -> ResizeDraft {
         let (from_w, from_h) = (self.from.width.0.max(1), self.from.height.0.max(1));
         match change {

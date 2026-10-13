@@ -57,6 +57,7 @@ impl ExportDraft {
     /// The draft the sheet opens on for `family`: its first kind with that kind's default
     /// options. `None` for a family with no kinds, and for media, whose kinds depend on what is
     /// installed (`MediaOffer::first`).
+    #[must_use]
     pub fn first_of(family: ExportFamily) -> Option<ExportDraft> {
         match family {
             ExportFamily::Raster => first::<RasterExport>().map(ExportDraft::Raster),
@@ -67,6 +68,7 @@ impl ExportDraft {
     }
 
     /// The format this draft exports.
+    #[must_use]
     pub fn family(self) -> ExportFamily {
         match self {
             ExportDraft::Raster(_) => ExportFamily::Raster,
@@ -79,6 +81,7 @@ impl ExportDraft {
     /// The draft after the list's row for `pick` was chosen, with that kind's default options; a
     /// picture keeps its size, its metadata choice and the quality it had, since only the
     /// format changed. `None` when the pick belongs to another format.
+    #[must_use]
     pub fn picked(self, pick: ExportKindPick) -> Option<ExportDraft> {
         match (self, pick) {
             (ExportDraft::Raster(before), ExportKindPick::Raster(kind)) => {
@@ -115,6 +118,7 @@ impl ExportDraft {
 
 impl ExportDraft {
     /// The kind this draft is, as the list's current row.
+    #[must_use]
     pub fn pick(self) -> ExportKindPick {
         match self {
             ExportDraft::Raster(choice) => ExportKindPick::Raster(choice.kind()),
@@ -126,6 +130,7 @@ impl ExportDraft {
 
     /// Every kind the dialog lists for this draft's format; the words are
     /// [`kind_name`](super::words::kind_name) and [`kind_hint`](super::words::kind_hint).
+    #[must_use]
     pub fn choices(self) -> Vec<ExportKindPick> {
         match self {
             ExportDraft::Raster(_) => listed::<RasterExport>(ExportKindPick::Raster),
@@ -139,6 +144,7 @@ impl ExportDraft {
 impl ExportDraft {
     /// [`ExportDraft::choices`] without the media kinds `offer` does not hold; another format's
     /// list is whole.
+    #[must_use]
     pub fn choices_within(self, offer: &MediaOffer) -> Vec<ExportKindPick> {
         self.choices()
             .into_iter()

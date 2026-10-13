@@ -115,6 +115,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
     /// A desktop made of these parts, running its tasks on `runtime`. One argument for each
     /// platform trait, which is the point of the type: a bundle would only rename them.
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn new(
         runtime: Handle,
         reveal: R,
@@ -154,6 +155,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
 #[cfg(feature = "quire-desktop")]
 impl PlatformDesktop {
     /// The Linux desktop of `env`, its store under `store`.
+    #[must_use]
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
         Desktop::new(
             runtime,
@@ -171,6 +173,7 @@ impl PlatformDesktop {
 #[cfg(not(feature = "quire-desktop"))]
 impl PlatformDesktop {
     /// The portable desktop of `env`, its store under `store`.
+    #[must_use]
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
         Desktop::new(
             runtime,
