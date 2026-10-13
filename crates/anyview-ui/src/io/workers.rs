@@ -504,6 +504,49 @@ impl Edge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::io::{OpenError, ResumeSource};
+    use anyview_core::FileStamp;
+
+    /// A host store that falls over when asked, as a decoder does on a hostile file.
+    #[derive(Debug)]
+    struct Falling;
+
+    impl ResumeSource for Falling {
+        fn recall(&self, _path: &FilePath, _stamp: FileStamp) -> Resume {
+            panic!("the store fell over");
+        }
+    }
+
+    /// A pool of no threads: the work runs where it is submitted.
+    struct Inline;
+
+    impl Workers for Inline {
+        fn submit(&self, work: Work) {
+            work.run();
+        }
+    }
+
+    #[test]
+    fn a_job_that_panics_answers_its_load_with_a_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("notes.txt");
+        std::fs::write(&file, b"hello\n").unwrap();
+        let path = FilePath::new(&file).unwrap();
+        let seams = Seams::default().with_resume_source(Arc::new(Falling));
+        let edge = Edge::new(Arc::new(Inline), |_| {}, seams);
+        edge.submit(Job::Probe {
+            ticket: Ticket(1),
+            path,
+        });
+        let mut mailbox = edge.take_mailbox().unwrap();
+        let Ok(Done::Probed { ticket, result }) = mailbox.try_recv() else {
+            panic!("the abandoned probe left no answer");
+        };
+        assert_eq!(ticket, Ticket(1));
+        let error = result.unwrap_err();
+        assert!(matches!(error, OpenError::Crashed));
+        assert_eq!(error.failure(), LoadFailure::Damaged);
+    }
 
     fn edge() -> Edge {
         struct Nowhere;

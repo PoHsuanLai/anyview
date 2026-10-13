@@ -173,9 +173,12 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
   zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry
   lists normally and is `ArchiveError::Encrypted` only when extracted. RAR is not supported (plan section 3.6a).
-- **A font is read whole.** Its tables lie all over the file, so a font longer than the peek budget is
-  `FontError::OverBudget` and the pane shows the plate; a large CJK face needs a budget that covers it. Ends
-  if the peek reads the table directory and only the tables it needs.
+- **A font's outline table is read whole.** The peek reads the table directory and only the tables it draws
+  from (names, character map, advances, `glyf` and `loca` or CFF), so GPOS, colour bitmaps and the like cost
+  nothing; but `glyf` or CFF is read in full for the few glyphs of the specimen, and a WOFF (whose tables are
+  packed) is read and unpacked whole. A face whose needed tables exceed the peek budget is
+  `FontError::OverBudget` and the pane shows the plate. Ends if the specimen reads only the glyph ranges it
+  draws (`loca` first) and a WOFF is unpacked by table.
 - **The specimen is unshaped.** Each line is set with advance widths: no kerning, no ligatures, no
   right-to-left, no colour glyphs, and a variable font is drawn at its default location. A collection shows
   its first face. A WOFF is unpacked to its sfnt and read; WOFF2 is named, not opened (`face: None`): it needs a
@@ -407,10 +410,13 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A PDF scrolls by a thousandth of a page.** `PageView::offset` is `Permille` of the page's height, so at a
   high zoom one step is several pixels. The view keeps the exact position itself (`steer.rs`'s `Cursor`) and
   tells the machine only when the page or its offset changes. Ends if the machine takes a finer offset.
-- **The PDF panel's thumbnails are drawn near the reader only, and the outline is flat.** Rows exist for
-  every page, but a thumbnail is drawn for the 12 pages either side of the reader's (`panel.rs`), because
-  the panel has no list that tells the view which rows are on screen; the outline lists every bookmark
-  with its depth and ignores `Disclosure`. Ends when quire has a windowed list and the outline a fold.
+- **PDF thumbnails are a fixed width, and the outline's fold is not kept.** The panel's lists are windowed
+  (quire's `VirtualList`), which needs every row's height up front; a thumbnail's height at the panel's own
+  width is not known until the panel is measured, so a thumbnail is drawn 140 logical pixels wide in the
+  middle of its row, not filled to the panel's width as the design standard says. Ends when quire has
+  measured row heights (`RowHeight::Measured`). Which bookmarks are folded lives in `OutlineFold` on the PDF
+  shelf, so it holds while the tab is changed and is dropped with the document: it is not kept for next
+  time. Textures of thumbnails already drawn stay on the shelf when their rows scroll away.
 - **A password-protected PDF is `LoadFailure::Unsupported`.** The viewer has no way to ask for a password;
   `PdfDocument::open_with_password` is there for the sheet that will. Ends with that sheet.
 - **pdfrum draws a 1 px blue box round every link annotation,** even when its `/Border` is `[0 0 0]`: the
@@ -459,10 +465,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A PDF's outline and links keep only pages of the document.** A link to a web address is `Uri`; a named
   action, a script, another file or a page the document lacks is `Other`; a bookmark that leads to none
   of this document's pages has `page: None`. Nothing in the crate opens a URI.
-- **Page edits rewrite the whole file, one edit at a time.** `apply` writes the file after each edit and
-  opens it again for the next (pdfrum's `reorder_pages` and `delete_pages` number pages as the document was
-  opened). A long chain of edits costs one full write each. Ends if that matters: fold the chain into one
-  page order, a deletion set and a rotation per page before writing.
 - **Rotating a page adds to the turn it has.** `PageOp::Rotate` is relative, as `Edit::Rotate` is; the
   file stores the sum as `/Rotate`. A flip is not an edit a PDF takes (`edits_for(Pdf)` omits it), and
   `page_op` refuses it.
@@ -573,9 +575,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   name until the next listing. After `Trash` the window still shows the file.
 - **Share is mail only and print is a PDF.** `Task::Share` uses the first `ShareTarget` (`Mail`); `Task::Print` hands the
   PDF file's bytes to the portal.
-- **A job that panics leaves its load waiting.** The runner delivers a panic as `JobOutcome::Panicked` and the
-  program reports it (`seam::notices`), but the `Work` is gone and posts no `Done`, so the window stays on
-  its loading state. Ends when `Work` can fail its own ticket (a `Done` for an abandoned job).
 - **The thumbnail cache does not paint first.** The platform's `ThumbnailCache` is not looked up at launch: the
   load machine has a `Peeking` state and a `PeekFrame`, and nothing in the window or the binary feeds it. Ends with
   a probe job that answers the cached thumbnail before the open (the views' load flow), and the launch budget's

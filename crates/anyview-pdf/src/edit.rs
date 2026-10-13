@@ -43,65 +43,127 @@ pub fn page_op(edit: Edit, current: PageIndex) -> Result<PageOp, PdfError> {
 }
 
 /// The document with `ops` applied in order, as the bytes of a new file; the open document is
-/// untouched. Each edit sees the pages as the one before it left them. Nothing is written if any
-/// edit fails.
+/// untouched. Each edit sees the pages as the one before it left them. The chain is folded into
+/// one page order, a set of deleted pages and a turn for each page, and the file is written
+/// once. Nothing is written if any edit fails.
 pub fn apply(doc: &PdfDocument, ops: &[PageOp]) -> Result<Vec<u8>, PdfError> {
-    let mut written: Option<(PdfDocument, Vec<u8>)> = None;
-    for op in ops {
-        let from = written.as_ref().map_or(doc, |(reopened, _)| reopened);
-        let bytes = write_one(from, *op)?;
-        let reopened = PdfDocument::from_bytes(bytes.clone())?;
-        let (want, got) = (expected_pages(from, *op), reopened.page_count().get());
-        if want != got {
-            return Err(PdfError::PagesChanged { want, got });
-        }
-        written = Some((reopened, bytes));
+    if ops.is_empty() {
+        return Ok(doc.bytes().to_vec());
     }
-    Ok(written.map_or_else(|| doc.bytes().to_vec(), |(_, bytes)| bytes))
+    let folded = Folded::of(doc.page_count().get(), ops)?;
+    let bytes = write(doc, &folded)?;
+    let (want, got) = (
+        u32::try_from(folded.kept.len()).unwrap_or(u32::MAX),
+        PdfDocument::from_bytes(bytes.clone())?.page_count().get(),
+    );
+    if want != got {
+        return Err(PdfError::PagesChanged { want, got });
+    }
+    Ok(bytes)
 }
 
-/// How many pages the document has after `op`.
-fn expected_pages(doc: &PdfDocument, op: PageOp) -> u32 {
-    let count = doc.page_count().get();
-    match op {
-        PageOp::Rotate { .. } | PageOp::Move { .. } => count,
-        PageOp::Delete(range) => count - (range.last().0.min(count - 1) - range.first().0 + 1),
-    }
+/// What a chain of edits comes to, by the numbering of the document as it was opened.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Folded {
+    /// The pages that stay, in the order they end in, each as its original index.
+    kept: Vec<u32>,
+    /// The pages that go, as original indices, in the order they were deleted.
+    doomed: Vec<u32>,
+    /// The degrees added to each page's turn, by original index.
+    turns: Vec<u32>,
 }
 
-fn write_one(doc: &PdfDocument, op: PageOp) -> Result<Vec<u8>, PdfError> {
-    let count = doc.page_count().get();
-    let mut edit = EditDoc::new(doc.inner().parser());
-    match op {
-        PageOp::Rotate { page, turn } => {
-            let now = doc.page(page)?.rotation().degrees();
-            let degrees = i32::try_from(now + u32::from(turn.degrees())).unwrap_or(0);
-            pdfrum_edit::set_page_rotation(&mut edit, page.0, degrees)?;
+impl Folded {
+    /// Plays `ops` over a document of `count` pages without writing anything.
+    fn of(count: u32, ops: &[PageOp]) -> Result<Folded, PdfError> {
+        let mut folded = Folded {
+            kept: (0..count).collect(),
+            doomed: Vec::new(),
+            turns: vec![0; count as usize],
+        };
+        for op in ops {
+            folded.play(*op)?;
         }
-        PageOp::Delete(range) => {
-            doc.page_size(range.first())?;
-            let last = range.last().0.min(count - 1);
-            if range.first().0 == 0 && last == count - 1 {
-                return Err(PdfError::WouldDeleteAll);
+        Ok(folded)
+    }
+
+    /// The place in the current order that `page` names.
+    fn place(&self, page: PageIndex) -> Result<usize, PdfError> {
+        let at = page.0 as usize;
+        if at < self.kept.len() {
+            Ok(at)
+        } else {
+            Err(PdfError::PageOutOfRange {
+                page,
+                count: u32::try_from(self.kept.len()).unwrap_or(u32::MAX),
+            })
+        }
+    }
+
+    fn play(&mut self, op: PageOp) -> Result<(), PdfError> {
+        match op {
+            PageOp::Rotate { page, turn } => {
+                let original = self.kept[self.place(page)?] as usize;
+                self.turns[original] = (self.turns[original] + u32::from(turn.degrees())) % 360;
             }
-            let doomed = pdfrum_edit::PageRange::of(range.first().0..=last);
-            pdfrum_edit::delete_pages(&mut edit, &doomed)?;
+            PageOp::Delete(range) => {
+                let first = self.place(range.first())?;
+                let last = (range.last().0 as usize).min(self.kept.len() - 1);
+                if first == 0 && last == self.kept.len() - 1 {
+                    return Err(PdfError::WouldDeleteAll);
+                }
+                for original in self.kept.drain(first..=last) {
+                    self.turns[original as usize] = 0;
+                    self.doomed.push(original);
+                }
+            }
+            PageOp::Move { from, to } => {
+                let (from, to) = (self.place(from)?, self.place(to)?);
+                let moved = self.kept.remove(from);
+                self.kept.insert(to, moved);
+            }
         }
-        PageOp::Move { from, to } => {
-            doc.page_size(from)?;
-            doc.page_size(to)?;
-            pdfrum_edit::reorder_pages(&mut edit, &order_after_move(count, from, to))?;
+        Ok(())
+    }
+
+    /// The whole arrangement as pdfrum takes it: the pages that stay in their order, then the
+    /// pages that go.
+    fn order(&self) -> Vec<usize> {
+        self.kept
+            .iter()
+            .chain(&self.doomed)
+            .map(|&original| original as usize)
+            .collect()
+    }
+}
+
+/// Writes the folded edits as one new file. pdfrum numbers every call by the document as it was
+/// opened, so the pages are put in order first, then the doomed are unlinked, then the turns are
+/// set (a reorder rebuilds the page dictionaries from the file, so it must come before them).
+fn write(doc: &PdfDocument, folded: &Folded) -> Result<Vec<u8>, PdfError> {
+    let mut edit = EditDoc::new(doc.inner().parser());
+    let order = folded.order();
+    if order
+        .iter()
+        .enumerate()
+        .any(|(at, &original)| at != original)
+    {
+        pdfrum_edit::reorder_pages(&mut edit, &order)?;
+    }
+    if !folded.doomed.is_empty() {
+        let doomed = pdfrum_edit::PageRange::of(folded.doomed.iter().copied());
+        pdfrum_edit::delete_pages(&mut edit, &doomed)?;
+    }
+    for &original in &folded.kept {
+        let added = folded.turns[original as usize];
+        if added == 0 {
+            continue;
         }
+        let now = doc.page(PageIndex(original))?.rotation().degrees();
+        let degrees = i32::try_from(now + added).unwrap_or(0);
+        pdfrum_edit::set_page_rotation(&mut edit, original, degrees)?;
     }
     save(&edit)
-}
-
-/// The original index of each page after `from` moves to `to`.
-fn order_after_move(count: u32, from: PageIndex, to: PageIndex) -> Vec<usize> {
-    let mut order: Vec<usize> = (0..count as usize).collect();
-    let moved = order.remove(from.0 as usize);
-    order.insert(to.0 as usize, moved);
-    order
 }
 
 /// Writes an edit session as a whole new file.
@@ -125,7 +187,11 @@ mod tests {
             ("in place", 3, 1, 1, &[0, 1, 2]),
         ];
         for (name, count, from, to, want) in CASES {
-            let got = order_after_move(*count, PageIndex(*from), PageIndex(*to));
+            let moved = PageOp::Move {
+                from: PageIndex(*from),
+                to: PageIndex(*to),
+            };
+            let got = Folded::of(*count, &[moved]).unwrap().order();
             assert_eq!(&got, want, "{name}");
         }
     }

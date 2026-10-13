@@ -20,11 +20,11 @@ pub enum FontError {
         /// What the file was sniffed as.
         kind: FormatKind,
     },
-    /// The font is longer than the bytes a peek may read: its tables are spread over the whole
-    /// file, so it is read whole or not at all.
-    #[error("the font is {} bytes and the preview may read {}", .len.0, .allowed.0)]
+    /// The font needs more bytes than a peek may read: its table directory and the tables the
+    /// peek draws from (a WOFF, whose tables are packed, is read whole).
+    #[error("the font needs {} bytes and the preview may read {}", .len.0, .allowed.0)]
     OverBudget {
-        /// The file's length.
+        /// The bytes the peek needs to read.
         len: ByteLen,
         /// The most the peek may read.
         allowed: ByteLen,

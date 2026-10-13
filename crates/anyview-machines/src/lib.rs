@@ -80,6 +80,7 @@ pub use stage::{
     TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap, ZoomDir,
     is_numeric, sorted_rows,
 };
+pub use stage::{OutlineFold, OutlineIn, OutlineOut, OutlineShape};
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
 pub use typed::TypedText;
 pub use viewer::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
