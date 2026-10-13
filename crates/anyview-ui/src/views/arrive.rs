@@ -4,7 +4,7 @@
 use super::carry::Carry;
 use super::editing;
 use super::session::Probe;
-use crate::families::{FoundHits, Held};
+use crate::families::{FoundHits, Held, SortedOrder};
 use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
 use crate::{
@@ -31,6 +31,7 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 lines.set(Some(Held(Arc::new(window))));
             }
         }
+        Done::Sorted { ticket, order } => sorted(c, ticket, order),
         Done::EditText { ticket, result } => editing::read(c, ticket, result),
         Done::Saved { path, end } => editing::saved(c, &path, end),
         Done::Found {
@@ -66,6 +67,29 @@ pub(super) fn arrived(done: Done, c: &Carry) {
                 c.edge.submit(Job::Stat { path });
             }
         }
+    }
+}
+
+/// The order a worker gave a sheet is kept only while it is the order the person still wants: the
+/// file is the one shown and the stage is sorted by this sheet and column. An answer to a sort that
+/// a newer press has replaced is dropped.
+fn sorted(c: &Carry, ticket: Ticket, order: Option<SortedOrder>) {
+    let (Some(order), Some(dispatch)) = (order, c.dispatch()) else {
+        return;
+    };
+    let shown = c.shelf.shown_now().is_some_and(|(held, _)| held == ticket);
+    let wanted = match &dispatch.machine.state().peek().stage {
+        Stage::Table(stage) => stage.sheet() == order.sheet && stage.sort() == Some(order.sort),
+        Stage::NoStage
+        | Stage::Raster(_)
+        | Stage::Pdf(_)
+        | Stage::Media(_)
+        | Stage::Text(_)
+        | Stage::Tree(_) => false,
+    };
+    if shown && wanted {
+        let mut kept = c.shelf.sorted;
+        kept.set(Some(Held(Arc::new(order))));
     }
 }
 

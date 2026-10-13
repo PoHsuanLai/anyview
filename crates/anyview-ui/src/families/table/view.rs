@@ -7,7 +7,8 @@
 use super::doc::{SheetDoc, TableDoc};
 use crate::families::rows::compact_px;
 use crate::families::view::{Held, StageCx};
-use crate::{ColumnSort, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn, sorted_rows};
+use crate::io::Job;
+use crate::{ColumnSort, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn};
 use anyview_text::RowIndex;
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;
@@ -86,18 +87,26 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     // The hooks come first: a sheet with no rows returns early below, and the next sheet must
     // find the same hooks in the same order.
     let scroller = use_scroller();
-    // The rows in the order the sort gives, or `None` for the file's own. Recomputed only when
-    // the sheet or the sort changes.
-    let order = use_memo(use_reactive!(|doc, sheet_no, by| {
-        let sheet = doc.0.sheets.get(sheet_no.0 as usize)?; // a u32 fits a usize
-        let by = by?;
-        let column = by.column as usize; // a u32 fits a usize
-        let numeric = sheet.numeric.get(column) == Some(&true);
-        Some(sorted_rows(
-            by.direction,
-            numeric,
-            sheet.table.column(column),
-        ))
+    // A sort is made on a worker: its header shows at once and the rows swap to the new order
+    // when it arrives. Until then they stay as they are.
+    let work = cx.work;
+    let ticket = cx.ticket;
+    use_effect(use_reactive!(|doc, sheet_no, by| {
+        if let Some(sort) = by {
+            work.call(Job::Sort {
+                ticket,
+                doc: Arc::clone(&doc.0),
+                sheet: sheet_no,
+                sort,
+            });
+        }
+    }));
+    // The rows in the order the last sort of this sheet gave, or `None` for the file's own.
+    let sorted = cx.sorted.clone();
+    let order = use_memo(use_reactive!(|by, sheet_no, sorted| {
+        by?;
+        let held = sorted?;
+        (held.0.sheet == sheet_no).then(|| Arc::clone(&held.0))
     }));
     // Another file, another order or another sheet starts at the top.
     use_effect(use_reactive!(|doc, sheet_no, by| {
@@ -120,7 +129,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         };
         let sorted = order.read();
         let file_row = match &*sorted {
-            Some(order) => order.get(row).copied(),
+            Some(sorted) => sorted.order.get(row).copied(),
             None => None,
         }
         .unwrap_or_else(|| u32::try_from(row).unwrap_or(u32::MAX));

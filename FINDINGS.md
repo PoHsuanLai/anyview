@@ -279,8 +279,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   reads the column once and keeps a key and a row number for every row (a number, or the first 64 characters of the
   text, lower-cased, so text that agrees that far keeps the file's order). Whether a column is numbers is decided from
   its first 10,000 rows. The scan of a file reads at most `TABLE_BYTES` (1 GiB) of a table and `TREE_BYTES` (1 GiB) of
-  a JSON file, one pass on the open worker. Ends if a sort of millions of rows is felt (it runs on the main thread, in
-  a memo) and moves to a worker, or if UTF-16 JSON of that size matters.
+  a JSON file, one pass on the open worker. Ends if UTF-16 JSON of that size matters.
 - **A JPEG XL animation shows its first frame.** The export sheet exports an animation's first frame, not
   the one on screen. A peek decodes the first frame only and takes the frame count from the container
   (`frame_count.rs`), so a GIF, APNG or WebP whose container lies about its count shows the lie.
@@ -1086,10 +1085,13 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A component that returns early must have made its hooks first.** `TableContent` returns the "no rows" empty state
   for an empty sheet; a workbook can have an empty sheet 0 and a full sheet 1, so `use_scroller`, the order's
   `use_memo` and the scroll-to-top effect all come before that return, or the next sheet would find fewer hooks.
-- **Sorting is a permutation made on the main thread.** `sorted_rows` is O(n log n) over the column's keys, run
-  once per (sheet, sort) in a memo, reading the column window by window (`Table::column`). It keys numbers as `f64`
-  and text as lower-cased strings cut to 64 characters, blanks last whichever way it runs. If a sort of a sheet this
-  large is ever felt, it moves to a worker job like the other long reads.
+- **Sorting is a permutation made on a worker.** A header press sets the sort in the stage machine, so the header
+  shows its arrow at once; the view submits `Job::Sort`, which reads the column window by window (`Table::column`),
+  keeps a key and a row number for every row (`sorted_rows`: numbers as `f64`, text lower-cased and cut to 64
+  characters, blanks last whichever way it runs) and answers `Done::Sorted`. The rows stay in their order until it
+  arrives, then swap. `arrive` keeps an answer only while the file is the one shown and the stage is still sorted by
+  that sheet and column, so a press that replaced it drops it; a sort the load's `Stop` cut short answers nothing.
+  The view shows no busy cue while it waits.
 
 ## Saves, versions and the install receipt
 

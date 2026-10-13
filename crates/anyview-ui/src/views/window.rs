@@ -281,6 +281,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
         run: EventHandler::new(move |command: Command| dispatch.send(ViewerIn::Run(command))),
         lines: (shelf.lines)(),
+        sorted: (shelf.sorted)(),
         ask_lines: EventHandler::new(move |(first, rows): (anyview_core::LineIndex, u32)| {
             if let Some((held, doc)) = shelf.shown_now()
                 && let Some(job) = doc.view().lines(held, first, rows)

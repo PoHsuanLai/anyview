@@ -113,6 +113,8 @@ pub struct StageCx {
     pub run: EventHandler<Command>,
     /// The lines of a text file last read, newest window.
     pub lines: Option<Held<super::LineWindow>>,
+    /// The order a worker last gave a sheet of the open table, for the view to swap to.
+    pub sorted: Option<Held<super::SortedOrder>>,
     /// Ask for a window of lines: from this line, this many.
     pub ask_lines: EventHandler<(LineIndex, u32)>,
     /// The places the current find found, when one is up.

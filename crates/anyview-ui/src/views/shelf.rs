@@ -5,8 +5,8 @@
 use super::preloads::Preloads;
 use super::session::{Live, PictureOffer, Probe, params};
 use crate::families::{
-    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, use_media_shelf,
-    use_pdf_shelf,
+    Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, SortedOrder,
+    use_media_shelf, use_pdf_shelf,
 };
 use crate::{PaneChrome, PlatformAbilities, Presentation, Ticket, Viewer, ViewerIn, ViewerParams};
 use anyview_core::{FilePath, Resume};
@@ -33,6 +33,8 @@ pub(super) struct Shelf {
     pub peeked: Signal<Option<(Ticket, LoadedDoc)>>,
     /// The lines of a text last read.
     pub lines: Signal<Option<Held<LineWindow>>>,
+    /// The order a worker last gave a sheet of the open table.
+    pub sorted: Signal<Option<Held<SortedOrder>>>,
     /// The places the current find found.
     pub hits: Signal<Option<Held<FoundHits>>>,
     /// What is held of an open PDF: the tiles, the hits, the thumbnails.
@@ -114,6 +116,7 @@ impl Shelf {
             loaded: use_signal(|| None),
             peeked: use_signal(|| None),
             lines: use_signal(|| None),
+            sorted: use_signal(|| None),
             hits: use_signal(|| None),
             pdf: use_pdf_shelf(),
             media: use_media_shelf(),
