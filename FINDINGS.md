@@ -585,9 +585,6 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Appearance, window size, history cap and the store folder are constants.** `Appearance::default()`, 1000 by
   700, `HistoryCap::DEFAULT` and `anyview_store::STORE_FOLDER` (`<data>/anyview`, which the launcher reads by the
   same constant) are not settings. Ends with quire's `22-SETTINGS` keys.
-- **Two tokio runtimes.** The binary's (one worker, `anyview-platform`) is started before the window so the instance
-  can be claimed before anything is drawn; ds-blitz's own (two workers) starts with `launch`. Ends if ds-blitz
-  can take a runtime handle from the app.
 - **The program logs with `eprintln!`.** There is no logging framework in the workspace; every line goes through
   `host::report`, `report_declined` or the few messages in `program::start`, prefixed `anyview:`. Ends when
   quire has a logging path to use.
