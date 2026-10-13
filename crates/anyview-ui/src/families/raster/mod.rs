@@ -19,7 +19,9 @@ use anyview_core::{Adjust, Facts, Permille, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
+use ds::components::chrome::toolbar::model::ToolbarItem;
 use ds::prelude::Icon;
+use ds_core::vocab::Availability;
 use std::sync::Arc;
 
 /// How soon each control goes when the capsule is too wide for the stage (quire's capsule).
@@ -171,20 +173,27 @@ impl StageView for RasterStageView {
         }
         use crate::StageCommand::{ZoomIn, ZoomOut};
         use anyview_core::FileAction::{RotateLeft, RotateRight};
-        let percent = match (&cx.stage, cx.area) {
+        let (percent, at_floor) = match (&cx.stage, cx.area) {
             (Stage::Raster(raster), Some(area)) => {
                 let adjust = cx.picture.adjust();
                 let turn = geometry::turn_of(raster).then(adjust.turn);
                 let fit = geometry::fit(adjust.kept(doc.size).size, turn, area);
-                geometry::scale_of(raster, fit)
+                let shown = geometry::scale_of(raster, fit);
+                (shown, shown <= crate::Viewport { shown, fit }.floor())
             }
-            _ => Permille::WHOLE,
+            _ => (Permille::WHOLE, false),
         };
+        // Zoom Out greys out where a step out can go no further.
+        let zoom_out =
+            ToolbarItem::new(Command::Stage(ZoomOut), "Zoom Out", Icon::Minus).with(if at_floor {
+                Availability::Disabled
+            } else {
+                Availability::Enabled
+            });
         // Soonest to go first when the stage is narrow (quire's capsule): the rotate buttons, then
         // the zoom. An animation's play button stays.
         let mut slots = vec![
-            CapsuleSlot::button(Command::Stage(ZoomOut), "Zoom Out", Icon::Minus)
-                .droppable(RANK_ZOOM),
+            CapsuleSlot::Item(zoom_out).droppable(RANK_ZOOM),
             CapsuleSlot::Readout(format!("{}%", percent.0 / 10)).droppable(RANK_ZOOM),
             CapsuleSlot::button(Command::Stage(ZoomIn), "Zoom In", Icon::Plus).droppable(RANK_ZOOM),
         ];

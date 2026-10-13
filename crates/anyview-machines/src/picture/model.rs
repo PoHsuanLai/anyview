@@ -113,6 +113,13 @@ impl PictureEdits {
         !self.now.is_none()
     }
 
+    /// Whether what has been done is only turns and mirrors, which a file takes without its
+    /// pixels being cut or scaled.
+    #[must_use]
+    pub fn is_turned_only(&self) -> bool {
+        self.now.crop.is_none() && self.now.size.is_none()
+    }
+
     /// Whether the picture can be changed: it is decoded and its file takes a save.
     #[must_use]
     pub fn can_edit(&self) -> bool {

@@ -117,6 +117,28 @@ const CASES: &[Case] = &[
         &[remember(Zoom::Fit, pt(0, 0))],
     ),
     (
+        "a zoom step out from fit goes on below it",
+        HALF,
+        fitted(QuarterTurn::None),
+        RasterIn::ZoomStep {
+            dir: ZoomDir::Out,
+            at: pt(0, 0),
+        },
+        zoomed(scale(400), pt(0, 0)),
+        &[remember(scale(400), pt(0, 0))],
+    ),
+    (
+        "a zoom step out stops at a tenth of actual size",
+        view(100, 500, pt(0, 0)),
+        zoomed(scale(100), pt(0, 0)),
+        RasterIn::ZoomStep {
+            dir: ZoomDir::Out,
+            at: pt(0, 0),
+        },
+        zoomed(scale(100), pt(0, 0)),
+        &[remember(scale(100), pt(0, 0))],
+    ),
+    (
         "double click on a fitted image goes to 1:1 at the point",
         HALF,
         fitted(QuarterTurn::None),

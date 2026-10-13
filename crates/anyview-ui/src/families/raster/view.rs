@@ -169,12 +169,16 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
             return;
         };
         let (kept, turn) = laid_out(&gestured, stage, doc_size);
-        let shown = scale_of(stage, fit(kept, turn, area));
-        // A pinch and a wheel turn under the primary modifier zoom alike: `by` thousandths, about the pointer.
+        let fitted = fit(kept, turn, area);
+        let shown = scale_of(stage, fitted);
+        let floor = crate::Viewport { shown, fit: fitted }.floor();
+        // A pinch and a wheel turn under the primary modifier zoom alike: `by` thousandths, about the pointer,
+        // and no farther out than a step out goes.
         let zoom_by = |by: i32, at: Point| {
             let zoom = Zoom::scaled(Permille(
                 u32::try_from(i64::from(shown.0) * (1000 + i64::from(by)) / 1000)
-                    .unwrap_or(Zoom::MIN_SCALE.0),
+                    .unwrap_or(Zoom::MIN_SCALE.0)
+                    .max(floor.0),
             ));
             let centre = centre_of(stage, kept, turn);
             let on = point_under(

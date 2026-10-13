@@ -1,7 +1,7 @@
 //! The raster stage's transitions.
 
 use super::super::media::StepDirection;
-use super::super::zoom::{centre_about, scale_of, stepped};
+use super::super::zoom::{centre_about, scale_of, stepped_past_fit};
 use super::model::{
     Animation, FrameCount, FrameIndex, Motion, RasterIn, RasterOut, RasterParams, RasterStage, Runs,
 };
@@ -223,7 +223,7 @@ fn fitted(
     let params = now.1;
     match input {
         RasterIn::ZoomStep { dir, at } => {
-            let zoom = stepped(params.viewport, dir, params.step);
+            let zoom = stepped_past_fit(params.viewport, dir, params.step);
             zoomed_to(turn, anim, zoom, at, params)
         }
         RasterIn::SetZoom { zoom, at } => zoomed_to(turn, anim, clamped(zoom), at, params),
@@ -245,7 +245,7 @@ fn zoomed(this: RasterStage, view: View, input: RasterIn, now: Moment) -> Step {
     let (turn, zoom, centre, anim) = view;
     match input {
         RasterIn::ZoomStep { dir, at } => {
-            let next = stepped(params.viewport, dir, params.step);
+            let next = stepped_past_fit(params.viewport, dir, params.step);
             zoomed_to(turn, anim, next, at, params)
         }
         RasterIn::SetZoom { zoom, at } => zoomed_to(turn, anim, clamped(zoom), at, params),

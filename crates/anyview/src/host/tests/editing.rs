@@ -69,6 +69,34 @@ async fn a_jpeg_turn_is_saved_in_place_with_its_original_kept() {
     assert_eq!(original, JPEG, "and it holds the original bytes");
 }
 
+/// What the window asks when the person turns a picture and goes on to the next file: the whole
+/// adjustment of a turn alone. A JPEG takes it as its orientation tag, with no new encode.
+#[tokio::test]
+async fn a_jpeg_adjusted_by_a_turn_alone_changes_its_tag_only_and_keeps_its_original() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = probed(dir.path(), "a.jpg", JPEG);
+    let (desktop, _) = desktop(dir.path());
+    let outcome = desktop
+        .carry_out(Task::Edit {
+            file: file.clone(),
+            request: EditRequest::of_picture(Edit::Adjust(
+                Adjust::NONE.turned(QuarterTurn::Quarter),
+            )),
+        })
+        .await
+        .unwrap();
+    kept_of(&outcome);
+    let saved = bytes_of(&file);
+    assert_eq!(tag(&saved), 3, "6 turned a quarter is 3");
+    assert_eq!(saved.len(), JPEG.len(), "the scan was not encoded again");
+    let kept = versions_of(dir.path(), &file);
+    assert_eq!(
+        kept.len(),
+        1,
+        "the original is a version Revert To can go back to"
+    );
+}
+
 #[tokio::test]
 async fn edited_text_is_written_over_the_file_with_the_original_kept_and_only_text_takes_it() {
     let dir = tempfile::tempdir().unwrap();

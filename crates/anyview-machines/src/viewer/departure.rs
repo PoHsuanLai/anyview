@@ -9,24 +9,60 @@ use super::region::{Step, sheet, stage};
 use super::step::{begin, dropped, navigate_now};
 use crate::SaveEnd;
 use crate::command::StageCommand;
+use crate::edits::EditOffer;
 use crate::navigate::NavigateIn;
 use crate::picture::PictureEditIn;
 use crate::sheet::{Departure, SheetIn};
 use crate::stage::{Changes, Outside, Stage, StageIn, TextIn};
 use ds_core::time::stamp::Stamp;
 
-/// Go where `departure` says, or first ask what to do with changes that are not saved.
+/// Go where `departure` says, or first ask what to do with changes that are not saved. A picture
+/// that was only turned or mirrored, in a file that takes that without loss, is not asked about:
+/// as in Preview and Loupe the turn is kept, and the person goes on once the file has been
+/// written (its original stays a version to revert to).
 pub(super) fn leaving(
     viewer: Viewer,
     departure: Departure,
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
+    if keeps_unasked(&viewer, params) {
+        let waiting = viewer.after_save.is_some();
+        let walking = matches!(departure, Departure::Walk(_));
+        match (waiting, walking) {
+            (false, _) => {
+                let (viewer, outs) = save(viewer, at, params);
+                return (
+                    Viewer {
+                        after_save: Some(departure),
+                        ..viewer
+                    },
+                    outs,
+                );
+            }
+            // A key held down walks again while the turn is being written: the walk that is
+            // waiting is the one that goes on, and the turn is not written twice.
+            (true, true) => return (viewer, Vec::new()),
+            // Anything else, with a write already waited on, asks as before: a write that never
+            // ended must not leave the window with no way to close.
+            (true, false) => {}
+        }
+    }
     if viewer.unsaved() {
         sheet(viewer, SheetIn::AskUnsaved(departure), at, params)
     } else {
         leave(viewer, departure, at, params)
     }
+}
+
+/// Whether the open picture's changes are only turns and mirrors that its file takes as they are,
+/// so that leaving writes them without a question.
+fn keeps_unasked(viewer: &Viewer, params: &ViewerParams) -> bool {
+    matches!(viewer.stage, Stage::Raster(_))
+        && viewer.picture.can_edit()
+        && viewer.picture.is_edited()
+        && viewer.picture.is_turned_only()
+        && params.sheet.edit == EditOffer::Plain
 }
 
 /// Go where `departure` says.
