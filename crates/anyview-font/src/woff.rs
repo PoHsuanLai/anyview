@@ -34,11 +34,14 @@ struct Entry<'a> {
     original: usize,
 }
 
-/// One unpacked table.
-struct Table<'a> {
-    tag: &'a [u8],
-    checksum: u32,
-    data: Vec<u8>,
+/// One table of a font, as the sfnt directory will name it.
+pub(crate) struct Table<'a> {
+    /// The table's four-byte tag.
+    pub(crate) tag: &'a [u8],
+    /// The checksum the directory carries.
+    pub(crate) checksum: u32,
+    /// The table's bytes.
+    pub(crate) data: Vec<u8>,
 }
 
 fn entry<'a>(bytes: &'a [u8], at: usize) -> Result<Entry<'a>, FontError> {
@@ -116,6 +119,13 @@ pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
         .iter()
         .map(unpack)
         .collect::<Result<Vec<_>, _>>()?;
+    Ok(sfnt(flavor, &tables))
+}
+
+/// The plain sfnt font of `flavor` that holds `tables`, in the order given (a directory is sorted
+/// by tag, so the caller gives them so).
+pub(crate) fn sfnt(flavor: u32, tables: &[Table<'_>]) -> Vec<u8> {
+    let count = tables.len();
     let entry_selector = count.checked_ilog2().unwrap_or(0);
     let search_range = 16 * (1_usize << entry_selector);
     let mut out = Vec::new();
@@ -134,7 +144,7 @@ pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
     );
     let mut offset = 12 + 16 * count;
     let mut body = Vec::new();
-    for table in &tables {
+    for table in tables {
         out.extend_from_slice(table.tag);
         out.extend_from_slice(&table.checksum.to_be_bytes());
         out.extend_from_slice(&u32::try_from(offset).unwrap_or(u32::MAX).to_be_bytes());
@@ -149,5 +159,5 @@ pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
         offset += table.data.len() + padding;
     }
     out.extend_from_slice(&body);
-    Ok(out)
+    out
 }

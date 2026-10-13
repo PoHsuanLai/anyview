@@ -517,7 +517,7 @@ CPU memory.
 | `render` | `PdfWorker` (pdfrum's caches, the last prepared page and the text of the pages searched, bound to one document), `Raster` (premultiplied RGBA8), `Tile`, `End`, and the two draws (private fns) |
 | `search` | `SearchQuery` (the text and its `FindOptions`), `Hit` (a page, its rectangles and the `Snippet` of words around it), `Hits`, `search_page`, `search_document`; `texts` (`PageTexts`: the search text of the pages a worker has searched, kept by document and page under a budget of 4 Mi characters and let go oldest first, so a repeat search extracts only the pages that hit) and `snippet` (the clip of one line around a match). A phrase that begins at the end of a page and ends on the next is a hit of the page it begins on, found by matching the ends of two neighbouring pages joined by a line break; its rectangles mark the part on its own page |
 | `outline` | `OutlineEntry`, `Disclosure`, `outline`; `PdfLink`, `LinkTarget`, `page_links` |
-| `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file) |
+| `edit` | `PageOp`, `page_op` (a core `Edit` to a page edit), `apply` (edits to the bytes of a new file: the chain is folded into one page order, a deletion set and a turn per page, and written once) |
 | `export` | `plan_export` (a PDF choice as `ExportJob`s: one for a PDF or a text file, one for each page of page images), `selected`, `write_pages`, `write_text` |
 | `pictures` | `PagePicture` (a JPEG kept as it is, upright pixels, or an SVG drawn as vector paths) and `pdf_of_pictures`: one page for each, the size of its picture and at most an A4 sheet's long side |
 | `bind` | `Bookmark`, `bind`: PDFs joined in order into one, with an outline whose lines go to the first page of a part, or to the first page that shows their words (how the viewer binds a book) |
@@ -699,15 +699,17 @@ a listing's cap is the peek budget, an extraction's is `ExtractLimits::scanned`.
 
 ## 2k. Modules inside `anyview-font`
 
-Same rules as section 2. Blocking: the peek reads the one file whole, which must fit the byte budget,
-because a font's tables lie all over it.
+Same rules as section 2. Blocking: the peek reads the table directory of the first face (a collection's
+header first) and only the tables it draws from, which together must fit the byte budget; a WOFF, whose
+tables are packed, is read whole.
 
 | Module | Holds |
 | --- | --- |
 | `error` | `FontError` |
 | `face` | `Face`, `Variation`: the family and style names, glyph count and variation axes of a face, read with skrifa |
 | `specimen` | `Specimen`, `SpecimenLine`, `EM`: sample lines set with each glyph's advance (no shaping, no kerning) as SVG path data in 1000 units to the em |
-| `woff` | `to_sfnt`: a WOFF's tables unpacked and laid out again as the plain font it wraps (private) |
+| `tables` | `sparse`: the directory read from the source by range, then the wanted tables (names, character map, advances, outlines) laid out as a plain font of their own (private) |
+| `woff` | `to_sfnt`: a WOFF's tables unpacked and laid out again as the plain font it wraps, and `sfnt`, which lays any tables out as a font (private) |
 | `peek` | `FontPeek`, `FontPeeked` |
 
 The specimen is outlines, not a font handed to the renderer: the pane needs no font loading, the peek

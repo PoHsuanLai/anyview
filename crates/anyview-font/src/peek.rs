@@ -2,6 +2,7 @@
 
 use crate::error::FontError;
 use crate::face::{Face, Variation, read};
+use crate::tables::sparse;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FontFormat, FormatDetail, FormatKind, Input, Peek,
     PeekBudget, Sniffed,
@@ -35,12 +36,12 @@ impl Peek for FontPeek {
         };
         match format {
             FontFormat::Ttf | FontFormat::Otf | FontFormat::Ttc => {
-                let bytes = read_whole(src, budget.bytes)?;
-                let (face, faces) = read(&bytes)?;
+                let sparse = sparse(src, budget.bytes)?;
+                let (face, _) = read(&sparse.sfnt)?;
                 Ok(FontPeeked {
                     format: *format,
                     face: Some(face),
-                    faces,
+                    faces: sparse.faces,
                 })
             }
             FontFormat::Woff => {
@@ -88,8 +89,8 @@ impl Peek for FontPeek {
     }
 }
 
-/// The whole file, which must fit in the budget: a font's tables lie all over it. The length is
-/// the larger of the stamp's and the bytes' own, so a source that understates its size is held to
+/// The whole file, which must fit in the budget: a WOFF's tables are packed, so it is unpacked
+/// whole. The length is the larger of the stamp's and the bytes' own, so a source that understates its size is held to
 /// the budget as well.
 fn read_whole(src: &Input, allowed: ByteLen) -> Result<Vec<u8>, FontError> {
     let len = ByteLen(src.stamp().len.0.max(src.bytes().len().0));

@@ -13,6 +13,7 @@ mod error;
 mod face;
 mod peek;
 mod specimen;
+mod tables;
 mod woff;
 
 pub use error::FontError;

@@ -150,15 +150,19 @@ fn a_collection_reports_its_faces_and_opens_the_first() {
 }
 
 #[test]
-fn a_font_longer_than_the_budget_is_refused_and_a_web_font_is_named_not_opened() {
+fn a_font_needing_more_than_the_budget_is_refused_and_a_web_font_is_named_not_opened() {
     let (src, sniffed) = opened(&fixture("blocks.ttf"), "blocks.ttf");
-    let len = src.stamp().len;
-    assert_eq!(
-        FontPeek::peek(&src, &sniffed, &budget(1000)),
-        Err(FontError::OverBudget {
-            len,
-            allowed: ByteLen(1000)
-        })
+    // Its table directory alone is past 64 bytes.
+    let got = FontPeek::peek(&src, &sniffed, &budget(64));
+    assert!(
+        matches!(
+            got,
+            Err(FontError::OverBudget {
+                allowed: ByteLen(64),
+                ..
+            })
+        ),
+        "{got:?}"
     );
     let dir = tempfile::tempdir().unwrap();
     let woff = dir.path().join("web.woff2");
@@ -173,6 +177,55 @@ fn a_font_longer_than_the_budget_is_refused_and_a_web_font_is_named_not_opened()
             .map(|v| v.as_str()),
         Some("WOFF2 web font")
     );
+}
+
+/// `ttf` with one more table, `tag`, of `length` zeros; the directory stays sorted by tag.
+fn with_table(ttf: &[u8], tag: &[u8; 4], length: usize) -> Vec<u8> {
+    let count = u16::from_be_bytes([ttf[4], ttf[5]]) as usize;
+    let mut tables: Vec<([u8; 4], [u8; 4], Vec<u8>)> = (0..count)
+        .map(|index| {
+            let at = 12 + 16 * index;
+            let offset = u32::from_be_bytes(ttf[at + 8..at + 12].try_into().unwrap()) as usize;
+            let len = u32::from_be_bytes(ttf[at + 12..at + 16].try_into().unwrap()) as usize;
+            (
+                ttf[at..at + 4].try_into().unwrap(),
+                ttf[at + 4..at + 8].try_into().unwrap(),
+                ttf[offset..offset + len].to_vec(),
+            )
+        })
+        .collect();
+    tables.push((*tag, [0; 4], vec![0; length]));
+    tables.sort_by_key(|(tag, ..)| *tag);
+    let mut out = ttf[..4].to_vec();
+    out.extend_from_slice(&(tables.len() as u16).to_be_bytes());
+    out.extend_from_slice(&[0; 6]);
+    let mut offset = 12 + 16 * tables.len();
+    let mut body = Vec::new();
+    for (tag, checksum, data) in &tables {
+        out.extend_from_slice(tag);
+        out.extend_from_slice(checksum);
+        out.extend_from_slice(&(offset as u32).to_be_bytes());
+        out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        body.extend_from_slice(data);
+        let padding = (4 - data.len() % 4) % 4;
+        body.resize(body.len() + padding, 0);
+        offset += data.len() + padding;
+    }
+    out.extend_from_slice(&body);
+    out
+}
+
+#[test]
+fn a_font_is_read_by_its_directory_so_tables_the_peek_ignores_cost_nothing() {
+    let ttf = std::fs::read(fixture("blocks.ttf")).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let fat = dir.path().join("fat.ttf");
+    std::fs::write(&fat, with_table(&ttf, b"GPOS", 4 << 20)).unwrap();
+    let (src, sniffed) = opened(&fat, "fat.ttf");
+    assert!(src.stamp().len.0 > 4 << 20);
+    // The file is four times the budget, and the face is the same as without the table.
+    let got = FontPeek::peek(&src, &sniffed, &budget(1 << 20)).unwrap();
+    assert_eq!(got.face, peeked("blocks.ttf").face);
 }
 
 #[test]
