@@ -196,10 +196,10 @@ mod tests {
                 0,
             ),
             (
-                "koi8-r text",
+                "koi8-r text, which chardetng names by its superset KOI8-U",
                 b"\xF0\xD2\xC9\xD7\xC5\xD4\x2C\x20\xCD\xC9\xD2\x21\x20\xFC\xD4\xCF\x20\xD2\xD5\xD3\xD3\xCB\xC9\xCA\x20\xD4\xC5\xCB\xD3\xD4\x20\xD7\x20\xCB\xCF\xC4\xC9\xD2\xCF\xD7\xCB\xC5\x20\xEB\xEF\xE9\x2D\x38\x2E\x20\xF3\xC5\xC7\xCF\xC4\xCE\xD1\x20\xC8\xCF\xD2\xCF\xDB\xC1\xD1\x20\xD0\xCF\xC7\xCF\xC4\xC1\x2E\x0A",
                 Coverage::Whole,
-                TextCodec::Legacy(LegacyEncoding(encoding_rs::KOI8_R)),
+                TextCodec::Legacy(LegacyEncoding(encoding_rs::KOI8_U)),
                 0,
             ),
             (
