@@ -11,12 +11,14 @@
 .viewer-pdf-link{ position:absolute; cursor:pointer; }
 
 
-.viewer-thumbs{ display:flex; flex-direction:column; }
-.viewer-thumb{ display:flex; flex-direction:column; align-items:stretch; gap:var(--s-4); width:100%; padding:var(--s-4) 0; }
-.viewer-thumb-page{ position:relative; display:block; width:100%; background:var(--raise); box-shadow:var(--shadow-1); }
+/* The panel's lists are windowed (quire's VirtualList): each takes the room the tabs leave and scrolls
+   inside it. A thumbnail's size is set inline from the page's proportions, as its row's height is, so
+   the rows the list lays out are the rows drawn. */
+.viewer-thumbs, .viewer-outline{ flex:1 1 0; min-height:0; display:flex; flex-direction:column; }
+.viewer-thumb{ box-sizing:border-box; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-4); cursor:pointer; }
+.viewer-thumb-page{ position:relative; display:block; flex:none; background:var(--raise); box-shadow:var(--shadow-1); }
 .viewer-thumb-page[*|data-mark=current]{ outline:var(--s-2) solid var(--accent); }
 .viewer-thumb-cover{ position:absolute; inset:0; }
-.viewer-thumb-number{ text-align:center; color:var(--ink-soft); font-size:var(--fs-small); font-variant-numeric:tabular-nums; }
+.viewer-thumb-number{ flex:none; text-align:center; color:var(--ink-soft); font-size:var(--fs-small); font-variant-numeric:tabular-nums; }
 
-.viewer-outline{ display:flex; flex-direction:column; padding:var(--s-8); }
-.viewer-outline-entry{ display:block; }
+.viewer-outline-title[*|data-leads=nowhere]{ color:var(--ink-faint); }

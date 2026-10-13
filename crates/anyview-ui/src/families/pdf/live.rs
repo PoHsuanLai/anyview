@@ -12,8 +12,11 @@ use crate::{
     TypedText,
 };
 use anyview_core::{FindOptions, PageIndex};
+use anyview_machines::{OutlineFold, OutlineIn, OutlineShape};
 use anyview_pdf::{Hits, PdfLink, Schedule, TileBatch, TileCoord, TileKey};
 use ds_blitz::TextureHandle;
+use ds_core::machine::Machine;
+use ds_core::time::stamp::Stamp;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -68,6 +71,7 @@ pub(super) struct PdfLive {
     thumbs_asked: HashSet<PageIndex>,
     links: HashMap<PageIndex, Arc<Vec<PdfLink>>>,
     links_asked: HashSet<PageIndex>,
+    fold: Option<OutlineFold>,
 }
 
 impl PdfLive {
@@ -81,6 +85,24 @@ impl PdfLive {
 
     pub(super) fn thumb(&self, page: PageIndex) -> Option<&TextureHandle> {
         self.thumbs.get(&page)
+    }
+
+    /// The outline's folds once the person has touched them; until then the document's own.
+    pub(super) fn fold(&self) -> Option<&OutlineFold> {
+        self.fold.as_ref()
+    }
+
+    /// Steps the outline's fold machine with `input`, starting from `opening` the first time.
+    /// The machine keeps no timer, so no clock is read.
+    pub(super) fn fold_step(
+        &mut self,
+        opening: &OutlineFold,
+        shape: &OutlineShape,
+        input: OutlineIn,
+    ) {
+        let before = self.fold.take().unwrap_or_else(|| opening.clone());
+        let (after, _) = before.step(input, Stamp(0), shape, &());
+        self.fold = Some(after);
     }
 
     pub(super) fn links(&self, page: PageIndex) -> Option<&Arc<Vec<PdfLink>>> {

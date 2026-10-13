@@ -212,7 +212,14 @@ fn the_panel_shows_a_thumbnail_for_each_page() {
         harness.centre(".ds-segmented-segment").unwrap(),
     ));
     settle(&mut harness);
-    assert_eq!(harness.count(".viewer-thumb"), pages as usize);
+    // The list is windowed: the rows near the viewport are mounted, and each says how many there are.
+    assert!(harness.count(".viewer-thumb") >= 1);
+    assert!(
+        harness.count(&format!(
+            ".viewer-thumbs .ds-list-item[aria-setsize='{pages}']"
+        )) >= 1,
+        "a thumbnail row for each of the {pages} pages"
+    );
 }
 
 #[test]
@@ -221,13 +228,13 @@ fn contents_lists_the_chapters_and_each_leads_to_its_first_page() {
     let mut harness = open(&epub(dir.path()), 100, Wiring::default());
     open_tab(&mut harness, 2);
     assert_eq!(
-        harness.count(".viewer-outline-entry"),
+        harness.count(".viewer-outline .ds-list-item"),
         3,
         "Alpha, Beta and Gamma"
     );
     harness.send(Input::click(
         harness
-            .centre(".viewer-outline-entry:nth-child(2)")
+            .centre(".viewer-outline .ds-list-item[aria-posinset='2']")
             .unwrap(),
     ));
     settle(&mut harness);
@@ -239,7 +246,7 @@ fn contents_lists_the_chapters_and_each_leads_to_its_first_page() {
     );
     harness.send(Input::click(
         harness
-            .centre(".viewer-outline-entry:nth-child(3)")
+            .centre(".viewer-outline .ds-list-item[aria-posinset='3']")
             .unwrap(),
     ));
     settle(&mut harness);
@@ -250,7 +257,7 @@ fn contents_lists_the_chapters_and_each_leads_to_its_first_page() {
     );
     harness.send(Input::click(
         harness
-            .centre(".viewer-outline-entry:nth-child(1)")
+            .centre(".viewer-outline .ds-list-item[aria-posinset='1']")
             .unwrap(),
     ));
     settle(&mut harness);

@@ -27,6 +27,7 @@ pub use media::{
 };
 pub use model::{Stage, StageIn, StageOut, StageParams};
 pub use pdf::{Destination, PageEdits, PageView, PdfIn, PdfOut, PdfParams, PdfStage};
+pub use pdf::{OutlineFold, OutlineIn, OutlineOut, OutlineShape};
 pub use raster::{
     Animation, FrameCount, FrameDelays, FrameIndex, Motion, RasterIn, RasterOut, RasterParams,
     RasterStage, Runs,

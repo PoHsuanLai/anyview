@@ -248,28 +248,32 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     assert_eq!(
         harness.count(".viewer-thumb"),
         3,
-        "a thumbnail for each page"
+        "a thumbnail for each page near the viewport"
     );
     saved(&mut harness, "pdf-panel.png");
     harness.send(Input::click(
         harness
-            .centre(".viewer-thumbs .ds-row:nth-child(3)")
-            .unwrap(),
-    ));
-    settle(&mut harness);
-    assert!(
-        capsule(&harness).contains("3 of 3"),
-        "{}",
-        capsule(&harness)
-    );
-    harness.send(Input::click(
-        harness
-            .centre(".viewer-thumbs .ds-row:nth-child(2)")
+            .centre(".viewer-thumbs .ds-list-item[aria-posinset='2']")
             .unwrap(),
     ));
     settle(&mut harness);
     assert!(
         capsule(&harness).contains("2 of 3"),
+        "{}",
+        capsule(&harness)
+    );
+    // The third row lies below the list's viewport until it is scrolled.
+    let list = harness.centre(".viewer-thumbs").unwrap();
+    harness.send(Input::wheel(list, Px(0.0), Px(-400.0)));
+    settle(&mut harness);
+    harness.send(Input::click(
+        harness
+            .centre(".viewer-thumbs .ds-list-item[aria-posinset='3']")
+            .unwrap(),
+    ));
+    settle(&mut harness);
+    assert!(
+        capsule(&harness).contains("3 of 3"),
         "{}",
         capsule(&harness)
     );
@@ -283,14 +287,14 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     harness.send(Input::click(tabs(&harness, 2)));
     settle(&mut harness);
     assert_eq!(
-        harness.count(".viewer-outline-entry"),
+        harness.count(".viewer-outline .ds-list-item"),
         4,
         "the fixture's bookmarks"
     );
     saved(&mut harness, "pdf-outline.png");
     harness.send(Input::click(
         harness
-            .centre(".viewer-outline-entry:nth-child(4)")
+            .centre(".viewer-outline .ds-list-item[aria-posinset='4']")
             .unwrap(),
     ));
     settle(&mut harness);
@@ -299,6 +303,47 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
         "Appendix: {}",
         capsule(&harness)
     );
+}
+
+#[test]
+fn the_outline_folds_with_its_triangle_and_with_the_left_and_right_keys() {
+    let (_dir, mut harness, _) = opened();
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
+    settle(&mut harness);
+    harness.send(Input::click(
+        harness
+            .centre(".ds-segmented-segment:nth-child(2)")
+            .unwrap(),
+    ));
+    settle(&mut harness);
+    let rows = |harness: &Harness| harness.count(".viewer-outline .ds-list-item");
+    assert_eq!(rows(&harness), 4, "Chapter One opens with its section");
+    // The triangle of Chapter One folds its section away.
+    harness.send(Input::click(
+        harness
+            .centre(".viewer-outline .ds-list-item[aria-posinset='1'] .ds-row-disclosure")
+            .unwrap(),
+    ));
+    settle(&mut harness);
+    assert_eq!(rows(&harness), 3, "the section is folded away");
+    assert!(
+        capsule(&harness).contains("1 of 3"),
+        "folding goes to no page: {}",
+        capsule(&harness)
+    );
+    // Click Chapter One's row to put the cursor on it; Right unfolds it and Left folds it again.
+    harness.send(Input::click(
+        harness
+            .centre(".viewer-outline .ds-list-item[aria-posinset='1']")
+            .unwrap(),
+    ));
+    settle(&mut harness);
+    harness.send(Input::key(ShortcutKey::Right));
+    settle(&mut harness);
+    assert_eq!(rows(&harness), 4, "Right unfolds");
+    harness.send(Input::key(ShortcutKey::Left));
+    settle(&mut harness);
+    assert_eq!(rows(&harness), 3, "Left folds the open branch");
 }
 
 #[test]

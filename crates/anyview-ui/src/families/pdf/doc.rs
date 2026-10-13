@@ -6,7 +6,8 @@ use crate::families::view::Area;
 use crate::io::OpenError;
 use crate::{EditCaution, EditOffer};
 use anyview_core::{Facts, PageCount, PageIndex, Sniffed, Source};
-use anyview_pdf::{OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
+use anyview_machines::{OutlineFold, OutlineShape};
+use anyview_pdf::{Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
 use std::io::ErrorKind;
 use std::sync::{Mutex, PoisonError};
 
@@ -74,6 +75,10 @@ pub struct PdfDoc {
     pub document: PdfDocument,
     /// The bookmarks in reading order; empty when the file has none.
     pub outline: Vec<OutlineEntry>,
+    /// How deep each bookmark sits: what the outline's fold machine reads of the document.
+    shape: OutlineShape,
+    /// The outline as the file asks it to first open, with the bookmarks it folds.
+    opening: OutlineFold,
     /// The rows of the Info tab.
     pub facts: Facts,
     /// A signed document asks before a page edit rewrites it.
@@ -107,14 +112,32 @@ impl PdfDoc {
         } else {
             EditOffer::Plain
         };
+        let outline = outline(&document);
         PdfDoc {
             offer,
             origin: PdfOrigin::File,
-            outline: outline(&document),
+            shape: OutlineShape::of(outline.iter().map(|entry| entry.depth)),
+            opening: OutlineFold::folded(
+                (0_u32..)
+                    .zip(&outline)
+                    .filter(|(_, entry)| entry.disclosure == Disclosure::Closed)
+                    .map(|(at, _)| at),
+            ),
+            outline,
             document,
             facts,
             scratch: Mutex::default(),
         }
+    }
+
+    /// How deep each bookmark sits.
+    pub(super) fn shape(&self) -> &OutlineShape {
+        &self.shape
+    }
+
+    /// The outline's folds before the person touches one.
+    pub(super) fn opening(&self) -> &OutlineFold {
+        &self.opening
     }
 
     /// The page count.

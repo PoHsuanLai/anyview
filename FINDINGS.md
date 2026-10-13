@@ -410,10 +410,13 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A PDF scrolls by a thousandth of a page.** `PageView::offset` is `Permille` of the page's height, so at a
   high zoom one step is several pixels. The view keeps the exact position itself (`steer.rs`'s `Cursor`) and
   tells the machine only when the page or its offset changes. Ends if the machine takes a finer offset.
-- **The PDF panel's thumbnails are drawn near the reader only, and the outline is flat.** Rows exist for
-  every page, but a thumbnail is drawn for the 12 pages either side of the reader's (`panel.rs`), because
-  the panel has no list that tells the view which rows are on screen; the outline lists every bookmark
-  with its depth and ignores `Disclosure`. Ends when quire has a windowed list and the outline a fold.
+- **PDF thumbnails are a fixed width, and the outline's fold is not kept.** The panel's lists are windowed
+  (quire's `VirtualList`), which needs every row's height up front; a thumbnail's height at the panel's own
+  width is not known until the panel is measured, so a thumbnail is drawn 140 logical pixels wide in the
+  middle of its row, not filled to the panel's width as the design standard says. Ends when quire has
+  measured row heights (`RowHeight::Measured`). Which bookmarks are folded lives in `OutlineFold` on the PDF
+  shelf, so it holds while the tab is changed and is dropped with the document: it is not kept for next
+  time. Textures of thumbnails already drawn stay on the shelf when their rows scroll away.
 - **A password-protected PDF is `LoadFailure::Unsupported`.** The viewer has no way to ask for a password;
   `PdfDocument::open_with_password` is there for the sheet that will. Ends with that sheet.
 - **pdfrum draws a 1 px blue box round every link annotation,** even when its `/Border` is `[0 0 0]`: the
