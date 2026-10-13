@@ -99,6 +99,12 @@ impl TextDoc {
         self.count
     }
 
+    /// Whether the file had no bytes at all. A file of only blank lines or spaces is not empty:
+    /// it is text, and is shown as text.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Whether the file is small enough to be edited in place.
     pub(crate) fn editable(&self) -> Editable {
         if self.len <= EDIT_BYTES {

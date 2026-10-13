@@ -11,7 +11,7 @@ mod editing;
 mod effects;
 mod export;
 mod export_options;
-mod failed;
+pub(crate) mod failed;
 mod palette;
 mod pane;
 mod panel;

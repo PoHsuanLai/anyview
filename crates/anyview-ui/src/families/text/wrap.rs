@@ -37,7 +37,7 @@ pub(super) fn lines_per_page(lines: &[TokenLine], rows: u32, width: f32, wrap: W
             let mut used = 0_u32;
             let mut fitted = 0_u32;
             for line in lines {
-                used = used.saturating_add(rows_of(line.text().chars().count(), columns));
+                used = used.saturating_add(rows_of(super::tabs::width(&line.text()), columns));
                 if used > rows {
                     break;
                 }

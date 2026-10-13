@@ -91,7 +91,7 @@ fn node_row(
 #[component]
 pub(super) fn TreeContent(doc: Held<TreeDoc>, cx: StageCx) -> Element {
     let Stage::Tree(stage) = &cx.stage else {
-        return rsx! { div { class: "viewer-data" } };
+        return rsx! { div { class: "viewer-data viewer-scrolls" } };
     };
     let open = stage.open().clone();
     let total = doc.0.tree.visible_count(&open);
@@ -119,7 +119,7 @@ pub(super) fn TreeContent(doc: Held<TreeDoc>, cx: StageCx) -> Element {
     });
     let keys: Vec<u32> = (0..total).collect();
     rsx! {
-        div { class: "viewer-data", "data-body": "tree",
+        div { class: "viewer-data viewer-scrolls", "data-body": "tree",
             VirtualList::<u32> {
                 label: "Nodes",
                 keys,

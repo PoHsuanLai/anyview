@@ -52,6 +52,7 @@ fn Root() -> Element {
                     doc: None,
                     first: first(),
                     rows: config.rows,
+                    page: config.rows,
                     wrap,
                     hits: None,
                     current: None,

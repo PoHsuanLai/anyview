@@ -323,3 +323,36 @@ fn a_text_is_edited_in_place_saved_and_asked_about_before_the_window_closes() {
     );
     assert_eq!(harness.count(".ds-edit"), 1, "still editing");
 }
+
+#[test]
+fn a_tab_is_drawn_as_spaces_to_the_next_stop_in_the_source_and_in_the_editor() {
+    let (_dir, mut harness) = open("a\tb\n\tx\n");
+    let shown = harness.text_of(".viewer-text").unwrap();
+    assert!(
+        shown.contains("a   b"),
+        "to the next stop of four: {shown:?}"
+    );
+    assert!(!shown.contains('\t'), "no tab is left to draw as a box");
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(harness.count(".ds-edit"), 1, "editing");
+    let edited = harness.text_of(".viewer-code").unwrap();
+    assert_eq!(edited, "a   b", "the editor draws it the same way");
+}
+
+#[test]
+fn an_empty_file_says_so_and_can_still_be_edited_and_blank_text_is_text() {
+    let (_dir, mut harness) = open("");
+    let said = harness.text_of(".viewer-failed").unwrap_or_default();
+    assert!(said.contains("This file is empty"), "{said:?}");
+    assert_eq!(harness.count(".viewer-line"), 0, "no lines are drawn");
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(harness.count(".ds-edit"), 1, "an empty editor opens");
+    assert_eq!(
+        harness.count(".viewer-failed"),
+        0,
+        "the state gives way to it"
+    );
+    let (_dir, harness) = open("  \n");
+    assert_eq!(harness.count(".viewer-failed"), 0, "spaces are text");
+    assert!(harness.count(".viewer-line") > 0, "and are drawn as lines");
+}

@@ -3,7 +3,7 @@
 //! caret's line in the room, and tells the window when the text changed.
 
 use super::command::{Command, command_of};
-use super::place::{caret_position, offset_at, position_of};
+use super::place::{caret_position, drawn_col, offset_at, position_of};
 use crate::Changes;
 use anyview_text::{Motion, Revision, Session};
 use dioxus::prelude::*;
@@ -27,8 +27,8 @@ pub(super) struct Act {
     pub handle: EditHandle,
     /// The line at the top of the room.
     pub first: u32,
-    /// How many lines the room holds.
-    pub rows: u32,
+    /// How many lines fit the room: a page, and how far the caret may go before the room follows.
+    pub page: u32,
     /// The room should show this line at its top.
     pub scroll: EventHandler<u32>,
     /// The text changed, and has unsaved changes or has not.
@@ -128,7 +128,7 @@ impl Act {
         if let Command::Visual { by, extend } = command {
             return self.visual(by, extend);
         }
-        let rows = self.rows;
+        let rows = self.page;
         self.with(|session| match command {
             Command::Move { by, extend } => session.move_by(by, extend),
             Command::Visual { .. } => {}
@@ -214,7 +214,8 @@ impl Act {
             (line, col, range.len(), range.start)
         })?;
         let below = |at: usize| -> Option<bool> {
-            let snapped = self.read(|session| session.offset_of(line, at) - start)?;
+            let snapped =
+                self.read(|session| drawn_col(session, line, session.offset_of(line, at) - start))?;
             let position = TextPosition::new(caret.node.0.clone(), snapped);
             let rect = self.handle.caret_rect(&position).found()?;
             Some(rect.origin.y.0 > row_y + 1.0)
@@ -293,8 +294,8 @@ impl Act {
         let line = u32::try_from(line).unwrap_or(u32::MAX);
         if line < self.first {
             self.scroll.call(line);
-        } else if line >= self.first.saturating_add(self.rows) {
-            self.scroll.call(line + 1 - self.rows.max(1));
+        } else if line >= self.first.saturating_add(self.page) {
+            self.scroll.call(line + 1 - self.page.max(1));
         }
     }
 

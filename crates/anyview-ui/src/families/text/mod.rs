@@ -7,6 +7,7 @@ mod edit;
 mod find;
 mod frame;
 mod modes;
+mod tabs;
 mod view;
 mod wrap;
 

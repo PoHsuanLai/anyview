@@ -6,6 +6,7 @@ use super::place::{caret_position, node_of, position_of, range_in, shown};
 use crate::families::Held;
 use crate::families::text::doc::TextDoc;
 use crate::families::text::find::{FoundHits, Mark, pieces};
+use crate::families::text::tabs;
 use crate::families::text::view::{hits_on, piece_class};
 use crate::{Changes, HitIndex, Wrap};
 use anyview_core::LineIndex;
@@ -35,8 +36,9 @@ struct Cached {
     lines: Vec<TokenLine>,
 }
 
-/// An editor over the text of `session`, `rows` lines tall from line `first`. Scrolling to keep
-/// the caret in view is asked of `onscroll`; a change of the text is told to `onchanged`.
+/// An editor over the text of `session`, `rows` lines drawn from line `first`, of which `page`
+/// fit the room (the rest are drawn so a partial row at the bottom is not blank). Scrolling to
+/// keep the caret in view is asked of `onscroll`; a change of the text is told to `onchanged`.
 #[component]
 pub(crate) fn EditLines(
     session: Signal<Option<Session>>,
@@ -44,6 +46,7 @@ pub(crate) fn EditLines(
     doc: Option<Held<TextDoc>>,
     first: u32,
     rows: u32,
+    page: u32,
     wrap: Wrap,
     hits: Option<Held<FoundHits>>,
     current: Option<HitIndex>,
@@ -60,7 +63,7 @@ pub(crate) fn EditLines(
         upstream,
         handle,
         first,
-        rows,
+        page,
         scroll: onscroll,
         changed: onchanged,
         keys: use_keys(),
@@ -278,19 +281,22 @@ struct Run {
 }
 
 /// The runs of `line`: cut where its hits begin and end, or, while the IME composes on it, with
-/// the preedit put in at `preedit`'s column and no hits marked.
+/// the preedit put in at `preedit`'s column and no hits marked. A tab is drawn as spaces to the
+/// next stop; the preedit does not move the stops of the text after it, so the drawn offsets
+/// (`place`) are the text's own plus the preedit's length.
 fn runs(
     line: &TokenLine,
     preedit: Option<(usize, &str)>,
     found: &[anyview_text::FindHit],
     within: Option<usize>,
 ) -> Vec<Run> {
+    let mut column = 0;
     let Some((col, composing)) = preedit else {
         return pieces(line, found, within)
             .into_iter()
             .map(|piece| Run {
                 class: piece_class(piece.class, piece.mark),
-                text: piece.text,
+                text: tabs::expand(&piece.text, &mut column),
             })
             .collect();
     };
@@ -299,7 +305,7 @@ fn runs(
         .into_iter()
         .map(|piece| Run {
             class: piece_class(piece.class, Mark::Plain),
-            text: piece.text,
+            text: tabs::expand(&piece.text, &mut column),
         })
         .collect();
     out.push(Run {
@@ -308,7 +314,7 @@ fn runs(
     });
     out.extend(pieces(&after, &[], None).into_iter().map(|piece| Run {
         class: piece_class(piece.class, Mark::Plain),
-        text: piece.text,
+        text: tabs::expand(&piece.text, &mut column),
     }));
     out
 }

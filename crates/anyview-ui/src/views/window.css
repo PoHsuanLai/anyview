@@ -9,6 +9,13 @@
 
 .viewer-titlebar{ position:absolute; top:0; left:0; right:0; z-index:var(--z-raise); transition:opacity var(--t-quick) var(--e-out); }
 .viewer-titlebar[*|data-shown=hidden]{ opacity:0; pointer-events:none; }
+/* A stage that shows a document scrolling from its top (text in every mode, a table, a tree) starts
+   below the titlebar, as Numbers' sheet starts under its toolbar, so the bar never covers the first
+   line, the caret on it or a find hit. The family sets the other three edges of its box and opts in
+   with this class; a pane has no titlebar. Pictures, pages and media fill the stage and are not
+   in it. */
+.viewer-scrolls{ top:var(--chrome-titlebar-height); }
+.viewer[*|data-hosting=pane] .viewer-scrolls{ top:0; }
 /* The window is a split view: the left panel's pane, then the stage. The titlebar lies over both. */
 .viewer-split{ flex:1 1 auto; min-width:0; }
 /* The panel's body: padded by the window's own step, and by the titlebar's height at the top so

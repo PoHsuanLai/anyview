@@ -117,7 +117,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     let sheet: Arc<SheetDoc> = match doc.0.sheets.get(sheet_no.0 as usize) {
         // a u32 fits a usize
         Some(sheet) => Arc::clone(sheet),
-        None => return rsx! { div { class: "viewer-data" } },
+        None => return rsx! { div { class: "viewer-data viewer-scrolls" } },
     };
     let rows = sheet.table.row_count().0 as usize; // a u32 fits a usize
     let held = Arc::clone(&sheet);
@@ -138,14 +138,14 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     });
     if rows == 0 {
         return rsx! {
-            div { class: "viewer-data",
+            div { class: "viewer-data viewer-scrolls",
                 EmptyState { icon: Icon::File, title: "This sheet has no rows" }
             }
         };
     }
     rsx! {
         div {
-            class: "viewer-data",
+            class: "viewer-data viewer-scrolls",
             "data-body": "table",
             VirtualTable::<u32> {
                 label: "Rows",
