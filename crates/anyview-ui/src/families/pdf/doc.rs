@@ -118,11 +118,13 @@ impl PdfDoc {
     }
 
     /// The page count.
+    #[must_use]
     pub fn pages(&self) -> PageCount {
         self.document.page_count()
     }
 
     /// Every page's displayed size.
+    #[must_use]
     pub fn sizes(&self) -> &[PageSize] {
         self.document.page_sizes()
     }
@@ -147,6 +149,7 @@ impl PdfDoc {
     }
 
     /// The size of `page`, the first page's when there is no such page.
+    #[must_use]
     pub fn size_of(&self, page: PageIndex) -> PageSize {
         let sizes = self.sizes();
         usize::try_from(page.0)

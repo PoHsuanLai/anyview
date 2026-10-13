@@ -77,12 +77,14 @@ impl std::fmt::Debug for Work {
 
 impl Work {
     /// The queue this belongs on: the job decides.
+    #[must_use]
     pub fn lane(&self) -> WorkLane {
         self.job.lane()
     }
 
     /// The load this work belongs to: the pool tags its own delivery with it. Work that belongs
     /// to no load (a neighbour opened ahead, a stamp, a folder) says `Ticket::default()`.
+    #[must_use]
     pub fn ticket(&self) -> Ticket {
         self.job.ticket()
     }
@@ -111,6 +113,7 @@ impl Work {
     }
 
     /// What the work does.
+    #[must_use]
     pub fn kind(&self) -> WorkKind {
         match &self.job {
             Job::Probe { .. } => WorkKind::Probe,
@@ -250,11 +253,13 @@ pub struct TextSave {
 
 impl TextSave {
     /// The file's new bytes.
+    #[must_use]
     pub fn new(bytes: Vec<u8>) -> TextSave {
         TextSave { bytes }
     }
 
     /// The bytes to write.
+    #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
@@ -365,16 +370,19 @@ impl Edge {
 
     /// Whether the host this edge was built with starts players, for a pane to decide whether a
     /// recording plays in it or is handed to the host.
+    #[must_use]
     pub fn media_support(&self) -> MediaSupport {
         self.media.support()
     }
 
     /// What the platform can do, for the window to decide what to offer.
+    #[must_use]
     pub fn platform(&self) -> PlatformAbilities {
         self.platform
     }
 
     /// What the install sheet says of `helper`, or `None` when the host does not know the tool.
+    #[must_use]
     pub fn helper_words(&self, helper: Helper) -> Option<super::helpers::HelperWords> {
         self.helpers.words(helper)
     }

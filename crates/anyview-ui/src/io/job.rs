@@ -83,54 +83,98 @@ pub enum Keeping {
     /// This file was shown.
     Viewed(Opened),
     /// The person is here in this file.
-    Place { source: Source, resume: Resume },
+    Place {
+        /// Where the file is from.
+        source: Source,
+        /// The place the person is at.
+        resume: Resume,
+    },
 }
 
 /// One unit of blocking work.
 #[derive(Debug)]
 pub enum Job {
     /// Find out what the file of this load is.
-    Probe { ticket: Ticket, path: FilePath },
+    Probe {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The file.
+        path: FilePath,
+    },
     /// Make the cheap first frame of the probed file.
     Peek {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What the probe found.
         probed: Opened,
+        /// Where the finished open reports to.
         link: OpenPort,
     },
     /// Open the probed file in full.
     Open {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What the probe found.
         probed: Opened,
+        /// Where the finished open reports to.
         link: OpenPort,
     },
     /// Read and highlight `rows` lines of an open text file from `first`.
     Lines {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// The open text file.
         doc: Arc<TextDoc>,
+        /// The first line of the window.
         first: LineIndex,
+        /// How many lines to read.
         rows: u32,
     },
     /// Find every place `query` occurs in an open text file.
     Search {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// The open text file.
         doc: Arc<TextDoc>,
+        /// What the person typed.
         query: TypedText,
     },
     /// Read an open text file whole, to edit it in place.
-    EditRead { ticket: Ticket, doc: Arc<TextDoc> },
+    EditRead {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The open text file.
+        doc: Arc<TextDoc>,
+    },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
-    Preload { path: FilePath, link: OpenPort },
+    Preload {
+        /// The file.
+        path: FilePath,
+        /// Where the finished open reports to.
+        link: OpenPort,
+    },
     /// Read the stamp `path` has now.
-    Stat { path: FilePath },
+    Stat {
+        /// The file.
+        path: FilePath,
+    },
     /// List the folder `path` is in, as the sequence the arrow keys walk.
-    Folder { path: FilePath },
+    Folder {
+        /// A file in the folder.
+        path: FilePath,
+    },
     /// Draw tiles, a thumbnail or a search of an open PDF.
     Pdf(PdfTask),
     /// List the versions kept of the file `path`, for the Revert To sheet.
-    Versions { path: FilePath },
+    Versions {
+        /// The file.
+        path: FilePath,
+    },
     /// Write a view or a place to the host's store.
     Keep {
+        /// Where the view or place is written.
         keeper: Arc<dyn ResumeKeeper>,
+        /// What to write.
         keeping: Keeping,
     },
 }
@@ -144,75 +188,119 @@ pub enum Done {
     Helped(anyview_core::Helper, crate::HelperEnd),
     /// The probe of `ticket`.
     Probed {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What came of it.
         result: Result<Opened, OpenError>,
     },
     /// The first frame of `ticket`, or `None` when the file has no cheap one.
     Peeked {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What came of it.
         result: Result<Option<LoadedDoc>, OpenError>,
     },
     /// The open of `ticket`.
     Opened {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What came of it.
         result: Result<LoadedDoc, OpenError>,
     },
     /// A window of lines of the file of `ticket`.
     Lines {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What came of it.
         result: Result<LineWindow, OpenError>,
     },
     /// The text of the file of `ticket`, read for editing, or why it cannot be.
     EditText {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What came of it.
         result: Result<EditText, EditRefusal>,
     },
     /// The host wrote the edited text over `path`, or could not.
-    Saved { path: FilePath, end: SaveEnd },
+    Saved {
+        /// The file.
+        path: FilePath,
+        /// How the write ended.
+        end: SaveEnd,
+    },
     /// The hits of `query` in the file of `ticket`.
     Found {
+        /// The load this work belongs to.
         ticket: Ticket,
+        /// What the person typed.
         query: TypedText,
+        /// What came of it.
         result: Result<FoundHits, OpenError>,
     },
     /// The file `path`, opened ahead; `None` when it could not be or was too large to be worth it.
     Preloaded {
+        /// The file.
         path: FilePath,
+        /// The file as opened ahead.
         loaded: Option<Preloaded>,
     },
     /// The stamp `path` has now; `None` when it cannot be read.
     Stamped {
+        /// The file.
         path: FilePath,
+        /// The size and time the file has now.
         stamp: Option<FileStamp>,
     },
     /// The folder of `path` as a sequence.
     Folder {
+        /// A file in the folder.
         path: FilePath,
+        /// What came of it.
         result: Result<Sequence, OpenError>,
     },
     /// The host saw `path` change on disk (`Edge::changed`).
-    Changed { path: FilePath },
+    Changed {
+        /// The file.
+        path: FilePath,
+    },
     /// What a PDF task made, for the load that asked.
-    Pdf { ticket: Ticket, answer: PdfAnswer },
+    Pdf {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// What the task made.
+        answer: PdfAnswer,
+    },
     /// The player of the load `ticket` has news: the window drains its line.
-    Media { ticket: Ticket },
+    Media {
+        /// The load this work belongs to.
+        ticket: Ticket,
+    },
     /// The versions kept of `path`, newest first.
     Versions {
+        /// The file.
         path: FilePath,
+        /// The versions, newest first.
         rows: Vec<VersionRow>,
     },
     /// A view or a place was written (or could not be, which the keeper has logged): nothing to do.
     Kept,
     /// The person chose these files in the host's file dialog.
-    Chosen { files: Vec<FilePath> },
+    Chosen {
+        /// The files chosen, in the dialog's order.
+        files: Vec<FilePath>,
+    },
     /// The host renamed the open file: it is `to` now.
-    Moved { to: FilePath },
+    Moved {
+        /// The new path.
+        to: FilePath,
+    },
     /// The host tells the person how a task ended (`Edge::notify`).
     Notice(Notice),
 }
 
 impl Job {
     /// How soon the job is wanted: a pool that has a queue for each runs the nearest first.
+    #[must_use]
     pub fn lane(&self) -> WorkLane {
         match self {
             Job::Probe { .. }
@@ -230,6 +318,7 @@ impl Job {
     }
 
     /// The load this job belongs to; `Ticket::default()` for a job that belongs to none.
+    #[must_use]
     pub fn ticket(&self) -> Ticket {
         match self {
             Job::Probe { ticket, .. }

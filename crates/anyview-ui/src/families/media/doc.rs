@@ -29,6 +29,7 @@ pub struct MediaDoc {
 
 impl MediaDoc {
     /// The line to the player, when one plays the recording.
+    #[must_use]
     pub fn line(&self) -> Option<&Arc<dyn MediaLine>> {
         match &self.playback {
             MediaPlayback::Line(line) => Some(line),
@@ -37,6 +38,7 @@ impl MediaDoc {
     }
 
     /// The package that would play the recording, when none does: a facts card is what it shows.
+    #[must_use]
     pub fn needs(&self) -> Option<&crate::Need> {
         match &self.playback {
             MediaPlayback::Line(_) => None,
@@ -45,16 +47,19 @@ impl MediaDoc {
     }
 
     /// The picture an audio file carries, when it carries one.
+    #[must_use]
     pub fn cover(&self) -> Option<&ImageSource> {
         self.cover.as_ref()
     }
 
     /// The exports on offer for the recording.
+    #[must_use]
     pub fn offer(&self) -> &MediaOffer {
         &self.offer
     }
 
     /// The title to show large: the tag, else the name of the file.
+    #[must_use]
     pub fn title(&self) -> &str {
         self.tags.title.as_deref().unwrap_or(&self.name)
     }

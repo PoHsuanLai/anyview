@@ -49,6 +49,7 @@ impl LoadedDoc {
 
     /// The rows of the Info tab: the family's own, then the General section. A family row the
     /// General section also has (its kind as a media type, its size) gives way to it.
+    #[must_use]
     pub fn facts(&self) -> Facts {
         self.view.facts().then(self.general.clone())
     }

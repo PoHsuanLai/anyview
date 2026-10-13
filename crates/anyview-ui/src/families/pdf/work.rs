@@ -123,6 +123,7 @@ pub enum Finish {
 
 impl PdfTask {
     /// `ask` of the document of load `ticket`, uploading to `gpu`.
+    #[must_use]
     pub fn new(ticket: Ticket, doc: Arc<PdfDoc>, gpu: Gpu, ask: PdfAsk) -> PdfTask {
         PdfTask {
             ticket,
@@ -134,6 +135,7 @@ impl PdfTask {
 
     /// How soon the task is wanted: tiles of the view and a search are, tiles beyond it,
     /// thumbnails and links are not.
+    #[must_use]
     pub fn lane(&self) -> WorkLane {
         match &self.ask {
             PdfAsk::Tiles { batch, .. } => match batch.priority {
@@ -146,12 +148,14 @@ impl PdfTask {
     }
 
     /// The load the task belongs to.
+    #[must_use]
     pub fn ticket(&self) -> Ticket {
         self.ticket
     }
 
     /// The answer for a task whose back end panicked: nothing drawn, every tile failed, a search
     /// cut short, so the window stops waiting for it.
+    #[must_use]
     pub fn crashed(&self) -> PdfAnswer {
         match &self.ask {
             PdfAsk::Tiles { flight, batch, .. } => PdfAnswer::Tiles {

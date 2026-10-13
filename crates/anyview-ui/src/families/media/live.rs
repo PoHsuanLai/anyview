@@ -35,6 +35,7 @@ impl TrimMarks {
     /// The marks after `edge` is set at `at`. A start at or after the end, or an end at or
     /// before the start, drops the mark it would cross, as an editor does: the latest mark is
     /// the person's intent, and a cut is never silently the whole recording.
+    #[must_use]
     pub fn marked(self, edge: crate::TrimEdge, at: MediaTime) -> TrimMarks {
         match edge {
             crate::TrimEdge::Start => TrimMarks {
@@ -49,11 +50,13 @@ impl TrimMarks {
     }
 
     /// Whether the person marked a start or an end.
+    #[must_use]
     pub fn is_set(self) -> bool {
         self.start.is_some() || self.end.is_some()
     }
 
     /// The part of the recording the marks keep: all of it when none is set.
+    #[must_use]
     pub fn range(self) -> TimeRange {
         let start = self.start.unwrap_or_default();
         TimeRange::new(start, self.end).unwrap_or(TimeRange::WHOLE)
@@ -75,6 +78,7 @@ pub struct MediaPlace {
 
 impl MediaPlace {
     /// The place as the store keeps it.
+    #[must_use]
     pub fn resume(self) -> Resume {
         Resume::Media {
             at: self.at,
@@ -85,6 +89,7 @@ impl MediaPlace {
     }
 
     /// The place a stored `resume` keeps, or `None` when it keeps another kind of place.
+    #[must_use]
     pub fn of(resume: &Resume) -> Option<MediaPlace> {
         match resume {
             Resume::Media {
@@ -108,6 +113,7 @@ impl MediaPlace {
 
     /// Whether `other` is the same place to the nearest second, with the same settings: a
     /// place that has only crept along is not worth keeping again.
+    #[must_use]
     pub fn same_as(self, other: MediaPlace) -> bool {
         self.at.as_millis().abs_diff(other.at.as_millis()) < 1000
             && self.volume == other.volume
@@ -192,6 +198,7 @@ impl MediaLive {
 
     /// Which track of `kind` plays: its number, `Off` when the kind has tracks and none plays,
     /// and the player's own choice when it has none.
+    #[must_use]
     pub fn choice(&self, kind: StreamKind) -> TrackChoice {
         let mut tracks = self.of_kind(kind).peekable();
         if tracks.peek().is_none() {
@@ -204,6 +211,7 @@ impl MediaLive {
 
     /// Where playback is and the settings, as the place to keep for next time; `None` until the
     /// player has said where playback is, so a place is never made of a start it has not left.
+    #[must_use]
     pub fn place(&self) -> Option<MediaPlace> {
         Some(MediaPlace {
             at: self.position?,
@@ -214,6 +222,7 @@ impl MediaLive {
     }
 
     /// The chapter playing at `position`: the last that starts at or before it.
+    #[must_use]
     pub fn chapter_at(&self, position: MediaTime) -> Option<usize> {
         self.chapters
             .iter()

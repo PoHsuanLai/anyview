@@ -26,6 +26,7 @@ pub struct Launch {
 }
 
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
+#[must_use]
 pub fn stylesheet() -> String {
     [
         include_str!("window.css"),

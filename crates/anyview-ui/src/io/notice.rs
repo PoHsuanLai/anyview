@@ -14,6 +14,7 @@ pub struct Notice {
 
 impl Notice {
     /// A notice of `text` with no button.
+    #[must_use]
     pub fn say(text: impl Into<String>) -> Notice {
         Notice {
             text: text.into(),
@@ -22,6 +23,7 @@ impl Notice {
     }
 
     /// The same notice offering to show `file` in the file manager.
+    #[must_use]
     pub fn revealing(self, file: FilePath) -> Notice {
         Notice {
             reveal: Some(file),

@@ -18,6 +18,7 @@ pub struct Need {
 
 impl Need {
     /// A row that only says what is missing: no install is offered for it.
+    #[must_use]
     pub fn passive(fact: Fact) -> Need {
         Need { fact, helper: None }
     }

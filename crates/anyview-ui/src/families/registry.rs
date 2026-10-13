@@ -55,6 +55,7 @@ impl FamilyVisitor for FamilyOf {
 }
 
 /// The family of stage that shows `kind`.
+#[must_use]
 pub fn family_of(kind: FormatKind) -> StageFamily {
     visit(kind, FamilyOf)
 }
@@ -110,6 +111,7 @@ impl FamilyVisitor for FlowOf {
 }
 
 /// How a file of `kind` is opened: with a cheap first frame beside the open, or only the open.
+#[must_use]
 pub fn flow_of(kind: FormatKind) -> LoadFlow {
     visit(kind, FlowOf)
 }
