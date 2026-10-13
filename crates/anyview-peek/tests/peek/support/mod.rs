@@ -69,11 +69,10 @@ pub fn fixture(home: Home, name: &str) -> (Input, Sniffed) {
 
 /// A budget that reads `bytes` and decodes `pixels`.
 pub fn budget(bytes: u64, pixels: u64) -> PeekBudget {
-    PeekBudget {
-        bytes: ByteLen(bytes),
-        pixels: PixelArea(pixels),
-        time: Duration::from_millis(500),
-    }
+    PeekBudget::DEFAULT
+        .with_bytes(ByteLen(bytes))
+        .with_pixels(PixelArea(pixels))
+        .with_time(Duration::from_millis(500))
 }
 
 /// What the launcher would allow: plenty of bytes, a pane's worth of pixels.

@@ -20,11 +20,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// What the pure-Rust reader of a recording's header may spend when no plugin reads it.
-const HEADER_BUDGET: PeekBudget = PeekBudget {
-    bytes: ByteLen(16 << 20),
-    pixels: PixelArea(1_000_000),
-    time: Duration::from_secs(2),
-};
+const HEADER_BUDGET: PeekBudget = PeekBudget::DEFAULT
+    .with_bytes(ByteLen(16 << 20))
+    .with_pixels(PixelArea(1_000_000))
+    .with_time(Duration::from_secs(2));
 
 /// The plugins of this run and the runner that talks to them.
 #[derive(Debug, Clone, Default)]

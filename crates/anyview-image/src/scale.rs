@@ -125,11 +125,10 @@ mod tests {
             ("under four bytes", 1_000_000, 3, None),
         ];
         for (name, pixels, bytes, want) in CASES {
-            let budget = PeekBudget {
-                bytes: ByteLen(*bytes),
-                pixels: PixelArea(*pixels),
-                time: Duration::from_millis(100),
-            };
+            let budget = PeekBudget::DEFAULT
+                .with_bytes(ByteLen(*bytes))
+                .with_pixels(PixelArea(*pixels))
+                .with_time(Duration::from_millis(100));
             assert_eq!(peek_area(&budget).ok().map(|a| a.0), *want, "{name}");
         }
     }

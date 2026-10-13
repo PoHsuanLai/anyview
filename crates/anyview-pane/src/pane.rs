@@ -6,8 +6,7 @@ use crate::request::PaneRequest;
 use crate::store::Kept;
 use anyview_core::{FilePath, Sequence};
 use anyview_ui::{
-    Edge, HostRequest, Launch, Look, LookFeed, PaneApp, PaneChrome, PaneSeat, Presentation,
-    use_pane_link,
+    Edge, HostRequest, Launch, LookFeed, PaneApp, PaneChrome, PaneSeat, Presentation, use_pane_link,
 };
 use dioxus::prelude::*;
 use ds::base::time::clock;
@@ -184,11 +183,10 @@ fn Seated(props: PaneProps) -> Element {
         }
     });
     let (file, sequence) = (props.file.clone(), props.sequence.clone());
-    use_context_provider(|| Launch {
-        file,
-        sequence,
-        look: Look::default(),
-        presentation: Presentation::Pane,
+    use_context_provider(|| {
+        Launch::new(file)
+            .with_sequence(sequence)
+            .with_presentation(Presentation::Pane)
     });
     use_context_provider(|| edge.clone());
     let (focused, chrome) = (props.focused, props.chrome);

@@ -4,9 +4,8 @@ use crate::any::{AnyPeeked, failed_card, peek_looking};
 use crate::frames::{NoStills, StillSource};
 use crate::probe::probe;
 use crate::unavailable::Unavailable;
-use anyview_core::{ByteLen, Input, PeekBudget, PixelArea, PixelLen, PixelSize};
+use anyview_core::{Input, PeekBudget, PixelLen, PixelSize};
 use std::sync::Arc;
-use std::time::Duration;
 
 /// The box, in pixels, that the pane fits a page or a picture into: a 360 px pane's width inside
 /// its 16 px padding by the height it gives its media. The pane pins it equal to quire's
@@ -38,11 +37,7 @@ impl Peeking {
     #[must_use]
     pub fn pane() -> Self {
         Peeking {
-            budget: PeekBudget {
-                bytes: ByteLen(64 * 1024 * 1024),
-                pixels: PixelArea(1_000_000),
-                time: Duration::from_millis(500),
-            },
+            budget: PeekBudget::DEFAULT,
             fit: PANE_FIT,
             stills: Arc::new(NoStills),
         }

@@ -217,11 +217,10 @@ fn the_peek_words_what_the_archive_is_and_holds() {
         panic!("a gzip head is answered at once");
     };
     assert_eq!(sniffed.kind(), FormatKind::Archive);
-    let budget = PeekBudget {
-        bytes: BIG,
-        pixels: PixelArea(1 << 20),
-        time: Duration::from_secs(1),
-    };
+    let budget = PeekBudget::DEFAULT
+        .with_bytes(BIG)
+        .with_pixels(PixelArea(1 << 20))
+        .with_time(Duration::from_secs(1));
     let peeked = ArchivePeek::peek(&src.on_disk(), &sniffed, &budget).unwrap();
     let facts = ArchivePeek::facts(&peeked);
     assert_eq!(

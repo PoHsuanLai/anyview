@@ -104,12 +104,10 @@ impl Wiring {
             None => services,
         };
         let edge = Edge::new(services);
-        let launch = Launch {
-            file: seed.opening.file.clone(),
-            sequence: seed.opening.sequence.clone(),
-            look: seed.factory.appearances.current(),
-            presentation: seed.presentation,
-        };
+        let launch = Launch::new(seed.opening.file.clone())
+            .with_sequence(seed.opening.sequence.clone())
+            .with_look(seed.factory.appearances.current())
+            .with_presentation(seed.presentation);
         Wiring {
             edge,
             launch,
