@@ -235,7 +235,7 @@ fn json_lines_are_counted_exactly_or_as_a_lower_bound() {
         rows(&TreePeek::facts(&whole)),
         expected(&[
             ("kind", "JSON Lines"),
-            ("entries", "100"),
+            ("items", "100"),
             ("encoding", "UTF-8")
         ])
     );
@@ -244,7 +244,7 @@ fn json_lines_are_counted_exactly_or_as_a_lower_bound() {
     assert_eq!(start.values, Some(Tally::AtLeast(11)));
     assert_eq!(
         rows(&TreePeek::facts(&start))[1],
-        ("entries", "11+".to_owned())
+        ("items", "11+".to_owned())
     );
 }
 

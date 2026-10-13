@@ -1,16 +1,18 @@
 //! The General section: what every file has, whatever it holds. The file system is read at the
 //! edge (`anyview-store`); this turns what it said into rows.
 
-use super::{FactTime, FactValue, Facts, LocalZone, kind_name};
+use super::{FactTime, FactValue, Facts, LocalZone, kind_name, kind_name_of};
 use crate::facts::FactLabel;
 use crate::kind::FormatKind;
 use crate::sniff::Sniffed;
-use crate::source::{ByteLen, ModTime};
+use crate::source::{ByteLen, FileName, ModTime};
 
 /// What the file system says about one file besides its bytes. A field the file system did not
 /// give is absent, and its row is left out.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FileDetails {
+    /// The file's name: a file of no known kind is named by its extension (`BIN file`).
+    pub name: Option<FileName>,
     /// The size in bytes.
     pub len: Option<ByteLen>,
     /// When the file was made, where the file system records it.
@@ -35,7 +37,11 @@ impl Facts {
     /// [`Facts::general`] with the dates shown in `zone`.
     pub fn general_in(sniffed: &Sniffed, details: &FileDetails, zone: &LocalZone) -> Facts {
         let date = |time: ModTime| FactValue::date_in(FactTime::from_mod_time(time), zone);
-        let mut facts = Facts::empty().with(FactLabel::Kind, FactValue::text(kind_name(sniffed)));
+        let kind = match &details.name {
+            Some(name) => kind_name_of(sniffed, name),
+            None => kind_name(sniffed),
+        };
+        let mut facts = Facts::empty().with(FactLabel::Kind, FactValue::text(kind));
         // A folder's size is what its contents add up to, which only its own peek knows.
         if let Some(len) = details.len
             && sniffed.kind() != FormatKind::Folder
@@ -142,9 +148,15 @@ mod tests {
             ("README.md", b"# Title\n", "Markdown document"),
             ("data.csv", b"a,b\n1,2\n", "CSV table"),
             ("data.json", b"{\"a\":1}", "JSON document"),
+            ("a.avi", b"RIFF\x24\0\0\0AVI LIST", "AVI video"),
+            ("random.bin", b"\x01\x02\0\0\xfe\xfd", "BIN file"),
+            ("nul.txt", b"\0\0\0\0\0\0\0\0", "TXT file"),
+            ("noextension", b"\x01\x02\0\0\xfe\xfd", "Document"),
         ];
         for (name, head, want) in CASES {
-            assert_eq!(kind_name(&sniffed(name, head)), *want, "{name}");
+            let sniffed = sniffed(name, head);
+            let file = FileName::new(name).unwrap();
+            assert_eq!(kind_name_of(&sniffed, &file), *want, "{name}");
         }
     }
 
@@ -189,6 +201,7 @@ mod tests {
     #[test]
     fn the_general_section_lists_what_the_file_system_gave_in_order() {
         let details = FileDetails {
+            name: None,
             len: Some(ByteLen(3_214_880)),
             created: Some(ModTime(1_790_951_400 * 1_000_000_000)),
             modified: Some(ModTime(1_790_951_460 * 1_000_000_000)),

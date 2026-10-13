@@ -6,45 +6,25 @@
 //! with a real one and the registry's arm names the new type.
 
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
+    FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed, kind_name_of,
 };
-use ds_core::word::Word;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 
 /// What a facts-only peek holds: the words for the file's type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Described {
-    /// What the file is: `Video (MP4)`, `Office (DOCX)`, or its media type when the kind has no
-    /// formats to name (`application/pdf`).
+    /// What the file is, as a person names it: `MP4 video`, `Word document`, `BIN file`. Never a
+    /// media type.
     pub kind: String,
 }
 
 impl Described {
-    /// What `sniffed` says the file is.
-    pub fn of(sniffed: &Sniffed) -> Self {
-        let kind = match format_label(sniffed.detail()) {
-            Some(format) => format!("{} ({})", sniffed.kind().label(), format.to_uppercase()),
-            None => sniffed.mime().as_str().to_owned(),
-        };
-        Described { kind }
-    }
-}
-
-/// The name of the format inside a kind, for the kinds whose detail is a format.
-fn format_label(detail: &FormatDetail) -> Option<&'static str> {
-    match detail {
-        FormatDetail::Media(format) => Some(format.label()),
-        FormatDetail::Font(format) => Some(format.label()),
-        FormatDetail::Archive(format) => Some(format.label()),
-        FormatDetail::Book(format) => Some(format.label()),
-        FormatDetail::Office(format) => Some(format.label()),
-        FormatDetail::None
-        | FormatDetail::Raster(_)
-        | FormatDetail::Code(_)
-        | FormatDetail::Table(_)
-        | FormatDetail::Tree(_)
-        | FormatDetail::Text(_) => None,
+    /// What `sniffed` says the file `src` is.
+    pub fn of(src: &Input, sniffed: &Sniffed) -> Self {
+        Described {
+            kind: kind_name_of(sniffed, src.name()),
+        }
     }
 }
 
@@ -63,8 +43,8 @@ impl<K: Describes> Peek for FactsPeek<K> {
     type Peeked = Described;
     type Error = Infallible;
 
-    fn peek(_: &Input, sniffed: &Sniffed, _: &PeekBudget) -> Result<Described, Infallible> {
-        Ok(Described::of(sniffed))
+    fn peek(src: &Input, sniffed: &Sniffed, _: &PeekBudget) -> Result<Described, Infallible> {
+        Ok(Described::of(src, sniffed))
     }
 
     fn facts(peeked: &Described) -> Facts {
@@ -98,25 +78,45 @@ mod tests {
     }
 
     #[test]
-    fn a_file_is_described_by_its_kind_and_format() {
+    fn a_file_is_described_in_a_persons_words_never_by_its_media_type() {
         // name, file name, head, words
         const CASES: &[(&str, &str, &[u8], &str)] = &[
             (
                 "mp4",
                 "clip.mp4",
                 b"\0\0\0\x18ftypmp42\0\0\0\0mp42isom",
-                "Video (MP4)",
+                "MP4 video",
             ),
-            ("flac", "song.flac", b"fLaC\0\0\0\x22", "Audio (FLAC)"),
+            ("flac", "song.flac", b"fLaC\0\0\0\x22", "FLAC audio"),
             (
                 "ttf",
                 "face.ttf",
                 b"\0\x01\0\0\0\x0f\0\x80\0\x03\0\x30",
-                "Font (TTF)",
+                "TrueType font",
             ),
+            (
+                "no known kind",
+                "random.bin",
+                b"\x01\x02\0\0\xfe\xfd",
+                "BIN file",
+            ),
+            ("no extension", "blob", b"\x01\x02\0\0\xfe\xfd", "Document"),
         ];
         for (name, file, head, want) in CASES {
-            assert_eq!(Described::of(&sniffed(file, head)).kind, *want, "{name}");
+            let stamp = anyview_core::FileStamp {
+                len: anyview_core::ByteLen(head.len() as u64),
+                modified: anyview_core::ModTime(0),
+            };
+            let src = Input::new(
+                FileName::new(file).unwrap(),
+                stamp,
+                std::sync::Arc::new(head.to_vec()),
+            );
+            assert_eq!(
+                Described::of(&src, &sniffed(file, head)).kind,
+                *want,
+                "{name}"
+            );
         }
     }
 }

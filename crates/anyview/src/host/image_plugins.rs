@@ -78,12 +78,13 @@ fn tool_of(sniffed: &Sniffed) -> Helper {
     }
 }
 
-/// The row for a plugin that is installed and whose tools are not: it names what to install.
+/// The row for a plugin that is installed and whose tools are not: it names the package to
+/// install, as the helpers file calls it, in a person's words.
 fn missing_tools(sniffed: &Sniffed) -> Fact {
     let text = if sniffed.mime().as_str() == RAW {
-        "LibRaw's dcraw_emu (or dcraw) for the RAW plugin (to show it in full quality)"
+        "LibRaw tools (to show it in full quality)"
     } else {
-        "libheif's heif-dec (or heif-convert) for the HEIF plugin (to show it)"
+        "libheif tools (to show it)"
     };
     Fact::new(FactLabel::Needs, FactValue::text(text))
 }

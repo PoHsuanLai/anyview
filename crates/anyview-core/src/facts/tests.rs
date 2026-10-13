@@ -147,3 +147,23 @@ fn value_of_modified_is_the_files_own_date_not_the_documents() {
         Some(&FactValue::text("PDF's own"))
     );
 }
+
+#[test]
+fn a_section_is_headed_by_what_the_file_is_not_by_the_kind_that_first_used_it() {
+    use ds_core::word::Word;
+    // label, section heading, row label
+    const CASES: &[(FactLabel, &str, &str)] = &[
+        (FactLabel::Rows, "Table", "Rows"),
+        (FactLabel::Columns, "Table", "Columns"),
+        (FactLabel::Keys, "Data", "Keys"),
+        (FactLabel::Items, "Contents", "Items"),
+        (FactLabel::Lines, "Text", "Lines"),
+        (FactLabel::Entries, "Archive", "Entries"),
+        (FactLabel::Bitrate, "Media", "Bit rate"),
+        (FactLabel::Framerate, "Video", "Frame rate"),
+    ];
+    for (label, heading, row) in CASES {
+        assert_eq!(label.group().label(), *heading, "{label:?}");
+        assert_eq!(label.label(), *row, "{label:?}");
+    }
+}

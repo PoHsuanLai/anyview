@@ -424,27 +424,39 @@ fn a_player_that_cannot_start_is_an_open_that_failed() {
     assert!(player.alive().is_empty());
 }
 
-/// A player that fails after the window opened says so in the status: (row, a position it had
-/// reached before it failed, what it reports, the words the status then shows, exact or contained).
+/// A player that fails after the window opened says so: (row, a position it had reached before it
+/// failed, what it reports, where the words are shown, the words, exact or contained). A player
+/// that never opened leaves the card a missing player leaves, with Show in Folder; one that stops
+/// mid recording says so in the status.
 #[test]
 fn a_player_that_fails_says_so_in_its_own_words() {
-    let cases: [(&str, Option<u64>, MediaError, &str, bool); 2] = [
+    type Case = (
+        &'static str,
+        Option<u64>,
+        MediaError,
+        &'static str,
+        &'static str,
+        bool,
+    );
+    let cases: [Case; 2] = [
         (
             "gives up on opening",
             None,
             MediaError::OpenFailed,
-            "cannot be played",
-            false,
+            ".viewer-peek .viewer-card-note",
+            "This recording can\u{2019}t be played.",
+            true,
         ),
         (
             "stops mid recording",
             Some(10),
             MediaError::PlaybackFailed,
+            ".viewer-media-status",
             "The player stopped",
             true,
         ),
     ];
-    for (row, reached, error, words, exact) in cases {
+    for (row, reached, error, place, words, exact) in cases {
         let Opened {
             mut harness,
             player,
@@ -456,14 +468,14 @@ fn a_player_that_fails_says_so_in_its_own_words() {
         }
         line.say(&[MediaNotice::Failed(error)]);
         settle(&mut harness);
-        let status = harness.text_of(".viewer-media-status").unwrap_or_default();
+        let status = harness.text_of(place).unwrap_or_default();
         assert!(
             if exact {
                 status == words
             } else {
                 status.contains(words)
             },
-            "row {row}: the status {status:?} lacks {words:?}"
+            "row {row}: {place} says {status:?}, not {words:?}"
         );
     }
 }
@@ -1030,6 +1042,16 @@ fn a_recording_no_plugin_plays_opens_as_its_facts_and_names_the_package_that_wou
         "and what the host read of the file: {text}"
     );
     assert_eq!(harness.count(".viewer-peek"), 1, "a facts card");
+    assert_eq!(
+        harness.count(".viewer-peek .viewer-card"),
+        1,
+        "the card every file with no stage has, which scrolls when its rows do not fit"
+    );
+    assert_eq!(
+        text.matches("anyview-mpv").count(),
+        1,
+        "the package is named once: {text}"
+    );
     assert_eq!(
         harness.count(".viewer-media-status"),
         0,

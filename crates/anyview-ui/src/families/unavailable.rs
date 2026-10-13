@@ -1,0 +1,102 @@
+//! The card of a file the viewer has a stage for and cannot use right now: a recording nothing
+//! plays, a picture whose decoder is not installed. One layout for all of them, so a missing tool
+//! reads the same wherever it is missing: the file's name and summary, one line saying what is
+//! missing and what it is for (or that the file cannot be used), Install… when the host offers
+//! one, Show in Folder, and the file's facts below, scrolling when they do not fit.
+
+use crate::families::InfoCard;
+use crate::families::view::StageCx;
+use crate::{Command, Need};
+use anyview_core::{FactLabel, Facts, FileAction, FormatKind, Helper};
+use dioxus::prelude::*;
+use ds::components::controls::button::Button;
+use ds_core::word::Word;
+
+/// The line under the summary: the `Needs` row of `needs` as a person reads it, or `unusable`
+/// (what the file cannot do) when nothing is known to fix it.
+pub(crate) fn note_of(needs: Option<&Need>, unusable: &str) -> String {
+    match needs {
+        Some(need) => format!("{}: {}", need.fact.label.label(), need.fact.value.as_str()),
+        None => unusable.to_owned(),
+    }
+}
+
+/// `facts` without the `Needs` row, which the card's note already says.
+pub(crate) fn listed(facts: &Facts) -> Facts {
+    facts
+        .rows()
+        .iter()
+        .filter(|row| row.label != FactLabel::Needs)
+        .fold(Facts::empty(), |listed, row| listed.with_fact(row.clone()))
+}
+
+/// The card of the file called `name`, of `kind`, whose rows are `facts`. `note` is the line under
+/// the summary; `install` is the tool whose installation the host offers, if any.
+#[component]
+pub(crate) fn UnavailableCard(
+    name: String,
+    kind: FormatKind,
+    facts: Facts,
+    note: String,
+    install: Option<Helper>,
+    cx: StageCx,
+) -> Element {
+    let run = cx.run;
+    let platform = cx.platform;
+    rsx! {
+        div { class: "viewer-peek",
+            div { class: "viewer-peek-body",
+                InfoCard {
+                    name,
+                    kind: Some(kind),
+                    facts,
+                    note: Some(note),
+                    actions: rsx! {
+                        div { class: "viewer-failed-actions",
+                            if let Some(helper) = install {
+                                Button {
+                                    label: "Install…",
+                                    onclick: move |_| run.call(Command::Install(helper)),
+                                }
+                            }
+                            if platform.offers(FileAction::RevealInFolder) {
+                                Button {
+                                    label: "Show in Folder",
+                                    onclick: move |_| run.call(Command::File(FileAction::RevealInFolder)),
+                                }
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyview_core::{Fact, FactValue};
+
+    #[test]
+    fn a_missing_tool_is_named_once_and_a_file_nothing_fixes_says_so() {
+        let need = Need::passive(Fact::new(
+            FactLabel::Needs,
+            FactValue::text("anyview-mpv (to play it)"),
+        ));
+        assert_eq!(
+            note_of(Some(&need), "This recording can\u{2019}t be played."),
+            "Needs: anyview-mpv (to play it)"
+        );
+        assert_eq!(
+            note_of(None, "This recording can\u{2019}t be played."),
+            "This recording can\u{2019}t be played."
+        );
+        let facts = Facts::empty()
+            .with(FactLabel::Kind, FactValue::text("AVI video"))
+            .with_fact(need.fact.clone());
+        let listed = listed(&facts);
+        let labels: Vec<_> = listed.rows().iter().map(|row| row.label).collect();
+        assert_eq!(labels, [FactLabel::Kind]);
+    }
+}

@@ -72,7 +72,10 @@ impl StageView for TreeStageView {
         essentials(vec![CapsuleSlot::button(
             Command::Stage(StageCommand::CollapseAll),
             "Collapse All",
-            Icon::ChevronUp,
+            // The set has no inward pair of chevrons (collapse all); the outward pair is its fold
+            // mark, which a tree's person reads as the folding control, where one chevron up
+            // read as "scroll to top".
+            Icon::ChevronsUpDown,
         )])
     }
 

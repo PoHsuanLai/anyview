@@ -68,7 +68,7 @@ impl Peek for BookPeek {
     type Error = PeekError;
 
     fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<BookLook, PeekError> {
-        let described = Described::of(sniffed);
+        let described = Described::of(src, sniffed);
         let FormatDetail::Book(format) = sniffed.detail() else {
             return Err(PeekError::WrongKind {
                 kind: sniffed.kind(),

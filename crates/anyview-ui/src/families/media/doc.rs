@@ -78,7 +78,7 @@ pub(super) fn open(
         .ok_or_else(|| OpenError::Media("a file opened ahead does not play".to_owned()))?;
     let started = port.start(ticket, src, sniffed, link.texture.clone())?;
     let facts = Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+        .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len));
     let facts = started.facts.rows().iter().fold(facts, |facts, row| {
         // A recording's size is its picture's: the Video section, not an image's Picture.

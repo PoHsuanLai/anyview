@@ -178,7 +178,7 @@ fn each_format_lists_what_its_header_says() {
         if is_video {
             assert_eq!(got.kind, FormatKind::Video, "{name}");
             assert_eq!(got.body.slug(), "facts", "{name}");
-            assert!(rows(&got.facts)[0].1.starts_with("Video ("), "{name}");
+            assert!(rows(&got.facts)[0].1.ends_with(" video"), "{name}");
         }
     }
 }
@@ -206,7 +206,7 @@ fn an_audio_file_with_a_cover_shows_the_cover_reduced_to_the_budget() {
         "step pane budget: a small cover is not enlarged"
     );
     let rows = rows(&audio.facts);
-    assert_eq!(rows[0].1, "Audio (MP3)");
+    assert_eq!(rows[0].1, "MP3 audio");
     assert_eq!(rows[1], ("duration", "0:02".to_owned()));
     assert_eq!(rows[2], ("codec", "mp3".to_owned()));
 

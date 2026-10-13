@@ -231,7 +231,7 @@ fn facts_list_the_formats_rows_then_the_size_and_the_date() {
             "events.jsonl",
             &[
                 ("kind", "JSON Lines"),
-                ("entries", "100"),
+                ("items", "100"),
                 ("encoding", "UTF-8"),
                 ("size", "2.5 KB"),
                 ("modified", "1 Jan 1970 at 00:00"),
@@ -305,13 +305,24 @@ fn a_damaged_pdf_is_a_page_that_says_so() {
 #[test]
 fn kinds_without_a_back_end_show_their_type_size_and_date() {
     // name, file name, bytes, kind, kind words
-    const CASES: &[(&str, &str, &[u8], FormatKind, &str)] = &[(
-        "other",
-        "blob.bin",
-        b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0",
-        FormatKind::Other,
-        "application/octet-stream",
-    )];
+    const ELF: &[u8] = b"\x7fELF\x02\x01\x01\0\0\0\0\0\0\0\0\0";
+    const CASES: &[(&str, &str, &[u8], FormatKind, &str)] = &[
+        ("other", "blob.bin", ELF, FormatKind::Other, "BIN file"),
+        (
+            "other, no extension",
+            "blob",
+            ELF,
+            FormatKind::Other,
+            "Document",
+        ),
+        (
+            "a text of nothing but NULs",
+            "nul-bytes.txt",
+            &[0; 64],
+            FormatKind::Other,
+            "TXT file",
+        ),
+    ];
     let dir = tempfile::tempdir().unwrap();
     for (name, file, bytes, kind, words) in CASES {
         let path = dir.path().join(file);
@@ -356,7 +367,7 @@ fn a_folder_counts_its_items_size_and_kinds() {
     assert_eq!(folder.size, anyview_core::ByteLen(8 + 6 + 122));
     let want = vec![
         ("kind", "Folder".to_owned()),
-        ("entries", "4 items: 2 plain text, 1 raster".to_owned()),
+        ("items", "4 (2 text files, 1 picture)".to_owned()),
         ("size", "136 B".to_owned()),
         ("modified", "1 Jan 1970 at 00:00".to_owned()),
     ];
@@ -446,5 +457,5 @@ fn a_damaged_archive_is_unavailable_with_its_kind_and_the_reason() {
         reason.label().starts_with("not a valid ZIP archive"),
         "{reason:?}"
     );
-    assert_eq!(rows(&peeked.facts)[0], ("kind", "Archive (ZIP)".to_owned()));
+    assert_eq!(rows(&peeked.facts)[0], ("kind", "ZIP archive".to_owned()));
 }

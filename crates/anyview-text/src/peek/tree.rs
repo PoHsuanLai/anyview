@@ -6,8 +6,8 @@ use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
 use crate::tree::{Tree, TreeRow};
 use anyview_core::{
-    FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
-    TreeFormat, TreePath,
+    Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek,
+    PeekBudget, Sniffed, TreeFormat, TreePath,
 };
 
 /// How many top-level keys the facts name before "and N more".
@@ -76,21 +76,26 @@ impl Peek for TreePeek {
         };
         let facts = Facts::empty().with(FactLabel::Kind, FactValue::text(kind));
         let facts = match (&peeked.values, peeked.keys.as_slice()) {
-            (Some(values), []) => facts.with(FactLabel::Entries, FactValue::text(values.text())),
-            (None, []) => facts.with(
-                FactLabel::Entries,
-                FactValue::text(grouped(peeked.root.children.0)),
-            ),
+            (Some(values), []) => facts.with_fact(items(values.text())),
+            (None, []) => facts.with_fact(items(grouped(peeked.root.children.0))),
             (values, keys) => facts.with(
                 FactLabel::Keys,
                 FactValue::text(keys_text(keys, peeked.root.children.0, values.as_ref())),
             ),
         };
-        facts.with(
-            FactLabel::Encoding,
-            FactValue::text(peeked.encoding.label()),
+        facts.with_fact(
+            Fact::new(
+                FactLabel::Encoding,
+                FactValue::text(peeked.encoding.label()),
+            )
+            .in_group(FactGroup::Data),
         )
     }
+}
+
+/// The count of a document's top-level values, listed with what else the document holds.
+fn items(count: String) -> Fact {
+    Fact::new(FactLabel::Items, FactValue::text(count)).in_group(FactGroup::Data)
 }
 
 /// `name, version, deps and 3 more`: the keys named, then how many more the object has, with a

@@ -177,3 +177,46 @@ fn each_control_says_its_own_words() {
         }
     }
 }
+
+/// The text stage's Wrap Lines and Edit and the tree's Collapse All have no label to read: the tip
+/// is what says what each does.
+#[test]
+fn the_icon_only_buttons_of_the_text_and_tree_stages_have_tips() {
+    // row, file name, content, the buttons to hover
+    const CASES: &[(&str, &str, &str, &[&str])] = &[
+        (
+            "text",
+            "notes.txt",
+            "a few words\n",
+            &["Wrap Lines", "Edit"],
+        ),
+        (
+            "tree",
+            "data.json",
+            "{\"a\": [1, 2], \"b\": {\"c\": 3}}",
+            &["Collapse All"],
+        ),
+    ];
+    for (row, name, content, labels) in CASES {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(name);
+        std::fs::write(&path, content).unwrap();
+        let path = std::fs::canonicalize(path).unwrap();
+        let (mut harness, _, _) = wired(&[path], 0, Appearance::default(), Wiring::default());
+        settle(&mut harness);
+        harness.send(Input::pointer_move(Point {
+            x: Px(450.0),
+            y: Px(200.0),
+        }));
+        settle(&mut harness);
+        for label in *labels {
+            hover(&mut harness, label);
+            harness.advance(Duration::from_millis(1300));
+            let tip = harness.text_of(TIP).unwrap_or_default();
+            assert!(
+                tip.starts_with(label),
+                "row {row}: the tip of {label} is its name: {tip:?}"
+            );
+        }
+    }
+}
