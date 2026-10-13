@@ -16,7 +16,6 @@ use futures_util::future::{Either, select};
 use std::cell::{Cell, RefCell};
 use std::pin::pin;
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// What a host gives [`ViewerPane`].
 #[derive(Props, Clone, PartialEq)]
@@ -101,12 +100,15 @@ fn Seated(props: PaneProps) -> Element {
 
     let (edge, inbox) = use_hook(|| {
         let (sender, receiver) = unbounded::<HostRequest>();
-        let mut services = props.edge.services();
-        services.on_request = Arc::new(move |request| {
-            // The pane is gone when the receiver is: there is nobody to ask.
-            let _gone = sender.unbounded_send(request);
-        });
-        (Edge::new(services), Rc::new(RefCell::new(Some(receiver))))
+        let edge = Edge::new(
+            props.edge.workers(),
+            move |request| {
+                // The pane is gone when the receiver is: there is nobody to ask.
+                let _gone = sender.unbounded_send(request);
+            },
+            props.edge.seams(),
+        );
+        (edge, Rc::new(RefCell::new(Some(receiver))))
     });
     let heard = answer.clone();
     let writing = edge.clone();

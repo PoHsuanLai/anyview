@@ -13,7 +13,7 @@ use crate::host::{
 use anyview_core::{FilePath, Resume};
 use anyview_platform::{Stacking, StackingOutcome};
 use anyview_ui::{
-    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, SaveEnd, Services,
+    Edge, HelperSource, HostRequest, Launch, Notice, Presentation, ResumeSource, SaveEnd, Seams,
     ViewerApp,
 };
 use dioxus::prelude::*;
@@ -88,22 +88,26 @@ impl Wiring {
     fn new(seed: &Seed) -> Wiring {
         let (send, receive) = unbounded();
         let again = send.clone();
-        let services = Services::new(Arc::clone(&seed.factory.workers), move |request| {
-            // A window that closed has no receiver, and nobody is left to ask.
-            let _gone = send.unbounded_send(request);
-        })
-        .with_resume_source(resume_of(seed))
-        .with_version_source(Arc::clone(&seed.factory.versions))
-        .with_first_frames(Arc::clone(&seed.factory.first_frames))
-        .with_media(Arc::clone(&seed.factory.media))
-        .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
-        .with_locks(Arc::new(StoreLocks))
-        .with_platform(seed.factory.hosting.abilities());
-        let services = match &seed.factory.helpers {
-            Some(helpers) => services.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
-            None => services,
+        let seams = Seams::default()
+            .with_resume_source(resume_of(seed))
+            .with_version_source(Arc::clone(&seed.factory.versions))
+            .with_first_frames(Arc::clone(&seed.factory.first_frames))
+            .with_media(Arc::clone(&seed.factory.media))
+            .with_image_plugins(Arc::clone(&seed.factory.image_plugins))
+            .with_locks(Arc::new(StoreLocks))
+            .with_platform(seed.factory.hosting.abilities());
+        let seams = match &seed.factory.helpers {
+            Some(helpers) => seams.with_helpers(Arc::clone(helpers) as Arc<dyn HelperSource>),
+            None => seams,
         };
-        let edge = Edge::new(services);
+        let edge = Edge::new(
+            Arc::clone(&seed.factory.workers),
+            move |request| {
+                // A window that closed has no receiver, and nobody is left to ask.
+                let _gone = send.unbounded_send(request);
+            },
+            seams,
+        );
         let launch = Launch::new(seed.opening.file.clone())
             .with_sequence(seed.opening.sequence.clone())
             .with_look(seed.factory.appearances.current())

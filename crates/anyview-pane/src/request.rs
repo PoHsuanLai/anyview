@@ -10,7 +10,11 @@ use anyview_ui::{
 /// A change to the file, or an action on it, that the pane leaves to its host: the pane has no
 /// sheets and writes nothing, so the host asks what it needs to (a name, a confirmation) and
 /// carries the request out, or declines it.
+///
+/// Non-exhaustive: a new request can be added without breaking a host, so a host's `match` ends in
+/// an arm that ignores (or declines) a request it does not know.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FileRequest {
     /// Carry out a file action on the open file (reveal it, rename it, move it to the trash,
     /// print it…).
@@ -40,7 +44,11 @@ pub enum FileRequest {
 }
 
 /// What the pane asks of its host.
+///
+/// Non-exhaustive: a new request can be added without breaking a host, so a host's `match` ends in
+/// an arm that ignores a request it does not know.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PaneRequest {
     /// The open file's content is naturally this big: the host may use it for the split ratio.
     SizeHint(NaturalSize),

@@ -809,7 +809,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   holds under a long play. Ends with a run on a real output.
 
 - **A recording plays in a pane only where a host gave the pane a player, and no host has played one yet.**
-  `PaneEdge::with_player` (feature `player`) and `with_media` start the player of `anyview-media-host`, and the pane then
+  `PaneEdge::with_player` (feature `player`) and `Seams::with_media` start the player of `anyview-media-host`, and the pane then
   stops handing recordings to its host as `OpenElsewhere`. The tests cover the hub's choice of whom to pause (the table
   in `focus.rs`), the boundary and the manifests, that a pane with a (scripted) player shows the media stage and hands
   nothing to its host while one without hands the file over, and, with the real mpv (CI's `player` job; skipped

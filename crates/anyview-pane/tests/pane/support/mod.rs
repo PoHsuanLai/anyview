@@ -6,7 +6,8 @@
 use anyview_core::Source;
 use anyview_pane::{
     Clock as ViewClock, FilePath, HitList, MediaHost, NonEmpty, PaneCommand, PaneEdge, PaneRequest,
-    Sequence, SequenceOrigin, ViewerPane, Work, WorkKind, Workers, use_pane_handle,
+    PlatformAbilities, Seams, Sequence, SequenceOrigin, ViewerPane, Work, WorkKind, Workers,
+    use_pane_handle,
 };
 use anyview_store::Viewed;
 use dioxus::prelude::*;
@@ -336,11 +337,12 @@ pub fn hosted_with(
     media: Option<Arc<dyn MediaHost>>,
 ) -> Host {
     let workers = Arc::new(Counting::default());
-    let edge = PaneEdge::portable(workers.clone());
-    let edge = match media {
-        Some(host) => edge.with_media(host),
-        None => edge,
+    let seams = Seams::default().with_platform(PlatformAbilities::NONE);
+    let seams = match media {
+        Some(host) => seams.with_media(host),
+        None => seams,
     };
+    let edge = PaneEdge::new(workers.clone(), seams);
     let edge = match store {
         Some(root) => edge
             .with_store(root)

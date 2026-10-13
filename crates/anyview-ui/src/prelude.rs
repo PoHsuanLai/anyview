@@ -3,11 +3,11 @@
 //! anyview_ui::prelude::*;` brings them in.
 //!
 //! What belongs here is what a binary or a test harness names to build and run a window
-//! ([`Services`], [`Edge`], [`Launch`], [`ViewerApp`]) and the seams it most often fills in
+//! ([`Seams`], [`Edge`], [`Launch`], [`ViewerApp`]) and the seams it most often fills in
 //! ([`Workers`], [`HostRequest`], [`PlatformAbilities`]). The state machines, the stages and the
 //! views are reached from the crate root by the code that drives them.
 
 pub use crate::{
-    DesktopService, Edge, HostRequest, Launch, Opened, PlatformAbilities, Services, ViewerApp,
+    DesktopService, Edge, HostRequest, Launch, Opened, PlatformAbilities, Seams, ViewerApp,
     WelcomeApp, Work, Workers,
 };

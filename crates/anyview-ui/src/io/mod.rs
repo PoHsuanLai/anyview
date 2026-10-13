@@ -10,8 +10,8 @@ mod job;
 mod media;
 mod notice;
 mod probe;
+mod seam_set;
 mod seams;
-mod services;
 mod workers;
 
 pub use anyview_core::work::{Backend, Stop};
@@ -27,11 +27,11 @@ pub use media::{
 };
 pub use notice::Notice;
 pub(crate) use probe::probe;
+pub use seam_set::Seams;
 pub use seams::{
     FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeKeeper, ResumeSource,
     VersionSource,
 };
-pub use services::Services;
 pub use workers::{
     Edge, HostRequest, NaturalSize, NotOpened, Reply, SizeBasis, TextSave, Work, WorkKind, Workers,
 };
