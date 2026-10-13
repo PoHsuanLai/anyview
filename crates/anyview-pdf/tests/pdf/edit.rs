@@ -136,6 +136,51 @@ fn edits_apply_in_order_each_seeing_the_pages_before_it_left() {
 }
 
 #[test]
+fn a_long_chain_written_once_equals_the_same_edits_written_one_by_one() {
+    let doc = fixture();
+    let turn = |page, turn| PageOp::Rotate {
+        page: PageIndex(page),
+        turn,
+    };
+    let shift = |from, to| PageOp::Move {
+        from: PageIndex(from),
+        to: PageIndex(to),
+    };
+    let ops = [
+        shift(0, 2),
+        turn(0, QuarterTurn::Quarter),
+        turn(1, QuarterTurn::Quarter),
+        shift(2, 0),
+        turn(0, QuarterTurn::Half),
+        shift(1, 2),
+        turn(2, QuarterTurn::ThreeQuarter),
+        turn(2, QuarterTurn::Quarter),
+        PageOp::Delete(PageRange::single(PageIndex(1))),
+        turn(0, QuarterTurn::Quarter),
+        shift(1, 0),
+        turn(1, QuarterTurn::Quarter),
+        turn(0, QuarterTurn::Quarter),
+    ];
+    let once = reopened(&doc, &ops);
+    let mut one_by_one = doc;
+    for op in &ops {
+        one_by_one = reopened(&one_by_one, std::slice::from_ref(op));
+    }
+    assert_eq!(once.page_count().get(), one_by_one.page_count().get());
+    assert_eq!(once.page_count().get(), 2);
+    for page in 0..2 {
+        assert_eq!(size(&once, page), size(&one_by_one, page), "page {page}");
+    }
+    for title in ["Chapter One", "Chapter Two", "Appendix"] {
+        assert_eq!(
+            first_hit_page(&once, title),
+            first_hit_page(&one_by_one, title),
+            "{title}"
+        );
+    }
+}
+
+#[test]
 fn a_viewer_edit_reaches_the_file() {
     let doc = fixture();
     let op = page_op(Edit::Rotate(QuarterTurn::Half), PageIndex(1)).unwrap();
