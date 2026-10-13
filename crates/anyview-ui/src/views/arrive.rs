@@ -411,7 +411,8 @@ fn found(c: &Carry, ticket: Ticket, asked: (TypedText, FindOptions), hits: Found
         return;
     };
     let (stage, current) = {
-        let state = dispatch.machine.state().peek();
+        let signal = dispatch.machine.state();
+        let state = signal.peek();
         (state.stage.clone(), state.find_options)
     };
     let Stage::Text(TextStage::Finding {
