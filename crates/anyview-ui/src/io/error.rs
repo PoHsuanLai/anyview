@@ -45,6 +45,7 @@ pub enum OpenError {
 
 impl OpenError {
     /// What the load machine is told.
+    #[must_use]
     pub fn failure(&self) -> LoadFailure {
         match self {
             OpenError::Read(ErrorKind::NotFound) => LoadFailure::NotFound,

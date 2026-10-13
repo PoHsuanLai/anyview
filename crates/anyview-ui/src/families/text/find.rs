@@ -68,6 +68,7 @@ pub(crate) fn clip(line: &str, from: usize, to: usize) -> Snippet {
 
 impl FoundHits {
     /// The hits `hits`, which a search made in file order.
+    #[must_use]
     pub fn new(hits: Vec<FindHit>) -> FoundHits {
         FoundHits {
             hits,
@@ -86,17 +87,20 @@ impl FoundHits {
     }
 
     /// How many there are.
+    #[must_use]
     pub fn count(&self) -> HitCount {
         HitCount(u32::try_from(self.hits.len()).unwrap_or(u32::MAX))
     }
 
     /// The hit numbered `index`.
+    #[must_use]
     pub fn get(&self, index: HitIndex) -> Option<&FindHit> {
         self.hits.get(index.0 as usize)
     }
 
     /// The hit a reader at `line` meets first: the first on or after it, or the first of all when
     /// they are all behind.
+    #[must_use]
     pub fn nearest(&self, line: LineIndex) -> HitIndex {
         let at = self.hits.partition_point(|hit| hit.line < line);
         match u32::try_from(at) {
@@ -106,6 +110,7 @@ impl FoundHits {
     }
 
     /// The hits on `line`, and the number of the first of them.
+    #[must_use]
     pub fn on_line(&self, line: LineIndex) -> (HitIndex, &[FindHit]) {
         let start = self.hits.partition_point(|hit| hit.line < line);
         let end = self.hits.partition_point(|hit| hit.line <= line);

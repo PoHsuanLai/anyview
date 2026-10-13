@@ -108,7 +108,10 @@ pub struct RasterOpen {
 #[derive(Debug, Clone, Copy)]
 pub enum RasterJob {
     /// Decode the file and upload its first picture.
-    Decode { ticket: Ticket },
+    Decode {
+        /// The load this work belongs to.
+        ticket: Ticket,
+    },
 }
 
 /// What a decode made.

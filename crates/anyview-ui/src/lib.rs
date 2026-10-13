@@ -11,9 +11,12 @@
 //! Every public item is reached from this root, once, except that [`prelude`] names the front doors
 //! a second time for a glob import.
 
+#![warn(missing_docs)]
+
 mod families;
 mod io;
 mod look;
+/// The names a host uses most, for `use anyview_ui::prelude::*;`.
 pub mod prelude;
 #[cfg(test)]
 mod testing;

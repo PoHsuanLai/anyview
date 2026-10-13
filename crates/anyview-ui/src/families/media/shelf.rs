@@ -39,6 +39,7 @@ impl MediaShelf {
     }
 
     /// Where the person is and how they have it set, once the player has said.
+    #[must_use]
     pub fn place(&self) -> Option<MediaPlace> {
         self.0.peek().place()
     }

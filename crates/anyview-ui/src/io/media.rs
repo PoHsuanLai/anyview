@@ -60,6 +60,7 @@ pub struct MediaWake(Arc<dyn Fn() + Send + Sync>);
 
 impl MediaWake {
     /// A wake that runs `wake`: the window's posts to its mailbox, a test's counts.
+    #[must_use]
     pub fn new(wake: impl Fn() + Send + Sync + 'static) -> MediaWake {
         MediaWake(Arc::new(wake))
     }

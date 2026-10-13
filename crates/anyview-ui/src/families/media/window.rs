@@ -8,6 +8,7 @@ use anyview_core::{PixelLen, PixelSize};
 const AUDIO: (u32, u32) = (360, 460);
 
 /// The size an audio file's window opens at, in logical pixels.
+#[must_use]
 pub fn audio_window_size() -> PixelSize {
     PixelSize {
         width: PixelLen(AUDIO.0),

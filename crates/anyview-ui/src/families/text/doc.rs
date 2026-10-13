@@ -82,6 +82,7 @@ impl LineWindow {
     }
 
     /// Whether the window holds every line in `range`.
+    #[must_use]
     pub fn covers(&self, range: Range<u32>) -> bool {
         let end = self
             .first
@@ -93,6 +94,7 @@ impl LineWindow {
 
 impl TextDoc {
     /// How many lines the file has.
+    #[must_use]
     pub fn line_count(&self) -> LineCount {
         self.count
     }
