@@ -63,7 +63,7 @@ pub use anyview_peek::StillSource;
 pub use anyview_store::{Clock, STORE_FOLDER};
 pub use anyview_ui::{
     DesktopService, EditRequest, ExportDraft, FileAccess, FileLocks, HelperSource, HitList,
-    ImagePlugins, LoadFailure, Look, LookFeed, MediaHost, MediaSupport, NaturalSize, NotOpened,
-    Opened, PaneChrome, PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText, VersionKey,
-    VersionSource, Work, WorkKind, WorkLane, Workers,
+    ImagePlugins, LoadFailure, Look, LookFeed, LookSender, MediaHost, MediaSupport, NaturalSize,
+    NotOpened, Opened, PaneChrome, PlatformAbilities, ResumeSource, Rewind, TextSave, TypedText,
+    VersionKey, VersionSource, Work, WorkKind, WorkLane, Workers,
 };

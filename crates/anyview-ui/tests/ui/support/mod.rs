@@ -414,12 +414,10 @@ pub fn wired(
         services = services.with_media(player as Arc<dyn MediaHost>);
     }
     let edge = Edge::new(services);
-    let launch = Launch {
-        file: current,
-        sequence: Some(sequence),
-        look: appearance.into(),
-        presentation: wiring.presentation,
-    };
+    let launch = Launch::new(current)
+        .with_sequence(Some(sequence))
+        .with_look(appearance.into())
+        .with_presentation(wiring.presentation);
     let mut config = HarnessConfig::new(wiring.viewport.unwrap_or(VIEW))
         .with_clock(Clock::Virtual)
         .with_backend(Backend::Hybrid)

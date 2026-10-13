@@ -4,6 +4,9 @@
 
 use ds::prelude::{Alpha, Appearance, SystemPrefs, Typeface};
 use ds::style::material::stack::MaterialStack;
+use std::fmt;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::task::{Context, Poll, Waker};
 
 /// The desktop's look: theme, accent and motion, the system's scheme and contrast, and the
 /// material and typeface keys. `None` leaves a key to the root's own default.
@@ -31,15 +34,131 @@ impl From<Appearance> for Look {
     }
 }
 
-/// The look as it changes: a root context the binary provides to every window, so one watch of
-/// the desktop's files serves all of them. A window with none keeps the look it was launched with.
-#[derive(Debug, Clone)]
-pub struct LookFeed(pub tokio::sync::watch::Receiver<Look>);
+/// The look as it changes: a root context the binary (or an embedding host) provides to every
+/// window, so one watch of the desktop's files serves all of them. A window with none keeps the
+/// look it was launched with.
+///
+/// A feed is the receiving end of [`LookFeed::new`]. It clones freely, and every clone sees the
+/// same changes. It names no async runtime: [`changed`](LookFeed::changed) is an ordinary future.
+#[derive(Clone)]
+pub struct LookFeed {
+    shared: Arc<Shared>,
+    seen: u64,
+}
+
+/// The sending end of a [`LookFeed`]: the one place the look is changed. Dropping it ends the
+/// feed, and every [`LookFeed::changed`] then answers `None` once it has caught up.
+pub struct LookSender {
+    shared: Arc<Shared>,
+}
+
+struct Shared {
+    state: Mutex<State>,
+}
+
+struct State {
+    look: Look,
+    version: u64,
+    open: bool,
+    waiting: Vec<Waker>,
+}
+
+impl Shared {
+    fn lock(&self) -> MutexGuard<'_, State> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+impl LookFeed {
+    /// A feed that starts at `initial`, and the sender that changes it.
+    pub fn new(initial: Look) -> (LookSender, LookFeed) {
+        let shared = Arc::new(Shared {
+            state: Mutex::new(State {
+                look: initial,
+                version: 0,
+                open: true,
+                waiting: Vec::new(),
+            }),
+        });
+        let sender = LookSender {
+            shared: Arc::clone(&shared),
+        };
+        (sender, LookFeed { shared, seen: 0 })
+    }
+
+    /// The look now.
+    pub fn current(&self) -> Look {
+        self.shared.lock().look.clone()
+    }
+
+    /// Wait for a look this feed has not yet returned, and return it. `None` when the sender is
+    /// gone and there is nothing newer.
+    pub async fn changed(&mut self) -> Option<Look> {
+        std::future::poll_fn(|cx| self.poll_changed(cx)).await
+    }
+
+    fn poll_changed(&mut self, cx: &mut Context<'_>) -> Poll<Option<Look>> {
+        let mut state = self.shared.lock();
+        if state.version != self.seen {
+            self.seen = state.version;
+            return Poll::Ready(Some(state.look.clone()));
+        }
+        if !state.open {
+            return Poll::Ready(None);
+        }
+        if !state.waiting.iter().any(|w| w.will_wake(cx.waker())) {
+            state.waiting.push(cx.waker().clone());
+        }
+        Poll::Pending
+    }
+}
+
+impl LookSender {
+    /// Make `look` the feed's look and wake every window following it. A look equal to the current
+    /// one changes nothing and wakes no one.
+    pub fn set(&self, look: Look) {
+        let waiting = {
+            let mut state = self.shared.lock();
+            if state.look == look {
+                return;
+            }
+            state.look = look;
+            state.version += 1;
+            std::mem::take(&mut state.waiting)
+        };
+        waiting.into_iter().for_each(Waker::wake);
+    }
+}
+
+impl Drop for LookSender {
+    fn drop(&mut self) {
+        let waiting = {
+            let mut state = self.shared.lock();
+            state.open = false;
+            std::mem::take(&mut state.waiting)
+        };
+        waiting.into_iter().for_each(Waker::wake);
+    }
+}
+
+impl fmt::Debug for LookFeed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LookFeed")
+            .field("look", &self.current())
+            .finish()
+    }
+}
+
+impl fmt::Debug for LookSender {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LookSender").finish_non_exhaustive()
+    }
+}
 
 /// Two feeds are equal when they are the one channel, which is what a component's props need to know
 /// whether the host handed over the same feed again.
 impl PartialEq for LookFeed {
     fn eq(&self, other: &LookFeed) -> bool {
-        self.0.same_channel(&other.0)
+        Arc::ptr_eq(&self.shared, &other.shared)
     }
 }

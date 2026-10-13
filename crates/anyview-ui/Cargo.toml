@@ -34,7 +34,6 @@ ds-shell = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
 
 [dev-dependencies]
 # Pins the time zone the expected dates are written in.

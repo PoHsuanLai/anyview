@@ -53,9 +53,8 @@ pub fn source_of(path: &std::path::Path, len: usize) -> Input {
 
 /// A budget of `pixels` pixels and room for as many as that at four bytes each.
 pub fn budget(pixels: u64) -> PeekBudget {
-    PeekBudget {
-        bytes: ByteLen(pixels * 4),
-        pixels: PixelArea(pixels),
-        time: Duration::from_millis(500),
-    }
+    PeekBudget::DEFAULT
+        .with_bytes(ByteLen(pixels * 4))
+        .with_pixels(PixelArea(pixels))
+        .with_time(Duration::from_millis(500))
 }

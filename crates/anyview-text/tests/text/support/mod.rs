@@ -41,11 +41,10 @@ pub fn fixture(name: &str) -> (Source, Sniffed) {
 
 /// A budget that reads `bytes` bytes.
 pub fn budget(bytes: u64) -> PeekBudget {
-    PeekBudget {
-        bytes: ByteLen(bytes),
-        pixels: PixelArea(0),
-        time: Duration::from_millis(500),
-    }
+    PeekBudget::DEFAULT
+        .with_bytes(ByteLen(bytes))
+        .with_pixels(PixelArea(0))
+        .with_time(Duration::from_millis(500))
 }
 
 /// The facts as `(label slug, text)` rows, in order.

@@ -3,7 +3,7 @@
 
 use crate::support;
 
-use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, PeekBudget, Source};
+use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Source};
 use anyview_fs::OnDisk;
 use anyview_peek::{Body, PeekError, peek, probe};
 use std::path::Path;
@@ -79,10 +79,7 @@ fn a_peek_of_a_device_behind_a_link_reads_nothing() {
 fn a_picture_over_the_byte_budget_is_not_read() {
     let real = FilePath::new(path(Home::Image, "quadrants.png")).unwrap();
     let probed = probe(real.on_disk()).unwrap();
-    let tight = PeekBudget {
-        bytes: ByteLen(16),
-        ..pane_budget()
-    };
+    let tight = pane_budget().with_bytes(ByteLen(16));
     let peeked = peek(&probed.input, &probed.sniffed, &tight);
     assert!(
         matches!(peeked.body, Body::Unavailable(_)),

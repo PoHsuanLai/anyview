@@ -19,11 +19,10 @@ use std::time::Duration;
 
 /// What a first frame may spend: a picture about the size of a window, from a file read whole.
 /// The time is the pool's to enforce; the decoder reads no clock.
-const FIRST_FRAME: PeekBudget = PeekBudget {
-    bytes: ByteLen(64 * 1024 * 1024),
-    pixels: PixelArea(4 * 1024 * 1024),
-    time: Duration::from_secs(1),
-};
+const FIRST_FRAME: PeekBudget = PeekBudget::DEFAULT
+    .with_bytes(ByteLen(64 * 1024 * 1024))
+    .with_pixels(PixelArea(4 * 1024 * 1024))
+    .with_time(Duration::from_secs(1));
 
 /// The most pixels a plugin may be asked to decode: a 64 megapixel photograph, 256 MiB of RGBA.
 const PLUGIN_AREA: PixelArea = PixelArea(64 * 1024 * 1024);

@@ -1749,8 +1749,8 @@ and agrees with `stage_support`. `ANYVIEW_SHOTS=<dir>` makes the window tests sa
 
 The one desktop appearance (`quire/appearance.toml`, the settings portal) is read and watched by the binary alone:
 `host/appearance.rs` (`Appearances::follow`) loads `ds_settings::AppearanceFile` from a `Store` rooted at
-`env.dirs.config`, starts `SystemPrefsWatch`, and publishes each settled change as a `Look` on a
-`tokio::sync::watch`. Every window gets the receiver as a `LookFeed` root context; `ViewerApp` follows it (a window
+`env.dirs.config`, starts `SystemPrefsWatch`, and publishes each settled change as a `Look` through a
+`LookSender` (`anyview-ui`'s `LookFeed::new`, std only, no runtime in the type). Every window gets the `LookFeed` as a root context; `ViewerApp` follows it (a window
 with none keeps `Launch.look`). `anyview-ui` holds `Look` as plain data and does not name `ds-settings`. The program
 never writes the file and keeps none of its own. The host (`ds-blitz`) calls `follow_root` per frame, so a scheme
 switch repaints text; the viewer runs no frame loop of its own.

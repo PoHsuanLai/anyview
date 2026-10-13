@@ -134,11 +134,10 @@ const SIZE_HEADER: ByteLen = ByteLen(8 * 1024 * 1024);
 /// The size of the first video track's picture, from the header alone: `None` when the container
 /// has no reader here, the header is damaged or over [`SIZE_HEADER`], or the file has no video.
 pub fn video_size(src: &Input, sniffed: &Sniffed) -> Option<PixelSize> {
-    let budget = PeekBudget {
-        bytes: SIZE_HEADER,
-        pixels: PixelArea(0),
-        time: std::time::Duration::ZERO,
-    };
+    let budget = PeekBudget::DEFAULT
+        .with_bytes(SIZE_HEADER)
+        .with_pixels(PixelArea(0))
+        .with_time(std::time::Duration::ZERO);
     let recording = match reader_for(sniffed) {
         Reader::Mp4 => mp4::read(src, &budget),
         Reader::Matroska => matroska::read(src),

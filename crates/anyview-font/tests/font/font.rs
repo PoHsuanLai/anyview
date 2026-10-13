@@ -16,11 +16,10 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn budget(bytes: u64) -> PeekBudget {
-    PeekBudget {
-        bytes: ByteLen(bytes),
-        pixels: PixelArea(1 << 20),
-        time: Duration::from_secs(1),
-    }
+    PeekBudget::DEFAULT
+        .with_bytes(ByteLen(bytes))
+        .with_pixels(PixelArea(1 << 20))
+        .with_time(Duration::from_secs(1))
 }
 
 /// `path` as the viewer would be handed it, named `name` for sniffing.

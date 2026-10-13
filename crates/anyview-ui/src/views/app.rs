@@ -12,8 +12,11 @@ use ds::prelude::*;
 use ds_core::vocab::{Activity, InputModality};
 
 /// What the window was opened with: the file, and the list the arrow keys walk, when there is one.
-/// The binary provides it as a root context (`ds_blitz::AppConfig::with_context`).
+/// The binary provides it as a root context (`ds_blitz::AppConfig::with_context`). It is
+/// `#[non_exhaustive]`, so a setting added later breaks no caller: start from [`Launch::new`] (a
+/// launch has no default, since it needs a file) and change one setting with the `with_*` methods.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Launch {
     /// The file to open.
     pub file: FilePath,
@@ -23,6 +26,40 @@ pub struct Launch {
     pub look: Look,
     /// How the window is on screen: a window, or the small borderless one of a recording.
     pub presentation: Presentation,
+}
+
+impl Launch {
+    /// A launch of `file` alone, as a normal window with the default look.
+    #[must_use]
+    pub fn new(file: FilePath) -> Self {
+        Launch {
+            file,
+            sequence: None,
+            look: Look::default(),
+            presentation: Presentation::default(),
+        }
+    }
+
+    /// This launch walking `sequence` with the arrow keys; none leaves them nothing to walk.
+    #[must_use]
+    pub fn with_sequence(self, sequence: Option<Sequence>) -> Self {
+        Launch { sequence, ..self }
+    }
+
+    /// This launch opening with `look`.
+    #[must_use]
+    pub fn with_look(self, look: Look) -> Self {
+        Launch { look, ..self }
+    }
+
+    /// This launch shown as `presentation`.
+    #[must_use]
+    pub fn with_presentation(self, presentation: Presentation) -> Self {
+        Launch {
+            presentation,
+            ..self
+        }
+    }
 }
 
 /// The viewer's own stylesheet, in the `app` layer; tokens only.
@@ -140,18 +177,17 @@ pub(super) fn use_look(launched: Look) -> ReadSignal<Look> {
     let mut look = use_signal({
         let feed = feed.clone();
         move || match feed {
-            Some(LookFeed(receiver)) => receiver.borrow().clone(),
+            Some(feed) => feed.current(),
             None => launched,
         }
     });
     use_future(move || {
         let feed = feed.clone();
         async move {
-            let Some(LookFeed(mut receiver)) = feed else {
+            let Some(mut feed) = feed else {
                 return;
             };
-            while receiver.changed().await.is_ok() {
-                let latest = receiver.borrow_and_update().clone();
+            while let Some(latest) = feed.changed().await {
                 look.set(latest);
             }
         }

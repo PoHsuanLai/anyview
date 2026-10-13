@@ -22,11 +22,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// What a card may spend: a listing of an archive reads inside it, and nothing else here is big.
-const CARD_BUDGET: PeekBudget = PeekBudget {
-    bytes: ByteLen(16 << 20),
-    pixels: PixelArea(1_000_000),
-    time: Duration::from_secs(2),
-};
+const CARD_BUDGET: PeekBudget = PeekBudget::DEFAULT
+    .with_bytes(ByteLen(16 << 20))
+    .with_pixels(PixelArea(1_000_000))
+    .with_time(Duration::from_secs(2));
 
 /// What a file shows when the viewer has no stage for it.
 #[derive(Debug, Clone, PartialEq)]

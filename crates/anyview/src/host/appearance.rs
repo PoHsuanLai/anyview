@@ -2,19 +2,18 @@
 //! the settings portal, feeding every window the program opens. The file is the desktop's, not
 //! this program's: it is read and watched here, never written, and there is no file of its own.
 
-use anyview_ui::{Look, LookFeed};
+use anyview_ui::{Look, LookFeed, LookSender};
 use ds::base::spawner::Spawner;
 use ds_settings::{
     AppearanceFile, Environment, Loaded, SettingsDoc, Store, SystemPrefsSource, SystemPrefsWatch,
     Watch,
 };
 use std::sync::{Arc, Mutex, PoisonError};
-use tokio::sync::watch;
 
 /// The look every window follows, and the means to hand it to a window.
 #[derive(Debug, Clone)]
 pub struct Appearances {
-    receiver: watch::Receiver<Look>,
+    feed: LookFeed,
 }
 
 impl Appearances {
@@ -32,7 +31,7 @@ impl Appearances {
             settings: loaded.value,
             system: prefs.current(),
         };
-        let (sender, receiver) = watch::channel(look_of(&environment));
+        let (sender, feed) = LookFeed::new(look_of(&environment));
         let shared = Arc::new(Shared {
             environment: Mutex::new(environment),
             sender,
@@ -42,33 +41,33 @@ impl Appearances {
             store.watch::<AppearanceFile>(&*spawner),
         )));
         spawner.spawn(Box::pin(follow_prefs(shared, prefs)));
-        Appearances { receiver }
+        Appearances { feed }
     }
 
     /// A look that never changes: for a window with no desktop to follow.
     #[must_use]
     pub fn fixed(look: Look) -> Appearances {
-        let (_sender, receiver) = watch::channel(look);
-        Appearances { receiver }
+        let (_sender, feed) = LookFeed::new(look);
+        Appearances { feed }
     }
 
     /// The look now.
     #[must_use]
     pub fn current(&self) -> Look {
-        self.receiver.borrow().clone()
+        self.feed.current()
     }
 
     /// The feed a window follows.
     #[must_use]
     pub fn feed(&self) -> LookFeed {
-        LookFeed(self.receiver.clone())
+        self.feed.clone()
     }
 }
 
 /// The environment the watches change, and where the resulting look goes.
 struct Shared {
     environment: Mutex<Environment>,
-    sender: watch::Sender<Look>,
+    sender: LookSender,
 }
 
 impl Shared {
@@ -80,13 +79,7 @@ impl Shared {
             .unwrap_or_else(PoisonError::into_inner);
         change(&mut environment);
         let look = look_of(&environment);
-        self.sender.send_if_modified(|current| {
-            let new = *current != look;
-            if new {
-                *current = look;
-            }
-            new
-        });
+        self.sender.set(look);
     }
 }
 

@@ -50,15 +50,24 @@ fn the_file_in_a_scratch_directory_is_followed_through_a_rename_over_it() {
         "the desktop's answer"
     );
 
-    let mut feed = appearances.feed().0;
+    let mut feed = appearances.feed();
     replace(&path, "[appearance]\ntheme = \"dark\"\n");
-    let arrived = runtime
-        .block_on(async { tokio::time::timeout(Duration::from_secs(10), feed.changed()).await });
+    // The feed may first hand over a look it had before the edit; the edit's look follows.
+    let arrived = runtime.block_on(async {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(look) = feed.changed().await {
+                if theme_of(&look) == Theme::Dark {
+                    return Some(look);
+                }
+            }
+            None
+        })
+        .await
+    });
     assert!(
-        matches!(arrived, Ok(Ok(()))),
+        matches!(arrived, Ok(Some(_))),
         "the change arrives: {arrived:?}"
     );
-    assert_eq!(theme_of(&feed.borrow()), Theme::Dark);
     assert_eq!(theme_of(&appearances.current()), Theme::Dark);
 }
 

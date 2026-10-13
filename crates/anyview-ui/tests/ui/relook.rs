@@ -26,21 +26,21 @@ fn ground(harness: &mut Harness) -> u32 {
 #[test]
 fn a_new_look_re_themes_the_open_window_and_a_window_without_a_feed_keeps_its_own() {
     let (_dir, paths) = folder(&[("anyview-text", "notes.txt", "a.txt")]);
-    let (tx, rx) = tokio::sync::watch::channel(look(Theme::Light));
+    let (tx, feed) = LookFeed::new(look(Theme::Light));
     let wiring = Wiring {
-        feed: Some(LookFeed(rx)),
+        feed: Some(feed),
         ..Wiring::default()
     };
     let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), wiring);
     harness.advance(Duration::from_millis(500));
     let light = ground(&mut harness);
 
-    tx.send(look(Theme::Dark)).unwrap();
+    tx.set(look(Theme::Dark));
     harness.advance(Duration::from_millis(800));
     let dark = ground(&mut harness);
     assert!(light > dark + 60, "light {light}, then dark {dark}");
 
-    tx.send(look(Theme::Light)).unwrap();
+    tx.set(look(Theme::Light));
     harness.advance(Duration::from_millis(800));
     assert!(ground(&mut harness) > dark + 60, "back to light");
 
