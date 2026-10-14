@@ -2,7 +2,8 @@
 
 use super::runner::PluginRunner;
 use crate::error::PlatformError;
-use anyview_core::{FactLabel, FactValue, Facts, FilePath};
+use crate::thumbnail::ThumbPixels;
+use anyview_core::{FactLabel, FactValue, Facts, FilePath, PixelLen};
 use anyview_plugin::{MissingPlugin, Plugins, Route, Subject};
 use anyview_plugin_protocol::{Capability, FactRow};
 use ds_core::word::Word;
@@ -36,6 +37,23 @@ impl PluginRunner {
             }
             Route::Missing(missing) => Ok(PluginFacts::Missing(missing)),
             Route::Unserved => Ok(PluginFacts::Unserved),
+        }
+    }
+
+    /// A small picture of `path`, a file of `subject`'s kind (a frame a little way into a video),
+    /// no larger than `max_edge` on its longer side, from the plugin `plugins` routes `thumbnail`
+    /// to. `None` when no installed plugin serves the kind; a plugin that fails is an error the
+    /// caller ignores, since the picture is a nicety. Blocking.
+    pub fn poster(
+        &self,
+        plugins: &Plugins,
+        subject: &Subject<'_>,
+        path: &FilePath,
+        max_edge: PixelLen,
+    ) -> Result<Option<ThumbPixels>, PlatformError> {
+        match plugins.route(Capability::Thumbnail, subject) {
+            Route::Served(plugin) => self.thumbnail(plugin, path, max_edge).map(Some),
+            Route::Missing(_) | Route::Unserved => Ok(None),
         }
     }
 }

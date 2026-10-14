@@ -146,6 +146,7 @@ fn Unplayable(doc: Held<MediaDoc>, needs: Option<Need>, cx: StageCx) -> Element 
             facts: listed(&doc.0.facts),
             note,
             install: needs.and_then(|need| need.helper),
+            poster: doc.0.cover().cloned(),
             cx,
         }
     }

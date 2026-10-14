@@ -980,8 +980,11 @@ fn what_a_recording_looks_like_is_saved_for_a_person_to_see() {
 
 /// Opens the first file with a host that answers as `answer` and offers `offer`.
 fn open_answering(answer: Answer, offer: Option<MediaOffer>) -> Opened {
+    open_player(FakePlayer::answering(answer), offer)
+}
+
+fn open_player(player: Arc<FakePlayer>, offer: Option<MediaOffer>) -> Opened {
     let (dir, paths) = folder(FILES);
-    let player = FakePlayer::answering(answer);
     let player = match offer {
         Some(offer) => player.offering(offer),
         None => player,
@@ -1043,6 +1046,12 @@ fn a_recording_no_plugin_plays_opens_as_its_facts_and_names_the_package_that_wou
     );
     assert_eq!(harness.count(".viewer-peek"), 1, "a facts card");
     assert_eq!(
+        harness.count(".viewer-card-glyph"),
+        1,
+        "no frame could be decoded: the plate"
+    );
+    assert_eq!(harness.count(".viewer-card-poster"), 0);
+    assert_eq!(
         harness.count(".viewer-peek .viewer-card"),
         1,
         "the card every file with no stage has, which scrolls when its rows do not fit"
@@ -1062,6 +1071,25 @@ fn a_recording_no_plugin_plays_opens_as_its_facts_and_names_the_package_that_wou
         0,
         "there is nothing to scrub"
     );
+}
+
+#[test]
+fn a_recording_no_plugin_plays_shows_the_frame_a_decoder_made_above_its_facts() {
+    let frame = ds::components::content::image_source::ImageSource::png(b"frame");
+    let Opened { harness, .. } =
+        open_player(FakePlayer::answering(Answer::Missing).covered(frame), None);
+    assert_eq!(
+        harness.count(".viewer-peek .viewer-card > img.viewer-card-poster"),
+        1,
+        "the frame is the card's picture"
+    );
+    assert_eq!(
+        harness.count(".viewer-card-glyph"),
+        0,
+        "in place of the plate"
+    );
+    let text = harness.text_of(".viewer").unwrap_or_default();
+    assert!(text.contains("anyview-mpv"), "the facts stand: {text}");
 }
 
 #[test]

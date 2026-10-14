@@ -3,7 +3,7 @@
 
 use crate::support;
 
-use anyview_core::{FactLabel, FormatKind};
+use anyview_core::{FactLabel, FormatKind, PixelLen};
 use anyview_platform::{PluginFacts, PluginRunner};
 use anyview_plugin::{MissingPlugin, Subject};
 use support::{Scratch, Where};
@@ -56,4 +56,29 @@ fn a_kind_no_package_is_known_for_is_unserved() {
         .peek_facts(&scratch.plugins(), &pdf, &path)
         .unwrap();
     assert_eq!(answer, PluginFacts::Unserved);
+}
+
+#[test]
+fn a_poster_comes_from_the_plugin_that_serves_the_kind_and_from_none_otherwise() {
+    let scratch = Scratch::new();
+    scratch.install(Where::System, "fake", 1, &[]);
+    let runner = PluginRunner::default();
+    let book = scratch.book("a.book", "Emma");
+    let served = runner
+        .poster(&scratch.plugins(), &support::book(), &book, PixelLen(8))
+        .unwrap()
+        .expect("the plugin serves a book");
+    assert_eq!(served.size().width.0, 8);
+    let video = Subject {
+        kind: FormatKind::Video,
+        mime: None,
+    };
+    let clip = scratch.book("clip.mp4", "not really a video");
+    assert!(
+        runner
+            .poster(&scratch.plugins(), &video, &clip, PixelLen(8))
+            .unwrap()
+            .is_none(),
+        "no plugin serves a video: the card keeps its plate"
+    );
 }

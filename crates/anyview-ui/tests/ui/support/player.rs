@@ -174,7 +174,7 @@ impl MediaHost for FakePlayer {
                     facts: anyview_core::Facts::empty()
                         .with(FactLabel::Codec, FactValue::text("h264")),
                     length: None,
-                    cover: None,
+                    cover: self.cover.lock().unwrap().clone(),
                 });
             }
         }
