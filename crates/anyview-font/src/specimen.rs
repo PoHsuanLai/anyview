@@ -134,9 +134,9 @@ pub(crate) fn specimen(font: &FontRef<'_>, title: &str) -> Specimen {
     };
     Specimen {
         lines: chosen.lines.iter().filter_map(|t| line(t)).collect(),
-        title: chosen.title.as_deref().and_then(|t| line(t)),
-        pangram: chosen.pangram.as_deref().and_then(|t| line(t)),
-        ramp: chosen.ramp.as_deref().and_then(|t| line(t)),
+        title: chosen.title.as_deref().and_then(&line),
+        pangram: chosen.pangram.as_deref().and_then(&line),
+        ramp: chosen.ramp.as_deref().and_then(&line),
     }
 }
 
@@ -242,7 +242,14 @@ mod tests {
         let ideographs = "你好世界東京都大阪府中華人民共和国日本語文字の見本を表示します";
         let circled = "\u{2460}\u{2461}\u{2462}\u{2463}\u{2464}";
         // name, covers, the font's own characters, the title, then what is said
-        let cases: Vec<(&str, &dyn Fn(char) -> bool, &'static str, &str, Plan)> = vec![
+        type Case<'a> = (
+            &'a str,
+            &'a dyn Fn(char) -> bool,
+            &'static str,
+            &'a str,
+            Plan,
+        );
+        let cases: Vec<Case> = vec![
             (
                 "latin",
                 &latin as &dyn Fn(char) -> bool,
