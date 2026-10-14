@@ -1,7 +1,8 @@
 //! What the host lends the views to read from: where a file was left, and the shared thumbnail.
 
 use super::support::{PNG, desktop, probed};
-use crate::host::{CachedPictures, HostedResume, Hosting, Task};
+use crate::host::{CachedPictures, HostedResume, Hosting, PosterPictures, Task};
+use crate::media::MediaPlugins;
 use anyview_core::{LineIndex, PixelLen, PixelSize, Resume};
 use anyview_fs::OnDisk;
 use anyview_peek::StillSource;
@@ -72,4 +73,16 @@ fn the_first_frame_is_the_shared_thumbnail_of_this_version_of_the_file() {
     let found = pictures.still(&file.source.on_disk()).unwrap();
     assert_eq!(found.size(), size);
     assert_eq!(found.bytes(), made.rgba());
+
+    // A card's poster is the shared thumbnail too, and no plugin installed adds no frame.
+    let posters = PosterPictures::new(CachedPictures(cache), Arc::new(MediaPlugins::default()));
+    let sniffed = file.sniffed.clone();
+    assert_eq!(
+        posters
+            .poster(&file.source.on_disk(), &sniffed)
+            .map(|frame| frame.size()),
+        Some(size)
+    );
+    let other = probed(dir.path(), "b.png", PNG);
+    assert!(posters.poster(&other.source.on_disk(), &sniffed).is_none());
 }

@@ -9,7 +9,7 @@
 
 use anyview_core::{
     FileHead, FileName, FormatDetail, Input, PeekBudget, PixelLen, RasterFormat, Resize, SniffStep,
-    sniff,
+    Sniffed, sniff,
 };
 use anyview_image::{
     Decoded, ExifFacts, FrameCount, ImagePeek, PeekedFormat, Rgba8, decode_bytes, resized,
@@ -22,6 +22,14 @@ pub trait StillSource: Debug + Send + Sync {
     /// of the file; `source.path()` says where it is, when it is a file at all), upright, or
     /// `None` when the host has none. Blocking: it reads a file.
     fn still(&self, source: &Input) -> Option<Rgba8>;
+
+    /// The picture of the video `source` (whose type `sniffed` established) for a card that has
+    /// no other: the cached thumbnail by default, and for a host that has a program able to
+    /// decode a frame, that frame when no thumbnail was cached. `None` when the host has none.
+    /// Blocking: it reads a file and may run a program.
+    fn poster(&self, source: &Input, _sniffed: &Sniffed) -> Option<Rgba8> {
+        self.still(source)
+    }
 }
 
 /// No host source: every video without a cover shows its facts.

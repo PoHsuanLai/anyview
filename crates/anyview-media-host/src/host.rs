@@ -80,6 +80,7 @@ impl MediaHost for PlayerHost {
                     Need::passive(no_sound_fact()),
                     tags,
                     facts,
+                    cover,
                 ));
             }
             Chosen::Missing(missing) => {
@@ -89,6 +90,7 @@ impl MediaHost for PlayerHost {
                     plugins.need_of(&missing),
                     tags,
                     facts,
+                    cover,
                 ));
             }
             Chosen::Unserved => {
@@ -135,21 +137,39 @@ impl MediaHost for PlayerHost {
     }
 }
 
-/// A recording no player plays: its facts, with `needs` as the row that says what would.
+/// A recording no player plays: its facts, with `needs` as the row that says what would. Its
+/// picture is the cover an audio file carries (`cover`, read with the facts) or the frame of a
+/// video a decoder makes.
 fn unplayed(
     plugins: &dyn PlayerPlugins,
     start: &MediaStart,
     needs: Need,
     tags: MediaTags,
     facts: Facts,
+    cover: Option<Vec<u8>>,
 ) -> MediaStarted {
+    let cover = card_picture(start.sniffed.kind(), cover, || poster(plugins, start));
     MediaStarted {
         playback: MediaPlayback::Missing(needs),
         offer: plugins.offer(&start.sniffed, Playing::No),
         tags,
         facts,
         length: None,
-        cover: poster(plugins, start),
+        cover,
+    }
+}
+
+/// The picture of the card of a recording nothing plays: an audio file's own `cover`, and for
+/// anything else the `frame` a decoder makes (asked only then).
+fn card_picture(
+    kind: FormatKind,
+    cover: Option<Vec<u8>>,
+    frame: impl FnOnce() -> Option<ImageSource>,
+) -> Option<ImageSource> {
+    if kind == FormatKind::Audio {
+        cover.map(|png| ImageSource::png(&png))
+    } else {
+        frame()
     }
 }
 
@@ -160,4 +180,22 @@ fn poster(plugins: &dyn PlayerPlugins, start: &MediaStart) -> Option<ImageSource
         .then(|| plugins.poster(&start.source, &start.sniffed))
         .flatten()
         .map(|png| ImageSource::png(&png))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_card_shows_an_audio_files_cover_and_a_videos_frame() {
+        let png = |bytes: &[u8]| ImageSource::png(bytes).0;
+        let cover = Some(b"cover".to_vec());
+        let none = || -> Option<ImageSource> { panic!("no frame is made for an audio file") };
+        let frame = || Some(ImageSource::png(b"frame"));
+        let audio = |cover| card_picture(FormatKind::Audio, cover, none).map(|source| source.0);
+        assert_eq!(audio(cover.clone()), Some(png(b"cover")));
+        assert_eq!(audio(None), None);
+        let video = card_picture(FormatKind::Video, cover, frame).map(|source| source.0);
+        assert_eq!(video, Some(png(b"frame")));
+    }
 }
