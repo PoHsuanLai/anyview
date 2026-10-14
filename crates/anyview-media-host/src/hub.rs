@@ -215,6 +215,22 @@ impl Inner {
     /// was playing is paused, so one source sounds at a time.
     fn yield_to(&self, id: SessionId, status: PlaybackStatus) {
         let to_pause = locked(&self.sounding).heard(id, status);
+        self.pause(&to_pause);
+    }
+
+    /// The person asked session `id` to play or pause: when it is to play, every other session
+    /// that was playing is paused. What they ask outranks what the players report after it.
+    pub(super) fn asked(&self, id: SessionId, command: &MediaCommand) {
+        if self.focus.get() != Some(&AudioFocus::Exclusive) {
+            return;
+        }
+        if let MediaCommand::SetPlayback(pace) = command {
+            let to_pause = locked(&self.sounding).asked(id, *pace);
+            self.pause(&to_pause);
+        }
+    }
+
+    fn pause(&self, to_pause: &[SessionId]) {
         if to_pause.is_empty() {
             return;
         }
@@ -249,6 +265,7 @@ impl Inner {
         for order in orders_for(control, state, home) {
             match order {
                 Order::Send(command) => {
+                    self.asked(id, &command);
                     if let Some(entry) = locked(&self.sessions).iter().find(|e| e.id == id) {
                         entry.send(command);
                     }
