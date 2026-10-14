@@ -17,3 +17,9 @@
 .viewer-fact-value{ margin:0; font-size:var(--fs-control); color:var(--ink); overflow-wrap:anywhere; }
 .viewer-peek .viewer-card{ align-items:center; text-align:center; }
 .viewer-peek .viewer-card-details{ text-align:left; }
+.viewer-specimen{ align-self:stretch; display:flex; flex-direction:column; align-items:flex-start; gap:var(--s-12); min-width:0; color:var(--ink); text-align:left; }
+.viewer-specimen-line{ flex:none; display:block; max-width:100%; height:auto; }
+.viewer-specimen-ramp{ align-self:stretch; display:flex; flex-direction:column; align-items:flex-start; gap:var(--s-8); padding-top:var(--s-8); border-top:var(--hair) solid var(--line); }
+.viewer-specimen-step{ display:flex; align-items:baseline; gap:var(--s-12); max-width:100%; min-width:0; }
+.viewer-specimen-size{ flex:none; width:var(--s-24); text-align:right; font-family:var(--font-data); font-size:var(--fs-caption); color:var(--ink-faint); }
+.viewer-specimen + .viewer-card{ margin-top:var(--s-8); }

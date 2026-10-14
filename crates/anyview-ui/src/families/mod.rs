@@ -10,6 +10,7 @@ mod places;
 mod raster;
 mod registry;
 mod rows;
+mod specimen;
 mod table;
 mod text;
 mod tree;

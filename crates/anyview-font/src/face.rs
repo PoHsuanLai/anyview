@@ -67,9 +67,18 @@ fn face_of(font: &FontRef<'_>) -> Face {
         0 => Variation::Fixed,
         _ => Variation::Variable,
     };
+    let (family, style) = (
+        named(StringId::FAMILY_NAME),
+        named(StringId::SUBFAMILY_NAME),
+    );
+    // What a type specimen heads itself with: the family, and the style unless it is the plain one.
+    let title = match style.as_str() {
+        "" | "Regular" => family.clone(),
+        _ => format!("{family} {style}"),
+    };
     Face {
-        family: named(StringId::FAMILY_NAME),
-        style: named(StringId::SUBFAMILY_NAME),
+        family,
+        style,
         glyphs: font
             .metrics(
                 skrifa::instance::Size::unscaled(),
@@ -78,7 +87,7 @@ fn face_of(font: &FontRef<'_>) -> Face {
             .glyph_count
             .into(),
         variable,
-        specimen: specimen(font),
+        specimen: specimen(font, &title),
     }
 }
 

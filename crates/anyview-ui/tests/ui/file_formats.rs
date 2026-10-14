@@ -169,6 +169,7 @@ fn every_family_opens_to_its_own_stage_with_the_right_title() {
         ("ragged.csv", ".viewer-data"),
         ("a.json", ".viewer-node"),
         ("binaryish.txt", ".viewer-peek"),
+        ("blocks.ttf", ".viewer-specimen"),
     ] {
         for scale in SCALES {
             let harness = opened(&[sample(name)], scale);
@@ -178,6 +179,28 @@ fn every_family_opens_to_its_own_stage_with_the_right_title() {
                 "STEP_FAIL {name} at scale {scale}: expected {stage}"
             );
         }
+    }
+}
+
+#[test]
+fn a_font_shows_its_name_the_pangram_the_alphabet_and_a_size_ramp_beside_its_facts() {
+    for scale in SCALES {
+        let harness = opened(&[sample("blocks.ttf")], scale);
+        // The name, the pangram, three alphabet lines and six sizes.
+        assert_eq!(
+            harness.count(".viewer-specimen-line"),
+            1 + 1 + 3 + 6,
+            "at scale {scale}"
+        );
+        assert_eq!(
+            harness.count(".viewer-specimen-step"),
+            6,
+            "at scale {scale}"
+        );
+        assert!(
+            harness.count(".viewer-card") == 1,
+            "the facts stay at scale {scale}"
+        );
     }
 }
 

@@ -3,6 +3,7 @@
 //! stub: a person sees what the file is and hands it to the program that can show it.
 
 use crate::families::InfoCard;
+use crate::families::specimen::{SpecimenSheet, is_drawn};
 use crate::families::view::{Area, StageCx, StageView};
 use crate::io::{OpenError, OpenPort, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
@@ -11,6 +12,7 @@ use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FileAction, FileHead, FileName, FormatDetail, FormatKind,
     PeekBudget, PixelArea, RasterTarget, SniffStep, Sniffed, Source, sniff,
 };
+use anyview_font::Specimen;
 use anyview_fs::OnDisk;
 use anyview_image::{Decoded, decode_bytes, encode};
 use anyview_peek::{Body, peek};
@@ -42,6 +44,8 @@ pub struct PeekOnlyDoc {
     pub listing: Vec<String>,
     /// Whether the contents could be read.
     pub readable: Readable,
+    /// A font set in its own outlines, `None` for any other file or a font that draws nothing.
+    pub specimen: Option<Specimen>,
 }
 
 /// The picture of an office document as a PNG `data:` source, or `None` when it has none or it
@@ -73,12 +77,22 @@ struct Card {
     listing: Vec<String>,
     /// Whether the file's contents could be read: it looks damaged when they could not.
     readable: Readable,
+    /// The font's specimen, when the file is a font that draws one.
+    specimen: Option<Specimen>,
 }
 
 /// The peek of `src`, a file of `sniffed`'s type, as a card. Blocking. The sniffing is the probe's:
 /// `anyview_peek::look` would sniff the file a second time.
 fn card_of(src: &Source, sniffed: &Sniffed) -> Card {
     let peeked = peek(src.on_disk(), sniffed, &CARD_BUDGET);
+    let specimen = if let Body::Font(font) = &peeked.body {
+        font.face
+            .as_ref()
+            .map(|face| face.specimen.clone())
+            .filter(is_drawn)
+    } else {
+        None
+    };
     let (listing, readable) = match &peeked.body {
         Body::Archive(archive) => (
             archive
@@ -105,6 +119,7 @@ fn card_of(src: &Source, sniffed: &Sniffed) -> Card {
         facts: peeked.facts,
         listing,
         readable,
+        specimen,
     }
 }
 
@@ -203,6 +218,7 @@ impl StageView for PeekOnlyStageView {
             thumbnail: thumbnail_of(&look),
             listing: card.listing,
             readable: card.readable,
+            specimen: card.specimen,
         })
     }
 
@@ -223,9 +239,17 @@ impl StageView for PeekOnlyStageView {
         let run = cx.run;
         let platform = cx.platform;
         let description = description_of(doc);
+        let body = if doc.specimen.is_some() {
+            "viewer-peek-body viewer-peek-wide"
+        } else {
+            "viewer-peek-body"
+        };
         rsx! {
             div { class: "viewer-peek",
-                div { class: "viewer-peek-body",
+                div { class: "{body}",
+                    if let Some(specimen) = doc.specimen.clone() {
+                        SpecimenSheet { specimen }
+                    }
                     InfoCard {
                         name: doc.name.clone(),
                         kind: Some(doc.kind),

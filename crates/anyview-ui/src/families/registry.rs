@@ -211,6 +211,7 @@ mod tests {
             thumbnail: None,
             listing: Vec::new(),
             readable: Readable::Yes,
+            specimen: None,
         })
         .describing(general_facts(&src, &sniffed));
         let groups: Vec<FactGroup> = doc.facts().sections().iter().map(|(g, _)| *g).collect();
@@ -239,6 +240,7 @@ mod tests {
             thumbnail: None,
             listing: Vec::new(),
             readable: Readable::Yes,
+            specimen: None,
         });
         let groups: Vec<FactGroup> = doc.facts().sections().iter().map(|(g, _)| *g).collect();
         assert_eq!(groups, [FactGroup::Text]);

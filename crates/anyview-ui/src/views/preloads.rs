@@ -109,6 +109,7 @@ mod tests {
                 thumbnail: None,
                 listing: Vec::new(),
                 readable: Readable::Yes,
+                specimen: None,
             }),
         }
     }
