@@ -11,9 +11,11 @@ use crate::edits::{EditOffer, EditRequest};
 use crate::hand::{Hand, Tool};
 use crate::palette::Palette;
 use crate::picture::PictureEditIn;
-use crate::sheet::{PictureSheet, PictureSheetOut, ResizeDraft, Sheet, SheetIn, SheetOut};
+use crate::sheet::{
+    ExportDraft, PictureSheet, PictureSheetOut, ResizeDraft, Sheet, SheetIn, SheetOut,
+};
 use crate::stage::{RasterIn, Stage, StageIn};
-use anyview_core::{DocPoint, Edit, Zoom};
+use anyview_core::{DocPoint, Edit, RasterExport, RasterTarget, Zoom};
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::ShortcutKey;
 
@@ -117,15 +119,17 @@ pub(super) fn crop_key(viewer: &Viewer, keys: &[ShortcutKey]) -> Option<PictureE
     }
 }
 
-/// ⌘S: the changes are written into the file. A picture that cannot be written offers the Export
-/// dialog instead, as Preview offers a copy; one with nothing to save does nothing. A save that
-/// loses something is asked about first.
+/// ⌘S: the changes are written into the file. A picture whose file cannot take them is written
+/// as a copy beside it, as Preview and Loupe do, and one with nothing to save does nothing (a
+/// picture that cannot be written offers the Export dialog instead). A save that loses something is
+/// asked about first.
 pub(super) fn save(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     if !matches!(viewer.stage, Stage::Raster(_)) {
         return (viewer, Vec::new());
     }
     if !viewer.picture.is_edited() {
-        return if viewer.picture.can_edit() {
+        let in_place = matches!(params.sheet.edit, EditOffer::Plain | EditOffer::Asks(_));
+        return if viewer.picture.can_edit() && in_place {
             (viewer, Vec::new())
         } else {
             export(viewer, at, params)
@@ -135,8 +139,19 @@ pub(super) fn save(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match params.sheet.edit {
         EditOffer::Plain => (viewer, vec![ViewerOut::Edit(request)]),
         EditOffer::Asks(caution) => sheet(viewer, SheetIn::AskEdit(request, caution), at, params),
+        EditOffer::Copies(target) => copy(viewer, target, at, params),
         EditOffer::Withheld => export(viewer, at, params),
     }
+}
+
+/// The picture as changed, written as a copy beside its file in `target`. The file itself is as it
+/// was, so the changes are let go once the copy is asked for: the person is on the picture they
+/// opened, and the copy is what holds the changes.
+fn copy(viewer: Viewer, target: RasterTarget, at: Stamp, params: &ViewerParams) -> Step {
+    let made = ExportDraft::Raster(RasterExport::Adjusted(target, viewer.picture.adjust()));
+    let (viewer, mut outs) = picture(viewer, PictureEditIn::Discard, at, params);
+    outs.insert(0, ViewerOut::Sheet(SheetOut::Export(made)));
+    (viewer, outs)
 }
 
 /// Adjust Size…: the sheet that chooses the picture's new size, starting from the size it has.
@@ -210,9 +225,14 @@ pub(super) fn answered(
             }
             SheetOut::Save(then) => {
                 let (viewer, more) = save_open(viewer, at, params);
+                // A copy is written beside the file, which is not read again: the person stays
+                // with the picture and is told where the copy is, and nothing waits for a reload.
+                let copied = more
+                    .iter()
+                    .any(|out| matches!(out, ViewerOut::Sheet(SheetOut::Export(_))));
                 (
                     Viewer {
-                        after_save: Some(then),
+                        after_save: (!copied).then_some(then),
                         ..viewer
                     },
                     more,

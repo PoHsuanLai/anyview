@@ -83,7 +83,7 @@ fn first_picture(bytes: &[u8], sniffed: &Sniffed) -> Result<Rgba8, ImageError> {
 }
 
 /// `picture` cut, then mirrored and turned, then scaled.
-pub(super) fn adjusted_pixels(picture: &Rgba8, adjust: Adjust) -> Rgba8 {
+pub(crate) fn adjusted_pixels(picture: &Rgba8, adjust: Adjust) -> Rgba8 {
     let cut = match adjust.crop {
         Some(rect) => cut_out(picture, rect),
         None => picture.clone(),

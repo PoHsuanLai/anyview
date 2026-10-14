@@ -13,7 +13,11 @@ pub(crate) fn produce(session: &mut Session, job: &ExportJob) -> Result<Vec<u8>,
             target,
             keep,
         } => match pixels {
-            PixelSource::Image { file, resize } => raster::image(file, *resize, *target, *keep),
+            PixelSource::Image {
+                file,
+                adjust,
+                resize,
+            } => raster::image(file, *adjust, *resize, *target, *keep),
             PixelSource::PdfPage { file, page, dpi } => {
                 raster::pdf_page(session, file, *page, *dpi, *target)
             }

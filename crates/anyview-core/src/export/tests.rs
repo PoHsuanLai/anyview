@@ -1,6 +1,7 @@
 //! Table tests for every `ExportChoice`: defaults, kinds and extensions.
 
 use super::*;
+use crate::edit::Adjust;
 use crate::source::FilePath;
 use crate::units::{
     Dpi, PageIndex, PageRange, PageSelection, Percent, Permille, PixelLen, Quality, TimeRange,
@@ -92,6 +93,9 @@ fn a_raster_choice_keeps_its_options_and_reports_its_kind() {
         MetadataCarry::Keep,
     );
     assert_eq!(scaled.kind(), RasterExportKind::Png);
+    let copy = RasterExport::Adjusted(jpeg(), Adjust::NONE);
+    assert_eq!(copy.kind(), RasterExportKind::Jpeg);
+    assert_eq!(copy.extension(), ExportExtension::Jpg);
 }
 
 #[test]
@@ -218,6 +222,7 @@ fn a_job_describes_its_payload_as_data() {
     let job = ExportJob::EncodeRaster {
         pixels: PixelSource::Image {
             file: file.clone(),
+            adjust: Adjust::NONE,
             resize: Resize::Original,
         },
         target: RasterTarget::Webp,
@@ -227,6 +232,7 @@ fn a_job_describes_its_payload_as_data() {
     let other = ExportJob::EncodeRaster {
         pixels: PixelSource::Image {
             file,
+            adjust: Adjust::NONE,
             resize: Resize::Original,
         },
         target: RasterTarget::Webp,

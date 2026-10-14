@@ -2,18 +2,21 @@
 
 use crate::error::ExportError;
 use crate::session::Session;
-use anyview_core::{Dpi, FilePath, MetadataCarry, PageIndex, RasterTarget, Resize};
+use anyview_core::{Adjust, Dpi, FilePath, MetadataCarry, PageIndex, RasterTarget, Resize};
 use anyview_image::Rgba8;
 use anyview_pdf::{Backend, PdfBackend, PdfDone, PdfJob, Stop, Ticket};
 
-/// The image `file`, resized and encoded.
+/// The image `file`, adjusted, resized and encoded.
 pub(crate) fn image(
     file: &FilePath,
+    adjust: Adjust,
     resize: Resize,
     target: RasterTarget,
     keep: MetadataCarry,
 ) -> Result<Vec<u8>, ExportError> {
-    Ok(anyview_image::encode_file(file, resize, target, keep)?)
+    Ok(anyview_image::encode_file(
+        file, adjust, resize, target, keep,
+    )?)
 }
 
 /// `page` of the PDF `file` drawn at `dpi` and encoded. A page has no metadata to carry.

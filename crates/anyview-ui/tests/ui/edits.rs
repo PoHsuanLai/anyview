@@ -7,8 +7,11 @@ use crate::support;
 
 use anyview_core::{
     Adjust, Axis, ByteLen, Edit, PageIndex, PixelLen, PixelRect, PixelSize, QuarterTurn,
+    RasterExport, RasterTarget,
 };
-use anyview_ui::{EditRequest, HostRequest, Rewind, TypedText, VersionKey, VersionRow};
+use anyview_ui::{
+    EditRequest, ExportDraft, HostRequest, Rewind, TypedText, VersionKey, VersionRow,
+};
 use ds::prelude::{Appearance, ShortcutKey};
 use ds::prelude::{Point, Px};
 use ds_harness::{Driver, Harness, Input, Query, Viewport};
@@ -562,4 +565,59 @@ fn a_picture_that_cannot_be_written_has_nothing_to_edit_and_the_save_chord_offer
         "the Export dialog is offered"
     );
     assert!(asked(&requests).is_empty());
+}
+
+/// An 8 by 4 Targa picture: a format the viewer reads and has no writer for, still.
+fn targa(dir: &std::path::Path) -> PathBuf {
+    let mut bytes = vec![0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 4, 0, 24, 0x20];
+    bytes.extend([200u8, 80, 40].repeat(8 * 4));
+    let path = dir.join("flat.tga");
+    std::fs::write(&path, bytes).unwrap();
+    std::fs::canonicalize(path).unwrap()
+}
+
+#[test]
+fn a_still_picture_with_no_writer_is_turned_and_cropped_all_the_same_and_saving_writes_a_copy() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut harness, requests, _) = wired(
+        &[targa(dir.path())],
+        0,
+        Appearance::default(),
+        Wiring::default(),
+    );
+    settle(&mut harness);
+    assert_eq!(
+        harness.count(".ds-titlebar-trailing .ds-segmented-segment"),
+        3,
+        "Select, Pan and Crop, as for a JPEG"
+    );
+    from_the_palette(&mut harness, "rotate right");
+    assert_eq!(harness.count(".ds-titlebar-edited"), 1, "it was turned");
+    save(&mut harness);
+    assert!(
+        asked(&requests).is_empty(),
+        "the file itself is not written"
+    );
+    let copies: Vec<ExportDraft> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|request| match request {
+            HostRequest::Export(draft) => Some(*draft),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        copies,
+        [ExportDraft::Raster(RasterExport::Adjusted(
+            RasterTarget::Png,
+            Adjust::NONE.turned(QuarterTurn::Quarter)
+        ))],
+        "a copy beside it holds the turn"
+    );
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        0,
+        "and the window shows the picture it opened"
+    );
 }

@@ -286,7 +286,7 @@ impl ExportDraft {
             ExportDraft::Media(MediaExport::AudioOnly(
                 AudioTarget::M4a(_) | AudioTarget::Mp3(_) | AudioTarget::Opus(_),
             )) => controls.push(ExportControl::Bitrate),
-            ExportDraft::Raster(RasterExport::Pdf)
+            ExportDraft::Raster(RasterExport::Adjusted(..) | RasterExport::Pdf)
             | ExportDraft::Pdf(PdfExport::PlainText | PdfExport::Markdown)
             | ExportDraft::Text(TextExport::PlainText)
             | ExportDraft::Media(MediaExport::AudioOnly(

@@ -5,8 +5,8 @@
 use super::crop::{CropAspect, CropBox, CropGrip};
 use anyview_core::{Adjust, Axis, DocPoint, DocUnit, PixelSize, QuarterTurn};
 
-/// Whether the open picture can be saved with changes: its format has a writer and the file
-/// takes a save in place.
+/// Whether the open picture can be changed. A picture whose file takes the changes in place is
+/// saved there; any other is saved as a copy beside it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PictureEditing {
     /// Tools that change the picture are offered.
@@ -120,7 +120,7 @@ impl PictureEdits {
         self.now.crop.is_none() && self.now.size.is_none()
     }
 
-    /// Whether the picture can be changed: it is decoded and its file takes a save.
+    /// Whether the picture can be changed: it is decoded and changes are on offer.
     #[must_use]
     pub fn can_edit(&self) -> bool {
         self.base.is_some() && self.editing == PictureEditing::Allowed

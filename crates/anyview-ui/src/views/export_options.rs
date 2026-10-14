@@ -120,12 +120,14 @@ pub(super) fn option_row(
 
 fn quality(draft: ExportDraft, ontune: EventHandler<ExportOption>) -> Element {
     let percent = match draft {
-        ExportDraft::Raster(RasterExport::Image(target, ..))
+        ExportDraft::Raster(
+            RasterExport::Image(target, ..) | RasterExport::Adjusted(target, _),
+        )
         | ExportDraft::Pdf(PdfExport::PageImages(_, target, _))
         | ExportDraft::Media(MediaExport::CurrentFrame(target)) => {
             quality_of(target).unwrap_or(Percent(100))
         }
-        ExportDraft::Raster(RasterExport::Pdf)
+        ExportDraft::Raster(RasterExport::Adjusted(..) | RasterExport::Pdf)
         | ExportDraft::Pdf(_)
         | ExportDraft::Text(_)
         | ExportDraft::Media(_) => Percent(100),
@@ -148,7 +150,7 @@ fn quality(draft: ExportDraft, ontune: EventHandler<ExportOption>) -> Element {
 fn size(draft: ExportDraft, facts: ExportFacts, ontune: EventHandler<ExportOption>) -> Element {
     let resize = match draft {
         ExportDraft::Raster(RasterExport::Image(_, resize, _)) => resize,
-        ExportDraft::Raster(RasterExport::Pdf)
+        ExportDraft::Raster(RasterExport::Adjusted(..) | RasterExport::Pdf)
         | ExportDraft::Pdf(_)
         | ExportDraft::Text(_)
         | ExportDraft::Media(_) => Resize::Original,
@@ -201,7 +203,7 @@ fn size(draft: ExportDraft, facts: ExportFacts, ontune: EventHandler<ExportOptio
 fn metadata(draft: ExportDraft, ontune: EventHandler<ExportOption>) -> Element {
     let keep = match draft {
         ExportDraft::Raster(RasterExport::Image(_, _, keep)) => keep,
-        ExportDraft::Raster(RasterExport::Pdf)
+        ExportDraft::Raster(RasterExport::Adjusted(..) | RasterExport::Pdf)
         | ExportDraft::Pdf(_)
         | ExportDraft::Text(_)
         | ExportDraft::Media(_) => MetadataCarry::default(),

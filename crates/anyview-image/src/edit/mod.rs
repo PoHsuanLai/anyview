@@ -14,6 +14,8 @@ mod png;
 mod tiff;
 mod webp;
 
+pub(crate) use adjust::adjusted_pixels;
+
 use crate::decode::{Decoded, decode_bytes};
 use crate::encode::{encode_bmp, encode_with_metadata};
 use crate::error::ImageError;

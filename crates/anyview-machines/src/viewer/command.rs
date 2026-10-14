@@ -168,7 +168,7 @@ fn edit(viewer: Viewer, edit: Edit, action: FileAction, at: Stamp, params: &View
         | Stage::Tree(_) => None,
     };
     match (asked, params.sheet.edit) {
-        (Some(_), EditOffer::Withheld) => (viewer, vec![]),
+        (Some(_), EditOffer::Withheld | EditOffer::Copies(_)) => (viewer, vec![]),
         (Some(request), EditOffer::Asks(caution)) => {
             sheet(viewer, SheetIn::AskEdit(request, caution), at, params)
         }

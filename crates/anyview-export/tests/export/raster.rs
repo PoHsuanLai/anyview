@@ -4,10 +4,11 @@
 use crate::support;
 
 use anyview_core::{
-    FormatDetail, MetadataCarry, PixelLen, RasterExport, RasterFormat, RasterTarget, Resize,
+    Adjust, FormatDetail, MetadataCarry, PixelLen, PixelSize, QuarterTurn, RasterExport,
+    RasterFormat, RasterTarget, Resize,
 };
 use anyview_export::DocumentExport;
-use anyview_image::ExifFacts;
+use anyview_image::{ExifFacts, Rgba8};
 use anyview_pdf::PdfDocument;
 use support::{exported, fixture, flat, names, opened, size_of, write};
 
@@ -78,6 +79,43 @@ fn a_resize_changes_the_size_of_the_file_written() {
     .try_into()
     .unwrap();
     assert_eq!(size_of(&out), (4, 3));
+}
+
+#[test]
+fn a_picture_turned_and_not_saved_is_written_as_turned() {
+    let dir = tempfile::tempdir().unwrap();
+    // Two pixels side by side, red then blue: turned a quarter clockwise they are red over blue.
+    let size = PixelSize {
+        width: PixelLen(2),
+        height: PixelLen(1),
+    };
+    let picture = Rgba8::new(size, vec![255, 0, 0, 255, 0, 0, 255, 255]).unwrap();
+    let source = write(
+        dir.path(),
+        "pair.png",
+        &anyview_image::encode(&picture, RasterTarget::Png).unwrap(),
+    );
+    let turned = Adjust::NONE.turned(QuarterTurn::Quarter);
+    let [out] = exported(
+        &source,
+        DocumentExport::Raster(RasterExport::Adjusted(RasterTarget::Png, turned)),
+    )
+    .try_into()
+    .unwrap();
+    assert_eq!(size_of(&out), (1, 2), "a 2 by 1 picture turned is 1 by 2");
+    let bytes = std::fs::read(&out).unwrap();
+    let (_, sniffed) = opened(&out);
+    let anyview_image::Decoded::Still(written) =
+        anyview_image::decode_bytes(&bytes, &sniffed).unwrap()
+    else {
+        panic!("a still");
+    };
+    assert_eq!(
+        written.bytes(),
+        [255, 0, 0, 255, 0, 0, 255, 255],
+        "the left pixel is now the top one"
+    );
+    assert_eq!(names(dir.path()), ["pair 2.png", "pair.png"], "beside it");
 }
 
 #[test]

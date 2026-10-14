@@ -6,7 +6,7 @@ use crate::io::{Backend, ImagePlugins, Need, OpenError, OpenPort, PluginPicture,
 use crate::{EditCaution, EditOffer, FrameDelays, FrameIndex, Runs, Ticket};
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Helper, Peek, PeekBudget,
-    PixelArea, PixelLen, PixelSize, RasterFormat, Resize, Sniffed, Source,
+    PixelArea, PixelLen, PixelSize, RasterFormat, RasterTarget, Resize, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
 use anyview_image::{
@@ -147,13 +147,19 @@ fn decode_into(target: &RasterOpen) -> Result<RasterDoc, OpenError> {
     // The file is read once: the decoder, the facts and the edit offer share these bytes.
     let bytes = file_bytes(&target.source.on_disk())?;
     let mut doc = decoded(target, &bytes)?;
-    doc.offer = offer_of(&target.source, &target.sniffed, &bytes);
+    // A picture a plugin decoded was made `Withheld` there: its pixels cannot be read from the
+    // file again, so no copy of them could be written either.
+    if doc.offer != EditOffer::Withheld {
+        doc.offer = offer_of(&target.source, &target.sniffed, &bytes, doc.frames);
+    }
     Ok(doc)
 }
 
 /// What saving a turn or flip of the file costs, read from its headers. A file too large to read
-/// whole for this is asked about nothing: the edit's own limits answer.
-fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8]) -> EditOffer {
+/// whole for this is asked about nothing: the edit's own limits answer. A file with no writer is
+/// changed all the same and saved as a copy; only a vector picture, and an animation that no
+/// still copy could hold, are not changed.
+fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8], frames: u32) -> EditOffer {
     const LIMIT: u64 = 512 * 1024 * 1024;
     if source.stamp().len.0 > LIMIT {
         return EditOffer::Plain;
@@ -161,7 +167,21 @@ fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8]) -> EditOffer {
     match fidelity(bytes, sniffed) {
         Fidelity::Intact => EditOffer::Plain,
         Fidelity::Loses(loss) => EditOffer::Asks(EditCaution::Loses(loss.sentence())),
-        Fidelity::Impossible => EditOffer::Withheld,
+        Fidelity::Impossible if sniffed.kind() == FormatKind::Vector || frames > 1 => {
+            EditOffer::Withheld
+        }
+        Fidelity::Impossible => EditOffer::Copies(copy_target(sniffed)),
+    }
+}
+
+/// The format a copy of a picture with no writer is written in: JPEG for the formats photographs
+/// come in, PNG for everything else (art, icons, flattened layers, high range pictures).
+fn copy_target(sniffed: &Sniffed) -> RasterTarget {
+    match sniffed.detail() {
+        FormatDetail::Raster(
+            RasterFormat::Avif | RasterFormat::Jxl | RasterFormat::Heic | RasterFormat::Raw,
+        ) => RasterTarget::default_jpeg(),
+        _ => RasterTarget::Png,
     }
 }
 
@@ -234,10 +254,13 @@ fn plugin_into(
     {
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
-            Ok(holding(
-                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
-                held,
-            ))
+            Ok(RasterDoc {
+                offer: EditOffer::Withheld,
+                ..holding(
+                    doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
+                    held,
+                )
+            })
         }
         PluginPicture::Missing(needs) => Ok(blank_doc(target, bytes, needs)),
         PluginPicture::Unserved => Err(unserved.into()),
@@ -255,10 +278,13 @@ fn raw_into(target: &RasterOpen, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
     let needs = match developed {
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
-            return Ok(holding(
-                doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
-                held,
-            ));
+            return Ok(RasterDoc {
+                offer: EditOffer::Withheld,
+                ..holding(
+                    doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
+                    held,
+                )
+            });
         }
         PluginPicture::Missing(needs) => Some(needs),
         PluginPicture::Failed(reason) => {
@@ -305,6 +331,7 @@ fn blank_doc(target: &RasterOpen, bytes: &[u8], needs: Need) -> RasterDoc {
         .with(needs.fact.label, needs.fact.value.clone());
     doc.lacking = needs.helper;
     doc.needs = Some(needs);
+    doc.offer = EditOffer::Withheld;
     doc
 }
 

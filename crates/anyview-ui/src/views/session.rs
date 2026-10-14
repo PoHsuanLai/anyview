@@ -860,6 +860,18 @@ mod tests {
     }
 
     #[test]
+    fn a_picture_with_no_writer_still_lists_what_turns_and_flips_it() {
+        let copies = Offers {
+            edit: EditOffer::Copies(anyview_core::RasterTarget::Png),
+            ..plain()
+        };
+        let (palette, _) = lists(FormatKind::Raster, copies);
+        for action in [RotateLeft, RotateRight, FlipHorizontal, FlipVertical] {
+            assert!(palette.contains(&Command::File(action)), "{action:?}");
+        }
+    }
+
+    #[test]
     fn a_text_lists_edit_when_it_can_be_edited_and_done_and_save_while_it_is() {
         use crate::{Editable, Edited, TextPlace, TextStage, Wrap};
         use anyview_core::LineIndex;
