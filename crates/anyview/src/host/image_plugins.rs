@@ -5,6 +5,7 @@
 use super::helpers::HelperHost;
 use super::plugin_registry::PluginRegistry;
 use anyview_core::{Fact, FactLabel, FactValue, Helper, PixelArea, Sniffed, Source};
+use anyview_export::PluginPictures;
 use anyview_image::Rgba8;
 use anyview_platform::{PlatformError, PluginRunner};
 use anyview_plugin::{MissingPlugin, Plugins, Route, Subject};
@@ -14,6 +15,9 @@ use std::sync::Arc;
 
 /// The media type every camera raw file is sniffed as.
 const RAW: &str = "image/x-dcraw";
+
+/// The most pixels a plugin is asked for when a copy is made: what the viewer asks for to show one.
+const EXPORT_AREA: PixelArea = PixelArea(64 * 1024 * 1024);
 
 /// The plugins of this run as the views' source of decoded pictures.
 #[derive(Debug, Clone)]
@@ -125,6 +129,17 @@ impl ImagePlugins for ImageHost {
                 PluginPicture::Missing(Need::passive(missing_package(&missing, sniffed)))
             }
             Route::Unserved => PluginPicture::Unserved,
+        }
+    }
+}
+
+/// The same plugins as the source of the pixels an export of a picture is made from, as large
+/// as the viewer shows one.
+impl PluginPictures for ImageHost {
+    fn picture(&self, source: &Source, sniffed: &Sniffed) -> Option<Rgba8> {
+        match self.decode(source, sniffed, EXPORT_AREA) {
+            PluginPicture::Pixels(picture) => Some(picture),
+            PluginPicture::Missing(_) | PluginPicture::Unserved | PluginPicture::Failed(_) => None,
         }
     }
 }

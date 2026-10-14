@@ -109,6 +109,7 @@ mod remaking {
                     scratch: dir.join("cache"),
                 },
                 helpers: None,
+                images: crate::host::ImageHost::without_plugins(),
             },
         );
         let factory = Factory::new(

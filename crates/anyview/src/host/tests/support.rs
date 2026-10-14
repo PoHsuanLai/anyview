@@ -149,5 +149,6 @@ pub fn services(scratch: &Path, fakes: &Fakes, helpers: Option<Arc<HelperHost>>)
         store: Store::new(&scratch.join("store"), now),
         media,
         helpers,
+        images: crate::host::ImageHost::without_plugins(),
     }
 }

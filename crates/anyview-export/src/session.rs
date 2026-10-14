@@ -2,7 +2,8 @@
 //! highlighter, which is slow to build and built only when a job needs it.
 
 use crate::error::ExportError;
-use anyview_core::FilePath;
+use crate::plugin::PluginPictures;
+use anyview_core::{FilePath, Source};
 use anyview_pdf::{PdfDocument, PdfWorker};
 use anyview_text::Highlighter;
 use std::sync::Arc;
@@ -13,9 +14,19 @@ pub(crate) struct Session {
     pdf: Option<(FilePath, Arc<PdfDocument>)>,
     pub(crate) worker: PdfWorker,
     highlighter: Option<Highlighter>,
+    /// The file being exported and the plugins that may decode it, when the program lent any.
+    pub(crate) plugins: Option<(Source, Arc<dyn PluginPictures>)>,
 }
 
 impl Session {
+    /// A run on the file `source`, whose picture `plugins` may decode.
+    pub(crate) fn with_plugins(source: Source, plugins: Arc<dyn PluginPictures>) -> Session {
+        Session {
+            plugins: Some((source, plugins)),
+            ..Session::default()
+        }
+    }
+
     /// The PDF at `file`, opened the first time it is asked for.
     pub(crate) fn document(&mut self, file: &FilePath) -> Result<Arc<PdfDocument>, ExportError> {
         if let Some((open, doc)) = &self.pdf

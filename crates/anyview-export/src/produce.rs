@@ -17,7 +17,7 @@ pub(crate) fn produce(session: &mut Session, job: &ExportJob) -> Result<Vec<u8>,
                 file,
                 adjust,
                 resize,
-            } => raster::image(file, *adjust, *resize, *target, *keep),
+            } => raster::image(session, file, *adjust, *resize, *target, *keep),
             PixelSource::PdfPage { file, page, dpi } => {
                 raster::pdf_page(session, file, *page, *dpi, *target)
             }

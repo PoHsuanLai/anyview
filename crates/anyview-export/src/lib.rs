@@ -16,6 +16,7 @@ mod error;
 mod name;
 mod pdf;
 mod pictures;
+mod plugin;
 mod print;
 mod produce;
 mod raster;
@@ -25,5 +26,6 @@ mod write;
 
 pub use choice::DocumentExport;
 pub use error::ExportError;
-pub use run::{export, printout};
+pub use plugin::PluginPictures;
+pub use run::{export, export_with, printout};
 pub use write::write_new;

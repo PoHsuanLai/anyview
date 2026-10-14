@@ -5,11 +5,12 @@ use crate::support;
 
 use anyview_core::{
     Adjust, FormatDetail, MetadataCarry, PixelLen, PixelSize, QuarterTurn, RasterExport,
-    RasterFormat, RasterTarget, Resize,
+    RasterFormat, RasterTarget, Resize, Sniffed, Source,
 };
-use anyview_export::DocumentExport;
+use anyview_export::{DocumentExport, PluginPictures, export, export_with};
 use anyview_image::{ExifFacts, Rgba8};
 use anyview_pdf::PdfDocument;
+use std::sync::Arc;
 use support::{exported, fixture, flat, names, opened, size_of, write};
 
 fn image(target: RasterTarget, resize: Resize) -> DocumentExport {
@@ -116,6 +117,51 @@ fn a_picture_turned_and_not_saved_is_written_as_turned() {
         "the left pixel is now the top one"
     );
     assert_eq!(names(dir.path()), ["pair 2.png", "pair.png"], "beside it");
+}
+
+/// A plugin that decodes every picture it is asked for as the same two pixels, red then blue.
+struct Pair;
+
+impl PluginPictures for Pair {
+    fn picture(&self, _source: &Source, _sniffed: &Sniffed) -> Option<Rgba8> {
+        let size = PixelSize {
+            width: PixelLen(2),
+            height: PixelLen(1),
+        };
+        Some(Rgba8::new(size, vec![255, 0, 0, 255, 0, 0, 255, 255]).unwrap())
+    }
+}
+
+#[test]
+fn a_picture_only_a_plugin_decodes_is_turned_from_its_pixels_into_a_copy_beside_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let bytes = b"\0\0\0\x18ftypheic\0\0\0\0mif1heic and some more bytes";
+    let original = write(dir.path(), "photo.heic", bytes);
+    let (source, sniffed) = opened(&original);
+    let choice = DocumentExport::Raster(RasterExport::Adjusted(
+        RasterTarget::default_jpeg(),
+        Adjust::NONE.turned(QuarterTurn::Quarter),
+    ));
+    assert!(
+        export(&source, &sniffed, choice).is_err(),
+        "with no plugin lent there are no pixels to turn"
+    );
+    assert_eq!(names(dir.path()), ["photo.heic"], "and nothing is written");
+    let [copy] = export_with(&source, &sniffed, choice, Arc::new(Pair))
+        .unwrap()
+        .iter()
+        .map(|file| file.as_path().to_path_buf())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    assert_eq!(size_of(&copy), (1, 2), "a 2 by 1 picture turned is 1 by 2");
+    assert_eq!(copy.extension().unwrap(), "jpg");
+    assert_eq!(
+        std::fs::read(&original).unwrap(),
+        bytes,
+        "the original is as it was"
+    );
+    assert_eq!(names(dir.path()), ["photo.heic", "photo.jpg"], "beside it");
 }
 
 #[test]

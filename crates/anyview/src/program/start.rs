@@ -201,6 +201,7 @@ fn show(
             media,
             versions: Versions::under_state(&env.dirs.state),
             helpers: helpers.clone(),
+            images: image_host.clone(),
         },
     ));
     // Old kept versions go once, as the program starts, off the window's threads.

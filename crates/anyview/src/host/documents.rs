@@ -1,14 +1,17 @@
 //! The documents half of the desktop's tasks: writing an export of an image, a PDF or a text
 //! document beside it, and the PDF a printer takes for any of them.
 
+use super::image_plugins::ImageHost;
 use super::outcome::Outcome;
 use anyview_export::{DocumentExport, ExportError};
 use anyview_ui::Opened;
+use std::sync::Arc;
 
 /// Write `choice` for `file` beside it. Blocking: the encode, the page layout or the drawing of
-/// every page runs here, on a worker.
-pub(super) fn export(file: &Opened, choice: DocumentExport) -> Outcome {
-    match anyview_export::export(&file.source, &file.sniffed, choice) {
+/// every page runs here, on a worker. A picture only a plugin can decode is written from the
+/// plugin's pixels.
+pub(super) fn export(file: &Opened, choice: DocumentExport, images: Arc<ImageHost>) -> Outcome {
+    match anyview_export::export_with(&file.source, &file.sniffed, choice, images) {
         Ok(written) => written
             .into_iter()
             .next()

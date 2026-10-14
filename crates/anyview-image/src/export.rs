@@ -2,7 +2,7 @@
 
 use crate::decode::{Decoded, Svg, declared_size_of, decode_bytes};
 use crate::edit::adjusted_pixels;
-use crate::encode::encode_with_metadata;
+use crate::encode::{encode, encode_with_metadata};
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
 use crate::orientation::ExifOrientation;
@@ -117,13 +117,49 @@ pub fn encode_file(
     target: RasterTarget,
     keep: MetadataCarry,
 ) -> Result<Vec<u8>, ImageError> {
+    encode_file_via(file, adjust, resize, target, keep, |_| None)
+}
+
+/// [`encode_file`] for a file whose pixels a plugin may decode: `plugin` is asked for the upright
+/// picture of a camera raw file first (the viewer shows the plugin's development, not the preview
+/// inside the file) and of a file the built-in decoders have no decoder for. A picture a plugin
+/// made is written with no metadata: its pixels are not in the file's colour space, and what the
+/// file says of orientation and place was not read by anyone here.
+pub fn encode_file_via(
+    file: &FilePath,
+    adjust: Adjust,
+    resize: Resize,
+    target: RasterTarget,
+    keep: MetadataCarry,
+    plugin: impl Fn(&Sniffed) -> Option<Rgba8>,
+) -> Result<Vec<u8>, ImageError> {
     let original = ImageFile::read(file)?;
-    let upright = original.picture()?;
+    let developed = if original.sniffed.detail() == &FormatDetail::Raster(RasterFormat::Raw) {
+        plugin(&original.sniffed)
+    } else {
+        None
+    };
+    let (upright, by_plugin) = match developed {
+        Some(picture) => (picture, true),
+        None => match original.picture() {
+            Ok(picture) => (picture, false),
+            Err(error @ (ImageError::Unsupported { .. } | ImageError::NotCompiledIn { .. })) => {
+                match plugin(&original.sniffed) {
+                    Some(picture) => (picture, true),
+                    None => return Err(error),
+                }
+            }
+            Err(error) => return Err(error),
+        },
+    };
     let picture = if adjust.is_none() {
         resized(&upright, resize)
     } else {
         resized(&adjusted_pixels(&upright, adjust), resize)
     };
+    if by_plugin {
+        return encode(&picture, target);
+    }
     let keep = if original.sniffed.kind() == FormatKind::Vector {
         MetadataCarry::Drop
     } else {
