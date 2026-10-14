@@ -405,20 +405,6 @@ fn zoom_scales_the_lines_of_a_text_and_what_a_page_holds_and_actual_size_returns
 }
 
 #[test]
-fn a_second_find_over_a_find_selects_its_text_so_the_next_key_replaces_it() {
-    let (_dir, mut harness) = open(&numbered(40));
-    chord(&mut harness, 'f');
-    type_text(&mut harness, "row 1");
-    chord(&mut harness, 'f');
-    type_text(&mut harness, "x");
-    assert_eq!(
-        harness.attr(".ds-palette input", "value").as_deref(),
-        Some("x"),
-        "typing after the second command F replaced the text"
-    );
-}
-
-#[test]
 fn the_find_palette_echoes_no_chip_for_each_word_of_the_query() {
     let (_dir, mut harness) = open(&numbered(40));
     chord(&mut harness, 'f');

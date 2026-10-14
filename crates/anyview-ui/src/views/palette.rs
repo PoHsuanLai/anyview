@@ -164,6 +164,8 @@ pub(super) fn Palette(
             label: if finding { "Find" } else { "Commands" },
             placeholder: if finding { "Find in this file" } else { "Type a command" },
             query: query.as_str().to_owned(),
+            // The query is shown as typed: no chip echoes its words.
+            tokens: Vec::new(),
             groups,
             empty: if finding { "No matches" } else { "No matching command" },
             selected: Some(selection.0),

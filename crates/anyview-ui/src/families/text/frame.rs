@@ -12,11 +12,11 @@ const PAGE: &str = include_str!("page.css");
 /// The frame's document for the page `html`, dressed in the window's look and drawn at `scale`.
 pub(super) fn document(html: &str, look: &FrameLook, scale: ContentScale) -> String {
     format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><style>{}</style><style>{PAGE}</style><style>{}</style></head><body class=\"ds\" style=\"margin:0;--zoom:{}\" {}><div class=\"viewer-ground\"><article class=\"viewer-page\">{html}</article></div></body></html>",
+        "<!doctype html><html><head><meta charset=\"utf-8\"><style>{}</style><style>{PAGE}</style><style>{}</style></head><body class=\"ds\" style=\"margin:0\" {}><div class=\"viewer-ground\" style=\"--zoom:{}\"><article class=\"viewer-page\">{html}</article></div></body></html>",
         ds::stylesheet(),
         crate::families::TOKEN_CSS,
-        scale.factor(),
         look.attributes,
+        scale.factor(),
     )
 }
 
@@ -38,7 +38,7 @@ mod tests {
         };
         let page = document(&rendered.html, &look, ContentScale::ACTUAL);
         assert!(page.contains(
-            "<body class=\"ds\" style=\"margin:0;--zoom:1\" data-theme=\"dark\" data-accent=\"blue\">"
+            "<body class=\"ds\" style=\"margin:0\" data-theme=\"dark\" data-accent=\"blue\"><div class=\"viewer-ground\" style=\"--zoom:1\">"
         ));
         assert!(page.contains("<article class=\"viewer-page\"><h1"));
         assert!(page.contains("<em>text</em>"));

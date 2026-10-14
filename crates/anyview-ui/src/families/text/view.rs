@@ -213,7 +213,7 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         // A find over the page marks its hits in the page, the current one apart.
         let needle = find
             .as_ref()
-            .and_then(|_| cx.hits.as_ref())
+            .and(cx.hits.as_ref())
             .and_then(|found| found.0.page_needle());
         let page = match needle {
             Some(needle) => {
