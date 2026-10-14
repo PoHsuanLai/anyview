@@ -70,6 +70,12 @@ pub trait PlayerPlugins: Debug + Send + Sync + 'static {
     /// a failure is a reading with fewer rows.
     fn reading(&self, source: &Source, sniffed: &Sniffed) -> Reading;
 
+    /// A frame of the video `source` as PNG bytes, from the program that can decode one (the
+    /// poster a card shows in place of a picture nothing plays), or `None` when none can. Blocking.
+    fn poster(&self, _source: &Source, _sniffed: &Sniffed) -> Option<Vec<u8>> {
+        None
+    }
+
     /// The programs that play a file of `subject`'s kind.
     fn player(&self, subject: &Subject<'_>) -> PlayRoute;
 

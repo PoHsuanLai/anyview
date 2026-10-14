@@ -2,13 +2,15 @@
 //! plays, a picture whose decoder is not installed. One layout for all of them, so a missing tool
 //! reads the same wherever it is missing: the file's name and summary, one line saying what is
 //! missing and what it is for (or that the file cannot be used), Install… when the host offers
-//! one, Show in Folder, and the file's facts below, scrolling when they do not fit.
+//! one, Show in Folder, and the file's facts below, scrolling when they do not fit. A video whose
+//! frame could be decoded shows it above the name; one whose frame could not keeps the icon.
 
 use crate::families::InfoCard;
 use crate::families::view::StageCx;
 use crate::{Command, Need};
 use anyview_core::{FactLabel, Facts, FileAction, FormatKind, Helper};
 use dioxus::prelude::*;
+use ds::components::content::image_source::ImageSource;
 use ds::components::controls::button::Button;
 use ds_core::word::Word;
 
@@ -39,6 +41,7 @@ pub(crate) fn UnavailableCard(
     facts: Facts,
     note: String,
     install: Option<Helper>,
+    #[props(default)] poster: Option<ImageSource>,
     cx: StageCx,
 ) -> Element {
     let run = cx.run;
@@ -49,6 +52,7 @@ pub(crate) fn UnavailableCard(
                 InfoCard {
                     name,
                     kind: Some(kind),
+                    poster,
                     facts,
                     note: Some(note),
                     actions: rsx! {

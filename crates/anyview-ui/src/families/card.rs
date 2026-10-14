@@ -51,13 +51,15 @@ pub(crate) fn chips_of(facts: &Facts) -> Vec<&'static str> {
 
 /// The card of the file called `name`, of `kind`, whose rows are `facts`. `thumbnail` is a small
 /// picture of the file when it carries one, in place of the icon. `actions` are the buttons under
-/// the card (Show in Folder). `note` is a line under the summary.
+/// the card (Show in Folder). `note` is a line under the summary. `poster` is a frame of a video
+/// nothing plays, shown above the name scaled to fit and in its own shape, in place of both.
 #[component]
 pub(crate) fn InfoCard(
     name: String,
     kind: Option<FormatKind>,
     facts: Facts,
     #[props(default)] thumbnail: Option<ImageSource>,
+    #[props(default)] poster: Option<ImageSource>,
     #[props(default)] note: Option<String>,
     #[props(default)] actions: Option<Element>,
 ) -> Element {
@@ -68,7 +70,9 @@ pub(crate) fn InfoCard(
     let titled = sections.len() > 1;
     rsx! {
         div { class: "viewer-card",
-            if let Some(picture) = thumbnail {
+            if let Some(frame) = poster {
+                img { class: "viewer-card-poster", alt: "Preview", src: frame.0 }
+            } else if let Some(picture) = thumbnail {
                 img { class: "viewer-card-picture", alt: "Preview", src: picture.0 }
             } else {
                 div { class: "viewer-card-glyph",

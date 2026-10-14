@@ -6,9 +6,10 @@
 use crate::host::{HelperHost, PluginRegistry};
 use anyview_core::{
     ByteLen, Fact, FactLabel, FactValue, Facts, FormatKind, Helper, MediaTags, PeekBudget,
-    PixelArea, Sniffed, Source,
+    PixelArea, PixelLen, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
+use anyview_image::{Rgba8, encode_png};
 use anyview_media::{MpvHost, offered_kinds, target_of};
 use anyview_media_host::{ExportTool, PlayRoute, PlayerPlugins, Playing, Reading, WriteRoute};
 use anyview_peek::audio_cover;
@@ -24,6 +25,10 @@ const HEADER_BUDGET: PeekBudget = PeekBudget::DEFAULT
     .with_bytes(ByteLen(16 << 20))
     .with_pixels(PixelArea(1_000_000))
     .with_time(Duration::from_secs(2));
+
+/// The longest side of the poster frame of a video nothing plays: a card is a few hundred points
+/// wide, and the picture is sharp on a screen at twice that.
+const POSTER_EDGE: PixelLen = PixelLen(960);
 
 /// The plugins of this run and the runner that talks to them.
 #[derive(Debug, Clone, Default)]
@@ -143,6 +148,29 @@ impl MediaPlugins {
         Reading { facts, tags, cover }
     }
 
+    /// A frame of the video `source` as PNG bytes, when an installed plugin can decode one (the
+    /// FFmpeg plugin takes it a tenth of the way in). `None` when none can: a card keeps its plate
+    /// and says nothing of it. A plugin that fails is said and set aside.
+    #[must_use]
+    pub fn poster(&self, source: &Source, sniffed: &Sniffed) -> Option<Vec<u8>> {
+        let subject = Subject {
+            kind: sniffed.kind(),
+            mime: Some(sniffed.mime()),
+        };
+        let pixels = match self
+            .runner
+            .poster(&self.plugins(), &subject, source.path(), POSTER_EDGE)
+        {
+            Ok(found) => found?,
+            Err(error) => {
+                eprintln!("anyview: the plugin could not make a picture of the recording: {error}");
+                return None;
+            }
+        };
+        let frame = Rgba8::new(pixels.size(), pixels.rgba().to_vec()).ok()?;
+        encode_png(&frame).ok()
+    }
+
     /// The writer of `subject`'s exports.
     #[must_use]
     pub fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
@@ -258,6 +286,10 @@ fn header_facts(source: &Source, sniffed: &Sniffed) -> Facts {
 impl PlayerPlugins for MediaPlugins {
     fn reading(&self, source: &Source, sniffed: &Sniffed) -> Reading {
         MediaPlugins::reading(self, source, sniffed)
+    }
+
+    fn poster(&self, source: &Source, sniffed: &Sniffed) -> Option<Vec<u8>> {
+        MediaPlugins::poster(self, source, sniffed)
     }
 
     fn player(&self, subject: &Subject<'_>) -> PlayRoute {

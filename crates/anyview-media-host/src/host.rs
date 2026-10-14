@@ -8,7 +8,7 @@ use super::orders::Home;
 use super::plugins::{PlayRoute, PlayerPlugins, Playing, Reading};
 use super::sink::WindowSink;
 use super::snapshot::Snapshot;
-use anyview_core::{Facts, MediaTags};
+use anyview_core::{Facts, FormatKind, MediaTags};
 use anyview_platform::{Ability, Artwork, TrackSerial};
 use anyview_plugin::Subject;
 use anyview_runtime::{Actor, Mailbox, UiWaker};
@@ -149,6 +149,15 @@ fn unplayed(
         tags,
         facts,
         length: None,
-        cover: None,
+        cover: poster(plugins, start),
     }
+}
+
+/// The frame of a video nothing plays, for its card: a video's only picture is the one a program
+/// that can decode it makes, and a file with none shows the plate.
+fn poster(plugins: &dyn PlayerPlugins, start: &MediaStart) -> Option<ImageSource> {
+    (start.sniffed.kind() == FormatKind::Video)
+        .then(|| plugins.poster(&start.source, &start.sniffed))
+        .flatten()
+        .map(|png| ImageSource::png(&png))
 }
