@@ -3,6 +3,7 @@
 use crate::choice::DocumentExport;
 use crate::error::ExportError;
 use crate::name::output_path;
+use crate::plugin::PluginPictures;
 use crate::produce::produce;
 use crate::session::Session;
 use crate::write::write_new;
@@ -10,6 +11,7 @@ use anyview_core::{
     ExportChoice, ExportExtension, ExportJob, FilePath, FormatKind, RasterExport, Sniffed, Source,
 };
 use std::path::Path;
+use std::sync::Arc;
 
 /// Write `choice` for the file `source` (which sniffed as `sniffed`) beside it, under free
 /// names: one file for most exports, one for each page for page images. Returns the files
@@ -20,7 +22,32 @@ pub fn export(
     sniffed: &Sniffed,
     choice: DocumentExport,
 ) -> Result<Vec<FilePath>, ExportError> {
-    let mut session = Session::default();
+    run(Session::default(), source, sniffed, choice)
+}
+
+/// [`export`] for a picture that a plugin may decode: where the built-in decoders have none, or
+/// for a camera raw file, `plugins` makes the pixels, and the file written is a copy of them with
+/// no metadata of the original.
+pub fn export_with(
+    source: &Source,
+    sniffed: &Sniffed,
+    choice: DocumentExport,
+    plugins: Arc<dyn PluginPictures>,
+) -> Result<Vec<FilePath>, ExportError> {
+    run(
+        Session::with_plugins(source.clone(), plugins),
+        source,
+        sniffed,
+        choice,
+    )
+}
+
+fn run(
+    mut session: Session,
+    source: &Source,
+    sniffed: &Sniffed,
+    choice: DocumentExport,
+) -> Result<Vec<FilePath>, ExportError> {
     let jobs = plan(&mut session, source.path(), sniffed, choice)?;
     if jobs.is_empty() {
         return Err(ExportError::NothingToWrite);

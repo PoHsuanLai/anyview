@@ -3,6 +3,7 @@
 
 use super::documents;
 use super::helpers::HelperHost;
+use super::image_plugins::ImageHost;
 use super::media::{self, Media};
 use super::outcome::Outcome;
 use super::remembering::{PlaceWriter, REMEMBER_EVERY};
@@ -81,6 +82,7 @@ struct Parts<R, S, P, T, F, L> {
     remembering: PlaceWriter,
     media: Media,
     helpers: Option<Arc<HelperHost>>,
+    images: Arc<ImageHost>,
 }
 
 /// What the desktop keeps and plays with besides the platform's traits: the history and view
@@ -95,6 +97,8 @@ pub struct Services {
     pub versions: Versions,
     /// The tools the plugins run, and installing one: absent when the program ships no list of them.
     pub helpers: Option<Arc<HelperHost>>,
+    /// The plugins that decode the pictures a copy is made from when the viewer cannot.
+    pub images: ImageHost,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `R`
@@ -131,6 +135,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
             media,
             versions,
             helpers,
+            images,
         } = services;
         let store = Arc::new(store);
         Desktop {
@@ -147,6 +152,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
                 versions,
                 media,
                 helpers,
+                images: Arc::new(images),
             }),
         }
     }
@@ -261,7 +267,8 @@ where
         Task::Share(file) => share(parts, &file).await,
         Task::Print(probed) => print(parts, probed).await,
         Task::ExportDocument { file, choice } => {
-            blocking(move || documents::export(&file, choice)).await
+            let images = Arc::clone(&parts.images);
+            blocking(move || documents::export(&file, choice, images)).await
         }
         Task::RecordView(probed) => {
             let parts = Arc::clone(parts);

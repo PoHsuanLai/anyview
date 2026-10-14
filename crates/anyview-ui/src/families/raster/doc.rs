@@ -149,9 +149,9 @@ fn decode_into(target: &RasterOpen) -> Result<RasterDoc, OpenError> {
     // The file is read once: the decoder, the facts and the edit offer share these bytes.
     let bytes = file_bytes(&target.source.on_disk())?;
     let mut doc = decoded(target, &bytes)?;
-    // A picture a plugin decoded was made `Withheld` there: its pixels cannot be read from the
-    // file again, so no copy of them could be written either.
-    if doc.offer != EditOffer::Withheld {
+    // A picture with no pixels was made `Withheld` there, and one a plugin decoded `Copies`: the
+    // headers of its file say nothing of what it can take.
+    if doc.offer == EditOffer::Plain {
         doc.offer = offer_of(&target.source, &target.sniffed, &bytes, doc.frames);
     }
     Ok(doc)
@@ -262,7 +262,7 @@ fn plugin_into(
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
             Ok(RasterDoc {
-                offer: EditOffer::Withheld,
+                offer: EditOffer::Copies(copy_target(&target.sniffed)),
                 ..holding(
                     doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
                     held,
@@ -286,7 +286,7 @@ fn raw_into(target: &RasterOpen, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
         PluginPicture::Pixels(picture) => {
             let held = upload(&target.texture, &picture)?;
             return Ok(RasterDoc {
-                offer: EditOffer::Withheld,
+                offer: EditOffer::Copies(copy_target(&target.sniffed)),
                 ..holding(
                     doc_of(target, bytes, picture.size(), 1, None, Runs::Forever),
                     held,

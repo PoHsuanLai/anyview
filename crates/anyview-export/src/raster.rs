@@ -6,16 +6,28 @@ use anyview_core::{Adjust, Dpi, FilePath, MetadataCarry, PageIndex, RasterTarget
 use anyview_image::Rgba8;
 use anyview_pdf::{Backend, PdfBackend, PdfDone, PdfJob, Stop, Ticket};
 
-/// The image `file`, adjusted, resized and encoded.
+/// The image `file`, adjusted, resized and encoded; a picture only a plugin can decode is made
+/// from the plugin's pixels.
 pub(crate) fn image(
+    session: &Session,
     file: &FilePath,
     adjust: Adjust,
     resize: Resize,
     target: RasterTarget,
     keep: MetadataCarry,
 ) -> Result<Vec<u8>, ExportError> {
-    Ok(anyview_image::encode_file(
-        file, adjust, resize, target, keep,
+    let Some((source, plugins)) = &session.plugins else {
+        return Ok(anyview_image::encode_file(
+            file, adjust, resize, target, keep,
+        )?);
+    };
+    Ok(anyview_image::encode_file_via(
+        file,
+        adjust,
+        resize,
+        target,
+        keep,
+        |sniffed| plugins.picture(source, sniffed),
     )?)
 }
 

@@ -144,6 +144,10 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
             store: Store::new(&store, now),
             media,
             helpers: wired.helpers.clone(),
+            images: wired
+                .images
+                .clone()
+                .unwrap_or_else(ImageHost::without_plugins),
         },
     );
     let mut factory = Factory::new(
@@ -369,6 +373,7 @@ pub fn desktop(
                 scratch: scratch.join("cache"),
             },
             helpers: None,
+            images: ImageHost::without_plugins(),
         },
     ))
 }
