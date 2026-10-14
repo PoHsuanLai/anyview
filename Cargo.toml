@@ -85,22 +85,22 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "fe489cf753
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers, named only by the binary).
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4c595f3ad5a78753d79a7eeb4d7888903823489d" }  # 4c595f3a (after v0.3.25)
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "bfcb26bbe3d39694276d41d7d8ad98e17d5abe6b" }  # 4c595f3a (after v0.3.25)
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -114,7 +114,7 @@ blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "e114c52e18
 
 # The portable keymap core (own repo, public): actions, chords, the resolver and per-platform
 # sources. quire is the one toolkit integration (`ds::keys`); apps declare their actions with it.
-chordkit = { git = "https://github.com/PoHsuanLai/chordkit.git", rev = "ba094c62006c280ac53c4c5df5c0e639c1226c07" }
+chordkit = { git = "https://github.com/PoHsuanLai/chordkit.git", rev = "2fcdce262606d47efccfcac9ab96d4dd5af5196b" }
 
 # Blitz: git main, pinned by rev (crates.io dioxus-native 0.8 alpha does not build with
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
