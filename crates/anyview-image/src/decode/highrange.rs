@@ -108,4 +108,30 @@ mod tests {
             assert_eq!(encoded(reinhard(*value, *white)), *want, "{name}");
         }
     }
+
+    /// An EXR file of one RGBA pixel of the linear values `linear`.
+    fn exr_of(linear: [f32; 4]) -> Vec<u8> {
+        let picture = image::Rgba32FImage::from_pixel(1, 1, image::Rgba(linear));
+        let mut out = Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba32F(picture)
+            .write_to(&mut out, ImageFormat::OpenExr)
+            .unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn linear_files_are_shown_as_the_srgb_they_were_made_from() {
+        // OpenEXR stores light linearly, so the sRGB colour (221, 51, 51) is stored as
+        // (0.7231, 0.0331, 0.0331) and must come back as that colour.
+        let bytes = exr_of([0.7231, 0.0331, 0.0331, 1.0]);
+        let (picture, _) = decode(&bytes, ImageFormat::OpenExr, Ceiling::VIEW).unwrap();
+        let got = picture.bytes();
+        let want = [221_u8, 51, 51, 255];
+        for (channel, (got, want)) in got.iter().zip(want).enumerate() {
+            assert!(
+                got.abs_diff(want) <= 1,
+                "channel {channel}: {got} against {want}"
+            );
+        }
+    }
 }

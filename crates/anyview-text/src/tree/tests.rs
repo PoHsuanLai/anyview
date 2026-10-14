@@ -180,13 +180,6 @@ fn malformed_json_names_its_line_and_column() {
     const CASES: &[(&str, &str, TreeFormat, u32, u32)] = &[
         ("one line", "{\"a\":}", TreeFormat::Json, 0, 6),
         ("second line", "{\n\"a\": ]\n}", TreeFormat::Json, 1, 6),
-        (
-            "a jsonl line",
-            "{\"a\":1}\n{bad}\n",
-            TreeFormat::JsonLines,
-            1,
-            2,
-        ),
         ("trailing text", "1 2", TreeFormat::Json, 0, 3),
     ];
     for (name, text, format, line, column) in CASES {
@@ -285,12 +278,69 @@ fn json_lines_past_the_limit_count_only_whole_lines() {
 }
 
 #[test]
-fn nesting_past_the_parsers_limit_is_an_error_not_a_crash() {
-    let deep = format!("{}{}", "[".repeat(300), "]".repeat(300));
-    assert!(matches!(
-        Tree::parse(&deep, TreeFormat::Json),
-        Err(TextError::Json { .. })
-    ));
+fn a_bad_json_line_is_a_row_of_its_own_and_the_lines_around_it_are_read() {
+    // name, text, rows
+    const CASES: &[(&str, &str, &[&str])] = &[
+        (
+            "a bad line between two good ones",
+            "{\"ok\":1}\nnot json\n{\"ok\":2}\n",
+            &["{1 key}", "unreadable: not json", "{1 key}"],
+        ),
+        (
+            "a line cut short, then a good one",
+            "{\"a\":\n[1]\n",
+            &["unreadable: {\"a\":", "[1 item]"],
+        ),
+        (
+            "a bad last line with no line end and a CRLF before it",
+            "1\r\nnope",
+            &["1", "unreadable: nope"],
+        ),
+        ("only a bad line", "{bad}", &["unreadable: {bad}"]),
+    ];
+    for (name, text, want) in CASES {
+        let tree = Tree::parse(text, TreeFormat::JsonLines).unwrap();
+        let rows: Vec<String> = under(&tree, &TreePath::root())
+            .into_iter()
+            .map(|(_, preview)| preview)
+            .collect();
+        assert_eq!(rows, *want, "{name}");
+    }
+    let tree = Tree::parse("1\nnope\n", TreeFormat::JsonLines).unwrap();
+    let rows = tree.children(&TreePath::root(), 0..2).unwrap();
+    assert_eq!(rows[1].kind, NodeKind::Unreadable);
+}
+
+#[test]
+fn nesting_opens_to_ten_thousand_levels_and_is_refused_past_the_limit() {
+    // name, depth, opens
+    const CASES: &[(&str, usize, bool)] = &[
+        ("past the old limit", 300, true),
+        ("ten thousand", 10_000, true),
+        ("past the limit", grammar::MAX_DEPTH + 1, false),
+    ];
+    for (name, depth, opens) in CASES {
+        let objects = format!("{}1{}", "{\"k\":".repeat(*depth), "}".repeat(*depth));
+        let arrays = format!("{}{}", "[".repeat(*depth), "]".repeat(*depth));
+        for (kind, text) in [("objects", objects), ("arrays", arrays)] {
+            let parsed = Tree::parse(&text, TreeFormat::Json);
+            assert_eq!(parsed.is_ok(), *opens, "{name}: {kind}");
+            if let Err(error) = parsed {
+                assert!(matches!(error, TextError::Json { .. }), "{name}: {kind}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_path_thousands_of_steps_down_is_found() {
+    let depth = 3_000;
+    let text = format!("{}1{}", "{\"k\":".repeat(depth), "}".repeat(depth));
+    let tree = json(&text);
+    let path = (0..depth).fold(TreePath::root(), |at, _| at.child(0));
+    let row = tree.row(&path).unwrap();
+    assert_eq!(row.preview, "1");
+    assert_eq!(row.label, RowLabel::Key("k".to_owned()));
 }
 
 #[test]

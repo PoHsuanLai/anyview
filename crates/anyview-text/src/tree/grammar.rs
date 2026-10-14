@@ -4,8 +4,9 @@
 use super::cursor::Cursor;
 use std::ops::Range;
 
-/// How many containers may enclose a value.
-pub(super) const MAX_DEPTH: usize = 128;
+/// How many containers may enclose a value. The scan keeps the open containers on the heap, one
+/// byte each, so this bounds memory and not the stack.
+pub(super) const MAX_DEPTH: usize = 100_000;
 
 /// What a value is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,6 +18,8 @@ pub(super) enum Shape {
     True,
     False,
     Null,
+    /// A line of a JSON Lines file that is not a value: its bytes, as the line holds them.
+    Unreadable,
 }
 
 /// How the children of a level are laid out.
@@ -101,11 +104,11 @@ pub(super) fn skip_value(c: &mut Cursor<'_>, depth: usize) -> Result<Shape, Faul
     match shape {
         Shape::Object => skip_container(c, Form::Object, depth)?,
         Shape::Array => skip_container(c, Form::Array, depth)?,
-        Shape::String => skip_string(c)?,
-        Shape::Number => skip_number(c)?,
-        Shape::True => literal(c, b"true")?,
-        Shape::False => literal(c, b"false")?,
-        Shape::Null => literal(c, b"null")?,
+        Shape::String | Shape::Number | Shape::True | Shape::False | Shape::Null => {
+            skip_scalar(c, shape)?;
+        }
+        // `shape_at` never says so.
+        Shape::Unreadable => return Err(bad(c.pos(), "expected a value")),
     }
     Ok(shape)
 }
@@ -119,38 +122,24 @@ pub(super) fn closing(form: Form) -> Option<u8> {
     }
 }
 
-fn skip_container(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result<(), Fault> {
-    if depth >= MAX_DEPTH {
-        return Err(bad(c.pos(), "recursion limit exceeded"));
-    }
-    let close = closing(form).unwrap_or(b']');
-    c.bump();
-    c.skip_ws();
-    if c.peek() == Some(close) {
-        c.bump();
-        return Ok(());
-    }
-    loop {
-        read_child(c, form, depth + 1)?;
-        c.skip_ws();
-        match c.peek() {
-            Some(b',') => {
-                c.bump();
-                c.skip_ws();
-            }
-            Some(byte) if byte == close => {
-                c.bump();
-                return Ok(());
-            }
-            _ => return Err(unexpected(c, "expected `,` or a closing bracket")),
-        }
+/// The form of the container a value of `shape` is, or `None` for a scalar.
+fn container_form(shape: Shape) -> Option<Form> {
+    match shape {
+        Shape::Object => Some(Form::Object),
+        Shape::Array => Some(Form::Array),
+        Shape::String
+        | Shape::Number
+        | Shape::True
+        | Shape::False
+        | Shape::Null
+        | Shape::Unreadable => None,
     }
 }
 
-/// Reads the child at the cursor: for an object its key and colon, then its value. Leaves the
-/// cursor after the value. `depth` is how many containers enclose the child's value.
-pub(super) fn read_child(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result<Child, Fault> {
-    let key = match form {
+/// Reads the key and colon of the child at the cursor when `form` has them. The cursor is then at
+/// the child's value.
+fn read_key(c: &mut Cursor<'_>, form: Form) -> Result<Option<Range<u64>>, Fault> {
+    match form {
         Form::Object => {
             let start = c.pos();
             if c.peek() != Some(b'"') {
@@ -164,10 +153,83 @@ pub(super) fn read_child(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result
             }
             c.bump();
             c.skip_ws();
-            Some(key)
+            Ok(Some(key))
         }
-        Form::Array | Form::Stream => None,
-    };
+        Form::Array | Form::Stream => Ok(None),
+    }
+}
+
+/// Starts the child at the cursor of a container of `form`: its key, then its value. A scalar
+/// value is skipped and `None` is returned; a container is left unopened, and its form returned.
+fn begin_child(c: &mut Cursor<'_>, form: Form) -> Result<Option<Form>, Fault> {
+    read_key(c, form)?;
+    let shape = shape_at(c)?;
+    match container_form(shape) {
+        Some(inner) => Ok(Some(inner)),
+        None => {
+            skip_scalar(c, shape)?;
+            Ok(None)
+        }
+    }
+}
+
+/// Moves past the container at the cursor, which is at its opening bracket. The containers open
+/// inside it are a stack on the heap, so how deep it nests does not depend on the thread's stack.
+/// `depth` is how many containers enclose it.
+fn skip_container(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result<(), Fault> {
+    let mut open: Vec<Form> = Vec::new();
+    let mut form = form;
+    // Whether the cursor is at the opening bracket of `form`, as against after one of its
+    // children.
+    let mut entering = true;
+    loop {
+        let mut closed = false;
+        if entering {
+            if depth + open.len() >= MAX_DEPTH {
+                return Err(bad(c.pos(), "recursion limit exceeded"));
+            }
+            c.bump();
+            c.skip_ws();
+            if c.peek() == closing(form) {
+                c.bump();
+                closed = true;
+            } else if let Some(inner) = begin_child(c, form)? {
+                open.push(form);
+                form = inner;
+                continue;
+            }
+            entering = false;
+        }
+        if !closed {
+            // After a child: another follows, or the container ends.
+            c.skip_ws();
+            match c.peek() {
+                Some(b',') => {
+                    c.bump();
+                    c.skip_ws();
+                    if let Some(inner) = begin_child(c, form)? {
+                        open.push(form);
+                        form = inner;
+                        entering = true;
+                    }
+                    continue;
+                }
+                Some(byte) if Some(byte) == closing(form) => c.bump(),
+                _ => return Err(unexpected(c, "expected `,` or a closing bracket")),
+            }
+        }
+        // `form` is closed: the container it was in continues, or the scan is done.
+        match open.pop() {
+            Some(outer) => form = outer,
+            None => return Ok(()),
+        }
+    }
+}
+
+/// Reads the child at the cursor: for an object its key and colon, then its value. Leaves the
+/// cursor after the value. `depth` is how many containers enclose the child's value.
+pub(super) fn read_child(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result<Child, Fault> {
+    let key = read_key(c, form)?;
     let start = c.pos();
     let shape = skip_value(c, depth)?;
     Ok(Child {
@@ -175,6 +237,18 @@ pub(super) fn read_child(c: &mut Cursor<'_>, form: Form, depth: usize) -> Result
         value: start..c.pos(),
         shape,
     })
+}
+
+/// Moves past a scalar of `shape`.
+fn skip_scalar(c: &mut Cursor<'_>, shape: Shape) -> Result<(), Fault> {
+    match shape {
+        Shape::String => skip_string(c),
+        Shape::Number => skip_number(c),
+        Shape::True => literal(c, b"true"),
+        Shape::False => literal(c, b"false"),
+        Shape::Null => literal(c, b"null"),
+        Shape::Object | Shape::Array | Shape::Unreadable => Err(bad(c.pos(), "expected a value")),
+    }
 }
 
 fn literal(c: &mut Cursor<'_>, word: &[u8]) -> Result<(), Fault> {

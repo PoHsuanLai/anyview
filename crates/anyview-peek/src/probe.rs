@@ -5,7 +5,8 @@
 use crate::error::PeekError;
 use anyview_archive::zip_entries;
 use anyview_core::{
-    ByteLen, FileHead, Input, SniffStep, Sniffed, ZipEntries, sniff, sniff_folder, sniff_zip,
+    ByteLen, FileHead, Input, OleStreams, SniffStep, Sniffed, ZipEntries, is_ole, sniff,
+    sniff_folder, sniff_ole, sniff_zip,
 };
 use std::io::{Error, ErrorKind};
 
@@ -26,7 +27,8 @@ pub struct Probed {
 }
 
 /// Looks at `src`, a path (`&FilePath`, `&Source`) or any bytes a host injects: a folder is a
-/// folder; a file is sniffed from its head and, when it is a zip, from its entries (an unreadable
+/// folder; a file is sniffed from its head and, when it is a zip or a compound file, from its
+/// entries or directory (an unreadable
 /// zip is a plain archive, which a peek then reports on). Blocking: run it on a worker.
 pub fn probe(src: impl Into<Input>) -> Result<Probed, PeekError> {
     let input = src.into();
@@ -55,7 +57,15 @@ pub fn probe(src: impl Into<Input>) -> Result<Probed, PeekError> {
             .bytes()
             .read_range(0..FileHead::MAX.0)
             .map_err(|e| fault(&e))?;
-        match sniff(&FileHead::new(&head), input.name()) {
+        let head = FileHead::new(&head);
+        match sniff(&head, input.name()) {
+            // A compound file is Word, Excel or PowerPoint by the streams in its directory,
+            // which lies past the head.
+            SniffStep::Done(sniffed) if is_ole(&head) => OleStreams::read(|start, len| {
+                input.bytes().read_range(start..start.saturating_add(len))
+            })
+            .and_then(|streams| sniff_ole(&streams))
+            .unwrap_or(sniffed),
             SniffStep::Done(sniffed) => sniffed,
             SniffStep::LookInside(inside) => {
                 let entries = zip_entries(&input, ZIP_INDEX)

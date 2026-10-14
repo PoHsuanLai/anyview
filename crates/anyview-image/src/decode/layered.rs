@@ -3,6 +3,7 @@
 
 use super::ceiling::Ceiling;
 use super::colour::{ColourInfo, ColourModel};
+use super::photoshop::{self, Gap};
 use crate::error::ImageError;
 use crate::pixels::Rgba8;
 use anyview_core::{PixelLen, PixelSize};
@@ -49,18 +50,23 @@ pub(crate) fn psd_cost(bytes: &[u8]) -> Result<(PixelSize, u64), ImageError> {
     Ok((size, channels * depth_bytes + 8))
 }
 
-/// The flattened picture a Photoshop file stores beside its layers. The `psd` crate indexes and
-/// unwraps on bytes it has not checked, so a file that breaks it is reported as undecodable
-/// instead of taking the worker down.
+/// The flattened picture a Photoshop file stores beside its layers. The composite is read from the
+/// file itself; the `psd` crate is asked only about what that reader does not handle. The crate
+/// indexes and unwraps on bytes it has not checked, so a file that breaks it is reported as
+/// undecodable instead of taking the worker down.
 pub(crate) fn psd(bytes: &[u8], ceiling: Ceiling) -> Result<(Rgba8, ColourInfo), ImageError> {
     let (size, per_pixel) = psd_cost(bytes)?;
     ceiling.admit(size, per_pixel)?;
-    let flattened = catch_unwind(AssertUnwindSafe(|| {
-        let document = ::psd::Psd::from_bytes(bytes).map_err(|e| decode_error(format!("{e:?}")))?;
-        Ok((document.width(), document.height(), document.rgba()))
-    }))
-    .map_err(|_| decode_error("the Photoshop file is damaged"))??;
-    let (width, height, pixels) = flattened;
+    let (width, height, pixels) = match photoshop::composite(bytes) {
+        Ok(composite) => composite,
+        Err(Gap::Damaged(reason)) => return Err(decode_error(reason)),
+        Err(Gap::Unsupported) => catch_unwind(AssertUnwindSafe(|| {
+            let document =
+                ::psd::Psd::from_bytes(bytes).map_err(|e| decode_error(format!("{e:?}")))?;
+            Ok((document.width(), document.height(), document.rgba()))
+        }))
+        .map_err(|_| decode_error("the Photoshop file is damaged"))??,
+    };
     let size = PixelSize {
         width: PixelLen(width),
         height: PixelLen(height),
