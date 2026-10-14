@@ -447,8 +447,8 @@ on. It is a reference, not a log: how each was found lives in git history.
   belongs to the UI crate; `ShareTarget` has only `Mail` (`xdg-email --attach`). Ends when a freedesktop share
   portal exists, or when the window's clipboard is reached through the platform edge.
 - **`WindowStacking` has no Linux protocol.** `NoStacking` answers `Unsupported` for `KeepAbove`: Wayland
-  clients cannot place themselves, and COSMIC's protocol is not bound. Ends when `anyview-platform` binds a
-  compositor protocol (the shell's layer or a COSMIC toplevel-management request) and the binary passes a
+  clients cannot place themselves, and no compositor protocol for it is bound. Ends when `anyview-platform` binds a
+  compositor protocol (the shell's layer or a toplevel-management request) and the binary passes a
   window handle to `request`. The mini window asks for it and reports the refusal.
 - **A started program is not reaped.** `ProcessSpawn` drops the child handle, so an exited mail
   program stays a zombie until the viewer exits. Ends when the binary installs a `SIGCHLD` reaper or `Spawn`

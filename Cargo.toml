@@ -159,7 +159,7 @@ vello_common = "0.1"
 parley = { version = "0.11.1", default-features = false, features = ["std", "xz"] }
 image = { version = "0.25.6", default-features = false, features = ["png", "jpeg"] }
 
-# Wayland client (shell-host and sill share one sctk major: cosmic-client-toolkit uses 0.20).
+# Wayland client (shell-host and sill share one sctk major).
 smithay-client-toolkit = { version = "0.20", default-features = false, features = ["calloop", "xkbcommon"] }
 wayland-client = "0.31"
 wayland-backend = { version = "0.3", features = ["client_system"] }
@@ -223,10 +223,8 @@ quote = "1"
 proc-macro2 = "1"
 proc-macro-crate = "3"
 
-# Shell-only (COSMIC).
-cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols", rev = "c0cff4db14c37ed954983158e4055aa94c7741d9" }
+# Shell-only.
 upower_dbus = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "eed01dd3609e90e3c8cd043656734c500956c793" }
-cosmic-dbus-networkmanager = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = "eed01dd3609e90e3c8cd043656734c500956c793" }
 logind-zbus = "5"
 libpulse-binding = "2.30"
 system-tray = "0.8.9"
@@ -271,7 +269,7 @@ tar = "0.4"
 oo7 = "0.6"
 # recall-fastembed only; excluded from the gate.
 fastembed = "7.1"
-# The minor cosmic-comp's lock resolves.
+# Pinned at this minor so the repos that share this crate stay on one version.
 reis = "0.7"
 atspi = "0.30"
 # voiced (docket): the capture device through pipewire-rs, MIT (libpipewire through bindgen;
