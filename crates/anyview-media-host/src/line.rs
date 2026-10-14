@@ -41,7 +41,11 @@ impl LiveLine {
 
 impl MediaLine for LiveLine {
     fn send(&self, command: PlayerCommand) {
-        self.command(map::command_of(command));
+        let command = map::command_of(command);
+        if let Some(hub) = self.hub.upgrade() {
+            hub.asked(self.id, &command);
+        }
+        self.command(command);
     }
 
     fn resize(&self, slot: Option<SlotPixels>) {
