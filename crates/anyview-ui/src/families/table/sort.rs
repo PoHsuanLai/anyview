@@ -27,11 +27,10 @@ pub(crate) fn sort_sheet(
 ) -> Option<SortedOrder> {
     let one = doc.sheets.get(sheet.0 as usize)?; // a u32 fits a usize
     let column = sort.column as usize; // a u32 fits a usize
-    let numeric = one.numeric.get(column) == Some(&true);
     let cells = one
         .table
         .column(column)
         .take_while(|_| stop.stopped() != StopState::Stopped);
-    let order = sorted_rows(sort.direction, numeric, cells);
+    let order = sorted_rows(sort.direction, cells);
     (stop.stopped() != StopState::Stopped).then_some(SortedOrder { sheet, sort, order })
 }

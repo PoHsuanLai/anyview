@@ -27,7 +27,7 @@ pub use workbook::{SHEET_ROWS, Sheet, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook};
 pub const TABLE_BYTES: ByteLen = ByteLen(1024 * 1024 * 1024);
 
 /// How many rows are looked at to size the columns.
-const WIDTH_SAMPLE_ROWS: u32 = 100;
+const WIDTH_SAMPLE_ROWS: u32 = 200;
 
 /// The bytes at the start of a file that the separator is chosen from.
 const SNIFF_BYTES: usize = 32 * 1024;
@@ -37,7 +37,16 @@ const SNIFF_BYTES: usize = 32 * 1024;
 pub struct CharWidth(pub u16);
 
 /// The narrowest and widest a column is sized to.
-const WIDTH_RANGE: (u16, u16) = (4, 40);
+const WIDTH_RANGE: (u16, u16) = (4, 60);
+
+/// How many characters of room one character takes: two for the wide scripts, one otherwise.
+fn cell_width(c: char) -> usize {
+    let wide = matches!(c as u32,
+        0x1100..=0x115F | 0x2E80..=0xA4CF | 0xAC00..=0xD7A3 | 0xF900..=0xFAFF
+        | 0xFE30..=0xFE6F | 0xFF00..=0xFF60 | 0xFFE0..=0xFFE6 | 0x1F300..=0x1FAFF
+        | 0x20000..=0x3FFFD);
+    if wide { 2 } else { 1 }
+}
 
 /// How many rows a table has, not counting the header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -200,7 +209,8 @@ impl Table {
     }
 
     /// How wide each column wants to be, in characters: the longest cell among the header and a
-    /// sample of the first rows, held between 4 and 40 characters.
+    /// sample of the first rows, held between 4 and 60 characters. A wide character (CJK, full-width)
+    /// counts for two.
     pub fn column_widths(&self) -> Vec<CharWidth> {
         let (least, most) = WIDTH_RANGE;
         let sample = self
@@ -208,7 +218,7 @@ impl Table {
             .unwrap_or_default();
         (0..self.columns.0 as usize) // a u32 fits a usize
             .map(|column| {
-                let chars = |cell: &String| cell.chars().count();
+                let chars = |cell: &String| cell.chars().map(cell_width).sum::<usize>();
                 let widest = self
                     .header
                     .iter()

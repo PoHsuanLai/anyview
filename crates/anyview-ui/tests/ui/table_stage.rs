@@ -301,3 +301,51 @@ fn zoom_scales_the_rows_of_a_table_and_actual_size_returns() {
         );
     }
 }
+
+#[test]
+fn numbers_kept_as_numbers_sort_by_value_not_by_their_digits() {
+    let (_dir, mut harness) = open("counts.csv", "n,name\n10,a\n9,b\n100,c\n");
+    press_head(&mut harness);
+    // the gutter number, then the cells, row after row
+    let rows = harness.text_of(".ds-vtable-rows").unwrap_or_default();
+    assert!(rows.contains("19b210a3100c"), "9, 10, 100: {rows}");
+}
+
+/// The width of the `at`th header cell, counting the gutter as the first.
+fn head_width(harness: &Harness, at: usize) -> f32 {
+    harness
+        .rect(&format!(".ds-table-head:nth-child({at})"))
+        .expect("a header cell")
+        .size
+        .width
+        .0
+}
+
+/// A table with a short id column, a long description column and a flag column to take the rest.
+fn described() -> String {
+    let mut body = String::from("id,description,flag\n");
+    for n in 1..=30 {
+        body.push_str(&format!(
+            "{n},the quick brown fox jumps over the lazy dog {n},y\n"
+        ));
+    }
+    body
+}
+
+#[test]
+fn each_column_is_as_wide_as_its_content_asks_and_the_widths_follow_zoom() {
+    let (_dir, mut harness) = open("described.csv", &described());
+    let (id, text) = (head_width(&harness, 2), head_width(&harness, 3));
+    assert!(
+        id * 2.0 < text,
+        "the id column ({id} px) is far narrower than the description ({text} px)"
+    );
+    press(&mut harness, ShortcutKey::Char('+'));
+    press(&mut harness, ShortcutKey::Char('+'));
+    let zoomed = head_width(&harness, 3);
+    assert!(
+        (zoomed - text * 1.5).abs() < 2.0,
+        "zoomed to 150%, the description is {zoomed} px, wanted {} px",
+        text * 1.5
+    );
+}

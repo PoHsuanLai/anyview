@@ -62,16 +62,16 @@ fn a_semicolon_file_named_csv_is_split_by_its_semicolons() {
 }
 
 #[test]
-fn column_widths_follow_the_longest_sampled_cell_within_bounds() {
+fn column_widths_follow_the_longest_sampled_cell_counting_wide_characters_twice_within_bounds() {
     let table = Table::parse(
-        "id,name,note\n1,Ann,a very long note that goes on and on and on and on past forty chars\n22,Bobby Tables,x\n",
+        "id,name,note\n1,Ann,a very long note that goes on and on and on and on past forty chars\n22,Bobby Tables,x\n3,\u{4e2d}\u{6587}\u{540d}\u{524d}\u{5b57}\u{6bb5}\u{7b26},y\n",
         Delimiter::Comma,
         HeaderMode::Detect,
     )
     .unwrap();
     assert_eq!(
         table.column_widths(),
-        vec![CharWidth(4), CharWidth(12), CharWidth(40)]
+        vec![CharWidth(4), CharWidth(14), CharWidth(60)]
     );
 }
 

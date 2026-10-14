@@ -45,8 +45,8 @@ pub(super) fn title(sheet: &SheetDoc, at: usize) -> String {
 }
 
 /// The columns: the row-number gutter, then each column of the sheet at the width its first rows
-/// ask for. A character is a quarter of a row's height wide and a cell keeps half a row of room
-/// around its text, so the widths follow the row token, and the zoom.
+/// ask for. A character is a quarter of a row's height wide and a cell keeps a row of room around
+/// its text (half for the padding, half for a sort arrow in the header), so the widths follow the row token, and the zoom.
 fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
     let pitch = row_pitch().0 * scale.factor();
     let gutter = TableColumn::new(GUTTER, "#", Px(pitch * 2.0))
@@ -59,7 +59,7 @@ fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
             CellAlign::Leading
         };
         let id = u32::try_from(at).unwrap_or(GUTTER - 1);
-        let width = Px(f32::from(chars.0) * pitch / 4.0 + pitch / 2.0);
+        let width = Px(f32::from(chars.0) * pitch / 4.0 + pitch);
         TableColumn::new(id, title(sheet, at), width).aligned(align)
     });
     std::iter::once(gutter).chain(data).collect()
