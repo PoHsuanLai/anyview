@@ -246,9 +246,10 @@ fn the_menu_key_opens_it_at_the_middle_of_the_content_on_screen_at_every_scale()
             stage.origin.x.0 + stage.size.width.0 / 2.0,
             stage.origin.y.0 + stage.size.height.0 / 2.0,
         );
-        // A menu too tall for the room below slides up to stay on screen.
+        // A menu too tall for the room below slides up to stay 8 px inside the window (less
+        // half a pixel: a fractional scale rounds the rows).
         let bottom = rect.origin.y.0 + rect.size.height.0;
-        let slid = bottom >= stage.origin.y.0 + stage.size.height.0 - 8.0;
+        let slid = bottom >= stage.origin.y.0 + stage.size.height.0 - 8.5;
         let at_middle = (rect.origin.y.0 - middle.1).abs() <= 2.0;
         assert!(
             (rect.origin.x.0 - middle.0).abs() <= 2.0 && (at_middle || slid),
