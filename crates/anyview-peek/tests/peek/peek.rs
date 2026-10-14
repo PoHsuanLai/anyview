@@ -282,10 +282,7 @@ fn a_pdf_longer_than_the_byte_budget_is_not_read() {
         reason.label(),
         "the file is 621 bytes and the preview may read 100"
     );
-    assert_eq!(
-        rows(&peeked.facts)[0],
-        ("kind", "PDF document".to_owned())
-    );
+    assert_eq!(rows(&peeked.facts)[0], ("kind", "PDF document".to_owned()));
 }
 
 #[test]
