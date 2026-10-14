@@ -5,8 +5,8 @@
 
 use crate::host::{HelperHost, PluginRegistry};
 use anyview_core::{
-    ByteLen, Fact, FactLabel, FactValue, Facts, FormatKind, Helper, MediaTags, PeekBudget,
-    PixelArea, PixelLen, Sniffed, Source,
+    ByteLen, Fact, FactLabel, FactValue, Facts, FilePath, FormatKind, Helper, Input, MediaTags,
+    PeekBudget, PixelArea, PixelLen, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
 use anyview_image::{Rgba8, encode_png};
@@ -153,13 +153,24 @@ impl MediaPlugins {
     /// and says nothing of it. A plugin that fails is said and set aside.
     #[must_use]
     pub fn poster(&self, source: &Source, sniffed: &Sniffed) -> Option<Vec<u8>> {
+        encode_png(&self.frame(source.path(), sniffed)?).ok()
+    }
+
+    /// The same frame of the video `source` as pixels, for a pane's card: `None` when `source` is
+    /// not a file or no installed plugin can decode one.
+    #[must_use]
+    pub fn poster_pixels(&self, source: &Input, sniffed: &Sniffed) -> Option<Rgba8> {
+        self.frame(source.path()?, sniffed)
+    }
+
+    fn frame(&self, path: &FilePath, sniffed: &Sniffed) -> Option<Rgba8> {
         let subject = Subject {
             kind: sniffed.kind(),
             mime: Some(sniffed.mime()),
         };
         let pixels = match self
             .runner
-            .poster(&self.plugins(), &subject, source.path(), POSTER_EDGE)
+            .poster(&self.plugins(), &subject, path, POSTER_EDGE)
         {
             Ok(found) => found?,
             Err(error) => {
@@ -167,8 +178,7 @@ impl MediaPlugins {
                 return None;
             }
         };
-        let frame = Rgba8::new(pixels.size(), pixels.rgba().to_vec()).ok()?;
-        encode_png(&frame).ok()
+        Rgba8::new(pixels.size(), pixels.rgba().to_vec()).ok()
     }
 
     /// The writer of `subject`'s exports.

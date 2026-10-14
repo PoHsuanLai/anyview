@@ -41,7 +41,7 @@ pub use locks::StoreLocks;
 pub use media::Media;
 pub use outcome::{Declined, Outcome};
 pub use path_watch::{PATH_SETTLE, PathWatch};
-pub use pictures::CachedPictures;
+pub use pictures::{CachedPictures, PosterPictures};
 pub use plugin_registry::PluginRegistry;
 pub use remembering::{PlaceWriter, REMEMBER_EVERY};
 pub use resume::HostedResume;

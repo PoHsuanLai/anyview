@@ -68,7 +68,7 @@ pub(crate) fn peek_looking(src: &Input, sniffed: &Sniffed, peeking: &Peeking) ->
     let mut peeked = peek_kind(src, sniffed, &peeking.budget, peeking.fit);
     if peeked.kind == FormatKind::Video
         && matches!(peeked.body, Body::FactsOnly(_))
-        && let Some(picture) = peeking.stills.still(src)
+        && let Some(picture) = peeking.stills.poster(src, sniffed)
     {
         peeked.body = Body::Picture(Arc::new(still_peek(picture, &peeking.budget)));
     }

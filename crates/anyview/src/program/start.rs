@@ -6,7 +6,7 @@ use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
 use crate::host::{
     Appearances, CachedPictures, HelperHost, Hosting, ImageHost, Media, PATH_SETTLE, PathWatch,
-    PlatformDesktop, PluginRegistry, SETTLE, Services, Store, Watcher,
+    PlatformDesktop, PluginRegistry, PosterPictures, SETTLE, Services, Store, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -218,7 +218,10 @@ fn show(
     let factory = Factory::new(
         workforce.workers(),
         Arc::clone(&hosting) as Arc<dyn Hosting>,
-        Arc::new(CachedPictures(FreedesktopThumbnails::new(&env))),
+        Arc::new(PosterPictures::new(
+            CachedPictures(FreedesktopThumbnails::new(&env)),
+            Arc::clone(&plugins),
+        )),
         watcher,
         appearances,
         Arc::new(PlayerHost::new(hub.clone())),

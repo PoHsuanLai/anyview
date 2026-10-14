@@ -27,6 +27,24 @@ impl StillSource for Cached {
     }
 }
 
+/// A host with no cached thumbnail but a program that can decode a frame of a video.
+#[derive(Debug)]
+struct Decoder;
+
+impl StillSource for Decoder {
+    fn still(&self, _: &anyview_core::Input) -> Option<Rgba8> {
+        None
+    }
+
+    fn poster(&self, _: &anyview_core::Input, _: &anyview_core::Sniffed) -> Option<Rgba8> {
+        let size = anyview_core::PixelSize {
+            width: anyview_core::PixelLen(3),
+            height: anyview_core::PixelLen(2),
+        };
+        Rgba8::new(size, vec![90; 24]).ok()
+    }
+}
+
 fn with(stills: Arc<dyn StillSource>) -> Peeking {
     pane_looking().with_stills(stills)
 }
@@ -63,6 +81,12 @@ fn a_cached_thumbnail_becomes_the_frame_of_a_video_only() {
     );
     // Audio never takes a video's frame.
     let (audio, _) = fixture(Home::Media, "tone.flac");
-    let song = look(audio, &with(Arc::new(Cached)));
+    let song = look(audio.clone(), &with(Arc::new(Cached)));
     assert_eq!(song.body.slug(), "facts");
+    // A host that can decode a frame lends it for a video with no cached thumbnail, and for no
+    // other kind.
+    let (clip, _) = fixture(Home::Media, "clip.mkv");
+    let decoded = look(clip, &with(Arc::new(Decoder)));
+    assert_eq!(decoded.still().map(|still| still.size().width.0), Some(3));
+    assert_eq!(look(audio, &with(Arc::new(Decoder))).body.slug(), "facts");
 }
