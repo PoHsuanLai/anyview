@@ -355,6 +355,19 @@ fn a_comic_is_one_page_to_a_picture() {
 }
 
 #[test]
+fn a_comic_opens_on_the_whole_page_not_a_slab_of_it() {
+    for scale in [100u16, 200] {
+        let dir = tempfile::tempdir().unwrap();
+        let harness = open(&comic(dir.path()), scale, Wiring::default());
+        let page = harness.rect(".viewer-pdf-page").unwrap();
+        assert!(
+            page.size.height.0 <= 600.0,
+            "{scale}%: the whole page is inside the 600 px window: {page:?}"
+        );
+    }
+}
+
+#[test]
 fn a_book_offers_no_page_edits_for_its_pages_are_not_a_file() {
     let dir = tempfile::tempdir().unwrap();
     let (mut harness, requests) = opened(&epub(dir.path()), 100, Wiring::default());

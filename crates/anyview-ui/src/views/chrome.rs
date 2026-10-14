@@ -9,10 +9,33 @@ use ds::components::chrome::capsule::model::ScrubEvent;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::capsule::view::Capsule;
 use ds::components::chrome::titlebar_parts::{DocumentState, TitleParts};
-use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
+use ds::components::chrome::window_frame::{TitleRoom, TrafficLights, WindowTitlebar};
 use ds::prelude::{Material, Shown, Surface};
 use ds_core::vocab::Fraction;
 use ds_core::word::Word;
+
+/// How much of the titlebar the family's mode control takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum BarRoom {
+    /// The title is centred and the control sits right of it.
+    #[default]
+    Roomy,
+    /// The window is narrow: the title ends before the control.
+    Tight,
+    /// The window has no room for the control; it is not drawn.
+    Bare,
+}
+
+impl BarRoom {
+    /// Where the title sits: beside the mode control when it takes the right of the bar, else
+    /// centred.
+    fn title_room(self) -> TitleRoom {
+        match self {
+            BarRoom::Tight => TitleRoom::Beside,
+            BarRoom::Roomy | BarRoom::Bare => TitleRoom::Centred,
+        }
+    }
+}
 
 /// The titlebar: the window's title and lights on the bar material, over the top of the content.
 /// It takes no pointer while it is hidden, so it never blocks the content under it.
@@ -20,6 +43,7 @@ use ds_core::word::Word;
 pub(super) fn Titlebar(
     title: String,
     #[props(default)] edited: DocumentState,
+    #[props(default)] room: BarRoom,
     shown: Shown,
     trailing: Option<Element>,
     #[props(default)] document: DocumentState,
@@ -40,6 +64,7 @@ pub(super) fn Titlebar(
                         ..TitleParts::default()
                     },
                     lights: TrafficLights::Shown,
+                    title_room: room.title_room(),
                     // The family's mode controls (Select | Pan) are part of the bar.
                     trailing,
                 }

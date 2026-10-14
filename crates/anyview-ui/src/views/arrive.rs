@@ -9,10 +9,10 @@ use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
 use crate::{
     EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, HitCount, HitIndex, LoadIn,
-    NavigateIn, PictureEditIn, PictureEditing, Sheet, SheetIn, Stage, StageIn, TableIn, TextIn,
-    TextStage, Ticket, TreeIn, TypedText, VersionList, ViewerIn, freshness,
+    NavigateIn, Panel, PictureEditIn, PictureEditing, Presentation, Sheet, SheetIn, Stage, StageIn,
+    TableIn, TextIn, TextStage, Ticket, TreeIn, TypedText, VersionList, ViewerIn, freshness,
 };
-use anyview_core::{FilePath, FindOptions, Helper, LineIndex, Resume};
+use anyview_core::{FilePath, FindOptions, Helper, LineIndex, PixelLen, PixelSize, Resume};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastAction;
 use std::sync::Arc;
@@ -359,15 +359,37 @@ pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     size_window(
         c,
         ticket,
-        doc.view()
-            .natural()
-            .map_or(SizeBasis::Header, SizeBasis::Natural),
+        doc.view().natural().map_or(SizeBasis::Header, |natural| {
+            SizeBasis::Natural(with_panel(c, natural))
+        }),
     );
     for input in told_of(c, doc) {
         send(c, ViewerIn::Stage(input));
     }
     // A player that started before the document landed may have woken the window already.
     drain_media(c);
+}
+
+/// `natural` widened by the panel's width when a window that sizes itself shows the panel beside
+/// the content (a PDF opens it, as Preview opens its sidebar): the window then opens with the
+/// whole page showing, not squeezed by the panel. A pane is its host's region and is not sized
+/// this way, and nor is a picture, whose size is in device pixels.
+fn with_panel(c: &Carry, natural: NaturalSize) -> NaturalSize {
+    let NaturalSize::Points(page) = natural else {
+        return natural;
+    };
+    let beside = c.dispatch().is_some_and(|dispatch| {
+        let state = dispatch.machine.state();
+        let state = state.peek();
+        state.presentation != Presentation::Pane && matches!(state.panel, Panel::Shown { .. })
+    });
+    if !beside {
+        return natural;
+    }
+    NaturalSize::Points(PixelSize {
+        width: PixelLen(page.width.0.saturating_add(super::panel::WIDTH)),
+        ..page
+    })
 }
 
 /// What the picture edits are told when `doc` lands: its size, and whether it can be saved with

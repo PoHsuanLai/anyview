@@ -2532,7 +2532,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 [[package]]
 name = "ds"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "chordkit",
  "dioxus",
@@ -2548,7 +2548,7 @@ dependencies = [
 [[package]]
 name = "ds-behaviour"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "ds-core",
 ]
@@ -2556,7 +2556,7 @@ dependencies = [
 [[package]]
 name = "ds-blitz"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "anyrender",
  "anyrender_vello_hybrid",
@@ -2596,7 +2596,7 @@ dependencies = [
 [[package]]
 name = "ds-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "chordkit",
  "ds-core-derive",
@@ -2610,7 +2610,7 @@ dependencies = [
 [[package]]
 name = "ds-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2621,7 +2621,7 @@ dependencies = [
 [[package]]
 name = "ds-desktop"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "zbus",
 ]
@@ -2629,7 +2629,7 @@ dependencies = [
 [[package]]
 name = "ds-harness"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "anyrender",
  "anyrender_vello_cpu",
@@ -2660,7 +2660,7 @@ dependencies = [
 [[package]]
 name = "ds-helpers"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -2671,7 +2671,7 @@ dependencies = [
 [[package]]
 name = "ds-intents"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "ds-core",
 ]
@@ -2679,7 +2679,7 @@ dependencies = [
 [[package]]
 name = "ds-lint"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "cssparser",
  "ds-core",
@@ -2689,7 +2689,7 @@ dependencies = [
 [[package]]
 name = "ds-motion"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "dioxus",
  "ds-core",
@@ -2699,7 +2699,7 @@ dependencies = [
 [[package]]
 name = "ds-settings"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "dioxus",
  "ds-behaviour",
@@ -2718,7 +2718,7 @@ dependencies = [
 [[package]]
 name = "ds-settings-derive"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2728,7 +2728,7 @@ dependencies = [
 [[package]]
 name = "ds-shell"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "dioxus",
  "ds",
@@ -2741,7 +2741,7 @@ dependencies = [
 [[package]]
 name = "ds-style"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=afa923fdcbfc6749f356e08f6dcb53bb0f780a68#afa923fdcbfc6749f356e08f6dcb53bb0f780a68"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=4bf601721d5936e45a43047c43648f498cd0b5e8#4bf601721d5936e45a43047c43648f498cd0b5e8"
 dependencies = [
  "dioxus",
  "ds-core",

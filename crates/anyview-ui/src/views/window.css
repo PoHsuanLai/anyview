@@ -21,7 +21,12 @@
 /* The panel's body: padded by the window's own step, and by the titlebar's height at the top so
    the bar never covers the top of its tabs. Thumbnails and the card fill its width. */
 .viewer-panel{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; height:100%; overflow-y:auto; padding:calc(var(--chrome-titlebar-height) + var(--s-8)) var(--s-12) var(--s-12); background:var(--surface); }
-.viewer-panel-tabs{ display:flex; justify-content:center; }
+.viewer-panel-tabs{ display:flex; justify-content:center; min-width:0; }
+/* The tabs shrink with the panel: equal columns that may go below their words (the control is
+   small, so the three of a PDF's fit its least width whole), and a segment that still does not fit
+   is cut at its edge rather than running into the next. */
+.viewer-panel-tabs .viewer-panel-segments{ grid-auto-columns:minmax(0, 1fr); min-width:0; max-width:100%; }
+.viewer-panel-segments > button{ min-width:0; overflow:hidden; }
 .viewer-modes{ display:flex; align-items:center; }
 
 /* A pane is a region of the host's window: it fills that region, not the screen, and its panel has
