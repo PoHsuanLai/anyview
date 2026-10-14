@@ -62,7 +62,6 @@ const OWN: &[(Act, &str, &str)] = &[
     (Act::Palette, "anyview.palette", "Primary+K"),
     (Act::Info, "anyview.info", "Primary+I"),
     (Act::ZoomToFit, "anyview.zoom-to-fit", "Primary+9"),
-    (Act::ZoomToActual, "anyview.zoom-to-actual", "Primary+0"),
     (Act::Done, "anyview.done", "Primary+Enter"),
     (
         Act::DeletePage,
@@ -99,6 +98,7 @@ const STANDARD: &[(StandardAction, Act)] = &[
     (StandardAction::Redo, Act::Redo),
     (StandardAction::Bigger, Act::ZoomIn),
     (StandardAction::Smaller, Act::ZoomOut),
+    (StandardAction::ActualSize, Act::ZoomToActual),
 ];
 
 impl Act {
