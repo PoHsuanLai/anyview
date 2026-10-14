@@ -106,6 +106,16 @@ impl Gate {
         state.held.iter().filter(|work| work.kind() == kind).count()
     }
 
+    /// How many pieces of work of `kind` are held that a newer piece has replaced.
+    pub fn replaced(&self, kind: WorkKind) -> usize {
+        let state = self.state.lock().unwrap();
+        state
+            .held
+            .iter()
+            .filter(|work| work.kind() == kind && work.replaced())
+            .count()
+    }
+
     /// Stop holding work of `kind` from now on, and run what is held of it, oldest first.
     pub fn release(&self, kind: WorkKind) {
         let ready: Vec<Work> = {

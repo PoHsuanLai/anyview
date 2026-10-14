@@ -11,6 +11,9 @@ versioning, with pre-releases while the program is in beta.
 - A PDF's matches in the find list show the words around them, as a text file's do, and a phrase that runs over a page break is found (it is listed under the page it begins on). Searching a PDF a second time reuses the text of the pages already read.
 - The command palette runs on the machine quire shares with other apps (Viewer, the terminal's tab bar and a Viewer pane in a host's window), so its keys, highlight and Enter behave as they do there. Nothing changes on screen: the same scopes, the same order and the same find rows.
 
+- Stepping to a find match in a table that is wider than the window scrolls the columns sideways to its cell, as it already scrolled down to its row.
+- Typing on while a find searches ends the search of the text before it, so a long file or sheet is read for the newest text only.
+
 ### Resume
 
 - A viewer pane writes where you are in a file at most twice a second instead of after every gesture, the same as the viewer's own windows, a place held back is written when its half second ends even if you do nothing more, and the last place is written when the pane shows another file or goes away.
