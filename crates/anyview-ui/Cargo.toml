@@ -13,6 +13,7 @@ anyview-archive = { workspace = true }
 anyview-book = { workspace = true }
 anyview-core = { workspace = true }
 # `OnDisk`: a path as the input the readers take (core does no I/O).
+anyview-font = { workspace = true }
 anyview-fs = { workspace = true }
 anyview-image = { workspace = true, features = ["encode"] }
 # The state machines the views draw (re-exported from this crate's root).

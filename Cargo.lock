@@ -709,6 +709,7 @@ dependencies = [
  "anyview-archive",
  "anyview-book",
  "anyview-core",
+ "anyview-font",
  "anyview-fs",
  "anyview-image",
  "anyview-machines",

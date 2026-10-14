@@ -62,6 +62,17 @@ fn a_truetype_face_gives_its_names_its_glyph_count_and_a_specimen() {
         .map(|l| l.text.as_str())
         .collect();
     assert_eq!(texts, ["ABCDEFGHIJKLM", "abcdefghijklm", "0123456789 &?!@"]);
+    // Set as Font Book does: the name in the face, the pangram and a ramp line.
+    let says = |line: &Option<anyview_font::SpecimenLine>| line.as_ref().map(|l| l.text.clone());
+    assert_eq!(
+        says(&face.specimen.title).as_deref(),
+        Some("Anyview Blocks")
+    );
+    assert_eq!(
+        says(&face.specimen.pangram).as_deref(),
+        Some("The quick brown fox jumps over the lazy dog")
+    );
+    assert!(face.specimen.ramp.is_some());
     for line in &face.specimen.lines {
         assert!(
             line.path.starts_with('M') && line.path.ends_with('Z'),
