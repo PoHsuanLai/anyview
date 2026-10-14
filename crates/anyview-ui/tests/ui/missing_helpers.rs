@@ -42,9 +42,7 @@ impl ImagePlugins for HeifTool {
         PluginPicture::Missing(Need {
             fact: Fact::new(
                 FactLabel::Needs,
-                FactValue::text(
-                    "libheif's heif-dec (or heif-convert) for the HEIF plugin (to show it)",
-                ),
+                FactValue::text("libheif tools (to show it)"),
             ),
             helper: Some(Helper::HeicDecode),
         })
@@ -149,9 +147,18 @@ fn a_missing_tool_is_a_row_with_an_install_button_and_no_sheet_of_its_own() {
     assert!(text.contains("Needs"), "the row stays: {text}");
     assert!(text.contains("Install"), "and gains the button: {text}");
     assert_eq!(
-        harness.count(".viewer-peek .viewer-failed-actions .ds-button"),
+        harness.count(INSTALL_ON_CARD),
         1,
-        "Install… alone"
+        "one Install… beside whatever else the card offers"
+    );
+    assert!(
+        !text.contains("heif-dec") && !text.contains("plugin"),
+        "the row names the package in plain words: {text}"
+    );
+    assert_eq!(
+        text.matches("Needs").count(),
+        1,
+        "the missing tool is named once: {text}"
     );
     assert_eq!(harness.count(".ds-alert"), 0, "nothing asks by itself");
 }
@@ -474,10 +481,7 @@ fn the_sheet_that_says_nothing_can_be_exported_offers_to_install_what_adds_it() 
     )
     .unwrap();
     let path = std::fs::canonicalize(path).unwrap();
-    let fact = Fact::new(
-        FactLabel::Needs,
-        FactValue::text("a working FFmpeg for the FFmpeg plugin (to convert it)"),
-    );
+    let fact = Fact::new(FactLabel::Needs, FactValue::text("FFmpeg (to convert it)"));
     let player = FakePlayer::answering(Answer::Plays)
         .offering(MediaOffer::new(vec![], Some(fact)).installable(Helper::MediaProbe));
     let (mut harness, requests, edge) = wired(

@@ -125,7 +125,7 @@ impl Peek for FolderPeek {
     fn facts(peeked: &FolderSummary) -> Facts {
         Facts::empty()
             .with(FactLabel::Kind, FactValue::text("Folder"))
-            .with(FactLabel::Entries, FactValue::text(entries_text(peeked)))
+            .with(FactLabel::Items, FactValue::text(entries_text(peeked)))
             .with(FactLabel::Size, FactValue::size(peeked.size))
     }
 }
@@ -185,21 +185,49 @@ fn rank(kind: FormatKind) -> usize {
         .unwrap_or(usize::MAX)
 }
 
-/// `12 items: 8 raster, 3 plain text`.
+/// What a person calls one file of `kind`: `picture`, `text file`.
+fn noun(kind: FormatKind) -> &'static str {
+    match kind {
+        FormatKind::Raster | FormatKind::Vector => "picture",
+        FormatKind::Pdf => "PDF document",
+        FormatKind::Video => "video",
+        FormatKind::Audio => "audio file",
+        FormatKind::Markdown | FormatKind::PlainText => "text file",
+        FormatKind::Code => "source file",
+        FormatKind::Table => "spreadsheet",
+        FormatKind::Tree => "data file",
+        FormatKind::Font => "font",
+        FormatKind::Archive => "archive",
+        FormatKind::Book => "book",
+        FormatKind::Office => "document",
+        FormatKind::Folder => "folder",
+        FormatKind::Other => "other file",
+    }
+}
+
+/// `12 (8 pictures, 3 text files)`: the items, then what the commonest kinds are in a person's
+/// words (kinds a person calls the same thing are counted together).
 fn entries_text(summary: &FolderSummary) -> String {
-    let noun = match summary.items {
-        Tally::Exact(1) => "item",
-        Tally::Exact(_) | Tally::AtLeast(_) => "items",
-    };
-    let head = format!("{} {noun}", summary.items.text());
-    let kinds: Vec<String> = summary
-        .kinds
+    let mut named: Vec<(&'static str, u32)> = Vec::new();
+    for found in &summary.kinds {
+        let word = noun(found.kind);
+        match named.iter_mut().find(|(seen, _)| *seen == word) {
+            Some((_, count)) => *count += found.count,
+            None => named.push((word, found.count)),
+        }
+    }
+    named.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
+    let kinds: Vec<String> = named
         .iter()
         .take(KINDS_NAMED)
-        .map(|found| format!("{} {}", found.count, found.kind.label().to_lowercase()))
+        .map(|(word, count)| match *count {
+            1 => format!("1 {word}"),
+            _ => format!("{count} {word}s"),
+        })
         .collect();
+    let head = summary.items.text();
     match kinds.is_empty() {
         true => head,
-        false => format!("{head}: {}", kinds.join(", ")),
+        false => format!("{head} ({})", kinds.join(", ")),
     }
 }

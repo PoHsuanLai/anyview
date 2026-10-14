@@ -44,6 +44,8 @@ pub(crate) struct FrameStrip {
 /// An opened picture. The pixels are in `texture`; an animation also has its frames in `strip`.
 #[derive(Debug, Clone)]
 pub struct RasterDoc {
+    /// What the file is called.
+    pub name: String,
     /// Where the pixels are, upright: the picture, or the first frame of an animation.
     pub texture: TextureHandle,
     /// The picture's size in pixels.
@@ -330,7 +332,7 @@ fn blank_doc(target: &RasterOpen, bytes: &[u8], needs: Need) -> RasterDoc {
     doc.facts = Facts::empty()
         .with(
             FactLabel::Kind,
-            FactValue::text(kind_words(&target.sniffed)),
+            crate::families::kind_row(&target.source, &target.sniffed),
         )
         .with(FactLabel::Size, FactValue::size(target.source.stamp().len))
         .with(needs.fact.label, needs.fact.value.clone());
@@ -346,6 +348,13 @@ fn holding(doc: RasterDoc, held: PixelSize) -> RasterDoc {
     RasterDoc { held, ..doc }
 }
 
+/// The name of the file `src`, as the card of a picture that cannot be shown calls it.
+fn name_of(src: &Source) -> String {
+    src.path()
+        .file_name()
+        .map_or_else(String::new, |name| name.as_str().to_owned())
+}
+
 fn doc_of(
     target: &RasterOpen,
     bytes: &[u8],
@@ -355,6 +364,7 @@ fn doc_of(
     runs: Runs,
 ) -> RasterDoc {
     RasterDoc {
+        name: name_of(&target.source),
         texture: target.texture.clone(),
         size,
         held: size,
@@ -405,6 +415,7 @@ pub(crate) fn first_frame(
     };
     let held = upload(&link.texture, &picture)?;
     Ok(Some(RasterDoc {
+        name: name_of(src),
         texture: link.texture.clone(),
         size,
         held,
@@ -513,9 +524,4 @@ fn file_metadata_facts(source: &Source, sniffed: &Sniffed) -> Facts {
         Ok(_) => metadata_facts(&bytes, sniffed),
         Err(_) => Facts::empty(),
     }
-}
-
-/// The words for what a file is: its media type.
-pub(crate) fn kind_words(sniffed: &Sniffed) -> String {
-    sniffed.mime().as_str().to_owned()
 }

@@ -39,8 +39,10 @@ pub enum FactLabel {
     /// How the sound of a video is compressed.
     AudioCodec,
     /// How many bits a second the streams of a recording take.
+    #[word(label = "Bit rate")]
     Bitrate,
     /// How many pictures a second a video shows.
+    #[word(label = "Frame rate")]
     Framerate,
     /// Samples a second of a recording's sound.
     SampleRate,
@@ -93,6 +95,8 @@ pub enum FactLabel {
     Keys,
     /// How many entries an archive holds.
     Entries,
+    /// How many items a folder holds, or a structured value has at its top level.
+    Items,
     /// The family a font belongs to.
     Family,
     /// A font's weight and slant by name: `Bold Italic`.
@@ -189,11 +193,10 @@ impl FactLabel {
             | FactLabel::Tagged
             | FactLabel::Attachments
             | FactLabel::Signatures => FactGroup::Document,
-            FactLabel::Lines
-            | FactLabel::Encoding
-            | FactLabel::Rows
-            | FactLabel::Columns
-            | FactLabel::Keys => FactGroup::Text,
+            FactLabel::Lines | FactLabel::Encoding => FactGroup::Text,
+            FactLabel::Rows | FactLabel::Columns => FactGroup::Table,
+            FactLabel::Keys => FactGroup::Data,
+            FactLabel::Items => FactGroup::Contents,
             FactLabel::Publisher | FactLabel::Language => FactGroup::Book,
             FactLabel::Family | FactLabel::Style | FactLabel::Glyphs => FactGroup::Font,
             FactLabel::Entries => FactGroup::Archive,
@@ -217,6 +220,7 @@ impl FactLabel {
             | FactLabel::Rows
             | FactLabel::Columns
             | FactLabel::Entries
+            | FactLabel::Items
             | FactLabel::PageSize => Tier::Headline,
             FactLabel::Modified
             | FactLabel::Created

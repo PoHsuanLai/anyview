@@ -6,8 +6,22 @@ use crate::kind::{
     OfficeFormat, RasterFormat, TreeFormat,
 };
 use crate::sniff::Sniffed;
+use crate::source::FileName;
 
-/// `JPEG image`, `PDF document`, `Rust source`: what `sniffed` is, in a person's words.
+/// [`kind_name`] for the file called `name`: a file of no known kind is `BIN file` by its
+/// extension, so a person is told what the name says rather than that it is unknown.
+#[must_use]
+pub fn kind_name_of(sniffed: &Sniffed, name: &FileName) -> String {
+    match (sniffed.kind(), name.extension()) {
+        (FormatKind::Other, Some(extension)) => {
+            format!("{} file", extension.to_ascii_uppercase())
+        }
+        _ => kind_name(sniffed),
+    }
+}
+
+/// `JPEG image`, `PDF document`, `Rust source`: what `sniffed` is, in a person's words. A file
+/// of no known kind is a `Document`; [`kind_name_of`] names it by its extension.
 #[must_use]
 pub fn kind_name(sniffed: &Sniffed) -> String {
     match (sniffed.kind(), sniffed.detail()) {
@@ -44,7 +58,7 @@ pub fn kind_name(sniffed: &Sniffed) -> String {
         (FormatKind::Office, FormatDetail::Office(format)) => office(*format).to_owned(),
         (FormatKind::Office, _) => "Document".to_owned(),
         (FormatKind::Folder, _) => "Folder".to_owned(),
-        (FormatKind::Other, _) => "File".to_owned(),
+        (FormatKind::Other, _) => "Document".to_owned(),
     }
 }
 
@@ -73,14 +87,15 @@ fn raster(format: RasterFormat) -> &'static str {
 fn media(container: MediaContainer, noun: &str) -> String {
     let name = match container {
         MediaContainer::Mkv => "Matroska".to_owned(),
+        MediaContainer::Ogg | MediaContainer::Ogv => "Ogg".to_owned(),
+        MediaContainer::Opus => "Opus".to_owned(),
+        MediaContainer::Mpeg => "MPEG".to_owned(),
         MediaContainer::WebM => "WebM".to_owned(),
         MediaContainer::Mov => "QuickTime".to_owned(),
         MediaContainer::MpegTs => "MPEG-TS".to_owned(),
         MediaContainer::Mp4
         | MediaContainer::M4v
         | MediaContainer::Avi
-        | MediaContainer::Ogv
-        | MediaContainer::Mpeg
         | MediaContainer::Wmv
         | MediaContainer::Flv
         | MediaContainer::Mp3
@@ -88,9 +103,7 @@ fn media(container: MediaContainer, noun: &str) -> String {
         | MediaContainer::M4a
         | MediaContainer::Flac
         | MediaContainer::Wav
-        | MediaContainer::Aiff
-        | MediaContainer::Ogg
-        | MediaContainer::Opus => container.extension().to_ascii_uppercase(),
+        | MediaContainer::Aiff => container.extension().to_ascii_uppercase(),
     };
     format!("{name} {noun}")
 }

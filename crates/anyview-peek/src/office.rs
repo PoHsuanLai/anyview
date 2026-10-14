@@ -37,7 +37,7 @@ impl Peek for OfficePeek {
         sniffed: &Sniffed,
         budget: &PeekBudget,
     ) -> Result<OfficeLooked, PeekError> {
-        let described = Described::of(sniffed);
+        let described = Described::of(src, sniffed);
         let FormatDetail::Office(format) = sniffed.detail() else {
             return Ok(OfficeLooked {
                 described,

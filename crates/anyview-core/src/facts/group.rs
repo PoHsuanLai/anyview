@@ -21,12 +21,18 @@ pub enum FactGroup {
     Video,
     /// A document: its title, author, dates, producer and pages.
     Document,
-    /// A text file: encoding, lines, structure.
+    /// A text file: its encoding and lines.
     Text,
+    /// A table: its rows and columns.
+    Table,
+    /// A structured document, such as JSON: what it holds at the top.
+    Data,
     /// A book: its title, authors, publisher and chapters.
     Book,
     /// A font: its family, style and glyphs.
     Font,
+    /// A folder: what it holds.
+    Contents,
     /// An archive: its entries and sizes.
     Archive,
     /// What every file has, kind, size, dates and where it is. Always the last section.

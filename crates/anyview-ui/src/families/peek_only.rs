@@ -170,7 +170,7 @@ impl StageView for PeekOnlyStageView {
             .file_name()
             .map_or_else(String::new, |name| name.as_str().to_owned());
         let base = Facts::empty()
-            .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+            .with(FactLabel::Kind, super::kind_row(src, sniffed))
             .with(FactLabel::Size, FactValue::size(src.stamp().len));
         let look = match sniffed.detail() {
             FormatDetail::Office(format) => office_look(src.on_disk(), *format).unwrap_or_default(),
@@ -193,11 +193,9 @@ impl StageView for PeekOnlyStageView {
         } else {
             card.facts.clone()
         };
-        let facts = look
-            .facts()
-            .rows()
-            .iter()
-            .fold(start, |facts, row| facts.with_fact(row.clone()));
+        // The card's rows may already hold what the office look says (an office peek lists its
+        // title and pages itself): the look's row replaces it, so a row is never listed twice.
+        let facts = start.then(look.facts());
         Ok(PeekOnlyDoc {
             name,
             kind: sniffed.kind(),

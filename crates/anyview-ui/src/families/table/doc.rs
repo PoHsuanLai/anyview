@@ -68,7 +68,7 @@ fn sheet(name: String, table: Table) -> Arc<SheetDoc> {
 
 fn base_facts(src: &Source, sniffed: &Sniffed) -> Facts {
     Facts::empty()
-        .with(FactLabel::Kind, FactValue::text(sniffed.mime().as_str()))
+        .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len))
 }
 

@@ -48,7 +48,7 @@ fn a_heic_with_no_plugin_is_its_facts_and_the_package_that_would_show_it() {
         text.contains("Needs") && text.contains("anyview-heif (to show it)"),
         "the row that names the package: {text}"
     );
-    assert!(text.contains("image/heic"), "what the file is: {text}");
+    assert!(text.contains("HEIC image"), "what the file is: {text}");
     assert_eq!(
         rig.harness.count(".viewer-raster"),
         0,
