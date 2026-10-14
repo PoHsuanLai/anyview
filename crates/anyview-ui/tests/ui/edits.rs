@@ -602,9 +602,12 @@ fn a_still_picture_with_no_writer_is_turned_and_cropped_all_the_same_and_saving_
         .lock()
         .unwrap()
         .iter()
-        .filter_map(|request| match request {
-            HostRequest::Export(draft) => Some(*draft),
-            _ => None,
+        .filter_map(|request| {
+            if let HostRequest::Export(draft) = request {
+                Some(*draft)
+            } else {
+                None
+            }
         })
         .collect();
     assert_eq!(

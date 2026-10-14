@@ -177,11 +177,16 @@ fn offer_of(source: &Source, sniffed: &Sniffed, bytes: &[u8], frames: u32) -> Ed
 /// The format a copy of a picture with no writer is written in: JPEG for the formats photographs
 /// come in, PNG for everything else (art, icons, flattened layers, high range pictures).
 fn copy_target(sniffed: &Sniffed) -> RasterTarget {
-    match sniffed.detail() {
+    let photo = matches!(
+        sniffed.detail(),
         FormatDetail::Raster(
             RasterFormat::Avif | RasterFormat::Jxl | RasterFormat::Heic | RasterFormat::Raw,
-        ) => RasterTarget::default_jpeg(),
-        _ => RasterTarget::Png,
+        )
+    );
+    if photo {
+        RasterTarget::default_jpeg()
+    } else {
+        RasterTarget::Png
     }
 }
 

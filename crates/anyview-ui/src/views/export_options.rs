@@ -127,7 +127,7 @@ fn quality(draft: ExportDraft, ontune: EventHandler<ExportOption>) -> Element {
         | ExportDraft::Media(MediaExport::CurrentFrame(target)) => {
             quality_of(target).unwrap_or(Percent(100))
         }
-        ExportDraft::Raster(RasterExport::Adjusted(..) | RasterExport::Pdf)
+        ExportDraft::Raster(RasterExport::Pdf)
         | ExportDraft::Pdf(_)
         | ExportDraft::Text(_)
         | ExportDraft::Media(_) => Percent(100),
