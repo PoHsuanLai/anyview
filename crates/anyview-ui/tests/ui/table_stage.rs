@@ -212,6 +212,66 @@ fn find_in_a_table_lists_the_cells_marks_them_and_walks_every_hit() {
     assert_eq!(harness.count(".viewer-hit"), 0, "Esc puts the find away");
 }
 
+/// A sheet of twelve wide columns, far wider than the window, with "needle" in the last column of
+/// row 5 and in the first column of row 7.
+fn wide() -> String {
+    let heads: Vec<String> = (0..12).map(|column| format!("column{column}")).collect();
+    let mut body = heads.join(",");
+    body.push('\n');
+    for row in 1..=10 {
+        let cells: Vec<String> = (0..12)
+            .map(|column| match (row, column) {
+                (5, 11) | (7, 0) => "needle in a wide cell".to_owned(),
+                _ => format!("filler of some width {row}-{column}"),
+            })
+            .collect();
+        body.push_str(&cells.join(","));
+        body.push('\n');
+    }
+    body
+}
+
+/// Whether the current hit's cell is inside the room the table shows in, sideways.
+fn hit_in_room(harness: &Harness) -> bool {
+    let (Some(room), Some(cell)) = (
+        harness.rect("[data-body=table]"),
+        harness.rect(".viewer-hit-current"),
+    ) else {
+        return false;
+    };
+    cell.origin.x.0 >= room.origin.x.0 - 1.0
+        && cell.origin.x.0 + cell.size.width.0 <= room.origin.x.0 + room.size.width.0 + 1.0
+}
+
+#[test]
+fn a_hit_in_a_column_off_to_the_side_scrolls_the_table_sideways_to_its_cell() {
+    let (_dir, mut harness) = open("wide.csv", &wide());
+    let (room, body) = (
+        harness.rect("[data-body=table]").expect("the room"),
+        harness.rect(".ds-vtable-body").expect("the columns"),
+    );
+    assert!(
+        body.size.width.0 > room.size.width.0 * 2.0,
+        "the columns are wider than the room: {} in {}",
+        body.size.width.0,
+        room.size.width.0
+    );
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "needle");
+    press(&mut harness, ShortcutKey::Enter);
+    settle(&mut harness);
+    assert!(
+        hit_in_room(&harness),
+        "the first hit is in the last column, and the table went to it"
+    );
+    chord(&mut harness, 'g');
+    settle(&mut harness);
+    assert!(
+        hit_in_room(&harness),
+        "the next hit is in the first column, and the table came back to it"
+    );
+}
+
 #[test]
 fn a_find_in_a_table_that_matches_nothing_says_so() {
     let (_dir, mut harness) = open("cities.csv", &cities());
@@ -244,6 +304,11 @@ fn the_answer_to_a_find_a_newer_query_replaced_is_dropped() {
     type_text(&mut harness, "lima");
     let asked = gate.held(WorkKind::Search);
     assert!(asked >= 2, "each text typed went to a worker: {asked}");
+    assert_eq!(
+        gate.replaced(WorkKind::Search),
+        asked - 1,
+        "every search but the newest was told to end"
+    );
     // Every answer but the last is for a text that is no longer typed.
     for _ in 1..asked {
         gate.release_one(WorkKind::Search);

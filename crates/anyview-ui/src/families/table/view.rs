@@ -20,11 +20,67 @@ use ds::components::lists::table::model::{
 };
 use ds::components::lists::virtual_table::{VirtualTable, row_pitch};
 use ds::components::overlays::empty_state::EmptyState;
-use ds::prelude::{ColumnRules, Icon, Px};
+use ds::host::document::{DocumentHost, use_document_host};
+use ds::host::found::Found;
+use ds::host::measure::client_rect;
+use ds::host::reveal::{ScrollSpan, nearest_scroll};
+use ds::prelude::{ColumnRules, Common, Icon, Px};
+use ds::style::busy::wait_out_busy;
+use ds_blitz::{ElementId, ScrollAnimate, ScrollAxis, ScrollCmd, ScrollHandle, use_scroll_handle};
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// The gutter's column id: no column of a file has it.
 const GUTTER: u32 = u32::MAX;
+
+/// The id of the table's box, which scrolls sideways when the columns are wider than the room.
+const TABLE_ID: &str = "viewer-table";
+
+/// The room the table fills: it does not scroll, so its rect is where the table shows.
+const ROOM: &str = "[data-body=\"table\"]";
+
+/// The cell the current hit is in: its text is marked apart.
+const CURRENT_HIT: &str = "[data-body=\"table\"] .viewer-hit-current";
+
+/// How many times a hit's cell is looked for: it exists once its row is mounted, a frame or two
+/// after the cursor moved to the row.
+const LOOKS: usize = 8;
+
+/// Scroll the table sideways the least that shows the cell of the current hit. Quire's scroller
+/// moves the rows up and down; the columns wider than the room are the table's own box, which is
+/// moved by a command. Call it from a task.
+async fn show_across(host: Rc<dyn DocumentHost>, scroll: ScrollHandle) {
+    for attempt in 0..LOOKS {
+        wait_out_busy(attempt).await;
+        let (Found::Element(room), Found::Element(cell)) = (
+            host.geometry().find(ROOM),
+            host.geometry().find(CURRENT_HIT),
+        ) else {
+            continue;
+        };
+        let (Some(room), Some(cell)) = (client_rect(&room).await, client_rect(&cell).await) else {
+            continue;
+        };
+        if cell.size.width.0 <= 0.0 {
+            continue;
+        }
+        // Both rects are the window's; the room is where the table shows and does not scroll.
+        let span = ScrollSpan {
+            start: cell.origin.x.0 - room.origin.x.0,
+            length: cell.size.width.0,
+        };
+        let by = nearest_scroll(0.0, room.size.width.0, span);
+        if by != 0.0 {
+            scroll.send(ScrollCmd::By {
+                element: ElementId::new(TABLE_ID),
+                axis: ScrollAxis::X,
+                delta: f64::from(by),
+                animate: ScrollAnimate::Instant,
+            });
+        }
+        return;
+    }
+}
 
 /// How many rows a page up or down moves by: the room's height in rows, less one for the header,
 /// so the row the cursor left stays in view.
@@ -92,6 +148,15 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     // The hooks come first: a sheet with no rows returns early below, and the next sheet must
     // find the same hooks in the same order.
     let scroller = use_scroller();
+    // The hit's cell may be in a column that is off to the side: it is brought into the room
+    // whenever the hit changes (not when the person scrolls the columns themselves).
+    let host = use_document_host();
+    let sideways = use_scroll_handle();
+    use_effect(use_reactive!(|current| {
+        if let (Some(_), Some(scroll)) = (current, sideways.clone()) {
+            spawn(show_across(Rc::clone(&host), scroll));
+        }
+    }));
     // A sort is made on a worker: its header shows at once and the rows swap to the new order
     // when it arrives. Until then they stay as they are.
     let work = cx.work;
@@ -201,6 +266,10 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                 // Numbers' look: a hairline between the columns, and one under the header once
                 // the rows are scrolled (quire's default).
                 rules: ColumnRules::Hairline,
+                common: Common {
+                    id: Some(TABLE_ID.to_owned()),
+                    ..Common::default()
+                },
                 sort: by.map(drawn),
                 on_sort: move |asked: Sort<u32>| {
                     send.call(StageIn::Table(TableIn::PressHeader(asked.column)));

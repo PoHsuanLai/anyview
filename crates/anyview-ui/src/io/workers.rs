@@ -90,9 +90,10 @@ impl Work {
     }
 
     /// Do the job, blocking, and post what it made to the window that asked. Work for a load the
-    /// person has since left is not started, and is told to end early when it is running; a job
-    /// that panics (a decoder fed a hostile file) is answered as a failure, so the window never
-    /// waits on a result that cannot come.
+    /// person has since left is not started, and is told to end early when it is running; a
+    /// search that a newer query replaced answers nothing. A job that panics (a decoder fed a
+    /// hostile file) is answered as a failure, so the window never waits on a result that cannot
+    /// come.
     pub fn run(self) {
         let Work {
             job,
@@ -106,10 +107,22 @@ impl Work {
             return;
         }
         let failure = job.crashed();
+        let searching = job.searches();
         let ran = catch_unwind(AssertUnwindSafe(|| {
             job.run(resume.as_ref(), locks.as_ref(), versions.as_ref(), &stop)
         }));
+        // A search that was replaced while it read has only some of the hits: nobody waits on it.
+        if searching && stop.stopped() == StopState::Stopped {
+            return;
+        }
         reply.post(ran.unwrap_or(failure));
+    }
+
+    /// Whether the work has been told to end, because a newer load or a newer search replaced
+    /// it: a pool that queues work can drop it unstarted.
+    #[must_use]
+    pub fn replaced(&self) -> bool {
+        self.stop.stopped() == StopState::Stopped
     }
 
     /// What the work does.
@@ -313,11 +326,14 @@ impl Drop for Mailbox {
 
 /// The newest load that submitted work, and the stop its work shares. A job of a newer load
 /// raises it, so what the person left behind (a search of the last query, an open of the last
-/// file) ends early instead of running to its end.
+/// file) ends early instead of running to its end. The newest search of the load has a stop of
+/// its own, which the next search of the load raises: a query typed over an older one ends the
+/// older one's reading.
 #[derive(Debug, Default)]
 struct Held {
     ticket: Ticket,
     stop: Stop,
+    search: Stop,
 }
 
 impl std::fmt::Debug for Edge {
@@ -430,19 +446,27 @@ impl Edge {
     /// Ask a worker to do `job`; its result arrives in the mailbox.
     pub(crate) fn submit(&self, job: Job) {
         let job_ticket = job.ticket();
+        let stop = self.stop_for_job(job_ticket, job.searches());
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
             resume: Arc::clone(&self.seams.resume),
             locks: Arc::clone(&self.seams.locks),
             versions: Arc::clone(&self.seams.versions),
-            stop: self.stop_for(job_ticket),
+            stop,
         });
     }
 
     /// The stop of the load `ticket` names: its jobs share one, a newer load raises it, and a
     /// job of a load already left starts stopped. Work that belongs to no load is never stopped.
+    #[cfg(test)]
     fn stop_for(&self, ticket: Ticket) -> Stop {
+        self.stop_for_job(ticket, false)
+    }
+
+    /// The stop of a job of the load `ticket`: the load's, or for a search `searching` its own,
+    /// which ends with the load and when a newer search of the load is asked for.
+    fn stop_for_job(&self, ticket: Ticket, searching: bool) -> Stop {
         if ticket == Ticket::default() {
             return Stop::new();
         }
@@ -454,12 +478,19 @@ impl Edge {
         }
         if ticket > held.ticket {
             held.stop.request();
+            held.search.request();
             *held = Held {
                 ticket,
                 stop: Stop::new(),
+                search: Stop::new(),
             };
         }
-        held.stop.clone()
+        if !searching {
+            return held.stop.clone();
+        }
+        held.search.request();
+        held.search = Stop::new();
+        held.search.clone()
     }
 
     /// What an open of a file into `texture` needs.
@@ -572,6 +603,33 @@ mod tests {
         assert_eq!(first.stopped(), StopState::Stopped);
         assert_eq!(same.stopped(), StopState::Stopped);
         assert_eq!(second.stopped(), StopState::Running);
+    }
+
+    #[test]
+    fn a_newer_search_stops_the_older_one_and_a_newer_load_stops_the_search() {
+        let edge = edge();
+        let load = edge.stop_for_job(Ticket(1), false);
+        let older = edge.stop_for_job(Ticket(1), true);
+        assert_eq!(older.stopped(), StopState::Running);
+        let newer = edge.stop_for_job(Ticket(1), true);
+        assert_eq!(
+            older.stopped(),
+            StopState::Stopped,
+            "a newer query replaced it"
+        );
+        assert_eq!(newer.stopped(), StopState::Running);
+        assert_eq!(load.stopped(), StopState::Running, "the load goes on");
+        edge.stop_for_job(Ticket(2), false);
+        assert_eq!(
+            newer.stopped(),
+            StopState::Stopped,
+            "a newer load ends its searches"
+        );
+        assert_eq!(
+            edge.stop_for_job(Ticket(1), true).stopped(),
+            StopState::Stopped,
+            "a search of a load already left starts stopped"
+        );
     }
 
     #[test]

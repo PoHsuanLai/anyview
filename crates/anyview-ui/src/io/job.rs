@@ -371,6 +371,15 @@ impl Job {
         }
     }
 
+    /// Whether the job searches an open file for a phrase, so that a newer search replaces it.
+    #[must_use]
+    pub(super) fn searches(&self) -> bool {
+        matches!(
+            self,
+            Job::Search { .. } | Job::SearchCells { .. } | Job::SearchNodes { .. }
+        )
+    }
+
     /// The load this job belongs to; `Ticket::default()` for a job that belongs to none.
     #[must_use]
     pub fn ticket(&self) -> Ticket {
