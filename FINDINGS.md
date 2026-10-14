@@ -9,9 +9,13 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A picture's edits are saved in its own format only where anyview-image has a writer.** A cut or a resize of a
   JPEG is encoded again at quality 92 (a turn or a mirror alone stays lossless through the orientation tag); a
   PNG or TIFF with 16-bit samples or a palette comes back as 8-bit RGBA when it is cut or resized (the save asks
-  first when the file's headers say something would be lost); a GIF, an icon, an AVIF and the rest have no writer,
-  so their edit tools are not offered and ⌘S offers the Export dialog. Ends when an `Adjust` can be exported
-  (`PixelSource` takes one), so that a picture with no writer can be edited and exported.
+  first when the file's headers say something would be lost). A still picture with no writer (a GIF, an icon, a
+  Targa, an AVIF, an EXR, a flattened PSD) is turned, mirrored and cut all the same: ⌘S, and Save when leaving,
+  write the picture as changed to a copy beside it (`EditOffer::Copies`, `RasterExport::Adjusted`, PNG, or JPEG
+  for the photo formats), and the window goes back to the picture it opened. Left out: an animation and an SVG
+  (no still copy holds them), and a HEIC or a RAW developed by a plugin, whose pixels the export cannot read from
+  the file. Ends when the export can be handed the plugin's pixels, and if leaving after a copy should go on
+  (today the person stays, told where the copy is).
 - **Leaving a picture that was only turned or mirrored writes it without asking; a cut or a resize still asks.** As in
   Preview and Loupe a turn is part of looking at a picture, and it is lossless where the file has a writer (a JPEG's
   orientation tag, a PNG's samples), so `Departure` saves first (`after_save`) and goes on once the file is read

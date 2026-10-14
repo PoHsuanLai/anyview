@@ -11,12 +11,14 @@ use crate::load::{Load, Ticket};
 use crate::navigate::NavigateIn;
 use crate::picture::{PictureEditIn, PictureEditing};
 use crate::sheet::{
-    Departure, PictureSheet, PictureSheetIn, ResizeChange, ResizeDraft, Sheet, SheetIn, SheetParams,
+    Departure, ExportDraft, PictureSheet, PictureSheetIn, ResizeChange, ResizeDraft, Sheet,
+    SheetIn, SheetOut, SheetParams,
 };
 use crate::stage::Stage;
 use crate::viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
 use anyview_core::{
-    Adjust, Edit, FilePath, NonEmpty, PixelLen, PixelSize, QuarterTurn, Sequence, SequenceOrigin,
+    Adjust, Edit, FilePath, NonEmpty, PixelLen, PixelSize, QuarterTurn, RasterExport, RasterTarget,
+    Sequence, SequenceOrigin,
 };
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
@@ -283,6 +285,36 @@ fn the_save_chord_on_a_picture_that_cannot_be_written_offers_the_export_dialog()
     };
     let (viewer, _) = viewer.step(SAVE, Stamp(0), &(), &params);
     assert!(matches!(viewer.sheet, Sheet::Export { .. }));
+}
+
+#[test]
+fn a_picture_whose_file_has_no_writer_is_turned_and_saved_as_a_copy_and_leaving_asks_first() {
+    let params = ViewerParams {
+        sheet: SheetParams {
+            edit: EditOffer::Copies(RasterTarget::Png),
+            ..SheetParams::default()
+        },
+        ..params()
+    };
+    let copy = ViewerOut::Sheet(SheetOut::Export(ExportDraft::Raster(
+        RasterExport::Adjusted(RasterTarget::Png, Adjust::NONE.turned(QuarterTurn::Quarter)),
+    )));
+    let run = |viewer: Viewer, input: ViewerIn| viewer.step(input, Stamp(0), &(), &params);
+
+    // Leaving is asked about, never kept without a question: the file cannot take the turn.
+    let (asked, outs) = run(turned(), CLOSE);
+    assert_eq!(asked.sheet, Sheet::Unsaved(Departure::Close));
+    assert!(!closes(&outs));
+    // Save writes the copy and lets the changes go; the file is not read again, so nothing waits.
+    let (saved, outs) = run(asked, ViewerIn::Sheet(SheetIn::Confirm));
+    assert!(outs.contains(&copy));
+    assert!(!saved.picture.is_edited());
+    assert_eq!(saved.after_save, None);
+    assert!(!closes(&outs));
+    // So does the save chord.
+    let (saved, outs) = run(turned(), SAVE);
+    assert!(outs.contains(&copy));
+    assert!(!saved.picture.is_edited());
 }
 
 #[test]

@@ -4,6 +4,7 @@ use super::choice::ExportChoice;
 use super::extension::ExportExtension;
 use super::payload::MetadataCarry;
 use super::target::{RasterTarget, Resize};
+use crate::edit::Adjust;
 use ds_core::word::Word;
 
 /// An export of a raster image: re-encoded, or placed on a PDF page.
@@ -11,6 +12,10 @@ use ds_core::word::Word;
 pub enum RasterExport {
     /// Encode the pixels, resized first, with or without the original's metadata.
     Image(RasterTarget, Resize, MetadataCarry),
+    /// Encode the picture as the person has turned, mirrored, cut and scaled it and not saved:
+    /// what a copy holds when the file itself has no writer to take the changes. The metadata is
+    /// the default's.
+    Adjusted(RasterTarget, Adjust),
     /// One PDF page holding the image.
     Pdf,
 }
@@ -37,7 +42,7 @@ impl ExportChoice for RasterExport {
 
     fn kind(&self) -> RasterExportKind {
         match self {
-            RasterExport::Image(target, ..) => match target {
+            RasterExport::Image(target, ..) | RasterExport::Adjusted(target, _) => match target {
                 RasterTarget::Png => RasterExportKind::Png,
                 RasterTarget::Jpeg(_) => RasterExportKind::Jpeg,
                 RasterTarget::Webp => RasterExportKind::Webp,
@@ -63,7 +68,9 @@ impl ExportChoice for RasterExport {
 
     fn extension(&self) -> ExportExtension {
         match self {
-            RasterExport::Image(target, ..) => target.extension(),
+            RasterExport::Image(target, ..) | RasterExport::Adjusted(target, _) => {
+                target.extension()
+            }
             RasterExport::Pdf => ExportExtension::Pdf,
         }
     }

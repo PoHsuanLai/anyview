@@ -2,7 +2,7 @@
 //! going back to a version. The host does them (they write the person's file); the viewer only
 //! says which.
 
-use anyview_core::{Edit, PageIndex};
+use anyview_core::{Edit, PageIndex, RasterTarget};
 
 /// An edit, and the page of a PDF the person is on when they ask. A turn of a PDF turns that
 /// page; a picture has no pages and says the first.
@@ -50,6 +50,10 @@ pub enum EditOffer {
     Asks(EditCaution),
     /// No valid file can be written: the edit is not offered.
     Withheld,
+    /// The file has no writer to take the edit (a Photoshop file, a camera raw, a HEIC): the
+    /// picture can be changed all the same, and saving it writes a copy beside the file in this
+    /// format.
+    Copies(RasterTarget),
 }
 
 /// What an edit that asks would cost, in words for the person.

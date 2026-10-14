@@ -2,6 +2,7 @@
 //! the work; nothing here holds bytes.
 
 use super::target::Resize;
+use crate::edit::Adjust;
 use crate::kind::SyntaxName;
 use crate::sequence::NonEmpty;
 use crate::source::FilePath;
@@ -11,10 +12,12 @@ use ds_core::word::Word;
 /// The pixels an encode starts from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PixelSource {
-    /// An image file, resized.
+    /// An image file, adjusted and then resized.
     Image {
         /// The file.
         file: FilePath,
+        /// What was done to the picture, applied to its pixels first.
+        adjust: Adjust,
         /// How to resize it before encoding.
         resize: Resize,
     },

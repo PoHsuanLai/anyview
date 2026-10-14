@@ -169,7 +169,7 @@ fn carried(before: RasterExport, next: RasterExport) -> RasterExport {
         (RasterExport::Image(was, resize, keep), RasterExport::Image(target, ..)) => {
             RasterExport::Image(requality(target, was), resize, keep)
         }
-        (RasterExport::Image(..) | RasterExport::Pdf, next) => next,
+        (RasterExport::Image(..) | RasterExport::Adjusted(..) | RasterExport::Pdf, next) => next,
     }
 }
 

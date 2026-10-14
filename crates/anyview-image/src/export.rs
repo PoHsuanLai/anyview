@@ -1,6 +1,7 @@
 //! Raster exports: the jobs a choice becomes, and the file one of those jobs writes.
 
 use crate::decode::{Decoded, Svg, declared_size_of, decode_bytes};
+use crate::edit::adjusted_pixels;
 use crate::encode::encode_with_metadata;
 use crate::error::ImageError;
 use crate::exif::ExifFacts;
@@ -8,24 +9,35 @@ use crate::orientation::ExifOrientation;
 use crate::pixels::Rgba8;
 use crate::scale::resized;
 use anyview_core::{
-    ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MetadataCarry, NonEmpty,
-    PdfPages, PixelSize, PixelSource, RasterExport, RasterFormat, RasterTarget, Resize, SniffStep,
-    Sniffed, sniff,
+    Adjust, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MetadataCarry,
+    NonEmpty, PdfPages, PixelSize, PixelSource, RasterExport, RasterFormat, RasterTarget, Resize,
+    SniffStep, Sniffed, sniff,
 };
 
 /// The jobs that write `choice` for the image `file`. A re-encode keeps the original's EXIF and
-/// ICC profile unless the choice drops them (a vector image has none to keep); a PDF puts
-/// the image on one page.
+/// ICC profile unless the choice drops them (a vector image has none to keep); one of an
+/// adjusted picture has the person's turns, mirrors and cuts in its pixels; a PDF puts the image
+/// on one page.
 #[must_use]
 pub fn plan_export(file: &FilePath, choice: RasterExport) -> Vec<ExportJob> {
     match choice {
         RasterExport::Image(target, resize, keep) => vec![ExportJob::EncodeRaster {
             pixels: PixelSource::Image {
                 file: file.clone(),
+                adjust: Adjust::NONE,
                 resize,
             },
             target,
             keep,
+        }],
+        RasterExport::Adjusted(target, adjust) => vec![ExportJob::EncodeRaster {
+            pixels: PixelSource::Image {
+                file: file.clone(),
+                adjust,
+                resize: Resize::Original,
+            },
+            target,
+            keep: MetadataCarry::default(),
         }],
         RasterExport::Pdf => vec![ExportJob::WritePdf {
             pages: PdfPages::Images(NonEmpty::new(file.clone(), Vec::new())),
@@ -95,16 +107,23 @@ impl ImageFile {
     }
 }
 
-/// The bytes of the image `file` resized and encoded as `target`. A vector image carries no
-/// metadata, whatever `keep` says. Blocking, and slow for AVIF at a large size.
+/// The bytes of the image `file` with `adjust` applied to its pixels, resized and encoded as
+/// `target`. A vector image carries no metadata, whatever `keep` says. Blocking, and slow for
+/// AVIF at a large size.
 pub fn encode_file(
     file: &FilePath,
+    adjust: Adjust,
     resize: Resize,
     target: RasterTarget,
     keep: MetadataCarry,
 ) -> Result<Vec<u8>, ImageError> {
     let original = ImageFile::read(file)?;
-    let picture = resized(&original.picture()?, resize);
+    let upright = original.picture()?;
+    let picture = if adjust.is_none() {
+        resized(&upright, resize)
+    } else {
+        resized(&adjusted_pixels(&upright, adjust), resize)
+    };
     let keep = if original.sniffed.kind() == FormatKind::Vector {
         MetadataCarry::Drop
     } else {
@@ -130,6 +149,7 @@ mod tests {
             [ExportJob::EncodeRaster {
                 pixels: PixelSource::Image {
                     file: file.clone(),
+                    adjust: Adjust::NONE,
                     resize
                 },
                 target: RasterTarget::Tiff,
