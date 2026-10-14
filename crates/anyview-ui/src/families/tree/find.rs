@@ -26,12 +26,16 @@ fn label_of(label: &RowLabel) -> String {
     }
 }
 
-/// Whether a node of this kind shows a value of its own (a container shows only its size).
+/// Whether a node of this kind shows a value of its own (a container shows only its size; a
+/// JSON Lines line that is not a value shows the line as written, which a find reads too).
 fn is_scalar(kind: NodeKind) -> bool {
     match kind {
-        NodeKind::String | NodeKind::Number | NodeKind::True | NodeKind::False | NodeKind::Null => {
-            true
-        }
+        NodeKind::String
+        | NodeKind::Number
+        | NodeKind::True
+        | NodeKind::False
+        | NodeKind::Null
+        | NodeKind::Unreadable => true,
         NodeKind::Object | NodeKind::Array => false,
     }
 }
