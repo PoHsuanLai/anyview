@@ -1,6 +1,7 @@
 //! The text stage's states, inputs and outputs.
 
-use super::super::find::{FindHits, FindOut, HitCount, HitIndex};
+use super::super::find::{FindHits, FindOut, HitCount, HitIndex, StageFind};
+use super::super::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use anyview_core::{LineIndex, Resume};
 use ds_core::word::Word;
@@ -43,6 +44,8 @@ pub struct TextPlace {
     pub wrap: Wrap,
     /// What is shown.
     pub view: TextView,
+    /// How large the lines are drawn.
+    pub scale: ContentScale,
 }
 
 /// Whether the text being edited has changes that are not on disk.
@@ -75,15 +78,6 @@ pub struct Edited {
     pub outside: Outside,
 }
 
-/// The find that is up while editing: its text, and where its search stands.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EditFind {
-    /// What is searched for.
-    pub query: TypedText,
-    /// Where the search stands.
-    pub hits: FindHits,
-}
-
 /// What the text stage is doing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextStage {
@@ -108,7 +102,7 @@ pub enum TextStage {
         /// What has been changed so far.
         edited: Edited,
         /// The find over the edit, when one is up.
-        find: Option<EditFind>,
+        find: Option<StageFind>,
     },
 }
 
@@ -145,6 +139,7 @@ impl TextStage {
                 line: LineIndex(0),
                 wrap: Wrap::On,
                 view,
+                scale: ContentScale::ACTUAL,
             },
         }
     }
@@ -203,6 +198,10 @@ pub enum TextIn {
     ToggleSource,
     /// Switch line wrapping.
     ToggleWrap,
+    /// Draw the lines one step larger or smaller.
+    ZoomStep(ZoomDir),
+    /// Draw the lines at actual size.
+    ZoomActual,
     /// Start editing the source in place.
     Edit,
     /// Stop editing and go back to reading.

@@ -188,6 +188,7 @@ fn reading_at(line: u32) -> Stage {
             line: LineIndex(line),
             wrap: Wrap::On,
             view: TextView::Source,
+            scale: crate::stage::ContentScale::ACTUAL,
         },
     })
 }

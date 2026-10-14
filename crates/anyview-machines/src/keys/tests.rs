@@ -58,11 +58,18 @@ const PDF: Stage = Stage::Pdf(PdfStage::Reading {
     },
 });
 const MEDIA: Stage = Stage::Media(MediaStage::Opening);
+const TABLE: Stage = Stage::Table(crate::stage::TableStage::Browsing {
+    sheet: crate::stage::SheetNo(0),
+    sort: None,
+    find: None,
+    scale: crate::stage::ContentScale::ACTUAL,
+});
 const TEXT: Stage = Stage::Text(TextStage::Reading {
     place: crate::stage::TextPlace {
         line: anyview_core::LineIndex(0),
         wrap: crate::stage::Wrap::On,
         view: crate::stage::TextView::Rendered,
+        scale: crate::stage::ContentScale::ACTUAL,
     },
 });
 
@@ -326,6 +333,26 @@ const CASES: &[Case] = &[
         Panel::Hidden,
         PDF,
         Route::OpenFind,
+    ),
+    (
+        "find opens the palette as a find in a table",
+        Chord(Act::Find),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        TABLE,
+        Route::OpenFind,
+    ),
+    (
+        "zoom in zooms a text instead of doing nothing",
+        Chord(Act::ZoomIn),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        TEXT,
+        Route::Stage(StageIn::Text(crate::stage::TextIn::ZoomStep(
+            crate::stage::ZoomDir::In,
+        ))),
     ),
     (
         "find has nothing to find in a picture",

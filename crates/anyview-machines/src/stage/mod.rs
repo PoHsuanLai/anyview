@@ -20,7 +20,7 @@ mod zoom;
 
 pub use abilities::{Playing, StageAbilities};
 pub use family::StageFamily;
-pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep};
+pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep, StageFind};
 pub use media::{
     AfterScrub, ControlOffer, EndReason, MediaAbilities, MediaError, MediaIn, MediaOut,
     MediaParams, MediaStage, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge,
@@ -39,8 +39,8 @@ pub use table::{
 };
 pub use text::WrapChoices;
 pub use text::{
-    Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,
-    TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
+    Changes, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn, TextOut,
+    TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
 pub use tree::{TreeIn, TreeOut, TreeParams, TreeStage};
-pub use zoom::{Viewport, ZoomDir};
+pub use zoom::{ContentScale, Viewport, ZoomDir};

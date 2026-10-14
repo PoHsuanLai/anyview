@@ -3,16 +3,21 @@
 //! time.
 
 mod doc;
+mod find;
 mod view;
 
 pub use doc::TreeDoc;
+pub(crate) use find::search_tree;
 
-use crate::families::view::{Area, Held, StageCx, StageView};
-use crate::io::{OpenError, OpenPort};
+use crate::families::FoundHits;
+use crate::families::SortedOrder;
+use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
+use crate::io::{Job, OpenError, OpenPort};
 use crate::{
-    Command, PanelTab, PanelTabs, Stage, StageCommand, StageFamily, StageParams, Ticket, TreeParams,
+    Command, ContentScale, HitIndex, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
+    StageIn, StageParams, Ticket, TreeIn, TreeParams, TypedText,
 };
-use anyview_core::{Facts, Sniffed, Source};
+use anyview_core::{Facts, FindOptions, Resume, Sniffed, Source};
 use anyview_text::Coverage;
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -55,12 +60,38 @@ impl StageView for TreeStageView {
             | Stage::Text(_)
             | Stage::Table(_) => 0,
         };
+        let scale = match stage {
+            Stage::Tree(stage) => stage.scale(),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Table(_) => ContentScale::ACTUAL,
+        };
         StageParams {
             tree: TreeParams {
                 rows,
-                page: view::page_of(area),
+                page: view::page_of(area, scale),
             },
             ..StageParams::default()
+        }
+    }
+
+    fn arrived(_doc: &TreeDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
+        // A find that was up is asked again of the document that has landed.
+        match stage {
+            Stage::Tree(tree) => tree
+                .find()
+                .map(|find| StageIn::Tree(TreeIn::Find(find.query.clone())))
+                .into_iter()
+                .collect(),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Table(_) => Vec::new(),
         }
     }
 
@@ -68,12 +99,46 @@ impl StageView for TreeStageView {
         rsx! { view::TreeContent { doc: Held(Arc::clone(doc)), cx: cx.clone() } }
     }
 
-    fn slots(_doc: &TreeDoc, _cx: &StageCx) -> Vec<RankedSlot<Command>> {
-        essentials(vec![CapsuleSlot::button(
+    fn slots(_doc: &TreeDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
+        let mut slots = essentials(vec![CapsuleSlot::button(
             Command::Stage(StageCommand::CollapseAll),
             "Collapse All",
             Icon::ChevronUp,
-        )])
+        )]);
+        slots.extend(crate::families::found::standing(&cx.stage));
+        slots
+    }
+
+    fn search(
+        doc: &Arc<TreeDoc>,
+        _stage: &Stage,
+        ticket: Ticket,
+        query: &TypedText,
+        options: FindOptions,
+    ) -> Option<Job> {
+        Some(Job::SearchNodes {
+            ticket,
+            doc: Arc::clone(doc),
+            query: query.clone(),
+            options,
+        })
+    }
+
+    fn show_hit(
+        doc: &Arc<TreeDoc>,
+        stage: &Stage,
+        hits: &FoundHits,
+        _sorted: Option<&SortedOrder>,
+        hit: HitIndex,
+    ) -> Vec<StageIn> {
+        find::show(doc, stage, hits, hit)
+    }
+
+    fn hit_lines(_doc: &Arc<TreeDoc>, cx: &StageCx, upto: u32) -> Vec<HitLine> {
+        match cx.hits.as_ref() {
+            Some(found) => find::lines(&found.0, upto),
+            None => Vec::new(),
+        }
     }
 
     fn panel(doc: &Arc<TreeDoc>, tab: PanelTab, _cx: &StageCx) -> Option<Element> {

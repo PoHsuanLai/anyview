@@ -15,13 +15,14 @@ pub(crate) use doc::found_in;
 pub use doc::{LineWindow, TextDoc};
 pub use find::FoundHits;
 pub(crate) use find::top_for;
+pub(crate) use find::{Mark, Snippet, clip, cut};
 
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenPort};
 use crate::{
     Command, Editable, FileAccess, HitIndex, LineTotal, LoadFlow, PageLines, PanelTab, PanelTabs,
     Stage, StageCommand, StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams,
-    TextStage, TextViews, Ticket, TypedText,
+    TextStage, TextView, TextViews, Ticket, TypedText,
 };
 use anyview_core::{Facts, FindOptions, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
@@ -105,9 +106,9 @@ impl StageView for TextStageView {
             return params;
         };
         let place = view::place_of_text(text);
-        let rows = view::rows_of(area.size.height.0);
+        let rows = view::rows_of(area.size.height.0, place.scale);
         let from = lines.map_or(&[][..], |window| window.from(place.line));
-        let page = wrap::lines_per_page(from, rows, area.size.width.0, place.wrap);
+        let page = wrap::lines_per_page(from, rows, area.size.width.0, place.wrap, place.scale);
         StageParams {
             text: TextParams {
                 extent: TextExtent {
@@ -190,18 +191,23 @@ impl StageView for TextStageView {
             return Vec::new();
         };
         (0..upto.min(found.0.count().0))
-            .filter_map(|index| {
-                let hit = found.0.get(HitIndex(index))?;
+            .map(|index| {
                 let snippet = found
                     .0
                     .snippet(HitIndex(index))
                     .cloned()
                     .unwrap_or_default();
-                Some(HitLine {
+                // A hit in a rendered page has no line to name.
+                let place = found
+                    .0
+                    .get(HitIndex(index))
+                    .map(|hit| find::hit_place(&found.0, hit, &snippet))
+                    .unwrap_or_default();
+                HitLine {
                     context: snippet.text,
                     matched: snippet.matched,
-                    place: format!("Line {}", hit.line.0 + 1),
-                })
+                    place,
+                }
             })
             .collect()
     }
@@ -215,15 +221,19 @@ impl StageView for TextStageView {
 
     fn search(
         doc: &Arc<TextDoc>,
+        stage: &Stage,
         ticket: Ticket,
         query: &TypedText,
         options: FindOptions,
     ) -> Option<Job> {
+        // What is searched is what is on screen: the page of a Markdown file, or its lines.
+        let view = view::place_of(stage).map_or(TextView::Source, |place| place.view);
         Some(Job::Search {
             ticket,
             doc: Arc::clone(doc),
             query: query.clone(),
             options,
+            view,
         })
     }
 

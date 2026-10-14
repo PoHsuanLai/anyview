@@ -10,11 +10,11 @@ use super::tabs;
 use crate::families::view::{Held, StageCx};
 use crate::views::failed::{FailedScreen, Offer};
 use crate::{
-    Changes, FindHits, LoadFailure, Stage, StageIn, TextIn, TextPlace, TextStage,
+    Changes, ContentScale, FindHits, LoadFailure, Stage, StageIn, TextIn, TextPlace, TextStage,
     TextView as Shown, Wrap,
 };
 use anyview_core::LineIndex;
-use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine};
+use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine, mark_page};
 use dioxus::prelude::*;
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::prelude::Word;
@@ -60,7 +60,7 @@ fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
         Stage::Text(
             TextStage::Finding { query, hits, .. }
             | TextStage::Editing {
-                find: Some(crate::EditFind { query, hits }),
+                find: Some(crate::StageFind { query, hits }),
                 ..
             },
         ) => Some((query.clone(), *hits)),
@@ -74,10 +74,12 @@ fn find_of(stage: &Stage) -> Option<(crate::TypedText, FindHits)> {
     }
 }
 
-/// How many lines fit the room that the stage's `height` leaves below the titlebar.
-pub(super) fn rows_of(height: f32) -> u32 {
-    // A positive, finite height over a constant: truncating to whole rows is the point.
-    ((height - TITLEBAR) / ROW).floor().max(1.0) as u32
+/// How many lines fit the room that the stage's `height` leaves below the titlebar, at `scale`.
+pub(super) fn rows_of(height: f32, scale: ContentScale) -> u32 {
+    // A positive, finite height over a positive length: truncating to whole rows is the point.
+    ((height - TITLEBAR) / (ROW * scale.factor()))
+        .floor()
+        .max(1.0) as u32
 }
 
 fn class_of(class: TokenClass) -> String {
@@ -152,9 +154,10 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
             return;
         }
         // The content moves with the fingers: down means earlier lines.
+        let row = ROW * place.scale.factor();
         let total = carry() - by.y.0;
-        let lines = (total / ROW).trunc();
-        carry.set(total - lines * ROW);
+        let lines = (total / row).trunc();
+        carry.set(total - lines * row);
         if lines != 0.0 {
             // The text being edited has the lines the edits left it.
             let total = scrolled.text_edit.peek().as_ref().map_or(count, |text| {
@@ -171,9 +174,10 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
     let (Some(area), Some(place)) = (cx.area, place_of(&cx.stage)) else {
         return rsx! { div { class: "viewer-text viewer-scrolls" } };
     };
-    let page = rows_of(area.size.height.0);
+    let page = rows_of(area.size.height.0, place.scale);
     let rows = page + SPARE;
     let first = place.line;
+    let zoom = format!("--zoom:{}", place.scale.factor());
     // Once the text is read for editing, the room shows it and not the lines a worker read.
     let editing =
         matches!(cx.stage, Stage::Text(TextStage::Editing { .. })) && cx.text_edit.read().is_some();
@@ -202,19 +206,32 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
             }
         };
     }
+
+    let find = find_of(&cx.stage);
+    let current = find.as_ref().and_then(|(_, hits)| hits.current());
     if let (Shown::Rendered, Some(rendered)) = (place.view, doc.0.rendered.as_ref()) {
-        let page = frame::document(rendered, &cx.frame);
+        // A find over the page marks its hits in the page, the current one apart.
+        let needle = find
+            .as_ref()
+            .and(cx.hits.as_ref())
+            .and_then(|found| found.0.page_needle());
+        let page = match needle {
+            Some(needle) => {
+                // a u32 fits a usize
+                let marked = mark_page(&rendered.html, needle, current.map(|hit| hit.0 as usize));
+                frame::document(&marked, &cx.frame, place.scale)
+            }
+            None => frame::document(&rendered.html, &cx.frame, place.scale),
+        };
         return rsx! {
-            div { class: "viewer-text viewer-scrolls", "data-view": "rendered",
+            div { class: "viewer-text viewer-scrolls", "data-view": "rendered", style: "{zoom}",
                 iframe { class: "viewer-frame", "data-frame-tag": "page", srcdoc: page }
             }
         };
     }
-    let find = find_of(&cx.stage);
-    let current = find.as_ref().and_then(|(_, hits)| hits.current());
     if editing {
         return rsx! {
-            div { class: "viewer-text viewer-scrolls", "data-view": "source", "data-editing": "on",
+            div { class: "viewer-text viewer-scrolls", "data-view": "source", "data-editing": "on", style: "{zoom}",
                 EditLines {
                     session: cx.text_edit,
                     handle: cx.text_editor,
@@ -232,7 +249,7 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         };
     }
     rsx! {
-        div { class: "viewer-text viewer-scrolls", "data-view": "source",
+        div { class: "viewer-text viewer-scrolls", "data-view": "source", style: "{zoom}",
             if let Some(window) = cx.lines.as_ref() {
                 for visible in window.0.lines.iter().filter(|line| {
                     line.number.0 >= first.0 && line.number.0 < first.0.saturating_add(rows)
@@ -260,7 +277,7 @@ mod tests {
             ("less than the bar", 10.0, 1),
         ];
         for (name, height, rows) in CASES {
-            assert_eq!(rows_of(*height), *rows, "{name}");
+            assert_eq!(rows_of(*height, ContentScale::ACTUAL), *rows, "{name}");
         }
     }
 }

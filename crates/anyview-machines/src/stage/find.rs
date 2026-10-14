@@ -1,6 +1,6 @@
-//! Finding, shared by the PDF and text stages: the hits themselves live with whoever searched
-//! (a document can have thousands), so a stage holds only which one is current and how many
-//! there are, and asks for the others to be shown.
+//! Finding, shared by the PDF, text, table and tree stages: the hits themselves live with whoever
+//! searched (a document can have thousands), so a stage holds only which one is current and how
+//! many there are, and asks for the others to be shown.
 
 use crate::typed::TypedText;
 use std::num::NonZeroU32;
@@ -130,7 +130,26 @@ impl FindOut {
     }
 }
 
-/// What a find wants done, for either stage that finds.
+/// The find a stage has up beside its reading (a table's, a tree's, a text's while it is edited):
+/// its text, and where its search stands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageFind {
+    /// What is searched for.
+    pub query: TypedText,
+    /// Where the search stands.
+    pub hits: FindHits,
+}
+
+impl StageFind {
+    /// The find that has just been asked for `query`: its search has not answered.
+    #[must_use]
+    pub fn asked(query: TypedText) -> StageFind {
+        let hits = FindHits::asked(&query);
+        StageFind { query, hits }
+    }
+}
+
+/// What a find wants done, for any stage that finds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FindOut {
     /// Search the document for this text and answer with the hit count.

@@ -483,6 +483,20 @@ pub fn press(harness: &mut Harness, key: ShortcutKey) {
     settle(harness);
 }
 
+/// A character with the command key held: Command F finds, Command G steps to the next hit.
+pub fn chord(harness: &mut Harness, key: char) {
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char(key)));
+    settle(harness);
+}
+
+/// `text` typed one key at a time, into whatever has the keyboard.
+pub fn type_text(harness: &mut Harness, text: &str) {
+    for c in text.chars() {
+        harness.send(Input::key(ShortcutKey::Char(c)));
+    }
+    settle(harness);
+}
+
 pub fn title(harness: &Harness) -> Option<String> {
     harness.text_of(".ds-titlebar-name")
 }

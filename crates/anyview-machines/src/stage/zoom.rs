@@ -32,6 +32,56 @@ pub enum ZoomDir {
     Out,
 }
 
+/// The sizes a text, a table or a tree is drawn at, in thousandths of actual size: half to three
+/// times, as TextEdit, Numbers and GNOME Text Editor step their zoom.
+const LADDER: [u16; 8] = [500, 750, 1000, 1250, 1500, 2000, 2500, 3000];
+
+/// Where on the ladder actual size is.
+const ACTUAL_STEP: usize = 2;
+
+/// How large the lines, rows and glyphs of a text, a table or a tree are drawn. Content that
+/// reflows zooms in steps of a ladder (50% to 300%) rather than by the free scale a picture has,
+/// so the size is always one the row heights and the glyph widths were drawn for. It cannot hold
+/// a size off the ladder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ContentScale(usize);
+
+impl ContentScale {
+    /// Actual size.
+    pub const ACTUAL: ContentScale = ContentScale(ACTUAL_STEP);
+
+    /// The step one rung up or down, staying at the end of the ladder when there is no more.
+    #[must_use]
+    pub const fn stepped(self, dir: ZoomDir) -> ContentScale {
+        let last = LADDER.len() - 1;
+        ContentScale(match dir {
+            ZoomDir::In if self.0 < last => self.0 + 1,
+            ZoomDir::In => last,
+            ZoomDir::Out => self.0.saturating_sub(1),
+        })
+    }
+
+    /// The size in thousandths of actual (1000 is actual size).
+    #[must_use]
+    pub fn permille(self) -> Permille {
+        Permille(u32::from(
+            LADDER.get(self.0).copied().unwrap_or(LADDER[ACTUAL_STEP]),
+        ))
+    }
+
+    /// The size as the factor a length is multiplied by.
+    #[must_use]
+    pub fn factor(self) -> f32 {
+        f32::from(LADDER.get(self.0).copied().unwrap_or(LADDER[ACTUAL_STEP])) / 1000.0
+    }
+}
+
+impl Default for ContentScale {
+    fn default() -> Self {
+        ContentScale::ACTUAL
+    }
+}
+
 /// The zoom one step from the scale shown: `step` is the factor in thousandths (1250 is x1.25).
 /// A step out that reaches the fit scale is the fit zoom itself, so zooming out is a way back to
 /// it; every other result is clamped to the zoom limits.
@@ -207,6 +257,31 @@ mod tests {
         for (name, viewport, dir, want) in cases {
             assert_eq!(stepped_past_fit(viewport, dir, STEP), want, "{name}");
         }
+    }
+
+    #[test]
+    fn content_zoom_steps_along_its_ladder_and_stops_at_the_ends() {
+        // name, steps taken (true is in), size after in thousandths
+        const CASES: &[(&str, &[bool], u32)] = &[
+            ("untouched", &[], 1000),
+            ("in", &[true], 1250),
+            ("out", &[false], 750),
+            ("in twice", &[true, true], 1500),
+            (
+                "out to the floor and past it",
+                &[false, false, false, false],
+                500,
+            ),
+            ("in to the top and past it", &[true; 9], 3000),
+            ("in and back out", &[true, true, false, false], 1000),
+        ];
+        for (name, steps, want) in CASES {
+            let scale = steps.iter().fold(ContentScale::ACTUAL, |scale, in_| {
+                scale.stepped(if *in_ { ZoomDir::In } else { ZoomDir::Out })
+            });
+            assert_eq!(scale.permille(), Permille(*want), "{name}");
+        }
+        assert!((ContentScale::ACTUAL.factor() - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]

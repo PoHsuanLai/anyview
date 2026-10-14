@@ -9,8 +9,8 @@ mod tests;
 mod wrap;
 
 pub use model::{
-    Changes, EditFind, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn,
-    TextOut, TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
+    Changes, Editable, Edited, LineTotal, Outside, PageLines, TextExtent, TextIn, TextOut,
+    TextParams, TextPlace, TextStage, TextStep, TextView, TextViews, Wrap,
 };
 
 pub use wrap::WrapChoices;

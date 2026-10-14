@@ -135,6 +135,7 @@ fn reading_text() -> Stage {
             line: LineIndex(0),
             wrap: Wrap::On,
             view: TextView::Source,
+            scale: crate::stage::ContentScale::ACTUAL,
         },
     })
 }
@@ -198,6 +199,7 @@ fn a_find_option_is_kept_for_the_window_and_searches_the_find_again_with_the_pal
                 line: LineIndex(0),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::stage::ContentScale::ACTUAL,
             },
         }),
         palette: Palette::open(TypedText::new("fox"), PaletteIndex(0)),
@@ -240,6 +242,7 @@ fn the_highlight_over_a_hit_makes_it_current_and_enter_leaves_the_find_up_to_ste
         line: LineIndex(0),
         wrap: Wrap::On,
         view: TextView::Source,
+        scale: crate::stage::ContentScale::ACTUAL,
     };
     let viewer = Viewer {
         stage: Stage::Text(TextStage::Finding {
@@ -548,6 +551,7 @@ fn editing_text(changes: Changes, outside: Outside) -> Viewer {
                 line: LineIndex(0),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::stage::ContentScale::ACTUAL,
             },
             edited: Edited { changes, outside },
             find: None,

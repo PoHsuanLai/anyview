@@ -144,6 +144,7 @@ mod tests {
                 line: LineIndex(line),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::stage::ContentScale::ACTUAL,
             },
         })
     }

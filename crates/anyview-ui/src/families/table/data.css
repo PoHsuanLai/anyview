@@ -6,9 +6,14 @@
 
 /* The data starts under the titlebar by the shared `.viewer-scrolls` rule (views/window.css); this
    sets the other three edges. */
-.viewer-data{ position:absolute; left:0; right:0; bottom:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
+.viewer-data{ --zoom:1; position:absolute; left:0; right:0; bottom:0; display:flex; flex-direction:column; font-family:var(--font-data); font-size:var(--fs-body); }
 .viewer-row-number{ color:var(--ink-faint); }
-.viewer-node{ display:inline-flex; gap:0; white-space:pre; }
+/* The zoom (--zoom, set on the stage by the view) scales the text of a cell and of a node, as the
+   rows' height scales with it. The text is quire's row size (--fs-shell-menu) times the zoom. */
+.viewer-cell{ font-size:calc(var(--fs-shell-menu) * var(--zoom)); }
+/* A row can be shorter than quire's compact row once zoomed out. */
+.viewer-data .viewer-node-row{ min-height:0; }
+.viewer-node{ display:inline-flex; gap:0; white-space:pre; font-size:calc(var(--fs-shell-menu) * var(--zoom)); }
 .viewer-node-key{ flex:none; }
 .viewer-node-value{ overflow:hidden; }
 .viewer-node-count{ color:var(--ink-faint); }

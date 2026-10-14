@@ -1,13 +1,14 @@
 //! The keys of a table and a JSON tree under the harness: the arrow keys, Page Up and Down, Home
 //! and End move through its rows, and they never carry the reader off to another file; Esc puts
-//! the cursor away, and then Left and Right walk the folder again.
+//! the cursor away, and then Left and Right walk the folder again. Find opens the nodes above a hit
+//! of a tree, and zoom scales its rows.
 
 use crate::support;
 
 use ds::prelude::{Appearance, ShortcutKey};
 use ds_harness::{Harness, Query};
 use std::path::PathBuf;
-use support::{press, settle, title, window};
+use support::{chord, press, settle, title, type_text, window};
 
 fn rows(count: u32) -> String {
     let mut text = String::from("id,name\n");
@@ -112,4 +113,82 @@ fn the_keys_move_through_a_json_trees_rows_too() {
         selected_row(&harness)
     );
     assert_eq!(title(&harness).as_deref(), Some("a.json"));
+}
+
+const DEEP: &str = r#"{"a":{"b":{"c":"the needle"}},"z":[1,2]}"#;
+
+#[test]
+fn find_in_a_tree_opens_the_nodes_above_a_hit_and_marks_it() {
+    let (_dir, paths) = folder_of(&[("deep.json", DEEP.to_owned())]);
+    let mut harness = window_on(&paths);
+    let nodes = |harness: &Harness| harness.count(".viewer-node");
+    assert_eq!(
+        nodes(&harness),
+        3,
+        "the root, a and z: only the top level is open"
+    );
+    chord(&mut harness, 'f');
+    assert_eq!(
+        harness.count(".ds-palette"),
+        1,
+        "command F brings the palette"
+    );
+    type_text(&mut harness, "needle");
+    let listed = harness.text_of(".ds-palette").unwrap_or_default();
+    assert!(
+        listed.contains("In This File") && listed.contains("c: \"the needle\""),
+        "the hit is listed by its key and its value: {listed}"
+    );
+    assert_eq!(
+        nodes(&harness),
+        5,
+        "a, b and c are open now: root, a, b, c, z"
+    );
+    assert!(
+        selected_row(&harness).is_some_and(|row| row.contains("needle")),
+        "the cursor is on the hit: {:?}",
+        selected_row(&harness)
+    );
+    assert!(harness.count(".viewer-hit") >= 1, "the words are marked");
+    press(&mut harness, ShortcutKey::Escape);
+    assert_eq!(harness.count(".viewer-hit"), 0, "Esc puts the marks away");
+}
+
+#[test]
+fn a_find_in_a_tree_matches_keys_as_well_as_values() {
+    let (_dir, paths) = folder_of(&[("deep.json", DEEP.to_owned())]);
+    let mut harness = window_on(&paths);
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "z");
+    assert!(
+        selected_row(&harness).is_some_and(|row| row.starts_with('z')),
+        "the key z is the hit: {:?}",
+        selected_row(&harness)
+    );
+}
+
+#[test]
+fn zoom_scales_the_rows_of_a_tree_and_actual_size_returns() {
+    let row_height =
+        |harness: &Harness| harness.rect(".ds-list-item").expect("a row").size.height.0;
+    let (_dir, paths) = folder_of(&[("deep.json", DEEP.to_owned())]);
+    let base = row_height(&window_on(&paths));
+    // name, keys pressed, the row height as a share of the actual one
+    const CASES: &[(&str, &[char], f32)] = &[
+        ("in", &['+'], 1.25),
+        ("in past the top stops at three times", &['+'; 9], 3.0),
+        ("out", &['-'], 0.75),
+        ("in and back to actual size", &['+', '+', '0'], 1.0),
+    ];
+    for (name, keys, share) in CASES {
+        let mut harness = window_on(&paths);
+        for key in *keys {
+            press(&mut harness, ShortcutKey::Char(*key));
+        }
+        let got = row_height(&harness);
+        assert!(
+            (got - base * share).abs() < 1.0,
+            "{name}: a row is {got} px, wanted {share} of {base}"
+        );
+    }
 }

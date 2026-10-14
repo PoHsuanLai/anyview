@@ -1,9 +1,10 @@
 //! The text stage's transitions.
 
-use super::super::find::{FindHits, FindOut, HitIndex, HitStep};
+use super::super::find::{FindHits, FindOut, HitIndex, HitStep, StageFind};
+use super::super::zoom::{ContentScale, ZoomDir};
 use super::model::{
-    EditFind, Editable, Edited, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep,
-    TextView, TextViews, Wrap,
+    Editable, Edited, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView,
+    TextViews, Wrap,
 };
 use super::steps::stepped as step_line;
 use crate::typed::TypedText;
@@ -69,6 +70,15 @@ fn rewrapped(place: TextPlace) -> (TextPlace, Vec<TextOut>) {
     (TextPlace { wrap, ..place }, vec![TextOut::Wrapped(wrap)])
 }
 
+/// The place drawn one step larger or smaller (`Some`), or at actual size (`None`).
+fn zoomed(place: TextPlace, step: Option<ZoomDir>) -> TextPlace {
+    let scale = match step {
+        Some(dir) => place.scale.stepped(dir),
+        None => ContentScale::ACTUAL,
+    };
+    TextPlace { scale, ..place }
+}
+
 /// Editing starts in the source: the place with that view, and the output that shows it when
 /// the view changes.
 fn source_for_edit(place: TextPlace) -> (TextPlace, Vec<TextOut>) {
@@ -85,10 +95,10 @@ fn source_for_edit(place: TextPlace) -> (TextPlace, Vec<TextOut>) {
 }
 
 /// The stage that starts editing from `place`, carrying `find` over, and what it asks for.
-fn begun(place: TextPlace, find: Option<EditFind>, params: &TextParams) -> Step {
+fn begun(place: TextPlace, find: Option<StageFind>, params: &TextParams) -> Step {
     match params.editable {
         Editable::No => match find {
-            Some(EditFind { query, hits }) => (TextStage::Finding { query, hits, place }, vec![]),
+            Some(StageFind { query, hits }) => (TextStage::Finding { query, hits, place }, vec![]),
             None => (TextStage::Reading { place }, vec![]),
         },
         Editable::Yes => {
@@ -110,24 +120,6 @@ fn other_view(view: TextView, views: TextViews) -> Option<TextView> {
         (TextViews::RenderedAndSource, TextView::Rendered) => Some(TextView::Source),
         (TextViews::RenderedAndSource, TextView::Source) => Some(TextView::Rendered),
         (TextViews::SourceOnly, TextView::Rendered | TextView::Source) => None,
-    }
-}
-
-/// A find marks its hits in the source lines, which a rendered page does not have: when the file
-/// has a source view, the find starts there.
-fn source_for_hits(place: TextPlace, params: &TextParams) -> (TextPlace, Vec<TextOut>) {
-    match (place.view, params.views) {
-        (TextView::Rendered, TextViews::RenderedAndSource) => (
-            TextPlace {
-                view: TextView::Source,
-                ..place
-            },
-            vec![TextOut::Show(TextView::Source)],
-        ),
-        (TextView::Rendered, TextViews::SourceOnly)
-        | (TextView::Source, TextViews::RenderedAndSource | TextViews::SourceOnly) => {
-            (place, vec![])
-        }
     }
 }
 
@@ -155,8 +147,7 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             (TextStage::Reading { place }, outs)
         }
         TextIn::Find(query) => {
-            let (place, mut outs) = source_for_hits(place, params);
-            outs.push(search(&query));
+            let outs = vec![search(&query)];
             let hits = FindHits::asked(&query);
             (TextStage::Finding { query, hits, place }, outs)
         }
@@ -173,6 +164,8 @@ fn reading(place: TextPlace, input: TextIn, params: &TextParams) -> Step {
             let (place, outs) = rewrapped(place);
             (TextStage::Reading { place }, outs)
         }
+        TextIn::ZoomStep(dir) => stay(zoomed(place, Some(dir))),
+        TextIn::ZoomActual => stay(zoomed(place, None)),
         TextIn::Edit => begun(place, None, params),
         TextIn::Restore(Resume::Text { line }) => (
             TextStage::Reading {
@@ -295,7 +288,9 @@ fn finding(
             let (place, outs) = rewrapped(place);
             (TextStage::Finding { query, hits, place }, outs)
         }
-        TextIn::Edit => begun(place, Some(EditFind { query, hits }), params),
+        TextIn::ZoomStep(dir) => stay(query, hits, zoomed(place, Some(dir))),
+        TextIn::ZoomActual => stay(query, hits, zoomed(place, None)),
+        TextIn::Edit => begun(place, Some(StageFind { query, hits }), params),
         TextIn::Results {
             query: _,
             count: _,
@@ -323,16 +318,16 @@ fn shown(hits: FindHits) -> Vec<TextOut> {
 fn hit_moved(
     place: TextPlace,
     edited: Edited,
-    find: Option<EditFind>,
+    find: Option<StageFind>,
     moved: impl FnOnce(FindHits) -> FindHits,
 ) -> Step {
     match find {
-        Some(EditFind { query, hits }) => {
+        Some(StageFind { query, hits }) => {
             let hits = moved(hits);
             let stage = TextStage::Editing {
                 place,
                 edited,
-                find: Some(EditFind { query, hits }),
+                find: Some(StageFind { query, hits }),
             };
             (stage, shown(hits))
         }
@@ -352,16 +347,16 @@ fn hit_moved(
 fn editing(
     place: TextPlace,
     edited: Edited,
-    find: Option<EditFind>,
+    find: Option<StageFind>,
     input: TextIn,
     params: &TextParams,
 ) -> Step {
-    let keep = |place: TextPlace, edited: Edited, find: Option<EditFind>| TextStage::Editing {
+    let keep = |place: TextPlace, edited: Edited, find: Option<StageFind>| TextStage::Editing {
         place,
         edited,
         find,
     };
-    let stay = |find: Option<EditFind>| (keep(place, edited, find), vec![]);
+    let stay = |find: Option<StageFind>| (keep(place, edited, find), vec![]);
     match input {
         TextIn::Scroll(line) => (
             keep(TextPlace { line, ..place }, edited, find),
@@ -374,14 +369,14 @@ fn editing(
         TextIn::Find(query) => {
             let outs = vec![search(&query)];
             let hits = FindHits::asked(&query);
-            (keep(place, edited, Some(EditFind { query, hits })), outs)
+            (keep(place, edited, Some(StageFind { query, hits })), outs)
         }
         TextIn::Results {
             query: answered,
             count,
             nearest,
         } => match find {
-            Some(EditFind {
+            Some(StageFind {
                 query,
                 hits: before,
             }) if query == answered => {
@@ -390,7 +385,7 @@ fn editing(
                     FindHits::Pending => shown(hits),
                     FindHits::Idle | FindHits::NoMatch | FindHits::Found(_) => vec![],
                 };
-                (keep(place, edited, Some(EditFind { query, hits })), outs)
+                (keep(place, edited, Some(StageFind { query, hits })), outs)
             }
             other => stay(other),
         },
@@ -408,7 +403,7 @@ fn editing(
         },
         TextIn::Edited(changes) => {
             let outs = match &find {
-                Some(EditFind { query, hits: _ }) if !query.is_empty() => vec![search(query)],
+                Some(StageFind { query, hits: _ }) if !query.is_empty() => vec![search(query)],
                 Some(_) | None => vec![],
             };
             (keep(place, Edited { changes, ..edited }, find), outs)
@@ -426,6 +421,8 @@ fn editing(
             let (place, outs) = rewrapped(place);
             (keep(place, edited, find), outs)
         }
+        TextIn::ZoomStep(dir) => (keep(zoomed(place, Some(dir)), edited, find), vec![]),
+        TextIn::ZoomActual => (keep(zoomed(place, None), edited, find), vec![]),
         TextIn::Edit | TextIn::ToggleSource | TextIn::Restore(_) | TextIn::Elapsed => stay(find),
     }
 }

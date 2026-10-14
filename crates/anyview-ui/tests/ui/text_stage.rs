@@ -356,3 +356,138 @@ fn an_empty_file_says_so_and_can_still_be_edited_and_blank_text_is_text() {
     assert_eq!(harness.count(".viewer-failed"), 0, "spaces are text");
     assert!(harness.count(".viewer-line") > 0, "and are drawn as lines");
 }
+
+#[test]
+fn zoom_scales_the_lines_of_a_text_and_what_a_page_holds_and_actual_size_returns() {
+    let height = |harness: &Harness| harness.rect(".viewer-line").unwrap().size.height.0;
+    // name, keys pressed, the line height in pixels (20 at actual size)
+    const CASES: &[(&str, &[char], f32)] = &[
+        ("untouched", &[], 20.0),
+        ("in", &['+'], 25.0),
+        ("in twice", &['+', '+'], 30.0),
+        ("out", &['-'], 15.0),
+        (
+            "out past the floor stops at half",
+            &['-', '-', '-', '-', '-'],
+            10.0,
+        ),
+        ("in past the top stops at three times", &['+'; 9], 60.0),
+        ("in and back to actual size", &['+', '+', '0'], 20.0),
+    ];
+    for (name, keys, want) in CASES {
+        let (_dir, mut harness) = open(&numbered(500));
+        for key in *keys {
+            press(&mut harness, ShortcutKey::Char(*key));
+        }
+        let got = height(&harness);
+        assert!(
+            (got - want).abs() < 1.0,
+            "{name}: a line is {got} px, wanted {want}"
+        );
+    }
+    // A page holds fewer lines when the lines are larger, and a page step moves by what it holds.
+    let page = |keys: &[char]| {
+        let (_dir, mut harness) = open(&numbered(500));
+        for key in keys {
+            press(&mut harness, ShortcutKey::Char(*key));
+        }
+        press(&mut harness, ShortcutKey::PageDown);
+        first_line(&harness).unwrap()
+    };
+    assert!(
+        page(&['+', '+']) < page(&[]),
+        "zoomed in, a page is shorter"
+    );
+    assert!(
+        page(&['-', '-']) > page(&[]),
+        "zoomed out, a page is longer"
+    );
+}
+
+#[test]
+fn the_find_palette_echoes_no_chip_for_each_word_of_the_query() {
+    let (_dir, mut harness) = open(&numbered(40));
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "row of the file");
+    assert_eq!(harness.count(".ds-text-field-tokens"), 0);
+}
+
+#[test]
+fn two_hits_on_one_line_are_two_rows_that_say_where_on_the_line_they_are() {
+    let (_dir, mut harness) = open("the cat and the cat\nnothing\n");
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "cat");
+    let listed = harness.text_of(".ds-palette").unwrap_or_default();
+    assert!(
+        listed.contains("Line 1, column 5") && listed.contains("Line 1, column 17"),
+        "{listed}"
+    );
+}
+
+/// A Markdown file with the word "cat" twice in its page.
+const PAGE: &str = "# Title\n\nthe cat sat\n\nanother cat\n";
+
+fn open_markdown() -> (tempfile::TempDir, Harness) {
+    let dir = tempfile::tempdir().unwrap();
+    let path = file(dir.path(), "readme.md", PAGE);
+    let (mut harness, _) = window(&[path], 0, Appearance::default());
+    settle(&mut harness);
+    harness.send(Input::pointer_move(middle()));
+    settle(&mut harness);
+    (dir, harness)
+}
+
+fn view_of(harness: &Harness) -> Option<String> {
+    harness.attr(".viewer-text", "data-view")
+}
+
+fn page_has_marks(harness: &Harness) -> bool {
+    harness
+        .attr(".viewer-frame", "srcdoc")
+        .is_some_and(|page| page.contains("<mark"))
+}
+
+#[test]
+fn find_in_a_markdown_page_searches_the_page_and_marks_it_there_without_leaving_it() {
+    let (_dir, mut harness) = open_markdown();
+    assert_eq!(view_of(&harness).as_deref(), Some("rendered"));
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "cat");
+    assert_eq!(
+        view_of(&harness).as_deref(),
+        Some("rendered"),
+        "find does not turn the page into its source"
+    );
+    let listed = harness.text_of(".ds-palette").unwrap_or_default();
+    assert!(
+        listed.contains("In This File") && listed.contains("the cat sat"),
+        "the hits are the page's words: {listed}"
+    );
+    assert!(page_has_marks(&harness), "the hits are marked in the page");
+    press(&mut harness, ShortcutKey::Enter);
+    assert!(
+        capsule(&harness).contains("1 of 2"),
+        "the page's two: {}",
+        capsule(&harness)
+    );
+    chord(&mut harness, 'g');
+    assert!(
+        capsule(&harness).contains("2 of 2"),
+        "{}",
+        capsule(&harness)
+    );
+    assert_eq!(view_of(&harness).as_deref(), Some("rendered"));
+    press(&mut harness, ShortcutKey::Escape);
+    assert!(!page_has_marks(&harness), "Esc puts the marks away");
+}
+
+#[test]
+fn the_source_a_person_chose_stays_the_source_when_they_find() {
+    let (_dir, mut harness) = open_markdown();
+    press(&mut harness, ShortcutKey::Char('v'));
+    assert_eq!(view_of(&harness).as_deref(), Some("source"));
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "cat");
+    assert_eq!(view_of(&harness).as_deref(), Some("source"));
+    assert!(harness.count(".viewer-hit") >= 1, "its lines are marked");
+}

@@ -869,6 +869,7 @@ mod tests {
                 line: LineIndex(0),
                 wrap: Wrap::On,
                 view: TextView::Source,
+                scale: crate::ContentScale::ACTUAL,
             },
             edited: Edited::default(),
             find: None,

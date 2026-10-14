@@ -4,20 +4,25 @@
    display ink, code in the code face. Colours are tokens; nothing here is a literal. */
 
 /* The body is the root of the frame's own document, so the ground the page reads on is a box inside it. */
-.viewer-ground{ min-height:100vh; background:var(--paper); color:var(--ink); }
-.viewer-page{ box-sizing:border-box; max-width:calc(var(--s-40) * 17); margin:0 auto; padding:var(--s-36) var(--s-26); font-family:var(--font-ui); font-size:var(--fs-reading); line-height:1.6; }
+/* The zoom is set on the ground by the window; the page's own sizes multiply by it. */
+.viewer-ground{ --zoom:1; min-height:100vh; background:var(--paper); color:var(--ink); }
+.viewer-page{ box-sizing:border-box; max-width:calc(var(--s-40) * 17 * var(--zoom)); margin:0 auto; padding:var(--s-36) var(--s-26); font-family:var(--font-ui); font-size:calc(var(--fs-reading) * var(--zoom)); line-height:1.6; }
 .viewer-page h1,.viewer-page h2,.viewer-page h3,.viewer-page h4,.viewer-page h5,.viewer-page h6{ margin:var(--s-22) 0 var(--s-8); color:var(--ink); font-family:var(--font-display); line-height:1.25; }
-.viewer-page h1{ font-size:var(--fs-display); }
-.viewer-page h2{ font-size:var(--fs-title); }
-.viewer-page h3{ font-size:var(--fs-heading); }
-.viewer-page h4,.viewer-page h5,.viewer-page h6{ font-size:var(--fs-reading); }
+.viewer-page h1{ font-size:calc(var(--fs-display) * var(--zoom)); }
+.viewer-page h2{ font-size:calc(var(--fs-title) * var(--zoom)); }
+.viewer-page h3{ font-size:calc(var(--fs-heading) * var(--zoom)); }
+.viewer-page h4,.viewer-page h5,.viewer-page h6{ font-size:calc(var(--fs-reading) * var(--zoom)); }
 .viewer-page h6{ color:var(--ink-soft); }
 .viewer-page p,.viewer-page ul,.viewer-page ol,.viewer-page blockquote,.viewer-page pre,.viewer-page table{ margin:0 0 var(--s-12); }
 .viewer-page a{ color:var(--accent-text); }
 .viewer-page blockquote{ padding:0 var(--s-12); color:var(--ink-soft); border-left:var(--s-2) solid var(--line); }
-.viewer-page code,.viewer-page pre{ font-family:var(--font-code); font-size:var(--fs-mono); }
+.viewer-page code,.viewer-page pre{ font-family:var(--font-code); font-size:calc(var(--fs-mono) * var(--zoom)); }
 .viewer-page pre{ padding:var(--s-12); border-radius:var(--r-small); background:var(--fill-quaternary); overflow-x:auto; }
 .viewer-page table{ border-collapse:collapse; }
 .viewer-page th,.viewer-page td{ padding:var(--s-4) var(--s-8); border:var(--hair) solid var(--line); }
 .viewer-page hr{ border:0; border-top:var(--hair) solid var(--line); }
 .viewer-page img{ max-width:100%; }
+
+/* A find over the page marks its hits, the current one apart (the same marks as the source's). */
+.viewer-page mark{ background:var(--accent-soft); color:inherit; border-radius:var(--r-micro); }
+.viewer-page mark[*|data-current]{ background:var(--accent); color:var(--accent-ink); }

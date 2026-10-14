@@ -71,6 +71,14 @@ versioning, with pre-releases while the program is in beta.
 
 - Find is in the command palette. Command F opens it as a find, with the last find's text selected: what you type is searched for in the file, the matches are marked behind the palette, and the places are listed under "In This File" (with the line or page), followed by the commands that match. Moving through the list shows each match, Return goes to it and closes the palette, and Esc clears the marks. The bottom bar then reads "3 of 17" with Previous Match and Next Match buttons, and Command G and Shift-Command G step through the matches as before. The find bar is gone.
 
+- Find works in tables and JSON. Command F in a CSV, TSV, spreadsheet, JSON or JSON Lines file searches the cells, or the keys and values, and lists the matches under "In This File" ("Row 12 · city: Lima"; a JSON match shows the keys above it). A table's cursor goes to the match and its cell is marked; in a JSON tree the nodes above a match open and the match is marked. The search runs while you type, even over millions of rows, and the bottom bar steps through every match with "3 of 17", Command G and Shift-Command G.
+- Find in a Markdown file searches the page you are reading and marks the matches in it, instead of switching to the source. The Source view you chose stays the source.
+- Command F pressed again over a find's text selects it, so the next key replaces it. The words of the query are no longer echoed as chips under the field, and two matches on one line are listed with their columns ("Line 3, column 17") so the rows tell apart.
+
+### Zoom
+
+- Command Plus, Command Minus and Command 0 zoom text, code, Markdown, tables and JSON: 50% to 300% in steps, the type and the rows growing together. Each window keeps the zoom of the file it shows.
+
 ### Tooltips
 
 - Tooltips are short: a name in title case, then the key, as in "Pointer Tool  H". The buttons on the bottom bar now begin each word with a capital ("Zoom In", "Next Page"), and a PDF's page reads "3 of 12".
