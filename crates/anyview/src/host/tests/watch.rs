@@ -11,6 +11,10 @@ use std::time::Duration;
 /// as two changes.
 const SETTLE: Duration = Duration::from_millis(400);
 const PATIENCE: Duration = Duration::from_secs(5);
+/// The settle of the test that asks for one notice from a burst. The two writes are made back to
+/// back, but a runner that preempts the test between them for longer than the settle splits the
+/// burst for real, so this one is far longer than the writes can be kept apart.
+const BURST_SETTLE: Duration = Duration::from_millis(1500);
 
 fn told_by(watcher: &Watcher) -> (crate::host::WindowWatch, Receiver<FilePath>) {
     let (send, receive) = channel();
@@ -29,7 +33,7 @@ fn a_write_to_the_watched_file_is_told_once_however_many_events_it_made() {
     let dir = tempfile::tempdir().unwrap();
     let path = std::fs::canonicalize(dir.path()).unwrap().join("a.txt");
     std::fs::write(&path, "one").unwrap();
-    let watcher = Watcher::start(SETTLE).unwrap();
+    let watcher = Watcher::start(BURST_SETTLE).unwrap();
     let (watch, told) = told_by(&watcher);
     watch.watch(&file(&path)).unwrap();
 
@@ -39,7 +43,7 @@ fn a_write_to_the_watched_file_is_told_once_however_many_events_it_made() {
 
     assert_eq!(told.recv_timeout(PATIENCE).unwrap(), file(&path));
     assert!(
-        told.recv_timeout(SETTLE * 4).is_err(),
+        told.recv_timeout(BURST_SETTLE * 2).is_err(),
         "the burst was one change"
     );
 }
