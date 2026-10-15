@@ -396,9 +396,12 @@ sys="$scratch/sys"
 mkdir -p "$sys"
 elevated="$scratch/elevated.log"
 : >"$elevated"
-printf '#!/bin/sh\necho "$*" >> "%s"\nexec "$@"\n' "$elevated" >"$scratch/fakesudo"
+printf '#!/bin/sh\necho "$1" >> "%s"\nexec "$@"\n' "$elevated" >"$scratch/fakesudo"
 chmod +x "$scratch/fakesudo"
 : >"$calls"
+# Earlier sections removed the icons; this one installs them, so the icon cache is refreshed.
+mkdir -p "$icons"
+printf 'png16' >"$icons/16.png"
 SUDO="$scratch/fakesudo" bash "$repo/dist/install.sh" --prefix "$sys/prefix" --no-plugins >"$scratch/elevated.out" 2>&1
 check "a system prefix is written with one elevated call" test "$(wc -l <"$elevated")" -eq 1
 check "the elevated call installed the binary" test -x "$sys/prefix/bin/anyview"
