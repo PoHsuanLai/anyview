@@ -27,6 +27,7 @@ bayonet = { workspace = true, features = ["host"] }
 dirs = { workspace = true }
 ds-core = { workspace = true }
 latchkey = { workspace = true }
+log = { workspace = true }
 md-5 = { workspace = true }
 percent-encoding = { workspace = true }
 png = { workspace = true }

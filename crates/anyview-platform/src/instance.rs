@@ -53,6 +53,14 @@ impl Primary {
     pub fn next_within(&mut self, wait: Duration) -> Option<Request> {
         self.requests.recv_timeout(wait).ok()
     }
+
+    /// Give the name up, then return the requests that had arrived and were not read. A launch
+    /// that knocks after this is told the viewer is closing, so none is answered and then lost.
+    pub fn close(self) -> Vec<Request> {
+        let Primary { requests, _held } = self;
+        drop(_held);
+        requests.try_iter().collect()
+    }
 }
 
 /// The requests other launches forward, in order: `next` waits for the next one and is `None` when

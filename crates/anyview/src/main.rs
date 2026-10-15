@@ -8,6 +8,7 @@ use std::ffi::OsString;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    anyview::logger::install();
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let cwd = std::env::current_dir()
         .map_err(|error| error.to_string())

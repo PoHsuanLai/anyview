@@ -3,7 +3,7 @@
 
 use crate::error::{StoreError, StoreOp};
 use crate::io::{self, io_error};
-use crate::versions::{KeepPeriod, SECONDS_PER_DAY, SavedAt, Version, Versions};
+use crate::versions::{KeepPeriod, SECONDS_PER_DAY, SavedAt, Sidecar, Version, Versions};
 use std::collections::HashMap;
 use std::fs;
 use std::io::ErrorKind;
@@ -23,8 +23,8 @@ const CLOCK_SLACK: u64 = 365 * SECONDS_PER_DAY;
 struct Folder {
     path: PathBuf,
     versions: Vec<Version>,
-    /// Files no sidecar describes and a crash can leave: a `.bin` with no `.json` at all, and a
-    /// `.json.tmp`. Only the old ones are listed.
+    /// Files no sidecar describes and a crash can leave: a `.bin` with no readable `.json`, a
+    /// damaged `.json`, and a `.json.tmp`. Only the old ones are listed.
     leftovers: Vec<PathBuf>,
 }
 
@@ -162,12 +162,30 @@ fn leftovers_in(folder: &Path, now: SavedAt) -> Result<Vec<PathBuf>, StoreError>
             .and_then(|n| n.to_str())
             .unwrap_or_default();
         let half_made = name.ends_with(".json.tmp")
-            || (name.ends_with(".bin") && !path.with_extension("json").exists());
+            || (name.ends_with(".bin") && describes_no_version(&path.with_extension("json")))
+            || (name.ends_with(".json") && is_damaged(&path));
         if half_made && is_old(&path, now) {
             found.push(path);
         }
     }
     Ok(found)
+}
+
+/// Whether the sidecar `json` is gone or damaged, so describes no version.
+fn describes_no_version(json: &Path) -> bool {
+    matches!(
+        io::read_json::<Sidecar>(json),
+        Ok(None) | Err(StoreError::Corrupt { .. })
+    )
+}
+
+/// Whether the sidecar `json` is there and cannot be read as a version's description: the
+/// version is lost, and its data with it, outside every limit the store keeps.
+fn is_damaged(json: &Path) -> bool {
+    matches!(
+        io::read_json::<Sidecar>(json),
+        Err(StoreError::Corrupt { .. })
+    )
 }
 
 fn is_old(path: &Path, now: SavedAt) -> bool {

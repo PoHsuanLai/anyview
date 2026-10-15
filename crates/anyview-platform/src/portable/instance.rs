@@ -13,7 +13,7 @@ use latchkey::{Agent, Error as Latch, Listening, Stream};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{Sender, channel};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -29,6 +29,11 @@ const EXCHANGE: Duration = Duration::from_secs(10);
 const KNOCK: Duration = Duration::from_millis(20);
 /// How long the accept loop rests after the door fails, so a failing door does not spin.
 const REST: Duration = Duration::from_millis(100);
+/// How long a client has to send its line before the door stops listening to it.
+#[cfg(unix)]
+const CLIENT_WAIT: Duration = Duration::from_secs(5);
+/// The most clients served at once; a launch beyond them is turned away and runs on alone.
+const MOST_CLIENTS: usize = 16;
 
 /// Where the agent's socket and lock go.
 #[derive(Debug, Clone)]
@@ -137,7 +142,7 @@ fn settle(
     let deadline = Instant::now() + DOOR;
     loop {
         match agent.listen() {
-            Ok(listening) => return Ok(Settled::Primary(Door::open(agent, listening, sender))),
+            Ok(listening) => return Door::open(agent, listening, sender).map(Settled::Primary),
             Err(Latch::AlreadyRunning) => {}
             Err(error) => return Err(failed("claim the viewer's socket", &error)),
         }
@@ -183,18 +188,23 @@ struct Door {
 }
 
 impl Door {
-    fn open(agent: Agent, listening: Listening, sender: Sender<Request>) -> Door {
+    fn open(
+        agent: Agent,
+        listening: Listening,
+        sender: Sender<Request>,
+    ) -> Result<Door, PlatformError> {
         let stopping = Arc::new(AtomicBool::new(false));
         let stop = Arc::clone(&stopping);
         let accepting = std::thread::Builder::new()
             .name("anyview-instance".to_owned())
             .spawn(move || accept_loop(&listening, &stop, &sender))
-            .ok();
-        Door {
+            // A viewer with no one listening is worse than none: the launch runs on alone.
+            .map_err(|error| failed("listen for other launches", &error))?;
+        Ok(Door {
             agent,
             stopping,
-            accepting,
-        }
+            accepting: Some(accepting),
+        })
     }
 }
 
@@ -212,6 +222,8 @@ impl Drop for Door {
 /// Take each client in turn until told to stop. `listening` is dropped when this ends, which
 /// removes the socket.
 fn accept_loop(listening: &Listening, stopping: &AtomicBool, sender: &Sender<Request>) {
+    let serving = Arc::new(AtomicUsize::new(0));
+    let mut failing = false;
     loop {
         let accepted = listening.accept();
         if stopping.load(Ordering::SeqCst) {
@@ -219,22 +231,60 @@ fn accept_loop(listening: &Listening, stopping: &AtomicBool, sender: &Sender<Req
         }
         match accepted {
             Ok(stream) => {
-                let sender = sender.clone();
+                failing = false;
+                if serving.fetch_add(1, Ordering::SeqCst) >= MOST_CLIENTS {
+                    serving.fetch_sub(1, Ordering::SeqCst);
+                    log::warn!("too many launches at the door; one is turned away");
+                    continue;
+                }
+                let (sender, count) = (sender.clone(), Arc::clone(&serving));
                 // A thread per client, so one that never finishes its line holds up nobody.
                 let started = std::thread::Builder::new()
                     .name("anyview-instance-client".to_owned())
-                    .spawn(move || serve(stream, &sender));
+                    .spawn(move || {
+                        serve(stream, &sender);
+                        count.fetch_sub(1, Ordering::SeqCst);
+                    });
                 if let Err(error) = started {
-                    eprintln!("anyview: cannot serve a launch: {error}");
+                    serving.fetch_sub(1, Ordering::SeqCst);
+                    log::warn!("cannot serve a launch: {error}");
                 }
             }
-            Err(_) => std::thread::sleep(REST),
+            Err(error) => {
+                // Said once per run of failures: a door that cannot accept would otherwise fill the log.
+                if !failing {
+                    log::warn!("the door cannot accept a launch: {error}");
+                    failing = true;
+                }
+                std::thread::sleep(REST);
+            }
         }
     }
 }
 
+/// `stream` as something that stops waiting for a client that sends nothing.
+#[cfg(unix)]
+fn timed(stream: Stream) -> std::io::Result<std::os::unix::net::UnixStream> {
+    let socket = std::os::unix::net::UnixStream::from(latchkey::into_fd(stream)?);
+    socket.set_read_timeout(Some(CLIENT_WAIT))?;
+    Ok(socket)
+}
+
+/// `stream` as it is: a named pipe has no read timeout to set.
+#[cfg(not(unix))]
+fn timed(stream: Stream) -> std::io::Result<Stream> {
+    Ok(stream)
+}
+
 /// Read one request from `stream`, hand it to the viewer and say whether it was taken.
 fn serve(stream: Stream, sender: &Sender<Request>) {
+    let stream = match timed(stream) {
+        Ok(stream) => stream,
+        Err(error) => {
+            log::warn!("cannot set up a launch's connection: {error}");
+            return;
+        }
+    };
     let mut reader = BufReader::new(stream);
     let mut line = String::new();
     let read = (&mut reader).take(MAX_LINE).read_line(&mut line);

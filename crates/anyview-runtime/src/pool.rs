@@ -1,7 +1,7 @@
 //! The bounded pool: worker threads that take jobs from two lanes, visible work before preload.
 
 use super::RuntimeError;
-use anyview_core::work::Backend;
+use anyview_core::work::{Backend, Stop};
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, VecDeque};
 use std::num::NonZeroUsize;
@@ -75,10 +75,15 @@ impl Scratch {
 
 pub(super) type Task = Box<dyn FnOnce(&mut Scratch) + Send>;
 
+/// A task and the stop of the job it runs, which a closing pool raises.
+type Queued = (Stop, Task);
+
 #[derive(Default)]
 struct Queues {
-    visible: VecDeque<Task>,
-    preload: VecDeque<Task>,
+    visible: VecDeque<Queued>,
+    preload: VecDeque<Queued>,
+    /// The stop of the job each worker is running, if it is running one.
+    running: Vec<Option<Stop>>,
     closing: bool,
 }
 
@@ -101,22 +106,22 @@ pub(super) struct Spawner {
 }
 
 impl Spawner {
-    pub(super) fn spawn(&self, lane: Lane, task: Task) {
+    pub(super) fn spawn(&self, lane: Lane, stop: Stop, task: Task) {
         let mut queues = self.shared.lock();
         if queues.closing {
             return;
         }
         match lane {
-            Lane::Visible => queues.visible.push_back(task),
-            Lane::Preload => queues.preload.push_back(task),
+            Lane::Visible => queues.visible.push_back((stop, task)),
+            Lane::Preload => queues.preload.push_back((stop, task)),
         }
         drop(queues);
         self.shared.ready.notify_one();
     }
 }
 
-/// A bounded set of worker threads. Dropping it stops the workers after their current job,
-/// discards what is still queued, and joins them.
+/// A bounded set of worker threads. Dropping it asks the running jobs to stop, discards what is
+/// still queued, and joins the workers once their jobs have ended.
 pub struct Pool {
     shared: Arc<Shared>,
     threads: Vec<JoinHandle<()>>,
@@ -134,7 +139,10 @@ impl Pool {
     /// Starts `size` workers named `anyview-worker-N`.
     pub fn new(size: PoolSize) -> Result<Pool, RuntimeError> {
         let shared = Arc::new(Shared {
-            queues: Mutex::new(Queues::default()),
+            queues: Mutex::new(Queues {
+                running: vec![None; size.get()],
+                ..Queues::default()
+            }),
             ready: Condvar::new(),
         });
         // Built before the threads so a failed spawn drops it, which stops the ones that started.
@@ -147,7 +155,7 @@ impl Pool {
             let worker_shared = Arc::clone(&shared);
             let thread = std::thread::Builder::new()
                 .name(name.clone())
-                .spawn(move || work(&worker_shared))
+                .spawn(move || work(&worker_shared, index))
                 .map_err(|source| RuntimeError::Spawn { name, source })?;
             pool.threads.push(thread);
         }
@@ -174,6 +182,10 @@ impl Drop for Pool {
             queues.closing = true;
             queues.visible.clear();
             queues.preload.clear();
+            // A long decode or export ends at its next look at its stop, and not when it is done.
+            for stop in queues.running.iter().flatten() {
+                stop.request();
+            }
         }
         self.shared.ready.notify_all();
         for thread in self.threads.drain(..) {
@@ -183,16 +195,19 @@ impl Drop for Pool {
     }
 }
 
-fn next_task(shared: &Shared) -> Option<Task> {
+/// The next task for worker `index`, which is noted as running its stop.
+fn next_task(shared: &Shared, index: usize) -> Option<Task> {
     let mut queues = shared.lock();
     loop {
         if queues.closing {
             return None;
         }
-        if let Some(task) = queues.visible.pop_front() {
-            return Some(task);
-        }
-        if let Some(task) = queues.preload.pop_front() {
+        let queued = queues
+            .visible
+            .pop_front()
+            .or_else(|| queues.preload.pop_front());
+        if let Some((stop, task)) = queued {
+            queues.running[index] = Some(stop);
             return Some(task);
         }
         queues = shared
@@ -202,10 +217,11 @@ fn next_task(shared: &Shared) -> Option<Task> {
     }
 }
 
-fn work(shared: &Shared) {
+fn work(shared: &Shared, index: usize) {
     let mut scratch = Scratch::default();
-    while let Some(task) = next_task(shared) {
+    while let Some(task) = next_task(shared, index) {
         // A task catches its job's panic; this guards the delivery around it, so no panic ends a worker.
         let _ = catch_unwind(AssertUnwindSafe(|| task(&mut scratch)));
+        shared.lock().running[index] = None;
     }
 }

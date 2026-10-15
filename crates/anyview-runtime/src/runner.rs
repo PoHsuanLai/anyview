@@ -119,6 +119,7 @@ where
         let outbox = self.outbox.clone();
         self.spawner.spawn(
             lane,
+            handle.stop.clone(),
             Box::new(move |scratch: &mut Scratch| {
                 let outcome = execute::<B>(scratch, &*make_worker, &doc, job, &stop);
                 outbox.send(into_input(Ticketed::new(ticket, outcome)));

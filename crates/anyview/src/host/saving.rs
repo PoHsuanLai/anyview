@@ -149,8 +149,8 @@ fn kept_then_written(
 /// are in the file, so it is logged and not reported as a failure.
 fn kept_of(written: Written) -> VersionId {
     if written.durability == Durability::Unconfirmed {
-        eprintln!(
-            "anyview: saved {}, but its folder could not be synced to disk",
+        log::warn!(
+            "saved {}, but its folder could not be synced to disk",
             written.target.display()
         );
     }
@@ -203,21 +203,21 @@ fn outcome_of(result: Result<VersionId, SaveError>, path: &FilePath) -> Outcome 
 /// A copy of `file` at `to`, written whole or not at all and never over a file that is there:
 /// the source is only read.
 pub(super) fn save_copy(file: &FilePath, to: &FilePath) -> Outcome {
-    let bytes = match std::fs::read(file.as_path()) {
-        Ok(bytes) => bytes,
-        Err(error) => return Outcome::Failed(format!("cannot read the file to copy: {error}")),
-    };
-    match anyview_export::write_new(&bytes, to.as_path()) {
+    match anyview_store::copy_new(file.as_path(), to.as_path()) {
         Ok(()) => Outcome::Wrote(to.clone()),
         Err(error) => Outcome::Failed(format!("cannot save the copy: {error}")),
     }
 }
+
 /// The versions kept of `path` as the sheet lists them, newest first. A store that cannot be
 /// read lists none: the sheet then says there is nothing to go back to.
 pub(super) fn rows_of(versions: &Versions, path: &FilePath) -> Vec<VersionRow> {
     versions
         .list(path.as_path())
-        .unwrap_or_default()
+        .unwrap_or_else(|error| {
+            log::warn!("cannot list the kept versions: {error}");
+            Vec::new()
+        })
         .into_iter()
         .map(|version| VersionRow {
             key: VersionKey::new(version.id.to_string()),

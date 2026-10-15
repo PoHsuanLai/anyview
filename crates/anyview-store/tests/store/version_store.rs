@@ -99,13 +99,24 @@ fn prune_removes_what_a_crash_left_half_made() {
     let tmp = folder.join("000000000001-0000.json.tmp");
     fs::write(&orphan, "x").unwrap();
     fs::write(&tmp, "x").unwrap();
+    // A version whose sidecar is damaged is lost with its data, which no limit would reach.
+    let damaged = folder.join("000000000003-0000.json");
+    let damaged_data = folder.join("000000000003-0000.bin");
+    fs::write(&damaged, "{ not json").unwrap();
+    fs::write(&damaged_data, "x").unwrap();
     let young = folder.join("000000000002-0000.bin");
     fs::write(&young, "being written now").unwrap();
     // A folder holding nothing but a stray copy.
     let lone = s.root().join("00000000000000aa");
     fs::create_dir_all(&lone).unwrap();
     fs::write(lone.join("000000000001-0000.bin"), "x").unwrap();
-    for path in [&orphan, &tmp, &lone.join("000000000001-0000.bin")] {
+    for path in [
+        &orphan,
+        &tmp,
+        &damaged,
+        &damaged_data,
+        &lone.join("000000000001-0000.bin"),
+    ] {
         age(path, 3 * DAY);
     }
 
@@ -113,6 +124,7 @@ fn prune_removes_what_a_crash_left_half_made() {
     assert_eq!(removed, 0, "no version was old");
     assert!(!orphan.exists());
     assert!(!tmp.exists());
+    assert!(!damaged.exists() && !damaged_data.exists());
     assert!(!lone.exists(), "the folder of strays went with them");
     assert!(
         young.exists(),

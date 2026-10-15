@@ -1,6 +1,8 @@
 //! Assembling the program and running its event loop.
 
-use super::relay::{Arrival, WelcomeWhen, open_each, open_windows, relay, wants_of};
+use super::relay::{
+    Arrival, Doorway, WelcomeWhen, hand_on, listen, open_each, open_windows, relay, wants_of,
+};
 use super::role::{Role, claim_role};
 use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
@@ -15,8 +17,8 @@ use crate::window::{Factory, WINDOW};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::portable::{FreedesktopThumbnails, NoStacking};
-use anyview_platform::{Env, Instance, PluginRunner, Request, discover};
-use anyview_store::{Clock, STORE_FOLDER, Versions, Viewed};
+use anyview_platform::{Env, Instance, PluginRunner, Rejected, Request, discover};
+use anyview_store::{STORE_FOLDER, Versions};
 use ds_blitz::{
     AppConfig, AppHandle, AppId, Decorations, LastWindowClosed, TokioSpawner, launch_idle,
 };
@@ -26,7 +28,7 @@ use std::ffi::{OsStr, OsString};
 use std::num::NonZeroUsize;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use tokio::runtime::{Builder, Runtime};
 
 /// How long the viewer stays running with no window after the last one closes (`viewer.warm_for`'s
@@ -56,7 +58,7 @@ pub fn run(args: &[OsString], cwd: &FilePath, env: Env) -> ExitCode {
             crash::install(
                 crash::crash_dir(&env.dirs.state),
                 env!("CARGO_PKG_VERSION"),
-                || clock()().0,
+                || anyview_store::system_clock()().0,
             );
             launch_viewer(request, env)
         }
@@ -73,19 +75,22 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     let runtime = match platform_runtime() {
         Ok(runtime) => runtime,
         Err(error) => {
-            eprintln!("anyview: cannot start the platform's runtime: {error}");
+            log::error!("cannot start the platform's runtime: {error}");
             return ExitCode::FAILURE;
         }
     };
     let role = runtime.block_on(claim_role(&instance_of(&env), &request));
     let (arrivals, inbox) = unbounded();
+    let mut doorway = None;
     match role {
         Role::Forwarded => return ExitCode::SUCCESS,
         Role::Primary(primary) => {
-            runtime.spawn(relay(primary, arrivals.clone()));
+            let (requests, door) = listen(primary);
+            runtime.spawn(relay(requests, arrivals.clone()));
+            doorway = Some(door);
         }
         Role::Alone(error) => {
-            eprintln!("anyview: running without single instance: {error}");
+            log::warn!("running without single instance: {error}");
         }
     }
     let first = wants_of(request);
@@ -103,7 +108,7 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
     }
     // The viewer's own sender is dropped here; the relay (if any) keeps the channel open.
     drop(arrivals);
-    show(runtime, env, inbox)
+    show(runtime, env, inbox, doorway)
 }
 
 /// The single-instance claim of this build: the session bus (with bus activation) on the Linux
@@ -132,13 +137,14 @@ fn show(
     runtime: Runtime,
     env: Env,
     inbox: futures_channel::mpsc::UnboundedReceiver<Arrival>,
+    doorway: Option<Doorway>,
 ) -> ExitCode {
     let waker = NoticeWaker::default();
     let cores = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
     let workforce = match Workforce::start(PoolSize::from_cores(cores), waker.clone()) {
         Ok(workforce) => Arc::new(workforce),
         Err(error) => {
-            eprintln!("anyview: {error}");
+            log::error!("{error}");
             return ExitCode::FAILURE;
         }
     };
@@ -147,7 +153,7 @@ fn show(
         loop {
             waker.woken().await;
             for notice in reporting.notices() {
-                eprintln!("anyview: a job ended without a result: {notice:?}");
+                log::error!("a job ended without a result: {notice:?}");
             }
         }
     });
@@ -155,18 +161,16 @@ fn show(
     let audio = audio_driver(env.audio_output.as_deref());
     let for_bus = env.clone();
     let found = discover(&env);
-    for rejected in &found.rejected {
-        eprintln!(
-            "anyview: plugin {} is not usable: {}",
-            rejected.file.display(),
-            rejected.error
-        );
-    }
+    report_rejected(&found.rejected);
     // The registry is read again when a tool a plugin runs is installed, so a file that needed it
     // opens with it without a restart.
     let registry = PluginRegistry::rereading(found.plugins, {
         let env = env.clone();
-        move || discover(&env).plugins
+        move || {
+            let found = discover(&env);
+            report_rejected(&found.rejected);
+            found.plugins
+        }
     });
     let helpers = helper_host(&env, &registry, can_install(&runtime));
     let mut image_host = ImageHost::following(registry.clone(), PluginRunner::default());
@@ -187,12 +191,23 @@ fn show(
         audio,
         Arc::<MediaPlugins>::clone(&plugins),
     );
+    let scratch = env.dirs.cache.join(STORE_FOLDER);
+    // The cuts and frames of a viewer that was killed mid-export are removed once, as the program starts.
+    let sweeping = scratch.clone();
+    runtime.spawn_blocking(move || {
+        for prefix in ["trim", "frame"] {
+            anyview_store::sweep_scratch(&sweeping, prefix);
+        }
+    });
     let media = Media {
         hub: hub.clone(),
         exports: workforce.exports(),
-        scratch: env.dirs.cache.join(STORE_FOLDER),
+        scratch,
     };
-    let store = Store::new(&env.dirs.data.join(STORE_FOLDER), clock());
+    let store = Store::new(
+        &env.dirs.data.join(STORE_FOLDER),
+        anyview_store::system_clock(),
+    );
     let hosting = Arc::new(PlatformDesktop::platform(
         runtime.handle().clone(),
         &env,
@@ -208,7 +223,7 @@ fn show(
     let pruning = Arc::clone(&hosting);
     runtime.spawn_blocking(move || pruning.prune_versions());
     let watcher = Watcher::start(SETTLE)
-        .inspect_err(|error| eprintln!("anyview: changed files will not reload: {error}"))
+        .inspect_err(|error| log::warn!("changed files will not reload: {error}"))
         .ok()
         .map(Arc::new);
     let appearances = runtime.block_on(Appearances::follow(
@@ -235,6 +250,8 @@ fn show(
         None => factory,
     };
     runtime.spawn(open_windows(inbox, app.clone(), factory, hub.clone()));
+    // A logout or a `kill` ends the program by the normal way out, so the places are kept.
+    runtime.spawn(quit_on_signal(app.clone()));
     // No window of its own: every one is opened through the handle, the first as any other, so
     // closing any of them leaves the rest and the last one leaves the process warm for
     // `WARM_FOR`.
@@ -247,6 +264,11 @@ fn show(
     // The loop ends with the program's last window; a host that cannot run one is reported like
     // any other failure to start, after the same tidying, and the exit code says so.
     let launched = launch_idle(config);
+    // The door closes first, and what came through it too late for a window is started again in a
+    // viewer of its own: a launch that was told "taken" still gets its window.
+    if let Some(doorway) = doorway {
+        hand_on(doorway.close());
+    }
     // The places still waiting to be kept are written before the runtime that waits on them ends,
     // and a player with no window ends with the program.
     hosting.flush();
@@ -257,9 +279,44 @@ fn show(
     match launched {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("anyview: cannot show a window: {error}");
+            log::error!("cannot show a window: {error}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// Ask the app to quit when the session ends the program (SIGTERM, SIGHUP), so the loop ends and the
+/// places still waiting are written, the door closed and the players stopped.
+#[cfg(unix)]
+async fn quit_on_signal(app: AppHandle) {
+    use tokio::signal::unix::{SignalKind, signal};
+    let (Ok(mut terminate), Ok(mut hang_up)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::hangup()),
+    ) else {
+        log::warn!("cannot listen for the signal that ends the session");
+        return;
+    };
+    tokio::select! {
+        _ = terminate.recv() => {}
+        _ = hang_up.recv() => {}
+    }
+    log::info!("asked to end; quitting");
+    let _gone = app.quit();
+}
+
+/// The platform has no such signals to hear.
+#[cfg(not(unix))]
+async fn quit_on_signal(_app: AppHandle) {}
+
+/// Say which manifests were found and cannot be used.
+fn report_rejected(rejected: &[Rejected]) {
+    for rejected in rejected {
+        log::warn!(
+            "plugin {} is not usable: {}",
+            rejected.file.display(),
+            rejected.error
+        );
     }
 }
 
@@ -281,7 +338,7 @@ fn helper_host(env: &Env, registry: &PluginRegistry, installable: bool) -> Optio
             .installing_where(installable),
         )),
         Err(error) => {
-            eprintln!("anyview: a missing tool will not be offered for install: {error}");
+            log::warn!("a missing tool will not be offered for install: {error}");
             None
         }
     }
@@ -302,7 +359,7 @@ fn watch_tools(runtime: &Runtime, helpers: &Arc<HelperHost>, path: &OsStr) -> Op
     runtime.spawn(helpers.following());
     let again = Arc::clone(helpers);
     PathWatch::start(path, PATH_SETTLE, move || again.look_again())
-        .inspect_err(|error| eprintln!("anyview: installed tools will not be noticed: {error}"))
+        .inspect_err(|error| log::warn!("installed tools will not be noticed: {error}"))
         .ok()
 }
 
@@ -312,19 +369,8 @@ fn audio_driver(asked: Option<&str>) -> AudioDriver {
     match asked {
         None => AudioDriver::Auto,
         Some(text) => AudioDriver::from_name(text).unwrap_or_else(|| {
-            eprintln!("anyview: {text:?} is not an audio driver; using the system's");
+            log::warn!("{text:?} is not an audio driver; using the system's");
             AudioDriver::Auto
         }),
     }
-}
-
-/// The wall clock, in whole seconds since the epoch. The one place the program reads the time.
-fn clock() -> Clock {
-    Arc::new(|| {
-        Viewed(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_or(0, |since| since.as_secs()),
-        )
-    })
 }

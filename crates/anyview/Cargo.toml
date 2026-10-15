@@ -1,6 +1,6 @@
 [package]
 name = "anyview"
-description = "The viewer binary: the threads that serve the machines (a bounded worker pool and the media actor), and the program that wires everything else."
+description = "The viewer binary: the command line, the host that carries out what the windows ask, the windows, and the program that wires everything else."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -47,10 +47,12 @@ ds-helpers = { workspace = true }
 ds-settings = { workspace = true, features = ["dioxus", "tokio"] }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
+log = { workspace = true }
 notify = { workspace = true }
 percent-encoding = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+# `signal`: the session's SIGTERM and SIGHUP end the program by its normal way out.
+tokio = { workspace = true, features = ["signal"] }
 trash = { workspace = true }
 
 [lints]

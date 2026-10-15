@@ -154,7 +154,12 @@ impl WindowWatch {
         if *count > 1 {
             return Ok(());
         }
-        lock(&self.shared.notifier).watch(folder, RecursiveMode::NonRecursive)
+        let watched = lock(&self.shared.notifier).watch(folder, RecursiveMode::NonRecursive);
+        if watched.is_err() {
+            // Not watched, so not counted: the next window to open here tries again.
+            table.folders.remove(folder);
+        }
+        watched
     }
 
     fn release(&self, table: &mut Table, file: &FilePath) {
@@ -209,12 +214,18 @@ fn settle_bursts(heard: &Receiver<PathBuf>, shared: &Weak<Shared>, settle: Durat
 }
 
 fn tell(shared: &Shared, burst: &HashSet<PathBuf>) {
-    let table = lock(&shared.table);
-    for held in table.windows.values() {
-        if let Some(file) = &held.file
-            && burst.contains(file.as_path())
-        {
-            (held.told)(file.clone());
-        }
+    // The windows are called after the table is let go, so a callback may watch or unwatch.
+    let to_tell: Vec<(Told, FilePath)> = lock(&shared.table)
+        .windows
+        .values()
+        .filter_map(|held| {
+            let file = held.file.as_ref()?;
+            burst
+                .contains(file.as_path())
+                .then(|| (Arc::clone(&held.told), file.clone()))
+        })
+        .collect();
+    for (told, file) in to_tell {
+        told(file);
     }
 }

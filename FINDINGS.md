@@ -469,9 +469,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   clients cannot place themselves, and no compositor protocol for it is bound. Ends when `anyview-platform` binds a
   compositor protocol (the shell's layer or a toplevel-management request) and the binary passes a
   window handle to `request`. The mini window asks for it and reports the refusal.
-- **A started program is not reaped.** `ProcessSpawn` drops the child handle, so an exited mail
-  program stays a zombie until the viewer exits. Ends when the binary installs a `SIGCHLD` reaper or `Spawn`
-  hands the child to a systemd scope.
 - **MPRIS `Position` is not announced.** The spec says clients poll it, so `publish` emits no `Seeked`; a
   position jump is visible only on the next read. Ends if a client (sill's now-playing) needs `Seeked`:
   `MediaState` then carries a position-jump marker.
@@ -617,9 +614,11 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **Appearance, window size, history cap and the store folder are constants.** `Appearance::default()`, 1000 by
   700, `HistoryCap::DEFAULT` and `anyview_store::STORE_FOLDER` (`<data>/anyview`, which the launcher reads by the
   same constant) are not settings. Ends with quire's `22-SETTINGS` keys.
-- **The program logs with `eprintln!`.** There is no logging framework in the workspace; every line goes through
-  `host::report`, `report_declined` or the few messages in `program::start`, prefixed `anyview:`. Ends when
-  quire has a logging path to use.
+- **`anyview-fs` stats a path before it opens it.** `open_regular` refuses a FIFO by `stat` first, so a path swapped
+  for a FIFO between the `stat` and the `open` still blocks the reader's thread, and `ReadAt::len` (infallible in
+  `anyview-core`) reads 0 when the open file's metadata fails. Opening with `O_NONBLOCK` closes the first and needs
+  a platform flag the crate cannot name without `libc` or `unsafe`; a fallible `len` is a core trait change. Ends
+  when either is wanted.
 - **The trash is not behind `anyview-platform`.** `Trash` and `SystemTrash` (the `trash` crate, pure Rust on
   Linux, no bus) live in the binary because the crate is cross-platform. Ends if a platform needs its own: the trait
   then moves to `anyview-platform` beside the others.

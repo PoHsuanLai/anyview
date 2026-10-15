@@ -72,8 +72,25 @@ impl SystemOpen {
     }
 }
 
+/// Whether `uri` is an address a link may open: a web page or a mail message. The opener would
+/// start a program for a path or a `file:` address, which no link in a document may ask for.
+fn is_link(uri: &str) -> bool {
+    uri.split_once(':').is_some_and(|(scheme, _)| {
+        ["http", "https", "mailto"]
+            .iter()
+            .any(|allowed| scheme.eq_ignore_ascii_case(allowed))
+    })
+}
+
 impl OpenLink for SystemOpen {
     fn open(&self, uri: &str) -> Result<(), PlatformError> {
+        if !is_link(uri) {
+            let argv = open_argv(Os::here(), uri);
+            return Err(PlatformError::Spawn {
+                program: argv.program().to_owned(),
+                kind: std::io::ErrorKind::PermissionDenied,
+            });
+        }
         self.env.spawn.spawn(&open_argv(Os::here(), uri))
     }
 }
@@ -126,6 +143,25 @@ mod tests {
             assert_eq!(started[0].program(), "xdg-open");
             assert_eq!(started[0].args(), ["--", "https://example.org/a b"]);
         }
+    }
+
+    #[test]
+    fn only_web_and_mail_addresses_are_opened() {
+        let (env, spawn) = recording();
+        let open = SystemOpen::new(env);
+        for uri in [
+            "file:///bin/sh",
+            "/bin/sh",
+            "ftp://example.org/a",
+            "javascript:alert(1)",
+            "-x",
+        ] {
+            assert!(open.open(uri).is_err(), "{uri}");
+        }
+        for uri in ["http://a.org", "HTTPS://a.org", "mailto:a@b.org"] {
+            assert!(open.open(uri).is_ok(), "{uri}");
+        }
+        assert_eq!(spawn.started().len(), 3);
     }
 
     #[test]

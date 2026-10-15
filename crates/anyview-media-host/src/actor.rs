@@ -96,7 +96,7 @@ impl MediaActor {
             (MediaEvent::ShotFailed { to, reason }, Some(hub)) => {
                 hub.shot_done(self.id, to, Err(ShotError::Player(reason.clone())));
             }
-            (MediaEvent::Refused(reason), _) => eprintln!("anyview: the player refused: {reason}"),
+            (MediaEvent::Refused(reason), _) => log::warn!("the player refused: {reason}"),
             (MediaEvent::Ended(EndReason::Eof) | MediaEvent::Failed(_), Some(hub)) => {
                 match self.home {
                     // A session with no window ends when its recording does: nothing else would.

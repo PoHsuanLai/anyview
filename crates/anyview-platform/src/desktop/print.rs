@@ -38,11 +38,13 @@ enum Stage {
 
 impl Printer for PortalPrinter {
     async fn print(&self, pdf: &[u8], title: &JobTitle) -> Result<PrintOutcome, PlatformError> {
-        let Ok(builder) = self.env.session_builder() else {
-            return Ok(PrintOutcome::NoDialog);
+        let builder = match self.env.session_builder() {
+            Ok(builder) => builder,
+            Err(error) => return Ok(no_dialog("find the session bus", &error)),
         };
-        let Ok(connection) = builder.build().await else {
-            return Ok(PrintOutcome::NoDialog);
+        let connection = match builder.build().await {
+            Ok(connection) => connection,
+            Err(error) => return Ok(no_dialog("connect to the session bus", &error)),
         };
         let token = match prepare(&connection, &title.0).await {
             Ok(Some(token)) => token,
@@ -54,11 +56,26 @@ impl Printer for PortalPrinter {
     }
 }
 
+/// The portal could not show a dialog; the reason goes to the log, because the caller falls back
+/// to a viewer without saying why.
+fn no_dialog(step: &str, error: &dyn std::fmt::Display) -> PrintOutcome {
+    log::warn!("no print dialog: cannot {step}: {error}");
+    PrintOutcome::NoDialog
+}
+
+/// `Stage::Before` for a failure of `step`, which is logged.
+fn before<E: std::fmt::Display>(step: &'static str) -> impl FnOnce(E) -> Stage {
+    move |error| {
+        log::warn!("no print dialog: cannot {step}: {error}");
+        Stage::Before
+    }
+}
+
 /// Show the dialog; the token if the person accepted, `None` if they cancelled.
 async fn prepare(connection: &Connection, title: &str) -> Result<Option<u32>, Stage> {
     let mut answers = answers(connection, "prepare", CALL)
         .await
-        .map_err(|_| Stage::Before)?;
+        .map_err(before("subscribe to the answer"))?;
     let empty: HashMap<&str, Value<'_>> = HashMap::new();
     let options: HashMap<&str, Value<'_>> = HashMap::from([
         ("handle_token", Value::from("prepare")),
@@ -66,13 +83,13 @@ async fn prepare(connection: &Connection, title: &str) -> Result<Option<u32>, St
     ]);
     portal(connection)
         .await
-        .map_err(|_| Stage::Before)?
+        .map_err(before("reach the print portal"))?
         .call_method(
             "PreparePrint",
             &(UNPARENTED, title, &empty, &empty, options),
         )
         .await
-        .map_err(|_| Stage::Before)?;
+        .map_err(before("ask the print portal"))?;
     let (response, results) = answers.next_answer().await.map_err(Stage::After)?;
     match response {
         Response::Success => results

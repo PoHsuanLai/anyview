@@ -24,7 +24,7 @@ impl NowPlaying {
         match MprisSession::register(env).await {
             Ok(session) => NowPlaying::Mpris(session),
             Err(error) => {
-                eprintln!("anyview: no now-playing entry for the desktop: {error}");
+                log::warn!("no now-playing entry for the desktop: {error}");
                 NowPlaying::Absent
             }
         }

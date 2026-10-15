@@ -30,6 +30,7 @@ dioxus = { workspace = true }
 ds = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
+log = { workspace = true }
 
 [dev-dependencies]
 ds-blitz = { workspace = true }

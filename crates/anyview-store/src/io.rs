@@ -33,16 +33,13 @@ pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, S
         })
 }
 
-/// Writes `value` as the whole content of `path`: into `<name>.tmp` beside it, synced, renamed
-/// over `path`, and the directory synced so the rename survives a crash. A concurrent reader
-/// opens either the old file or the new one. One writer at a time: two would share the temporary
-/// name. The directory is created when missing.
+/// Writes `value` as the whole content of `path`, for its owner alone: into `<name>.tmp` beside it,
+/// synced, renamed over `path`, and the directory synced so the rename survives a crash. A
+/// concurrent reader opens either the old file or the new one. One writer at a time: two would
+/// share the temporary name. The directory is created when missing, closed to everyone else: the
+/// history lists every file the person opened. A directory that refuses to sync is logged and the
+/// write still succeeds, since the file is in place.
 pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
-    write_json_as(path, value, 0o666)
-}
-
-/// [`write_json`] for a file only its owner may read (a kept version's sidecar).
-pub(crate) fn write_private_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
     write_json_as(path, value, 0o600)
 }
 
@@ -53,7 +50,7 @@ pub(crate) fn create_private_dir(path: &Path) -> Result<(), StoreError> {
 
 fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), StoreError> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(dir).map_err(|e| io_error(StoreOp::CreateDir, dir, &e))?;
+    create_private_dir(dir)?;
     let mut bytes = serde_json::to_vec(value).map_err(|error| StoreError::Corrupt {
         path: path.to_path_buf(),
         reason: error.to_string(),
@@ -79,9 +76,11 @@ fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), 
         .map_err(|e| io_error(StoreOp::Sync, &temp, &e))?;
     drop(file);
     fs::rename(&temp, path).map_err(|e| io_error(StoreOp::Rename, path, &e))?;
-    fs::File::open(dir)
-        .and_then(|d| d.sync_all())
-        .map_err(|e| io_error(StoreOp::Sync, dir, &e))
+    if let Err(error) = fs::File::open(dir).and_then(|d| d.sync_all()) {
+        // The rename is done: a file system that cannot sync a directory did not lose the write.
+        log::warn!("cannot sync {}: {error}", dir.display());
+    }
+    Ok(())
 }
 
 /// The `.json` files directly inside `dir`; none when the directory does not exist. The

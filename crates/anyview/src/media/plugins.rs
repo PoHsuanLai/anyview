@@ -131,7 +131,7 @@ impl MediaPlugins {
             Ok(PluginFacts::Facts(facts)) => facts,
             Ok(PluginFacts::Missing(_) | PluginFacts::Unserved) => header_facts(source, sniffed),
             Err(error) => {
-                eprintln!("anyview: the plugin could not read the recording: {error}");
+                log::warn!("the plugin could not read the recording: {error}");
                 header_facts(source, sniffed)
             }
         };
@@ -174,7 +174,7 @@ impl MediaPlugins {
         {
             Ok(found) => found?,
             Err(error) => {
-                eprintln!("anyview: the plugin could not make a picture of the recording: {error}");
+                log::warn!("the plugin could not make a picture of the recording: {error}");
                 return None;
             }
         };
@@ -244,7 +244,7 @@ impl MediaPlugins {
         let hello = match self.runner.hello(&tool.plugin) {
             Ok(hello) => hello,
             Err(error) => {
-                eprintln!("anyview: the plugin that writes exports did not answer: {error}");
+                log::warn!("the plugin that writes exports did not answer: {error}");
                 return None;
             }
         };

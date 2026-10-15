@@ -99,7 +99,7 @@ pub fn look_of(environment: &Environment) -> Look {
 /// Print what the file held that did not become a setting, once per read.
 fn report(loaded: &Loaded<AppearanceFile>) {
     for line in loaded.diagnostics(AppearanceFile::FILE) {
-        eprintln!("anyview: appearance: {line}");
+        log::warn!("appearance: {line}");
     }
 }
 

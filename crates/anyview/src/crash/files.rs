@@ -36,7 +36,11 @@ pub fn write_report(dir: &Path, report: &Report) -> io::Result<PathBuf> {
         }
     };
     io::Write::write_all(&mut file, report.to_string().as_bytes())?;
-    prune(dir)?;
+    file.sync_all()?;
+    // The report is in place: a folder that cannot be tidied is not a report that was lost.
+    if let Err(error) = prune(dir) {
+        log::warn!("cannot remove the old crash reports: {error}");
+    }
     Ok(path)
 }
 

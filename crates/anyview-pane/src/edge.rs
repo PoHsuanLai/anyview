@@ -3,11 +3,10 @@
 use crate::store::PaneStore;
 #[cfg(feature = "player")]
 use anyview_media_host::PlayerHost;
-use anyview_store::{Clock, Viewed};
+use anyview_store::Clock;
 use anyview_ui::{PlatformAbilities, Seams, Workers};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The workers and the [`Seams`] one pane runs over, without the request handler, which the pane
 /// owns (what it asks of its host is [`ViewerPane`](crate::ViewerPane)'s `on_request`). A host
@@ -73,7 +72,7 @@ impl PaneEdge {
             workers,
             seams: Arc::new(seams),
             store: None,
-            clock: system_clock(),
+            clock: anyview_store::system_clock(),
         }
     }
 
@@ -160,15 +159,4 @@ impl PaneEdge {
     pub(crate) fn seams(&self) -> Seams {
         (*self.seams).clone()
     }
-}
-
-/// Seconds since the Unix epoch, on the system clock. A clock before it reads as the epoch itself.
-fn system_clock() -> Clock {
-    Arc::new(|| {
-        Viewed(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_or(0, |since| since.as_secs()),
-        )
-    })
 }

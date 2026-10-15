@@ -225,7 +225,10 @@ where
         self.parts
             .store
             .resume(source.path(), source.stamp())
-            .unwrap_or_default()
+            .unwrap_or_else(|error| {
+                log::warn!("cannot read the kept place: {error}");
+                None
+            })
     }
 
     fn panel_width(&self) -> Option<u32> {
