@@ -14,8 +14,10 @@ mod error;
 mod export;
 mod facts;
 mod find;
+mod form;
 mod helper;
 mod kind;
+mod markup;
 mod media;
 mod peek;
 pub mod prelude;
@@ -47,11 +49,15 @@ pub use facts::{
     LocalZone, Tier, kind_name, kind_name_of,
 };
 pub use find::{CaseMatch, FindOption, FindOptions, WordMatch};
+pub use form::{FormWidget, WidgetAccess, WidgetKind};
 pub use helper::Helper;
 pub use kind::{
     ArchiveFormat, BookFormat, Delimiter, FontFormat, FormatDetail, FormatKind, MediaContainer,
     Mime, OfficeFormat, RasterFormat, SyntaxName, TextEncoding, TreeFormat, claimed_mimes,
     kind_of_mime, opened_globs, opened_mimes,
+};
+pub use markup::{
+    FieldFill, Mark, MarkColor, MarkShape, MarkTool, MarkupSave, NOTE_SIZE, PagePoint, PageRect,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Deadline, Peek, PeekBudget, StageSupport};

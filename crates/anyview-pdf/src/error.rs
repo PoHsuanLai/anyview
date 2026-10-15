@@ -48,6 +48,12 @@ pub enum PdfError {
         /// The sort of edit that was asked for.
         kind: EditKind,
     },
+    /// A value for a form field the document does not have.
+    #[error("the document has no field named {name:?}")]
+    NoField {
+        /// The field's name.
+        name: String,
+    },
     /// The work was stopped before it finished.
     #[error("stopped")]
     Stopped,

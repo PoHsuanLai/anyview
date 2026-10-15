@@ -6,10 +6,10 @@
 use super::doc::PdfDoc;
 use crate::io::{Stop, WorkLane};
 use crate::{Ticket, TypedText};
-use anyview_core::{Dpi, FindOptions, PageIndex, PixelSize};
+use anyview_core::{Dpi, FindOptions, PageIndex, PageRect, PixelSize};
 use anyview_pdf::{
     Backend, End, Hits, PdfBackend, PdfDone, PdfJob, PdfLink, Priority, Raster, SearchQuery,
-    TileBatch, TileKey, page_links,
+    TileBatch, TileKey, page_links, page_words,
 };
 use ds_blitz::{Gpu, PixelFormat, Pixels, TextureHandle};
 use std::sync::Arc;
@@ -50,6 +50,11 @@ pub enum PdfAsk {
     },
     /// Read the links of one page.
     Links {
+        /// The page.
+        page: PageIndex,
+    },
+    /// Read the boxes of the words of one page, for selecting text.
+    Words {
         /// The page.
         page: PageIndex,
     },
@@ -114,6 +119,13 @@ pub enum PdfAnswer {
         /// Where they are and where they lead.
         links: Vec<PdfLink>,
     },
+    /// The words of a page, in reading order.
+    Words {
+        /// The page.
+        page: PageIndex,
+        /// Where each word is.
+        words: Vec<PageRect>,
+    },
 }
 
 /// How a search ended.
@@ -146,7 +158,7 @@ impl PdfTask {
                 Priority::Visible => WorkLane::Visible,
                 Priority::Preload => WorkLane::Preload,
             },
-            PdfAsk::Search { .. } => WorkLane::Visible,
+            PdfAsk::Search { .. } | PdfAsk::Words { .. } => WorkLane::Visible,
             PdfAsk::Thumb { .. } | PdfAsk::Links { .. } => WorkLane::Preload,
         }
     }
@@ -182,6 +194,10 @@ impl PdfTask {
                 page: *page,
                 links: Vec::new(),
             },
+            PdfAsk::Words { page } => PdfAnswer::Words {
+                page: *page,
+                words: Vec::new(),
+            },
         }
     }
 
@@ -211,6 +227,10 @@ impl PdfTask {
             PdfAsk::Links { page } => PdfAnswer::Links {
                 page,
                 links: page_links(&doc.document, page).unwrap_or_default(),
+            },
+            PdfAsk::Words { page } => PdfAnswer::Words {
+                page,
+                words: page_words(&doc.document, page).unwrap_or_default(),
             },
         }
     }

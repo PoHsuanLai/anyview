@@ -4,7 +4,7 @@
 //! the rules go.
 
 use super::model::{ContextEntry, ContextPick};
-use crate::command::{Command, StageCommand};
+use crate::command::{Command, MarkupCommand, StageCommand};
 use crate::panel::{PanelTab, PanelTabs};
 use anyview_core::FileAction;
 
@@ -14,6 +14,10 @@ const fn file(action: FileAction, title: &'static str) -> (ContextPick, &'static
 
 const fn stage(command: StageCommand, title: &'static str) -> (ContextPick, &'static str) {
     (ContextPick::Run(Command::Stage(command)), title)
+}
+
+const fn marks(command: MarkupCommand, title: &'static str) -> (ContextPick, &'static str) {
+    (ContextPick::Run(Command::Markup(command)), title)
 }
 
 /// The rows in the order Preview shows them, a group at a time; a rule goes between the groups
@@ -27,6 +31,8 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
     &[
         stage(StageCommand::Edit, "Edit"),
         stage(StageCommand::Save, "Save"),
+        marks(MarkupCommand::Save, "Save"),
+        marks(MarkupCommand::Delete, "Delete Mark"),
         stage(StageCommand::Done, "Done"),
     ],
     &[file(FileAction::Trim, "Trim\u{2026}")],

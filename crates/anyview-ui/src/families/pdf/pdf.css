@@ -1,5 +1,6 @@
-/* The PDF stage: the pages in the room, the marks of the search over them, the links on them, the
-   side panel's thumbnails and outline. Tokens only. */
+/* The PDF stage: the pages in the room, the marks of the search over them, the links on them, what the
+   person writes on them (form fields, marks, the selected words) and the side panel's thumbnails and
+   outline. Tokens only. */
 
 .viewer-pdf{ position:absolute; inset:0; overflow:hidden; background:var(--surface-2); cursor:grab; }
 .viewer-pdf-page{ position:absolute; overflow:hidden; background:var(--raise); box-shadow:var(--shadow-1); }
@@ -9,6 +10,54 @@
 .viewer-pdf-hit{ position:absolute; background:var(--accent); opacity:.28; border-radius:var(--s-2); pointer-events:none; }
 .viewer-pdf-hit[*|data-hit=current]{ opacity:.55; }
 .viewer-pdf-link{ position:absolute; cursor:pointer; }
+
+/* What the pointer does: it pans by default, selects words, or draws marks. */
+.viewer-pdf[*|data-pointer=selecting]{ cursor:text; }
+.viewer-pdf[*|data-pointer=marking]{ cursor:crosshair; }
+.viewer-pdf[*|data-pointer=marking] .viewer-field{ pointer-events:none; }
+
+/* A form field over its page. While the document draws it, it is a transparent box that waits to be
+   pressed; once the keyboard is in it or it has changed, it is the live control on a ground of its own,
+   which hides what the file drew under it. */
+.viewer-field{ position:absolute; box-sizing:border-box; display:flex; align-items:center; font-size:var(--fs-small); color:var(--ink); }
+.viewer-field[*|data-state=idle]{ cursor:text; }
+.viewer-field[*|data-state=idle][*|data-kind=check], .viewer-field[*|data-state=idle][*|data-kind=radio]{ cursor:pointer; }
+.viewer-field[*|data-state=held], .viewer-field[*|data-state=filled]{ background:var(--raise); }
+.viewer-field[*|data-state=held]{ outline:var(--s-2) solid var(--accent); }
+.viewer-field > *{ flex:1 1 0; min-width:0; }
+.viewer-field-toggle{ position:relative; display:flex; align-items:center; justify-content:center; box-sizing:border-box; padding:0; border:var(--hair) solid var(--ink-faint); background:var(--raise); cursor:pointer; }
+.viewer-field-toggle[*|data-kind=radio]{ border-radius:var(--r-pill); }
+.viewer-field-mark{ display:none; }
+.viewer-field-toggle[*|data-on=on] .viewer-field-mark{ display:block; width:30%; height:60%; margin-bottom:10%; border-right:var(--s-2) solid var(--ink); border-bottom:var(--s-2) solid var(--ink); transform:rotate(45deg); }
+.viewer-field-toggle[*|data-kind=radio][*|data-on=on] .viewer-field-mark{ width:50%; height:50%; margin:0; border:none; border-radius:var(--r-pill); background:var(--ink); transform:none; }
+.viewer-field-list{ display:flex; flex-direction:column; overflow-y:auto; background:var(--raise); border:var(--hair) solid var(--ink-faint); }
+.viewer-field-option{ display:block; width:100%; box-sizing:border-box; padding:var(--s-2) var(--s-4); border:none; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }
+.viewer-field-option[*|data-on=on]{ background:var(--accent); color:var(--accent-ink); }
+
+/* The marks, and the words selected, over a page: boxes at fractions of the page, in the colour of the
+   mark (--mark). They take no pointer; a press on the page finds the mark. */
+.viewer-pdf-ink{ position:absolute; box-sizing:border-box; pointer-events:none; }
+/* The mark's colour; each mark and swatch sets its own inline. */
+.viewer-pdf-ink, .viewer-swatch{ --mark:var(--accent); }
+.viewer-pdf-ink[*|data-ink=fill]{ background:var(--mark); opacity:.4; border-radius:var(--s-2); }
+.viewer-pdf-ink[*|data-ink=fill][*|data-state=selected]{ background:var(--accent); opacity:.3; }
+.viewer-pdf-ink[*|data-ink=rule], .viewer-pdf-ink[*|data-ink=stroke]{ height:0; border-top:var(--s-2) solid var(--mark); }
+.viewer-pdf-ink[*|data-ink=stroke]{ transform-origin:0 0; }
+.viewer-pdf-ink[*|data-ink=frame]{ border:var(--s-2) solid var(--mark); }
+.viewer-pdf-ink[*|data-ink=round]{ border:var(--s-2) solid var(--mark); }
+.viewer-pdf-ink[*|data-ink=note]{ background:var(--mark); border-radius:var(--s-2); box-shadow:var(--shadow-1); }
+.viewer-pdf-ink[*|data-ink=words]{ border:var(--hair) solid var(--mark); }
+.viewer-pdf-ink-text{ display:block; padding:var(--s-4); color:var(--ink); font-size:var(--fs-small); }
+.viewer-pdf-ink[*|data-state=picked]{ outline:var(--s-2) solid var(--accent); outline-offset:var(--s-2); }
+.viewer-pdf-ink[*|data-state=draft]{ opacity:.6; }
+.viewer-write{ position:absolute; box-sizing:border-box; min-width:calc(var(--s-48) * 3); padding:var(--s-4); border:var(--hair) solid var(--accent); border-radius:var(--r-micro); background:var(--raise); box-shadow:var(--shadow-pop); color:var(--ink); font-size:var(--fs-small); }
+
+/* The Markup tool's bar over the capsule: what the pointer draws, and the colour of it. */
+.viewer-markup-dock{ position:absolute; left:0; right:0; bottom:calc(var(--s-48) * 2); display:flex; justify-content:center; pointer-events:none; }
+.viewer-markup-bar{ display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-8); border-radius:var(--r-card); background:var(--raise); box-shadow:var(--shadow-pop); pointer-events:auto; cursor:default; }
+.viewer-swatches{ display:flex; align-items:center; gap:var(--s-4); }
+.viewer-swatch{ box-sizing:border-box; width:var(--s-16); height:var(--s-16); padding:0; border:var(--hair) solid var(--ink-faint); border-radius:var(--r-pill); background:var(--mark); cursor:pointer; }
+.viewer-swatch[*|data-on=on]{ outline:var(--s-2) solid var(--accent); outline-offset:var(--s-2); }
 
 
 /* The panel's lists are windowed (quire's VirtualList): each takes the room the tabs leave and scrolls

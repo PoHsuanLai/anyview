@@ -3,6 +3,10 @@
 //! worker uploaded and nothing about its pixels passes through here; a mark and a link sit at
 //! fractions of the page, so neither depends on the zoom.
 
+use super::fields::{FieldView, FormField};
+use super::inks::Ink;
+use super::write::{WriteBox, Writing};
+use crate::MarkupIn;
 use anyview_pdf::LinkTarget;
 use dioxus::prelude::*;
 use ds_blitz::{Sampling, TextureFit, TextureHandle, TextureLayer};
@@ -51,6 +55,18 @@ pub(super) fn PageBox(
     links: Vec<LinkView>,
     /// A link was clicked.
     onlink: EventHandler<LinkTarget>,
+    /// The form's fields on this page.
+    #[props(default)]
+    fields: Vec<FieldView>,
+    /// What the person wrote on this page: marks, the selection, the shape being drawn.
+    #[props(default)]
+    inks: Vec<Ink>,
+    /// The note or text box being typed in, when it is on this page.
+    #[props(default)]
+    writing: Option<Writing>,
+    /// An input for the markup.
+    #[props(default)]
+    onmark: EventHandler<MarkupIn>,
 ) -> Element {
     rsx! {
         div {
@@ -88,6 +104,28 @@ pub(super) fn PageBox(
                     }
                 }
             }
+            for ink in inks {
+                div {
+                    class: "viewer-pdf-ink",
+                    "data-ink": ink.kind.slug(),
+                    "data-state": ink.state.slug(),
+                    style: ink.style,
+                    if !ink.text.is_empty() {
+                        span { class: "viewer-pdf-ink-text", "{ink.text}" }
+                    }
+                }
+            }
+            for field in fields {
+                {
+                    let index = field.index;
+                    rsx! {
+                        FormField { key: "{index}", view: field, mark: onmark }
+                    }
+                }
+            }
+            if let Some(writing) = writing {
+                WriteBox { writing, mark: onmark }
+            }
         }
     }
 }
@@ -100,4 +138,7 @@ pub(super) struct PageDraw {
     pub tiles: Vec<TileView>,
     pub marks: Vec<Mark>,
     pub links: Vec<LinkView>,
+    pub fields: Vec<FieldView>,
+    pub inks: Vec<Ink>,
+    pub writing: Option<Writing>,
 }

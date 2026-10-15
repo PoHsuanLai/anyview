@@ -319,6 +319,14 @@ where
             })
             .await
         }
+        Task::SaveMarkup { file, save } => {
+            let parts = Arc::clone(parts);
+            blocking_save(move || {
+                let at = parts.store.saved_at();
+                saving::save_markup(&parts.versions, at, &file, &save)
+            })
+            .await
+        }
         Task::SaveText { file, save } => {
             let parts = Arc::clone(parts);
             blocking_save(move || {

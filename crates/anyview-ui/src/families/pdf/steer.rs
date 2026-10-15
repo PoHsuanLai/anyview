@@ -5,8 +5,7 @@
 
 use super::scene::{Scene, pinched};
 use crate::{Destination, PdfIn, StageIn};
-use anyview_core::{PageIndex, Permille, Zoom};
-use anyview_pdf::PageRect;
+use anyview_core::{PageIndex, PageRect, Permille, Zoom};
 use dioxus::prelude::*;
 use std::borrow::Cow;
 

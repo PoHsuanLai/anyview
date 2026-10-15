@@ -5,14 +5,14 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{DesktopService, NaturalSize, Opened};
 use crate::{
-    ChromeParams, Command, ContextParams, EditOffer, ExportFacts, FileAccess, HitIndex, HitList,
-    MediaOffer, Motion, Palette, PaletteParams, PaletteScope, PaneChrome, PanelParams,
-    PlatformAbilities, Playing, Presentation, PresentationParams, SheetParams, Spot, Stage,
-    StageAbilities, StageCommand, StageParams, TextParams, TextView, TextViews, Ticket, TypedText,
-    ViewerParams,
+    Allowance, Changes, ChromeParams, Command, ContextParams, EditOffer, ExportFacts, FileAccess,
+    HitIndex, HitList, MarkupCommand, MediaOffer, Motion, Palette, PaletteParams, PaletteScope,
+    PaneChrome, PanelParams, PlatformAbilities, Playing, Presentation, PresentationParams,
+    SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams, TextParams, TextView,
+    TextViews, Ticket, TypedText, ViewerParams, Writing,
 };
 use anyview_core::{
-    Adjust, FileAction, FindOption, FindOptions, FormatKind, Reach, actions_for, reach,
+    Adjust, FileAction, FindOption, FindOptions, FormatKind, MarkTool, Reach, actions_for, reach,
 };
 use anyview_machines::seam::{WrapChoices, entries};
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -151,6 +151,8 @@ pub(super) struct Live {
     pub picture: PictureOffer,
     /// What has been done to the open picture.
     pub adjust: Adjust,
+    /// What the open PDF lets the person mark, and what has been written on it.
+    pub markup: MarkupOffer,
     /// How the person last chose to wrap each kind of text.
     pub wraps: WrapChoices,
     /// How the viewer is on screen: a pane is read-only and has no palette, so it lists no Find.
@@ -170,6 +172,17 @@ pub(super) enum PictureOffer {
     Pristine,
     /// It can be, and there are changes that are not saved.
     Edited,
+}
+
+/// What marking the open PDF offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct MarkupOffer {
+    /// Whether the document lets the person make marks.
+    pub marking: Allowance,
+    /// Whether there are fields filled or marks made that are not saved.
+    pub changes: Changes,
+    /// The mark that is picked, which Delete Mark takes away.
+    pub picked: Option<usize>,
 }
 
 /// What the open file allows and offers, as the commands' filters read it.
@@ -269,6 +282,35 @@ fn picture_commands(stage: &Stage, offer: PictureOffer, tool: crate::Tool) -> Ve
     }
 }
 
+/// The tools a mark can be made with, in the order the palette lists them.
+const MARK_TOOLS: [MarkTool; 9] = [
+    MarkTool::Highlight,
+    MarkTool::Underline,
+    MarkTool::Strikethrough,
+    MarkTool::Note,
+    MarkTool::Rectangle,
+    MarkTool::Oval,
+    MarkTool::Line,
+    MarkTool::Arrow,
+    MarkTool::TextBox,
+];
+
+/// The commands for marking the open PDF: a tool for each kind of mark where the document lets the
+/// person mark it, Delete Mark while one is picked, and Save once there is something to save.
+fn markup_commands(stage: &Stage, offer: MarkupOffer) -> Vec<Command> {
+    if stage.abilities().writing != Writing::Writable {
+        return Vec::new();
+    }
+    let tools = (offer.marking == Allowance::Granted)
+        .then_some(MARK_TOOLS)
+        .into_iter()
+        .flatten()
+        .map(|tool| Command::Markup(MarkupCommand::Tool(tool)));
+    let delete = offer.picked.map(|_| Command::Markup(MarkupCommand::Delete));
+    let save = (offer.changes == Changes::Unsaved).then_some(Command::Markup(MarkupCommand::Save));
+    tools.chain(delete).chain(save).collect()
+}
+
 /// Whether `command` changes the file it is run on: the pages of a PDF, the text of a text.
 fn changes_file(command: StageCommand) -> bool {
     matches!(
@@ -303,6 +345,7 @@ pub(super) fn offered_slots(
                 | Command::OpenFile
                 | Command::UseTool(_)
                 | Command::Picture(_)
+                | Command::Markup(_)
                 | Command::ShowView(_)
                 | Command::FindHit(_)
                 | Command::ShowAllHits
@@ -442,6 +485,7 @@ pub(super) fn params(
         marks,
         picture,
         adjust,
+        markup,
         wraps,
         presentation,
         chrome,
@@ -511,6 +555,7 @@ pub(super) fn params(
     };
     let mut listed = commands(kind, stage, &measured, offers);
     listed.extend(picture_commands(stage, picture, tool));
+    listed.extend(markup_commands(stage, markup));
     if pane {
         // Finding is the palette's, and a pane draws none: its host starts one (`PaneLink::find`).
         listed.retain(|command| *command != Command::Stage(StageCommand::Find));
@@ -531,6 +576,7 @@ pub(super) fn params(
             | Command::OpenFile
             | Command::UseTool(_)
             | Command::Picture(_)
+            | Command::Markup(_)
             | Command::ShowView(_)
             | Command::FindHit(_)
             | Command::ShowAllHits

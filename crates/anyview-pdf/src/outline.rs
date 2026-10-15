@@ -2,8 +2,8 @@
 
 use crate::document::PdfDocument;
 use crate::error::PdfError;
-use crate::geometry::{PageRect, displayed};
-use anyview_core::PageIndex;
+use crate::geometry::displayed;
+use anyview_core::{PageIndex, PageRect};
 use pdfrum::LinkTarget as Target;
 
 /// Whether an outline entry has children and shows them when the outline first opens.

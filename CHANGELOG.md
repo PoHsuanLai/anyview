@@ -8,6 +8,10 @@ versioning, with pre-releases while the program is in beta.
 ### Recordings
 
 - Trim… (⌘T, the palette and the right-click menu) trims a video or a song in place, as QuickTime Player does. A bar comes up over the player with two yellow handles on a track the length of the recording; drag them to choose the part to keep, Space plays just that part, Return (Trim) applies it and Esc leaves. The player then shows only the part kept, and ⌘S saves it over the file with the original kept as a version to go back to with Revert To. Leaving a trimmed recording asks Save or Don't Save, and ⌘Z takes the trim back before it is saved. A video is cut at the keyframe at or before the start; a song is cut to the sample, written again in its own format at the quality it had when it could not be copied exactly. Without the FFmpeg plugin, Trim… offers to install it. Save a Copy and Revert To are now in the menus of recordings too.
+### PDF
+
+- Fill in a PDF's form as Preview does. Text fields, check boxes, radio buttons and lists of choices are live on the page: press one to type or tick it, and Tab and Shift Tab go through the fields in the document's order. A form with no fields shows nothing extra. What you fill in is held like a picture's edits (the edited mark in the title bar, ⌘Z, Save and Don't Save on leaving) and ⌘S appends it to the file, so another viewer shows the values.
+- Mark up a PDF: a Markup tool beside Select and Pan in the title bar. Highlight, underline and strike through the words you drag over (yellow first, and the colours Preview offers), leave a note, draw a rectangle, an oval, a line or an arrow, or add a text box; pick a mark to move it or delete it. Marks are saved as standard annotations other viewers show. A signed document asks before it is changed, and a document that does not let you mark it offers no Markup tool. Select now selects the words under a drag.
 
 ### Palette
 

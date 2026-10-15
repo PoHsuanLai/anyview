@@ -69,6 +69,7 @@ pub(super) fn EditSheet(
     oncancel: EventHandler<()>,
 ) -> Element {
     let (title, verb) = match (edit, caution) {
+        (Edit::Markup, EditCaution::Signed) => ("Change this document?", "Save"),
         (_, EditCaution::Signed) => ("Change this document?", "Change Pages"),
         (Edit::Flip(_), EditCaution::Loses(_)) => ("Flip this picture?", "Flip"),
         (Edit::Adjust(_), EditCaution::Loses(_)) => ("Save the changes to this picture?", "Save"),
@@ -76,6 +77,10 @@ pub(super) fn EditSheet(
         (_, EditCaution::Loses(_)) => ("Rotate this picture?", "Rotate"),
     };
     let message = match caution {
+        EditCaution::Signed if edit == Edit::Markup => {
+            "This document is signed. Saving your changes may make its signature invalid."
+                .to_owned()
+        }
         EditCaution::Signed => {
             "This document is signed. Changing its pages will remove the signature.".to_owned()
         }

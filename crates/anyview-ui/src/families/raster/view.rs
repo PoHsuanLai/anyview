@@ -372,7 +372,7 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
 /// a mode that stays. The tip is the owner's terse `Name  Key`: the key is H, which switches the
 /// tool.
 #[component]
-pub(super) fn PointerModes(tool: Tool, tools: Vec<Tool>, onpick: EventHandler<Tool>) -> Element {
+pub(crate) fn PointerModes(tool: Tool, tools: Vec<Tool>, onpick: EventHandler<Tool>) -> Element {
     let choices: Vec<Choice<Tool>> = tools
         .iter()
         .map(|offered| Choice::new(*offered, offered.label()))

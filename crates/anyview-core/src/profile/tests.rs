@@ -52,7 +52,12 @@ const CASES: &[Row] = &[
             FileAction::RotateLeft,
             FileAction::RotateRight,
         ],
-        &[EditKind::Rotate, EditKind::DeletePages, EditKind::MovePage],
+        &[
+            EditKind::Rotate,
+            EditKind::DeletePages,
+            EditKind::MovePage,
+            EditKind::Markup,
+        ],
         StageSupport::Stage,
     ),
     row(

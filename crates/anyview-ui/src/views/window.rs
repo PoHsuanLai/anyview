@@ -27,7 +27,7 @@ use super::unsaved::UnsavedSheet;
 use crate::families::{Area, FrameLook};
 use crate::io::{FileAccess, HostRequest, Job, MediaSupport};
 use crate::{
-    Chords, ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure,
+    Chords, ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, Load, LoadFailure, MarkupIn,
     NavigateIn, Palette as PaletteState, PaletteIn, PaletteScope, PaneChrome, Panel, PanelIn,
     PanelTab, PictureEditIn, PictureSheet, PictureSheetIn, Presentation, Sheet, SheetIn, Spot,
     StageCx, StageIn, TypedText, Viewer, ViewerIn, Zone,
@@ -299,6 +299,8 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         trim_in: EventHandler::new(move |input: crate::TrimIn| {
             dispatch.send(ViewerIn::Trim(input));
         }),
+        markup: state.markup.clone(),
+        mark: EventHandler::new(move |input: MarkupIn| dispatch.send(ViewerIn::Markup(input))),
         ticket,
         area: area(),
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
@@ -500,7 +502,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         *layered.write() = open;
     }
     let keyed = state.clone();
-    let editing = state.stage.edited().is_some();
+    // The text being edited and a form field the keyboard is in take the keys: the window hears only
+    // what is meant for it.
+    let editing = state.stage.edited().is_some() || state.markup.focus().is_some();
     let chrome = (shelf.chrome)();
     // The edited dot: the picture or the text has changes that are not saved.
     let document = if state.unsaved() {

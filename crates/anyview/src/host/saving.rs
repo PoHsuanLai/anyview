@@ -3,8 +3,8 @@
 //! store's pipeline, which keeps the original first.
 
 use super::outcome::Outcome;
-use anyview_core::{FilePath, FormatKind};
-use anyview_pdf::{PdfDocument, apply, page_op};
+use anyview_core::{FilePath, FormatKind, MarkupSave};
+use anyview_pdf::{PdfDocument, apply, page_op, write_markup};
 use anyview_store::{
     DEFAULT_KEEP, Durability, Pending, SavedAt, StoreError, VersionId, Versions, Written,
 };
@@ -72,6 +72,26 @@ pub(super) fn save_edit(
 ) -> Outcome {
     let path = file.source.path();
     let result = edited(file, request)
+        .map_err(SaveError::from)
+        .and_then(|bytes| written(versions, at, path, bytes));
+    outcome_of(result, path)
+}
+
+/// `file` written over with the fields the person filled and the marks they made, appended to the
+/// original, which is kept first.
+pub(super) fn save_markup(
+    versions: &Versions,
+    at: SavedAt,
+    file: &Opened,
+    save: &MarkupSave,
+) -> Outcome {
+    let path = file.source.path();
+    let result = std::fs::read(path.as_path())
+        .map_err(EditError::Read)
+        .and_then(|bytes| {
+            let document = PdfDocument::from_bytes(bytes)?;
+            Ok(write_markup(&document, save)?)
+        })
         .map_err(SaveError::from)
         .and_then(|bytes| written(versions, at, path, bytes));
     outcome_of(result, path)

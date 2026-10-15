@@ -22,6 +22,7 @@ mod edits;
 mod hand;
 mod keys;
 mod load;
+mod markup;
 mod navigate;
 mod palette;
 mod panel;
@@ -40,7 +41,7 @@ mod viewer;
 
 pub use abilities::{DesktopService, PlatformAbilities};
 pub use chrome::{Chrome, ChromeIn, ChromeOut, ChromeParams, PinReason, PinReasons, Zone};
-pub use command::{Command, PictureCommand, StageCommand};
+pub use command::{Command, MarkupCommand, PictureCommand, StageCommand};
 pub use context::{
     ContextEntry, ContextIn, ContextMenu, ContextOut, ContextParams, ContextPick, Spot,
 };
@@ -50,6 +51,7 @@ pub use keys::{Act, Chords, Press, Regions, Route, route};
 pub use load::{
     Freshness, Load, LoadFailure, LoadFlow, LoadIn, LoadOut, PeekFrame, Ticket, freshness,
 };
+pub use markup::{Allowance, Draft, MarkupIn, MarkupOut, PdfMarkup, Using};
 pub use navigate::{Navigate, NavigateIn, NavigateOut};
 pub use palette::{
     HitList, Palette, PaletteIn, PaletteIndex, PaletteMove, PaletteOut, PaletteParams, PaletteScope,
@@ -79,7 +81,7 @@ pub use stage::{
     StageFind, StageIn, StageOut, StageParams, StepDirection, TableIn, TableOut, TableParams,
     TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage, TextStep, TextView,
     TextViews, TrackKind, TreeIn, TreeOut, TreeParams, TreeStage, TrimEdge, Viewport, Wrap,
-    ZoomDir, is_numeric, sorted_rows,
+    Writing, ZoomDir, is_numeric, sorted_rows,
 };
 pub use stage::{OutlineFold, OutlineIn, OutlineOut, OutlineShape};
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};

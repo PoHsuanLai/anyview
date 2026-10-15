@@ -8,7 +8,10 @@ mod bound;
 mod cache;
 mod capsule;
 mod doc;
+mod dock;
 mod draw;
+mod fields;
+mod inks;
 mod live;
 #[cfg(test)]
 mod markup;
@@ -20,17 +23,20 @@ mod steer;
 #[cfg(test)]
 mod tests;
 mod view;
+mod words;
 mod work;
+mod write;
 
 pub use doc::{PdfDoc, PdfFailure, PdfOrigin};
 pub use shelf::{PdfShelf, use_pdf_shelf};
 pub use work::{Finish, FlightId, PdfAnswer, PdfAsk, PdfTask, ReadyTile};
 
+use super::raster;
 use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenPort};
 use crate::{
-    PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
-    Viewport,
+    Command, PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams,
+    Ticket, Tool, Viewport,
 };
 use anyview_core::work::Stop;
 use anyview_core::{Facts, FormatKind, PixelLen, PixelSize, Resume, Sniffed, Source, Zoom};
@@ -147,8 +153,33 @@ impl StageView for PdfStageView {
         doc.offer
     }
 
+    fn markup(doc: &PdfDoc) -> Option<crate::MarkupIn> {
+        Some(doc.landing())
+    }
+
     fn slots(doc: &PdfDoc, cx: &StageCx) -> Vec<RankedSlot<crate::Command>> {
         capsule::slots(doc, cx)
+    }
+
+    /// Select | Pan, and Markup where the document can be marked: a book bound as a PDF has no
+    /// such control, its pages are only for reading.
+    fn modes(doc: &Arc<PdfDoc>, cx: &StageCx) -> Option<Element> {
+        if doc.origin != PdfOrigin::File {
+            return None;
+        }
+        let run = cx.run;
+        let tools = if cx.markup.can_mark() {
+            vec![Tool::Select, Tool::Pan, Tool::Markup]
+        } else {
+            vec![Tool::Select, Tool::Pan]
+        };
+        Some(rsx! {
+            raster::PointerModes {
+                tool: cx.hand.tool,
+                tools,
+                onpick: move |tool| run.call(Command::UseTool(tool)),
+            }
+        })
     }
 
     fn panel(doc: &Arc<PdfDoc>, tab: PanelTab, cx: &StageCx) -> Option<Element> {

@@ -544,7 +544,10 @@ version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
  "pdfrum",
+ "pdfrum-common",
+ "pdfrum-doc",
  "pdfrum-edit",
+ "pdfrum-object",
  "roxmltree 0.21.1",
  "thiserror 2.0.21",
 ]
@@ -5494,8 +5497,10 @@ dependencies = [
  "pdfrum-common",
  "pdfrum-crypt",
  "pdfrum-doc",
+ "pdfrum-edit",
  "pdfrum-filters",
  "pdfrum-font",
+ "pdfrum-form",
  "pdfrum-markdown",
  "pdfrum-object",
  "pdfrum-page",
@@ -5630,6 +5635,21 @@ dependencies = [
  "read-fonts 0.44.0",
  "skrifa 0.47.0",
  "smallvec",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "pdfrum-form"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c70915071151e8e9851727495934e9117c5076f057f86929a807dbc24efdbd3"
+dependencies = [
+ "kurbo",
+ "pdfrum-common",
+ "pdfrum-doc",
+ "pdfrum-font",
+ "pdfrum-object",
+ "pdfrum-page",
  "thiserror 2.0.21",
 ]
 

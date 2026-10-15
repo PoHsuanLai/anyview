@@ -78,6 +78,63 @@ pub fn fixture_bytes() -> Vec<u8> {
     out
 }
 
+/// A one-page PDF with a form: a text field, a check box and a drop-down, in that order.
+pub fn form_bytes() -> Vec<u8> {
+    let form = |size: &str| {
+        format!(
+            "<< /Type /XObject /Subtype /Form /BBox [0 0 {size}] /Length 0 >>\nstream\n\nendstream"
+        )
+    };
+    let content = "BT /Helv 12 Tf 72 700 Td (Your details) Tj ET\n";
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R /AcroForm 6 0 R >>".to_owned(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_owned(),
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R \
+         /Resources << /Font << /Helv 5 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R] >>"
+            .to_owned(),
+        format!(
+            "<< /Length {} >>\nstream\n{content}endstream",
+            content.len()
+        ),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
+            .to_owned(),
+        "<< /Fields [7 0 R 8 0 R 9 0 R] /DA (/Helv 12 Tf 0 g) /DR << /Font << /Helv 5 0 R >> >> >>"
+            .to_owned(),
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /Rect [72 600 272 620] /P 3 0 R \
+         /F 4 /DA (/Helv 12 Tf 0 g) >>"
+            .to_owned(),
+        "<< /Type /Annot /Subtype /Widget /FT /Btn /T (agree) /Rect [72 560 90 578] /P 3 0 R \
+         /F 4 /V /Off /AS /Off /AP << /N << /Yes 10 0 R /Off 11 0 R >> >> >>"
+            .to_owned(),
+        "<< /Type /Annot /Subtype /Widget /FT /Ch /Ff 131072 /T (colour) /Rect [72 520 200 540] \
+         /P 3 0 R /F 4 /DA (/Helv 12 Tf 0 g) /Opt [(Red) (Green) (Blue)] /V (Red) >>"
+            .to_owned(),
+        form("18 18"),
+        form("18 18"),
+    ];
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for (index, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{body}\nendobj\n", index + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(
+        format!("xref\n0 {}\n0000000000 65535 f \n", offsets.len() + 1).as_bytes(),
+    );
+    for offset in &offsets {
+        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+            offsets.len() + 1
+        )
+        .as_bytes(),
+    );
+    out
+}
+
 /// The fixture, opened.
 pub fn fixture() -> PdfDocument {
     PdfDocument::from_bytes(fixture_bytes()).expect("the fixture opens")

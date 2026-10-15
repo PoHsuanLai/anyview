@@ -8,11 +8,11 @@ use super::shelf::{Dispatch, Doc, Shelf};
 use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
-    ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut, PresentationOut,
-    SheetIn, SheetOut, Stage, StageIn, StageOut, TableOut, TextIn, TextOut, Ticket, TypedText,
-    ViewerIn, ViewerOut,
+    ChromeOut, EditRequest, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut,
+    PresentationOut, SheetIn, SheetOut, Stage, StageIn, StageOut, TableOut, TextIn, TextOut,
+    Ticket, TypedText, ViewerIn, ViewerOut,
 };
-use anyview_core::{FilePath, FindOptions, Neighbours, Resume};
+use anyview_core::{Edit, FilePath, FindOptions, Neighbours, Resume};
 use dioxus::prelude::*;
 use ds::motion::detail::operation::{Operation, PendingToken};
 use ds::stack::toast_hub::ToastHub;
@@ -74,7 +74,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
         ViewerOut::Sheet(SheetOut::Export(draft)) => {
             c.edge.request(HostRequest::Export(draft));
         }
-        ViewerOut::Sheet(SheetOut::Edit(request)) => c.edge.request(HostRequest::Edit(request)),
+        ViewerOut::Sheet(SheetOut::Edit(request)) => edit(c, request),
         ViewerOut::Sheet(SheetOut::Trash) => c.edge.request(HostRequest::Trash),
         ViewerOut::Sheet(SheetOut::Rename(name)) => c.edge.request(HostRequest::Rename(name)),
         ViewerOut::Sheet(SheetOut::SaveCopy(name)) => c.edge.request(HostRequest::SaveCopy(name)),
@@ -89,7 +89,7 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
                 dispatch.send(ViewerIn::Reload(path));
             }
         }
-        ViewerOut::Edit(request) => c.edge.request(HostRequest::Edit(request)),
+        ViewerOut::Edit(request) => edit(c, request),
         ViewerOut::Rewind(rewind) => c.edge.request(HostRequest::Rewind(rewind)),
         ViewerOut::ListVersions => {
             if let Some(path) = shown_path(c) {
@@ -124,6 +124,19 @@ pub(super) fn carry_out(out: ViewerOut, c: &Carry) {
             c.edge.request(HostRequest::Unwatch);
             c.edge.request(HostRequest::CloseWindow);
         }
+    }
+}
+
+/// The host is asked to save `request`. What is written on a PDF is held by the markup, not by the
+/// request: the markup says what to save when the save is asked.
+fn edit(c: &Carry, request: EditRequest) {
+    if request.edit != Edit::Markup {
+        c.edge.request(HostRequest::Edit(request));
+        return;
+    }
+    if let Some(dispatch) = c.dispatch() {
+        let save = dispatch.machine.state().peek().markup.save();
+        c.edge.request(HostRequest::SaveMarkup(save));
     }
 }
 

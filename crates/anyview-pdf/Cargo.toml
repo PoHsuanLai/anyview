@@ -11,11 +11,16 @@ publish.workspace = true
 [dependencies]
 anyview-core = { workspace = true }
 # The pinned block builds the facade with the vello-cpu rasterizer only; text and Markdown
-# extraction are added here.
-pdfrum = { workspace = true, features = ["markdown"] }
+# extraction are added here, and `forms` and `edit` for filling a form and saving it as an
+# incremental update.
+pdfrum = { workspace = true, features = ["markdown", "forms", "edit"] }
 # Page edits and page-range writes go straight to the editor: it has `reorder_pages`, which the
 # facade's `DocEdit` does not. `svg-import` draws an SVG onto a page as vector paths.
 pdfrum-edit = { workspace = true, features = ["svg-import"] }
+# The form's fields as data, and the dictionary keys their widgets are read by.
+pdfrum-common = { workspace = true }
+pdfrum-doc = { workspace = true }
+pdfrum-object = { workspace = true }
 # The XMP packet some PDFs keep their title and author in instead of (or as well as) the Info
 # dictionary. Already in the tree through anyview-book.
 roxmltree = { workspace = true }

@@ -8,9 +8,9 @@ use super::scene::{Frame, Scene, drawn, fits, percent, pinched, scale_of};
 use super::work::{Finish, FlightId, PdfAnswer};
 use crate::{FindOut, PdfOut, Stage, StageIn, TypedText};
 use anyview_core::work::StopState;
-use anyview_core::{CaseMatch, FindOptions, PageIndex, Permille, Zoom};
+use anyview_core::{CaseMatch, FindOptions, PageIndex, PageRect, Permille, Zoom};
 use anyview_pdf::Hits;
-use anyview_pdf::{MilliPoints, PageRect, PageSize, Priority, TileKey, ZoomBucket};
+use anyview_pdf::{MilliPoints, PageSize, Priority, TileKey, ZoomBucket};
 
 const fn points(width: u32, height: u32) -> PageSize {
     PageSize {

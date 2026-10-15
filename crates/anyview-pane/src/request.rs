@@ -118,6 +118,8 @@ impl PaneRequest {
             HostRequest::Rename(name) => file(FileRequest::Rename(name)),
             HostRequest::Edit(request) => file(FileRequest::Edit(request)),
             HostRequest::SaveText(save) => file(FileRequest::SaveText(save)),
+            // A pane is read-only: what is written on a PDF is the window's.
+            HostRequest::SaveMarkup(_) => None,
             HostRequest::Rewind(rewind) => file(FileRequest::Rewind(rewind)),
             HostRequest::RevertTo(version) => file(FileRequest::RevertTo(version)),
             HostRequest::SaveCopy(name) => file(FileRequest::SaveCopy(name)),

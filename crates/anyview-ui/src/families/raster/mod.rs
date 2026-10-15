@@ -8,6 +8,7 @@ mod geometry;
 mod view;
 
 pub use doc::{RasterBackend, RasterDoc, RasterDone, RasterJob, RasterOpen};
+pub(crate) use view::PointerModes;
 
 use crate::families::view::{Area, Held, StageCx, StageView};
 use crate::io::{NaturalSize, OpenError, OpenPort};

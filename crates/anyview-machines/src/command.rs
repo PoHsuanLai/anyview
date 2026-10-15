@@ -1,7 +1,7 @@
 //! What the palette can run: a file action, or a command for the stage that is showing.
 
 use crate::keys::{Act, Press};
-use anyview_core::{FileAction, Helper};
+use anyview_core::{FileAction, Helper, MarkColor, MarkTool};
 use ds_core::vocab::{Shortcut, ShortcutKey};
 use ds_core::word::Word;
 
@@ -21,6 +21,42 @@ impl PictureCommand {
         match self {
             PictureCommand::AdjustSize => "Adjust Size\u{2026}",
             PictureCommand::Save => "Save",
+        }
+    }
+}
+
+/// A command for the marks on a PDF's pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MarkupCommand {
+    /// Choose what the Markup tool draws; with words selected, it marks them.
+    Tool(MarkTool),
+    /// Choose the colour of what is drawn next, and of the mark that is picked.
+    Color(MarkColor),
+    /// Take the picked mark away.
+    Delete,
+    /// Write what has been filled and marked into the file (⌘S).
+    Save,
+}
+
+impl MarkupCommand {
+    /// The words the palette lists the command by.
+    #[must_use]
+    pub fn label(self) -> String {
+        match self {
+            MarkupCommand::Tool(tool) => tool.label().to_owned(),
+            MarkupCommand::Color(color) => color.label().to_owned(),
+            MarkupCommand::Delete => "Delete Mark".to_owned(),
+            MarkupCommand::Save => "Save".to_owned(),
+        }
+    }
+
+    /// The keys that do the command.
+    #[must_use]
+    pub fn shortcut(self) -> Option<Shortcut> {
+        match self {
+            MarkupCommand::Save => Act::Save.shortcut(),
+            MarkupCommand::Delete => Some(Shortcut(vec![ShortcutKey::Backspace])),
+            MarkupCommand::Tool(_) | MarkupCommand::Color(_) => None,
         }
     }
 }
@@ -221,6 +257,7 @@ impl Command {
             Command::OpenFile => Act::OpenFile.shortcut(),
             Command::UseTool(tool) => match tool {
                 crate::Tool::Crop => Some(Shortcut(vec![ShortcutKey::Char('c')])),
+                crate::Tool::Markup => None,
                 crate::Tool::Select | crate::Tool::Pan => {
                     Some(Shortcut(vec![ShortcutKey::Char('h')]))
                 }
@@ -229,6 +266,7 @@ impl Command {
                 PictureCommand::Save => Act::Save.shortcut(),
                 PictureCommand::AdjustSize => None,
             },
+            Command::Markup(command) => command.shortcut(),
             Command::ShowView(_) => Some(Shortcut(vec![ShortcutKey::Char('v')])),
             Command::FindHit(_)
             | Command::ShowAllHits
@@ -246,8 +284,10 @@ impl Command {
             Command::OpenFile => "Open\u{2026}".to_owned(),
             Command::UseTool(tool) => match tool {
                 crate::Tool::Crop => "Crop".to_owned(),
+                crate::Tool::Markup => "Markup".to_owned(),
                 crate::Tool::Select | crate::Tool::Pan => format!("Use {}", tool.label()),
             },
+            Command::Markup(command) => command.label(),
             Command::Picture(command) => command.label().to_owned(),
             Command::FindHit(hit) => format!("Match {}", hit.0 + 1),
             Command::ShowAllHits => "Show All Matches".to_owned(),
@@ -275,6 +315,8 @@ pub enum Command {
     UseTool(crate::Tool),
     /// A command for the picture being edited: Adjust Size or Save.
     Picture(PictureCommand),
+    /// A command for the marks on the PDF: a tool, a colour, Delete Mark or Save.
+    Markup(MarkupCommand),
     /// Show a text file as its page or as its source, as the titlebar's Preview | Source does. The
     /// palette lists the view the person is not looking at ("Show Source").
     ShowView(crate::TextView),

@@ -27,6 +27,7 @@ mod opening_files;
 mod pan_mode;
 #[path = "../../../anyview-pdf/tests/pdf/support/mod.rs"]
 mod pdf_fixture;
+mod pdf_markup;
 mod pdf_window;
 mod platform_abilities;
 mod registry;

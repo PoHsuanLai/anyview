@@ -109,6 +109,10 @@ pub struct StageCx {
     pub trim: crate::MediaTrim,
     /// An input for the trim (the bar's handles and buttons).
     pub trim_in: EventHandler<crate::TrimIn>,
+    /// What has been written on the open PDF and not saved: the fields filled and the marks made.
+    pub markup: crate::PdfMarkup,
+    /// An input for the markup (a field typed in, a mark drawn).
+    pub mark: EventHandler<crate::MarkupIn>,
     /// The load this document belongs to.
     pub ticket: Ticket,
     /// The room, once measured.
@@ -315,6 +319,11 @@ pub trait StageView: 'static {
     fn edit_offer(_doc: &Self::Doc) -> EditOffer {
         EditOffer::Plain
     }
+    /// Where the document's fields are and what it lets the person write on it, for a family
+    /// whose files are filled and marked.
+    fn markup(_doc: &Self::Doc) -> Option<crate::MarkupIn> {
+        None
+    }
     /// The tool the document is shown without because the system lacks it, when installing it
     /// would let the file show fully.
     fn lacks(_doc: &Self::Doc) -> Option<anyview_core::Helper> {
@@ -365,6 +374,7 @@ pub(crate) trait DocView: Debug + Send + Sync {
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
     fn media_offer(&self) -> MediaOffer;
     fn edit_offer(&self) -> EditOffer;
+    fn markup(&self) -> Option<crate::MarkupIn>;
     fn lacks(&self) -> Option<anyview_core::Helper>;
 }
 
@@ -478,6 +488,10 @@ impl<S: StageView> DocView for Loaded<S> {
 
     fn edit_offer(&self) -> EditOffer {
         S::edit_offer(&self.doc)
+    }
+
+    fn markup(&self) -> Option<crate::MarkupIn> {
+        S::markup(&self.doc)
     }
 
     fn lacks(&self) -> Option<anyview_core::Helper> {

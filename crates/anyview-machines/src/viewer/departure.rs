@@ -3,6 +3,7 @@
 //! letting go mean is the open file's stage.
 
 use super::command::run_stage;
+use super::markup::{markup_in, save as save_markup};
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::picture::{picture, save};
 use super::region::{Step, sheet, stage};
@@ -10,6 +11,7 @@ use super::step::{begin, dropped, navigate_now};
 use crate::SaveEnd;
 use crate::command::StageCommand;
 use crate::edits::EditOffer;
+use crate::markup::MarkupIn;
 use crate::navigate::NavigateIn;
 use crate::picture::PictureEditIn;
 use crate::sheet::{Departure, SheetIn};
@@ -89,13 +91,14 @@ pub(super) fn walks(input: &NavigateIn) -> bool {
     }
 }
 
-/// Save what the open file's stage has changed: a picture's edits, a recording's trim, or the
-/// text being edited.
+/// Save what the open file's stage has changed: a picture's edits, a recording's trim, a PDF's
+/// fields and marks, or the text being edited.
 pub(super) fn save_open(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.stage {
         Stage::Text(_) => save_text(viewer, at, params),
         Stage::Media(_) => super::trim::save(viewer, at, params),
-        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Table(_) | Stage::Tree(_) => {
+        Stage::Pdf(_) => save_markup(viewer, at, params),
+        Stage::NoStage | Stage::Raster(_) | Stage::Table(_) | Stage::Tree(_) => {
             save(viewer, at, params)
         }
     }
@@ -124,7 +127,8 @@ pub(super) fn discard(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step 
             params,
         ),
         Stage::Media(_) => super::trim::trim_in(viewer, TrimIn::Discard, at, params),
-        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Table(_) | Stage::Tree(_) => {
+        Stage::Pdf(_) => markup_in(viewer, MarkupIn::Discard, at, params),
+        Stage::NoStage | Stage::Raster(_) | Stage::Table(_) | Stage::Tree(_) => {
             picture(viewer, PictureEditIn::Discard, at, params)
         }
     }

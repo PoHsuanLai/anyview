@@ -242,7 +242,9 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
     harness.send(Input::click(
-        harness.centre(".ds-segmented-segment").unwrap(),
+        harness
+            .centre(".viewer-panel-tabs .ds-segmented-segment")
+            .unwrap(),
     ));
     settle(&mut harness);
     assert_eq!(
@@ -281,7 +283,9 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     // The outline is the second tab: four bookmarks, each to its page.
     let tabs = |harness: &Harness, at: usize| {
         harness
-            .centre(&format!(".ds-segmented-segment:nth-child({at})"))
+            .centre(&format!(
+                ".viewer-panel-tabs .ds-segmented-segment:nth-child({at})"
+            ))
             .unwrap()
     };
     harness.send(Input::click(tabs(&harness, 2)));
@@ -312,7 +316,7 @@ fn the_outline_folds_with_its_triangle_and_with_the_left_and_right_keys() {
     settle(&mut harness);
     harness.send(Input::click(
         harness
-            .centre(".ds-segmented-segment:nth-child(2)")
+            .centre(".viewer-panel-tabs .ds-segmented-segment:nth-child(2)")
             .unwrap(),
     ));
     settle(&mut harness);

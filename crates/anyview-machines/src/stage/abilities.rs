@@ -15,7 +15,17 @@ pub enum Playing {
     Still,
 }
 
-/// The file actions that change what the stage shows, the export it writes, and whether it plays.
+/// Whether the file a stage shows can be written on: its form filled, marks made on its pages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Writing {
+    /// It can, if the document lets the person: the Markup tool and its commands are offered.
+    Writable,
+    /// It cannot.
+    Fixed,
+}
+
+/// The file actions that change what the stage shows, the export it writes, whether it plays, and
+/// whether it is written on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StageAbilities {
     /// The actions that rewrite the file in place, each of which the stage does.
@@ -24,6 +34,8 @@ pub struct StageAbilities {
     pub export: Option<ExportFamily>,
     /// Whether the file plays.
     pub playing: Playing,
+    /// Whether the file is written on.
+    pub writing: Writing,
 }
 
 /// A stage that changes nothing and writes nothing.
@@ -31,6 +43,7 @@ const READ_ONLY: StageAbilities = StageAbilities {
     edits: &[],
     export: None,
     playing: Playing::Still,
+    writing: Writing::Fixed,
 };
 
 /// A picture turns and flips.
@@ -43,6 +56,7 @@ const RASTER: StageAbilities = StageAbilities {
     ],
     export: Some(ExportFamily::Raster),
     playing: Playing::Still,
+    writing: Writing::Fixed,
 };
 
 /// A PDF turns the page the person is on (the file stores it as the page's `/Rotate`), and does
@@ -51,6 +65,7 @@ const PDF: StageAbilities = StageAbilities {
     edits: &[FileAction::RotateLeft, FileAction::RotateRight],
     export: Some(ExportFamily::Pdf),
     playing: Playing::Still,
+    writing: Writing::Writable,
 };
 
 /// A recording is trimmed to the part that is kept.
@@ -58,6 +73,7 @@ const MEDIA: StageAbilities = StageAbilities {
     edits: &[FileAction::Trim],
     export: Some(ExportFamily::Media),
     playing: Playing::Plays,
+    writing: Writing::Fixed,
 };
 
 const TEXT: StageAbilities = StageAbilities {

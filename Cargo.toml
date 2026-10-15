@@ -206,6 +206,9 @@ pdfrum-anyrender = "0.5"
 pdfrum-edit = { version = "0.5", features = ["variable-fonts"] }
 pdfrum-object = "0.5"
 pdfrum-common = "0.5"
+# Form fields read as data (their widgets, kinds, options): the facade hands out values, not where
+# a field is drawn. The tree already holds it through pdfrum.
+pdfrum-doc = "0.5"
 # Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
 # the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
 skrifa = "0.44"

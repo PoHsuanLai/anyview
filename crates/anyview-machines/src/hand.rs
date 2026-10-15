@@ -1,7 +1,8 @@
-//! The pointer tool: whether a drag on a zoomed picture pans it, or draws a crop. Pan is the
-//! default, as in Preview, Photos and Loupe; Select is the other choice of Preview's tool control,
-//! Crop is the third (a mode with its own rectangle, as in Photos), and holding Space pans for as
-//! long as the key is down. The wheel and the touchpad pan whatever the tool says.
+//! The pointer tool: whether a drag on a zoomed picture pans it, or draws a crop, and what a drag on
+//! a PDF's pages does. Pan is the default, as in Preview, Photos and Loupe; Select is the other
+//! choice of Preview's tool control (on a PDF it selects text), Crop is the third on a picture (a
+//! mode with its own rectangle, as in Photos), Markup the third on a PDF (as Preview's Markup
+//! toolbar), and holding Space pans a picture for as long as the key is down. The wheel and the touchpad pan whatever the tool says.
 
 /// The tool, set by its control, its key or its palette row. It carries from file to file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -13,14 +14,16 @@ pub enum Tool {
     Pan,
     /// A drag moves the corners and edges of a crop rectangle.
     Crop,
+    /// The pointer writes on a PDF's pages: marks its text, draws shapes, leaves notes.
+    Markup,
 }
 
 impl Tool {
-    /// The other of Select and Pan, which H switches between; Crop goes back to Pan.
+    /// The other of Select and Pan, which H switches between; Crop and Markup go back to Pan.
     #[must_use]
     pub fn other(self) -> Tool {
         match self {
-            Tool::Select | Tool::Crop => Tool::Pan,
+            Tool::Select | Tool::Crop | Tool::Markup => Tool::Pan,
             Tool::Pan => Tool::Select,
         }
     }
@@ -32,6 +35,7 @@ impl Tool {
             Tool::Select => "Select",
             Tool::Pan => "Pan",
             Tool::Crop => "Crop",
+            Tool::Markup => "Markup",
         }
     }
 }
@@ -149,6 +153,12 @@ mod tests {
             (
                 "the other tool from crop is pan",
                 &[HandIn::Use(Tool::Crop), HandIn::Toggle],
+                true,
+                Tool::Pan,
+            ),
+            (
+                "markup chosen holds nothing out, and the other tool from it is pan",
+                &[HandIn::Use(Tool::Markup), HandIn::Toggle],
                 true,
                 Tool::Pan,
             ),

@@ -8,9 +8,10 @@ use crate::families::{FoundHits, Held, SortedOrder};
 use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
 use crate::{
-    EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, HitCount, HitIndex, LoadIn,
-    NavigateIn, Panel, PictureEditIn, PictureEditing, Presentation, Sheet, SheetIn, Stage, StageIn,
-    TableIn, TextIn, TextStage, Ticket, TreeIn, TypedText, VersionList, ViewerIn, freshness,
+    Allowance, EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, HitCount, HitIndex,
+    LoadIn, MarkupIn, NavigateIn, Panel, PictureEditIn, PictureEditing, Presentation, Sheet,
+    SheetIn, Stage, StageIn, TableIn, TextIn, TextStage, Ticket, TreeIn, TypedText, VersionList,
+    ViewerIn, freshness,
 };
 use anyview_core::{FilePath, FindOptions, Helper, LineIndex, PixelLen, PixelSize, Resume};
 use dioxus::prelude::*;
@@ -354,6 +355,9 @@ pub(super) fn landed(c: &Carry, ticket: Ticket, doc: &crate::LoadedDoc) {
     send(c, ViewerIn::Load(LoadIn::Opened { ticket }));
     // Whatever was done to the last picture is gone with it (or was just saved into this one).
     send(c, ViewerIn::Picture(picture_landed(c, doc)));
+    if let Some(landing) = markup_landed(c, doc) {
+        send(c, ViewerIn::Markup(landing));
+    }
     // The panel stays open from file to file; its tab stays too when the new file has it.
     send(c, ViewerIn::Panel(crate::PanelIn::TabsChanged));
     size_window(
@@ -416,6 +420,39 @@ fn picture_landed(c: &Carry, doc: &crate::LoadedDoc) -> PictureEditIn {
         PictureEditing::Locked
     };
     PictureEditIn::Landed { size, editing }
+}
+
+/// What the markup is told when `doc` lands, if it is a PDF: where its fields are, and what it lets
+/// the person write on it. A pane changes nothing in the file, and neither does a window on a file
+/// that refuses a save, so nothing is offered there.
+fn markup_landed(c: &Carry, doc: &crate::LoadedDoc) -> Option<MarkupIn> {
+    let MarkupIn::Landed {
+        widgets,
+        filling,
+        marking,
+    } = doc.view().markup()?
+    else {
+        return None;
+    };
+    let pane = c
+        .dispatch()
+        .is_some_and(|dispatch| dispatch.machine.state().peek().presentation == Presentation::Pane);
+    let writable = c
+        .shelf
+        .probe
+        .peek()
+        .found()
+        .is_some_and(|probed| probed.access == FileAccess::Writable);
+    let (filling, marking) = if pane || !writable {
+        (Allowance::Withheld, Allowance::Withheld)
+    } else {
+        (filling, marking)
+    };
+    Some(MarkupIn::Landed {
+        widgets,
+        filling,
+        marking,
+    })
 }
 
 /// A different file has loaded: tell the host how big its content naturally is, once, so it can
