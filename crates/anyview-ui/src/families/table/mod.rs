@@ -4,6 +4,7 @@
 
 mod doc;
 mod find;
+mod kind;
 mod panel;
 mod sort;
 mod view;

@@ -5,6 +5,7 @@
 //! only (the stage machine keeps the sort, the file is never reordered).
 
 use super::doc::{SheetDoc, TableDoc};
+use super::kind::{ColumnKind, is_yes};
 use crate::families::rows::scaled_px;
 use crate::families::view::{Held, StageCx};
 use crate::families::{Mark, cut};
@@ -12,7 +13,7 @@ use crate::io::Job;
 use crate::{
     ColumnSort, ContentScale, HitIndex, RowNo, SheetNo, SortDirection, Stage, StageIn, TableIn,
 };
-use anyview_text::RowIndex;
+use anyview_text::{Coverage, RowIndex, Tally};
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;
 use ds::components::lists::table::model::{
@@ -24,7 +25,7 @@ use ds::host::document::{DocumentHost, use_document_host};
 use ds::host::found::Found;
 use ds::host::measure::client_rect;
 use ds::host::reveal::{ScrollSpan, nearest_scroll};
-use ds::prelude::{ColumnRules, Common, Icon, Px};
+use ds::prelude::{Common, Icon, Px, TableLook};
 use ds::style::busy::wait_out_busy;
 use ds_blitz::{ElementId, ScrollAnimate, ScrollAxis, ScrollCmd, ScrollHandle, use_scroll_handle};
 use std::rc::Rc;
@@ -109,7 +110,7 @@ fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
         .aligned(CellAlign::Trailing)
         .sorting(Sorting::Fixed);
     let data = sheet.widths.iter().enumerate().map(|(at, chars)| {
-        let align = if sheet.numeric.get(at) == Some(&true) {
+        let align = if sheet.kinds.get(at) == Some(&ColumnKind::Number) {
             CellAlign::Trailing
         } else {
             CellAlign::Leading
@@ -130,6 +131,39 @@ fn drawn(by: ColumnSort) -> Sort<u32> {
             SortDirection::Descending => Way::Descending,
         },
     }
+}
+
+/// The class a cell of `kind` takes besides the cell's own.
+fn kind_class(kind: ColumnKind) -> &'static str {
+    match kind {
+        ColumnKind::Text => "",
+        ColumnKind::Number => "viewer-cell-number",
+        ColumnKind::YesNo => "viewer-cell-yes-no",
+        ColumnKind::Link => "viewer-cell-link",
+        ColumnKind::Tag => "viewer-cell-tag",
+    }
+}
+
+/// What the status line under the table says: how many rows and columns the shown sheet has. A
+/// sheet that holds only the start of its file says so with a plus after the rows.
+fn status_of(sheet: &SheetDoc) -> String {
+    let rows = sheet.table.row_count().0;
+    let rows = match sheet.table.coverage() {
+        Coverage::Whole => Tally::Exact(rows),
+        Coverage::Prefix => Tally::AtLeast(rows),
+    };
+    let columns = sheet.table.columns().0;
+    format!(
+        "{} {} · {} {}",
+        rows.text(),
+        if rows == Tally::Exact(1) {
+            "row"
+        } else {
+            "rows"
+        },
+        Tally::Exact(columns).text(),
+        if columns == 1 { "column" } else { "columns" },
+    )
 }
 
 #[component]
@@ -235,9 +269,24 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
             }
             None => Vec::new(),
         };
+        let kind = held.kinds.get(column).copied().unwrap_or_default();
+        if text.trim().is_empty() {
+            return rsx! {
+                span { class: "viewer-cell viewer-cell-empty", "—" }
+            };
+        }
+        // A yes is a tick and a no is nothing, unless a find is on the cell: then its text shows,
+        // so the hit can be seen and found.
+        if kind == ColumnKind::YesNo && marks.is_empty() {
+            let tick = if is_yes(&text) { "✓" } else { "" };
+            return rsx! {
+                span { class: "viewer-cell viewer-cell-yes-no", "{tick}" }
+            };
+        }
         let pieces = cut(&text, &marks);
+        let class = format!("viewer-cell {}", kind_class(kind));
         rsx! {
-            span { class: "viewer-cell",
+            span { class,
                 for (piece , mark) in pieces {
                     span { class: mark.class(), "{piece}" }
                 }
@@ -251,6 +300,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
             }
         };
     }
+    let status = status_of(&sheet);
     rsx! {
         div {
             class: "viewer-data viewer-scrolls",
@@ -265,7 +315,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                 scroller,
                 // Numbers' look: a hairline between the columns, and one under the header once
                 // the rows are scrolled (quire's default).
-                rules: ColumnRules::Hairline,
+                look: TableLook::Striped,
                 common: Common {
                     id: Some(TABLE_ID.to_owned()),
                     ..Common::default()
@@ -280,6 +330,7 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                     send.call(StageIn::Table(TableIn::Select(row)));
                 },
             }
+            p { class: "viewer-table-status", "{status}" }
         }
     }
 }
