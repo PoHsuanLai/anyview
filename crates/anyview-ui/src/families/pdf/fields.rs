@@ -10,7 +10,7 @@ use dioxus::prelude::*;
 use ds::components::fields::text_field_model::FieldRows;
 use ds::components::menus::pop_up_button::PopUpButton;
 use ds::focus::soon::focus_soon;
-use ds::prelude::{FieldBezel, FieldFocus, FieldKind, MenuItem, Shown, TextField};
+use ds::prelude::{Common, FieldBezel, FieldFocus, FieldKind, MenuItem, Shown, TextField};
 use ds_core::word::Word;
 
 /// How a field is, to the person.
@@ -77,6 +77,9 @@ pub(super) fn FormField(view: FieldView, mark: EventHandler<MarkupIn>) -> Elemen
     } = view;
     let kind = widget.kind;
     let toggles = kind.is_toggle();
+    // A drop-down pressed opens its menu, as Preview's does; one Tab reaches only takes the keyboard,
+    // and Space or an arrow opens it.
+    let mut pressed = use_signal(|| false);
     if state == FieldState::Idle {
         return rsx! {
             div {
@@ -91,6 +94,7 @@ pub(super) fn FormField(view: FieldView, mark: EventHandler<MarkupIn>) -> Elemen
                     if toggles {
                         mark.call(MarkupIn::Toggle(index));
                     } else {
+                        pressed.set(kind == WidgetKind::Choice);
                         mark.call(MarkupIn::Focus(index));
                     }
                 },
@@ -161,12 +165,21 @@ pub(super) fn FormField(view: FieldView, mark: EventHandler<MarkupIn>) -> Elemen
                 PopUpButton::<String> {
                     items,
                     value: Some(value),
-                    start: if held { Shown::Visible } else { Shown::Hidden },
+                    start: if held && pressed() { Shown::Visible } else { Shown::Hidden },
                     onpick: move |text: String| mark.call(MarkupIn::Type { widget: index, text }),
                     on_open_change: move |shown: Shown| {
                         if shown == Shown::Hidden {
+                            pressed.set(false);
                             mark.call(MarkupIn::Blur(index));
                         }
+                    },
+                    common: Common {
+                        mounted: Some(EventHandler::new(move |event: MountedEvent| {
+                            if held {
+                                focus_soon(event.data());
+                            }
+                        })),
+                        ..Common::default()
                     },
                 }
             }
@@ -202,6 +215,13 @@ pub(super) fn FormField(view: FieldView, mark: EventHandler<MarkupIn>) -> Elemen
             "data-state": state.slug(),
             style,
             onpointerdown: move |event: PointerEvent| event.stop_propagation(),
+            // The drop-down's button keeps its own keys (arrows, letters); Tab and Escape reach
+            // the field here, as they do the others'.
+            onkeydown: move |event: KeyboardEvent| {
+                if kind == WidgetKind::Choice {
+                    keyed(&event, index, mark);
+                }
+            },
             {control}
         }
     }

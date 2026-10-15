@@ -1,7 +1,7 @@
 //! What a person writes on a PDF, saved and read back: form values, and marks as standard
 //! annotations.
 
-use crate::support::{fixture, form_bytes};
+use crate::support::{fixture, form_bytes, inherited_choice_bytes};
 
 use anyview_core::{
     FieldFill, Mark, MarkColor, MarkShape, MarkupSave, PageIndex, PagePoint, PageRect, Permille,
@@ -62,6 +62,24 @@ fn the_widgets_are_read_with_their_kinds_in_the_documents_order() {
     let name = widgets[0].rect;
     assert_eq!((name.left.0, name.right.0), (118, 444));
     assert!(name.top.0 > 200 && name.top.0 < 300, "{name:?}");
+}
+
+#[test]
+fn a_drop_down_that_inherits_its_options_writes_their_export_values() {
+    let doc = PdfDocument::from_bytes(inherited_choice_bytes()).unwrap();
+    let widgets = form_widgets(&doc);
+    assert_eq!(widgets.len(), 1, "{widgets:?}");
+    assert_eq!(widgets[0].kind, WidgetKind::Choice);
+    assert_eq!(
+        widgets[0].options,
+        ["Small", "Large"],
+        "the labels are shown"
+    );
+    assert_eq!(
+        widgets[0].exports,
+        ["s", "l"],
+        "the export values are written"
+    );
 }
 
 #[test]
