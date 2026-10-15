@@ -46,10 +46,10 @@ pub fn write_new(bytes: &[u8], to: &Path) -> Result<(), ExportError> {
     if placed.is_ok() {
         // The new name is in the folder, not yet on disk until the folder is synced. A folder
         // that cannot be opened for it (Windows) has no such step.
-        if let Some(dir) = to.parent().filter(|dir| !dir.as_os_str().is_empty()) {
-            if let Ok(dir) = std::fs::File::open(dir) {
-                let _synced = dir.sync_all();
-            }
+        if let Some(dir) = to.parent().filter(|dir| !dir.as_os_str().is_empty())
+            && let Ok(dir) = std::fs::File::open(dir)
+        {
+            let _synced = dir.sync_all();
         }
     }
     placed

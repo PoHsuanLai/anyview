@@ -116,7 +116,13 @@ fn archive_failed(error: ArchiveError) -> TextError {
         ArchiveError::TooLarge { allowed } | ArchiveError::OverBudget { allowed } => {
             TextError::WorkbookTooLarge { allowed }
         }
-        other => failed(other),
+        other @ (ArchiveError::Read { .. }
+        | ArchiveError::WrongKind { .. }
+        | ArchiveError::NoBudget
+        | ArchiveError::Malformed { .. }
+        | ArchiveError::Encrypted
+        | ArchiveError::NoSuchEntry { .. }
+        | ArchiveError::NotAFile) => failed(other),
     }
 }
 
@@ -414,11 +420,31 @@ mod tests {
     fn a_string_table_that_states_more_strings_than_it_has_bytes_is_refused() {
         // name, shared strings, refused
         const CASES: &[(&str, &str, bool)] = &[
-            ("a real count", r#"<sst count="2" uniqueCount="2"><si/><si/></sst>"#, false),
-            ("a count of the whole planet", r#"<sst uniqueCount="100000000000"/>"#, true),
-            ("single quotes and spaces", "<sst uniqueCount = '99999999'/>", true),
-            ("a count too long for a number", r#"<sst uniqueCount="99999999999999999999999"/>"#, true),
-            ("a decoy ahead of the tag", r#"<!-- uniqueCount="1" --><sst uniqueCount="99999999"/>"#, true),
+            (
+                "a real count",
+                r#"<sst count="2" uniqueCount="2"><si/><si/></sst>"#,
+                false,
+            ),
+            (
+                "a count of the whole planet",
+                r#"<sst uniqueCount="100000000000"/>"#,
+                true,
+            ),
+            (
+                "single quotes and spaces",
+                "<sst uniqueCount = '99999999'/>",
+                true,
+            ),
+            (
+                "a count too long for a number",
+                r#"<sst uniqueCount="99999999999999999999999"/>"#,
+                true,
+            ),
+            (
+                "a decoy ahead of the tag",
+                r#"<!-- uniqueCount="1" --><sst uniqueCount="99999999"/>"#,
+                true,
+            ),
             ("no count", "<sst><si/></sst>", false),
         ];
         for (name, part, refused) in CASES {

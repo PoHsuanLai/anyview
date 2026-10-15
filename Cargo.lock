@@ -404,6 +404,7 @@ dependencies = [
  "anyview-text",
  "ds-blitz",
  "ds-core",
+ "log",
  "tempfile",
  "thiserror 2.0.21",
 ]
@@ -570,6 +571,7 @@ dependencies = [
  "ds-core",
  "ds-harness",
  "ds-lint",
+ "log",
  "matroska-demuxer",
  "mp4parse",
  "symphonia",
@@ -678,6 +680,7 @@ dependencies = [
 name = "anyview-text"
 version = "0.1.0-beta.1"
 dependencies = [
+ "anyview-archive",
  "anyview-core",
  "anyview-fs",
  "calamine",
