@@ -7,6 +7,7 @@
 //! shown, and a number reads as it was written.
 
 mod cursor;
+mod edit;
 mod grammar;
 mod level;
 mod rows;
@@ -15,6 +16,7 @@ mod visible;
 #[cfg(test)]
 mod tests;
 
+pub use edit::{TreeEditError, TreeSession};
 pub use rows::{ChildCount, NodeKind, RowLabel, TreeRow};
 pub use visible::{Openness, VisibleRow};
 

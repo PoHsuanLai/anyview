@@ -1,5 +1,7 @@
+use super::cells;
 use super::column::ColumnSort;
-use super::model::{Look, SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
+use super::model::{Cells, Look, SheetNo, SheetTotal, TableIn, TableOut, TableParams, TableStage};
+use crate::stage::data_edits::RowOrder;
 use crate::stage::find::{FindHits, FindOut, HitStep, StageFind};
 use crate::stage::row::RowNo;
 use crate::stage::zoom::ContentScale;
@@ -56,6 +58,13 @@ fn sheet_asked(sheet: SheetNo, input: &TableIn, total: SheetTotal) -> Option<She
         | TableIn::CloseFind
         | TableIn::ZoomStep(_)
         | TableIn::ZoomActual
+        | TableIn::Typing(_)
+        | TableIn::EditAt(..)
+        | TableIn::FocusCell(..)
+        | TableIn::StepCell(_)
+        | TableIn::AddRow
+        | TableIn::DeleteRows
+        | TableIn::Session(_)
         | TableIn::Elapsed => None,
     }
 }
@@ -145,9 +154,19 @@ fn advance(
     Look,
     Vec<TableOut>,
 ) {
-    let Look { find, scale } = look;
+    let Look { find, scale, cells } = look;
     let stay = |rows: RowSelection, find: Option<StageFind>, outs: Vec<TableOut>| {
-        (sheet, rows, sort, Look { find, scale }, outs)
+        (
+            sheet,
+            rows,
+            sort,
+            Look {
+                find,
+                scale,
+                cells: cells.clone(),
+            },
+            outs,
+        )
     };
     match input {
         // Another sheet has other rows and other columns: the picked rows and the sort do not
@@ -156,7 +175,12 @@ fn advance(
             match sheet_asked(sheet, &input, params.sheets).filter(|next| *next != sheet) {
                 Some(next) => {
                     let (find, outs) = asked_again(find);
-                    (next, RowSelection::none(), None, Look { find, scale }, outs)
+                    let look = Look {
+                        find,
+                        scale,
+                        cells: Cells::default(),
+                    };
+                    (next, RowSelection::none(), None, look, outs)
                 }
                 None => stay(rows, find, vec![]),
             }
@@ -171,14 +195,39 @@ fn advance(
         }
         // The rows change places: the picked ones stay at their places until the view, which
         // has the new order, says where they went.
-        TableIn::PressHeader(column) if column < params.columns => (
-            sheet,
-            rows,
-            ColumnSort::after_press(sort, column),
-            Look { find, scale },
-            vec![],
-        ),
+        // Once rows were added or taken away the order a sort gives no longer fits the rows.
+        TableIn::PressHeader(column)
+            if column < params.columns && cells.edits.log.rows == RowOrder::AsFile =>
+        {
+            (
+                sheet,
+                rows,
+                ColumnSort::after_press(sort, column),
+                Look { find, scale, cells },
+                vec![],
+            )
+        }
         TableIn::PressHeader(_) | TableIn::Elapsed => stay(rows, find, vec![]),
+        TableIn::Typing(_)
+        | TableIn::EditAt(..)
+        | TableIn::FocusCell(..)
+        | TableIn::StepCell(_)
+        | TableIn::AddRow
+        | TableIn::DeleteRows
+        | TableIn::Session(_) => {
+            let worked = cells::apply((rows, sort, cells), input, params);
+            (
+                sheet,
+                worked.rows,
+                worked.sort,
+                Look {
+                    find,
+                    scale,
+                    cells: worked.cells,
+                },
+                worked.outs,
+            )
+        }
         TableIn::Reseat(moved) => match rows.is_empty() {
             true => stay(rows, find, vec![]),
             false => stay(moved, find, vec![]),
@@ -229,6 +278,7 @@ fn advance(
             Look {
                 find,
                 scale: scale.stepped(dir),
+                cells,
             },
             vec![],
         ),
@@ -239,6 +289,7 @@ fn advance(
             Look {
                 find,
                 scale: ContentScale::ACTUAL,
+                cells,
             },
             vec![],
         ),

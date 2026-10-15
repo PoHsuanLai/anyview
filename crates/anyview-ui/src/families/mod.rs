@@ -3,6 +3,7 @@
 
 mod card;
 mod found;
+mod inline_edit;
 mod media;
 mod pdf;
 mod peek_only;
@@ -44,7 +45,9 @@ pub(crate) use text::{Mark, Snippet, clip, cut};
 pub(crate) use tree::search_tree;
 pub use tree::{TreeDoc, TreeStageView};
 pub(crate) use unavailable::{UnavailableCard, listed, note_of};
-pub use view::{Area, FrameLook, Held, HitLine, Leaving, LoadedDoc, StageCx, StageView};
+pub use view::{
+    Area, EditDone, FrameLook, Held, HitLine, Leaving, LoadedDoc, SaveBytes, StageCx, StageView,
+};
 
 /// The Kind row of the file `src`: what `sniffed` is in a person's words (`AVI video`, `BIN file`),
 /// never its media type.

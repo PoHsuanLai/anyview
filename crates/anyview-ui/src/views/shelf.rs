@@ -107,6 +107,9 @@ pub(super) struct EditShelf {
     pub writing: Signal<Option<anyview_text::Revision>>,
     /// Whether the document is behind the file.
     pub doc: Signal<Doc>,
+    /// The state of a table's or a tree's edits the host is writing: its stamp, so the save marks
+    /// that state and no later one.
+    pub data_writing: Signal<Option<anyview_text::EditStamp>>,
 }
 
 impl Shelf {
@@ -138,6 +141,7 @@ impl Shelf {
                 settle: use_signal(|| Settle::Idle),
                 writing: use_signal(|| None),
                 doc: use_signal(|| Doc::Current),
+                data_writing: use_signal(|| None),
             },
             platform,
             pane_chrome: PaneChrome::default(),

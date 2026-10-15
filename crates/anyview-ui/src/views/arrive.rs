@@ -2,6 +2,7 @@
 //! was asked for, and one for a file the person has left is dropped here or by the machine.
 
 use super::carry::Carry;
+use super::data_edit;
 use super::editing;
 use super::session::Probe;
 use crate::families::{FoundHits, Held, SortedOrder};
@@ -34,6 +35,11 @@ pub(super) fn arrived(done: Done, c: &Carry) {
         }
         Done::Sorted { ticket, order } => sorted(c, ticket, order),
         Done::EditText { ticket, result } => editing::read(c, ticket, result),
+        Done::DataBytes {
+            ticket,
+            stamp,
+            result,
+        } => data_edit::built(c, ticket, stamp, result),
         Done::Saved { path, end } => editing::saved(c, &path, end),
         Done::Found {
             ticket,

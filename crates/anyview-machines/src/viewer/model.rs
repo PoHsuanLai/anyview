@@ -101,7 +101,7 @@ pub enum Trashing {
 
 impl Viewer {
     /// Whether going away from the file shown would lose changes that are not saved: a picture's
-    /// edits, a PDF's fields and marks, or a text's.
+    /// edits, a PDF's fields and marks, a text's, or a table's or tree's.
     #[must_use]
     pub fn unsaved(&self) -> bool {
         let picture = (self.picture.is_edited() && matches!(self.stage, Stage::Raster(_)))
@@ -111,7 +111,8 @@ impl Viewer {
             .stage
             .edited()
             .is_some_and(|edited| edited.changes == Changes::Unsaved);
-        picture || trim || text
+        let data = self.stage.data_changes() == Changes::Unsaved;
+        picture || trim || text || data
     }
 
     /// A viewer launched in `presentation` (a quick look, a window, a background session): it is

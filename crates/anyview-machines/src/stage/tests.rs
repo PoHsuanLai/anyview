@@ -240,6 +240,7 @@ fn escape_undoes_what_the_stage_has_open() {
         sort: None,
         find: Some(StageFind::asked(TypedText::from_static("cat"))),
         scale: ContentScale::ACTUAL,
+        cells: Default::default(),
     });
     assert_eq!(
         table_finding.dismissal(),
@@ -257,6 +258,7 @@ fn escape_undoes_what_the_stage_has_open() {
         row: RowNo(2),
         find: None,
         scale: ContentScale::ACTUAL,
+        edits: Default::default(),
     });
     assert_eq!(
         tree_cursor.dismissal(),
@@ -300,7 +302,11 @@ fn presses_stand_for_commands() {
             Some(StageCommand::SeekBack),
         ),
         ("page down", key(&[PageDown]), Some(StageCommand::NextPage)),
-        ("bare right walks the sequence instead", key(&[Right]), None),
+        (
+            "bare right steps a cell of a table, and walks the sequence elsewhere",
+            key(&[Right]),
+            Some(StageCommand::NextCell),
+        ),
         (
             "home scrolls to the start of a text",
             key(&[Home]),
@@ -433,5 +439,166 @@ fn the_line_and_edge_keys_scroll_a_pdf_as_they_scroll_a_text() {
     ];
     for (name, command, want) in cases {
         assert_eq!(stage.input_for(command, &params), want, "{name}");
+    }
+}
+
+#[test]
+fn editing_commands_are_offered_only_where_the_open_file_takes_them() {
+    use crate::stage::data_edits::{
+        DataEdits, EditDepth, EditLog, EditSessionIn, TypingIn, TypingSeed,
+    };
+    let saved = Stage::Table(TableStage::Selected {
+        sheet: SheetNo(0),
+        rows: ds_core::selection::RowSelection::single(2),
+        sort: None,
+        find: None,
+        scale: ContentScale::ACTUAL,
+        cells: Cells::NONE,
+    });
+    let unsaved = Stage::Table(TableStage::Selected {
+        sheet: SheetNo(0),
+        rows: ds_core::selection::RowSelection::single(2),
+        sort: None,
+        find: None,
+        scale: ContentScale::ACTUAL,
+        cells: Cells {
+            focus: CellFocus::Row,
+            edits: DataEdits {
+                log: EditLog {
+                    changes: Changes::Unsaved,
+                    undo: EditDepth(1),
+                    ..EditLog::NONE
+                },
+                typing: TypingState::Idle,
+            },
+        },
+    });
+    let node = Stage::Tree(TreeStage::Selected {
+        open: anyview_core::OpenNodes::top_level(),
+        row: RowNo(2),
+        find: None,
+        scale: ContentScale::ACTUAL,
+        edits: DataEdits::NONE,
+    });
+    let editable = StageParams {
+        table: TableParams {
+            editable: Editable::Yes,
+            ..TableParams::default()
+        },
+        tree: TreeParams {
+            editable: Editable::Yes,
+            under: NodeUnder::Scalar,
+            key: KeyUnder::Present,
+            ..TreeParams::default()
+        },
+        ..StageParams::default()
+    };
+    let read_only = StageParams::default();
+    let value = TypingIn::Begin(TypingSeed::Existing);
+    let table = |input| Some(StageIn::Table(input));
+    let tree = |input| Some(StageIn::Tree(input));
+    // name, stage, parameters, command, input
+    let cases: Vec<(&str, &Stage, &StageParams, StageCommand, Option<StageIn>)> = vec![
+        (
+            "return types into the picked cell",
+            &saved,
+            &editable,
+            StageCommand::Edit,
+            table(TableIn::Typing(value.clone())),
+        ),
+        (
+            "a file that cannot be edited offers no typing",
+            &saved,
+            &read_only,
+            StageCommand::Edit,
+            None,
+        ),
+        (
+            "nor an arrow between cells",
+            &saved,
+            &read_only,
+            StageCommand::NextCell,
+            None,
+        ),
+        (
+            "an arrow steps between cells",
+            &saved,
+            &editable,
+            StageCommand::NextCell,
+            table(TableIn::StepCell(CellStep::Right)),
+        ),
+        (
+            "a row is added and the picked rows taken away",
+            &saved,
+            &editable,
+            StageCommand::AddRow,
+            table(TableIn::AddRow),
+        ),
+        (
+            "taken away",
+            &saved,
+            &editable,
+            StageCommand::DeletePicked,
+            table(TableIn::DeleteRows),
+        ),
+        (
+            "save waits for changes",
+            &saved,
+            &editable,
+            StageCommand::Save,
+            None,
+        ),
+        (
+            "save with changes",
+            &unsaved,
+            &editable,
+            StageCommand::Save,
+            table(TableIn::Session(EditSessionIn::Save)),
+        ),
+        (
+            "a table has no node to add",
+            &saved,
+            &editable,
+            StageCommand::AddItem,
+            None,
+        ),
+        (
+            "return types into a value of the tree",
+            &node,
+            &editable,
+            StageCommand::Edit,
+            tree(TreeIn::Typing(value)),
+        ),
+        (
+            "shift return renames the key",
+            &node,
+            &editable,
+            StageCommand::RenameKey,
+            tree(TreeIn::RenameKey),
+        ),
+        (
+            "a node is added",
+            &node,
+            &editable,
+            StageCommand::AddItem,
+            tree(TreeIn::AddItem),
+        ),
+        (
+            "and taken away",
+            &node,
+            &editable,
+            StageCommand::DeletePicked,
+            tree(TreeIn::DeleteItem),
+        ),
+        (
+            "a tree offers nothing on a file that cannot be edited",
+            &node,
+            &read_only,
+            StageCommand::AddItem,
+            None,
+        ),
+    ];
+    for (name, stage, params, command, want) in cases {
+        assert_eq!(stage.input_for(command, params), want, "{name}");
     }
 }

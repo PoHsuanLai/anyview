@@ -580,3 +580,183 @@ fn the_same_rows_stay_picked_when_a_sort_moves_them() {
         "the sorted order puts the same row of the file one place down"
     );
 }
+
+/// The bytes of the save the window asked of its host last, if it asked.
+fn saved_bytes(requests: &support::Requests) -> Option<Vec<u8>> {
+    requests.lock().unwrap().iter().rev().find_map(|request| {
+        if let anyview_ui::HostRequest::SaveText(save) = request {
+            Some(save.clone().into_bytes())
+        } else {
+            None
+        }
+    })
+}
+
+/// A window on a new file of `name` holding `body`, and what the window asks of its host.
+fn editing(
+    name: &str,
+    body: &str,
+) -> (
+    tempfile::TempDir,
+    Harness,
+    support::Requests,
+    anyview_ui::Edge,
+    PathBuf,
+) {
+    let dir = tempfile::tempdir().unwrap();
+    let path = std::fs::canonicalize({
+        let path = dir.path().join(name);
+        std::fs::write(&path, body).unwrap();
+        path
+    })
+    .unwrap();
+    let (mut harness, requests, edge) = wired(
+        std::slice::from_ref(&path),
+        0,
+        Appearance::default(),
+        Wiring::default(),
+    );
+    settle(&mut harness);
+    harness.send(Input::pointer_move(Point {
+        x: Px(VIEW.width as f32 / 2.0),
+        y: Px(VIEW.height as f32 / 2.0),
+    }));
+    settle(&mut harness);
+    (dir, harness, requests, edge, path)
+}
+
+/// The first cell of the first row, which is held in place beside the row number.
+const FIRST_CELL: &str = ".viewer-held:not(.viewer-row-number)";
+
+#[test]
+fn a_cell_is_typed_into_where_it_is_and_command_s_writes_the_file_with_only_that_cell_changed() {
+    let (_dir, mut harness, requests, edge, path) =
+        editing("scores.csv", "name,qty\nann,1\nbob,2\n");
+    // A double-click types into the cell under it.
+    let at = harness.centre(FIRST_CELL).expect("the first cell");
+    harness.send(Input::click(at));
+    harness.send(Input::click(at));
+    settle(&mut harness);
+    assert_eq!(
+        harness.count(".viewer-inline-edit"),
+        1,
+        "a field in the cell"
+    );
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        0,
+        "nothing is changed yet"
+    );
+    type_text(&mut harness, "z");
+    // Tab takes the text and goes to the cell on the right; the first cell is done with.
+    press(&mut harness, ShortcutKey::Tab);
+    assert_eq!(
+        harness.count(".viewer-inline-edit"),
+        0,
+        "Tab takes the text"
+    );
+    assert_eq!(
+        harness.count(".viewer-cell-focus"),
+        1,
+        "the cursor is on a cell"
+    );
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        1,
+        "the title bar's dot says there are unsaved changes"
+    );
+    chord(&mut harness, 's');
+    settle(&mut harness);
+    let written = String::from_utf8(saved_bytes(&requests).expect("a save was asked")).unwrap();
+    assert_eq!(
+        written, "name,qty\nannz,1\nbob,2\n",
+        "a double-click types after the cell's text, and only that cell differs"
+    );
+    // The host wrote it and says so: the dot goes.
+    edge.saved(
+        anyview_core::FilePath::new(&path).unwrap(),
+        anyview_ui::SaveEnd::Written,
+    );
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-titlebar-edited"), 0, "saved");
+}
+
+#[test]
+fn return_takes_a_cell_and_goes_down_and_a_row_is_added_and_taken_away_from_the_keyboard() {
+    let (_dir, mut harness, requests, _edge, _path) =
+        editing("scores.csv", "name,qty\nann,1\nbob,2\n");
+    press(&mut harness, ShortcutKey::Down);
+    press(&mut harness, ShortcutKey::Right);
+    // A key typed on the picked cell begins typing into it; Return takes the text and goes down.
+    type_text(&mut harness, "x");
+    assert_eq!(harness.count(".viewer-inline-edit"), 1);
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(harness.count(".viewer-inline-edit"), 0);
+    // Option Down adds a row below the one the cursor is on, which is picked.
+    harness.send(Input::chord(&[ShortcutKey::Alt], ShortcutKey::Down));
+    settle(&mut harness);
+    assert_eq!(
+        status(&harness),
+        "3 rows \u{b7} 2 columns",
+        "a row was added"
+    );
+    // Delete takes the picked row away.
+    press(&mut harness, ShortcutKey::Delete);
+    assert_eq!(
+        status(&harness),
+        "2 rows \u{b7} 2 columns",
+        "and taken away"
+    );
+    chord(&mut harness, 's');
+    settle(&mut harness);
+    let written = String::from_utf8(saved_bytes(&requests).expect("a save was asked")).unwrap();
+    assert_eq!(
+        written, "name,qty\nx,1\nbob,2\n",
+        "a key typed on a picked cell takes its place; the added row is gone again"
+    );
+}
+
+#[test]
+fn a_json_value_is_typed_into_on_return_and_the_file_keeps_its_own_layout_when_saved() {
+    let original = "{\n  \"name\": \"anyview\",\n  \"n\": 3\n}\n";
+    let (_dir, mut harness, requests, _edge, _path) = editing("tree.json", original);
+    // The root, then its first entry.
+    press(&mut harness, ShortcutKey::Down);
+    press(&mut harness, ShortcutKey::Down);
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(
+        harness.count(".viewer-inline-edit"),
+        1,
+        "the value is a field"
+    );
+    type_text(&mut harness, "!");
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(harness.count(".viewer-inline-edit"), 0);
+    chord(&mut harness, 's');
+    settle(&mut harness);
+    let written = String::from_utf8(saved_bytes(&requests).expect("a save was asked")).unwrap();
+    assert_eq!(
+        written, "{\n  \"name\": \"anyview!\",\n  \"n\": 3\n}\n",
+        "the value changed, and the indentation and the other entry are as they were"
+    );
+}
+
+#[test]
+fn command_z_in_a_cell_takes_back_the_typing_before_any_edit() {
+    let (_dir, mut harness, _requests, _edge, _path) =
+        editing("scores.csv", "name,qty\nann,1\nbob,2\n");
+    let at = harness.centre(FIRST_CELL).expect("the first cell");
+    harness.send(Input::click(at));
+    harness.send(Input::click(at));
+    settle(&mut harness);
+    type_text(&mut harness, "z");
+    // Numbers' first Undo while a cell is typed in takes back the typing; the field stays open.
+    chord(&mut harness, 'z');
+    assert_eq!(harness.count(".viewer-inline-edit"), 1, "still typing");
+    press(&mut harness, ShortcutKey::Enter);
+    assert_eq!(
+        harness.count(".ds-titlebar-edited"),
+        0,
+        "the cell holds what it held, so nothing is changed"
+    );
+}

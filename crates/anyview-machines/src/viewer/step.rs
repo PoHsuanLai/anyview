@@ -640,7 +640,8 @@ fn file_key(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> St
     }
 }
 
-/// ⌘Z and ⇧⌘Z: a trim, an edit of the picture, or a field or mark of the PDF that is not saved is
+/// ⌘Z and ⇧⌘Z: a trim, an edit of the picture, a field or mark of the PDF, or an edit of a table's
+/// cells or a tree's nodes that is not saved is
 /// taken back or done again first; with none, it is the file's last save that is.
 fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> Step {
     let trimmed = match rewind {
@@ -666,9 +667,11 @@ fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> 
         Rewind::Redo if viewer.picture.can_redo() => Some(PictureEditIn::Redo),
         Rewind::Undo | Rewind::Redo => None,
     };
-    match input {
-        Some(input) => picture(viewer, input, at, params),
-        None => (viewer, vec![ViewerOut::Rewind(rewind)]),
+    match (input, viewer.stage.rewind_input(rewind)) {
+        (Some(input), _) => picture(viewer, input, at, params),
+        // Then the edits of a table's cells or a tree's nodes that are not saved.
+        (None, Some(input)) => stage(viewer, input, at, params),
+        (None, None) => (viewer, vec![ViewerOut::Rewind(rewind)]),
     }
 }
 

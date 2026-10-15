@@ -100,7 +100,11 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             Act::Save
                 if matches!(
                     regions.stage,
-                    Stage::Raster(_) | Stage::Media(_) | Stage::Pdf(_)
+                    Stage::Raster(_)
+                        | Stage::Media(_)
+                        | Stage::Pdf(_)
+                        | Stage::Table(_)
+                        | Stage::Tree(_)
                 ) =>
             {
                 Some(Route::Save)
@@ -126,6 +130,7 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             | Act::NextSheet
             | Act::PreviousSheet
             | Act::SelectAll
+            | Act::AddRow
             | Act::File(_) => None,
         },
         Press::Key(shortcut) => match shortcut.keys().as_slice() {

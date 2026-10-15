@@ -63,6 +63,19 @@ const TABLE: Stage = Stage::Table(crate::stage::TableStage::Browsing {
     sort: None,
     find: None,
     scale: crate::stage::ContentScale::ACTUAL,
+    cells: crate::stage::Cells {
+        focus: crate::stage::CellFocus::Row,
+        edits: crate::stage::DataEdits {
+            log: crate::stage::EditLog {
+                changes: crate::stage::Changes::Saved,
+                undo: crate::stage::EditDepth(0),
+                redo: crate::stage::EditDepth(0),
+                rows: crate::stage::RowOrder::AsFile,
+                revision: crate::stage::EditRevision(0),
+            },
+            typing: crate::stage::TypingState::Idle,
+        },
+    },
 });
 const TEXT: Stage = Stage::Text(TextStage::Reading {
     place: crate::stage::TextPlace {

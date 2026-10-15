@@ -186,7 +186,7 @@ pub(crate) fn search_tree(
     else {
         return FoundHits::default();
     };
-    let tree = &doc.tree;
+    let tree = &doc.now();
     let root_path = TreePath::root();
     let Ok(root) = tree.row(&root_path) else {
         return FoundHits::default();
@@ -246,7 +246,7 @@ pub(super) fn show(doc: &TreeDoc, stage: &Stage, found: &FoundHits, hit: HitInde
             opened.push(above);
         }
     }
-    match doc.tree.visible_index(&open, &node.path) {
+    match doc.now().visible_index(&open, &node.path) {
         Some(row) => vec![StageIn::Tree(TreeIn::Show {
             opened,
             row: RowNo(row),
@@ -265,11 +265,12 @@ mod tests {
         r#"{"city":"Lima","people":[{"name":"Ana","home":"Lima"},{"name":"Luis"}],"count":3}"#;
 
     fn doc() -> TreeDoc {
-        TreeDoc {
-            tree: Tree::parse(DOC, TreeFormat::Json).unwrap(),
-            coverage: Coverage::Whole,
-            facts: Facts::empty(),
-        }
+        TreeDoc::new(
+            Tree::parse(DOC, TreeFormat::Json).unwrap(),
+            Coverage::Whole,
+            Facts::empty(),
+            None,
+        )
     }
 
     fn search(query: &str) -> FoundHits {
@@ -354,6 +355,7 @@ mod tests {
             open,
             find: None,
             scale: crate::ContentScale::ACTUAL,
+            edits: crate::DataEdits::default(),
         });
         let again = show(&doc(), &open_already, &found, HitIndex(0));
         assert!(

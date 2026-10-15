@@ -37,6 +37,12 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
     ],
     &[file(FileAction::Trim, "Trim\u{2026}")],
     &[
+        stage(StageCommand::AddRow, "Add Row Below"),
+        stage(StageCommand::AddItem, "Add Item Below"),
+        stage(StageCommand::RenameKey, "Rename Key"),
+        stage(StageCommand::DeletePicked, "Delete"),
+    ],
+    &[
         file(FileAction::RotateLeft, "Rotate Left"),
         file(FileAction::RotateRight, "Rotate Right"),
     ],

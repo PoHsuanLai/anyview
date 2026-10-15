@@ -125,8 +125,18 @@ const CASES: &[Row] = &[
         &[],
         StageSupport::Stage,
     ),
-    row(FormatKind::Table, &[], &[], StageSupport::Stage),
-    row(FormatKind::Tree, &[], &[], StageSupport::Stage),
+    row(
+        FormatKind::Table,
+        &[FileAction::SaveCopy, FileAction::RevertTo],
+        &[],
+        StageSupport::Stage,
+    ),
+    row(
+        FormatKind::Tree,
+        &[FileAction::SaveCopy, FileAction::RevertTo],
+        &[],
+        StageSupport::Stage,
+    ),
     row(FormatKind::Font, &[], &[], StageSupport::PeekOnly),
     row(FormatKind::Archive, &[], &[], StageSupport::PeekOnly),
     row(FormatKind::Book, &[], &[], StageSupport::Stage),
@@ -216,7 +226,9 @@ fn edit_actions_appear_exactly_when_the_edit_is_offered() {
                 "{kind:?} {action:?}"
             );
         }
-        let editable = !edits.is_empty();
+        // A table and a tree are edited in place, cell by cell and node by node, with no edit of
+        // the kinds above; they keep versions all the same.
+        let editable = !edits.is_empty() || matches!(kind, FormatKind::Table | FormatKind::Tree);
         assert_eq!(
             actions.contains(&FileAction::RevertTo),
             editable,

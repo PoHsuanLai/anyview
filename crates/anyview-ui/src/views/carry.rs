@@ -2,6 +2,7 @@
 //! what is wanted, and this hands it to a worker, a signal the views read, or the host.
 
 use super::arrive::shown_path;
+use super::data_edit;
 use super::editing;
 use super::pane::PaneSeat;
 use super::shelf::{Dispatch, Doc, Shelf};
@@ -10,7 +11,7 @@ use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
     ChromeOut, EditRequest, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut,
     PresentationOut, SheetIn, SheetOut, Stage, StageIn, StageOut, TableOut, TextIn, TextOut,
-    Ticket, TypedText, ViewerIn, ViewerOut,
+    Ticket, TreeOut, TypedText, ViewerIn, ViewerOut,
 };
 use anyview_core::{Edit, FilePath, FindOptions, Neighbours, Resume};
 use dioxus::prelude::*;
@@ -274,6 +275,19 @@ fn staged(c: &Carry, out: &StageOut) {
         StageOut::Text(TextOut::EndEdit) => return editing::end(c),
         StageOut::Text(TextOut::Save) => return editing::save(c),
         StageOut::Text(TextOut::Wrapped(wrap)) => return editing::wrapped(c, *wrap),
+        StageOut::Table(
+            TableOut::Set { .. }
+            | TableOut::AddRow { .. }
+            | TableOut::DeleteRows { .. }
+            | TableOut::Session(_),
+        )
+        | StageOut::Tree(
+            TreeOut::Set { .. }
+            | TreeOut::Rename { .. }
+            | TreeOut::Add(_)
+            | TreeOut::Delete(_)
+            | TreeOut::Session(_),
+        ) => return data_edit::carry(c, out),
         StageOut::Text(
             TextOut::Remember(_) | TextOut::ScrollTo(_) | TextOut::Show(_) | TextOut::Find(_),
         )

@@ -248,3 +248,191 @@ fn a_table_whose_read_is_interrupted_is_not_returned_half_indexed() {
     );
     assert!(matches!(read, Err(TextError::Interrupted)), "{read:?}");
 }
+
+/// The bytes of `file` after `change` was made to its edits (the first row is the header).
+fn rewritten(bytes: &[u8], change: impl FnOnce(&Table, &mut TableEdits)) -> Vec<u8> {
+    let table = Table::read(file(bytes), Delimiter::Comma, HeaderMode::Present).unwrap();
+    let mut edits = TableEdits::new(table.row_count().0, table.columns().0);
+    change(&table, &mut edits);
+    table.write_edited(&edits).unwrap()
+}
+
+/// Set the cell at `position` and `column`.
+fn set(table: &Table, edits: &mut TableEdits, position: u32, column: u32, text: &str) {
+    let row = edits.row_at(position).unwrap();
+    edits.set_cell(table, row, column, text);
+}
+
+#[test]
+fn a_table_written_after_edits_changes_only_what_was_edited() {
+    type Change = fn(&Table, &mut TableEdits);
+    // name, the file, the change, the file after
+    let cases: Vec<(&str, &[u8], Change, &[u8])> = vec![
+        (
+            "nothing edited: the same bytes, whatever they are",
+            b"\xEF\xBB\xBFh,i\r\n\"a\",1\r\n\r\n\"b, c\",2",
+            |_, _| {},
+            b"\xEF\xBB\xBFh,i\r\n\"a\",1\r\n\r\n\"b, c\",2",
+        ),
+        (
+            "a plain cell",
+            b"h,i\na,1\nb,2\n",
+            |table, edits| set(table, edits, 0, 1, "9"),
+            b"h,i\na,9\nb,2\n",
+        ),
+        (
+            "a quoted cell stays quoted, and the cells beside it are untouched",
+            b"h,i,j\n\"p,q\",1,\"r\"\n",
+            |table, edits| {
+                set(table, edits, 0, 1, "9");
+                set(table, edits, 0, 2, "s");
+            },
+            b"h,i,j\n\"p,q\",9,\"s\"\n",
+        ),
+        (
+            "text that needs quotes gets them",
+            b"h,i\na,1\n",
+            |table, edits| set(table, edits, 0, 0, "say \"hi\", ok"),
+            b"h,i\n\"say \"\"hi\"\", ok\",1\n",
+        ),
+        (
+            "a short row grows to the cell",
+            b"h,i,j\na\n",
+            |table, edits| set(table, edits, 0, 2, "x"),
+            b"h,i,j\na,,x\n",
+        ),
+        (
+            "the byte-order mark and the line endings stay",
+            b"\xEF\xBB\xBFh,i\r\na,1\r\nb,2\r\n",
+            |table, edits| set(table, edits, 1, 0, "z"),
+            b"\xEF\xBB\xBFh,i\r\na,1\r\nz,2\r\n",
+        ),
+        (
+            "a row in the middle is taken away",
+            b"h,i\na,1\nb,2\nc,3\n",
+            |_, edits| edits.delete(&[1]),
+            b"h,i\na,1\nc,3\n",
+        ),
+        (
+            "a run of rows is one gap, whatever order it was asked in",
+            b"h,i\na,1\nb,2\nc,3\nd,4\ne,5\n",
+            |table, edits| {
+                edits.delete(&[2, 1]);
+                set(table, edits, 1, 1, "40");
+            },
+            b"h,i\na,1\nd,40\ne,5\n",
+        ),
+        (
+            "the last row of a file with no final line break",
+            b"h,i\na,1\nb,2",
+            |_, edits| edits.delete(&[1]),
+            b"h,i\na,1\n",
+        ),
+        (
+            "every row taken away leaves the header",
+            b"h,i\na,1\nb,2\n",
+            |_, edits| edits.delete(&[0, 1]),
+            b"h,i\n",
+        ),
+        (
+            "a row added below the last, in the file's line ending",
+            b"h,i\r\na,1\r\n",
+            |table, edits| {
+                let at = edits.insert_below(0);
+                set(table, edits, at, 0, "z");
+            },
+            b"h,i\r\na,1\r\nz,\r\n",
+        ),
+        (
+            "a row added below a last row that has no line break",
+            b"h,i\na,1\nb,2",
+            |table, edits| {
+                let at = edits.insert_below(1);
+                set(table, edits, at, 1, "7");
+            },
+            b"h,i\na,1\nb,2\n,7\n",
+        ),
+        (
+            "a row added between two",
+            b"h,i\na,1\nb,2\n",
+            |_, edits| {
+                edits.insert_below(0);
+            },
+            b"h,i\na,1\n,\nb,2\n",
+        ),
+        (
+            "edits taken back leave the file as it was",
+            b"h,i\na,1\nb,2\n",
+            |table, edits| {
+                set(table, edits, 0, 0, "x");
+                edits.delete(&[1]);
+                edits.insert_below(0);
+                for _ in 0..3 {
+                    edits.undo();
+                }
+            },
+            b"h,i\na,1\nb,2\n",
+        ),
+    ];
+    for (name, before, change, after) in cases {
+        let got = rewritten(before, change);
+        assert_eq!(
+            String::from_utf8_lossy(&got),
+            String::from_utf8_lossy(after),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn the_rows_of_an_edited_table_keep_their_names_as_rows_come_and_go() {
+    let table = Table::read(
+        file(b"h\na\nb\nc\nd\n"),
+        Delimiter::Comma,
+        HeaderMode::Present,
+    )
+    .unwrap();
+    let mut edits = TableEdits::new(table.row_count().0, table.columns().0);
+    assert!(!edits.is_modified() && !edits.is_reshaped());
+    assert_eq!(edits.rows(), 4);
+    edits.delete(&[1]);
+    let new = edits.insert_below(1);
+    assert_eq!((edits.rows(), new), (4, 2));
+    let order: Vec<_> = (0..4).map(|at| edits.row_at(at)).collect();
+    assert_eq!(
+        order,
+        vec![
+            Some(RowRef::File(0)),
+            Some(RowRef::File(2)),
+            Some(RowRef::New(0)),
+            Some(RowRef::File(3)),
+        ]
+    );
+    assert_eq!(edits.row_at(4), None);
+    assert_eq!(edits.position_of(RowRef::File(1)), None, "taken away");
+    assert_eq!(edits.position_of(RowRef::File(3)), Some(3));
+    assert!(edits.is_reshaped() && edits.is_modified());
+    set(&table, &mut edits, 1, 0, "C");
+    assert_eq!(edits.cell(&table, RowRef::File(2), 0), "C");
+    assert_eq!(edits.cell(&table, RowRef::File(3), 0), "d");
+    assert_eq!((edits.undoable(), edits.redoable()), (3, 0));
+    edits.undo();
+    assert_eq!(edits.cell(&table, RowRef::File(2), 0), "c");
+    edits.redo();
+    assert_eq!(edits.cell(&table, RowRef::File(2), 0), "C");
+    let saved = edits.stamp();
+    edits.mark_saved(saved);
+    assert!(!edits.is_modified());
+    edits.undo();
+    assert!(edits.is_modified());
+}
+
+#[test]
+fn a_table_that_is_not_a_utf8_file_is_not_written() {
+    let latin = Table::read(file(b"h\n\xE9\n"), Delimiter::Comma, HeaderMode::Present).unwrap();
+    assert!(!latin.can_write());
+    let held = parse("h\na\n", HeaderMode::Present);
+    assert!(!held.can_write());
+    let utf8 = Table::read(file(b"h\na\n"), Delimiter::Comma, HeaderMode::Present).unwrap();
+    assert!(utf8.can_write());
+}

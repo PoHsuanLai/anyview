@@ -6,7 +6,8 @@ use anyview_core::{
     Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
-use anyview_text::{Coverage, Tree};
+use anyview_text::{Coverage, EditText, Tree, TreeSession};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 /// The most bytes of a file the tree scans. The scan holds an index, not the file, so this is far
 /// above what a person opens; a file longer than this shows its start.
@@ -15,12 +16,51 @@ pub const TREE_BYTES: anyview_core::ByteLen = anyview_core::ByteLen(1024 * 1024 
 /// An opened JSON or JSON Lines file.
 #[derive(Debug)]
 pub struct TreeDoc {
-    /// The document, or for JSON Lines the array of its values.
+    /// The document as the file held it, or for JSON Lines the array of its values.
     pub tree: Tree,
     /// Whether the tree reaches the end of the file.
     pub coverage: Coverage,
     /// The rows of the Info tab.
     pub facts: Facts,
+    /// The document held for editing, with the edits made to it, beside the document so the view
+    /// that draws it and the save that writes it see the same ones. `None` for a file that cannot
+    /// be written back (not UTF-8, too large, or only its start read).
+    session: Mutex<Option<TreeSession>>,
+}
+
+impl TreeDoc {
+    /// A document of `tree`, edited through `session` when there is one.
+    pub(super) fn new(
+        tree: Tree,
+        coverage: Coverage,
+        facts: Facts,
+        session: Option<TreeSession>,
+    ) -> Self {
+        TreeDoc {
+            tree,
+            coverage,
+            facts,
+            session: Mutex::new(session),
+        }
+    }
+
+    /// The edits, when the file can be edited.
+    pub(crate) fn session(&self) -> MutexGuard<'_, Option<TreeSession>> {
+        self.session.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The document as it is now: with the edits made to it, when it is edited.
+    pub(crate) fn now(&self) -> Tree {
+        match self.session().as_ref() {
+            Some(session) => session.tree().clone(),
+            None => self.tree.clone(),
+        }
+    }
+
+    /// Whether the nodes can be edited.
+    pub(crate) fn is_editable(&self) -> bool {
+        self.session().is_some()
+    }
 }
 
 /// Open the JSON file `src`. Blocking.
@@ -29,6 +69,12 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<TreeD
         return Err(OpenError::Unrecognised);
     };
     let (tree, coverage) = Tree::read_until(src.on_disk(), *format, TREE_BYTES, stop)?;
+    let session = match coverage {
+        Coverage::Whole => EditText::read(src.path().as_path())
+            .ok()
+            .and_then(|text| TreeSession::open(text, *format).ok()),
+        Coverage::Prefix => None,
+    };
     let root = tree.row(&anyview_core::TreePath::root())?;
     let entries = match coverage {
         Coverage::Whole => root.children.0.to_string(),
@@ -38,9 +84,5 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<TreeD
         .with(FactLabel::Kind, crate::families::kind_row(src, sniffed))
         .with(FactLabel::Size, FactValue::size(src.stamp().len))
         .with_fact(Fact::new(FactLabel::Items, FactValue::text(entries)).in_group(FactGroup::Data));
-    Ok(TreeDoc {
-        tree,
-        coverage,
-        facts,
-    })
+    Ok(TreeDoc::new(tree, coverage, facts, session))
 }

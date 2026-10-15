@@ -13,6 +13,7 @@ use crate::{
 };
 use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
+use anyview_text::EditStamp;
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::{Point, Size};
@@ -61,6 +62,27 @@ impl PartialEq for LoadedDoc {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.view, &other.view)
     }
+}
+
+/// What a document did with the edits its stage asked for.
+#[derive(Debug, Default)]
+pub struct EditDone {
+    /// What the stage is told: the edits as they stand, and where the cursor goes.
+    pub tell: Vec<StageIn>,
+    /// What is to be written over the file, when the edit was a save.
+    pub write: SaveBytes,
+}
+
+/// What a save of a document's edits comes to.
+#[derive(Debug, Default)]
+pub enum SaveBytes {
+    /// No save was asked.
+    #[default]
+    Nothing,
+    /// These are the file's new bytes; the state of the edits they are is told with them.
+    Bytes(Vec<u8>, EditStamp),
+    /// A worker builds the bytes: the job is for the workers.
+    Building(Job),
 }
 
 /// A shared piece of a document or window state that compares by identity.
@@ -302,6 +324,22 @@ pub trait StageView: 'static {
     ) -> Option<String> {
         None
     }
+    /// What carrying out the edits `out` asks of the document comes to, for a family whose files
+    /// are edited in place: the stage is told what the edits stand at, and a save says what is to
+    /// be written. `order` is the order the rows are shown in, when they are sorted.
+    fn edit(
+        _doc: &Arc<Self::Doc>,
+        _ticket: Ticket,
+        _stage: &Stage,
+        _out: &crate::StageOut,
+        _order: Option<&super::SortedOrder>,
+    ) -> EditDone {
+        EditDone::default()
+    }
+    /// The edits as the stage is to hear them once the file holds the state of `stamp`.
+    fn written(_doc: &Self::Doc, _stamp: EditStamp) -> Vec<StageIn> {
+        Vec::new()
+    }
     /// The first `upto` hits of the find that is up, as the palette lists them, for a family that
     /// can search.
     fn hit_lines(_doc: &Arc<Self::Doc>, _cx: &StageCx, _upto: u32) -> Vec<HitLine> {
@@ -369,6 +407,14 @@ pub(crate) trait DocView: Debug + Send + Sync {
         rows: &RowSelection,
         sorted: Option<&super::SortedOrder>,
     ) -> Option<String>;
+    fn edit(
+        &self,
+        ticket: Ticket,
+        stage: &Stage,
+        out: &crate::StageOut,
+        order: Option<&super::SortedOrder>,
+    ) -> EditDone;
+    fn written(&self, stamp: EditStamp) -> Vec<StageIn>;
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
@@ -468,6 +514,20 @@ impl<S: StageView> DocView for Loaded<S> {
         sorted: Option<&super::SortedOrder>,
     ) -> Option<String> {
         S::copy_text(&self.doc, stage, rows, sorted)
+    }
+
+    fn edit(
+        &self,
+        ticket: Ticket,
+        stage: &Stage,
+        out: &crate::StageOut,
+        order: Option<&super::SortedOrder>,
+    ) -> EditDone {
+        S::edit(&self.doc, ticket, stage, out, order)
+    }
+
+    fn written(&self, stamp: EditStamp) -> Vec<StageIn> {
+        S::written(&self.doc, stamp)
     }
 
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine> {

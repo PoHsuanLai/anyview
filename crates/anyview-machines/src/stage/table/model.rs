@@ -1,8 +1,10 @@
 //! The table stage's states, inputs and parameters.
 
 use super::column::ColumnSort;
+use crate::stage::data_edits::{DataEdits, EditSessionIn, EditSessionOut, TypingIn, TypingState};
 use crate::stage::find::{FindOut, HitCount, HitIndex, StageFind};
 use crate::stage::row::{RowNo, RowStep};
+use crate::stage::text::Editable;
 use crate::stage::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use ds_core::selection::{Pick, RowSelection};
@@ -14,6 +16,46 @@ pub struct SheetNo(pub u32);
 /// How many sheets the open file has.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct SheetTotal(pub u32);
+
+/// A column of the sheet, zero-based, among the file's columns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub struct ColumnNo(pub u32);
+
+/// Whether the cursor is on a whole row or on one cell of it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CellFocus {
+    /// On the row: the arrow keys move between rows.
+    #[default]
+    Row,
+    /// On this cell of the row: Left and Right move between the cells.
+    Cell(ColumnNo),
+}
+
+/// The cell cursor and the edits of a delimited sheet.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Cells {
+    /// Where the cursor is within its row.
+    pub focus: CellFocus,
+    /// What is typed in, and what the window says of the edits.
+    pub edits: DataEdits,
+}
+
+impl Cells {
+    /// The cursor on the row, with nothing edited.
+    pub const NONE: Cells = Cells {
+        focus: CellFocus::Row,
+        edits: DataEdits::NONE,
+    };
+}
+
+/// Which way the cell cursor steps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CellStep {
+    /// To the cell before.
+    Left,
+    /// To the cell after.
+    Right,
+}
 
 /// What the table stage is doing. The sort is only a way of looking at the rows: the rows the
 /// selection and the sort name are positions in the order the view shows, and the file is never
@@ -32,6 +74,8 @@ pub enum TableStage {
         find: Option<StageFind>,
         /// How large the rows are drawn.
         scale: ContentScale,
+        /// The cell cursor and the edits; no cell is under a cursor with no row.
+        cells: Cells,
     },
     /// Reading a sheet with one row or several picked; never an empty selection.
     Selected {
@@ -45,6 +89,8 @@ pub enum TableStage {
         find: Option<StageFind>,
         /// How large the rows are drawn.
         scale: ContentScale,
+        /// The cell cursor and the edits.
+        cells: Cells,
     },
 }
 
@@ -56,7 +102,7 @@ impl TableStage {
         sort: Option<ColumnSort>,
         look: Look,
     ) -> Self {
-        let Look { find, scale } = look;
+        let Look { find, scale, cells } = look;
         match rows.is_empty() {
             false => TableStage::Selected {
                 sheet,
@@ -64,12 +110,21 @@ impl TableStage {
                 sort,
                 find,
                 scale,
+                cells,
             },
+            // With no row under the cursor there is no cell, and nothing is typed in.
             true => TableStage::Browsing {
                 sheet,
                 sort,
                 find,
                 scale,
+                cells: Cells {
+                    focus: CellFocus::Row,
+                    edits: DataEdits {
+                        typing: TypingState::Idle,
+                        ..cells.edits
+                    },
+                },
             },
         }
     }
@@ -77,12 +132,33 @@ impl TableStage {
     /// The find and the zoom this stage carries.
     pub(super) fn look(&self) -> Look {
         match self {
-            TableStage::Browsing { find, scale, .. } | TableStage::Selected { find, scale, .. } => {
-                Look {
-                    find: find.clone(),
-                    scale: *scale,
-                }
+            TableStage::Browsing {
+                find, scale, cells, ..
             }
+            | TableStage::Selected {
+                find, scale, cells, ..
+            } => Look {
+                find: find.clone(),
+                scale: *scale,
+                cells: cells.clone(),
+            },
+        }
+    }
+
+    /// The cell cursor and the edits.
+    #[must_use]
+    pub fn cells(&self) -> &Cells {
+        match self {
+            TableStage::Browsing { cells, .. } | TableStage::Selected { cells, .. } => cells,
+        }
+    }
+
+    /// The column the cell cursor is on, when it is on a cell and not a whole row.
+    #[must_use]
+    pub fn column(&self) -> Option<ColumnNo> {
+        match self.cells().focus {
+            CellFocus::Row => None,
+            CellFocus::Cell(column) => Some(column),
         }
     }
 
@@ -150,15 +226,18 @@ impl Default for TableStage {
             sort: None,
             find: None,
             scale: ContentScale::ACTUAL,
+            cells: Cells::default(),
         }
     }
 }
 
-/// What the stage carries whichever row the cursor is on: the find that is up and the zoom.
+/// What the stage carries whichever row the cursor is on: the find that is up, the zoom, and the
+/// cells.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Look {
     pub(super) find: Option<StageFind>,
     pub(super) scale: ContentScale,
+    pub(super) cells: Cells,
 }
 
 /// What moves the stage.
@@ -214,6 +293,20 @@ pub enum TableIn {
     ZoomStep(ZoomDir),
     /// Draw the rows at actual size.
     ZoomActual,
+    /// Typing into the cell under the cursor: begun by Return or a key, taken or let go.
+    Typing(TypingIn),
+    /// A double-click on this cell: its row alone is picked and its text is typed into.
+    EditAt(RowNo, ColumnNo),
+    /// A click on this cell: its row alone is picked and the cell cursor goes to it.
+    FocusCell(RowNo, ColumnNo),
+    /// Left or Right: the cell cursor steps along the row.
+    StepCell(CellStep),
+    /// Add an empty row below the cursor's row.
+    AddRow,
+    /// Take away the picked rows.
+    DeleteRows,
+    /// The edits as a whole: undo, redo, save, let go, and what the window says of them.
+    Session(EditSessionIn),
     /// The clock; the stage keeps no timer.
     Elapsed,
 }
@@ -232,6 +325,33 @@ pub enum TableOut {
     Find(FindOut),
     /// Put these picked rows (places in the order shown) on the clipboard as text.
     Copy(RowSelection),
+    /// Make this text the cell at this row (a place in the order shown) and column.
+    Set {
+        /// The row.
+        row: RowNo,
+        /// The column.
+        column: ColumnNo,
+        /// What the cell holds from now on.
+        text: TypedText,
+        /// The sort the rows were in when the row was named: the row is a place in that order.
+        sort: Option<ColumnSort>,
+    },
+    /// Add an empty row below this one (a place in the order shown).
+    AddRow {
+        /// The row.
+        below: RowNo,
+        /// The sort the rows were in when the row was named.
+        sort: Option<ColumnSort>,
+    },
+    /// Take away these rows (places in the order shown).
+    DeleteRows {
+        /// The rows.
+        rows: RowSelection,
+        /// The sort the rows were in when they were named.
+        sort: Option<ColumnSort>,
+    },
+    /// Something about the edits as a whole.
+    Session(EditSessionOut),
 }
 
 /// What the stage needs to know of the open file.
@@ -245,4 +365,6 @@ pub struct TableParams {
     pub rows: u32,
     /// How many rows fit the room: what a page up or down moves by.
     pub page: u32,
+    /// Whether the cells can be edited and the file written back.
+    pub editable: Editable,
 }

@@ -45,6 +45,8 @@ pub enum WorkKind {
     Sort,
     /// Read a text whole, to edit it.
     EditRead,
+    /// Build a table's file with its edits made, to write it.
+    DataBytes,
     /// Open a neighbour ahead of time.
     Preload,
     /// Read a file's stamp.
@@ -138,6 +140,7 @@ impl Work {
             }
             Job::Sort { .. } => WorkKind::Sort,
             Job::EditRead { .. } => WorkKind::EditRead,
+            Job::DataBytes { .. } => WorkKind::DataBytes,
             Job::Preload { .. } => WorkKind::Preload,
             Job::Stat { .. } => WorkKind::Stat,
             Job::Folder { .. } => WorkKind::Folder,

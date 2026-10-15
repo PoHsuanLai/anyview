@@ -250,6 +250,19 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let state = machine.state()();
     let presentation = state.presentation;
     let palette_open = matches!(state.palette, PaletteState::Open { .. });
+    // The keys come back to the window once a value typed into a cell or a node is taken or let go.
+    let typing_now = state.stage.is_typing();
+    let mut was_typing = use_signal(|| false);
+    use_effect(use_reactive!(|typing_now| {
+        let before = *was_typing.peek();
+        was_typing.set(typing_now);
+        if before
+            && !typing_now
+            && let Some(element) = root.peek().clone()
+        {
+            focus_soon(element);
+        }
+    }));
     // The keys belong to the window again once the palette that held them is closed.
     let editor = shelf.edit.handle;
     use_effect(use_reactive!(|palette_open| {
@@ -563,6 +576,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                     }
                     return;
                 }
+                // A key typed on a picked cell begins typing into it, with that character.
+                if let Some(input) = typed_start(&event, &dispatch) {
+                    event.prevent_default();
+                    dispatch.send(ViewerIn::Stage(input));
+                    return;
+                }
                 event.prevent_default();
                 dispatch.send(ViewerIn::Key(press));
             },
@@ -841,4 +860,22 @@ fn reveal(edge: &crate::Edge, shelf: &Shelf) {
     if let Some(file) = shelf.wanted.peek().clone() {
         edge.request(HostRequest::Reveal(file));
     }
+}
+
+/// The input a key typed now makes of itself, when it is a character typed on a picked cell of an
+/// editable table: the cell is typed into, starting with the character.
+fn typed_start(event: &KeyboardEvent, dispatch: &Dispatch) -> Option<StageIn> {
+    use dioxus::html::ModifiersInteraction as _;
+    let Key::Character(text) = event.key() else {
+        return None;
+    };
+    let command = Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER | Modifiers::ALT;
+    if event.modifiers().intersects(command) {
+        return None;
+    }
+    let stage = dispatch.machine.state().peek().stage.clone();
+    if !matches!(stage, crate::Stage::Table(_)) {
+        return None;
+    }
+    stage.typed_into(TypedText::new(text), &dispatch.params().stage)
 }

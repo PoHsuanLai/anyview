@@ -74,6 +74,48 @@ impl OpenNodes {
         self
     }
 
+    /// The same set after a node was added at position `at` among `parent`'s children: the nodes
+    /// open under the children from there on are one place later.
+    pub fn after_insert(self, parent: &TreePath, at: u32) -> Self {
+        self.moved(parent, |position| {
+            Some(if position >= at {
+                position + 1
+            } else {
+                position
+            })
+        })
+    }
+
+    /// The same set after the child at position `at` of `parent` was taken away: the nodes open
+    /// under it are gone, and those under the children after it are one place earlier.
+    pub fn after_removal(self, parent: &TreePath, at: u32) -> Self {
+        self.moved(parent, |position| match position.cmp(&at) {
+            std::cmp::Ordering::Less => Some(position),
+            std::cmp::Ordering::Equal => None,
+            std::cmp::Ordering::Greater => Some(position - 1),
+        })
+    }
+
+    /// The set with the step below `parent` of every path under it replaced by what `to` says, or
+    /// the path dropped when it says none.
+    fn moved(self, parent: &TreePath, to: impl Fn(u32) -> Option<u32>) -> Self {
+        let depth = parent.depth();
+        OpenNodes(
+            self.0
+                .into_iter()
+                .filter_map(|path| {
+                    if path.depth() <= depth || !path.steps().starts_with(parent.steps()) {
+                        return Some(path);
+                    }
+                    let mut steps = path.0;
+                    let moved = to(steps[depth])?;
+                    steps[depth] = moved;
+                    Some(TreePath(steps))
+                })
+                .collect(),
+        )
+    }
+
     /// The positions, ascending, of `parent`'s children that are open.
     pub fn open_children(&self, parent: &TreePath) -> Vec<u32> {
         let depth = parent.depth();
@@ -115,6 +157,50 @@ mod tests {
         assert_eq!(opened.len(), open.len() + 1);
         let closed = opened.toggled(&a);
         assert_eq!(closed, open);
+    }
+
+    #[test]
+    fn open_nodes_follow_their_nodes_as_siblings_come_and_go() {
+        let open = [
+            path(&[]),
+            path(&[1]),
+            path(&[1, 0]),
+            path(&[2]),
+            path(&[3, 4]),
+        ]
+        .into_iter()
+        .fold(OpenNodes::default(), OpenNodes::opened);
+        let at = |set: &OpenNodes| -> Vec<Vec<u32>> {
+            let mut all: Vec<Vec<u32>> = [
+                path(&[]),
+                path(&[1]),
+                path(&[1, 0]),
+                path(&[2]),
+                path(&[2, 4]),
+                path(&[3]),
+                path(&[3, 4]),
+                path(&[4]),
+                path(&[4, 4]),
+            ]
+            .iter()
+            .filter(|each| set.is_open(each))
+            .map(|each| each.steps().to_vec())
+            .collect();
+            all.sort();
+            all
+        };
+        let inserted = open.clone().after_insert(&path(&[]), 2);
+        assert_eq!(
+            at(&inserted),
+            vec![vec![], vec![1], vec![1, 0], vec![3], vec![4, 4]],
+            "from the new place on, one later"
+        );
+        let removed = open.after_removal(&path(&[]), 1);
+        assert_eq!(
+            at(&removed),
+            vec![vec![], vec![1], vec![2, 4]],
+            "the removed node's are gone and the rest one earlier"
+        );
     }
 
     #[test]

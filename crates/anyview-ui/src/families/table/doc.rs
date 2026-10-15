@@ -10,9 +10,9 @@ use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
-use anyview_text::{CharWidth, Coverage, HeaderMode, RowIndex, Table, Workbook};
+use anyview_text::{CharWidth, Coverage, HeaderMode, RowIndex, Table, TableEdits, Workbook};
 use ds_core::word::Word;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 /// One sheet: its name, its rows and how wide its columns want to be.
 #[derive(Debug)]
@@ -34,6 +34,53 @@ pub struct TableDoc {
     pub sheets: Vec<Arc<SheetDoc>>,
     /// The rows of the Info tab.
     pub facts: Facts,
+    /// The edits made to the cells of a delimited file, held beside the document so the view that
+    /// draws it and the save that writes it see the same ones. `None` for a file that cannot be
+    /// written back (a workbook, a file that is not UTF-8, one too large to be edited).
+    edits: Mutex<Option<TableEdits>>,
+}
+
+/// The most bytes of a delimited file that is edited: saving builds the new file in memory.
+const EDIT_BYTES: u64 = 512 * 1024 * 1024;
+
+impl TableDoc {
+    /// A document of `sheets` whose first can be edited when `edits` says so.
+    pub(super) fn new(sheets: Vec<Arc<SheetDoc>>, facts: Facts, edits: Option<TableEdits>) -> Self {
+        TableDoc {
+            sheets,
+            facts,
+            edits: Mutex::new(edits),
+        }
+    }
+
+    /// The edits, when the file can be edited.
+    pub(crate) fn edits(&self) -> MutexGuard<'_, Option<TableEdits>> {
+        self.edits.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// How many rows the sheet at `at` shows now: with rows added or taken away, the edited count.
+    pub(crate) fn rows_now(&self, at: usize) -> u32 {
+        match (at, self.edits().as_ref()) {
+            (0, Some(edits)) => edits.rows(),
+            (_, Some(_) | None) => self
+                .sheets
+                .get(at)
+                .map_or(0, |sheet| sheet.table.row_count().0),
+        }
+    }
+
+    /// Whether the cells can be edited.
+    pub(crate) fn is_editable(&self) -> bool {
+        self.edits().is_some()
+    }
+
+    /// The file's bytes with `edits` made to them. Blocking: the file is read through once.
+    pub(crate) fn written(&self, edits: &TableEdits) -> Result<Vec<u8>, anyview_text::TextError> {
+        match self.sheets.first() {
+            Some(sheet) => sheet.table.write_edited(edits),
+            None => Err(anyview_text::TextError::NoSuchNode),
+        }
+    }
 }
 
 /// How many rows at the top of a table decide what a column holds.
@@ -87,16 +134,19 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<Table
     match sniffed.detail() {
         FormatDetail::Table(delimiter) => {
             let table = Table::read_until(src.on_disk(), *delimiter, HeaderMode::Detect, stop)?;
+            let edits = (table.can_write() && src.stamp().len.0 <= EDIT_BYTES)
+                .then(|| TableEdits::new(table.row_count().0, table.columns().0));
             let facts = base_facts(src, sniffed)
                 .with(FactLabel::Rows, FactValue::text(count_text(&table)))
                 .with(
                     FactLabel::Columns,
                     FactValue::text(table.columns().0.to_string()),
                 );
-            Ok(TableDoc {
-                sheets: vec![sheet(String::new(), table)],
+            Ok(TableDoc::new(
+                vec![sheet(String::new(), table)],
                 facts,
-            })
+                edits,
+            ))
         }
         FormatDetail::Office(format) => workbook(src, sniffed, *format, stop),
         FormatDetail::None
@@ -155,7 +205,7 @@ fn workbook(
             FactLabel::Columns,
             FactValue::text(first.table.columns().0.to_string()),
         );
-    Ok(TableDoc { sheets, facts })
+    Ok(TableDoc::new(sheets, facts, None))
 }
 
 fn sheet_name(sheet: &SheetDoc) -> &str {

@@ -7,6 +7,7 @@ mod arrive;
 mod carry;
 mod chrome;
 mod context;
+mod data_edit;
 mod editing;
 mod effects;
 mod export;

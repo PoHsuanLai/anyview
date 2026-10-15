@@ -54,6 +54,8 @@ pub enum Act {
     PreviousSheet,
     /// Pick every row of a table (the standard Select All).
     SelectAll,
+    /// Add an empty row below the one picked in a table.
+    AddRow,
     /// An action on the file.
     File(FileAction),
 }
@@ -86,6 +88,7 @@ const OWN: &[(Act, &str, &str)] = &[
         "anyview.previous-sheet",
         "Primary+PageUp",
     ),
+    (Act::AddRow, "anyview.add-row", "Alt+Down"),
 ];
 
 /// The standard actions the viewer answers, and what each is here.
@@ -156,7 +159,8 @@ impl Act {
             | Act::MovePageLater
             | Act::NextSheet
             | Act::PreviousSheet
-            | Act::SelectAll => true,
+            | Act::SelectAll
+            | Act::AddRow => true,
             Act::File(action) => matches!(action, FileAction::CopyFile | FileAction::MoveToTrash),
             Act::Palette
             | Act::Find

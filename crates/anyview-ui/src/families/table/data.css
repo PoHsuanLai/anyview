@@ -11,6 +11,9 @@
 /* The zoom (--zoom, set on the stage by the view) scales the text of a cell and of a node, as the
    rows' height scales with it. The text is quire's row size (--fs-shell-menu) times the zoom. */
 .viewer-cell{ font-size:calc(var(--fs-shell-menu) * var(--zoom)); }
+/* A cell takes a click anywhere across its column, as a spreadsheet's does, not only on its text.
+   A tag stays the pill it is drawn as. */
+.viewer-cell:not(.viewer-cell-tag){ display:block; width:100%; }
 /* A row can be shorter than quire's compact row once zoomed out. */
 .viewer-data .viewer-node-row{ min-height:0; }
 .viewer-node{ display:inline-flex; gap:0; white-space:pre; font-size:calc(var(--fs-shell-menu) * var(--zoom)); }
@@ -29,3 +32,9 @@
 .viewer-cell-empty{ color:var(--ink-faint); }
 /* The status line under the rows, as Finder's: centred, small, in the secondary ink over a hairline. */
 .viewer-table-status{ flex:none; margin:0; padding:var(--s-4) var(--s-12); text-align:center; font-family:var(--font-ui); font-size:var(--fs-help); color:var(--ink-soft); border-top:var(--hair) solid var(--line); }
+/* The cell the cell cursor is on, in a table that can be edited: a ring in the accent, as a
+   spreadsheet marks the cell its keys act on. A cell being typed in, and the box it is typed in
+   (the plain text field of quire, which takes the font of the cell), fill the cell. */
+.viewer-cell-focus{ outline:var(--s-2) solid var(--accent); outline-offset:calc(var(--s-2) * -1); border-radius:var(--r-small); }
+.viewer-cell-editing{ display:block; width:100%; }
+.viewer-inline-edit{ display:block; width:100%; }

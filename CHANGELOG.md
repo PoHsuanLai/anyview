@@ -13,6 +13,12 @@ versioning, with pre-releases while the program is in beta.
 - Fill in a PDF's form as Preview does. Text fields, check boxes, radio buttons and lists of choices are live on the page: press one to type or tick it, and Tab and Shift Tab go through the fields in the document's order. A form with no fields shows nothing extra. What you fill in is held like a picture's edits (the edited mark in the title bar, ⌘Z, Save and Don't Save on leaving) and ⌘S appends it to the file, so another viewer shows the values.
 - Mark up a PDF: a Markup tool beside Select and Pan in the title bar. Highlight, underline and strike through the words you drag over (yellow first, and the colours Preview offers), leave a note, draw a rectangle, an oval, a line or an arrow, or add a text box; pick a mark to move it or delete it. Marks are saved as standard annotations other viewers show. A signed document asks before it is changed, and a document that does not let you mark it offers no Markup tool. Select now selects the words under a drag.
 
+### Editing data
+
+- The cells of a CSV or TSV file are typed into where they are, as a spreadsheet's are. Return, a double-click, or a key typed on a picked cell types into it; Return takes the text and goes down, Tab takes it and goes right, Esc lets it go, and Left and Right move the cell cursor along the row. Add Row Below (Option-Down, as in Numbers, or the context menu) and Delete (the Delete key or the menu) add and take away rows. A sort is only a way of looking: an edit under a sort is made to the row of the file, and adding or taking away rows puts the sort away.
+- The values and keys of a JSON file are edited in its tree: Return types into a value (a string stays a string, a number must be a number), Shift-Return renames a key, Insert adds a node below the one picked, and Delete takes it away.
+- Both save with Command-S, ask Save, Don't Save or Cancel before they are left, count in Undo and Redo, keep the original as a version to Revert To, and write the file back with every byte you did not touch as it was: a table keeps its separator, quoting, line endings and byte-order mark, and a JSON file keeps its indentation. Spreadsheets (XLSX, ODS) and files in another encoding than UTF-8 stay as they are to read.
+
 ### Palette
 
 - Find has Match Case and Whole Words, listed as checked rows under "Options" beside a find's matches. They stay as you left them for the window, for text and PDF files alike, and switching one searches again with the palette still up.

@@ -363,3 +363,200 @@ fn a_scan_told_to_stop_is_interrupted_not_a_cut_document() {
         Err(TextError::Interrupted)
     );
 }
+
+mod editing {
+    use crate::edit::EditText;
+    use crate::tree::{TreeEditError, TreeSession};
+    use anyview_core::{TreeFormat, TreePath};
+
+    fn p(steps: &[u32]) -> TreePath {
+        steps.iter().fold(TreePath::root(), |at, s| at.child(*s))
+    }
+
+    fn session(text: &str, format: TreeFormat) -> TreeSession {
+        let text = EditText::from_bytes(text.as_bytes().to_vec()).unwrap();
+        TreeSession::open(text, format).unwrap()
+    }
+
+    const COMPACT: &str = r#"{"a":"x","b":2,"c":[true,null]}"#;
+    const INDENTED: &str = "{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2\n  ]\n}\n";
+
+    type Change = fn(&mut TreeSession);
+
+    #[test]
+    fn an_edit_changes_only_the_bytes_of_what_was_edited() {
+        // name, the document, the change, the document after
+        let cases: Vec<(&str, &str, Change, &str)> = vec![
+            (
+                "a string stays a string and is quoted",
+                COMPACT,
+                |s| s.set_value(&p(&[0]), "say \"hi\"\n").unwrap(),
+                r#"{"a":"say \"hi\"\n","b":2,"c":[true,null]}"#,
+            ),
+            (
+                "a number is written as typed",
+                COMPACT,
+                |s| s.set_value(&p(&[1]), "2.50").unwrap(),
+                r#"{"a":"x","b":2.50,"c":[true,null]}"#,
+            ),
+            (
+                "a boolean stays one",
+                COMPACT,
+                |s| s.set_value(&p(&[2, 0]), "false").unwrap(),
+                r#"{"a":"x","b":2,"c":[false,null]}"#,
+            ),
+            (
+                "a null takes a number as one",
+                COMPACT,
+                |s| s.set_value(&p(&[2, 1]), "12").unwrap(),
+                r#"{"a":"x","b":2,"c":[true,12]}"#,
+            ),
+            (
+                "a null takes other text as a string",
+                COMPACT,
+                |s| s.set_value(&p(&[2, 1]), "twelve").unwrap(),
+                r#"{"a":"x","b":2,"c":[true,"twelve"]}"#,
+            ),
+            (
+                "a key is renamed",
+                COMPACT,
+                |s| s.rename_key(&p(&[1]), "bee").unwrap(),
+                r#"{"a":"x","bee":2,"c":[true,null]}"#,
+            ),
+            (
+                "a first node is taken away with its comma",
+                COMPACT,
+                |s| s.delete(&p(&[0])).unwrap(),
+                r#"{"b":2,"c":[true,null]}"#,
+            ),
+            (
+                "a last node is taken away with the comma before it",
+                COMPACT,
+                |s| s.delete(&p(&[2, 1])).unwrap(),
+                r#"{"a":"x","b":2,"c":[true]}"#,
+            ),
+            (
+                "an only node leaves its container empty",
+                r#"{"a": [ 1 ]}"#,
+                |s| s.delete(&p(&[0, 0])).unwrap(),
+                r#"{"a": []}"#,
+            ),
+            (
+                "the indentation of the file is the indentation of the new node",
+                INDENTED,
+                |s| {
+                    s.insert_below(&p(&[0])).unwrap();
+                },
+                "{\n  \"a\": 1,\n  \"key\": null,\n  \"b\": [\n    1,\n    2\n  ]\n}\n",
+            ),
+            (
+                "a node below the last one of an array",
+                INDENTED,
+                |s| {
+                    s.insert_below(&p(&[1, 1])).unwrap();
+                },
+                "{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2,\n    null\n  ]\n}\n",
+            ),
+            (
+                "a node below the only one of a compact array",
+                r#"[1]"#,
+                |s| {
+                    s.insert_below(&p(&[0])).unwrap();
+                },
+                r#"[1,null]"#,
+            ),
+            (
+                "the root takes a node after its last",
+                r#"{"a": 1}"#,
+                |s| {
+                    s.insert_below(&TreePath::root()).unwrap();
+                },
+                r#"{"a": 1,"key": null}"#,
+            ),
+            (
+                "an empty container takes the node inside",
+                r#"{"a": []}"#,
+                |s| {
+                    s.insert_below(&p(&[0])).unwrap();
+                },
+                r#"{"a": [null]}"#,
+            ),
+        ];
+        for (name, before, change, after) in cases {
+            let mut doc = session(before, TreeFormat::Json);
+            change(&mut doc);
+            assert_eq!(String::from_utf8_lossy(&doc.file_bytes()), after, "{name}");
+            assert!(doc.is_modified(), "{name}: modified");
+            doc.undo();
+            assert_eq!(
+                String::from_utf8_lossy(&doc.file_bytes()),
+                before,
+                "{name}: undone"
+            );
+            assert!(!doc.is_modified(), "{name}: back to the file");
+        }
+    }
+
+    #[test]
+    fn the_lines_of_a_json_lines_file_come_and_go_by_line() {
+        let lines = "{\"n\":1}\n{\"n\":2}\n{\"n\":3}\n";
+        let mut doc = session(lines, TreeFormat::JsonLines);
+        doc.delete(&p(&[1])).unwrap();
+        assert_eq!(doc.file_bytes(), b"{\"n\":1}\n{\"n\":3}\n");
+        let added = doc.insert_below(&p(&[0])).unwrap();
+        assert_eq!(added, p(&[1]));
+        assert_eq!(doc.file_bytes(), b"{\"n\":1}\nnull\n{\"n\":3}\n");
+        doc.set_value(&p(&[0, 0]), "10").unwrap();
+        assert_eq!(doc.file_bytes(), b"{\"n\":10}\nnull\n{\"n\":3}\n");
+    }
+
+    #[test]
+    fn text_that_does_not_fit_the_type_of_the_node_is_refused_and_changes_nothing() {
+        let mut doc = session(COMPACT, TreeFormat::Json);
+        assert_eq!(
+            doc.set_value(&p(&[1]), "two"),
+            Err(TreeEditError::NotANumber)
+        );
+        assert_eq!(
+            doc.set_value(&p(&[2, 0]), "maybe"),
+            Err(TreeEditError::NotTrueOrFalse)
+        );
+        assert_eq!(
+            doc.set_value(&p(&[2]), "x"),
+            Err(TreeEditError::NotEditable)
+        );
+        assert_eq!(
+            doc.rename_key(&p(&[2, 0]), "x"),
+            Err(TreeEditError::NotEditable),
+            "an item has no key"
+        );
+        assert_eq!(
+            doc.delete(&TreePath::root()),
+            Err(TreeEditError::NotEditable)
+        );
+        assert_eq!(doc.file_bytes(), COMPACT.as_bytes());
+        assert!(!doc.is_modified());
+    }
+
+    #[test]
+    fn what_is_typed_in_starts_from_the_whole_value_and_the_byte_order_mark_stays() {
+        let long = "x".repeat(5000);
+        let text = format!("\u{feff}{{\"k\":\"{long}\",\"n\":1.50}}");
+        let mut doc = session(&text, TreeFormat::Json);
+        assert_eq!(doc.value_text(&p(&[0])), Some(long));
+        assert_eq!(doc.value_text(&p(&[1])).as_deref(), Some("1.50"));
+        assert_eq!(doc.value_text(&TreePath::root()), None);
+        assert_eq!(doc.key_text(&p(&[1])).as_deref(), Some("n"));
+        doc.set_value(&p(&[1]), "2").unwrap();
+        assert!(doc.file_bytes().starts_with(&[0xEF, 0xBB, 0xBF]));
+        assert!(doc.file_bytes().ends_with(b",\"n\":2}"));
+        let saved = doc.stamp();
+        doc.mark_saved(saved);
+        assert!(!doc.is_modified());
+        doc.undo();
+        assert!(doc.is_modified());
+        doc.redo();
+        assert!(!doc.is_modified());
+        assert_eq!((doc.undoable(), doc.redoable()), (1, 0));
+    }
+}
