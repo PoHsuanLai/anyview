@@ -29,6 +29,9 @@ pub enum FontError {
         /// The most the peek may read.
         allowed: ByteLen,
     },
+    /// The peek was told to end before it was done: its time ran out.
+    #[error("the work was interrupted")]
+    Interrupted,
     /// The bytes are not a font.
     #[error("not a valid font: {reason}")]
     Malformed {

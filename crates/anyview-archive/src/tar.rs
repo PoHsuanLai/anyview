@@ -3,17 +3,22 @@
 use crate::entry::{Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep};
 use crate::error::ArchiveError;
 use crate::limit::Limited;
+use anyview_core::work::Interrupt;
 use anyview_core::{ArchiveFormat, ByteLen, Input};
 use std::io::{BufReader, Read, Seek};
 use tar::{Archive, EntryType};
 
 /// Lists the entries of `archive` into `tally` and says how far it got; the error is
-/// the reader's reason it could not go on.
+/// the reader's reason it could not go on. An interrupted fill is a start: `Seen::Start`.
 pub(crate) fn fill<R: Read + Seek>(
     archive: &mut Archive<R>,
     tally: &mut Tally,
+    interrupt: &dyn Interrupt,
 ) -> std::io::Result<Seen> {
     for entry in archive.entries_with_seek()? {
+        if interrupt.interrupted() {
+            return Ok(Seen::Start);
+        }
         let entry = entry?;
         let kind = kind_of(entry.header().entry_type());
         let item = Entry {
@@ -51,11 +56,15 @@ pub(crate) fn list(
     src: &Input,
     limit: EntryLimit,
     budget: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Listing, ArchiveError> {
     let file = ArchiveError::open(src)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
     let mut tally = Tally::new(limit);
-    let seen = fill(&mut Archive::new(reader), &mut tally);
+    let seen = fill(&mut Archive::new(reader), &mut tally, interrupt);
+    if tally.is_empty() && interrupt.interrupted() {
+        return Err(ArchiveError::Interrupted);
+    }
     let format = ArchiveFormat::Tar;
     match seen {
         Ok(seen) => Ok(tally.finish(format, Holds::Entries, seen)),

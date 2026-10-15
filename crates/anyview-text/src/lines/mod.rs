@@ -11,7 +11,8 @@ mod tests;
 use crate::bytes::read_range;
 use crate::encoding::{Coverage, DETECT_BYTES, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{LineIndex, ReadAt};
+use anyview_core::work::Interrupt;
+use anyview_core::{Deadline, LineIndex, ReadAt};
 use std::ops::Range;
 use table::LineTable;
 
@@ -36,6 +37,12 @@ pub struct TextLines<B: ReadAt> {
 impl<B: ReadAt> TextLines<B> {
     /// Detects the encoding from the first [`DETECT_BYTES`] of `bytes` and indexes its lines.
     pub fn open(bytes: B) -> Result<Self, TextError> {
+        Self::open_until(bytes, &Deadline::NEVER)
+    }
+
+    /// [`TextLines::open`], ended with [`TextError::Interrupted`] when `interrupt` says so: it is
+    /// asked once per chunk of the file the index pass reads.
+    pub fn open_until(bytes: B, interrupt: &dyn Interrupt) -> Result<Self, TextError> {
         let head = read_range(&bytes, 0..DETECT_BYTES as u64)?; // a usize fits a u64
         let coverage = if bytes.len().0 > head.len() as u64 {
             Coverage::Prefix
@@ -43,7 +50,7 @@ impl<B: ReadAt> TextLines<B> {
             Coverage::Whole
         };
         let detected = detect(&head, coverage);
-        let table = LineTable::build(&bytes, detected.codec, u64::from(detected.mark))?;
+        let table = LineTable::build(&bytes, detected.codec, u64::from(detected.mark), interrupt)?;
         Ok(TextLines {
             bytes,
             codec: detected.codec,

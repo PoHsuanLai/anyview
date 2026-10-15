@@ -22,6 +22,7 @@ use crate::{
     Command, HitIndex, PanelTab, PanelTabs, SheetNo, SheetTotal, Stage, StageCommand, StageFamily,
     StageIn, StageParams, TableIn, TableParams, Ticket, TypedText,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -43,8 +44,9 @@ impl StageView for TableStageView {
         src: &Source,
         sniffed: &Sniffed,
         _link: &OpenPort,
+        stop: &Stop,
     ) -> Result<TableDoc, OpenError> {
-        doc::open(src, sniffed)
+        doc::open(src, sniffed, stop)
     }
 
     fn facts(doc: &TableDoc) -> Facts {

@@ -20,6 +20,9 @@ pub enum Unavailable {
         /// The most the peek may read.
         allowed: ByteLen,
     },
+    /// The peek ran out of time before it had anything to show. Nothing is wrong with the file:
+    /// the pane draws it as a plain file with its facts, like [`TooBig`](Unavailable::TooBig).
+    Slow,
     /// The file is not what it says, or is damaged, or its back end gave up; this says why.
     Damaged(String),
 }
@@ -31,6 +34,7 @@ impl Unavailable {
         match self {
             Unavailable::Missing => "the file does not exist".to_owned(),
             Unavailable::Unreadable => "the file cannot be read".to_owned(),
+            Unavailable::Slow => "the preview was not ready in time".to_owned(),
             Unavailable::TooBig { len, allowed } => format!(
                 "the file is {} bytes and the preview may read {}",
                 len.0, allowed.0
@@ -41,6 +45,9 @@ impl Unavailable {
 
     /// What `error` comes to for a card.
     pub(crate) fn of(error: &PeekError) -> Self {
+        if error.is_interrupted() {
+            return Unavailable::Slow;
+        }
         match error {
             PeekError::Missing { .. } => Unavailable::Missing,
             PeekError::Unreadable { .. } | PeekError::Folder { .. } => Unavailable::Unreadable,

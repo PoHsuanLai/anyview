@@ -7,7 +7,8 @@ use super::recording::{
     AudioStream, CoverArt, CoverCodec, Recording, TrackCounts, VideoStream, length_of_micros,
 };
 use crate::error::PeekError;
-use anyview_core::{Input, PeekBudget, PixelLen, PixelSize};
+use anyview_core::work::Interrupt;
+use anyview_core::{Deadline, Input, PeekBudget, PixelLen, PixelSize};
 use mp4parse::{AudioSampleEntry, CodecType, SampleEntry, Track, TrackType, VideoSampleEntry};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::num::TryFromIntError;
@@ -17,9 +18,9 @@ use thiserror::Error;
 const TOP_LEVEL_BOXES: usize = 64;
 
 /// What the header of the movie `src` says.
-pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
+pub fn read(src: &Input, budget: &PeekBudget, deadline: Deadline) -> Result<Recording, PeekError> {
     let mut file = super::opened(src)?;
-    let header = movie_header(&mut file, src.bytes().len().0, budget.bytes.0)
+    let header = movie_header(&mut file, src.bytes().len().0, budget.bytes.0, deadline)
         .map_err(|error| PeekError::media(error.to_string()))?;
     let context = mp4parse::read_mp4(&mut Cursor::new(&header.bytes))
         .map_err(|error| PeekError::media(format!("not a movie: {error}")))?;
@@ -95,6 +96,9 @@ enum HeaderError {
     /// No `moov` box was found.
     #[error("no movie header")]
     NoMovie,
+    /// The peek's time ran out between two boxes.
+    #[error("the peek's time is up")]
+    Interrupted,
 }
 
 /// The `ftyp` and `moov` boxes of a file, back to back, and the length `moov`'s header states.
@@ -109,6 +113,7 @@ fn movie_header(
     file: &mut (impl Read + Seek),
     len: u64,
     limit: u64,
+    deadline: Deadline,
 ) -> Result<MovieHeader, HeaderError> {
     let mut bytes = Vec::new();
     let mut moov_body = None;
@@ -116,6 +121,9 @@ fn movie_header(
     for _ in 0..TOP_LEVEL_BOXES {
         if position + 8 > len {
             break;
+        }
+        if deadline.interrupted() {
+            return Err(HeaderError::Interrupted);
         }
         file.seek(SeekFrom::Start(position))?;
         let mut head = [0_u8; 8];
@@ -333,7 +341,7 @@ mod tests {
         bytes.extend_from_slice(b"moov");
         std::fs::write(&path, &bytes).unwrap();
         let mut file = File::open(&path).unwrap();
-        assert!(movie_header(&mut file, bytes.len() as u64, 1 << 20).is_err());
+        assert!(movie_header(&mut file, bytes.len() as u64, 1 << 20, Deadline::NEVER).is_err());
     }
 
     #[test]

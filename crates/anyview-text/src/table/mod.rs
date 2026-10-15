@@ -13,7 +13,8 @@ mod tests;
 use crate::bytes::read_range;
 use crate::encoding::{Coverage, DETECT_BYTES, Detected, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{ByteLen, Delimiter, Input};
+use anyview_core::work::Interrupt;
+use anyview_core::{ByteLen, Deadline, Delimiter, Input};
 use header::looks_like_header;
 use indexed::{Indexed, RecordIndex, WINDOW_ROWS};
 use std::ops::Range;
@@ -153,15 +154,27 @@ impl Table {
         delimiter: Delimiter,
         mode: HeaderMode,
     ) -> Result<Self, TextError> {
-        Table::open(src, delimiter, mode, TABLE_BYTES).map(|(table, _)| table)
+        Table::read_until(src, delimiter, mode, &Deadline::NEVER)
     }
 
-    /// [`Table::read`] indexing at most `cap` bytes, and the encoding the file is read as.
+    /// [`Table::read`], ended with [`TextError::Interrupted`] when `interrupt` says so: it is asked
+    /// once per chunk of the file the index pass reads.
+    pub fn read_until(
+        src: impl Into<Input>,
+        delimiter: Delimiter,
+        mode: HeaderMode,
+        interrupt: &dyn Interrupt,
+    ) -> Result<Self, TextError> {
+        Table::open(src, delimiter, mode, TABLE_BYTES, interrupt).map(|(table, _)| table)
+    }
+
+    /// [`Table::read_until`] indexing at most `cap` bytes, and the encoding the file is read as.
     pub(crate) fn open(
         src: impl Into<Input>,
         delimiter: Delimiter,
         mode: HeaderMode,
         cap: ByteLen,
+        interrupt: &dyn Interrupt,
     ) -> Result<(Self, TextCodec), TextError> {
         if cap.0 == 0 {
             return Err(TextError::NoBudget);
@@ -184,7 +197,14 @@ impl Table {
         };
         let separator = separator::sniff(&sample(&head, detected), delimiter);
         let span = (u64::from(detected.mark), end);
-        let index = RecordIndex::build(&*source, detected.codec, separator.byte(), span, coverage)?;
+        let index = RecordIndex::build(
+            &*source,
+            detected.codec,
+            separator.byte(),
+            span,
+            coverage,
+            interrupt,
+        )?;
         let columns = ColumnCount(index.widest);
         let indexed = Indexed::new(source, detected.codec, separator.byte(), index);
         let (header, indexed) = with_header(indexed, mode)?;

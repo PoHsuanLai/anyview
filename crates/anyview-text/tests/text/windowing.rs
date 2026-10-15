@@ -2,7 +2,9 @@
 
 use crate::support;
 
-use anyview_core::{ByteLen, FilePath, FileStamp, LineIndex, ModTime, Source, SyntaxName};
+use anyview_core::{
+    ByteLen, Deadline, FilePath, FileStamp, LineIndex, ModTime, Source, SyntaxName,
+};
 use anyview_text::{CodeLines, FileBytes, Highlighter, LineCount, TextLines, TokenClass};
 use support::fixture;
 
@@ -32,7 +34,7 @@ fn a_code_file_is_highlighted_by_window_from_disk() {
     let syntax = highlighter.syntax(&SyntaxName::new("rust").unwrap());
     let mut code = CodeLines::new(&highlighter, open("sample.rs"), syntax);
     let window = code
-        .highlight(&highlighter, LineIndex(14)..LineIndex(15))
+        .highlight(&highlighter, LineIndex(14)..LineIndex(15), &Deadline::NEVER)
         .unwrap();
     assert_eq!(window.len(), 1);
     assert_eq!(window[0].number, LineIndex(14));

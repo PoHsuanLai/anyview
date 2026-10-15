@@ -50,7 +50,8 @@ impl Peek for TreePeek {
                 kind: sniffed.kind(),
             });
         };
-        let (tree, coverage) = Tree::read(src, *format, budget.bytes)?;
+        let (tree, coverage) =
+            Tree::read_until(src, *format, budget.bytes, &budget.deadline_from_now())?;
         let root = tree.row(&TreePath::root())?;
         let count = root.children;
         let values = match (format, coverage) {

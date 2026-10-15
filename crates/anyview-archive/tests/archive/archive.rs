@@ -4,8 +4,9 @@ use crate::support;
 
 use anyview_archive::{
     ArchiveError, ArchivePeek, EntryCount, EntryKind, EntryLimit, ExtractLimits, Holds, extract,
-    list, zip_entries,
+    extract_until, list, list_until, zip_entries,
 };
+use anyview_core::work::{Interrupt, Stop};
 use anyview_core::{
     ArchiveFormat, ByteLen, FactLabel, FileHead, FileName, FileStamp, FormatKind, ModTime, Peek,
     PeekBudget, PixelArea, SniffStep, Source, ZipEntries, sniff,
@@ -275,4 +276,53 @@ fn a_zips_names_and_mimetype_are_what_sniffing_is_given() {
         zip_entries(&junk, BIG),
         Err(ArchiveError::Malformed { .. })
     ));
+}
+
+/// An interrupt that says no this many times and yes from then on.
+struct After(std::cell::Cell<u32>);
+
+impl Interrupt for After {
+    fn interrupted(&self) -> bool {
+        let left = self.0.get();
+        self.0.set(left.saturating_sub(1));
+        left == 0
+    }
+}
+
+#[test]
+fn a_listing_that_is_interrupted_keeps_its_first_entries_and_says_there_are_more() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, format, bytes) in containers(dir.path()) {
+        if !matches!(
+            format,
+            ArchiveFormat::Zip | ArchiveFormat::Tar | ArchiveFormat::SevenZip
+        ) {
+            continue;
+        }
+        let path = write(dir.path(), &format!("a.{name}"), &bytes);
+        let listing = list_until(&path, format, ALL, BIG, &After(std::cell::Cell::new(2)))
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(listing.entries.len(), 2, "{name}");
+        assert_eq!(listing.count, EntryCount::AtLeast(2), "{name}");
+    }
+}
+
+#[test]
+fn work_told_to_stop_before_it_starts_has_nothing_to_return() {
+    let dir = tempfile::tempdir().unwrap();
+    let stop = Stop::new();
+    stop.request();
+    for (name, format, bytes) in containers(dir.path()) {
+        let path = write(dir.path(), &format!("a.{name}"), &bytes);
+        assert_eq!(
+            list_until(&path, format, ALL, BIG, &stop),
+            Err(ArchiveError::Interrupted),
+            "{name}: list"
+        );
+        assert_eq!(
+            extract_until(&path, format, "data.bin", LIMITS, &stop),
+            Err(ArchiveError::Interrupted),
+            "{name}: extract"
+        );
+    }
 }

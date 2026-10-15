@@ -2,8 +2,9 @@
 
 use crate::entry::{Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep};
 use crate::error::ArchiveError;
-use crate::limit::Limited;
+use crate::limit::{Limited, pull};
 use crate::sevenz_header::{self, Fault};
+use anyview_core::work::Interrupt;
 use anyview_core::{ArchiveFormat, ByteLen, Input, ReadAtStream};
 use sevenz_rust2::{ArchiveReader, Error, Password};
 use std::io::{BufReader, Read};
@@ -15,6 +16,7 @@ pub(crate) fn list(
     src: &Input,
     limit: EntryLimit,
     budget: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Listing, ArchiveError> {
     let file = open_checked(src, budget)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
@@ -26,6 +28,13 @@ pub(crate) fn list(
     let mut tally = Tally::new(limit);
     let mut seen = Seen::All;
     for entry in &archive.archive().files {
+        if interrupt.interrupted() {
+            if tally.is_empty() {
+                return Err(ArchiveError::Interrupted);
+            }
+            seen = Seen::Start;
+            break;
+        }
         let kind = kind_of(entry.is_directory());
         let item = Entry {
             path: entry.name().to_owned(),
@@ -55,12 +64,21 @@ fn open_checked(src: &Input, budget: ByteLen) -> Result<ReadAtStream, ArchiveErr
 }
 
 /// The bytes of the entry called `name`, at most `allowed` of them.
-pub(crate) fn extract(src: &Input, name: &str, allowed: ByteLen) -> Result<Vec<u8>, ArchiveError> {
+pub(crate) fn extract(
+    src: &Input,
+    name: &str,
+    allowed: ByteLen,
+    interrupt: &dyn Interrupt,
+) -> Result<Vec<u8>, ArchiveError> {
     let file = open_checked(src, ByteLen(u64::MAX))?;
     let mut archive = ArchiveReader::new(BufReader::new(file), Password::empty())
         .map_err(|error| error_of(&error))?;
     let mut found: Option<Result<Vec<u8>, ArchiveError>> = None;
     let walked = archive.for_each_entries(|entry, reader| {
+        if interrupt.interrupted() {
+            found = Some(Err(ArchiveError::Interrupted));
+            return Ok(false);
+        }
         if entry.name() != name {
             return Ok(true);
         }
@@ -69,6 +87,7 @@ pub(crate) fn extract(src: &Input, name: &str, allowed: ByteLen) -> Result<Vec<u
             entry.size(),
             reader,
             allowed,
+            interrupt,
         ));
         Ok(false)
     });
@@ -95,6 +114,7 @@ fn read_entry(
     size: u64,
     reader: &mut dyn Read,
     allowed: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Vec<u8>, ArchiveError> {
     if kind != EntryKind::File {
         return Err(ArchiveError::NotAFile);
@@ -102,11 +122,12 @@ fn read_entry(
     if size > allowed.0 {
         return Err(ArchiveError::TooLarge { allowed });
     }
-    let mut bytes = Vec::new();
-    reader
-        .take(allowed.0.saturating_add(1))
-        .read_to_end(&mut bytes)
+    let pulled = pull(reader, allowed.0, interrupt)
         .map_err(|error| ArchiveError::malformed(FORMAT, error))?;
+    if pulled.interrupted {
+        return Err(ArchiveError::Interrupted);
+    }
+    let bytes = pulled.bytes;
     if bytes.len() as u64 > allowed.0 {
         return Err(ArchiveError::TooLarge { allowed });
     }

@@ -60,6 +60,10 @@ pub enum TextError {
         /// The most it opens.
         allowed: anyview_core::ByteLen,
     },
+    /// The work was told to end before it was done: the peek's time ran out, or the person left
+    /// the file.
+    #[error("the work was interrupted")]
+    Interrupted,
     /// A tree path that leads nowhere.
     #[error("no node at that path")]
     NoSuchNode,

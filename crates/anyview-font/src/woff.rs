@@ -1,6 +1,7 @@
 //! WOFF 1: a font whose tables are each zlib-compressed, unpacked to the plain sfnt font it wraps.
 
 use crate::error::FontError;
+use anyview_core::work::Interrupt;
 
 /// The most all the tables of one font may unpack to together. A directory may name tens of
 /// thousands of tables, so the sum is bounded, not each table.
@@ -108,7 +109,7 @@ fn unpack<'a>(entry: &Entry<'a>) -> Result<Table<'a>, FontError> {
 }
 
 /// The sfnt font (TrueType or OpenType) that the WOFF file `bytes` wraps.
-pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
+pub(crate) fn to_sfnt(bytes: &[u8], interrupt: &dyn Interrupt) -> Result<Vec<u8>, FontError> {
     if bytes.get(..4) != Some(b"wOFF") {
         return Err(malformed("not a WOFF file"));
     }
@@ -117,7 +118,12 @@ pub(crate) fn to_sfnt(bytes: &[u8]) -> Result<Vec<u8>, FontError> {
         usize::from(be16(bytes, 12).ok_or_else(|| malformed("the WOFF header is cut short"))?);
     let tables = directory(bytes, count)?
         .iter()
-        .map(unpack)
+        .map(|entry| {
+            if interrupt.interrupted() {
+                return Err(FontError::Interrupted);
+            }
+            unpack(entry)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(sfnt(flavor, &tables))
 }

@@ -29,7 +29,7 @@ impl Peek for PlainPeek {
 
     fn peek(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<PlainPeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
-        let head = read_head(src, budget)?;
+        let head = read_head(src, budget, &budget.deadline_from_now())?;
         let (lines, count) = split_start(&head.text, PEEK_LINES);
         let total = Tally::of(count, head.coverage);
         Ok(PlainPeeked {
