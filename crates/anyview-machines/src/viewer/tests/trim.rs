@@ -8,7 +8,7 @@ use crate::edits::{EditRequest, Rewind};
 use crate::keys::{Act, Press};
 use crate::load::{Load, Ticket};
 use crate::picture::{PictureEditIn, PictureEditing};
-use crate::sheet::{Departure, MediaOffer, Sheet, SheetIn, SheetParams};
+use crate::sheet::{Departure, MediaOffer, Sheet, SheetIn, SheetParams, Wanted};
 use crate::stage::{
     MediaIn, MediaOut, MediaStage, Pace, PlayerCommand, Stage, StageIn, StageOut, TrimEdge,
 };
@@ -130,7 +130,8 @@ fn trim_brings_the_bar_up_over_a_held_player_or_names_the_package_that_cuts() {
         asked.sheet,
         Sheet::Unavailable {
             needs: needs(),
-            helper: None
+            helper: None,
+            wanted: Wanted::Trim
         }
     );
     assert!(!asked.trim.is_choosing());

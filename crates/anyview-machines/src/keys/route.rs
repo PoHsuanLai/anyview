@@ -35,6 +35,7 @@ pub fn route(press: &Press, regions: Regions<'_>) -> Route {
         | Sheet::Unavailable {
             needs: _,
             helper: _,
+            wanted: _,
         }
         | Sheet::ConfirmTrash
         | Sheet::ConfirmEdit {

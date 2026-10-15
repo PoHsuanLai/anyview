@@ -770,10 +770,11 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
-                Sheet::Unavailable { needs, helper } => rsx! {
+                Sheet::Unavailable { needs, helper, wanted } => rsx! {
                     UnavailableSheet {
                         needs: needs.clone(),
                         helper: *helper,
+                        wanted: *wanted,
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                         oninstall: move |helper| dispatch.send(ViewerIn::Sheet(SheetIn::OfferHelper(helper))),
                     }

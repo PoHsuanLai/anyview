@@ -378,7 +378,7 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
         anyview_core::FactValue::text("anyview-ffmpeg (to convert it)"),
     );
     let (open, outs) = Sheet::Closed.step(
-        SheetIn::OpenUnavailable(needs.clone(), None),
+        SheetIn::OpenUnavailable(needs.clone(), None, Wanted::Export),
         Stamp(0),
         &SheetParams::default(),
         &(),
@@ -388,6 +388,7 @@ fn the_sheet_that_names_a_missing_package_is_put_away_by_enter_or_escape_and_wri
         Sheet::Unavailable {
             needs: needs.clone(),
             helper: None,
+            wanted: Wanted::Export,
         }
     );
     assert_eq!(outs, [SheetOut::Opened]);

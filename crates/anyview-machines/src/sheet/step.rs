@@ -3,7 +3,7 @@
 use super::departure::Departure;
 use super::draft::ExportDraft;
 use super::helper::{HelperEnd, HelperPhase};
-use super::model::{Sheet, SheetIn, SheetOut, SheetParams};
+use super::model::{Sheet, SheetIn, SheetOut, SheetParams, Wanted};
 use super::option::PageSpan;
 use super::picture::{PictureSheet, PictureSheetIn, PictureSheetOut};
 use super::versions::{VersionKey, VersionList};
@@ -25,7 +25,11 @@ impl Machine for Sheet {
         match self {
             Sheet::Closed => closed(input, params),
             Sheet::Export { draft, span } => export(draft, span, input, params),
-            Sheet::Unavailable { needs, helper } => unavailable(needs, helper, input),
+            Sheet::Unavailable {
+                needs,
+                helper,
+                wanted,
+            } => unavailable(needs, helper, wanted, input),
             Sheet::ConfirmTrash => confirm_trash(input),
             Sheet::ConfirmEdit { request, caution } => confirm_edit(request, caution, input),
             Sheet::Rename { name } => rename(name, input),
@@ -46,6 +50,7 @@ impl Machine for Sheet {
             | Sheet::Unavailable {
                 needs: _,
                 helper: _,
+                wanted: _,
             }
             | Sheet::ConfirmTrash
             | Sheet::ConfirmEdit {
@@ -88,7 +93,11 @@ fn closed(input: SheetIn, params: &SheetParams) -> Step {
             draft: draft.seeded(&params.export),
             span: PageSpan::All,
         }),
-        SheetIn::OpenUnavailable(needs, helper) => opened(Sheet::Unavailable { needs, helper }),
+        SheetIn::OpenUnavailable(needs, helper, wanted) => opened(Sheet::Unavailable {
+            needs,
+            helper,
+            wanted,
+        }),
         SheetIn::OfferHelper(helper) => opened(Sheet::Helper {
             helper,
             phase: HelperPhase::Ask,
@@ -135,7 +144,7 @@ fn export(draft: ExportDraft, span: PageSpan, input: SheetIn, params: &SheetPara
         SheetIn::Cancel => cancelled(),
         SheetIn::Change(_)
         | SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -157,7 +166,7 @@ fn export(draft: ExportDraft, span: PageSpan, input: SheetIn, params: &SheetPara
 /// The sheet that says what is missing: Enter and Esc both put it away, and nothing is written.
 /// When the host can install the tool that is missing, the sheet's own button turns it into the
 /// install question, which takes the same place.
-fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
+fn unavailable(needs: Fact, helper: Option<Helper>, wanted: Wanted, input: SheetIn) -> Step {
     match input {
         SheetIn::Confirm | SheetIn::Cancel => cancelled(),
         SheetIn::OfferHelper(offered) if helper == Some(offered) => (
@@ -168,7 +177,7 @@ fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
             vec![],
         ),
         SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -186,7 +195,14 @@ fn unavailable(needs: Fact, helper: Option<Helper>, input: SheetIn) -> Step {
         | SheetIn::Tune(_)
         | SheetIn::Change(_)
         | SheetIn::Typed(_)
-        | SheetIn::Elapsed => (Sheet::Unavailable { needs, helper }, vec![]),
+        | SheetIn::Elapsed => (
+            Sheet::Unavailable {
+                needs,
+                helper,
+                wanted,
+            },
+            vec![],
+        ),
     }
 }
 
@@ -195,7 +211,7 @@ fn confirm_trash(input: SheetIn) -> Step {
         SheetIn::Confirm => closing(SheetOut::Trash),
         SheetIn::Cancel => cancelled(),
         SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -224,7 +240,7 @@ fn rename(name: TypedText, input: SheetIn) -> Step {
         SheetIn::Cancel => cancelled(),
         SheetIn::Confirm
         | SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -252,7 +268,7 @@ fn save_copy(name: TypedText, input: SheetIn) -> Step {
         SheetIn::Cancel => cancelled(),
         SheetIn::Confirm
         | SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -288,7 +304,7 @@ fn revert(versions: VersionList, chosen: VersionKey, input: SheetIn) -> Step {
         SheetIn::Cancel => cancelled(),
         SheetIn::PickVersion(_)
         | SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -314,7 +330,7 @@ fn no_versions(input: SheetIn) -> Step {
     match input {
         SheetIn::Confirm | SheetIn::Cancel => cancelled(),
         SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -341,7 +357,7 @@ fn confirm_edit(request: EditRequest, caution: EditCaution, input: SheetIn) -> S
         SheetIn::Confirm => closing(SheetOut::Edit(request)),
         SheetIn::Cancel => cancelled(),
         SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -396,7 +412,7 @@ fn helping(helper: Helper, phase: HelperPhase, input: SheetIn) -> Step {
             | HelperPhase::NotFound(_)
             | HelperPhase::Unsupported(_),
             SheetIn::OpenExport(_)
-            | SheetIn::OpenUnavailable(_, _)
+            | SheetIn::OpenUnavailable(_, _, _)
             | SheetIn::OfferHelper(_)
             | SheetIn::HelperEnded(_, _)
             | SheetIn::AskTrash
@@ -449,7 +465,7 @@ fn picture(sheet: PictureSheet, input: SheetIn) -> Step {
         (
             sheet,
             SheetIn::OpenExport(_)
-            | SheetIn::OpenUnavailable(_, _)
+            | SheetIn::OpenUnavailable(_, _, _)
             | SheetIn::OfferHelper(_)
             | SheetIn::HelperEnded(_, _)
             | SheetIn::AskTrash
@@ -480,7 +496,7 @@ fn unsaved(departure: Departure, input: SheetIn) -> Step {
         SheetIn::Discard => closing(SheetOut::Discard(departure)),
         SheetIn::Cancel => cancelled(),
         SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash
@@ -509,7 +525,7 @@ fn confirm_replace(input: SheetIn) -> Step {
         SheetIn::Cancel => cancelled(),
         SheetIn::Discard
         | SheetIn::OpenExport(_)
-        | SheetIn::OpenUnavailable(_, _)
+        | SheetIn::OpenUnavailable(_, _, _)
         | SheetIn::OfferHelper(_)
         | SheetIn::HelperEnded(_, _)
         | SheetIn::AskTrash

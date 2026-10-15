@@ -46,7 +46,7 @@ pub use anyview_machines::{
     TableParams, TableStage, TextExtent, TextIn, TextOut, TextParams, TextPlace, TextStage,
     TextStep, TextView, TextViews, Ticket, Tool, TrackKind, Trashing, TreeIn, TreeOut, TreeParams,
     TreeStage, TrimEdge, TrimIn, TrimSpan, TrimWindow, TypedText, VersionKey, VersionList,
-    VersionRow, Viewer, ViewerIn, ViewerOut, ViewerParams, Viewport, Wrap, Zone, ZoomDir,
+    VersionRow, Viewer, ViewerIn, ViewerOut, ViewerParams, Viewport, Wanted, Wrap, Zone, ZoomDir,
     format_of, freshness, is_numeric, kind_hint, kind_name, quality_of, route, sorted_rows,
 };
 pub use families::{

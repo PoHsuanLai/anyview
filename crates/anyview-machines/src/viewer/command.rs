@@ -9,7 +9,7 @@ use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
 use crate::picture::PictureEditIn;
 use crate::presentation::{Presentation, PresentationIn};
-use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn};
+use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn, Wanted};
 use crate::stage::{Stage, StageIn, TextIn};
 use anyview_core::{Axis, Edit, FileAction, FindOption, QuarterTurn};
 use ds_core::time::stamp::Stamp;
@@ -90,9 +90,11 @@ pub(super) fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
             let offer = &params.sheet.media;
             match (offer.first(), offer.needs()) {
                 (Some(choice), _) => Some(SheetIn::OpenExport(ExportDraft::Media(choice))),
-                (None, Some(needs)) => {
-                    Some(SheetIn::OpenUnavailable(needs.clone(), offer.helper()))
-                }
+                (None, Some(needs)) => Some(SheetIn::OpenUnavailable(
+                    needs.clone(),
+                    offer.helper(),
+                    Wanted::Export,
+                )),
                 (None, None) => None,
             }
         }

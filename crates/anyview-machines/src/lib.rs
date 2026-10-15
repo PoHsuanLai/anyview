@@ -67,7 +67,7 @@ pub use sheet::{
     HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
     PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
     Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList, VersionRow,
-    format_of, kind_hint, kind_name, quality_of,
+    Wanted, format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
     AfterScrub, Animation, Changes, ColumnSort, ContentScale, ControlOffer, Destination, Editable,

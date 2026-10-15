@@ -1547,3 +1547,28 @@ fn trim_brings_up_a_bar_that_is_dragged_applied_and_saved_over_the_file() {
         "kept up to the handle: {end:?}"
     );
 }
+
+#[test]
+fn trim_without_the_plugin_names_the_package_that_adds_it_and_brings_up_no_bar() {
+    let offer = MediaOffer::new(vec![], Some(needs("anyview-ffmpeg", "convert it")));
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    settle(&mut harness);
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('t')));
+    settle(&mut harness);
+    let said = harness.text_of(".viewer-sheet").unwrap_or_default();
+    assert!(
+        said.contains("can\u{2019}t be trimmed") && said.contains("anyview-ffmpeg"),
+        "{said}"
+    );
+    assert_eq!(
+        harness.count(".viewer-trim"),
+        0,
+        "no bar over a recording nothing can cut"
+    );
+}

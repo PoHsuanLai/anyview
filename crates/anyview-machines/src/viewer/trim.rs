@@ -6,7 +6,7 @@ use super::region::{Step, sheet, unbounded};
 use crate::context::ContextMenu;
 use crate::edits::{EditOffer, EditRequest};
 use crate::palette::Palette;
-use crate::sheet::{Sheet, SheetIn};
+use crate::sheet::{Sheet, SheetIn, Wanted};
 use crate::stage::{MediaIn, MediaStage, Stage, StageIn, TrimEdge};
 use crate::trim::{MediaTrim, TrimIn, TrimWindow};
 use anyview_core::{MediaExportKind, MediaTime};
@@ -35,7 +35,7 @@ pub(super) fn begin(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match offer.needs() {
         Some(needs) => sheet(
             viewer,
-            SheetIn::OpenUnavailable(needs.clone(), offer.helper()),
+            SheetIn::OpenUnavailable(needs.clone(), offer.helper(), Wanted::Trim),
             at,
             params,
         ),
