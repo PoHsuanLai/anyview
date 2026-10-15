@@ -9,7 +9,8 @@
 //! on nested markup and deep documents). A panic there is a failed look and no more. A peek that
 //! runs past the overrun is abandoned (its thread finishes or hangs on its own) and the worker goes
 //! on to the next file, so one hostile file costs one preview. Once too many abandoned peeks are
-//! still running, files are refused unlooked-at until they end.
+//! still running, files are refused unlooked-at until they end, except one a minute that is tried
+//! anyway, so a look stuck for good does not turn the preview off for the session.
 //!
 //! It takes no async runtime: the answer comes to a closure, which sends it wherever the host
 //! listens (a channel, a signal's writer).
@@ -21,7 +22,12 @@ use anyview_core::Input;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, PoisonError, mpsc};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+/// How long a worker that has reached its bound of abandoned looks refuses files before it tries
+/// one again: a look that hangs on a dead mount may never end, and the worker must not stay off
+/// for good.
+const RETRY_AFTER: Duration = Duration::from_secs(60);
 
 /// How a worker runs. The default is what the launcher's pane uses; change one setting with the
 /// `with_*` methods. It is `#[non_exhaustive]`, so a setting added later breaks no caller.
@@ -200,6 +206,7 @@ fn run<T: Send + 'static>(
     failed: &PeekFailure<T>,
 ) {
     let abandoned = Arc::new(AtomicUsize::new(0));
+    let mut refusing: Option<Instant> = None;
     loop {
         let request = {
             let mut waiting = slot.lock();
@@ -218,7 +225,14 @@ fn run<T: Send + 'static>(
                 }
             }
         };
-        let answer = guarded(config, work, failed, &request.input, &abandoned);
+        let answer = guarded(
+            config,
+            work,
+            failed,
+            &request.input,
+            &abandoned,
+            &mut refusing,
+        );
         (request.reply)(answer);
     }
 }
@@ -231,14 +245,32 @@ fn guarded<T: Send + 'static>(
     failed: &PeekFailure<T>,
     input: &Input,
     abandoned: &Arc<AtomicUsize>,
+    refusing: &mut Option<Instant>,
 ) -> T {
     if abandoned.load(Ordering::Acquire) >= config.abandoned {
-        return failed(input);
+        let now = Instant::now();
+        match *refusing {
+            None => {
+                log::warn!(
+                    "{}: {} looks are stuck, so files are refused; one is tried every {} s",
+                    config.name,
+                    config.abandoned,
+                    RETRY_AFTER.as_secs()
+                );
+                *refusing = Some(now);
+                return failed(input);
+            }
+            Some(since) if now.duration_since(since) < RETRY_AFTER => return failed(input),
+            Some(_) => *refusing = Some(now),
+        }
+    } else {
+        *refusing = None;
     }
     let (sender, receiver) = mpsc::channel();
     // Whichever of the two (the thread ending, the worker giving up) comes second settles the
     // count: the thread leaves it alone when it finished in time.
     let settled = Arc::new(AtomicBool::new(false));
+    let file = input.name().as_str().to_owned();
     let (thread_work, thread_settled, thread_abandoned, thread_input) = (
         Arc::clone(work),
         Arc::clone(&settled),
@@ -250,6 +282,14 @@ fn guarded<T: Send + 'static>(
         .stack_size(config.stack)
         .spawn(move || {
             let looked = catch_unwind(AssertUnwindSafe(|| thread_work(thread_input)));
+            if let Err(payload) = &looked {
+                let message = payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("no message");
+                log::warn!("the look at {file} panicked: {message}");
+            }
             let _ = sender.send(looked.ok());
             if thread_settled.swap(true, Ordering::AcqRel) {
                 thread_abandoned.fetch_sub(1, Ordering::AcqRel);
@@ -265,6 +305,11 @@ fn guarded<T: Send + 'static>(
             if !settled.swap(true, Ordering::AcqRel) {
                 abandoned.fetch_add(1, Ordering::AcqRel);
             }
+            log::warn!(
+                "the look at {} ran past {:?} and was left",
+                input.name().as_str(),
+                config.overrun
+            );
             failed(input)
         }
     }

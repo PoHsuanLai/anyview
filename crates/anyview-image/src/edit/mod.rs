@@ -16,7 +16,7 @@ mod webp;
 
 pub(crate) use adjust::adjusted_pixels;
 
-use crate::decode::{Decoded, decode_bytes};
+use crate::decode::{Decoded, decode_bytes, guarded};
 use crate::encode::{encode_bmp, encode_with_metadata};
 use crate::error::ImageError;
 use crate::orientation::{ExifOrientation, Mirror};
@@ -171,8 +171,9 @@ pub fn edited(bytes: &[u8], sniffed: &Sniffed, edit: Edit) -> Result<Vec<u8>, Im
             Some(axis) => flip_jpeg(bytes, axis),
             None => rotate_jpeg(bytes, placing.turn),
         },
-        Rewrite::Png => png::rewritten(bytes, placing),
-        Rewrite::Tiff if !flat => tiff::rewritten(bytes, placing),
+        // The png and tiff crates index bytes they have not checked, as the decoders' do.
+        Rewrite::Png => guarded(|| png::rewritten(bytes, placing)),
+        Rewrite::Tiff if !flat => guarded(|| tiff::rewritten(bytes, placing)),
         Rewrite::Tiff => encode_with_metadata(
             &moved_pixels(bytes, sniffed, placing)?,
             RasterTarget::Tiff,

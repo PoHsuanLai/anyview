@@ -21,12 +21,15 @@ fn unit(kind: u16) -> usize {
     }
 }
 
-/// `tiff` without its GPS directory and the IFD0 entry that points at it. A block with no GPS
-/// directory, or one that is not a TIFF, comes back as it was.
-pub(crate) fn without_location(tiff: &[u8]) -> Vec<u8> {
+/// `tiff` without its GPS directory and the IFD0 entry that points at it, or `None` when that
+/// cannot be done with certainty: a block that does not parse as far as the GPS directory, one
+/// whose GPS directory is cut off, or one that points at GPS twice. The caller then carries no
+/// EXIF at all, so a block that hides its location from this reader is not written out whole. A
+/// block with no GPS directory comes back as it was.
+pub(crate) fn without_location(tiff: &[u8]) -> Option<Vec<u8>> {
     let mut out = tiff.to_vec();
-    let _ = strip(&mut out);
-    out
+    strip(&mut out)?;
+    Some(out)
 }
 
 fn strip(tiff: &mut [u8]) -> Option<()> {
@@ -40,15 +43,17 @@ fn strip(tiff: &mut [u8]) -> Option<()> {
     let entries = ifd0 + 2;
     let end = entries + count * ENTRY_LEN;
     tiff.get(..end + 4)?;
-    let at =
-        (0..count).find(|&i| endian.u16(tiff, entries + i * ENTRY_LEN) == Some(GPS_POINTER_TAG))?;
-    let pointer = entries + at * ENTRY_LEN;
-    if let Some(gps) = endian
-        .u32(tiff, pointer + 8)
-        .and_then(|offset| usize::try_from(offset).ok())
-    {
-        zero_directory(tiff, endian, gps);
+    let is_pointer =
+        |tiff: &[u8], i: usize| endian.u16(tiff, entries + i * ENTRY_LEN) == Some(GPS_POINTER_TAG);
+    let Some(at) = (0..count).find(|&i| is_pointer(&*tiff, i)) else {
+        return Some(());
+    };
+    if (at + 1..count).any(|i| is_pointer(&*tiff, i)) {
+        return None;
     }
+    let pointer = entries + at * ENTRY_LEN;
+    let gps = usize::try_from(endian.u32(tiff, pointer + 8)?).ok()?;
+    zero_directory(tiff, endian, gps)?;
     // Close the gap: later entries and the next-IFD link move up one entry, the freed tail is zero.
     tiff.copy_within(pointer + ENTRY_LEN..end + 4, pointer);
     tiff[end - ENTRY_LEN + 4..end + 4].fill(0);
@@ -79,4 +84,44 @@ fn zero_directory(tiff: &mut [u8], endian: Endian, at: usize) -> Option<()> {
     let end = (entries + count * ENTRY_LEN + 4).min(tiff.len());
     tiff[at..end].fill(0);
     Some(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A little-endian TIFF block whose IFD0 holds `tags` (type LONG, one value each, the value
+    /// being the tag's number) and ends `tail` bytes after the entries.
+    fn block(tags: &[u16], tail: usize) -> Vec<u8> {
+        let mut out = b"II*\0".to_vec();
+        out.extend_from_slice(&8_u32.to_le_bytes());
+        out.extend_from_slice(&(tags.len() as u16).to_le_bytes());
+        for tag in tags {
+            out.extend_from_slice(&tag.to_le_bytes());
+            out.extend_from_slice(&4_u16.to_le_bytes());
+            out.extend_from_slice(&1_u32.to_le_bytes());
+            out.extend_from_slice(&u32::from(*tag).to_le_bytes());
+        }
+        out.resize(out.len() + tail, 0);
+        out
+    }
+
+    #[test]
+    fn a_block_whose_location_cannot_be_taken_out_is_not_returned() {
+        // name, block, whether it comes back
+        let cases: Vec<(&str, Vec<u8>, bool)> = vec![
+            ("no gps directory", block(&[0x010F], 4), true),
+            ("not a tiff", b"Exif".to_vec(), false),
+            (
+                "no next-ifd link after the entries",
+                block(&[0x8825], 0),
+                false,
+            ),
+            ("a pointer into nothing", block(&[0x8825], 4), false),
+            ("two pointers", block(&[0x8825, 0x8825], 4), false),
+        ];
+        for (name, input, comes_back) in cases {
+            assert_eq!(without_location(&input).is_some(), comes_back, "{name}");
+        }
+    }
 }

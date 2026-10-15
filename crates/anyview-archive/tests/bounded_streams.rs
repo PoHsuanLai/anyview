@@ -59,10 +59,7 @@ fn a_stream_that_unpacks_to_far_more_than_the_cap_never_holds_more_than_a_window
     drop(zeros);
     for (name, packed, file, format) in cases {
         let path = write(dir.path(), file, &packed);
-        let limits = ExtractLimits {
-            entry: ByteLen(CAP),
-            scanned: ByteLen(CAP),
-        };
+        let limits = ExtractLimits::new(ByteLen(CAP), ByteLen(CAP));
         let mut result = None;
         let added = peak_of(|| result = Some(extract(&path, format, "", limits)));
         let result = result.unwrap();

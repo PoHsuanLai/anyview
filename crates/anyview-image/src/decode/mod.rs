@@ -24,6 +24,7 @@ pub(crate) use look::{Looked, look};
 pub use natural::natural_size;
 pub use plays::Plays;
 pub(crate) use plays::plays_of;
+pub(crate) use stills::guarded;
 #[cfg(feature = "encode")]
 pub(crate) use svg::Svg;
 
@@ -48,6 +49,20 @@ pub(crate) const SVG_LONG_EDGE_MIN: u32 = 1024;
 
 /// An SVG shown in full is drawn with its long edge at most this many pixels.
 pub(crate) const SVG_LONG_EDGE_MAX: u32 = 4096;
+
+/// What a lossless edit of a picture holds at its peak, per pixel: the samples as the file stores
+/// them, the turned copy and the written file.
+const REWRITE_BYTES_PER_PIXEL: u64 = 12;
+
+/// `Ok` when a picture of `width` by `height` fits a lossless edit, which reads its samples whole
+/// from the size the header states.
+pub(crate) fn admit_rewrite(width: u32, height: u32) -> Result<(), ImageError> {
+    let size = PixelSize {
+        width: anyview_core::PixelLen(width),
+        height: anyview_core::PixelLen(height),
+    };
+    Ceiling::VIEW.admit(size, REWRITE_BYTES_PER_PIXEL)
+}
 
 /// How the file stores its colour (channels and bits each), read from its header alone, for the
 /// formats the `image` crate decodes; `None` for the others, and for a header it cannot read.

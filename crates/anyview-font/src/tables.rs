@@ -2,6 +2,7 @@
 //! draws from, and puts them in a plain font of their own for skrifa. A large face (a CJK family,
 //! a colour one) keeps most of its size in tables the peek never opens, so none of that is read.
 
+use crate::be::{be16, be32};
 use crate::error::FontError;
 use crate::woff::{Table, sfnt};
 use anyview_core::work::Interrupt;
@@ -80,16 +81,6 @@ fn malformed(reason: &str) -> FontError {
     FontError::Malformed {
         reason: reason.to_owned(),
     }
-}
-
-fn be32(bytes: &[u8], at: usize) -> Option<u32> {
-    let raw = bytes.get(at..at.checked_add(4)?)?;
-    Some(u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]))
-}
-
-fn be16(bytes: &[u8], at: usize) -> Option<u16> {
-    let raw = bytes.get(at..at.checked_add(2)?)?;
-    Some(u16::from_be_bytes([raw[0], raw[1]]))
 }
 
 /// The first face of the font file `src`, with the tables the peek reads. The bytes it reads are

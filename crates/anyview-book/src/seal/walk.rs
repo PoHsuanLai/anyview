@@ -9,7 +9,11 @@ use super::element::{
 use super::entities::{decode, escape};
 use super::tokens::{Token, tokens};
 use crate::zip_path::{directory_of, resolve};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+/// The most elements left open at once. Past it a tag is dropped and its text kept, so a chapter
+/// of unclosed tags cannot make a page of millions of levels.
+const MAX_OPEN: usize = 256;
 
 /// What a walk keeps while it writes.
 struct Sealer<'a> {
@@ -19,6 +23,8 @@ struct Sealer<'a> {
     body: String,
     /// The elements written and not yet closed, innermost last.
     open: Vec<&'static str>,
+    /// How many of each name `open` holds, so a closing tag finds its element without a search.
+    open_names: HashMap<&'static str, u32>,
     /// How deep inside an element that is left out with its contents.
     dropped: u32,
     /// How deep inside SVG or MathML.
@@ -34,6 +40,7 @@ pub(super) fn seal(html: &str, directory: &str, assets: &dyn Assets) -> Chapter 
         styles: String::new(),
         body: String::new(),
         open: Vec::new(),
+        open_names: HashMap::new(),
         dropped: 0,
         foreign: 0,
         sheets: HashSet::new(),
@@ -115,13 +122,24 @@ impl Sealer<'_> {
         } else if self.dropped == 0
             && self.foreign == 0
             && !VOID.contains(&name)
-            && self.open.contains(&name)
+            && self.open_names.contains_key(name)
         {
             while let Some(open) = self.open.pop() {
+                self.forget(open);
                 self.body.push_str(&format!("</{open}>"));
                 if open == name {
                     break;
                 }
+            }
+        }
+    }
+
+    /// `name` is no longer open once.
+    fn forget(&mut self, name: &'static str) {
+        if let Some(count) = self.open_names.get_mut(name) {
+            *count -= 1;
+            if *count == 0 {
+                self.open_names.remove(name);
             }
         }
     }
@@ -131,12 +149,16 @@ impl Sealer<'_> {
             self.image(attributes);
             return;
         }
+        if self.open.len() >= MAX_OPEN && !VOID.contains(&name) {
+            return;
+        }
         self.body.push('<');
         self.body.push_str(name);
         self.attributes(name, attributes);
         self.body.push('>');
         if !VOID.contains(&name) {
             self.open.push(name);
+            *self.open_names.entry(name).or_default() += 1;
         }
     }
 

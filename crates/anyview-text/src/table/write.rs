@@ -58,9 +58,9 @@ impl Table {
             return Err(refusal("the file cannot be written back as it is"));
         }
         let source = indexed.source();
-        // A file that is not the length it was indexed at was changed since: the offsets are not
-        // where they were.
-        if source.len().0 != indexed.index().end() {
+        // A file that is not the length it was indexed at, or has another modification time, was
+        // changed since: the offsets are not where they were.
+        if source.len().0 != indexed.index().end() || !indexed.is_current() {
             return Err(refusal("the file changed since it was opened"));
         }
         let (sep, skip) = (indexed.separator(), indexed.skip());

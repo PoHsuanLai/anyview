@@ -1,5 +1,6 @@
 //! WOFF 1: a font whose tables are each zlib-compressed, unpacked to the plain sfnt font it wraps.
 
+use crate::be::{be16, be32};
 use crate::error::FontError;
 use anyview_core::work::Interrupt;
 
@@ -14,16 +15,6 @@ fn malformed(reason: &str) -> FontError {
     FontError::Malformed {
         reason: reason.to_owned(),
     }
-}
-
-fn be32(bytes: &[u8], at: usize) -> Option<u32> {
-    let raw = bytes.get(at..at.checked_add(4)?)?;
-    Some(u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]))
-}
-
-fn be16(bytes: &[u8], at: usize) -> Option<u16> {
-    let raw = bytes.get(at..at.checked_add(2)?)?;
-    Some(u16::from_be_bytes([raw[0], raw[1]]))
 }
 
 /// One entry of the WOFF table directory, before its data is unpacked.

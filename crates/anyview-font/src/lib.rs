@@ -9,6 +9,7 @@
 
 #![warn(missing_docs)]
 
+mod be;
 mod error;
 mod face;
 mod peek;

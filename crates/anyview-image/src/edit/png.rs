@@ -235,6 +235,7 @@ fn picture_chunks(
 pub(super) fn rewritten(file: &[u8], placing: Placing) -> Result<Vec<u8>, ImageError> {
     let chunks = chunks(file).ok_or_else(|| container("not a PNG"))?;
     let head = header_of(&chunks).ok_or_else(|| container("no PNG header"))?;
+    crate::decode::admit_rewrite(head.width, head.height)?;
     let total = placing.over(ExifFacts::read(file).orientation);
     let grid = raw_grid(file, &head)?.placed(total);
     let palette = chunks.iter().find(|c| &c.kind == b"PLTE").map(|c| c.data);

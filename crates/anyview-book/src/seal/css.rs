@@ -26,12 +26,7 @@ pub(super) fn seal_css(css: &str, directory: &str, assets: &dyn Assets) -> Strin
     let mut out = String::with_capacity(css.len());
     let mut at = 0;
     while at < css.len() {
-        let next = MARKERS
-            .iter()
-            .chain(STRING_LOADERS)
-            .filter_map(|marker| lower[at..].find(marker).map(|found| (at + found, *marker)))
-            .min_by_key(|(position, _)| *position);
-        let Some((position, marker)) = next else {
+        let Some((position, marker)) = next_marker(lower.as_bytes(), at) else {
             out.push_str(&css[at..]);
             break;
         };
@@ -52,6 +47,19 @@ pub(super) fn seal_css(css: &str, directory: &str, assets: &dyn Assets) -> Strin
         };
     }
     out
+}
+
+/// The first marker at or after `from` in `lower`, and where it is. One forward pass, so a
+/// stylesheet of nothing but markers that are cut one byte at a time stays linear.
+fn next_marker(lower: &[u8], from: usize) -> Option<(usize, &'static str)> {
+    (from..lower.len()).find_map(|position| {
+        let rest = &lower[position..];
+        MARKERS
+            .iter()
+            .chain(STRING_LOADERS)
+            .find(|marker| rest.starts_with(marker.as_bytes()))
+            .map(|marker| (position, *marker))
+    })
 }
 
 /// The position just past the next `end` at or after `from`, or the end of `css`.

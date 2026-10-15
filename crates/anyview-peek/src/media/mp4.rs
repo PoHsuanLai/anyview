@@ -139,9 +139,11 @@ fn movie_header(
             }
             n => (n, 8),
         };
-        if size < header_len || position + size > len {
-            return Err(HeaderError::Truncated);
-        }
+        // `size` is the file's to state, up to a u64: the sum must not wrap.
+        let end = position
+            .checked_add(size)
+            .filter(|end| size >= header_len && *end <= len)
+            .ok_or(HeaderError::Truncated)?;
         if &kind == b"ftyp" || &kind == b"moov" {
             if size > limit {
                 return Err(HeaderError::OverBudget { size });
@@ -157,7 +159,7 @@ fn movie_header(
                 break;
             }
         }
-        position += size;
+        position = end;
     }
     let moov_body = moov_body.ok_or(HeaderError::NoMovie)?;
     let micros = bytes.get(moov_body..).and_then(movie_micros);

@@ -18,7 +18,10 @@ pub(super) fn scheme(url: &str) -> Option<String> {
 /// `url` when it is safe to put in a link: a fragment, a relative reference, or one of the
 /// allowed schemes. Anything else becomes `#`.
 pub(super) fn safe_link(url: &str) -> String {
-    match scheme(url.trim()) {
+    // A browser drops tabs and line breaks (and any control character) before it reads the
+    // scheme, so `java<tab>script:` is `javascript:` to it.
+    let seen: String = url.chars().filter(|c| !c.is_ascii_control()).collect();
+    match scheme(seen.trim()) {
         Some(scheme) if !SCHEMES.contains(&scheme.as_str()) => "#".to_owned(),
         Some(_) | None => url.to_owned(),
     }
@@ -47,6 +50,9 @@ mod tests {
             ("data", "data:text/html,<b>x</b>", "#"),
             ("file", "file:///etc/passwd", "#"),
             ("scheme only", "vbscript:x", "#"),
+            ("tab inside the scheme", "java\tscript:alert(1)", "#"),
+            ("line break inside the scheme", "java\nscript:alert(1)", "#"),
+            ("control before the scheme", "\u{1}javascript:alert(1)", "#"),
         ];
         for (name, url, want) in CASES {
             assert_eq!(safe_link(url), *want, "{name}");

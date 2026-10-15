@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyview-archive = { workspace = true }
 anyview-core = { workspace = true }
 # `OpenFile`, the one way a path is opened (core does no I/O).
 anyview-fs = { workspace = true }
