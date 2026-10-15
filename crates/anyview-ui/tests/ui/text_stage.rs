@@ -505,3 +505,47 @@ fn the_source_a_person_chose_stays_the_source_when_they_find() {
     assert_eq!(view_of(&harness).as_deref(), Some("source"));
     assert!(harness.count(".viewer-hit") >= 1, "its lines are marked");
 }
+
+/// A Markdown page whose second "cat" is far below the first screen.
+fn long_page() -> String {
+    let mut page = String::from("# Title\n\nthe first cat\n\n");
+    for n in 1..=80 {
+        page.push_str(&format!("A paragraph of filler, number {n}.\n\n"));
+    }
+    page.push_str("the last cat\n");
+    page
+}
+
+#[test]
+fn stepping_to_a_hit_below_the_fold_of_a_markdown_page_scrolls_the_page_to_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = file(dir.path(), "long.md", &long_page());
+    let (mut harness, _) = window(&[path], 0, Appearance::default());
+    settle(&mut harness);
+    harness.send(Input::pointer_move(middle()));
+    settle(&mut harness);
+    chord(&mut harness, 'f');
+    type_text(&mut harness, "cat");
+    press(&mut harness, ShortcutKey::Enter);
+    // The current hit's mark, seen from the window, is inside the frame and not past its end.
+    let in_frame = |harness: &Harness| {
+        let (Some(room), Some(at)) = (
+            harness.rect(".viewer-frame"),
+            harness
+                .frame(".viewer-frame")
+                .and_then(|frame| frame.centre("mark[data-current]")),
+        ) else {
+            return false;
+        };
+        at.y.0 >= room.origin.y.0 && at.y.0 <= room.origin.y.0 + room.size.height.0
+    };
+    assert!(in_frame(&harness), "the first hit is on the first screen");
+    chord(&mut harness, 'g');
+    settle(&mut harness);
+    assert!(
+        capsule(&harness).contains("2 of 2"),
+        "{}",
+        capsule(&harness)
+    );
+    assert!(in_frame(&harness), "the page scrolled to the last hit");
+}

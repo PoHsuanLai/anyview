@@ -18,6 +18,7 @@ use anyview_text::{FindHit, TOKEN_CLASS_PREFIX, TokenClass, TokenLine, mark_page
 use dioxus::prelude::*;
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::prelude::Word;
+use ds_blitz::{FrameTag, use_scroll_handle};
 
 /// The height of one line in logical pixels: the `--s-20` step of the stylesheet.
 const ROW: f32 = 20.0;
@@ -26,6 +27,9 @@ const ROW: f32 = 20.0;
 /// stage's top starts below (`.viewer-scrolls`, views/window.css). A pane has no titlebar, so
 /// counting it there only makes a page a line or so short.
 const TITLEBAR: f32 = 28.0;
+
+/// The tag of the page's frame, by which the window finds it to scroll it.
+const FRAME_TAG: &str = "page";
 
 /// Lines drawn past the ones that fit, so a partial row at the bottom is never blank.
 const SPARE: u32 = 2;
@@ -194,6 +198,22 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         }
     }));
 
+    // The rendered page is a sealed frame, which the room cannot scroll by line: when the current
+    // hit changes, the window scrolls the frame to the mark of it once the frame has laid the
+    // marked page out.
+    let frame_scroll = use_scroll_handle();
+    let paged = matches!(place.view, Shown::Rendered) && doc.0.rendered.is_some();
+    let on_hit =
+        find_of(&cx.stage).and_then(|(query, hits)| hits.current().map(|hit| (query, hit)));
+    use_effect(use_reactive!(|on_hit, paged| {
+        if let (Some(handle), Some((_, hit)), true) = (&frame_scroll, on_hit, paged) {
+            // The mark's number names this hit, so the page still marked for the last one is
+            // waited out rather than scrolled.
+            let mark = format!("mark[data-current=\"{}\"]", hit.0);
+            handle.frame_into_view(FrameTag::new(FRAME_TAG), mark);
+        }
+    }));
+
     // A file of no bytes shows what an empty picture or recording shows. Editing it is still
     // offered, and the editor over it is empty.
     if doc.0.is_empty() && !matches!(cx.stage, Stage::Text(TextStage::Editing { .. })) {
@@ -225,7 +245,7 @@ pub(super) fn TextContent(doc: Held<TextDoc>, cx: StageCx) -> Element {
         };
         return rsx! {
             div { class: "viewer-text viewer-scrolls", "data-view": "rendered", style: "{zoom}",
-                iframe { class: "viewer-frame", "data-frame-tag": "page", srcdoc: page }
+                iframe { class: "viewer-frame", "data-frame-tag": FRAME_TAG, srcdoc: page }
             }
         };
     }
