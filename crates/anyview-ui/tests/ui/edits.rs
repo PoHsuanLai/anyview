@@ -481,7 +481,7 @@ fn adjust_size_opens_a_dialog_on_the_size_the_picture_has_and_cancel_changes_not
 }
 
 #[test]
-fn closing_a_picture_that_was_cut_asks_and_cancel_keeps_the_window() {
+fn closing_a_picture_that_was_cut_keeps_the_cut_without_asking() {
     let (_dir, mut harness, requests) = picture_at(100);
     harness.send(Input::key(ShortcutKey::Char('c')));
     settle(&mut harness);
@@ -491,32 +491,18 @@ fn closing_a_picture_that_was_cut_asks_and_cancel_keeps_the_window() {
     settle(&mut harness);
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
     settle(&mut harness);
-    assert!(harness.centre(".ds-alert").is_some(), "the question is up");
-    let text = harness.text_of(".ds-alert").unwrap_or_default();
-    assert!(text.contains("save the changes"), "{text}");
-    let closes = |requests: &Requests| {
-        requests
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|request| matches!(request, HostRequest::CloseWindow))
-    };
-    assert!(!closes(&requests));
-    harness.send(Input::key(ShortcutKey::Escape));
-    settle(&mut harness);
-    assert!(harness.centre(".ds-alert").is_none(), "Cancel puts it away");
-    assert!(!closes(&requests), "and the window stays");
-    assert_eq!(harness.count(".ds-titlebar-edited"), 1, "with its changes");
-    // Return is Save: the file is asked to be written, and the window waits for it.
-    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('w')));
-    settle(&mut harness);
-    harness.send(Input::key(ShortcutKey::Enter));
-    settle(&mut harness);
-    assert_eq!(asked(&requests), [write_of(cut(0, 0, 32, 32))]);
     assert!(
-        !closes(&requests),
-        "it closes once the saved file is read again"
+        harness.centre(".ds-alert").is_none(),
+        "no question, as in Preview"
     );
+    // The cut is written, and the window waits for the saved file to be read again.
+    assert_eq!(asked(&requests), [write_of(cut(0, 0, 32, 32))]);
+    let closes = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|request| matches!(request, HostRequest::CloseWindow));
+    assert!(!closes, "it closes once the saved file is read again");
 }
 
 #[test]
