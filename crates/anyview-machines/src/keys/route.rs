@@ -117,6 +117,7 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             | Act::MovePageLater
             | Act::NextSheet
             | Act::PreviousSheet
+            | Act::SelectAll
             | Act::File(_) => None,
         },
         Press::Key(shortcut) => match shortcut.keys().as_slice() {

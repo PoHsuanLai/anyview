@@ -15,6 +15,7 @@ use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::{Point, Size};
+use ds_core::selection::RowSelection;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -277,6 +278,17 @@ pub trait StageView: 'static {
     ) -> Vec<StageIn> {
         Vec::new()
     }
+    /// The text Copy puts on the clipboard for `rows`, the places the stage has picked, for a
+    /// family whose rows are picked (a table's). `sorted` is the order the rows are shown in,
+    /// when they are sorted.
+    fn copy_text(
+        _doc: &Arc<Self::Doc>,
+        _stage: &Stage,
+        _rows: &RowSelection,
+        _sorted: Option<&super::SortedOrder>,
+    ) -> Option<String> {
+        None
+    }
     /// The first `upto` hits of the find that is up, as the palette lists them, for a family that
     /// can search.
     fn hit_lines(_doc: &Arc<Self::Doc>, _cx: &StageCx, _upto: u32) -> Vec<HitLine> {
@@ -333,6 +345,12 @@ pub(crate) trait DocView: Debug + Send + Sync {
         sorted: Option<&super::SortedOrder>,
         hit: HitIndex,
     ) -> Vec<StageIn>;
+    fn copy_text(
+        &self,
+        stage: &Stage,
+        rows: &RowSelection,
+        sorted: Option<&super::SortedOrder>,
+    ) -> Option<String>;
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine>;
     fn leaving(&self) -> Leaving;
     fn line(&self) -> Option<Arc<dyn MediaLine>>;
@@ -422,6 +440,15 @@ impl<S: StageView> DocView for Loaded<S> {
         hit: HitIndex,
     ) -> Vec<StageIn> {
         S::show_hit(&self.doc, stage, hits, sorted, hit)
+    }
+
+    fn copy_text(
+        &self,
+        stage: &Stage,
+        rows: &RowSelection,
+        sorted: Option<&super::SortedOrder>,
+    ) -> Option<String> {
+        S::copy_text(&self.doc, stage, rows, sorted)
     }
 
     fn hit_lines(&self, cx: &StageCx, upto: u32) -> Vec<HitLine> {

@@ -28,7 +28,7 @@ impl Stage {
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command, &params.media.abilities).map(StageIn::Media),
             Stage::Text(stage) => text(command, stage, &params.text).map(StageIn::Text),
-            Stage::Table(_) => table(command).map(StageIn::Table),
+            Stage::Table(stage) => table(command, stage).map(StageIn::Table),
             Stage::Tree(_) => tree(command).map(StageIn::Tree),
         }
     }
@@ -245,6 +245,8 @@ fn raster(command: StageCommand, stage: &RasterStage, params: &RasterParams) -> 
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
         | StageCommand::CollapseAll
+        | StageCommand::SelectAll
+        | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save => None,
@@ -306,6 +308,8 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::MovePageEarlier
         | StageCommand::MovePageLater
         | StageCommand::CollapseAll
+        | StageCommand::SelectAll
+        | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save => None,
@@ -373,6 +377,8 @@ fn media(command: StageCommand, abilities: &MediaAbilities) -> Option<MediaIn> {
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
         | StageCommand::CollapseAll
+        | StageCommand::SelectAll
+        | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save => None,
@@ -424,11 +430,13 @@ fn text(command: StageCommand, stage: &TextStage, params: &TextParams) -> Option
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
-        | StageCommand::CollapseAll => None,
+        | StageCommand::CollapseAll
+        | StageCommand::SelectAll
+        | StageCommand::CopyRows => None,
     }
 }
 
-fn table(command: StageCommand) -> Option<TableIn> {
+fn table(command: StageCommand, stage: &TableStage) -> Option<TableIn> {
     match command {
         StageCommand::NextSheet => Some(TableIn::NextSheet),
         StageCommand::PreviousSheet => Some(TableIn::PreviousSheet),
@@ -444,6 +452,8 @@ fn table(command: StageCommand) -> Option<TableIn> {
         StageCommand::ZoomIn => Some(TableIn::ZoomStep(ZoomDir::In)),
         StageCommand::ZoomOut => Some(TableIn::ZoomStep(ZoomDir::Out)),
         StageCommand::ZoomToActual => Some(TableIn::ZoomActual),
+        StageCommand::SelectAll => Some(TableIn::SelectAll),
+        StageCommand::CopyRows if stage.selected_count() > 0 => Some(TableIn::Copy),
         StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
         | StageCommand::ToggleSource
@@ -466,6 +476,7 @@ fn table(command: StageCommand) -> Option<TableIn> {
         | StageCommand::MovePageEarlier
         | StageCommand::MovePageLater
         | StageCommand::CollapseAll
+        | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save => None,
@@ -510,6 +521,8 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::MovePageLater
         | StageCommand::NextSheet
         | StageCommand::PreviousSheet
+        | StageCommand::SelectAll
+        | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
         | StageCommand::Save => None,

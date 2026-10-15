@@ -5,6 +5,7 @@ use crate::stage::find::{FindOut, HitCount, HitIndex, StageFind};
 use crate::stage::row::{RowNo, RowStep};
 use crate::stage::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
+use ds_core::selection::{Pick, RowSelection};
 
 /// A sheet of the open file, zero-based. A delimited file has one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -15,9 +16,10 @@ pub struct SheetNo(pub u32);
 pub struct SheetTotal(pub u32);
 
 /// What the table stage is doing. The sort is only a way of looking at the rows: the rows the
-/// cursor and the sort name are positions in the order the view shows, and the file is never
+/// selection and the sort name are positions in the order the view shows, and the file is never
 /// reordered. A find that is up searches the sheet being read, and the hit it is on is the row
-/// under the cursor.
+/// under the cursor. The selection is quire's `RowSelection`: a few ranges however many rows are
+/// picked, with an anchor for Shift and the cursor the keys rest on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TableStage {
     /// Reading a sheet with no row picked.
@@ -31,12 +33,12 @@ pub enum TableStage {
         /// How large the rows are drawn.
         scale: ContentScale,
     },
-    /// Reading a sheet with the cursor on a row.
+    /// Reading a sheet with one row or several picked; never an empty selection.
     Selected {
         /// The sheet being read.
         sheet: SheetNo,
-        /// The row under the cursor.
-        row: RowNo,
+        /// The rows picked, and the cursor among them.
+        rows: RowSelection,
         /// How the rows are ordered, when they are.
         sort: Option<ColumnSort>,
         /// The find that is up, when one is.
@@ -47,23 +49,23 @@ pub enum TableStage {
 }
 
 impl TableStage {
-    /// The stage with the cursor on `row`, or on none.
+    /// The stage with `rows` picked, or with none picked when `rows` is empty.
     pub(super) fn of(
         sheet: SheetNo,
-        row: Option<RowNo>,
+        rows: RowSelection,
         sort: Option<ColumnSort>,
         look: Look,
     ) -> Self {
         let Look { find, scale } = look;
-        match row {
-            Some(row) => TableStage::Selected {
+        match rows.is_empty() {
+            false => TableStage::Selected {
                 sheet,
-                row,
+                rows,
                 sort,
                 find,
                 scale,
             },
-            None => TableStage::Browsing {
+            true => TableStage::Browsing {
                 sheet,
                 sort,
                 find,
@@ -108,13 +110,28 @@ impl TableStage {
         }
     }
 
-    /// The row the cursor is on, when there is one.
+    /// The row the cursor is on, when there is one: the one picked last, or the first picked
+    /// when the selection came to be some other way.
     #[must_use]
     pub fn row(&self) -> Option<RowNo> {
+        let rows = self.selection()?;
+        let at = rows.cursor().or_else(|| rows.rows().next())?;
+        u32::try_from(at).ok().map(RowNo)
+    }
+
+    /// The rows picked, when any are.
+    #[must_use]
+    pub fn selection(&self) -> Option<&RowSelection> {
         match self {
             TableStage::Browsing { .. } => None,
-            TableStage::Selected { row, .. } => Some(*row),
+            TableStage::Selected { rows, .. } => Some(rows),
         }
+    }
+
+    /// How many rows are picked.
+    #[must_use]
+    pub fn selected_count(&self) -> usize {
+        self.selection().map_or(0, RowSelection::count)
     }
 
     /// The column the rows are sorted by, when they are.
@@ -153,15 +170,27 @@ pub enum TableIn {
     PreviousSheet,
     /// This sheet, when the file has it.
     ChooseSheet(SheetNo),
-    /// The cursor moved to this row.
+    /// The cursor moved to this row, which alone is picked: a find landing on a hit.
     Select(RowNo),
-    /// Move the cursor along the rows: the arrow keys, Page Up and Down, Home and End.
+    /// A row was reached by a click or a key, and how: it replaces the picked rows, is toggled
+    /// in them, or extends them from the anchor. A row the sheet does not have is ignored.
+    Pick(Pick),
+    /// Pick every row of the sheet.
+    SelectAll,
+    /// Move the cursor along the rows: the arrow keys, Page Up and Down, Home and End. The row it
+    /// reaches alone is picked.
     Move(RowStep),
     /// A press on this column's header (zero-based, among the file's columns): sort by it, flip
-    /// the sort, or put the sort away. The cursor goes with the old order.
+    /// the sort, or put the sort away. The picked rows stay where they are until the view, whose
+    /// order it is, says where the sort put them (`Reseat`).
     PressHeader(u32),
-    /// Put the cursor away.
+    /// The sort changed the order the rows are shown in: the rows picked are these places now.
+    /// Heard only while rows are picked.
+    Reseat(RowSelection),
+    /// Esc: several picked rows narrow to the cursor's row, and one row is put away.
     Deselect,
+    /// Copy the picked rows; heard only while rows are picked.
+    Copy,
     /// Search the sheet for this text; empty text puts the hits away.
     Find(TypedText),
     /// The search for `query` found `count` hits, `nearest` being the one the reader meets first.
@@ -195,12 +224,14 @@ impl From<ds_core::machine::Elapsed> for TableIn {
     }
 }
 
-/// What the stage asks of the window: its search. Where the person is in a table is not kept for
-/// next time, so no move of the cursor has an effect to carry out.
+/// What the stage asks of the window: its search, and the clipboard. Where the person is in a
+/// table is not kept for next time, so no move of the cursor has an effect to carry out.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TableOut {
     /// Something for the search: run it, show a hit, clear the marks.
     Find(FindOut),
+    /// Put these picked rows (places in the order shown) on the clipboard as text.
+    Copy(RowSelection),
 }
 
 /// What the stage needs to know of the open file.

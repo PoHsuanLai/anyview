@@ -52,6 +52,8 @@ pub enum Act {
     NextSheet,
     /// The previous sheet of a workbook.
     PreviousSheet,
+    /// Pick every row of a table (the standard Select All).
+    SelectAll,
     /// An action on the file.
     File(FileAction),
 }
@@ -99,6 +101,7 @@ const STANDARD: &[(StandardAction, Act)] = &[
     (StandardAction::Bigger, Act::ZoomIn),
     (StandardAction::Smaller, Act::ZoomOut),
     (StandardAction::ActualSize, Act::ZoomToActual),
+    (StandardAction::SelectAll, Act::SelectAll),
 ];
 
 impl Act {
@@ -152,7 +155,8 @@ impl Act {
             | Act::MovePageEarlier
             | Act::MovePageLater
             | Act::NextSheet
-            | Act::PreviousSheet => true,
+            | Act::PreviousSheet
+            | Act::SelectAll => true,
             Act::File(action) => matches!(action, FileAction::CopyFile | FileAction::MoveToTrash),
             Act::Palette
             | Act::Find

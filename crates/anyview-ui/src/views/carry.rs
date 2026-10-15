@@ -9,14 +9,15 @@ use crate::families::{Leaving, top_for};
 use crate::io::{Edge, HostRequest, Job, Preloaded};
 use crate::{
     ChromeOut, FindOut, HitIndex, LoadOut, MediaOut, PaletteOut, PanelOut, PdfOut, PresentationOut,
-    SheetIn, SheetOut, Stage, StageIn, StageOut, TextIn, TextOut, Ticket, TypedText, ViewerIn,
-    ViewerOut,
+    SheetIn, SheetOut, Stage, StageIn, StageOut, TableOut, TextIn, TextOut, Ticket, TypedText,
+    ViewerIn, ViewerOut,
 };
 use anyview_core::{FilePath, FindOptions, Neighbours, Resume};
 use dioxus::prelude::*;
 use ds::motion::detail::operation::{Operation, PendingToken};
 use ds::stack::toast_hub::ToastHub;
 use ds_blitz::Gpu;
+use ds_core::selection::RowSelection;
 
 /// What carrying out an output needs: the shelf it writes to, the edge, the GPU a picture is
 /// uploaded to, and the machine itself (set once it exists, since the machine is built with this).
@@ -269,6 +270,10 @@ fn staged(c: &Carry, out: &StageOut) {
         | StageOut::Table(_)
         | StageOut::Tree(_) => {}
     }
+    if let StageOut::Table(TableOut::Copy(rows)) = out {
+        copy_rows(c, rows);
+        return;
+    }
     if let StageOut::Pdf(PdfOut::Edit(request)) = out {
         c.edge.request(HostRequest::Edit(*request));
         return;
@@ -283,6 +288,20 @@ fn staged(c: &Carry, out: &StageOut) {
         Some(FindOut::Clear) => shelf.hits.set(None),
         Some(FindOut::ShowHit(index)) => reveal(c, *index),
         None => {}
+    }
+}
+
+/// Put the picked `rows` of the table on the clipboard as text, in the order they are shown. A
+/// clipboard that cannot be written leaves things as they were, as a copy in a text does.
+fn copy_rows(c: &Carry, rows: &RowSelection) {
+    let (Some(dispatch), Some((_, doc))) = (c.dispatch(), c.shelf.shown_now()) else {
+        return;
+    };
+    let stage = dispatch.machine.state().peek().stage.clone();
+    let sorted = c.shelf.sorted.peek().clone();
+    let order = sorted.as_ref().map(|held| held.0.as_ref());
+    if let Some(text) = doc.view().copy_text(&stage, rows, order) {
+        let _unwritten = ds_blitz::clipboard::write_text(&text);
     }
 }
 

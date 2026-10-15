@@ -101,6 +101,10 @@ pub enum StageCommand {
     PreviousSheet,
     /// Close every open node of a tree but the top level.
     CollapseAll,
+    /// Pick every row of a table.
+    SelectAll,
+    /// Copy the picked rows of a table as text.
+    CopyRows,
     /// Edit the text in place.
     Edit,
     /// Finish editing the text and go back to reading it.
@@ -125,6 +129,8 @@ const CHORDS: &[(Act, StageCommand)] = &[
     (Act::PreviousSheet, StageCommand::PreviousSheet),
     (Act::Done, StageCommand::Done),
     (Act::Save, StageCommand::Save),
+    (Act::SelectAll, StageCommand::SelectAll),
+    (Act::File(FileAction::CopyFile), StageCommand::CopyRows),
 ];
 
 /// The commands a key with no command modifier stands for. The first row of a command is the one
