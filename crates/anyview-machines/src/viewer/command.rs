@@ -121,6 +121,7 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
         FileAction::SaveCopy => (viewer, vec![ViewerOut::NameCopy]),
         FileAction::RevertTo => (viewer, vec![ViewerOut::ListVersions]),
+        FileAction::Trim => super::trim::begin(viewer, at, params),
         FileAction::RotateLeft => edit(
             viewer,
             Edit::Rotate(QuarterTurn::ThreeQuarter),
@@ -182,7 +183,7 @@ fn picture_edit(viewer: Viewer, edit: Edit, at: Stamp, params: &ViewerParams) ->
     let input = match edit {
         Edit::Rotate(turn) => PictureEditIn::Turn(turn),
         Edit::Flip(axis) => PictureEditIn::Flip(axis),
-        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) => {
+        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) | Edit::Trim { .. } => {
             return (viewer, vec![]);
         }
     };

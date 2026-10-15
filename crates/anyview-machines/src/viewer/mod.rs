@@ -11,5 +11,6 @@ mod region;
 mod step;
 #[cfg(test)]
 mod tests;
+mod trim;
 
 pub use model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};

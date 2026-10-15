@@ -72,6 +72,7 @@ pub(super) fn EditSheet(
         (_, EditCaution::Signed) => ("Change this document?", "Change Pages"),
         (Edit::Flip(_), EditCaution::Loses(_)) => ("Flip this picture?", "Flip"),
         (Edit::Adjust(_), EditCaution::Loses(_)) => ("Save the changes to this picture?", "Save"),
+        (Edit::Trim { .. }, EditCaution::Loses(_)) => ("Trim this recording?", "Trim"),
         (_, EditCaution::Loses(_)) => ("Rotate this picture?", "Rotate"),
     };
     let message = match caution {

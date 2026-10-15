@@ -104,6 +104,10 @@ pub struct StageCx {
     pub picture: crate::PictureEdits,
     /// An input for the picture's edits (the crop rectangle's grips and buttons).
     pub edit: EventHandler<crate::PictureEditIn>,
+    /// The trim of the open recording: the bar's handles while it is up, and the stretch kept.
+    pub trim: crate::MediaTrim,
+    /// An input for the trim (the bar's handles and buttons).
+    pub trim_in: EventHandler<crate::TrimIn>,
     /// The load this document belongs to.
     pub ticket: Ticket,
     /// The room, once measured.

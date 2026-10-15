@@ -295,6 +295,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         edit: EventHandler::new(move |input: PictureEditIn| {
             dispatch.send(ViewerIn::Picture(input));
         }),
+        trim: state.trim.clone(),
+        trim_in: EventHandler::new(move |input: crate::TrimIn| {
+            dispatch.send(ViewerIn::Trim(input));
+        }),
         ticket,
         area: area(),
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),

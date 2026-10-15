@@ -20,6 +20,13 @@ impl Machine for MediaStage {
         if let MediaIn::Player(PlayerEvent::LengthKnown(length)) = input {
             return (self.with_length(length), vec![]);
         }
+        // A file written over by a trim opens again in the stage that showed it: the new length
+        // is the recording's now.
+        if let MediaIn::Player(PlayerEvent::Loaded { length }) = input
+            && self.length().is_some()
+        {
+            return (self.with_length(length), vec![]);
+        }
         match self {
             MediaStage::Opening => opening(input),
             MediaStage::Playing { at, length } => playing(self, at, length, input, params),

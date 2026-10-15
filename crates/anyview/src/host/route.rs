@@ -297,7 +297,8 @@ fn run(shown: Shown, action: FileAction) -> (Shown, Carry) {
         | FileAction::RotateLeft
         | FileAction::RotateRight
         | FileAction::FlipHorizontal
-        | FileAction::FlipVertical => declined(shown, Declined::Edit),
+        | FileAction::FlipVertical
+        | FileAction::Trim => declined(shown, Declined::Edit),
         FileAction::PlayInBackground => about_file(shown, |probed| {
             Carry::Desktop(Task::PlayInBackground(probed.clone()))
         }),

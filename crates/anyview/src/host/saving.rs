@@ -95,7 +95,27 @@ fn written(
     path: &FilePath,
     bytes: Vec<u8>,
 ) -> Result<VersionId, SaveError> {
-    let pending = Pending::new(path.as_path(), bytes);
+    kept_then_written(versions, at, Pending::new(path.as_path(), bytes))
+}
+
+/// The file `produced` written over `path` once its original is kept, and read as it is written:
+/// a recording cut by a plugin is too large to hold in memory. `produced` is left where it is.
+pub(super) fn save_from_file(
+    versions: &Versions,
+    at: SavedAt,
+    path: &FilePath,
+    produced: &std::path::Path,
+) -> Outcome {
+    let pending = Pending::from_file(path.as_path(), produced);
+    outcome_of(kept_then_written(versions, at, pending), path)
+}
+
+/// `pending` written over its file once the original is kept.
+fn kept_then_written(
+    versions: &Versions,
+    at: SavedAt,
+    pending: Pending,
+) -> Result<VersionId, SaveError> {
     let backed_up = versions
         .back_up(pending, at)
         .map_err(SaveError::KeepOriginal)?;

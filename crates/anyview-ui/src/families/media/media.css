@@ -1,5 +1,5 @@
 /* The media stage: the picture, the cover art or the plain card of an audio file filling the room,
-   the status word over it, the cover that takes the click, the side panel's lists. Tokens only. */
+   the status word over it, the cover that takes the click, the trim bar, the side panel's lists. Tokens only. */
 
 .viewer-media{ position:absolute; inset:0; overflow:hidden; background:var(--paper); }
 .viewer-media[*|data-picture=present]{ background:var(--ink); }
@@ -14,3 +14,15 @@
 .viewer-tracks{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8); }
 .viewer-tracks-heading{ margin:0; color:var(--ink-faint); font-size:var(--fs-small); }
 .viewer-chapters{ display:flex; flex-direction:column; padding:var(--s-8); }
+
+/* The trim bar: a track the length of the recording, the part kept framed in yellow between two handles, the playhead on it.
+   The dock takes no pointer; the bar does. */
+.viewer-trim{ position:absolute; left:0; right:0; bottom:calc(var(--s-48) * 2); display:flex; justify-content:center; padding:0 var(--s-16); pointer-events:none; }
+.viewer-trim-bar{ display:flex; align-items:center; gap:var(--s-12); width:min(100%, calc(var(--s-48) * 16)); padding:var(--s-8) var(--s-12); border-radius:var(--r-card); background:var(--raise); box-shadow:var(--shadow-pop); pointer-events:auto; }
+.viewer-trim-track{ position:relative; flex:1; min-width:0; height:var(--s-36); border-radius:var(--r-tiny); background:var(--fill-quaternary); cursor:ew-resize; user-select:none; }
+.viewer-trim-kept{ position:absolute; top:0; bottom:0; box-sizing:border-box; border-style:solid; border-color:var(--tag-yellow); border-width:var(--s-3) 0; background:var(--accent-soft); pointer-events:none; }
+.viewer-trim-handle{ position:absolute; top:0; bottom:0; width:var(--s-12); background:var(--tag-yellow); box-shadow:var(--shadow-handle); pointer-events:none; }
+.viewer-trim-handle[*|data-edge=start]{ margin-left:calc(var(--s-12) * -1); border-radius:var(--r-tiny) 0 0 var(--r-tiny); }
+.viewer-trim-handle[*|data-edge=end]{ border-radius:0 var(--r-tiny) var(--r-tiny) 0; }
+.viewer-trim-head{ position:absolute; top:calc(var(--s-4) * -1); bottom:calc(var(--s-4) * -1); width:var(--s-2); margin-left:calc(var(--s-1) * -1); background:var(--ink); pointer-events:none; }
+.viewer-trim-times{ font-family:var(--font-data); font-size:var(--fs-small); color:var(--ink-soft); font-variant-numeric:tabular-nums; white-space:nowrap; }

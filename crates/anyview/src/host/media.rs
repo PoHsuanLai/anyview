@@ -2,14 +2,15 @@
 //! audio or the frame on screen beside a recording.
 
 use super::outcome::Outcome;
+use super::saving;
 use crate::media::{ExportEnd, ExportTool, Exports, MediaHub, WriteRoute};
 use anyview_core::{
     AudioTarget, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MediaExport,
-    RasterTarget, Resume, SniffStep, StreamPick, Subtitles, sniff,
+    MediaTime, RasterTarget, Resume, SniffStep, StreamPick, Subtitles, TimeRange, sniff,
 };
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
 use anyview_plugin::Subject;
-use anyview_store::free_beside;
+use anyview_store::{SavedAt, Versions, free_beside};
 use anyview_ui::Opened;
 use ds::prelude::Word;
 use std::path::PathBuf;
@@ -108,6 +109,90 @@ async fn transcode(media: &Media, file: &Opened, job: ExportJob) -> Outcome {
         ExportEnd::Panicked(message) => Outcome::Failed(format!("the export panicked: {message}")),
         ExportEnd::Skipped => Outcome::Nothing("the export was stopped before it began"),
     }
+}
+
+/// Which cut of a recording the scratch folder holds next: the names are never the same twice.
+static NEXT_CUT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The recording `file` made shorter, kept from `start` to `end`, and saved over itself with its
+/// original kept as a version. The FFmpeg plugin writes the cut in the scratch folder, as it
+/// writes an export, and the store takes it from there; a missing plugin ends the save with the
+/// package that adds it, and the file is as it was.
+pub(super) async fn trim_in_place(
+    media: &Media,
+    versions: &Versions,
+    at: SavedAt,
+    file: &Opened,
+    (start, end): (MediaTime, MediaTime),
+) -> Outcome {
+    let source = file.source.path();
+    let Ok(range) = TimeRange::new(start, Some(end)) else {
+        return Outcome::NotWritten("the part to keep is empty".to_owned());
+    };
+    let subject = Subject {
+        kind: file.sniffed.kind(),
+        mime: Some(file.sniffed.mime()),
+    };
+    let tool = match media.hub.plugins().writer(&subject) {
+        WriteRoute::Ready(tool) => tool,
+        WriteRoute::Missing(missing) => {
+            let error = MediaError::WriterMissing(missing.package.name());
+            return Outcome::NotWritten(format!("cannot trim the recording: {error}"));
+        }
+        WriteRoute::Unserved => {
+            return Outcome::NotWritten("nothing trims this recording".to_owned());
+        }
+    };
+    let container = if let FormatDetail::Media(container) = file.sniffed.detail() {
+        Some(*container)
+    } else {
+        None
+    };
+    let extension = source
+        .as_path()
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_owned)
+        .or_else(|| container.map(|container| container.extension().to_owned()))
+        .unwrap_or_else(|| "mkv".to_owned());
+    let cut = media.scratch.join(format!(
+        "trim-{}-{}.{extension}",
+        std::process::id(),
+        NEXT_CUT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    if let Some(folder) = cut.parent()
+        && let Err(error) = std::fs::create_dir_all(folder)
+    {
+        return Outcome::NotWritten(format!("cannot make a folder for the cut: {error}"));
+    }
+    let Ok(to) = FilePath::new(&cut) else {
+        return Outcome::NotWritten("the cut's path is not absolute".to_owned());
+    };
+    let request = ExportRequest {
+        job: anyview_media::cut_job(source, range),
+        to,
+        progress: Arc::new(|_| {}),
+    };
+    let produced = match media.exports.submit(tool, request).ended().await {
+        ExportEnd::Written(report) => report.path,
+        ExportEnd::Failed(error) => {
+            return Outcome::NotWritten(format!("cannot trim the recording: {error}"));
+        }
+        ExportEnd::Panicked(message) => {
+            return Outcome::NotWritten(format!("the trim panicked: {message}"));
+        }
+        ExportEnd::Skipped => {
+            return Outcome::NotWritten("the trim was stopped before it began".to_owned());
+        }
+    };
+    let (versions, path) = (versions.clone(), source.clone());
+    let saved = tokio::task::spawn_blocking(move || {
+        let outcome = saving::save_from_file(&versions, at, &path, produced.as_path());
+        let _gone = std::fs::remove_file(produced.as_path());
+        outcome
+    })
+    .await;
+    saved.unwrap_or_else(|error| Outcome::NotWritten(format!("the save panicked: {error}")))
 }
 
 /// What the name of the file depends on: the container the recording is in, and for a copy of

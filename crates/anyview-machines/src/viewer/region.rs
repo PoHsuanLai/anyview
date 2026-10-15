@@ -90,7 +90,26 @@ pub(super) fn presentation(
     )
 }
 
+/// The stage stepped on `input`. A recording with a stretch that plays (the trim being chosen, or
+/// applied) is kept inside it.
 pub(super) fn stage(
+    viewer: Viewer,
+    input: crate::stage::StageIn,
+    at: Stamp,
+    params: &ViewerParams,
+) -> Step {
+    if let Some(window) = viewer.trim.play_range()
+        && matches!(viewer.stage, crate::stage::Stage::Media(_))
+        && let crate::stage::StageIn::Media(media) = &input
+    {
+        let media = *media;
+        return super::trim::within(viewer, window, media, at, params);
+    }
+    unbounded(viewer, input, at, params)
+}
+
+/// The stage stepped on `input`, whatever stretch plays.
+pub(super) fn unbounded(
     viewer: Viewer,
     input: crate::stage::StageIn,
     at: Stamp,

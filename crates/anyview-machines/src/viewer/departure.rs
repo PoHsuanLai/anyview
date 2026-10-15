@@ -14,6 +14,7 @@ use crate::navigate::NavigateIn;
 use crate::picture::PictureEditIn;
 use crate::sheet::{Departure, SheetIn};
 use crate::stage::{Changes, Outside, Stage, StageIn, TextIn};
+use crate::trim::TrimIn;
 use ds_core::time::stamp::Stamp;
 
 /// Go where `departure` says, or first ask what to do with changes that are not saved. A picture
@@ -88,16 +89,15 @@ pub(super) fn walks(input: &NavigateIn) -> bool {
     }
 }
 
-/// Save what the open file's stage has changed: a picture's edits, or the text being edited.
+/// Save what the open file's stage has changed: a picture's edits, a recording's trim, or the
+/// text being edited.
 pub(super) fn save_open(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.stage {
         Stage::Text(_) => save_text(viewer, at, params),
-        Stage::NoStage
-        | Stage::Raster(_)
-        | Stage::Pdf(_)
-        | Stage::Media(_)
-        | Stage::Table(_)
-        | Stage::Tree(_) => save(viewer, at, params),
+        Stage::Media(_) => super::trim::save(viewer, at, params),
+        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Table(_) | Stage::Tree(_) => {
+            save(viewer, at, params)
+        }
     }
 }
 
@@ -123,12 +123,10 @@ pub(super) fn discard(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step 
             at,
             params,
         ),
-        Stage::NoStage
-        | Stage::Raster(_)
-        | Stage::Pdf(_)
-        | Stage::Media(_)
-        | Stage::Table(_)
-        | Stage::Tree(_) => picture(viewer, PictureEditIn::Discard, at, params),
+        Stage::Media(_) => super::trim::trim_in(viewer, TrimIn::Discard, at, params),
+        Stage::NoStage | Stage::Raster(_) | Stage::Pdf(_) | Stage::Table(_) | Stage::Tree(_) => {
+            picture(viewer, PictureEditIn::Discard, at, params)
+        }
     }
 }
 
