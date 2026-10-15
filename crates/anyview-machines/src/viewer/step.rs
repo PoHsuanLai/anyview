@@ -3,6 +3,7 @@
 
 use super::command::run;
 use super::departure::{leaving, save_open, saved, walks};
+use super::markup::{markup_first, markup_in, markup_key, markup_synced};
 use super::model::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 use super::picture::{answered, crop_key, crop_synced, picture, picture_in};
 use super::pins::{synced, wanted};
@@ -14,6 +15,7 @@ use crate::hand::{HandIn, Tool};
 use crate::keys::{Act, Chords, Press, Regions, Route, route};
 use crate::load::Ticket;
 use crate::load::{Load, LoadFailure, LoadIn, LoadOut};
+use crate::markup::{MarkupIn, PdfMarkup};
 use crate::navigate::{Navigate, NavigateIn, NavigateOut};
 use crate::palette::{Palette, PaletteIn, PaletteIndex, PaletteOut, PaletteScope, step_with_scope};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelTab};
@@ -36,10 +38,11 @@ impl Machine for Viewer {
 
     fn step(self, input: ViewerIn, at: Stamp, _: &(), params: &ViewerParams) -> Step {
         let before = wanted(&self);
-        let (viewer, mut outs) = apply(self, input, at, params);
+        let (viewer, outs) = apply(self, input, at, params);
+        let mut outs = markup_first(&viewer, outs);
         let (viewer, pinned) = synced(viewer, &before, at, params);
         outs.extend(pinned);
-        (crop_synced(viewer), outs)
+        (markup_synced(crop_synced(viewer)), outs)
     }
 
     /// The earliest wake of any region; only the chrome keeps a timer, so a viewer at rest runs
@@ -91,6 +94,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Hand(input) => (hand(viewer, input), vec![]),
         ViewerIn::Picture(input) => picture_in(viewer, input, at, params),
         ViewerIn::Trim(input) => super::trim::trim_in(viewer, input, at, params),
+        ViewerIn::Markup(input) => markup_in(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
         // A second close request while the question is up changes nothing.
@@ -111,9 +115,10 @@ pub(super) fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerP
         path,
     });
     // The tool is the person's choice and carries to the next file, except the crop tool, which is
-    // about the picture left; a held Space and the picture's place are about the file left too.
+    // about the picture left, and the markup tool, about the pages left; a held Space and the
+    // picture's place are about the file left too.
     let mut hand = viewer.hand.step(HandIn::SpaceUp);
-    if hand.tool == Tool::Crop {
+    if hand.tool == Tool::Crop || hand.tool == Tool::Markup {
         hand.tool = Tool::Pan;
     }
     let viewer = Viewer {
@@ -122,6 +127,7 @@ pub(super) fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerP
         hand,
         picture: PictureEdits::default(),
         trim: MediaTrim::default(),
+        markup: PdfMarkup::default(),
         after_save: None,
         ..viewer
     };
@@ -134,20 +140,26 @@ pub(super) fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerP
     (viewer, outs)
 }
 
-/// The pan tool or Space moved. Only a picture has one to move; Space coming up is always heard, so
-/// a hold is never left behind.
+/// The pointer tool or Space moved. A picture and a PDF have a tool to move; Space coming up is
+/// always heard, so a hold is never left behind. The crop tool is a picture's, the markup tool a PDF
+/// that can be written on.
 pub(super) fn hand(viewer: Viewer, input: HandIn) -> Viewer {
-    let pans_here = matches!(viewer.stage, Stage::Raster(_));
-    match (input, pans_here) {
+    let on_picture = matches!(viewer.stage, Stage::Raster(_));
+    let on_pages = matches!(viewer.stage, Stage::Pdf(_));
+    let stepped = |viewer: Viewer| Viewer {
+        hand: viewer.hand.step(input),
+        ..viewer
+    };
+    match input {
+        HandIn::SpaceUp => stepped(viewer),
         // Only a picture that can be saved with changes has a crop tool.
-        (HandIn::Use(Tool::Crop), _) if !(pans_here && viewer.picture.can_edit()) => viewer,
-        (HandIn::SpaceUp, _) | (HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown, true) => {
-            Viewer {
-                hand: viewer.hand.step(input),
-                ..viewer
-            }
+        HandIn::Use(Tool::Crop) if !(on_picture && viewer.picture.can_edit()) => viewer,
+        // Only a PDF that can be marked has a markup tool.
+        HandIn::Use(Tool::Markup) if !(on_pages && viewer.markup.can_mark()) => viewer,
+        HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown if on_picture || on_pages => {
+            stepped(viewer)
         }
-        (HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown, false) => viewer,
+        HandIn::Toggle | HandIn::Use(_) | HandIn::SpaceDown => viewer,
     }
 }
 
@@ -565,6 +577,9 @@ fn keyed(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> Step 
     if let Some(input) = super::trim::trim_key(&viewer, key.keys().as_slice()) {
         return super::trim::trim_in(viewer, input, at, params);
     }
+    if let Some(input) = markup_key(&viewer, key.keys().as_slice()) {
+        return markup_in(viewer, input, at, params);
+    }
     let routed = route(
         key,
         Regions {
@@ -625,8 +640,8 @@ fn file_key(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> St
     }
 }
 
-/// ⌘Z and ⇧⌘Z: a trim or an edit of the picture that is not saved is taken back or done again
-/// first; with none, it is the file's last save that is.
+/// ⌘Z and ⇧⌘Z: a trim, an edit of the picture, or a field or mark of the PDF that is not saved is
+/// taken back or done again first; with none, it is the file's last save that is.
 fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> Step {
     let trimmed = match rewind {
         Rewind::Undo if viewer.trim.can_undo() => Some(TrimIn::Undo),
@@ -635,6 +650,16 @@ fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> 
     };
     if let Some(input) = trimmed {
         return super::trim::trim_in(viewer, input, at, params);
+    }
+    let on_pages = matches!(viewer.stage, Stage::Pdf(_));
+    match rewind {
+        Rewind::Undo if on_pages && viewer.markup.can_undo() => {
+            return markup_in(viewer, MarkupIn::Undo, at, params);
+        }
+        Rewind::Redo if on_pages && viewer.markup.can_redo() => {
+            return markup_in(viewer, MarkupIn::Redo, at, params);
+        }
+        Rewind::Undo | Rewind::Redo => {}
     }
     let input = match rewind {
         Rewind::Undo if viewer.picture.can_undo() => Some(PictureEditIn::Undo),

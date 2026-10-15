@@ -128,6 +128,7 @@ pub(super) fn Palette(
             | Command::OpenFile
             | Command::UseTool(_)
             | Command::Picture(_)
+            | Command::Markup(_)
             | Command::ShowView(_)
             | Command::Install(_) => commands.push(PaletteRow {
                 chord: command.shortcut().map(RowChord::always).unwrap_or_default(),

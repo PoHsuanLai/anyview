@@ -3,10 +3,11 @@
 
 use crate::support;
 
-use anyview_core::{CaseMatch, Dpi, Edit, FindOptions, PageIndex, QuarterTurn, WordMatch};
+use anyview_core::{
+    CaseMatch, Dpi, Edit, FindOptions, PageIndex, PageRect, QuarterTurn, WordMatch,
+};
 use anyview_pdf::{
-    PageRect, PdfDocument, PdfWorker, SearchQuery, Stop, apply, page_op, search_document,
-    search_page,
+    PdfDocument, PdfWorker, SearchQuery, Stop, apply, page_op, search_document, search_page,
 };
 use support::{drawn, fixture, has_ink};
 

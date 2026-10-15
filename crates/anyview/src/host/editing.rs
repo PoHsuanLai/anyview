@@ -3,7 +3,7 @@
 
 use super::outcome::{Declined, Outcome};
 use super::route::{Carry, Shown, Task};
-use anyview_core::{FileName, FilePath, FormatKind, edits_for};
+use anyview_core::{FileName, FilePath, FormatKind, MarkupSave, edits_for};
 use anyview_machines::{Trail, TrailIn, TrailOut};
 use anyview_store::VersionId;
 use anyview_ui::{EditRequest, HostRequest, Rewind, TextSave, TypedText, VersionKey};
@@ -125,6 +125,25 @@ pub(super) fn save_text(shown: Shown, save: TextSave) -> (Shown, Carry) {
         return shown.queueing(HostRequest::SaveText(save));
     }
     saves(shown, outs, || Task::SaveText { file: probed, save })
+}
+
+/// What the person filled into a PDF's form and marked on its pages, saved in place when the file
+/// is a PDF and no other save is being written.
+pub(super) fn save_markup(shown: Shown, save: MarkupSave) -> (Shown, Carry) {
+    let Some(probed) = shown.file().cloned() else {
+        return declined(shown, Declined::NoFileShown);
+    };
+    if probed.sniffed.kind() != FormatKind::Pdf {
+        return declined(shown, Declined::Edit);
+    }
+    if anyview_store::is_read_only(probed.source.path().as_path()) {
+        return declined(shown, Declined::Locked);
+    }
+    let (shown, outs) = shown.stepped(TrailIn::Save);
+    if is_busy(&outs) {
+        return shown.queueing(HostRequest::SaveMarkup(save));
+    }
+    saves(shown, outs, || Task::SaveMarkup { file: probed, save })
 }
 
 /// Whether files of `kind` are edited as text.

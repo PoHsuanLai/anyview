@@ -1,8 +1,9 @@
 //! Sizes and rectangles in the page's own space, as integers: a page's size in thousandths of a
-//! point, and a rectangle on a page as thousandths of the page's displayed width and height, so a
-//! mark can be drawn at any zoom without asking the document again.
+//! point, and a rectangle on a displayed page as thousandths of its width and height
+//! ([`PageRect`], from `anyview-core`), so a mark can be drawn at any zoom without asking the
+//! document again.
 
-use anyview_core::Permille;
+use anyview_core::{PageRect, Permille};
 use pdfrum::{Rect, Rotation};
 
 /// A length in thousandths of a point (1/72 inch).
@@ -32,20 +33,6 @@ impl PageSize {
         width: MilliPoints(612_000),
         height: MilliPoints(792_000),
     };
-}
-
-/// A rectangle on a displayed page: each edge a thousandth of the page's displayed width (left,
-/// right) or height (top, bottom), measured from the top left, so 0 to 1000 spans the page.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PageRect {
-    /// The left edge.
-    pub left: Permille,
-    /// The top edge.
-    pub top: Permille,
-    /// The right edge.
-    pub right: Permille,
-    /// The bottom edge.
-    pub bottom: Permille,
 }
 
 /// `rect` (PDF user space: y up, the crop box's corner as origin) as it lies on the page as

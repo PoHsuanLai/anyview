@@ -4,6 +4,7 @@ mod behaviour;
 mod context;
 mod exports;
 mod flows;
+mod markup;
 mod picture;
 mod support;
 mod table;

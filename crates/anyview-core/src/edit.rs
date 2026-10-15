@@ -30,6 +30,9 @@ pub enum Edit {
         /// Where it ends; always after `start`.
         end: MediaTime,
     },
+    /// Everything written on a document's pages since it was opened, as one change: the form
+    /// fields filled and the marks made. What was written is the viewer's, not the edit's.
+    Markup,
 }
 
 /// Whether a picture is mirrored left to right before it is turned.
@@ -222,6 +225,8 @@ pub enum EditKind {
     Adjust,
     /// [`Edit::Trim`].
     Trim,
+    /// [`Edit::Markup`].
+    Markup,
 }
 
 impl Edit {
@@ -234,6 +239,7 @@ impl Edit {
             Edit::MovePage { .. } => EditKind::MovePage,
             Edit::Adjust(_) => EditKind::Adjust,
             Edit::Trim { .. } => EditKind::Trim,
+            Edit::Markup => EditKind::Markup,
         }
     }
 }
@@ -283,6 +289,7 @@ mod tests {
                 },
                 EditKind::Trim,
             ),
+            (Edit::Markup, EditKind::Markup),
         ];
         for (edit, kind) in cases {
             assert_eq!(edit.kind(), kind, "{edit:?}");
@@ -311,6 +318,7 @@ mod tests {
                 },
                 r#"{"kind":"move_page","v":{"from":1,"to":5}}"#,
             ),
+            (Edit::Markup, r#"{"kind":"markup"}"#),
             (
                 Edit::Adjust(Adjust::NONE),
                 r#"{"kind":"adjust","v":{"crop":null,"reflection":"kept","turn":"none","size":null}}"#,

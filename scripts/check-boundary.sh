@@ -206,6 +206,9 @@ DIRECT=(
 # chardetng (the legacy-encoding guess of anyview-text, MIT OR Apache-2.0, its own dependencies already in
 # every tree) is one package more in each tree that reaches anyview-text: the peek 576, the headless peek 195,
 # the viewer 697, the media host 607 and the pane with its player 608. The pane's 590 had room.
+# pdfrum-form (filling a PDF's form, the user's own pdfrum at the same 0.5, MIT OR Apache-2.0, its own
+# dependencies already in the tree) is one more in each tree that reaches anyview-pdf's writing: the viewer
+# 698, the media host 608 and the pane with its player 609.
 #
 # The headless peek (`--no-default-features`: no `pane`, no `media`) is what a mail client or a terminal
 # links to look at a file: 192 packages (250 while `ds` was a hard dependency and carried dioxus,
@@ -214,16 +217,16 @@ DIRECT=(
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
 BUDGETS=(
   "anyview-peek: 576"
-  "anyview: 697"
+  "anyview: 698"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
-  "anyview-media-host: 607"
+  "anyview-media-host: 608"
 )
 HEADLESS_BUDGET=195
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=608
+PANE_PLAYER_BUDGET=609
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 

@@ -4,6 +4,7 @@
 
 mod command;
 mod departure;
+mod markup;
 mod model;
 mod picture;
 mod pins;

@@ -138,7 +138,12 @@ const FOLDER: &[FileAction] = &[
 const NO_EDITS: &[EditKind] = &[];
 const IMAGE_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::Flip, EditKind::Adjust];
 const MEDIA_EDITS: &[EditKind] = &[EditKind::Trim];
-const PDF_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::DeletePages, EditKind::MovePage];
+const PDF_EDITS: &[EditKind] = &[
+    EditKind::Rotate,
+    EditKind::DeletePages,
+    EditKind::MovePage,
+    EditKind::Markup,
+];
 
 const fn profile(
     mime: &'static str,

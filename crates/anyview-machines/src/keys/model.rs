@@ -114,7 +114,7 @@ pub enum Route {
     Panel(PanelIn),
     /// Close (⌘W): close the window.
     CloseWindow,
-    /// Save (⌘S) on a picture: write the changes made to it into the file.
+    /// Save (⌘S) on a picture or a PDF: write the changes made to it into the file.
     Save,
     /// Open (⌘O): choose another file to open.
     OpenFile,

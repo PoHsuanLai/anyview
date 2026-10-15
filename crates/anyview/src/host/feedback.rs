@@ -56,7 +56,10 @@ impl Doing {
             Task::PlayInBackground(_) => Some(Doing::Play),
             Task::PickFile => Some(Doing::Pick),
             Task::OpenLink(_) => Some(Doing::OpenLink),
-            Task::Edit { .. } | Task::Restore { .. } | Task::RevertTo { .. } => Some(Doing::Save),
+            Task::Edit { .. }
+            | Task::SaveMarkup { .. }
+            | Task::Restore { .. }
+            | Task::RevertTo { .. } => Some(Doing::Save),
             Task::SaveText { .. } => Some(Doing::SaveText),
             // The install sheet says how it went; the log has the package manager's words.
             Task::Provide(_) | Task::RecordView(_) | Task::Remember { .. } => None,
@@ -88,6 +91,7 @@ pub fn subject_of(task: &Task) -> Option<FilePath> {
         | Task::ExportDocument { file: probed, .. }
         | Task::ExportMedia { file: probed, .. }
         | Task::Edit { file: probed, .. }
+        | Task::SaveMarkup { file: probed, .. }
         | Task::SaveText { file: probed, .. } => Some(probed.source.path().clone()),
         Task::RecordView(_)
         | Task::Remember { .. }

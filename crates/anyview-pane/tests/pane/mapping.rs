@@ -2,9 +2,9 @@
 //! the table below says where.
 
 use anyview_core::{
-    ByteLen, Edit, FileAction, FileHead, FileName, FilePath, FileStamp, Helper, MediaExport,
-    ModTime, PageIndex, PixelLen, PixelSize, QuarterTurn, Resume, SniffStep, Source, TimeRange,
-    sniff,
+    ByteLen, Edit, FileAction, FileHead, FileName, FilePath, FileStamp, Helper, MarkupSave,
+    MediaExport, ModTime, PageIndex, PixelLen, PixelSize, QuarterTurn, Resume, SniffStep, Source,
+    TimeRange, sniff,
 };
 use anyview_pane::{
     EditRequest, ExportDraft, FileAccess, FileRequest, LoadFailure, NaturalSize, NotOpened, Opened,
@@ -65,10 +65,11 @@ fn variant(request: &HostRequest) -> usize {
         HostRequest::Provide(_) => 19,
         HostRequest::SizeWindow(_) => 20,
         HostRequest::NotOpened(_) => 21,
+        HostRequest::SaveMarkup(_) => 22,
     }
 }
 
-const VARIANTS: usize = 22;
+const VARIANTS: usize = 23;
 
 fn not_opened() -> NotOpened {
     NotOpened {
@@ -155,6 +156,8 @@ fn every_request_of_the_window_is_placed_as_the_table_says() {
             HostRequest::SaveText(TextSave::new(b"text".to_vec())),
             file(FileRequest::SaveText(TextSave::new(b"text".to_vec()))),
         ),
+        // A pane is read-only: what is written on a PDF is the window's.
+        (HostRequest::SaveMarkup(MarkupSave::default()), None),
         (
             HostRequest::Rewind(Rewind::Undo),
             file(FileRequest::Rewind(Rewind::Undo)),

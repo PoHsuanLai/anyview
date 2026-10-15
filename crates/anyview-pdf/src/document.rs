@@ -94,6 +94,18 @@ impl PdfDocument {
         signed(self.bytes())
     }
 
+    /// Whether the document lets a person fill in its form: an unprotected document does, and a
+    /// protected one only when its permissions grant it.
+    pub fn permits_filling(&self) -> bool {
+        let permissions = self.doc.permissions();
+        permissions.fill_form || permissions.annotate
+    }
+
+    /// Whether the document lets a person add comments and marks to it.
+    pub fn permits_marks(&self) -> bool {
+        self.doc.permissions().annotate
+    }
+
     /// The file's bytes as opened.
     pub fn bytes(&self) -> &[u8] {
         self.doc.bytes()

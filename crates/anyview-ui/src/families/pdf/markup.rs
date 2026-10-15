@@ -43,6 +43,8 @@ fn cx(stage: Stage) -> StageCx {
         edit: EventHandler::new(|_: crate::PictureEditIn| {}),
         trim: crate::MediaTrim::default(),
         trim_in: EventHandler::new(|_: crate::TrimIn| {}),
+        markup: crate::PdfMarkup::default(),
+        mark: EventHandler::new(|_: crate::MarkupIn| {}),
         ticket: Ticket::default(),
         area: None,
         send: EventHandler::new(|_: StageIn| {}),

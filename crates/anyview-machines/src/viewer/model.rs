@@ -7,6 +7,7 @@ use crate::edits::{EditRequest, Rewind};
 use crate::hand::{Hand, HandIn};
 use crate::keys::Press;
 use crate::load::{Load, LoadIn, LoadOut, Ticket};
+use crate::markup::{MarkupIn, PdfMarkup};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams, PaletteScope};
 use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
@@ -58,6 +59,8 @@ pub struct Viewer {
     /// The trim of the open recording: the bar while it is up, and the stretch kept once it is
     /// applied and not saved.
     pub trim: MediaTrim,
+    /// What has been written on the open PDF and not saved.
+    pub markup: PdfMarkup,
     /// Where the person was going when they chose to save the picture's changes first: they go
     /// when the saved file has been read again.
     pub after_save: Option<Departure>,
@@ -98,10 +101,11 @@ pub enum Trashing {
 
 impl Viewer {
     /// Whether going away from the file shown would lose changes that are not saved: a picture's
-    /// edits, or a text's.
+    /// edits, a PDF's fields and marks, or a text's.
     #[must_use]
     pub fn unsaved(&self) -> bool {
-        let picture = self.picture.is_edited() && matches!(self.stage, Stage::Raster(_));
+        let picture = (self.picture.is_edited() && matches!(self.stage, Stage::Raster(_)))
+            || (self.markup.is_edited() && matches!(self.stage, Stage::Pdf(_)));
         let trim = self.trim.is_edited() && matches!(self.stage, Stage::Media(_));
         let text = self
             .stage
@@ -162,6 +166,8 @@ pub enum ViewerIn {
     Picture(PictureEditIn),
     /// The trim bar of the open recording: a handle moved, Trim, or Cancel.
     Trim(TrimIn),
+    /// A field filled or a mark made on the open PDF.
+    Markup(MarkupIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the
     /// palette runs for the row it picked.
     Run(Command),

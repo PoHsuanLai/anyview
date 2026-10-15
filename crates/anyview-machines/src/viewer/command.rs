@@ -1,6 +1,7 @@
 //! What a palette row does: the root decides which region a command belongs to.
 
 use super::departure::{leaving, save_text};
+use super::markup::markup_command;
 use super::model::{Viewer, ViewerOut, ViewerParams};
 use super::picture::{adjust_size, picture, save};
 use super::region::{Step, presentation, sheet, stage};
@@ -26,6 +27,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
         Command::UseTool(tool) => (super::step::hand(viewer, HandIn::Use(tool)), vec![]),
         Command::Picture(PictureCommand::AdjustSize) => adjust_size(viewer, at, params),
         Command::Picture(PictureCommand::Save) => save(viewer, at, params),
+        Command::Markup(command) => markup_command(viewer, command, at, params),
         Command::FindHit(hit) => match viewer.stage.hit_input(hit) {
             Some(input) => stage(viewer, input, at, params),
             None => (viewer, vec![]),
@@ -185,7 +187,11 @@ fn picture_edit(viewer: Viewer, edit: Edit, at: Stamp, params: &ViewerParams) ->
     let input = match edit {
         Edit::Rotate(turn) => PictureEditIn::Turn(turn),
         Edit::Flip(axis) => PictureEditIn::Flip(axis),
-        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) | Edit::Trim { .. } => {
+        Edit::DeletePages(_)
+        | Edit::MovePage { .. }
+        | Edit::Adjust(_)
+        | Edit::Trim { .. }
+        | Edit::Markup => {
             return (viewer, vec![]);
         }
     };

@@ -3,12 +3,15 @@
 //! field is a signal, so the shelf is `Copy` and any handler or effect can take it.
 
 use super::preloads::Preloads;
-use super::session::{Live, PictureOffer, Probe, params};
+use super::session::{Live, MarkupOffer, PictureOffer, Probe, params};
 use crate::families::{
     Area, FoundHits, Held, LineWindow, LoadedDoc, MediaShelf, PdfShelf, SortedOrder,
     use_media_shelf, use_pdf_shelf,
 };
-use crate::{PaneChrome, PlatformAbilities, Presentation, Ticket, Viewer, ViewerIn, ViewerParams};
+use crate::{
+    Allowance, Changes, PaneChrome, PlatformAbilities, Presentation, Ticket, Viewer, ViewerIn,
+    ViewerParams,
+};
 use anyview_core::{FilePath, Resume};
 use anyview_machines::seam::WrapChoices;
 use dioxus::prelude::*;
@@ -198,6 +201,19 @@ pub(super) fn viewer_params(
                 PictureOffer::Unavailable
             },
             adjust: state.picture.adjust(),
+            markup: MarkupOffer {
+                marking: if state.markup.can_mark() {
+                    Allowance::Granted
+                } else {
+                    Allowance::Withheld
+                },
+                changes: if state.markup.is_edited() {
+                    Changes::Unsaved
+                } else {
+                    Changes::Saved
+                },
+                picked: state.markup.picked(),
+            },
             wraps: *shelf.wraps.peek(),
             presentation: state.presentation,
             chrome: shelf.pane_chrome,

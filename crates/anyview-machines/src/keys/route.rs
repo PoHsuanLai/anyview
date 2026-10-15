@@ -97,7 +97,12 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             Act::Find if can_find(regions.stage) => Some(Route::OpenFind),
             Act::Info => Some(Route::Panel(info_toggle(regions.panel))),
             Act::Close => Some(Route::CloseWindow),
-            Act::Save if matches!(regions.stage, Stage::Raster(_) | Stage::Media(_)) => {
+            Act::Save
+                if matches!(
+                    regions.stage,
+                    Stage::Raster(_) | Stage::Media(_) | Stage::Pdf(_)
+                ) =>
+            {
                 Some(Route::Save)
             }
             Act::OpenFile if regions.platform.has(DesktopService::FileChooser) => {
@@ -149,16 +154,16 @@ fn info_toggle(panel: &Panel) -> PanelIn {
     }
 }
 
-/// H switches the pan tool, C chooses the crop tool, and Space held turns the pan tool on, for a picture. (An animation's Space is
-/// its play button, which the stage claimed before this.)
+/// H switches the pan tool for a picture and for a PDF's pages; C chooses the crop tool, and Space
+/// held turns the pan tool on, for a picture. (An animation's Space is its play button, which the
+/// stage claimed before this.)
 fn hand_key(keys: &[ShortcutKey], stage: &Stage) -> Option<HandIn> {
-    if !matches!(stage, Stage::Raster(_)) {
-        return None;
-    }
+    let picture = matches!(stage, Stage::Raster(_));
+    let pages = matches!(stage, Stage::Pdf(_));
     match keys {
-        [ShortcutKey::Char('h')] => Some(HandIn::Toggle),
-        [ShortcutKey::Char('c')] => Some(HandIn::Use(Tool::Crop)),
-        [ShortcutKey::Space] => Some(HandIn::SpaceDown),
+        [ShortcutKey::Char('h')] if picture || pages => Some(HandIn::Toggle),
+        [ShortcutKey::Char('c')] if picture => Some(HandIn::Use(Tool::Crop)),
+        [ShortcutKey::Space] if picture => Some(HandIn::SpaceDown),
         _ => None,
     }
 }

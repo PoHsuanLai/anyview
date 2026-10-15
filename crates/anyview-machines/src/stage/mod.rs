@@ -18,7 +18,7 @@ mod text;
 mod tree;
 mod zoom;
 
-pub use abilities::{Playing, StageAbilities};
+pub use abilities::{Playing, StageAbilities, Writing};
 pub use family::StageFamily;
 pub use find::{FindHits, FindOut, HitCount, HitCursor, HitIndex, HitStep, StageFind};
 pub use media::{

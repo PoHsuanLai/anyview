@@ -165,6 +165,7 @@ impl Kept {
             | HostRequest::Rename(_)
             | HostRequest::Edit(_)
             | HostRequest::SaveText(_)
+            | HostRequest::SaveMarkup(_)
             | HostRequest::Rewind(_)
             | HostRequest::RevertTo(_)
             | HostRequest::SaveCopy(_)

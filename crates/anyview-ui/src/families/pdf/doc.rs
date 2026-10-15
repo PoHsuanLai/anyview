@@ -4,13 +4,17 @@
 
 use crate::families::view::Area;
 use crate::io::OpenError;
-use crate::{EditCaution, EditOffer};
+use crate::{Allowance, EditCaution, EditOffer, MarkupIn};
 use anyview_core::work::Stop;
-use anyview_core::{BookFormat, Facts, FormatDetail, PageCount, PageIndex, Sniffed, Source};
+use anyview_core::{
+    BookFormat, Facts, FormWidget, FormatDetail, PageCount, PageIndex, Sniffed, Source,
+};
 use anyview_machines::{OutlineFold, OutlineShape};
-use anyview_pdf::{Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
+use anyview_pdf::{
+    Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, form_widgets, outline,
+};
 use std::io::ErrorKind;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 /// The most renderer scratch kept between jobs: one per worker that has drawn for this document.
 const SCRATCH_KEPT: usize = 16;
@@ -51,6 +55,7 @@ impl PdfFailure {
             PdfError::Pdf(_)
             | PdfError::Edit(_)
             | PdfError::Core(_)
+            | PdfError::NoField { .. }
             | PdfError::PageOutOfRange { .. }
             | PdfError::WouldDeleteAll
             | PdfError::PagesChanged { .. }
@@ -89,6 +94,13 @@ pub struct PdfDoc {
     pub offer: EditOffer,
     /// Whether this is a PDF file or a book bound as one.
     pub origin: PdfOrigin,
+    /// Where the form's fields are drawn, in the document's order; none for a document with no
+    /// form.
+    widgets: Arc<[FormWidget]>,
+    /// Whether the document lets the person fill its form.
+    filling: Allowance,
+    /// Whether the document lets the person mark its pages.
+    marking: Allowance,
     scratch: Mutex<Vec<PdfWorker>>,
 }
 
@@ -106,6 +118,9 @@ impl PdfDoc {
         PdfDoc {
             offer: EditOffer::Withheld,
             origin,
+            widgets: Arc::from(Vec::new()),
+            filling: Allowance::Withheld,
+            marking: Allowance::Withheld,
             ..PdfDoc::with_facts(facts, document)
         }
     }
@@ -117,8 +132,18 @@ impl PdfDoc {
             EditOffer::Plain
         };
         let outline = outline(&document);
+        let allowed = |yes: bool| {
+            if yes {
+                Allowance::Granted
+            } else {
+                Allowance::Withheld
+            }
+        };
         PdfDoc {
             offer,
+            widgets: Arc::from(form_widgets(&document)),
+            filling: allowed(document.permits_filling()),
+            marking: allowed(document.permits_marks()),
             origin: PdfOrigin::File,
             shape: OutlineShape::of(outline.iter().map(|entry| entry.depth)),
             opening: OutlineFold::folded(
@@ -142,6 +167,16 @@ impl PdfDoc {
     /// The outline's folds before the person touches one.
     pub(super) fn opening(&self) -> &OutlineFold {
         &self.opening
+    }
+
+    /// What the markup is told when this document lands: where its fields are, and what it lets
+    /// the person write on it.
+    pub(super) fn landing(&self) -> MarkupIn {
+        MarkupIn::Landed {
+            widgets: Arc::clone(&self.widgets),
+            filling: self.filling,
+            marking: self.marking,
+        }
     }
 
     /// The page count.

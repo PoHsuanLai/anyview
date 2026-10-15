@@ -3,7 +3,9 @@
 
 use super::editing;
 use super::outcome::Declined;
-use anyview_core::{FileAction, FileName, FilePath, Helper, Resume, Source, actions_for};
+use anyview_core::{
+    FileAction, FileName, FilePath, Helper, MarkupSave, Resume, Source, actions_for,
+};
 use anyview_export::DocumentExport;
 use anyview_machines::Trail;
 use anyview_store::VersionId;
@@ -170,6 +172,14 @@ pub enum Task {
         /// The text to write.
         save: TextSave,
     },
+    /// Write what the person filled into a PDF's form and marked on its pages into the file,
+    /// appended after the original, after keeping the original.
+    SaveMarkup {
+        /// The file.
+        file: Opened,
+        /// What was written.
+        save: MarkupSave,
+    },
     /// Put a kept version back as the file; what it is now is kept first.
     Restore {
         /// The file.
@@ -233,6 +243,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         }
         HostRequest::Edit(request) => editing::edit(shown, request),
         HostRequest::SaveText(save) => editing::save_text(shown, save),
+        HostRequest::SaveMarkup(save) => editing::save_markup(shown, save),
         HostRequest::Rewind(rewind) => editing::rewind(shown, rewind),
         HostRequest::RevertTo(key) => editing::revert(shown, key),
         HostRequest::SaveCopy(typed) => editing::save_copy(shown, typed),

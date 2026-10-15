@@ -7,6 +7,7 @@ mod cancel;
 mod edit;
 mod export;
 mod info;
+mod markup;
 mod outline_links;
 mod search;
 mod support;

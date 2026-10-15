@@ -11,12 +11,12 @@ pub(crate) use texts::PageTexts;
 
 use crate::document::PdfDocument;
 use crate::error::PdfError;
-use crate::geometry::{PageRect, displayed};
+use crate::geometry::displayed;
 use crate::halt::Halt;
 use crate::render::{End, PdfWorker};
-use anyview_core::PageIndex;
 use anyview_core::work::Stop;
 use anyview_core::{CaseMatch, FindOptions, WordMatch};
+use anyview_core::{PageIndex, PageRect};
 use pdfrum::{CharIndex, FindOptions as PageFind, Rect, Rotation, TextIndex, TextPage};
 use std::ops::Range;
 use std::sync::Arc;

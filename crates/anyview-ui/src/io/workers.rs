@@ -13,7 +13,7 @@ use crate::{
     EditRequest, ExportDraft, LoadFailure, Presentation, Rewind, Ticket, TypedText, VersionKey,
 };
 use anyview_core::work::{Stop, StopState};
-use anyview_core::{FileAction, FilePath, Helper, PixelSize, Resume};
+use anyview_core::{FileAction, FilePath, Helper, MarkupSave, PixelSize, Resume};
 use anyview_machines::{PlatformAbilities, SaveEnd};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
@@ -211,6 +211,9 @@ pub enum HostRequest {
     /// Write the open text file in place with this text, as the person edited it; the host keeps
     /// the original first. Its end is told to the window (`Edge::saved`).
     SaveText(TextSave),
+    /// Write the open PDF in place with the form fields filled and the marks made on it, appended
+    /// to the file; the host keeps the original first.
+    SaveMarkup(MarkupSave),
     /// Take back the last edit of the open file, or do it again.
     Rewind(Rewind),
     /// Put this kept version back as the open file.

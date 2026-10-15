@@ -11,7 +11,7 @@ use crate::{
     Destination, FindOut, HitCount, HitIndex, PageView, PdfIn, PdfOut, PdfStage, Stage, StageIn,
     TypedText,
 };
-use anyview_core::{FindOptions, PageIndex};
+use anyview_core::{FindOptions, PageIndex, PageRect};
 use anyview_machines::{OutlineFold, OutlineIn, OutlineShape};
 use anyview_pdf::{Hits, PdfLink, Schedule, TileBatch, TileCoord, TileKey};
 use ds_blitz::TextureHandle;
@@ -71,6 +71,8 @@ pub(super) struct PdfLive {
     thumbs_asked: HashSet<PageIndex>,
     links: HashMap<PageIndex, Arc<Vec<PdfLink>>>,
     links_asked: HashSet<PageIndex>,
+    words: HashMap<PageIndex, Arc<[PageRect]>>,
+    words_asked: HashSet<PageIndex>,
     fold: Option<OutlineFold>,
 }
 
@@ -107,6 +109,16 @@ impl PdfLive {
 
     pub(super) fn links(&self, page: PageIndex) -> Option<&Arc<Vec<PdfLink>>> {
         self.links.get(&page)
+    }
+
+    /// The boxes of the words of `page`, once they have been read.
+    pub(super) fn words(&self, page: PageIndex) -> Option<Arc<[PageRect]>> {
+        self.words.get(&page).cloned()
+    }
+
+    /// Whether the words of `page` have been asked for; asking is noted by this call.
+    pub(super) fn words_wanted(&mut self, page: PageIndex) -> bool {
+        !self.words.contains_key(&page) && self.words_asked.insert(page)
     }
 
     /// Settles the tiles for the room: ends the batches nothing wants any more, lets go of tiles
@@ -236,6 +248,10 @@ impl PdfLive {
             }
             PdfAnswer::Links { page, links } => {
                 self.links.insert(page, Arc::new(links));
+                None
+            }
+            PdfAnswer::Words { page, words } => {
+                self.words.insert(page, Arc::from(words));
                 None
             }
         }
