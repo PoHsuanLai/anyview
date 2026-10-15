@@ -33,16 +33,31 @@ default_prefix() {
 # dest PATH: where an absolute path really goes, under DESTDIR when there is one.
 dest() { printf '%s%s' "$DESTDIR" "$1"; }
 
-# privileged CMD...: a command that writes under a system prefix runs through sudo unless we are
-# root, stage into DESTDIR, or the prefix is the person's own.
+# privileged CMD...: a command that writes under a system prefix runs as root unless we are root,
+# stage into DESTDIR, or the prefix is the person's own. What makes it root is, in order: the
+# person's own $SUDO, then sudo, doas (Alpine, some Arch and BSD-minded setups) and pkexec
+# (polkit, on any desktop). With none of them the run turns into a dry run and says so: every
+# command is printed for the person to run as root, and nothing half-installs.
+ELEVATE_FROM_ENV="${SUDO:-}"
 SUDO=""
 privileged() { if [[ -n "$SUDO" ]]; then "$SUDO" "$@"; else "$@"; fi; }
 choose_sudo() {
-  local prefix="$1"
+  local prefix="$1" tool
   if [[ -n "$DESTDIR" || "$(id -u)" == 0 || "$prefix" == "${HOME:-/nonexistent}"/* ]]; then
     SUDO=""
-  else
-    SUDO=sudo
+    return 0
+  fi
+  for tool in "$ELEVATE_FROM_ENV" sudo doas pkexec; do
+    if [[ -n "$tool" ]] && command -v "$tool" >/dev/null 2>&1; then
+      SUDO="$tool"
+      return 0
+    fi
+  done
+  SUDO=""
+  if [[ "$DRY_RUN" == no ]]; then
+    warn "writing under $prefix needs root, and there is no sudo, doas or pkexec here (or set SUDO=<tool>)"
+    warn "nothing is changed: the commands below are what to run as root, or run again with --prefix \"\$HOME/.local\""
+    DRY_RUN=yes
   fi
 }
 
