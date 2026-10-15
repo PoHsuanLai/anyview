@@ -4,8 +4,11 @@
 
 mod command;
 mod departure;
+mod find;
+mod key;
 mod markup;
 mod model;
+mod opening;
 mod picture;
 mod pins;
 mod region;

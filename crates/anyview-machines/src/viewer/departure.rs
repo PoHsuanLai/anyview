@@ -5,9 +5,10 @@
 use super::command::run_stage;
 use super::markup::{markup_in, save as save_markup};
 use super::model::{Viewer, ViewerOut, ViewerParams};
+use super::opening::{begin, dropped};
 use super::picture::{picture, save};
 use super::region::{Step, sheet, stage};
-use super::step::{begin, dropped, navigate_now};
+use super::step::navigate_now;
 use crate::SaveEnd;
 use crate::command::StageCommand;
 use crate::edits::EditOffer;
