@@ -11,6 +11,15 @@ use ds::prelude::{Keys, use_keys};
 use ds_core::command::chord_of;
 use ds_core::vocab::{Shortcut, ShortcutKey};
 
+/// The platform's command key, whichever one the platform reports it as: Control, Meta or Super
+/// (Command on our desktop and the Mac).
+pub(crate) const COMMAND_KEYS: Modifiers = Modifiers::CONTROL
+    .union(Modifiers::META)
+    .union(Modifiers::SUPER);
+
+/// The keys that make a press a chord rather than typing: the command key and Option.
+pub(crate) const CHORD_KEYS: Modifiers = COMMAND_KEYS.union(Modifiers::ALT);
+
 /// The window's keymap, with the viewer's own actions declared on it once. An app's registration
 /// replaces its earlier one, so the rows are added one at a time to a growing registration and a
 /// row the keymap refuses (a chord the person's system keeps for itself) is left out, leaving that

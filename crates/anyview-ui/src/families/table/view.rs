@@ -17,6 +17,7 @@ use crate::families::rows::scaled_px;
 use crate::families::view::{Held, StageCx};
 use crate::families::{Mark, cut};
 use crate::io::Job;
+use crate::views::press::CHORD_KEYS;
 use crate::{
     AfterTyping, CellFocus, Cells, ColumnNo, ColumnSort, ContentScale, HitIndex, RowNo, SheetNo,
     SortDirection, Stage, StageIn, TableIn, TypingIn, TypingSeed, TypingState,
@@ -396,12 +397,11 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         }
         // A click puts the cell cursor on the cell; a double-click types into it.
         let reach = move |event: MouseEvent| {
-            let held_keys = Modifiers::SHIFT
-                | Modifiers::CONTROL
-                | Modifiers::META
-                | Modifiers::SUPER
-                | Modifiers::ALT;
-            if editable && !event.modifiers().intersects(held_keys) {
+            if editable
+                && !event
+                    .modifiers()
+                    .intersects(CHORD_KEYS.union(Modifiers::SHIFT))
+            {
                 send.call(StageIn::Table(TableIn::FocusCell(row_no, column_no)));
             }
         };

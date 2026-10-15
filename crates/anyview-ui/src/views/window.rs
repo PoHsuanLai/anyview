@@ -506,6 +506,21 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let sheet_open = !matches!(state.sheet, Sheet::Closed);
     let context_rows = machine_params.context.entries;
     let context_open = matches!(state.context, ContextMenu::Open { .. });
+    // An open menu closes when the window changes size, as a Mac's or GNOME's does: it was placed
+    // for the window it opened in.
+    let size_now = whole().map(|whole| whole.size);
+    let sized = use_hook(|| CopyValue::new(size_now));
+    use_effect(use_reactive!(|size_now| {
+        let mut sized = sized;
+        let before = std::mem::replace(&mut *sized.write(), size_now);
+        let open = matches!(
+            dispatch.machine.state().peek().context,
+            ContextMenu::Open { .. }
+        );
+        if open && before.is_some() && before != size_now {
+            dispatch.send(ViewerIn::Context(ContextIn::Close));
+        }
+    }));
     {
         let mut layered = layered;
         let open = palette_open || context_open;
@@ -869,8 +884,7 @@ fn typed_start(event: &KeyboardEvent, dispatch: &Dispatch) -> Option<StageIn> {
     let Key::Character(text) = event.key() else {
         return None;
     };
-    let command = Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER | Modifiers::ALT;
-    if event.modifiers().intersects(command) {
+    if event.modifiers().intersects(super::press::CHORD_KEYS) {
         return None;
     }
     let stage = dispatch.machine.state().peek().stage.clone();

@@ -4,6 +4,7 @@
 //! check box, a radio button, a drop-down or a list.
 
 use crate::MarkupIn;
+use crate::views::press::CHORD_KEYS;
 use anyview_core::{FormWidget, WidgetKind};
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::*;
@@ -38,9 +39,7 @@ pub(super) struct FieldView {
 
 /// Whether a key is one the field keeps for itself: anything but a chord for the window.
 fn typed(event: &KeyboardEvent) -> bool {
-    !event
-        .modifiers()
-        .intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER | Modifiers::ALT)
+    !event.modifiers().intersects(CHORD_KEYS)
 }
 
 /// The keys of a field the keyboard is in: Tab and Shift Tab go to the next and the one before,
