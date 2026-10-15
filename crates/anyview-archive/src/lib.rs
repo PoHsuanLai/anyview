@@ -21,10 +21,7 @@
 //! for entry in &listing.entries {
 //!     println!("{}", entry.path);
 //! }
-//! let limits = ExtractLimits {
-//!     entry: ByteLen(1 << 20),
-//!     scanned: ByteLen(8 << 20),
-//! };
+//! let limits = ExtractLimits::new(ByteLen(1 << 20), ByteLen(8 << 20));
 //! let bytes = extract(file.on_disk(), ArchiveFormat::Zip, "cover.jpg", limits)?;
 //! # let _ = bytes;
 //! # Ok::<(), Box<dyn std::error::Error>>(())

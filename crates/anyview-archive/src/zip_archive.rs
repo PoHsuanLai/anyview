@@ -85,7 +85,9 @@ pub(crate) fn extract(
                 path: name.to_owned(),
             });
         }
-        Err(ZipError::UnsupportedArchive(reason)) if reason.contains("assword") => {
+        Err(
+            ZipError::UnsupportedArchive(ZipError::PASSWORD_REQUIRED) | ZipError::InvalidPassword,
+        ) => {
             return Err(ArchiveError::Encrypted);
         }
         Err(error) => return Err(ArchiveError::malformed(format, error)),

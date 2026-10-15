@@ -105,10 +105,7 @@ fn one_line(text: String) -> String {
 }
 
 fn part(src: &Input, name: &str, allowed: ByteLen, interrupt: &dyn Interrupt) -> Option<Vec<u8>> {
-    let limits = ExtractLimits {
-        entry: allowed,
-        scanned: allowed,
-    };
+    let limits = ExtractLimits::new(allowed, allowed);
     extract_until(src, ArchiveFormat::Zip, name, limits, interrupt).ok()
 }
 

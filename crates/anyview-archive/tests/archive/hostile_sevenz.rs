@@ -118,10 +118,16 @@ fn a_real_7z_still_lists_and_extracts() {
     let listing = listed(&bytes).unwrap();
     assert_eq!(listing.entries.len(), ENTRIES.len());
     let path = write(dir.path(), "real.7z", &bytes);
-    let limits = ExtractLimits {
-        entry: ByteLen(1024),
-        scanned: ByteLen(1024),
-    };
+    let limits = ExtractLimits::new(ByteLen(1024), ByteLen(1024));
     let got = extract(&path, ArchiveFormat::SevenZip, "data.bin", limits).unwrap();
     assert_eq!(got, b"0123456789");
+    // The decoder runs over the 13 bytes before the entry, and over the entry: more than that
+    // is refused before it starts.
+    let tight = limits.with_scanned(ByteLen(22));
+    assert_eq!(
+        extract(&path, ArchiveFormat::SevenZip, "data.bin", tight),
+        Err(ArchiveError::TooLarge {
+            allowed: ByteLen(22)
+        })
+    );
 }

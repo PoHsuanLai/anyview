@@ -17,10 +17,7 @@ use support::{ENTRIES, bzip2, gzip, sevenz_of, tar_of, write, write_path, xz, zi
 
 const BIG: ByteLen = ByteLen(1 << 20);
 const ALL: EntryLimit = EntryLimit(1000);
-const LIMITS: ExtractLimits = ExtractLimits {
-    entry: BIG,
-    scanned: BIG,
-};
+const LIMITS: ExtractLimits = ExtractLimits::new(BIG, BIG);
 
 /// Every container holding [`ENTRIES`] (and a link for the tars), with the format it sniffs as.
 fn containers(dir: &std::path::Path) -> Vec<(&'static str, ArchiveFormat, Vec<u8>)> {
@@ -181,10 +178,7 @@ fn one_entry_comes_out_of_every_container_and_the_wrong_asks_are_refused() {
             matches!(missing, Err(ArchiveError::NoSuchEntry { .. })),
             "{name}: {missing:?}"
         );
-        let small = ExtractLimits {
-            entry: ByteLen(5),
-            ..LIMITS
-        };
+        let small = LIMITS.with_entry(ByteLen(5));
         assert_eq!(
             extract(&path, format, "docs/readme.txt", small),
             Err(ArchiveError::TooLarge {

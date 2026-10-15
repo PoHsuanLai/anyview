@@ -7,11 +7,21 @@ use crate::error::TextError;
 use anyview_core::work::Interrupt;
 use anyview_core::{ByteLen, Deadline, Input};
 use calamine::{Cell, Data, DataRef, Reader, Sheets, open_workbook_auto_from_rs};
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 /// The largest workbook file that is opened: a sheet is read into memory whole.
 pub const WORKBOOK_BYTES: ByteLen = ByteLen(128 * 1024 * 1024);
+
+/// The largest part of a zipped workbook (shared strings, styles, the workbook's own list, an ODS's
+/// content) that the reader unpacks whole, as it is stated in the zip.
+const PART_BYTES: ByteLen = ByteLen(64 * 1024 * 1024);
+
+/// The most those parts add up to.
+const PARTS_BYTES: u64 = 256 * 1024 * 1024;
+
+/// The last serial Excel itself writes as a date (9999-12-31).
+const LAST_SERIAL: f64 = 2_958_465.0;
 
 /// The most rows kept of one sheet.
 pub const SHEET_ROWS: usize = 100_000;
@@ -47,6 +57,83 @@ fn failed(error: impl std::fmt::Display) -> TextError {
     }
 }
 
+/// Refuses a zipped workbook (XLSX, XLSB, ODS) whose parts the readers unpack whole are larger
+/// than they should be, or whose shared-string table states more strings than it has bytes: the
+/// reader reserves for that count before it reads a string. The sheets themselves are streamed
+/// and bounded by [`gather`]. Sizes are the ones the zip states.
+fn check_parts(bytes: &Arc<[u8]>, interrupt: &dyn Interrupt) -> Result<(), TextError> {
+    let too_large = || TextError::WorkbookTooLarge {
+        allowed: PART_BYTES,
+    };
+    // The whole file is at most `WORKBOOK_BYTES`, so its central directory is too.
+    let mut zip = zip::ZipArchive::new(Cursor::new(Arc::clone(bytes))).map_err(failed)?;
+    let mut total = 0_u64;
+    for index in 0..zip.len() {
+        if interrupt.interrupted() {
+            return Err(TextError::Interrupted);
+        }
+        let entry = zip.by_index_raw(index).map_err(failed)?;
+        let path = entry.name().to_ascii_lowercase();
+        let unpacked_whole = entry.is_file()
+            && !path.contains("/worksheets/")
+            && [".xml", ".bin", ".rels"]
+                .iter()
+                .any(|end| path.ends_with(end));
+        if unpacked_whole {
+            total = total.saturating_add(entry.size());
+            if entry.size() > PART_BYTES.0 || total > PARTS_BYTES {
+                return Err(too_large());
+            }
+        }
+    }
+    let Ok(strings) = zip.by_name("xl/sharedStrings.xml") else {
+        // No shared strings (an ODS, an XLSB, a workbook of numbers), or a part the reader will
+        // refuse for itself.
+        return Ok(());
+    };
+    let mut part = Vec::new();
+    strings
+        .take(PART_BYTES.0.saturating_add(1))
+        .read_to_end(&mut part)
+        .map_err(failed)?;
+    if u64::try_from(part.len()).unwrap_or(u64::MAX) > PART_BYTES.0 {
+        return Err(too_large());
+    }
+    if states_more_than_fits(&part) {
+        return Err(failed("the shared strings are damaged"));
+    }
+    Ok(())
+}
+
+/// Whether any `uniqueCount` attribute in the shared strings states more strings than the part
+/// has bytes. Every occurrence is looked at, not only the one in the `sst` tag, so text placed
+/// ahead of the tag cannot hide it.
+fn states_more_than_fits(part: &[u8]) -> bool {
+    const NAME: &[u8] = b"uniqueCount";
+    let mut from = 0;
+    while let Some(found) = part[from..]
+        .windows(NAME.len())
+        .position(|window| window == NAME)
+    {
+        let mut rest = &part[from + found + NAME.len()..];
+        from += found + NAME.len();
+        rest = rest.trim_ascii_start();
+        let [b'=', tail @ ..] = rest else { continue };
+        rest = tail.trim_ascii_start();
+        let [b'"' | b'\'', tail @ ..] = rest else {
+            continue;
+        };
+        let digits = tail.iter().take_while(|byte| byte.is_ascii_digit()).count();
+        let count = std::str::from_utf8(&tail[..digits])
+            .ok()
+            .and_then(|text| text.parse::<u64>().ok());
+        if count.is_none_or(|count| count > part.len() as u64) {
+            return true;
+        }
+    }
+    false
+}
+
 /// A spreadsheet's serial day number as `YYYY-MM-DD`. Serial 25569 is 1970-01-01; serials before
 /// 61 are off by the day Excel counts for a 1900-02-29 that never was, which a viewer ignores.
 fn civil_date(days: i64) -> String {
@@ -72,7 +159,7 @@ fn civil_date(days: i64) -> String {
 fn date_text(serial: f64) -> String {
     let days = serial.floor();
     let seconds = ((serial - days) * 86_400.0).round() as i64; // a fraction of a day
-    let date = civil_date(days as i64); // a spreadsheet's days fit an i64
+    let date = civil_date(days as i64); // `cell_text` passes only serials up to `LAST_SERIAL`
     if seconds == 0 {
         date
     } else {
@@ -94,7 +181,11 @@ fn cell_text(data: &Data) -> String {
         Data::Float(f) if f.fract() == 0.0 && f.abs() < 1e15 => format!("{f:.0}"),
         Data::Float(f) => f.to_string(),
         Data::Bool(b) => b.to_string().to_uppercase(),
-        Data::DateTime(date) if date.is_datetime() => date_text(date.as_f64()),
+        Data::DateTime(date)
+            if date.is_datetime() && (0.0..=LAST_SERIAL).contains(&date.as_f64()) =>
+        {
+            date_text(date.as_f64())
+        }
         Data::DateTime(date) => date.as_f64().to_string(),
         Data::Error(error) => error.to_string(),
     }
@@ -242,7 +333,16 @@ impl Workbook {
         // The sheet is read into memory whole anyway, so the workbook is read from the bytes
         // (sniffed by content), whether they are a file or were handed in.
         let bytes: Arc<[u8]> = read_range(src.bytes(), 0..WORKBOOK_BYTES.0)?.into();
-        let mut workbook = open_workbook_auto_from_rs(Cursor::new(bytes)).map_err(failed)?;
+        if bytes.starts_with(b"PK") {
+            check_parts(&bytes, interrupt)?;
+        }
+        // The readers index and allocate from what the file states; a panic in one is a workbook
+        // that does not open.
+        let mut workbook = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            open_workbook_auto_from_rs(Cursor::new(bytes))
+        }))
+        .map_err(|_| failed("the file is damaged"))?
+        .map_err(failed)?;
         let names = workbook.sheet_names();
         let sheet_count = u32::try_from(names.len()).unwrap_or(u32::MAX);
         let mut left = cells;
@@ -293,6 +393,52 @@ mod tests {
         for (name, serial, want) in CASES {
             assert_eq!(date_text(*serial), *want, "{name}");
         }
+    }
+
+    #[test]
+    fn a_string_table_that_states_more_strings_than_it_has_bytes_is_refused() {
+        // name, shared strings, refused
+        const CASES: &[(&str, &str, bool)] = &[
+            (
+                "a real count",
+                r#"<sst count="2" uniqueCount="2"><si/><si/></sst>"#,
+                false,
+            ),
+            (
+                "a count of the whole planet",
+                r#"<sst uniqueCount="100000000000"/>"#,
+                true,
+            ),
+            (
+                "single quotes and spaces",
+                "<sst uniqueCount = '99999999'/>",
+                true,
+            ),
+            (
+                "a count too long for a number",
+                r#"<sst uniqueCount="99999999999999999999999"/>"#,
+                true,
+            ),
+            (
+                "a decoy ahead of the tag",
+                r#"<!-- uniqueCount="1" --><sst uniqueCount="99999999"/>"#,
+                true,
+            ),
+            ("no count", "<sst><si/></sst>", false),
+        ];
+        for (name, part, refused) in CASES {
+            assert_eq!(states_more_than_fits(part.as_bytes()), *refused, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_serial_beyond_any_date_shows_as_a_number() {
+        let huge = Data::DateTime(calamine::ExcelDateTime::new(
+            1e300,
+            calamine::ExcelDateTimeType::DateTime,
+            false,
+        ));
+        assert_eq!(cell_text(&huge), 1e300_f64.to_string());
     }
 
     #[test]

@@ -199,7 +199,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   cells at the worst) and an ODS are read whole by calamine; XLSX and XLSB are streamed. The time budget
   is asked once per entry and once per 64 KiB of a stream unpacked; the zip and 7z crates' own parse of an
   index, a codec inside one chunk and calamine's whole-file read are not reached by it. Ends when a listing
-  can stream a tar without holding it.
+  can stream a tar without holding it. Extracting from a solid 7z decodes every entry before the wanted one, which
+  nothing can stop midway, so the sizes the header states for them are held to `ExtractLimits::scanned` first; the
+  header check stays as long as `sevenz-rust2` allocates from the numbers a header states, and a bump of that pin
+  re-audits it. A zipped workbook (XLSX, XLSB, ODS) is checked by the sizes its zip states before calamine
+  unpacks it: 64 MiB for a part read whole (shared strings, styles, an ODS's content), 256 MiB for those together,
+  and a `uniqueCount` no larger than the part has bytes, since calamine reserves for the count the file states.
+  A zip that states smaller sizes than its data has is not caught by this; ends when calamine bounds both.
 - **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
   zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry
   lists normally and is `ArchiveError::Encrypted` only when extracted. RAR is not supported (plan section 3.6a).

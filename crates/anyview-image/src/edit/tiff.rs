@@ -365,11 +365,12 @@ pub(super) fn rewritten(file: &[u8], placing: Placing) -> Result<Vec<u8>, ImageE
         if index > 0 {
             decoder.next_image().map_err(tiff_error)?;
         }
+        let (width, height) = decoder.dimensions().map_err(tiff_error)?;
+        crate::decode::admit_rewrite(width, height)?;
         let total = placing.over(facts.orientation);
         let tags = carried_tags(&mut decoder, swaps_axes(total))?;
         let grid = page_grid(&mut decoder, facts)?.placed(total);
         write_page(&mut encoder, &grid, facts, &tags)?;
     }
-    let _ = encoder;
     Ok(out.into_inner())
 }

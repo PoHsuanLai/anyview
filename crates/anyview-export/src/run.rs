@@ -59,7 +59,12 @@ fn run(
             Ok(file) => written.push(file),
             Err(error) => {
                 for file in &written {
-                    let _gone = std::fs::remove_file(file.as_path());
+                    if let Err(failure) = std::fs::remove_file(file.as_path()) {
+                        log::warn!(
+                            "could not remove {} after a failed export: {failure}",
+                            file.as_path().display()
+                        );
+                    }
                 }
                 return Err(error);
             }

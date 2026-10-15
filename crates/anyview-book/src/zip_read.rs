@@ -30,10 +30,7 @@ pub(crate) fn read(
     allowed: ByteLen,
     interrupt: &dyn Interrupt,
 ) -> Result<Vec<u8>, BookError> {
-    let limits = ExtractLimits {
-        entry: allowed,
-        scanned: allowed,
-    };
+    let limits = ExtractLimits::new(allowed, allowed);
     Ok(extract_until(
         input,
         ArchiveFormat::Zip,

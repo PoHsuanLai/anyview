@@ -28,6 +28,8 @@ anyview-image = { workspace = true }
 anyview-fs = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
+# A look that panics or is refused is logged; the binary installs the logger.
+log = { workspace = true }
 # The `pane` feature: the component, and the PDF page cache. Nothing outside `card/` names a type of
 # `ds` or dioxus, so a headless build links neither.
 dioxus = { workspace = true, optional = true }

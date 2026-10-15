@@ -3,6 +3,7 @@
 
 use super::Sniffed;
 use crate::kind::{Family, FormatDetail, Mime, OfficeFormat};
+use std::collections::HashSet;
 use std::io;
 
 /// The signature every compound file starts with.
@@ -26,8 +27,9 @@ const KIND_AT: usize = 66;
 /// A sector id at or past this ends a chain or is a special sector.
 const FIRST_SPECIAL: u32 = 0xFFFF_FFFA;
 
-/// The most directory sectors read: 4096 of 512 bytes hold 16 384 entries.
-const MAX_DIRECTORY_SECTORS: usize = 4096;
+/// The most bytes of directory read, whatever sector size the header states: 1 MiB holds 8192
+/// entries, far more than a document has.
+const MAX_DIRECTORY_BYTES: u64 = 1024 * 1024;
 
 /// The names in a compound file's directory: its streams and storages.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,10 +91,11 @@ impl OleStreams {
 
         let mut names = Vec::new();
         let mut sector = word(&header, DIRECTORY_AT)?;
-        for _ in 0..MAX_DIRECTORY_SECTORS {
-            if sector >= FIRST_SPECIAL {
-                break;
-            }
+        let mut left = MAX_DIRECTORY_BYTES;
+        let mut visited = HashSet::new();
+        // A chain that loops back on itself ends at the first sector seen twice.
+        while sector < FIRST_SPECIAL && size <= left && visited.insert(sector) {
+            left -= size;
             let bytes = read(at(sector), size).ok()?;
             for entry in bytes.as_chunks::<ENTRY_LEN>().0 {
                 if let Some(name) = entry_name(entry) {
@@ -193,6 +196,26 @@ mod tests {
             let end = (start + usize::try_from(len).unwrap()).min(bytes.len());
             Ok(bytes[start..end].to_vec())
         })
+    }
+
+    #[test]
+    fn a_directory_chain_that_loops_with_huge_sectors_is_read_once() {
+        // Sectors of 64 KiB, the directory is sector 0, whose FAT entry points at itself.
+        let mut bytes = vec![0_u8; 3 << 16];
+        bytes[..8].copy_from_slice(&SIGNATURE);
+        bytes[SHIFT_AT..SHIFT_AT + 2].copy_from_slice(&16_u16.to_le_bytes());
+        let mut asked = 0_u64;
+        let read = OleStreams::read(|offset, len| {
+            asked += len;
+            let start = usize::try_from(offset).unwrap().min(bytes.len());
+            let end = (start + usize::try_from(len).unwrap()).min(bytes.len());
+            Ok(bytes[start..end].to_vec())
+        });
+        assert_eq!(read, Some(OleStreams { names: Vec::new() }));
+        assert!(
+            asked <= HEADER_LEN as u64 + (64 << 10) + 4,
+            "{asked} bytes asked"
+        );
     }
 
     #[test]

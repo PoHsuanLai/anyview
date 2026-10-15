@@ -2,11 +2,12 @@
 
 use crate::entry::{Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep};
 use crate::error::ArchiveError;
+use crate::extract::ExtractLimits;
 use crate::limit::{Limited, pull};
 use crate::sevenz_header::{self, Fault};
 use anyview_core::work::Interrupt;
 use anyview_core::{ArchiveFormat, ByteLen, Input, ReadAtStream};
-use sevenz_rust2::{ArchiveReader, Error, Password};
+use sevenz_rust2::{ArchiveEntry, ArchiveReader, Error, Password};
 use std::io::{BufReader, Read};
 
 const FORMAT: ArchiveFormat = ArchiveFormat::SevenZip;
@@ -63,16 +64,26 @@ fn open_checked(src: &Input, budget: ByteLen) -> Result<ReadAtStream, ArchiveErr
     }
 }
 
-/// The bytes of the entry called `name`, at most `allowed` of them.
+/// The bytes of the entry called `name`, at most `limits.entry` of them. A solid block is
+/// decoded from its start, so the entries that have to be decoded before this one (all of them
+/// that come first in the header) may add up to at most `limits.scanned`; the decoder cannot be
+/// asked to stop in the middle of that, so it is held to the sizes the header states beforehand.
 pub(crate) fn extract(
     src: &Input,
     name: &str,
-    allowed: ByteLen,
+    limits: ExtractLimits,
     interrupt: &dyn Interrupt,
 ) -> Result<Vec<u8>, ArchiveError> {
+    let allowed = limits.entry;
     let file = open_checked(src, ByteLen(u64::MAX))?;
     let mut archive = ArchiveReader::new(BufReader::new(file), Password::empty())
         .map_err(|error| error_of(&error))?;
+    let to_decode = decoded_before(&archive.archive().files, name);
+    if to_decode > limits.scanned.0 {
+        return Err(ArchiveError::TooLarge {
+            allowed: limits.scanned,
+        });
+    }
     let mut found: Option<Result<Vec<u8>, ArchiveError>> = None;
     let walked = archive.for_each_entries(|entry, reader| {
         if interrupt.interrupted() {
@@ -98,6 +109,20 @@ pub(crate) fn extract(
         }),
         (None, Err(error)) => Err(error_of(&error)),
     }
+}
+
+/// How many bytes are decoded before the entry `name` is reached, by the sizes the header
+/// states: the entries with data up to it, or every one when it is an empty entry (those are
+/// visited last) or is not there.
+fn decoded_before(files: &[ArchiveEntry], name: &str) -> u64 {
+    let end = match files.iter().position(|file| file.name() == name) {
+        Some(at) if files[at].has_stream() => at + 1,
+        _ => files.len(),
+    };
+    files[..end]
+        .iter()
+        .filter(|file| file.has_stream())
+        .fold(0, |sum: u64, file| sum.saturating_add(file.size()))
 }
 
 /// A directory flag of the header as the kind it names.

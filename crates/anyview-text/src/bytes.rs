@@ -1,7 +1,7 @@
 //! Where text bytes come from: a file read in ranges (any other source is `anyview_core::ReadAt`).
 
 use crate::error::TextError;
-use anyview_core::{ByteLen, ReadAt, Source};
+use anyview_core::{ByteLen, FileStamp, ModTime, ReadAt, Source};
 use anyview_fs::OpenFile;
 use std::io::Result as IoResult;
 use std::ops::Range;
@@ -59,6 +59,17 @@ impl ReadAt for FileBytes {
         let take = buf.len().min(usize::try_from(room).unwrap_or(usize::MAX));
         let file = OpenFile::open(&self.path)?;
         file.read_at(offset, &mut buf[..take])
+    }
+
+    /// The file's size and modification time as they are now; none when it cannot be read.
+    fn stamp(&self) -> Option<FileStamp> {
+        let meta = std::fs::metadata(&self.path).ok()?;
+        Some(FileStamp {
+            len: ByteLen(meta.len()),
+            modified: meta
+                .modified()
+                .map_or(ModTime(0), ModTime::from_system_time),
+        })
     }
 }
 

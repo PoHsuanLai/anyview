@@ -7,7 +7,7 @@ use crate::bytes::read_range;
 use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
 use anyview_core::work::Interrupt;
-use anyview_core::{ReadAt, TextEncoding};
+use anyview_core::{FileStamp, ReadAt, TextEncoding};
 use std::collections::VecDeque;
 use std::ops::Range;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -197,6 +197,8 @@ type Windows = Mutex<VecDeque<(u32, Window)>>;
 #[derive(Debug, Clone)]
 pub(super) struct Indexed {
     source: Arc<dyn ReadAt>,
+    /// The source's stamp when it was indexed: the offsets are good while it is the same.
+    stamp: Option<FileStamp>,
     codec: TextCodec,
     separator: u8,
     index: Arc<RecordIndex>,
@@ -213,6 +215,7 @@ impl Indexed {
         index: RecordIndex,
     ) -> Self {
         Indexed {
+            stamp: source.stamp(),
             source,
             codec,
             separator,
@@ -225,6 +228,11 @@ impl Indexed {
     /// The bytes the records are in.
     pub(super) fn source(&self) -> &Arc<dyn ReadAt> {
         &self.source
+    }
+
+    /// Whether the source is the version of the file that was indexed.
+    pub(super) fn is_current(&self) -> bool {
+        self.stamp == self.source.stamp()
     }
 
     /// How the bytes are encoded.

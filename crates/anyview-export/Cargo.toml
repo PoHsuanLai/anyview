@@ -20,6 +20,7 @@ anyview-pdf = { workspace = true }
 anyview-store = { workspace = true }
 anyview-text = { workspace = true }
 ds-core = { workspace = true }
+log = { workspace = true }
 # The renderer of `print`: a Markdown, code or text document laid out on paper as a vector PDF.
 ds-blitz = { workspace = true, features = ["pdf"], optional = true }
 thiserror = { workspace = true }

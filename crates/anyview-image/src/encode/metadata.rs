@@ -27,15 +27,17 @@ impl Carried {
             return Self::default();
         };
         // An EXIF block that cannot be set upright is not carried: writing it would turn the
-        // already-upright pixels a second time.
+        // already-upright pixels a second time. Nor is one whose location cannot be taken out
+        // with certainty: a person who chose to share without it gets no EXIF rather than a
+        // block that may still hold it.
         let exif = match keep {
             MetadataCarry::Drop => None,
             MetadataCarry::Keep | MetadataCarry::StripLocation => image
                 .exif()
                 .and_then(|exif| with_orientation(&exif, ExifOrientation::UPRIGHT).ok())
-                .map(|block| match keep {
+                .and_then(|block| match keep {
                     MetadataCarry::StripLocation => without_location(&block),
-                    MetadataCarry::Keep | MetadataCarry::Drop => block,
+                    MetadataCarry::Keep | MetadataCarry::Drop => Some(block),
                 }),
         };
         Carried {
