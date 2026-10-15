@@ -111,6 +111,13 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
         | FileAction::FlipVertical => {
             ability.edits.contains(&action) && edit != EditOffer::Withheld && writable
         }
+        FileAction::Trim => {
+            ability.edits.contains(&action)
+                && edit != EditOffer::Withheld
+                && writable
+                && playback == Playback::Playable
+                && exports == Exports::Offered
+        }
         FileAction::RevertTo => !ability.edits.is_empty() && writable,
         FileAction::Export | FileAction::ConvertTo => {
             ability.export.is_some() && exports == Exports::Offered
@@ -602,7 +609,7 @@ mod tests {
     use crate::{ContextEntry, ContextPick, PanelTab, PanelTabs, PlatformAbilities};
     use FileAction::{
         ConvertTo, CopyFile, CopyPath, Export, FlipHorizontal, FlipVertical, PlayInBackground,
-        PlayInMiniWindow, Print, RevertTo, RotateLeft, RotateRight, SaveCopy, Share,
+        PlayInMiniWindow, Print, RevertTo, RotateLeft, RotateRight, SaveCopy, Share, Trim,
     };
 
     /// What a file of `kind` lists, by the palette (`commands`) and the context menu (`entries`).
@@ -630,6 +637,7 @@ mod tests {
         RotateRight,
         FlipHorizontal,
         FlipVertical,
+        Trim,
         Export,
         ConvertTo,
         Print,
@@ -702,14 +710,21 @@ mod tests {
                 with(&[Export, Print]),
             ),
             (
-                "a video plays in a small window and exports",
+                "a video plays in a small window, exports and trims",
                 Video,
-                with(&[Export, PlayInMiniWindow]),
+                with(&[Export, SaveCopy, RevertTo, Trim, PlayInMiniWindow]),
             ),
             (
-                "a song plays in the background, exports and converts",
+                "a song plays in the background, exports, converts and trims",
                 Audio,
-                with(&[Export, ConvertTo, PlayInBackground]),
+                with(&[
+                    Export,
+                    ConvertTo,
+                    SaveCopy,
+                    RevertTo,
+                    Trim,
+                    PlayInBackground,
+                ]),
             ),
             (
                 "Markdown, code and text export, convert and print",
@@ -761,6 +776,7 @@ mod tests {
                 want.contains(&Export),
                 "{name}: menu"
             );
+            assert_eq!(row("Trim\u{2026}"), want.contains(&Trim), "{name}: menu");
             assert!(row("Get Info"), "{name}: the info tab gives the row");
             assert!(
                 !titles.iter().any(|t| t.contains("Open With")),
@@ -825,13 +841,19 @@ mod tests {
                 "a recording nothing plays",
                 FormatKind::Video,
                 unplayable,
-                vec![PlayInMiniWindow],
+                vec![PlayInMiniWindow, Trim],
+            ),
+            (
+                "a recording that refuses a save",
+                FormatKind::Audio,
+                read_only,
+                vec![Trim, RevertTo],
             ),
             (
                 "a recording with no export to offer",
                 FormatKind::Video,
                 unexportable,
-                vec![Export, ConvertTo],
+                vec![Export, ConvertTo, Trim],
             ),
             (
                 "a platform with no desktop services",

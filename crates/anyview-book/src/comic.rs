@@ -3,7 +3,7 @@
 use crate::error::BookError;
 use crate::natural::natural_order;
 use crate::zip_read::{file_names, read};
-use anyview_core::{ByteLen, Input, SectionCount, SectionIndex};
+use anyview_core::{ByteLen, Deadline, Input, SectionCount, SectionIndex};
 
 /// The largest page that is read.
 const PAGE_LIMIT: ByteLen = ByteLen(64 * 1024 * 1024);
@@ -76,6 +76,9 @@ impl Comic {
             .pages
             .get(at.0 as usize)
             .ok_or(BookError::NoSuchSection)?;
-        Ok((page, read(&self.input, &page.entry, PAGE_LIMIT)?))
+        Ok((
+            page,
+            read(&self.input, &page.entry, PAGE_LIMIT, &Deadline::NEVER)?,
+        ))
     }
 }

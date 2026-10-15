@@ -2,7 +2,8 @@
 
 use crate::bytes::read_range;
 use crate::error::TextError;
-use anyview_core::ReadAt;
+use anyview_core::work::Interrupt;
+use anyview_core::{Deadline, ReadAt};
 
 /// Bytes read at a time.
 const CHUNK: u64 = 64 * 1024;
@@ -16,6 +17,7 @@ pub(super) struct Cursor<'a> {
     at: u64,
     end: u64,
     failure: Option<TextError>,
+    interrupt: &'a dyn Interrupt,
 }
 
 impl<'a> Cursor<'a> {
@@ -28,7 +30,15 @@ impl<'a> Cursor<'a> {
             at,
             end: end.min(source.len().0),
             failure: None,
+            interrupt: &Deadline::NEVER,
         }
+    }
+
+    /// This cursor, ended (as a failed read ends it, with [`TextError::Interrupted`] waiting in
+    /// [`Cursor::failure`]) the next time it needs a chunk after `interrupt` says to.
+    pub(super) fn until(mut self, interrupt: &'a dyn Interrupt) -> Self {
+        self.interrupt = interrupt;
+        self
     }
 
     /// Where the cursor is.
@@ -53,6 +63,11 @@ impl<'a> Cursor<'a> {
         }
         let held = self.at >= self.base && self.at - self.base < self.chunk.len() as u64; // a usize fits a u64
         if !held {
+            if self.interrupt.interrupted() {
+                self.failure.get_or_insert(TextError::Interrupted);
+                self.end = self.at;
+                return &[];
+            }
             let to = (self.at + CHUNK).min(self.end);
             match read_range(self.source, self.at..to) {
                 Ok(bytes) => {

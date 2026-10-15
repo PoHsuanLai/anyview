@@ -5,7 +5,7 @@
 use super::doc::MediaDoc;
 use super::panel::{clock_text, speed_text};
 use crate::families::view::StageCx;
-use crate::{AfterScrub, Command, ControlOffer, MediaStage, Stage, StageCommand};
+use crate::{AfterScrub, Command, ControlOffer, MediaStage, Stage, StageCommand, TrimWindow};
 use anyview_core::{FileAction, FormatKind, MediaLength, MediaTime, Volume};
 use ds::components::chrome::capsule::model::{CapsuleSlot, LevelSlot, ScrubSlot};
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -60,6 +60,20 @@ pub(crate) fn place_to_time(at: Fraction, length: MediaLength) -> MediaTime {
     MediaTime(u64::try_from(u128::from(length.0.0) * thousandths / 1000).unwrap_or(u64::MAX))
 }
 
+/// A place on the progress bar as a time. The bar runs over the stretch kept once a trim is
+/// applied, else over the whole recording.
+pub(crate) fn bar_time(at: Fraction, length: MediaLength, kept: Option<TrimWindow>) -> MediaTime {
+    match kept {
+        Some(window) => MediaTime(
+            window
+                .start
+                .0
+                .saturating_add(place_to_time(at, window.length()).0),
+        ),
+        None => place_to_time(at, length),
+    }
+}
+
 /// A level as a fraction of the loudest volume, which is a hundred and fifty percent.
 pub(crate) fn level_of(volume: Volume) -> Fraction {
     let loudest = u32::from(Volume::MAX.percent().0);
@@ -101,6 +115,18 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
     };
     let Some((at, length, shown)) = position_of(stage) else {
         return Vec::new();
+    };
+    // The bar and the clock take the place of the trim bar's controls while the stretch to keep is chosen.
+    if cx.trim.is_choosing() {
+        return Vec::new();
+    }
+    // Once a trim is applied the recording is the stretch kept: its clock and its bar start at zero.
+    let (at, length) = match cx.trim.applied() {
+        Some(window) => (
+            MediaTime(at.0.saturating_sub(window.start.0)).min(window.length().0),
+            window.length(),
+        ),
+        None => (at, length),
     };
     let live = cx.media.read();
     let stage_command = |command| Command::Stage(command);
@@ -218,6 +244,29 @@ mod tests {
             fraction_of(MediaTime::from_secs(5), MediaLength(MediaTime(0))),
             Fraction(0)
         );
+    }
+
+    #[test]
+    fn the_bar_runs_over_the_stretch_kept_once_a_trim_is_applied() {
+        let length = MediaLength(MediaTime::from_secs(200));
+        let kept = TrimWindow {
+            start: MediaTime::from_secs(40),
+            end: MediaTime::from_secs(140),
+        };
+        // name, the place on the bar, the stretch, the time
+        let cases = [
+            ("the start of the stretch", 0, Some(kept), 40),
+            ("its middle", 500, Some(kept), 90),
+            ("its end", 1000, Some(kept), 140),
+            ("with no trim the whole recording", 500, None, 100),
+        ];
+        for (name, at, stretch, want) in cases {
+            assert_eq!(
+                bar_time(Fraction(at), length, stretch),
+                MediaTime::from_secs(want),
+                "{name}"
+            );
+        }
     }
 
     #[test]

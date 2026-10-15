@@ -171,7 +171,7 @@ impl Versions {
             return Err(io_error(StoreOp::Permissions, &real, &denied));
         }
         let kept = self.keep_as_is(&real, at)?;
-        let pending = Pending::new(real, pending.bytes);
+        let pending = pending.retargeted(real);
         Ok(BackedUp::new(
             pending,
             kept,

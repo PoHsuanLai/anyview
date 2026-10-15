@@ -75,6 +75,17 @@ pub enum PeekError {
 }
 
 impl PeekError {
+    /// Whether the peek ended because its time ran out and left nothing to show: a back end's
+    /// interrupted error. It is no fault of the file, and the card says nothing of it.
+    pub fn is_interrupted(&self) -> bool {
+        matches!(
+            self,
+            PeekError::Text(TextError::Interrupted)
+                | PeekError::Archive(ArchiveError::Interrupted)
+                | PeekError::Font(FontError::Interrupted)
+        )
+    }
+
     /// A recording that its parser refused, for `reason`.
     pub fn media(reason: impl Into<String>) -> Self {
         PeekError::Media {

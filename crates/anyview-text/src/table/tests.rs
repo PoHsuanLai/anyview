@@ -1,5 +1,6 @@
 use super::*;
 use anyview_core::FileName;
+use anyview_core::work::Stop;
 
 fn parse(text: &str, mode: HeaderMode) -> Table {
     Table::parse(text, Delimiter::Comma, mode).unwrap()
@@ -227,9 +228,23 @@ fn a_file_longer_than_the_cap_indexes_its_whole_records_and_says_so() {
             Delimiter::Comma,
             HeaderMode::Detect,
             ByteLen(*cap),
+            &Deadline::NEVER,
         )
         .unwrap();
         assert_eq!(table.row_count(), RowCount(*rows), "{name}: rows");
         assert_eq!(table.coverage(), *coverage, "{name}: coverage");
     }
+}
+
+#[test]
+fn a_table_whose_read_is_interrupted_is_not_returned_half_indexed() {
+    let stop = Stop::new();
+    stop.request();
+    let read = Table::read_until(
+        file(b"a,b\n1,2\n"),
+        Delimiter::Comma,
+        HeaderMode::Detect,
+        &stop,
+    );
+    assert!(matches!(read, Err(TextError::Interrupted)), "{read:?}");
 }

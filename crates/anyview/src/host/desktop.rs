@@ -11,7 +11,7 @@ use super::route::Task;
 use super::saving;
 use super::store::Store;
 use super::trash::Trash;
-use anyview_core::{FileName, FilePath, Resume, Source, claimed_mimes, opened_globs};
+use anyview_core::{Edit, FileName, FilePath, Resume, Source, claimed_mimes, opened_globs};
 #[cfg(feature = "quire-desktop")]
 use anyview_platform::linux::{FileManagerReveal, MailShare, PortalPicker, PortalPrinter};
 use anyview_platform::portable::SystemOpen;
@@ -21,7 +21,7 @@ use anyview_platform::{
     Env, FileKinds, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
 };
 use anyview_store::Versions;
-use anyview_ui::{DesktopService, HelperEnd, PlatformAbilities, VersionRow};
+use anyview_ui::{DesktopService, EditRequest, HelperEnd, PlatformAbilities, VersionRow};
 use ds::prelude::Word;
 use std::fmt::Display;
 use std::path::Path;
@@ -300,6 +300,17 @@ where
             blocking(move || media::play_in_background(&media, &probed)).await
         }
         Task::ExportMedia { file, choice } => media::export(&parts.media, &file, choice).await,
+        Task::Edit {
+            file,
+            request:
+                EditRequest {
+                    edit: Edit::Trim { start, end },
+                    ..
+                },
+        } => {
+            let at = parts.store.saved_at();
+            media::trim_in_place(&parts.media, &parts.versions, at, &file, (start, end)).await
+        }
         Task::Edit { file, request } => {
             let parts = Arc::clone(parts);
             blocking_save(move || {

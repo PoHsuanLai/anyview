@@ -5,8 +5,11 @@
 use crate::support;
 
 use anyview_core::Peek;
+use anyview_core::work::Stop;
 use anyview_fs::OnDisk;
-use anyview_text::{Coverage, RowIndex, SHEET_ROWS, TablePeek, WORKBOOK_CELLS, Workbook};
+use anyview_text::{
+    Coverage, RowIndex, SHEET_ROWS, TablePeek, TextError, WORKBOOK_CELLS, Workbook,
+};
 use support::{budget, workbook_of_xml};
 
 /// A sheet whose only cells are `cells`, given as references.
@@ -75,4 +78,23 @@ fn a_sheet_with_more_rows_than_the_cap_keeps_the_start_and_says_so() {
     // The header guess may take the first row, and the cap counts it.
     assert!(table.row_count().0 as usize >= SHEET_ROWS - 1);
     assert!(table.row_count().0 as usize <= SHEET_ROWS);
+}
+
+#[test]
+fn a_workbook_read_told_to_stop_ends_with_no_half_read_sheet() {
+    let dir = tempfile::tempdir().unwrap();
+    let rows: String = (1..=10_000)
+        .map(|r| format!(r#"<row r="{r}"><c r="A{r}"><v>{r}</v></c></row>"#))
+        .collect();
+    let (src, _) = workbook_of_xml(dir.path(), "stopped.xlsx", &["Sheet"], &[rows]);
+    let stop = Stop::new();
+    stop.request();
+    assert!(matches!(
+        Workbook::open_until(src.on_disk(), &stop),
+        Err(TextError::Interrupted)
+    ));
+    assert!(matches!(
+        Workbook::open_start_until(src.on_disk(), &stop),
+        Err(TextError::Interrupted)
+    ));
 }

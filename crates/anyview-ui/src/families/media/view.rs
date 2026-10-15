@@ -129,6 +129,9 @@ pub(super) fn MediaContent(doc: Held<MediaDoc>, cx: StageCx) -> Element {
                 class: "viewer-media-cover",
                 onclick: move |_| send.call(StageIn::Media(MediaIn::Toggle)),
             }
+            if cx.trim.is_choosing() {
+                super::trim::TrimBar { cx: cx.clone() }
+            }
         }
     }
 }

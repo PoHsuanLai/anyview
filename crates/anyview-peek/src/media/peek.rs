@@ -10,9 +10,10 @@ use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
+use anyview_core::work::Interrupt;
 use anyview_core::{
-    ByteLen, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, MediaContainer, Peek,
-    PeekBudget, PixelArea, PixelSize, Sniffed,
+    ByteLen, Deadline, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input,
+    MediaContainer, Peek, PeekBudget, PixelArea, PixelSize, Sniffed,
 };
 use anyview_image::{ImagePeek, encode_png};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -71,16 +72,26 @@ fn reader_for(sniffed: &Sniffed) -> Reader {
 }
 
 fn look(src: &Input, sniffed: &Sniffed, budget: &PeekBudget) -> Result<MediaLook, PeekError> {
-    let mut recording = match reader_for(sniffed) {
-        Reader::Symphonia => audio::read(src, budget)?,
-        Reader::Mp4 => mp4::read(src, budget)?,
-        Reader::Matroska => matroska::read(src)?,
-        Reader::Nothing => Recording::default(),
+    let deadline = budget.deadline_from_now();
+    let read = match reader_for(sniffed) {
+        Reader::Symphonia => audio::read(src, budget, deadline),
+        Reader::Mp4 => mp4::read(src, budget, deadline),
+        Reader::Matroska => matroska::read(src, deadline),
+        Reader::Nothing => Ok(Recording::default()),
+    };
+    let mut recording = match read {
+        Ok(recording) => recording,
+        // A header the time cut short leaves the facts card: the type, the size and the date.
+        Err(_) if deadline.interrupted() => Recording::default(),
+        Err(error) => return Err(error),
     };
     let cover = recording.cover.take();
     // The picture is not the recording's sound or video, so it is left out of the bitrate.
     let cover_len = cover.as_ref().map_or(0, |cover| cover.bytes.len() as u64);
-    let cover = cover.and_then(|cover| cover_peek(&cover, budget));
+    // Decoding the cover is the slow step, so it is skipped once the time is up.
+    let cover = cover
+        .filter(|_| !deadline.interrupted())
+        .and_then(|cover| cover_peek(&cover, budget));
     Ok(MediaLook {
         described: Described::of(src, sniffed),
         recording,
@@ -139,8 +150,8 @@ pub fn video_size(src: &Input, sniffed: &Sniffed) -> Option<PixelSize> {
         .with_pixels(PixelArea(0))
         .with_time(std::time::Duration::ZERO);
     let recording = match reader_for(sniffed) {
-        Reader::Mp4 => mp4::read(src, &budget),
-        Reader::Matroska => matroska::read(src),
+        Reader::Mp4 => mp4::read(src, &budget, Deadline::NEVER),
+        Reader::Matroska => matroska::read(src, Deadline::NEVER),
         Reader::Symphonia | Reader::Nothing => return None,
     };
     recording.ok()?.video.map(|video| video.size)

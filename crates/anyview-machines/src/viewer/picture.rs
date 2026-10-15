@@ -15,6 +15,7 @@ use crate::sheet::{
     ExportDraft, PictureSheet, PictureSheetOut, ResizeDraft, Sheet, SheetIn, SheetOut,
 };
 use crate::stage::{RasterIn, Stage, StageIn};
+use crate::trim::MediaTrim;
 use anyview_core::{DocPoint, Edit, RasterExport, RasterTarget, Zoom};
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::ShortcutKey;
@@ -28,7 +29,11 @@ pub(super) fn picture_in(
     params: &ViewerParams,
 ) -> Step {
     let mut viewer = viewer;
-    let going = if matches!(input, PictureEditIn::Landed { .. }) {
+    let landed = matches!(input, PictureEditIn::Landed { .. });
+    let going = if landed {
+        // Whatever was trimmed of the last recording is gone with it (or was just saved into
+        // this one).
+        viewer.trim = MediaTrim::default();
         viewer.after_save.take()
     } else {
         // Any other edit is the person carrying on with the picture, not waiting on a save.

@@ -21,7 +21,10 @@ pub use visible::{Openness, VisibleRow};
 use crate::bytes::read_range;
 use crate::encoding::{Coverage, DETECT_BYTES, TextCodec, detect};
 use crate::error::TextError;
-use anyview_core::{ByteLen, Input, LineIndex, ReadAt, TextEncoding, TreeFormat, TreePath};
+use anyview_core::work::Interrupt;
+use anyview_core::{
+    ByteLen, Deadline, Input, LineIndex, ReadAt, TextEncoding, TreeFormat, TreePath,
+};
 use cursor::Cursor;
 use grammar::{Child, Fault, Form, Shape, Why, bad, shape_at, skip_value};
 use level::{Level, read_window, scan_level};
@@ -174,8 +177,9 @@ fn scan_root(
     end: u64,
     format: TreeFormat,
     cut: Coverage,
+    interrupt: &dyn Interrupt,
 ) -> Result<(Root, Coverage), TextError> {
-    let mut c = Cursor::new(source, origin, end);
+    let mut c = Cursor::new(source, origin, end).until(interrupt);
     let scanned = match format {
         TreeFormat::Json => document(&mut c, cut),
         TreeFormat::JsonLines => lines(&mut c, cut),
@@ -203,6 +207,7 @@ impl Tree {
             (0, end),
             format,
             Coverage::Whole,
+            &Deadline::NEVER,
         )
     }
 
@@ -213,6 +218,17 @@ impl Tree {
         src: impl Into<Input>,
         format: TreeFormat,
         limit: ByteLen,
+    ) -> Result<(Self, Coverage), TextError> {
+        Tree::read_until(src, format, limit, &Deadline::NEVER)
+    }
+
+    /// [`Tree::read`], ended with [`TextError::Interrupted`] when `interrupt` says so: it is asked
+    /// each time the scan reads a chunk of the file.
+    pub fn read_until(
+        src: impl Into<Input>,
+        format: TreeFormat,
+        limit: ByteLen,
+        interrupt: &dyn Interrupt,
     ) -> Result<(Self, Coverage), TextError> {
         if limit.0 == 0 {
             return Err(TextError::NoBudget);
@@ -238,10 +254,17 @@ impl Tree {
             let text = detected.codec.decode(body).into_owned().into_bytes();
             let end = text.len() as u64; // a usize fits a u64
             let codecs = (TextCodec::Unicode(TextEncoding::Utf8), detected.codec);
-            Tree::open(Arc::new(text), codecs, (0, end), format, cut)?
+            Tree::open(Arc::new(text), codecs, (0, end), format, cut, interrupt)?
         } else {
             let span = (u64::from(detected.mark), limit.0.min(len));
-            Tree::open(source, (detected.codec, detected.codec), span, format, cut)?
+            Tree::open(
+                source,
+                (detected.codec, detected.codec),
+                span,
+                format,
+                cut,
+                interrupt,
+            )?
         };
         let coverage = tree.store.coverage;
         Ok((tree, coverage))
@@ -263,6 +286,7 @@ impl Tree {
             span,
             format,
             Coverage::Whole,
+            &Deadline::NEVER,
         )
     }
 
@@ -274,10 +298,11 @@ impl Tree {
         span: (u64, u64),
         format: TreeFormat,
         cut: Coverage,
+        interrupt: &dyn Interrupt,
     ) -> Result<Self, TextError> {
         let (origin, end) = span;
         let (codec, encoding) = codecs;
-        let (root, coverage) = scan_root(&*source, origin, end, format, cut)?;
+        let (root, coverage) = scan_root(&*source, origin, end, format, cut, interrupt)?;
         Ok(Tree {
             format,
             store: Arc::new(Store {

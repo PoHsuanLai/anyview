@@ -39,12 +39,14 @@ pub fn fixture(name: &str) -> (Source, Sniffed) {
     )
 }
 
-/// A budget that reads `bytes` bytes.
+/// A budget that reads `bytes` bytes. Its time is long, so a slow debug build is bounded by the
+/// bytes and the caps these tests are about, never by the clock (`tests/peek/deadline.rs` in
+/// anyview-peek is where a late peek is tested).
 pub fn budget(bytes: u64) -> PeekBudget {
     PeekBudget::DEFAULT
         .with_bytes(ByteLen(bytes))
         .with_pixels(PixelArea(0))
-        .with_time(Duration::from_millis(500))
+        .with_time(Duration::from_secs(60))
 }
 
 /// The facts as `(label slug, text)` rows, in order.

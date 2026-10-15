@@ -28,6 +28,13 @@ impl PeekBudget {
         time: Duration::from_millis(500),
     };
 
+    /// The deadline of a peek that starts now. A back end calls it once, at the top of its peek,
+    /// and hands the answer to the loops that grow with the file.
+    #[must_use]
+    pub fn deadline_from_now(&self) -> super::Deadline {
+        super::Deadline::of(self, std::time::Instant::now())
+    }
+
     /// This budget reading no more than `bytes`.
     #[must_use]
     pub const fn with_bytes(self, bytes: ByteLen) -> Self {

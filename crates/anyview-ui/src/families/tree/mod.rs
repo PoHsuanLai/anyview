@@ -17,6 +17,7 @@ use crate::{
     Command, ContentScale, HitIndex, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
     StageIn, StageParams, Ticket, TreeIn, TreeParams, TypedText,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, Resume, Sniffed, Source};
 use anyview_text::Coverage;
 use dioxus::prelude::*;
@@ -38,8 +39,9 @@ impl StageView for TreeStageView {
         src: &Source,
         sniffed: &Sniffed,
         _link: &OpenPort,
+        stop: &Stop,
     ) -> Result<TreeDoc, OpenError> {
-        doc::open(src, sniffed)
+        doc::open(src, sniffed, stop)
     }
 
     fn facts(doc: &TreeDoc) -> Facts {

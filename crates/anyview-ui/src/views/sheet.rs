@@ -1,7 +1,7 @@
 //! The modal sheets: rename, save a copy, revert to a version, the trash question and the install question. The sheet machine says which is open
 //! and what it holds (the export dialog is `export`); these draw them and report the person's choices as sheet inputs.
 
-use crate::{EditCaution, HelperPhase, HelperWords, TypedText, VersionKey, VersionList};
+use crate::{EditCaution, HelperPhase, HelperWords, TypedText, VersionKey, VersionList, Wanted};
 use anyview_core::{Edit, Fact, Helper};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
@@ -72,6 +72,7 @@ pub(super) fn EditSheet(
         (_, EditCaution::Signed) => ("Change this document?", "Change Pages"),
         (Edit::Flip(_), EditCaution::Loses(_)) => ("Flip this picture?", "Flip"),
         (Edit::Adjust(_), EditCaution::Loses(_)) => ("Save the changes to this picture?", "Save"),
+        (Edit::Trim { .. }, EditCaution::Loses(_)) => ("Trim this recording?", "Trim"),
         (_, EditCaution::Loses(_)) => ("Rotate this picture?", "Rotate"),
     };
     let message = match caution {
@@ -173,18 +174,24 @@ pub(super) fn NoVersionsSheet(onclose: EventHandler<()>) -> Element {
     }
 }
 
-/// An export the viewer cannot offer at all: which package adds it. Enter and Esc put it away.
+/// An export or a trim the viewer cannot offer at all: which package adds it. Enter and Esc put
+/// it away.
 #[component]
 pub(super) fn UnavailableSheet(
     needs: Fact,
     helper: Option<Helper>,
+    wanted: Wanted,
     onclose: EventHandler<()>,
     oninstall: EventHandler<Helper>,
 ) -> Element {
+    let (label, note) = match wanted {
+        Wanted::Export => ("Export", "There is nothing to export yet."),
+        Wanted::Trim => ("Trim", "This recording can\u{2019}t be trimmed yet."),
+    };
     rsx! {
-        Sheet { label: "Export", onclose: move |()| onclose.call(()),
+        Sheet { label, onclose: move |()| onclose.call(()),
             div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
-                p { class: "viewer-sheet-note", "There is nothing to export yet." }
+                p { class: "viewer-sheet-note", "{note}" }
                 p { class: "viewer-sheet-note",
                     "{needs.label.label()}: {needs.value.as_str()}"
                 }

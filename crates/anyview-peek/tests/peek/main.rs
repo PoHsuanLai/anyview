@@ -3,6 +3,7 @@
 #![allow(clippy::unwrap_used)]
 
 mod book;
+mod deadline;
 mod frames;
 mod injected;
 mod isolation;

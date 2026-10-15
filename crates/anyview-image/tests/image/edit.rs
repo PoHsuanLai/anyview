@@ -297,7 +297,9 @@ fn a_series_of_turns_and_flips_folded_into_one_adjustment_places_the_pixels_as_t
         folded = match step {
             Edit::Rotate(by) => folded.turned(by),
             Edit::Flip(axis) => folded.flipped(axis),
-            Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) => folded,
+            Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) | Edit::Trim { .. } => {
+                folded
+            }
         };
         let at_once = edited(&before, &kind, Edit::Adjust(folded)).unwrap();
         assert_eq!(

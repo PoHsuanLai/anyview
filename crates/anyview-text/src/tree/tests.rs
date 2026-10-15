@@ -1,4 +1,5 @@
 use super::*;
+use anyview_core::work::Stop;
 use anyview_core::{FileName, TreePath};
 
 fn json(text: &str) -> Tree {
@@ -349,5 +350,16 @@ fn bytes_are_decoded_before_they_are_parsed() {
     assert_eq!(
         under(&tree, &TreePath::root()),
         [("k".to_owned(), "\"café\"".to_owned())]
+    );
+}
+
+#[test]
+fn a_scan_told_to_stop_is_interrupted_not_a_cut_document() {
+    let stop = Stop::new();
+    stop.request();
+    let input = Input::from((FileName::new("a.json").unwrap(), b"[1,2,3]".to_vec()));
+    assert_eq!(
+        Tree::read_until(&input, TreeFormat::Json, ByteLen(1 << 20), &stop).map(|(_, c)| c),
+        Err(TextError::Interrupted)
     );
 }

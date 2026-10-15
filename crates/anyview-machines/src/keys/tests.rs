@@ -418,6 +418,15 @@ const CASES: &[Case] = &[
         Route::Save,
     ),
     (
+        "save on a recording saves its trim",
+        Chord(Act::Save),
+        Sheet::Closed,
+        Palette::Closed,
+        Panel::Hidden,
+        MEDIA,
+        Route::Save,
+    ),
+    (
         "save on a PDF is nothing to this window",
         Chord(Act::Save),
         Sheet::Closed,

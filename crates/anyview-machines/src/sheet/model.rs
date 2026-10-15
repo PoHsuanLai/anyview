@@ -38,12 +38,14 @@ pub enum Sheet {
         /// Which pages the page choice stands for.
         span: PageSpan,
     },
-    /// An export the viewer cannot offer: the row says which package adds it.
+    /// An export or a trim the viewer cannot offer: the row says which package adds it.
     Unavailable {
-        /// What the export needs that the viewer lacks.
+        /// What it needs that the viewer lacks.
         needs: Fact,
         /// The tool to offer to install for it, when the host can.
         helper: Option<Helper>,
+        /// What the person asked for, which the sheet words.
+        wanted: Wanted,
     },
     /// Asking before the file goes to the trash.
     ConfirmTrash,
@@ -88,13 +90,22 @@ pub enum Sheet {
     ConfirmReplace,
 }
 
+/// What a person asked for that a missing package would do, for the sheet that names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Wanted {
+    /// An export of the recording.
+    Export,
+    /// A trim of the recording.
+    Trim,
+}
+
 /// What moves the sheet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SheetIn {
     /// Open the export sheet on this draft (the default of the file's format).
     OpenExport(ExportDraft),
-    /// Open the sheet that says nothing can be exported yet and which package adds it.
-    OpenUnavailable(Fact, Option<Helper>),
+    /// Open the sheet that says what was asked for cannot be done yet and which package adds it.
+    OpenUnavailable(Fact, Option<Helper>, Wanted),
     /// Ask whether to trash the file.
     AskTrash,
     /// Ask whether to go ahead with an edit that loses this.

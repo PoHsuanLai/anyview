@@ -3,7 +3,7 @@
 use crate::container::kind_name;
 use crate::entry::{EntryLimit, Holds, Listing};
 use crate::error::ArchiveError;
-use crate::list::list;
+use crate::list::list_until;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
@@ -37,7 +37,13 @@ impl Peek for ArchivePeek {
                 kind: sniffed.kind(),
             });
         };
-        let listing = list(src, *format, PEEK_ENTRIES, budget.bytes)?;
+        let listing = list_until(
+            src,
+            *format,
+            PEEK_ENTRIES,
+            budget.bytes,
+            &budget.deadline_from_now(),
+        )?;
         Ok(ArchivePeeked { listing })
     }
 

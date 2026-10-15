@@ -115,7 +115,13 @@ fn delimited(
     delimiter: Delimiter,
     budget: &PeekBudget,
 ) -> Result<TablePeeked, TextError> {
-    let (table, encoding) = Table::open(src, delimiter, HeaderMode::Detect, budget.bytes)?;
+    let (table, encoding) = Table::open(
+        src,
+        delimiter,
+        HeaderMode::Detect,
+        budget.bytes,
+        &budget.deadline_from_now(),
+    )?;
     let total = Tally::of(table.row_count().0 as usize, table.coverage()); // a u32 fits a usize
     of_table(
         &table,
@@ -133,7 +139,7 @@ fn sheet(src: &Input, format: OfficeFormat, budget: &PeekBudget) -> Result<Table
             allowed: budget.bytes,
         });
     }
-    let workbook = Workbook::open_start(src)?;
+    let workbook = Workbook::open_start_until(src, &budget.deadline_from_now())?;
     let sheets = workbook.sheet_count();
     let first = workbook
         .sheets()

@@ -37,7 +37,7 @@ pub fn output_path(
         .and_then(|stem| stem.to_str())
         .unwrap_or("recording");
     let (base, extension) = match streams {
-        StreamPick::Everything => (
+        StreamPick::Everything | StreamPick::Original => (
             format!("{stem} trimmed"),
             source
                 .as_path()

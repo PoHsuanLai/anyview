@@ -29,6 +29,19 @@ pub fn plan_export(source: &FilePath, choice: MediaExport) -> Vec<ExportJob> {
     }
 }
 
+/// The job that makes the recording `source` shorter, keeping the stretch `range` of it, for the
+/// result to be saved over the recording: every stream, tag and chapter stays, and the plugin
+/// writes the sound again only where a copy could not be cut exactly.
+#[must_use]
+pub fn cut_job(source: &FilePath, range: TimeRange) -> ExportJob {
+    ExportJob::Transcode {
+        source: source.clone(),
+        range,
+        streams: StreamPick::Original,
+        audio: anyview_core::AudioTarget::Copy,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,5 +95,20 @@ mod tests {
         for (name, choice, want) in cases {
             assert_eq!(plan_export(&source, choice), vec![want], "{name}");
         }
+    }
+
+    #[test]
+    fn a_cut_over_the_recording_keeps_everything_of_it_over_its_range() {
+        let source = FilePath::new("/v/clip.mkv").unwrap();
+        let range = TimeRange::new(MediaTime::from_secs(1), Some(MediaTime::from_secs(2))).unwrap();
+        assert_eq!(
+            cut_job(&source, range),
+            ExportJob::Transcode {
+                source,
+                range,
+                streams: StreamPick::Original,
+                audio: AudioTarget::Copy,
+            }
+        );
     }
 }

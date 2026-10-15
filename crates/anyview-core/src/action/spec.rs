@@ -61,6 +61,7 @@ pub(super) fn spec_of(action: FileAction) -> ActionSpec {
         ),
         FileAction::FlipHorizontal => spec(Reach::Viewer, Binding::Unbound),
         FileAction::FlipVertical => spec(Reach::Viewer, Binding::Unbound),
+        FileAction::Trim => spec(Reach::Viewer, Binding::Own("anyview.trim", "Primary+T")),
         FileAction::PlayInBackground => spec(Reach::Both, Binding::Unbound),
         FileAction::PlayInMiniWindow => spec(Reach::Both, Binding::Unbound),
         FileAction::ConvertTo => spec(Reach::Both, Binding::Unbound),

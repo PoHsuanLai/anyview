@@ -3,8 +3,10 @@
 use crate::container::{Container, container};
 use crate::entry::{EntryKind, Seen};
 use crate::error::ArchiveError;
+use crate::limit::pull;
 use crate::{sevenz, stream, zip_archive};
-use anyview_core::{ArchiveFormat, ByteLen, Input};
+use anyview_core::work::Interrupt;
+use anyview_core::{ArchiveFormat, ByteLen, Deadline, Input};
 use std::io::{BufReader, Cursor, Read};
 use tar::Archive;
 
@@ -25,10 +27,23 @@ pub fn extract(
     entry: &str,
     limits: ExtractLimits,
 ) -> Result<Vec<u8>, ArchiveError> {
+    extract_until(src, format, entry, limits, &Deadline::NEVER)
+}
+
+/// [`extract`], ending with [`ArchiveError::Interrupted`] as soon as `interrupt` says so: it is
+/// asked once per entry looked at and once per chunk of an entry or a compressed stream unpacked.
+/// A part of an entry is never returned.
+pub fn extract_until(
+    src: impl Into<Input>,
+    format: ArchiveFormat,
+    entry: &str,
+    limits: ExtractLimits,
+    interrupt: &dyn Interrupt,
+) -> Result<Vec<u8>, ArchiveError> {
     let src = &src.into();
     match container(format) {
-        Container::Zip => zip_archive::extract(src, format, entry, limits.entry),
-        Container::SevenZip => sevenz::extract(src, entry, limits.entry),
+        Container::Zip => zip_archive::extract(src, format, entry, limits.entry, interrupt),
+        Container::SevenZip => sevenz::extract(src, entry, limits.entry, interrupt),
         Container::Tar => {
             let file = ArchiveError::open(src)?;
             tar_entry(
@@ -36,12 +51,16 @@ pub fn extract(
                 format,
                 entry,
                 limits.entry,
+                interrupt,
             )
         }
         Container::Compressed(codec) => {
-            let unpacked = stream::unpack(src, format, codec, limits.scanned.0)?;
+            let unpacked = stream::unpack(src, format, codec, limits.scanned.0, interrupt)?;
+            if unpacked.interrupted {
+                return Err(ArchiveError::Interrupted);
+            }
             let mut archive = Archive::new(Cursor::new(&unpacked.bytes[..]));
-            match tar_entry(&mut archive, format, entry, limits.entry) {
+            match tar_entry(&mut archive, format, entry, limits.entry, interrupt) {
                 Ok(bytes) => Ok(bytes),
                 Err(ArchiveError::NoSuchEntry { .. }) if unpacked.seen == Seen::Start => {
                     Err(ArchiveError::TooLarge {
@@ -84,11 +103,15 @@ fn tar_entry<R: Read + std::io::Seek>(
     format: ArchiveFormat,
     wanted: &str,
     allowed: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Vec<u8>, ArchiveError> {
     let entries = archive
         .entries_with_seek()
         .map_err(|error| ArchiveError::malformed(format, error))?;
     for entry in entries {
+        if interrupt.interrupted() {
+            return Err(ArchiveError::Interrupted);
+        }
         let mut entry = entry.map_err(|error| ArchiveError::malformed(format, error))?;
         if crate::tar::path_of(&entry) != wanted {
             continue;
@@ -99,11 +122,12 @@ fn tar_entry<R: Read + std::io::Seek>(
         if entry.size() > allowed.0 {
             return Err(ArchiveError::TooLarge { allowed });
         }
-        let mut bytes = Vec::new();
-        entry
-            .read_to_end(&mut bytes)
+        let pulled = pull(&mut entry, allowed.0, interrupt)
             .map_err(|error| ArchiveError::malformed(format, error))?;
-        return Ok(bytes);
+        if pulled.interrupted {
+            return Err(ArchiveError::Interrupted);
+        }
+        return Ok(pulled.bytes);
     }
     Err(ArchiveError::NoSuchEntry {
         path: wanted.to_owned(),

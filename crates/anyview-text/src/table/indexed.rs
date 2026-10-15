@@ -6,6 +6,7 @@
 use crate::bytes::read_range;
 use crate::encoding::{Coverage, TextCodec};
 use crate::error::TextError;
+use anyview_core::work::Interrupt;
 use anyview_core::{ReadAt, TextEncoding};
 use std::collections::VecDeque;
 use std::ops::Range;
@@ -112,7 +113,7 @@ pub(super) struct RecordIndex {
 
 impl RecordIndex {
     /// Streams `source` once between the offsets of `span` (the first byte after any byte-order
-    /// mark, and the end). When `coverage` says the file goes on past the end, a record the end
+    /// mark, and the end). Ends with [`TextError::Interrupted`] when `interrupt` says so, once per chunk. When `coverage` says the file goes on past the end, a record the end
     /// cuts short is left out.
     pub(super) fn build(
         source: &dyn ReadAt,
@@ -120,6 +121,7 @@ impl RecordIndex {
         separator: u8,
         span: (u64, u64),
         coverage: Coverage,
+        interrupt: &dyn Interrupt,
     ) -> Result<Self, TextError> {
         let (content, end) = span;
         let unit = codec.unit();
@@ -129,6 +131,9 @@ impl RecordIndex {
         let mut state = State::Between;
         let mut at = content;
         while at < end {
+            if interrupt.interrupted() {
+                return Err(TextError::Interrupted);
+            }
             let chunk = read_range(source, at..(at + CHUNK).min(end))?;
             if chunk.is_empty() {
                 break;

@@ -40,7 +40,7 @@ pub fn plugins_with(set: PluginSet<'_>) -> Plugins {
         }
         text.push_str(
             "[[provides]]\ncapability = \"export\"\nkinds = [\"video\", \"audio\"]\n\
-             targets = [\"trim\", \"audio-copy\", \"m4a\", \"mp3\", \"flac\", \"wav\", \"opus\"]\n",
+             targets = [\"trim\", \"audio-copy\", \"m4a\", \"mp3\", \"flac\", \"wav\", \"opus\", \"cut\"]\n",
         );
         candidates.push(candidate(&text));
     }

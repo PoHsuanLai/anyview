@@ -29,6 +29,7 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
         stage(StageCommand::Save, "Save"),
         stage(StageCommand::Done, "Done"),
     ],
+    &[file(FileAction::Trim, "Trim\u{2026}")],
     &[
         file(FileAction::RotateLeft, "Rotate Left"),
         file(FileAction::RotateRight, "Rotate Right"),

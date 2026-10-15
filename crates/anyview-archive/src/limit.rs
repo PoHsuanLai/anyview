@@ -1,5 +1,6 @@
 //! Reading inside a budget: a reader that stops at a byte count and remembers that it did.
 
+use anyview_core::work::Interrupt;
 use std::cell::Cell;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::rc::Rc;
@@ -62,4 +63,48 @@ impl<R: Seek> Seek for Limited<R> {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.inner.seek(pos)
     }
+}
+
+/// Bytes read from a reader a chunk at a time.
+#[derive(Debug)]
+pub(crate) struct Pulled {
+    /// What was read.
+    pub bytes: Vec<u8>,
+    /// Whether the read ended because it was interrupted, not because the reader or the cap did.
+    pub interrupted: bool,
+}
+
+/// How much is read between two asks of the interrupt.
+const PULL_CHUNK: usize = 64 * 1024;
+
+/// At most `cap` + 1 bytes of `reader` (the one over tells a caller the cap was passed), read
+/// a chunk at a time so a stream that unpacks slowly is asked about between chunks.
+pub(crate) fn pull(
+    reader: &mut dyn Read,
+    cap: u64,
+    interrupt: &dyn Interrupt,
+) -> io::Result<Pulled> {
+    let want = cap.saturating_add(1);
+    let mut bytes = Vec::new();
+    let mut chunk = vec![0_u8; PULL_CHUNK];
+    while (bytes.len() as u64) < want {
+        if interrupt.interrupted() {
+            return Ok(Pulled {
+                bytes,
+                interrupted: true,
+            });
+        }
+        let room = usize::try_from(want - bytes.len() as u64)
+            .map_or(PULL_CHUNK, |left| left.min(PULL_CHUNK));
+        match reader.read(&mut chunk[..room]) {
+            Ok(0) => break,
+            Ok(got) => bytes.extend_from_slice(&chunk[..got]),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(Pulled {
+        bytes,
+        interrupted: false,
+    })
 }

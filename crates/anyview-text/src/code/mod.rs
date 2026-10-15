@@ -18,6 +18,7 @@ pub use html::{TOKEN_CLASS_PREFIX, tokens_html};
 
 use crate::error::TextError;
 use crate::lines::TextLines;
+use anyview_core::work::Interrupt;
 use anyview_core::{LineIndex, ReadAt, SyntaxName};
 use state::{ClassCache, LineState, plain};
 use std::ops::Range;
@@ -181,11 +182,14 @@ impl<B: ReadAt> CodeLines<B> {
     }
 
     /// The lines in `range` highlighted, cut to the lines that exist. Parser state is saved every
-    /// 128 lines as the pass goes, so the next window near this one is cheap.
+    /// 128 lines as the pass goes, so the next window near this one is cheap. `interrupt` is asked
+    /// before every line is parsed: the pass ends with [`TextError::Interrupted`], and the states it
+    /// saved up to there stay, so a window asked for again goes on from them.
     pub fn highlight(
         &mut self,
         highlighter: &Highlighter,
         range: Range<LineIndex>,
+        interrupt: &dyn Interrupt,
     ) -> Result<Vec<TokenLine>, TextError> {
         let end = range.end.0.min(self.text.line_count().0);
         let start = range.start.0.min(end);
@@ -203,6 +207,9 @@ impl<B: ReadAt> CodeLines<B> {
                 break; // the file is shorter than its index said
             }
             for text in batch {
+                if interrupt.interrupted() {
+                    return Err(TextError::Interrupted);
+                }
                 if line.is_multiple_of(CHECKPOINT_EVERY)
                     && (line / CHECKPOINT_EVERY) as usize == self.saved.len()
                 {

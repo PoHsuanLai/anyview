@@ -53,10 +53,11 @@ const PDF: StageAbilities = StageAbilities {
     playing: Playing::Still,
 };
 
+/// A recording is trimmed to the part that is kept.
 const MEDIA: StageAbilities = StageAbilities {
+    edits: &[FileAction::Trim],
     export: Some(ExportFamily::Media),
     playing: Playing::Plays,
-    ..READ_ONLY
 };
 
 const TEXT: StageAbilities = StageAbilities {

@@ -1,6 +1,6 @@
 //! Edits: each change the viewer can save in place, described as data.
 
-use crate::units::{Axis, PageIndex, PageRange, PixelLen, PixelSize, QuarterTurn};
+use crate::units::{Axis, MediaTime, PageIndex, PageRange, PixelLen, PixelSize, QuarterTurn};
 use ds_core::word::Word;
 
 /// One change to a file. An edit is a value: the save pipeline applies it, undo stores it.
@@ -23,6 +23,13 @@ pub enum Edit {
     /// Everything done to a picture since it was opened, as one change: cut down, mirrored,
     /// turned and resized.
     Adjust(Adjust),
+    /// Keep one stretch of a recording and drop the rest.
+    Trim {
+        /// Where the kept stretch begins.
+        start: MediaTime,
+        /// Where it ends; always after `start`.
+        end: MediaTime,
+    },
 }
 
 /// Whether a picture is mirrored left to right before it is turned.
@@ -213,6 +220,8 @@ pub enum EditKind {
     MovePage,
     /// [`Edit::Adjust`].
     Adjust,
+    /// [`Edit::Trim`].
+    Trim,
 }
 
 impl Edit {
@@ -224,6 +233,7 @@ impl Edit {
             Edit::DeletePages(_) => EditKind::DeletePages,
             Edit::MovePage { .. } => EditKind::MovePage,
             Edit::Adjust(_) => EditKind::Adjust,
+            Edit::Trim { .. } => EditKind::Trim,
         }
     }
 }
@@ -266,6 +276,13 @@ mod tests {
                 EditKind::MovePage,
             ),
             (Edit::Adjust(Adjust::NONE), EditKind::Adjust),
+            (
+                Edit::Trim {
+                    start: MediaTime(1),
+                    end: MediaTime(2),
+                },
+                EditKind::Trim,
+            ),
         ];
         for (edit, kind) in cases {
             assert_eq!(edit.kind(), kind, "{edit:?}");
@@ -306,6 +323,13 @@ mod tests {
                     size: Some(size(15, 20)),
                 }),
                 r#"{"kind":"adjust","v":{"crop":{"left":1,"top":2,"size":{"width":30,"height":40}},"reflection":"mirrored","turn":"quarter","size":{"width":15,"height":20}}}"#,
+            ),
+            (
+                Edit::Trim {
+                    start: MediaTime(1_500_000),
+                    end: MediaTime(2_500_000),
+                },
+                r#"{"kind":"trim","v":{"start":1500000,"end":2500000}}"#,
             ),
         ];
         for (edit, json) in cases {

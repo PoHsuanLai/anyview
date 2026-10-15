@@ -6,6 +6,7 @@ use crate::bytes::read_range;
 use crate::encoding::TextCodec;
 use crate::error::TextError;
 use anyview_core::ReadAt;
+use anyview_core::work::Interrupt;
 use std::ops::Range;
 
 /// Lines between two recorded offsets.
@@ -37,6 +38,7 @@ impl LineTable {
         source: &impl ReadAt,
         codec: TextCodec,
         content: u64,
+        interrupt: &dyn Interrupt,
     ) -> Result<Self, TextError> {
         let end = source.len().0;
         let unit = codec.unit();
@@ -47,6 +49,9 @@ impl LineTable {
         }
         let mut at = content;
         while at < end {
+            if interrupt.interrupted() {
+                return Err(TextError::Interrupted);
+            }
             let chunk = read_range(source, at..at + CHUNK)?;
             if chunk.is_empty() {
                 break;

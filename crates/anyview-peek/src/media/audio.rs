@@ -6,7 +6,8 @@ use super::recording::{
     AudioStream, CoverArt, CoverCodec, Recording, TrackCounts, length_of_micros,
 };
 use crate::error::PeekError;
-use anyview_core::{Input, MediaTags, PeekBudget, ReadAtStream};
+use anyview_core::work::Interrupt;
+use anyview_core::{Deadline, Input, MediaTags, PeekBudget, ReadAtStream};
 use std::io::{Read, Seek, SeekFrom};
 use symphonia::core::codecs::CodecParameters;
 use symphonia::core::codecs::audio::well_known as codec;
@@ -20,19 +21,35 @@ use symphonia::core::meta::{
 };
 
 /// The bytes of an input as symphonia reads them: seekable, of a length known.
+/// A read or a seek made after the deadline fails, which ends the parser's walk of the header.
 struct Stream {
     inner: ReadAtStream,
     len: u64,
+    deadline: Deadline,
+}
+
+impl Stream {
+    fn check(&self) -> std::io::Result<()> {
+        if self.deadline.interrupted() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "the peek's time is up",
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl Read for Stream {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.check()?;
         self.inner.read(buf)
     }
 }
 
 impl Seek for Stream {
     fn seek(&mut self, to: SeekFrom) -> std::io::Result<u64> {
+        self.check()?;
         self.inner.seek(to)
     }
 }
@@ -48,10 +65,11 @@ impl MediaSource for Stream {
 }
 
 /// What a header says of the audio `src` (a path, or any bytes a host injects).
-pub fn read(src: &Input, budget: &PeekBudget) -> Result<Recording, PeekError> {
+pub fn read(src: &Input, budget: &PeekBudget, deadline: Deadline) -> Result<Recording, PeekError> {
     let file = Stream {
         inner: super::opened(src)?,
         len: src.bytes().len().0,
+        deadline,
     };
     let mut hint = Hint::new();
     if let Some(extension) = src.name().extension() {

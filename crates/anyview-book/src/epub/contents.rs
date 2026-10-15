@@ -3,7 +3,7 @@
 
 use super::package::{Package, text_of, xml};
 use crate::zip_path::{directory_of, resolve};
-use anyview_core::{ByteLen, Input, SectionIndex};
+use anyview_core::{ByteLen, Deadline, Input, SectionIndex};
 use roxmltree::Node;
 use std::collections::HashMap;
 
@@ -172,5 +172,5 @@ fn ncx_points(
 }
 
 fn read_part(input: &Input, entry: &str) -> Option<Vec<u8>> {
-    crate::zip_read::read(input, entry, PART_LIMIT).ok()
+    crate::zip_read::read(input, entry, PART_LIMIT, &Deadline::NEVER).ok()
 }

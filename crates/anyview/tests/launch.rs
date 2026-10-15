@@ -30,7 +30,7 @@ use ds_harness::{Driver, Input, Query};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-use support::{Rig, fixture, open, until};
+use support::{Rig, Wired, fixture, open, open_wired, until};
 
 /// The most the cold open may take, in milliseconds. A ratchet: lower it when a run beats it, and
 /// never raise it (FINDINGS, "The launch budget"). The target is 150; the window's own start-up
@@ -40,6 +40,14 @@ const COLD_BUDGET_MS: u128 = 300;
 const WARM_BUDGET_MS: u128 = 15;
 /// The most the bare process may take to start, answer `--help` and exit, in milliseconds.
 const PROCESS_BUDGET_MS: u128 = 5;
+/// The most a one-page PDF's peek may take, cold, in milliseconds: the launcher's own time budget
+/// for a peek (`PeekBudget::DEFAULT`), which the peek must stay inside for the pane to keep up
+/// with the arrow keys. A ratchet.
+const PDF_PEEK_BUDGET_MS: u128 = 500;
+/// The most the first frame from the shared thumbnail cache may take to be up, in milliseconds,
+/// from the start of the wiring: it is the cold figure's, because a thumbnail painted first must
+/// not cost more than the open it stands in for. A ratchet.
+const CACHED_FIRST_FRAME_BUDGET_MS: u128 = 300;
 
 fn folder() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -158,5 +166,102 @@ fn the_bare_process_starts_and_exits_within_the_budget() {
         median.as_millis() <= PROCESS_BUDGET_MS,
         "the bare process took {} ms, the budget is {PROCESS_BUDGET_MS} ms",
         median.as_millis()
+    );
+}
+
+#[test]
+#[ignore = "a release build on a quiet machine; see the module documentation"]
+fn a_one_page_pdf_peeks_within_the_budget() {
+    use anyview_core::PeekBudget;
+    use anyview_fs::OnDisk;
+    use anyview_peek::{Body, peek, probe};
+    // A copy in a folder of its own: the page cache is keyed by the path, so this peek is cold.
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("one-page.pdf");
+    std::fs::copy(fixture("anyview-peek", "hello.pdf"), &file).unwrap();
+    let probed = probe(anyview_core::FilePath::new(&file).unwrap().on_disk()).unwrap();
+    let started = Instant::now();
+    let peeked = peek(&probed.input, &probed.sniffed, &PeekBudget::DEFAULT);
+    let took = started.elapsed();
+    println!("one-page PDF peek: {:.1} ms", milliseconds(took));
+    assert!(
+        matches!(peeked.body, Body::Page(_)),
+        "the page was not drawn: {:?}",
+        peeked.body
+    );
+    assert!(
+        took.as_millis() <= PDF_PEEK_BUDGET_MS,
+        "the PDF peek took {} ms, the budget is {PDF_PEEK_BUDGET_MS} ms",
+        took.as_millis()
+    );
+}
+
+/// A picture whose decode is slow enough to see: noise, which neither compresses nor decodes fast.
+fn noisy_png(path: &std::path::Path) {
+    let mut state = 0x9E37_79B9_u32;
+    let image = image::RgbImage::from_fn(3000, 2000, |_, _| {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        let [a, b, c, _] = state.to_le_bytes();
+        image::Rgb([a, b, c])
+    });
+    image.save(path).unwrap();
+}
+
+#[test]
+#[ignore = "a release build on a quiet machine; see the module documentation"]
+fn the_thumbnail_cache_paints_a_big_picture_before_it_has_decoded() {
+    use anyview_core::{ByteLen, FileStamp, ModTime, PixelLen, PixelSize};
+    use anyview_platform::testing::FakeThumbnails;
+    use anyview_platform::{ThumbPixels, ThumbSize, ThumbnailCache};
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("big.png");
+    noisy_png(&file);
+    let meta = std::fs::metadata(&file).unwrap();
+    let stamp = FileStamp {
+        len: ByteLen(meta.len()),
+        modified: ModTime::from_system_time(meta.modified().unwrap()),
+    };
+    let size = PixelSize {
+        width: PixelLen(256),
+        height: PixelLen(171),
+    };
+    let thumbnail = ThumbPixels::new(size, vec![128; 256 * 171 * 4]).unwrap();
+    let thumbnails = FakeThumbnails::default();
+    thumbnails
+        .store(
+            &anyview_core::FilePath::new(&file).unwrap(),
+            &stamp,
+            ThumbSize::Large,
+            &thumbnail,
+        )
+        .unwrap();
+
+    let mut cached = open_wired(
+        &file,
+        dir.path(),
+        Default::default(),
+        Wired {
+            thumbnails,
+            ..Wired::default()
+        },
+    );
+    until(&mut cached.harness, "the cached first frame", picture_is_up);
+    let painted = cached.started.elapsed();
+    drop(cached);
+
+    let mut bare = open(&file, dir.path());
+    until(&mut bare.harness, "the decoded picture", picture_is_up);
+    let decoded = bare.started.elapsed();
+    println!(
+        "big PNG: first frame from the thumbnail cache at {:.1} ms, from the decode at {:.1} ms",
+        milliseconds(painted),
+        milliseconds(decoded),
+    );
+    assert!(
+        painted.as_millis() <= CACHED_FIRST_FRAME_BUDGET_MS,
+        "the cached first frame took {} ms, the budget is {CACHED_FIRST_FRAME_BUDGET_MS} ms",
+        painted.as_millis()
     );
 }

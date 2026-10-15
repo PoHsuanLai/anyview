@@ -4,7 +4,8 @@ use super::{HeaderMode, Table};
 use crate::bytes::read_range;
 use crate::encoding::Coverage;
 use crate::error::TextError;
-use anyview_core::{ByteLen, Input};
+use anyview_core::work::Interrupt;
+use anyview_core::{ByteLen, Deadline, Input};
 use calamine::{Cell, Data, DataRef, Reader, Sheets, open_workbook_auto_from_rs};
 use std::io::Cursor;
 use std::sync::Arc;
@@ -20,6 +21,9 @@ pub const WORKBOOK_CELLS: usize = 4_000_000;
 
 /// The most cells kept of a workbook that is only glanced at: its first sheet's start.
 const START_CELLS: usize = 1_000_000;
+
+/// How many cells of a streamed sheet are read between two asks of the interrupt.
+const ASK_EVERY: usize = 4096;
 
 /// One sheet of a workbook.
 #[derive(Debug, Clone)]
@@ -101,12 +105,13 @@ type Placed = (u32, u32, String);
 
 /// The rows of the cells `next` yields, which a streaming reader gives one at a time, so a sheet
 /// that claims a million rows and sixteen thousand columns costs the cells it holds and not the
-/// grid they span. At most `left` cells are looked at (empty ones included, so a sheet of nothing
+/// grid they span. `interrupt` is asked every [`ASK_EVERY`] cells. At most `left` cells are looked at (empty ones included, so a sheet of nothing
 /// but empty cells ends too), at most [`SHEET_ROWS`] rows are kept, and the grid built from them
 /// is at most `left` cells.
 fn gather<'a>(
     mut next: impl FnMut() -> Result<Option<Cell<DataRef<'a>>>, TextError>,
     left: usize,
+    interrupt: &dyn Interrupt,
 ) -> Result<(Vec<Vec<String>>, Coverage), TextError> {
     let mut cells: Vec<Placed> = Vec::new();
     let mut coverage = Coverage::Whole;
@@ -114,6 +119,9 @@ fn gather<'a>(
     let mut seen = 0_usize;
     while let Some(cell) = next()? {
         seen += 1;
+        if seen.is_multiple_of(ASK_EVERY) && interrupt.interrupted() {
+            return Err(TextError::Interrupted);
+        }
         let (row, column) = cell.get_position();
         first_row = first_row.min(row);
         if seen > left || row - first_row >= SHEET_ROWS as u32 {
@@ -173,15 +181,16 @@ fn read_sheet(
     workbook: &mut Sheets<Cursor<Arc<[u8]>>>,
     name: &str,
     left: usize,
+    interrupt: &dyn Interrupt,
 ) -> Result<(Vec<Vec<String>>, Coverage), TextError> {
     match workbook {
         Sheets::Xlsx(book) => {
             let mut reader = book.worksheet_cells_reader(name).map_err(failed)?;
-            gather(|| reader.next_cell().map_err(failed), left)
+            gather(|| reader.next_cell().map_err(failed), left, interrupt)
         }
         Sheets::Xlsb(book) => {
             let mut reader = book.worksheet_cells_reader(name).map_err(failed)?;
-            gather(|| reader.next_cell().map_err(failed), left)
+            gather(|| reader.next_cell().map_err(failed), left, interrupt)
         }
         other @ (Sheets::Xls(_) | Sheets::Ods(_)) => {
             Ok(cut(&other.worksheet_range(name).map_err(failed)?, left))
@@ -194,17 +203,37 @@ impl Workbook {
     /// [`WORKBOOK_CELLS`] cells of the whole; what is cut is a sheet whose table says it was
     /// only a start. A file over [`WORKBOOK_BYTES`] is refused.
     pub fn open(src: impl Into<Input>) -> Result<Self, TextError> {
-        Workbook::read(&src.into(), usize::MAX, WORKBOOK_CELLS)
+        Workbook::open_until(src, &Deadline::NEVER)
+    }
+
+    /// [`Workbook::open`], ended with [`TextError::Interrupted`] when `interrupt` says so: it is
+    /// asked every few thousand cells of an XLSX or XLSB sheet, and between sheets. An XLS or an
+    /// ODS is built whole by calamine, which nothing here can end.
+    pub fn open_until(src: impl Into<Input>, interrupt: &dyn Interrupt) -> Result<Self, TextError> {
+        Workbook::read(&src.into(), usize::MAX, WORKBOOK_CELLS, interrupt)
     }
 
     /// The start of the workbook the file `src` names, for a glance: its first sheet only, at
     /// most [`SHEET_ROWS`] rows and a million cells of it. [`Workbook::sheet_count`] still counts
     /// every sheet the file has.
     pub fn open_start(src: impl Into<Input>) -> Result<Self, TextError> {
-        Workbook::read(&src.into(), 1, START_CELLS)
+        Workbook::open_start_until(src, &Deadline::NEVER)
     }
 
-    fn read(src: &Input, sheets: usize, cells: usize) -> Result<Self, TextError> {
+    /// [`Workbook::open_start`], ended as [`Workbook::open_until`] is.
+    pub fn open_start_until(
+        src: impl Into<Input>,
+        interrupt: &dyn Interrupt,
+    ) -> Result<Self, TextError> {
+        Workbook::read(&src.into(), 1, START_CELLS, interrupt)
+    }
+
+    fn read(
+        src: &Input,
+        sheets: usize,
+        cells: usize,
+        interrupt: &dyn Interrupt,
+    ) -> Result<Self, TextError> {
         if src.stamp().len.0.max(src.bytes().len().0) > WORKBOOK_BYTES.0 {
             return Err(TextError::WorkbookTooLarge {
                 allowed: WORKBOOK_BYTES,
@@ -219,7 +248,10 @@ impl Workbook {
         let mut left = cells;
         let mut kept = Vec::new();
         for name in names.into_iter().take(sheets) {
-            let (rows, coverage) = read_sheet(&mut workbook, &name, left)?;
+            if interrupt.interrupted() {
+                return Err(TextError::Interrupted);
+            }
+            let (rows, coverage) = read_sheet(&mut workbook, &name, left, interrupt)?;
             left = left.saturating_sub(rows.iter().map(Vec::len).sum());
             kept.push(Sheet {
                 name,

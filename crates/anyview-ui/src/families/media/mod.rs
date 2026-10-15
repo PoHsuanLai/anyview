@@ -8,10 +8,11 @@ mod doc;
 mod live;
 mod panel;
 mod shelf;
+mod trim;
 mod view;
 mod window;
 
-pub(crate) use capsule::{level_to_volume, place_to_time};
+pub(crate) use capsule::{bar_time, level_to_volume};
 pub use doc::MediaDoc;
 pub(crate) use live::tabs_offered;
 pub use live::{MediaLive, MediaPlace, TrimMarks};
@@ -24,6 +25,7 @@ use crate::{
     Command, MediaIn, MediaOffer, PanelTab, PanelTabs, Stage, StageFamily, StageIn, StageParams,
     Ticket,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FormatKind, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -44,6 +46,7 @@ impl StageView for MediaStageView {
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        _stop: &Stop,
     ) -> Result<MediaDoc, OpenError> {
         doc::open(ticket, src, sniffed, link)
     }

@@ -578,7 +578,11 @@ fn a_scrub_restores_what_the_person_had() {
 #[test]
 fn a_length_that_arrives_after_opening_is_kept_by_every_state_that_shows_a_recording() {
     let longer = MediaLength(secs(250));
-    let told = event(PlayerEvent::LengthKnown(longer));
+    // The length said late, and a file written over by a trim that opens again in the same stage.
+    let toldings = [
+        event(PlayerEvent::LengthKnown(longer)),
+        event(PlayerEvent::Loaded { length: longer }),
+    ];
     let at = secs(7);
     // name, state, what it becomes
     let cases: Vec<(&str, MediaStage, MediaStage)> = vec![
@@ -622,19 +626,24 @@ fn a_length_that_arrives_after_opening_is_kept_by_every_state_that_shows_a_recor
             },
         ),
         (
-            "opening has nothing to change",
-            MediaStage::Opening,
-            MediaStage::Opening,
-        ),
-        (
             "a failed stage stays failed",
             MediaStage::Failed(MediaError::PlaybackFailed),
             MediaStage::Failed(MediaError::PlaybackFailed),
         ),
     ];
-    for (name, before, after) in cases {
-        let (now, outs) = before.step(told, Stamp::default(), &MediaParams::default(), &());
-        assert_eq!(now, after, "{name}");
-        assert!(outs.is_empty(), "{name}: {outs:?}");
+    let (opening, outs) =
+        MediaStage::Opening.step(toldings[0], Stamp::default(), &MediaParams::default(), &());
+    assert_eq!(
+        opening,
+        MediaStage::Opening,
+        "opening has nothing to change"
+    );
+    assert!(outs.is_empty());
+    for told in toldings {
+        for (name, before, after) in &cases {
+            let (now, outs) = before.step(told, Stamp::default(), &MediaParams::default(), &());
+            assert_eq!(now, *after, "{name}");
+            assert!(outs.is_empty(), "{name}: {outs:?}");
+        }
     }
 }

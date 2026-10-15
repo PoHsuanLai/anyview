@@ -4,7 +4,8 @@
 
 use super::recording::{AudioStream, Recording, TrackCounts, VideoStream, length_of_micros};
 use crate::error::PeekError;
-use anyview_core::{Input, PixelLen, PixelSize};
+use anyview_core::work::Interrupt;
+use anyview_core::{Deadline, Input, PixelLen, PixelSize};
 use matroska_demuxer::{MatroskaFile, TrackEntry, TrackType};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 
@@ -18,10 +19,17 @@ const MOST_OPERATIONS: u32 = 400_000;
 struct Bounded<R> {
     inner: R,
     left: u32,
+    deadline: Deadline,
 }
 
 impl<R> Bounded<R> {
     fn spend(&mut self) -> io::Result<()> {
+        if self.deadline.interrupted() {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "the peek's time is up",
+            ));
+        }
         self.left = self
             .left
             .checked_sub(1)
@@ -45,10 +53,11 @@ impl<R: Seek> Seek for Bounded<R> {
 }
 
 /// What the header of the Matroska file `src` says.
-pub fn read(src: &Input) -> Result<Recording, PeekError> {
+pub fn read(src: &Input, deadline: Deadline) -> Result<Recording, PeekError> {
     let reader = Bounded {
         inner: BufReader::new(super::opened(src)?),
         left: MOST_OPERATIONS,
+        deadline,
     };
     let matroska =
         MatroskaFile::open(reader).map_err(|error| PeekError::media(error.to_string()))?;

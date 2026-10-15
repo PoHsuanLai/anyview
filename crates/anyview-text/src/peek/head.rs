@@ -3,6 +3,7 @@
 use crate::bytes::read_range;
 use crate::encoding::{Coverage, TextCodec, detect};
 use crate::error::TextError;
+use anyview_core::work::Interrupt;
 use anyview_core::{ByteLen, FormatKind, Input, PeekBudget, Sniffed};
 
 /// The lines (or rows) a peek shows. Every pane shows about this many, so the limit is the
@@ -32,17 +33,44 @@ pub(crate) fn expect_kind(sniffed: &Sniffed, expected: FormatKind) -> Result<(),
     }
 }
 
-/// The first `budget.bytes` bytes of the file, decoded.
-pub(crate) fn read_head(src: &Input, budget: &PeekBudget) -> Result<Head, TextError> {
-    read_limited(src, budget.bytes)
+/// How much of the head is read between two asks of the interrupt.
+const HEAD_CHUNK: u64 = 1024 * 1024;
+
+/// The first `budget.bytes` bytes of the file, decoded; fewer, as a start of the file, when
+/// `interrupt` says to end before they are read.
+pub(crate) fn read_head(
+    src: &Input,
+    budget: &PeekBudget,
+    interrupt: &dyn Interrupt,
+) -> Result<Head, TextError> {
+    read_limited(src, budget.bytes, interrupt)
 }
 
-/// The first `limit` bytes of the file, decoded.
-pub(crate) fn read_limited(src: &Input, limit: ByteLen) -> Result<Head, TextError> {
+/// The first `limit` bytes of the file, decoded; fewer when `interrupt` says to end, but always
+/// the first chunk, so a peek that is late still has a start to show.
+pub(crate) fn read_limited(
+    src: &Input,
+    limit: ByteLen,
+    interrupt: &dyn Interrupt,
+) -> Result<Head, TextError> {
     if limit.0 == 0 {
         return Err(TextError::NoBudget);
     }
-    let bytes = read_range(src.bytes(), 0..limit.0)?;
+    let mut bytes = Vec::new();
+    let mut at = 0_u64;
+    while at < limit.0 {
+        if at > 0 && interrupt.interrupted() {
+            break;
+        }
+        let end = at.saturating_add(HEAD_CHUNK).min(limit.0);
+        let chunk = read_range(src.bytes(), at..end)?;
+        let short = (chunk.len() as u64) < end - at; // a usize fits a u64
+        at += chunk.len() as u64;
+        bytes.extend_from_slice(&chunk);
+        if short {
+            break;
+        }
+    }
     let coverage = if src.bytes().len().0 > bytes.len() as u64 {
         Coverage::Prefix
     } else {

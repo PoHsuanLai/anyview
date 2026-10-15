@@ -4,6 +4,7 @@
 
 use crate::io::OpenError;
 use anyview_book::{BookError, Epub};
+use anyview_core::work::{Interrupt, Stop};
 use anyview_core::{FactLabel, FactValue, Facts, FilePath, SectionIndex};
 use anyview_fs::OnDisk;
 use anyview_pdf::{Bookmark, bind as bind_parts};
@@ -47,7 +48,11 @@ fn text_row(facts: Facts, label: FactLabel, text: Option<&String>) -> Facts {
 
 /// The EPUB at `path` as the bytes of one PDF, and the rows of its Info tab (`base` with the
 /// package's).
-pub(super) fn bind(path: &FilePath, base: Facts) -> Result<(Vec<u8>, Facts), OpenError> {
+pub(super) fn bind(
+    path: &FilePath,
+    base: Facts,
+    stop: &Stop,
+) -> Result<(Vec<u8>, Facts), OpenError> {
     let epub = Epub::open(path.on_disk())?;
     let meta = epub.meta();
     let facts = text_row(base, FactLabel::Title, meta.title.as_ref());
@@ -63,13 +68,23 @@ pub(super) fn bind(path: &FilePath, base: Facts) -> Result<(Vec<u8>, Facts), Ope
     let mut parts: Vec<Vec<u8>> = Vec::new();
     let mut part_of: Vec<Option<usize>> = Vec::new();
     for at in 0..epub.sections().get() {
-        let laid = epub.chapter(SectionIndex(at)).ok().and_then(|chapter| {
-            ds_blitz::pdf(&chapter_html(&chapter.styles, &chapter.body), spec()).ok()
-        });
+        if stop.interrupted() {
+            return Err(super::interrupted());
+        }
+        let laid = epub
+            .chapter_until(SectionIndex(at), stop)
+            .ok()
+            .and_then(|chapter| {
+                ds_blitz::pdf(&chapter_html(&chapter.styles, &chapter.body), spec()).ok()
+            });
         part_of.push(laid.map(|bytes| {
             parts.push(bytes);
             parts.len() - 1
         }));
+    }
+    // A chapter that `stop` cut short was left out like an unreadable one: the book is not kept.
+    if stop.interrupted() {
+        return Err(super::interrupted());
     }
     if parts.is_empty() {
         return Err(BookError::Empty.into());

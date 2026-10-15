@@ -136,13 +136,21 @@ on. It is a reference, not a log: how each was found lives in git history.
   class no stylesheet rule defines (it styles itself inline), so `ds_lint::markup` reports
   `UnstyledClass` for any page that shows one. `crates/anyview-peek/tests/peek/pane.rs` skips exactly that selector. Ends when quire
   gives the class a rule or the lint an allowance for it.
-- **A peek's time budget stops only the loops that look at it, and a viewer job stops only between its steps.**
-  `PeekBudget::time` is a `Deadline` the folder peek asks about; a decoder that does not return is not
-  stopped by it, so the launcher's worker runs each peek on a thread it can abandon (the sill change that
-  lands this is `h3`'s `sill.patch`). In the viewer, a load that is left raises its jobs' `Stop` (`Edge`),
-  which a queued job honours before it starts and a search honours between batches of lines; an open, an
-  unpack of a section and a window of highlighted lines run to their end, and a hung decoder there still
-  holds its pool thread. Ends when the decoders take a `Stop` (or run in a plugin process).
+- **A decoder we do not own cannot be stopped from outside, only its worker abandoned.** `PeekBudget::time` is a
+  `Deadline`, and a viewer job's `Stop` is the other answer to the one question a loop of ours asks
+  (`anyview_core::work::Interrupt`). Every loop that is anyview's own asks it: an archive's entry walk and the
+  unpack of a compressed stream (`list_until`, `extract_until`), the table and line index passes, an XLSX or XLSB
+  sheet's cells, a JSON scan, the head a text peek reads, a font's tables, a movie's boxes and an audio or
+  Matroska header's reads, an EPUB chapter's unpack, and the highlighting of a window of lines. A peek that is
+  late ends with the start it had (a listing's first entries with a lower-bound count, a text file's first
+  megabyte) or, with nothing yet, the facts card (`Unavailable::Slow`, drawn like `TooBig`, no words); an open
+  that is stopped ends with an error nobody reads. What remains unstoppable is third-party code that holds the
+  thread until it returns: the `image` crate's decoders and `jxl-oxide`, `resvg`, pdfrum (a PDF's page, which
+  has its own flag in the viewer but not in a peek), `calamine` reading a whole XLS or ODS, `symphonia`'s
+  probe once it is inside a tag, `mp4parse` on a header already gathered, the `zip`, `sevenz-rust2` and
+  codec crates inside one call, `syntect` inside one line, and `ds_blitz::pdf` laying out one EPUB chapter.
+  The launcher abandons such a peek's worker (`h3`'s `sill.patch`), and the viewer's pool thread holds until the
+  call returns. Ends when those decoders run in a plugin process the host can kill.
 - **A peek refuses a picture, font, book or office file over the budget's bytes.** The check is in
   `anyview_peek::peek` (`look` runs it), ahead of the peeks that read the file whole; a very large camera RAW file shows
   its facts card in the launcher until the image peek reads only the preview it needs.
@@ -172,7 +180,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   - **Track lists are counts** (`1 video, 2 audio, 1 subtitles`), only when there is more than one track.
   - **`symphonia` is 0.6**, whose video support is experimental and left off; audio is the stable part.
   - The tree is 590 packages against the budget of 590.
-- **An archive listing is bounded by memory and by the budget, not by time.** A zip or a 7z reads its whole
+- **An archive listing is bounded by memory and by the budget, and by time between entries.** A zip or a 7z reads its whole
   index inside `PeekBudget::bytes` and is `ArchiveError::OverBudget` past it, so a zip of a hundred thousand
   entries shows "unavailable" until the launcher's budget covers its index. A compressed stream is unpacked
   into memory up to the same number of bytes, so a tarball larger than that lists its first entries with a
@@ -180,9 +188,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   a byte limit (32 MiB, and 256 MiB of LZMA dictionary) before the 7z crate sees it, an encoded header being
   unpacked inside that limit for the check; `sevenz-rust2` has the same allocate-then-read sites as the crate it
   replaced, so the check is ours. An XLS (whose grid the format limits to 65 536 by 256 cells, about 540 MB of
-  cells at the worst) and an ODS are read whole by calamine; XLSX and XLSB are streamed. The bytes of a sheet
-  part that hold no cell are bounded by time only. `PeekBudget::time` is not enforced (see the folder item). Ends when a peek has a
-  deadline and a listing can stream a tar without holding it.
+  cells at the worst) and an ODS are read whole by calamine; XLSX and XLSB are streamed. The time budget
+  is asked once per entry and once per 64 KiB of a stream unpacked; the zip and 7z crates' own parse of an
+  index, a codec inside one chunk and calamine's whole-file read are not reached by it. Ends when a listing
+  can stream a tar without holding it.
 - **Archive entries are shown as the archive spells them.** A path that is not UTF-8 is lossily converted, a
   zip entry's encoding flag is not consulted (the `zip` crate's own reading decides), and an encrypted entry
   lists normally and is `ArchiveError::Encrypted` only when extracted. RAR is not supported (plan section 3.6a).
@@ -205,8 +214,7 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **A folder summary is one level deep.** `FolderPeek` counts the first 10,000 non-hidden entries, adds up the
   size of the files directly inside it (not the contents of folders), and sniffs the first files the byte
   budget pays for (4 KiB each), so on a large folder the named kinds are those of the first files by name.
-  Ends if a recursive size matters: it needs a deadline the peeks do not have yet (`PeekBudget::time` is
-  not enforced).
+  Ends if a recursive size matters: the walk would ask the budget's `Deadline` per entry, as the listing does.
 - **The card fills the box its host gives it, but a PDF page is told its size.** `Card` has no padding of its
   own (the host pads), is as tall as its parent, and its media box (220 px when the parent has no height)
   shrinks so the name and every fact stay inside; a picture, lines, a table and the Markdown frame take
@@ -256,9 +264,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   the AVIF encoder speed (6), the longest line highlighted (4096 bytes), the largest inlined Markdown
   image (8 MiB) and the top-level keys a fact names (8) are not settings. Ends when quire's `22-SETTINGS`
   has `viewer.peek.*` and `viewer.image.*` keys; the callers then pass them in.
-- **The peeks' time budget is not enforced.** `PeekBudget::time` is for the caller: no crate here reads a
-  clock, so a slow decode or AVIF encode is abandoned by dropping its worker. Ends if a deadline is
-  injected (a `Stamp` source) and the decoders are polled.
 - **`CodePeek` builds the highlighter's syntax set on every call.** `Peek::peek` takes no state to keep it
   in, and a global is not allowed. `syntect` loads syntaxes lazily, so a call costs the one syntax it
   uses. Ends if `Peek` gains an environment argument.
@@ -626,8 +631,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   The bare process (`anyview --help`, exec to exit) is a median 1.1 to 1.4 ms. `crates/anyview/tests/launch.rs`
   (ignored; `cargo test --release -p anyview --test launch -- --ignored --nocapture --test-threads=1`) runs under
   `ds_harness` (no window, no compositor) and holds the ratchet: 300 ms cold, 15 ms warm and 5 ms for the bare
-  process, to be lowered whenever a run beats them and never raised. Not measured: a one-page PDF (its stage is not
-  in the window yet), the thumbnail cache painting first (the item above).
+  process, to be lowered whenever a run beats them and never raised. Two more are in the same file, with ratchets
+  whose first run is still to be set from a quiet machine: a one-page PDF's cold peek (500 ms, the launcher's own
+  time budget) and the first frame a seeded thumbnail cache paints for a 3000 by 2000 noise PNG (300 ms, printed
+  beside the decode's own time). Their numbers go here once they have been run.
 
 - **Only the viewer asks the plugins, and the launcher never says `Needs`.** The viewer builds `Plugins` once from
   `Env` and uses them for playing, the facts of a recording and its exports; a recording nothing plays opens as

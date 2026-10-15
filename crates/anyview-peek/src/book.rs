@@ -7,9 +7,10 @@ use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
 use anyview_book::{BookError, Comic, Epub, comic_cover, epub_cover};
+use anyview_core::work::Interrupt;
 use anyview_core::{
-    BookFormat, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget,
-    Sniffed,
+    BookFormat, Deadline, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek,
+    PeekBudget, Sniffed,
 };
 use anyview_image::ImagePeek;
 use std::sync::Arc;
@@ -36,7 +37,10 @@ fn row(facts: Facts, label: FactLabel, text: Option<&String>) -> Facts {
     }
 }
 
-fn epub_look(src: &Input, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
+/// What a book's look is made of: its rows, and its cover when there was time for it.
+type Look = (Facts, Option<ImagePeek>);
+
+fn epub_look(src: &Input, budget: &PeekBudget, deadline: Deadline) -> Result<Look, BookError> {
     let epub = Epub::open(src)?;
     let meta = epub.meta();
     let facts = row(Facts::empty(), FactLabel::Title, meta.title.as_ref());
@@ -47,18 +51,26 @@ fn epub_look(src: &Input, budget: &PeekBudget) -> Result<(Facts, Option<ImagePee
         FactLabel::Chapters,
         FactValue::text(epub.sections().get().to_string()),
     );
-    let cover =
-        epub_cover(&epub).and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
+    // The cover is the slow part (an unpack and a decode): once the time is up the card is the rows.
+    let cover = (!deadline.interrupted())
+        .then(|| epub_cover(&epub))
+        .flatten()
+        .filter(|_| !deadline.interrupted())
+        .and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
     Ok((facts, cover))
 }
 
-fn comic_look(src: &Input, budget: &PeekBudget) -> Result<(Facts, Option<ImagePeek>), BookError> {
+fn comic_look(src: &Input, budget: &PeekBudget, deadline: Deadline) -> Result<Look, BookError> {
     let comic = Comic::open(src)?;
     let facts = Facts::empty().with(
         FactLabel::Pages,
         FactValue::text(comic.sections().get().to_string()),
     );
-    let cover = comic_cover(src).and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
+    let cover = (!deadline.interrupted())
+        .then(|| comic_cover(src))
+        .flatten()
+        .filter(|_| !deadline.interrupted())
+        .and_then(|cover| cover_picture(&cover.bytes, &cover.name, budget));
     Ok((facts, cover))
 }
 
@@ -74,9 +86,10 @@ impl Peek for BookPeek {
                 kind: sniffed.kind(),
             });
         };
+        let deadline = budget.deadline_from_now();
         let looked = match format {
-            BookFormat::Epub => epub_look(src, budget),
-            BookFormat::Cbz => comic_look(src, budget),
+            BookFormat::Epub => epub_look(src, budget, deadline),
+            BookFormat::Cbz => comic_look(src, budget, deadline),
         };
         // A book that cannot be opened still has its type, size and date to show.
         let (rows, cover) = looked.unwrap_or_else(|_| (Facts::empty(), None));

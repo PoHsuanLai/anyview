@@ -3,7 +3,7 @@
 
 use crate::encoders::Encoders;
 use crate::error::FfmpegError;
-use crate::ffprobe::{Medium, Probed, Stream};
+use crate::ffprobe::{Medium, Number, Probed, Stream};
 use crate::target::Target;
 use crate::units::Micros;
 use anyview_plugin_protocol::ExportRequest;
@@ -45,6 +45,81 @@ impl Cut {
             seek: key.minus(Micros(1)),
         }
     }
+}
+
+/// How a cut written over the recording itself writes its sound.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sound {
+    /// The packets are copied: the cut is as exact as they are. A recording with pictures is cut
+    /// at a keyframe whatever is done to its sound, and a sound that is already PCM is cut to
+    /// the sample by copying.
+    Copy,
+    /// The sound is decoded and written again with the codec it had, at the rate it had, so the
+    /// cut falls on the sample it was asked for and the quality is the one the file had.
+    Encode {
+        /// The FFmpeg encoder of the sound's codec.
+        encoder: &'static str,
+        /// Bits a second the file had; none for a lossless codec, or when the file did not say.
+        bits: Option<u32>,
+    },
+}
+
+/// Whether writing a codec again keeps a bitrate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Loss {
+    /// The codec loses detail and the file's rate is kept.
+    Lossy,
+    /// The codec keeps every sample, so it has no rate to keep.
+    Lossless,
+}
+
+/// The encoders that write `codec` again, best first, and whether it loses detail. PCM is absent:
+/// copying it is exact. So is a codec FFmpeg has no encoder for here, which is copied.
+fn encoders_of(codec: &str) -> Option<(&'static [&'static str], Loss)> {
+    const AAC: &[&str] = &["aac"];
+    const MP3: &[&str] = &["libmp3lame"];
+    const OPUS: &[&str] = &["libopus"];
+    const VORBIS: &[&str] = &["libvorbis"];
+    const FLAC: &[&str] = &["flac"];
+    const ALAC: &[&str] = &["alac"];
+    match codec {
+        "aac" => Some((AAC, Loss::Lossy)),
+        "mp3" => Some((MP3, Loss::Lossy)),
+        "opus" => Some((OPUS, Loss::Lossy)),
+        "vorbis" => Some((VORBIS, Loss::Lossy)),
+        "flac" => Some((FLAC, Loss::Lossless)),
+        "alac" => Some((ALAC, Loss::Lossless)),
+        _ => None,
+    }
+}
+
+/// How a cut of the recording `probed` writes its sound: copied when that is exact (a recording
+/// with pictures, which is cut at a keyframe, and PCM), otherwise written again with its own
+/// codec when `encoders` has one. A recording whose codec cannot be written again is copied.
+pub fn sound_of_cut(probed: &Probed, encoders: &Encoders) -> Sound {
+    if probed.video().is_some() {
+        return Sound::Copy;
+    }
+    let Some(audio) = probed.audio() else {
+        return Sound::Copy;
+    };
+    let Some((names, loss)) = audio.codec_name.as_deref().and_then(encoders_of) else {
+        return Sound::Copy;
+    };
+    let Some(encoder) = encoders.first_of(names) else {
+        return Sound::Copy;
+    };
+    let bits = match loss {
+        Loss::Lossless => None,
+        Loss::Lossy => audio
+            .bit_rate
+            .as_ref()
+            .or(probed.format.bit_rate.as_ref())
+            .and_then(Number::value)
+            .filter(|rate| *rate >= 8_000.0)
+            .map(|rate| rate.round() as u32),
+    };
+    Sound::Encode { encoder, bits }
 }
 
 /// What to run and how much work it is.
@@ -118,6 +193,15 @@ pub fn plan(
             Some(index) => push(&["-map", &format!("0:{index}"), "-c", "copy"]),
             None => push(&["-map", "0:V?", "-map", "0:a?", "-map", "0:s?", "-c", "copy"]),
         },
+        Target::CutInPlace => {
+            push(&["-map", "0:v?", "-map", "0:a?", "-map", "0:s?", "-c", "copy"]);
+            if let Sound::Encode { encoder, bits } = sound_of_cut(probed, encoders) {
+                push(&["-c:a", encoder]);
+                if let Some(bits) = bits {
+                    push(&["-b:a", &bits.to_string()]);
+                }
+            }
+        }
         Target::AudioCopy => {
             let source = audio_source(request, probed)?;
             push(&["-map", &format!("0:{}", source.index), "-c", "copy"]);
@@ -154,7 +238,7 @@ pub fn plan(
                         push(&["-strict", "-2"]);
                     }
                 }
-                Target::Wav | Target::Trim | Target::AudioCopy => {}
+                Target::Wav | Target::Trim | Target::CutInPlace | Target::AudioCopy => {}
             }
             let lossy = matches!(target, Target::M4a | Target::Mp3 | Target::Opus);
             if lossy && downmix {
@@ -163,7 +247,7 @@ pub fn plan(
         }
     }
     match target {
-        Target::Trim => push(&["-copypriorss", "0"]),
+        Target::Trim | Target::CutInPlace => push(&["-copypriorss", "0"]),
         Target::AudioCopy
         | Target::M4a
         | Target::Mp3
@@ -173,9 +257,12 @@ pub fn plan(
     }
     push(&["-map_metadata", "0"]);
     // A recording made to be shared must not say where it was shot: blank every tag the
-    // containers keep a position in (an empty value removes the tag).
-    for key in LOCATION_TAGS {
-        push(&["-metadata", &format!("{key}=")]);
+    // containers keep a position in (an empty value removes the tag). The recording itself,
+    // made shorter, keeps every tag it had.
+    if target != Target::CutInPlace {
+        for key in LOCATION_TAGS {
+            push(&["-metadata", &format!("{key}=")]);
+        }
     }
     args.push(temp.as_os_str().to_owned());
     let whole = end.or_else(|| probed.duration());
@@ -371,6 +458,122 @@ mod tests {
         assert!(text.contains("-ss 1.500000 -i /in.mkv -map"), "{text}");
         assert!(!text.contains(" -t "), "{text}");
         assert_eq!(planned.total, Micros(1_500_000), "3 s file, 1.5 s kept");
+    }
+
+    fn audio_file(codec: &str, extra: &str) -> String {
+        format!(
+            r#"{{"streams":[{{"index":0,"codec_type":"audio","codec_name":"{codec}","sample_rate":"44100","channels":2{extra}}}],
+            "format":{{"duration":"3.0"}}}}"#
+        )
+    }
+
+    #[test]
+    fn a_cut_copies_what_is_exact_and_writes_the_rest_again_in_its_own_codec() {
+        let with_cover = r#"{"streams":[
+            {"index":0,"codec_type":"audio","codec_name":"mp3","bit_rate":"192000"},
+            {"index":1,"codec_type":"video","codec_name":"mjpeg","disposition":{"attached_pic":1}}]}"#;
+        let container_rate = r#"{"streams":[{"index":0,"codec_type":"audio","codec_name":"aac"}],
+            "format":{"bit_rate":"128000"}}"#;
+        let flac = audio_file("flac", r#","bit_rate":"900000""#);
+        let mp3 = audio_file("mp3", r#","bit_rate":"192000""#);
+        let pcm = audio_file("pcm_s16le", "");
+        let wma = audio_file("wmav2", r#","bit_rate":"128000""#);
+        // name, what ffprobe says, the cut's sound
+        let cases: Vec<(&str, &str, Sound)> = vec![
+            (
+                "a recording with pictures is cut at a keyframe",
+                FILE,
+                Sound::Copy,
+            ),
+            (
+                "lossy sound keeps the rate it had",
+                mp3.as_str(),
+                Sound::Encode {
+                    encoder: "libmp3lame",
+                    bits: Some(192_000),
+                },
+            ),
+            (
+                "lossless sound has no rate to keep",
+                flac.as_str(),
+                Sound::Encode {
+                    encoder: "flac",
+                    bits: None,
+                },
+            ),
+            (
+                "PCM is cut to the sample by copying",
+                pcm.as_str(),
+                Sound::Copy,
+            ),
+            (
+                "a codec with no encoder here is copied",
+                wma.as_str(),
+                Sound::Copy,
+            ),
+            (
+                "the container's rate stands in for a stream that gives none",
+                container_rate,
+                Sound::Encode {
+                    encoder: "aac",
+                    bits: Some(128_000),
+                },
+            ),
+            (
+                "cover art does not make a sound a recording with pictures",
+                with_cover,
+                Sound::Encode {
+                    encoder: "libmp3lame",
+                    bits: Some(192_000),
+                },
+            ),
+        ];
+        for (name, json, want) in cases {
+            let probed = Probed::parse(json.as_bytes()).unwrap();
+            assert_eq!(sound_of_cut(&probed, &everything()), want, "{name}");
+        }
+        let mp3 = Probed::parse(audio_file("mp3", "").as_bytes()).unwrap();
+        assert_eq!(
+            sound_of_cut(&mp3, &Encoders::default()),
+            Sound::Copy,
+            "no encoder, so a copy"
+        );
+    }
+
+    #[test]
+    fn a_cut_keeps_every_stream_and_tag_and_asks_only_the_sound_to_be_written_again() {
+        let mut asked = request("cut");
+        asked.range = Some(MicroRange {
+            start: 1_000_000,
+            end: Some(2_000_000),
+        });
+        let plan_for = |json: &str| {
+            let probed = Probed::parse(json.as_bytes()).unwrap();
+            let planned = plan(
+                &asked,
+                Target::CutInPlace,
+                &everything(),
+                &probed,
+                Cut::at(Micros(1_000_000)),
+                Path::new("/.part-out.mp3"),
+            )
+            .unwrap();
+            line(&planned)
+        };
+        let sound = plan_for(&audio_file("mp3", r#","bit_rate":"192000""#));
+        assert!(
+            sound.contains(
+                "-ss 1.000000 -i /in.mkv -t 1.000000 -map 0:v? -map 0:a? -map 0:s? -c copy -c:a libmp3lame -b:a 192000 -copypriorss 0"
+            ),
+            "{sound}"
+        );
+        let video = plan_for(FILE);
+        assert!(video.contains("-c copy -copypriorss 0"), "{video}");
+        assert!(!video.contains("-c:a"), "{video}");
+        for text in [&sound, &video] {
+            assert!(text.contains("-map_metadata 0"), "{text}");
+            assert!(!text.contains("-metadata location="), "{text}");
+        }
     }
 
     #[test]

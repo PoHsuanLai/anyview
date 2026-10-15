@@ -21,6 +21,7 @@ use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::Presentation;
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut};
 use crate::stage::{Stage, StageFamily, StageIn, TextIn};
+use crate::trim::{MediaTrim, TrimIn};
 use crate::typed::TypedText;
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
 use ds_core::machine::{Elapsed, Machine};
@@ -89,6 +90,7 @@ fn apply(viewer: Viewer, input: ViewerIn, at: Stamp, params: &ViewerParams) -> S
         ViewerIn::Stage(input) => stage(viewer, input, at, params),
         ViewerIn::Hand(input) => (hand(viewer, input), vec![]),
         ViewerIn::Picture(input) => picture_in(viewer, input, at, params),
+        ViewerIn::Trim(input) => super::trim::trim_in(viewer, input, at, params),
         ViewerIn::Run(command) => run(viewer, command, at, params),
         ViewerIn::Key(key) => keyed(viewer, &key, at, params),
         // A second close request while the question is up changes nothing.
@@ -119,6 +121,7 @@ pub(super) fn begin(viewer: Viewer, path: &FilePath, at: Stamp, params: &ViewerP
         trashing: Trashing::Not,
         hand,
         picture: PictureEdits::default(),
+        trim: MediaTrim::default(),
         after_save: None,
         ..viewer
     };
@@ -559,6 +562,9 @@ fn keyed(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> Step 
     if let Some(input) = crop_key(&viewer, key.keys().as_slice()) {
         return picture(viewer, input, at, params);
     }
+    if let Some(input) = super::trim::trim_key(&viewer, key.keys().as_slice()) {
+        return super::trim::trim_in(viewer, input, at, params);
+    }
     let routed = route(
         key,
         Regions {
@@ -619,9 +625,17 @@ fn file_key(viewer: Viewer, key: &Press, at: Stamp, params: &ViewerParams) -> St
     }
 }
 
-/// ⌘Z and ⇧⌘Z: an edit of the picture that is not saved is taken back or done again first; with
-/// none, it is the file's last save that is.
+/// ⌘Z and ⇧⌘Z: a trim or an edit of the picture that is not saved is taken back or done again
+/// first; with none, it is the file's last save that is.
 fn rewound(viewer: Viewer, rewind: Rewind, at: Stamp, params: &ViewerParams) -> Step {
+    let trimmed = match rewind {
+        Rewind::Undo if viewer.trim.can_undo() => Some(TrimIn::Undo),
+        Rewind::Redo if viewer.trim.can_redo() => Some(TrimIn::Redo),
+        Rewind::Undo | Rewind::Redo => None,
+    };
+    if let Some(input) = trimmed {
+        return super::trim::trim_in(viewer, input, at, params);
+    }
     let input = match rewind {
         Rewind::Undo if viewer.picture.can_undo() => Some(PictureEditIn::Undo),
         Rewind::Redo if viewer.picture.can_redo() => Some(PictureEditIn::Redo),

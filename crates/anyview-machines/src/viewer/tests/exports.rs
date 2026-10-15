@@ -3,7 +3,7 @@
 
 use super::support::*;
 use crate::command::Command;
-use crate::sheet::{ExportDraft, MediaOffer, PageSpan, Sheet, SheetParams};
+use crate::sheet::{ExportDraft, MediaOffer, PageSpan, Sheet, SheetParams, Wanted};
 use crate::stage::{Pace, Stage};
 use crate::viewer::{Viewer, ViewerIn, ViewerParams};
 use anyview_core::{
@@ -75,7 +75,8 @@ fn a_recording_with_nothing_on_offer_opens_the_sheet_that_names_the_package() {
         after_export(media(Pace::Paused), MediaOffer::new(vec![], Some(needs()))),
         Sheet::Unavailable {
             needs: needs(),
-            helper: None
+            helper: None,
+            wanted: Wanted::Export
         }
     );
 }
@@ -87,7 +88,8 @@ fn an_offer_that_can_be_installed_opens_the_sheet_with_the_tool_to_offer() {
         after_export(media(Pace::Paused), offer),
         Sheet::Unavailable {
             needs: needs(),
-            helper: Some(Helper::MediaProbe)
+            helper: Some(Helper::MediaProbe),
+            wanted: Wanted::Export
         }
     );
 }

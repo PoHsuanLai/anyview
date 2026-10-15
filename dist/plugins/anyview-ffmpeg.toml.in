@@ -32,4 +32,4 @@ kinds = ["video", "audio"]
 [[provides]]
 capability = "export"
 kinds = ["video", "audio"]
-targets = ["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus"]
+targets = ["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus", "cut"]

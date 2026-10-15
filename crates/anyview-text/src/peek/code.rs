@@ -55,7 +55,7 @@ impl Peek for CodePeek {
                 kind: sniffed.kind(),
             });
         };
-        let head = read_head(src, budget)?;
+        let head = read_head(src, budget, &budget.deadline_from_now())?;
         let (start, count) = split_start(&head.text, PEEK_LINES);
         let total = Tally::of(count, head.coverage);
         let shown = start.join("\n");

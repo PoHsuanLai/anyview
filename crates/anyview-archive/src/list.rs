@@ -4,7 +4,8 @@ use crate::container::{Codec, Container, container};
 use crate::entry::{Entry, EntryCount, EntryKind, EntryLimit, Holds, Listing, Seen, Tally};
 use crate::error::ArchiveError;
 use crate::{sevenz, stream, tar, zip_archive};
-use anyview_core::{ArchiveFormat, ByteLen, Input};
+use anyview_core::work::Interrupt;
+use anyview_core::{ArchiveFormat, ByteLen, Deadline, Input};
 use std::io::Cursor;
 
 /// The start of the index of the archive `src` (a path, or any source a host injects), whose format `format` was sniffed.
@@ -19,15 +20,30 @@ pub fn list(
     limit: EntryLimit,
     budget: ByteLen,
 ) -> Result<Listing, ArchiveError> {
+    list_until(src, format, limit, budget, &Deadline::NEVER)
+}
+
+/// [`list`], ending early when `interrupt` says so (a peek's [`Deadline`], a viewer job's stop):
+/// the entries read so far come back as a start with a lower-bound count, and a listing that
+/// was interrupted before it had any entry is [`ArchiveError::Interrupted`]. It is asked once per
+/// entry, and once per chunk while a compressed stream unpacks; the codecs and the zip and 7z
+/// crates' own parsing of an index are not reached by it.
+pub fn list_until(
+    src: impl Into<Input>,
+    format: ArchiveFormat,
+    limit: EntryLimit,
+    budget: ByteLen,
+    interrupt: &dyn Interrupt,
+) -> Result<Listing, ArchiveError> {
     if budget.0 == 0 {
         return Err(ArchiveError::NoBudget);
     }
     let src = &src.into();
     match container(format) {
-        Container::Zip => zip_archive::list(src, format, limit, budget),
-        Container::Tar => tar::list(src, limit, budget),
-        Container::Compressed(codec) => compressed(src, format, codec, limit, budget),
-        Container::SevenZip => sevenz::list(src, limit, budget),
+        Container::Zip => zip_archive::list(src, format, limit, budget, interrupt),
+        Container::Tar => tar::list(src, limit, budget, interrupt),
+        Container::Compressed(codec) => compressed(src, format, codec, limit, budget, interrupt),
+        Container::SevenZip => sevenz::list(src, limit, budget, interrupt),
     }
 }
 
@@ -45,11 +61,16 @@ fn compressed(
     codec: Codec,
     limit: EntryLimit,
     budget: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Listing, ArchiveError> {
-    let unpacked = stream::unpack(src, format, codec, budget.0)?;
+    let unpacked = stream::unpack(src, format, codec, budget.0, interrupt)?;
     let mut tally = Tally::new(limit);
     let mut archive = ::tar::Archive::new(Cursor::new(&unpacked.bytes[..]));
-    let read = tar::fill(&mut archive, &mut tally);
+    let read = tar::fill(&mut archive, &mut tally, interrupt);
+    if tally.is_empty() && unpacked.interrupted {
+        // What was unpacked is too little to say whether it is a tar or one file.
+        return Err(ArchiveError::Interrupted);
+    }
     if tally.is_empty() {
         return Ok(one_file(src, format, &unpacked));
     }

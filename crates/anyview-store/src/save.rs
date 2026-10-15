@@ -22,7 +22,25 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pending {
     pub(crate) target: PathBuf,
-    pub(crate) bytes: Vec<u8>,
+    content: Content,
+}
+
+/// What a pending save will write: bytes in memory, or a file that holds them (the cut of a
+/// recording is too large to hold twice).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Content {
+    Bytes(Vec<u8>),
+    File(PathBuf),
+}
+
+impl Content {
+    /// Writes the content from the start of `out`, and says how many bytes it was.
+    fn write_to(&self, out: &mut fs::File) -> std::io::Result<u64> {
+        match self {
+            Content::Bytes(bytes) => out.write_all(bytes).map(|()| bytes.len() as u64),
+            Content::File(path) => std::io::copy(&mut fs::File::open(path)?, out),
+        }
+    }
 }
 
 impl Pending {
@@ -30,8 +48,23 @@ impl Pending {
     pub fn new(target: impl Into<PathBuf>, bytes: Vec<u8>) -> Pending {
         Pending {
             target: target.into(),
-            bytes,
+            content: Content::Bytes(bytes),
         }
+    }
+
+    /// The content of the file `produced` as the new whole content of the existing file `target`.
+    /// The file is read when the save writes, and is left where it is: removing it is the
+    /// caller's work.
+    pub fn from_file(target: impl Into<PathBuf>, produced: impl Into<PathBuf>) -> Pending {
+        Pending {
+            target: target.into(),
+            content: Content::File(produced.into()),
+        }
+    }
+
+    /// The same content for `target`.
+    pub(crate) fn retargeted(self, target: PathBuf) -> Pending {
+        Pending { target, ..self }
     }
 }
 
@@ -39,7 +72,7 @@ impl Pending {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackedUp {
     target: PathBuf,
-    bytes: Vec<u8>,
+    content: Content,
     kept: Kept,
     original: Original,
     versions: Versions,
@@ -95,7 +128,7 @@ impl BackedUp {
     ) -> BackedUp {
         BackedUp {
             target: pending.target,
-            bytes: pending.bytes,
+            content: pending.content,
             kept,
             original,
             versions,
@@ -202,7 +235,8 @@ impl BackedUp {
         {
             copy_attributes(&old, &file, &meta);
         }
-        file.write_all(&self.bytes)
+        self.content
+            .write_to(&mut file)
             .map_err(|e| io_error(StoreOp::Write, temp, &e))?;
         // After the write: a write by anyone but root clears set-user-id and set-group-id.
         file.set_permissions(fs::Permissions::from_mode(self.original.mode))
@@ -220,10 +254,11 @@ impl BackedUp {
             .open(target)
             .map_err(|e| Failed::untouched(io_error(StoreOp::Write, target, &e)))?;
         let touched = |op| move |e: std::io::Error| Failed::touched(io_error(op, target, &e));
-        file.write_all(&self.bytes)
+        let written = self
+            .content
+            .write_to(&mut file)
             .map_err(touched(StoreOp::Write))?;
-        file.set_len(self.bytes.len() as u64)
-            .map_err(touched(StoreOp::Write))?;
+        file.set_len(written).map_err(touched(StoreOp::Write))?;
         file.sync_all().map_err(touched(StoreOp::Sync))
     }
 }

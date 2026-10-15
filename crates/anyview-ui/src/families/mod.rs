@@ -24,7 +24,7 @@ pub use media::{
     MediaDoc, MediaLive, MediaPlace, MediaShelf, MediaStageView, TrimMarks, audio_window_size,
     use_media_shelf,
 };
-pub(crate) use media::{level_to_volume, place_to_time, tabs_offered as media_tabs};
+pub(crate) use media::{bar_time, level_to_volume, tabs_offered as media_tabs};
 pub use pdf::{
     Finish, FlightId, PdfAnswer, PdfAsk, PdfDoc, PdfFailure, PdfOrigin, PdfShelf, PdfStageView,
     PdfTask, ReadyTile, use_pdf_shelf,

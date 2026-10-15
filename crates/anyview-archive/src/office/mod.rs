@@ -9,9 +9,10 @@ mod xml;
 mod tests;
 
 use crate::error::ArchiveError;
-use crate::extract::{ExtractLimits, extract};
+use crate::extract::{ExtractLimits, extract_until};
+use anyview_core::work::Interrupt;
 use anyview_core::{
-    ArchiveFormat, ByteLen, FactLabel, FactValue, Facts, Input, OfficeFormat, PageCount,
+    ArchiveFormat, ByteLen, Deadline, FactLabel, FactValue, Facts, Input, OfficeFormat, PageCount,
 };
 use parts::{Metadata, parts_of};
 
@@ -103,12 +104,12 @@ fn one_line(text: String) -> String {
     }
 }
 
-fn part(src: &Input, name: &str, allowed: ByteLen) -> Option<Vec<u8>> {
+fn part(src: &Input, name: &str, allowed: ByteLen, interrupt: &dyn Interrupt) -> Option<Vec<u8>> {
     let limits = ExtractLimits {
         entry: allowed,
         scanned: allowed,
     };
-    extract(src, ArchiveFormat::Zip, name, limits).ok()
+    extract_until(src, ArchiveFormat::Zip, name, limits, interrupt).ok()
 }
 
 /// What the office document `src` (a path, or any source a host injects), whose format sniffing named, says about itself. A format
@@ -118,13 +119,26 @@ pub fn office_look(
     src: impl Into<Input>,
     format: OfficeFormat,
 ) -> Result<OfficeLook, ArchiveError> {
+    office_look_until(src, format, &Deadline::NEVER)
+}
+
+/// [`office_look`], reading no further part once `interrupt` says to end: the look has the fields
+/// of the parts read by then, as one whose parts are missing does.
+pub fn office_look_until(
+    src: impl Into<Input>,
+    format: OfficeFormat,
+    interrupt: &dyn Interrupt,
+) -> Result<OfficeLook, ArchiveError> {
     let src = &src.into();
     let Some(parts) = parts_of(format) else {
         return Ok(OfficeLook::default());
     };
     let mut look = OfficeLook::default();
     for source in parts.metadata {
-        let Some(bytes) = part(src, source.name, METADATA_BYTES) else {
+        if interrupt.interrupted() {
+            break;
+        }
+        let Some(bytes) = part(src, source.name, METADATA_BYTES, interrupt) else {
             continue;
         };
         let Metadata {
@@ -137,7 +151,7 @@ pub fn office_look(
         look.count = look.count.or(count);
     }
     look.thumbnail = parts.thumbnails.iter().find_map(|(name, codec)| {
-        part(src, name, THUMBNAIL_BYTES).map(|bytes| Thumbnail {
+        part(src, name, THUMBNAIL_BYTES, interrupt).map(|bytes| Thumbnail {
             bytes,
             codec: *codec,
         })
