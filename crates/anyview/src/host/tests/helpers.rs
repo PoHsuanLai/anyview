@@ -94,7 +94,8 @@ fn host(
     (host, fake)
 }
 
-/// What a scripted installer is told to answer with: the request's own `Missing` replaces it.
+/// What a scripted installer is told to answer with: the request's own `Missing` replaces it, so
+/// the lines a fake gives never reach the host (`command_of` is tried on its own).
 fn nothing() -> Missing {
     Missing {
         capability: ds_helpers::Capability::new("heic-decode").unwrap(),
@@ -115,6 +116,28 @@ fn with_lines(families: &[Family]) -> Missing {
             })
             .collect(),
         ..nothing()
+    }
+}
+
+#[test]
+fn the_command_to_copy_is_the_one_line_for_the_distro_and_none_when_it_is_not_known() {
+    // name, the families with a line, the command
+    let cases: &[(&str, &[Family], Option<&str>)] = &[
+        ("no package for the distro", &[], None),
+        (
+            "the distro's family",
+            &[Family::Dnf],
+            Some("sudo dnf install libheif-tools"),
+        ),
+        (
+            "a line for every family: none is theirs",
+            &[Family::Dnf, Family::Apt],
+            None,
+        ),
+    ];
+    for (name, families, want) in cases {
+        let command = crate::host::helpers::command_of(&with_lines(families));
+        assert_eq!(command.as_deref(), *want, "{name}");
     }
 }
 
@@ -270,27 +293,11 @@ async fn what_the_installer_answers_is_what_the_window_is_told() {
             HelperEnd::NotFound("libheif-tools".to_owned()),
         ),
         (
-            "no way to install",
+            "no way to install: the Fedora line to copy",
             Installed::Unsupported(nothing()),
             HelperEnd::Unsupported {
                 program: "heif-dec".to_owned(),
-                command: None,
-            },
-        ),
-        (
-            "no way to install, the one line for the distro's family",
-            Installed::Unsupported(with_lines(&[Family::Dnf])),
-            HelperEnd::Unsupported {
-                program: "heif-dec".to_owned(),
                 command: Some("sudo dnf install libheif-tools".to_owned()),
-            },
-        ),
-        (
-            "no way to install, a line for every family is none of them theirs",
-            Installed::Unsupported(with_lines(&[Family::Dnf, Family::Apt])),
-            HelperEnd::Unsupported {
-                program: "heif-dec".to_owned(),
-                command: None,
             },
         ),
         (

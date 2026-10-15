@@ -78,7 +78,7 @@ fn needed_on_path(missing: &Missing) -> String {
 
 /// The command to install the tool by hand: the one line for the person's distro family. Where
 /// the family is not known there is a line for each, and none of them is theirs.
-fn command_of(missing: &Missing) -> Option<String> {
+pub(super) fn command_of(missing: &Missing) -> Option<String> {
     match missing.install_lines.as_slice() {
         [line] => Some(InstallLine::text(line)),
         [] | [_, _, ..] => None,
