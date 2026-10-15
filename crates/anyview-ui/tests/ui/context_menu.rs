@@ -518,3 +518,22 @@ fn a_right_click_with_a_little_hand_movement_still_opens_the_menu() {
     settle(&mut harness);
     assert_eq!(harness.count(".ds-menu"), 1);
 }
+
+/// A menu open when the window changes size closes, as a Mac's or GNOME's does, rather than being
+/// left where it was placed for the old size; the window stays as it was otherwise.
+#[test]
+fn an_open_menu_closes_when_the_window_is_resized() {
+    let (_dir, paths) = folder(&[("anyview-image", "quadrants.png", "quadrants.png")]);
+    let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), Wiring::default());
+    settle(&mut harness);
+    harness.send(Input::key(ShortcutKey::ContextMenu));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 1, "the menu is open");
+    harness.resize_window(ds_blitz::Extent::new(500, 360));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 0, "the resize closed it");
+    // And the menu opens again at the new size.
+    harness.send(Input::key(ShortcutKey::ContextMenu));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 1, "it opens again");
+}

@@ -17,7 +17,7 @@ mod palette;
 mod pane;
 mod panel;
 mod preloads;
-mod press;
+pub(crate) mod press;
 mod resize;
 mod scrub;
 mod session;

@@ -4,6 +4,7 @@
 //! place, Esc lets it go, and the caret leaving takes it where it is. The keys that mean something
 //! to the field stay with it: the window does not hear them.
 
+use crate::views::press::{CHORD_KEYS, COMMAND_KEYS};
 use crate::{AfterTyping, TypedText, TypingIn};
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::*;
@@ -45,13 +46,11 @@ pub(crate) fn InlineEdit(
                 oninput: move |text: String| draft.set(text),
                 onkey: move |event: KeyboardEvent| {
                     let held = event.modifiers();
-                    let plain = !held.intersects(
-                        Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER | Modifiers::ALT,
-                    );
+                    let plain = !held.intersects(CHORD_KEYS);
                     let key = event.key();
                     // Numbers' first Undo while a cell is typed in takes back the typing, not the
                     // edit before it.
-                    let undo = held.intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER)
+                    let undo = held.intersects(COMMAND_KEYS)
                         && !held.intersects(Modifiers::ALT | Modifiers::SHIFT)
                         && matches!(&key, Key::Character(c) if c.eq_ignore_ascii_case("z"));
                     if undo && *draft.peek() != start {

@@ -1,5 +1,6 @@
 //! What a key pressed on the edit surface means: pure, so the table is the whole rule.
 
+use crate::views::press::COMMAND_KEYS;
 use anyview_text::Motion;
 use chordkit::{Action, Context, Keymap, StandardAction};
 use dioxus::prelude::{Key, Modifiers};
@@ -67,7 +68,7 @@ const NAMED: &[(Key, Named)] = &[
 /// actions for the moves.
 pub(super) fn command_of(keymap: &Keymap, key: &Key, modifiers: Modifiers) -> Option<Command> {
     let extend = modifiers.contains(Modifiers::SHIFT);
-    let command = modifiers.intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::SUPER);
+    let command = modifiers.intersects(COMMAND_KEYS);
     if let Key::Character(_) = key {
         return resolve(keymap, key, modifiers, Context::TextEntry).and_then(
             |action| match action {
