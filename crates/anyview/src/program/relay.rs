@@ -207,13 +207,16 @@ pub fn hand_on(requests: Vec<Request>) {
 /// still queued, so a launch that was told "taken" still gets its window.
 fn hand_over(mut requests: Vec<Request>, arrivals: &mut UnboundedReceiver<Arrival>) {
     arrivals.close();
-    while let Ok(Some(arrival)) = arrivals.try_next() {
+    while let Ok(arrival) = arrivals.try_recv() {
         match arrival {
             Arrival::Window(opening) => requests.push(Request::Open(vec![opening.file])),
             Arrival::Background(file) => requests.push(Request::Play(file)),
             Arrival::Welcome(WelcomeWhen::Always) => requests.push(Request::Open(Vec::new())),
             Arrival::Welcome(WelcomeWhen::IfNoWindow) => {}
         }
+    }
+    if requests.is_empty() {
+        return;
     }
     log::warn!("the viewer ended with {} requests unopened", requests.len());
     hand_on(requests);

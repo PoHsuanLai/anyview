@@ -335,6 +335,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "image",
+ "log",
  "notify",
  "percent-encoding",
  "pollster",
@@ -514,6 +515,7 @@ dependencies = [
  "anyview-ui",
  "ds",
  "ds-blitz",
+ "log",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -534,6 +536,7 @@ dependencies = [
  "ds-harness",
  "futures-channel",
  "futures-util",
+ "log",
  "tempfile",
  "tokio",
 ]
@@ -594,6 +597,7 @@ dependencies = [
  "freedesktop-desktop-entry",
  "futures-util",
  "latchkey",
+ "log",
  "md-5 0.10.6",
  "memfd",
  "percent-encoding",
@@ -667,6 +671,7 @@ name = "anyview-store"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
+ "log",
  "rustix",
  "serde",
  "serde_json",
