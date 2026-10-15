@@ -1,9 +1,11 @@
 //! The modal sheet: export, confirm a trash, rename, save a copy, revert to a kept version, install a missing tool. One sheet at a time; it takes every key.
 
+mod ask;
 mod departure;
 mod draft;
 mod facts;
 mod helper;
+mod install;
 mod model;
 mod offer;
 mod option;
