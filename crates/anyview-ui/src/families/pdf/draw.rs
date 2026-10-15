@@ -165,6 +165,7 @@ impl Drawing<'_> {
                 page,
                 color: markup.color(),
                 shape,
+                existing: None,
             };
             inks.extend(inks_of(&ghost, size, InkState::Draft));
         }

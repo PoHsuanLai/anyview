@@ -44,6 +44,7 @@ fn pdf() -> Viewer {
         widgets: Arc::from(vec![field()]),
         filling: Allowance::Granted,
         marking: Allowance::Granted,
+        marks: Arc::from(Vec::new()),
     });
     Viewer {
         load: Load::Ready { ticket: Ticket(1) },

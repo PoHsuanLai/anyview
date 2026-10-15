@@ -234,6 +234,7 @@ mod tests {
             page: PageIndex(0),
             color: MarkColor::Blue,
             shape,
+            existing: None,
         }
     }
 

@@ -95,6 +95,9 @@ pub struct PdfMarkup {
     pub(super) filling: Allowance,
     pub(super) marking: Allowance,
     pub(super) now: Written,
+    /// What the document held when it was opened: its own annotations as marks, and no fills.
+    /// `now` differs from it by what the person has written.
+    pub(super) opened: Written,
     pub(super) undo: Vec<Written>,
     pub(super) redo: Vec<Written>,
     pub(super) typing: Typing,
@@ -115,6 +118,7 @@ impl Default for PdfMarkup {
             filling: Allowance::Withheld,
             marking: Allowance::Withheld,
             now: Written::default(),
+            opened: Written::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             typing: Typing::Idle,
@@ -142,6 +146,10 @@ pub enum MarkupIn {
         filling: Allowance,
         /// Whether marks can be made.
         marking: Allowance,
+        /// The annotations the file already holds that a mark can stand for, in the file's order,
+        /// each with its [`Mark::existing`]. They are drawn, picked, moved and deleted like the
+        /// marks made here, and a save writes only what was done to them.
+        marks: Arc<[Mark]>,
     },
     /// The pointer tool changed.
     Using(Using),
@@ -229,14 +237,46 @@ impl PdfMarkup {
                     value: value.clone(),
                 })
                 .collect(),
-            marks: self.now.marks.clone(),
+            marks: self
+                .now
+                .marks
+                .iter()
+                .filter(|mark| self.differs_from_opened(mark))
+                .cloned()
+                .collect(),
+            removed: self
+                .opened
+                .marks
+                .iter()
+                .filter(|held| {
+                    !self
+                        .now
+                        .marks
+                        .iter()
+                        .any(|mark| mark.existing == held.existing)
+                })
+                .cloned()
+                .collect(),
+        }
+    }
+
+    /// Whether `mark` is one to write: made here, or held by the file and changed since.
+    fn differs_from_opened(&self, mark: &Mark) -> bool {
+        match mark.existing {
+            None => true,
+            Some(held) => self
+                .opened
+                .marks
+                .iter()
+                .find(|opened| opened.existing == Some(held))
+                .is_none_or(|opened| opened != mark),
         }
     }
 
     /// Whether anything has been written that is not saved.
     #[must_use]
     pub fn is_edited(&self) -> bool {
-        self.now != Written::default()
+        self.now != self.opened
     }
 
     /// Whether marks can be made.

@@ -168,6 +168,29 @@ impl MarkColor {
             MarkColor::Black => (0, 0, 0),
         }
     }
+
+    /// The palette colour closest to this red, green and blue.
+    #[must_use]
+    pub fn nearest(red: u8, green: u8, blue: u8) -> MarkColor {
+        let apart = |color: &MarkColor| {
+            let (r, g, b) = color.rgb();
+            let square = |a: u8, b: u8| u32::from(a.abs_diff(b)).pow(2);
+            square(r, red) + square(g, green) + square(b, blue)
+        };
+        [
+            MarkColor::Yellow,
+            MarkColor::Orange,
+            MarkColor::Red,
+            MarkColor::Pink,
+            MarkColor::Purple,
+            MarkColor::Blue,
+            MarkColor::Green,
+            MarkColor::Black,
+        ]
+        .into_iter()
+        .min_by_key(apart)
+        .unwrap_or_default()
+    }
 }
 
 /// What the Markup tool draws or does when the pointer is used on a page.
@@ -259,6 +282,16 @@ pub enum MarkShape {
     },
 }
 
+/// The file's own name for an annotation it already held when it was opened: what a save needs to
+/// find that annotation again and change or remove it. The numbers mean nothing to anyone else.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct MarkRef {
+    /// The number of the annotation's object in the file.
+    pub number: u32,
+    /// The generation of that object.
+    pub generation: u16,
+}
+
 /// One mark on one page.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Mark {
@@ -268,6 +301,9 @@ pub struct Mark {
     pub color: MarkColor,
     /// What it is.
     pub shape: MarkShape,
+    /// The annotation the file already held that this mark stands for; `None` for a mark made in
+    /// this session, which a save adds.
+    pub existing: Option<MarkRef>,
 }
 
 impl Mark {
@@ -421,21 +457,25 @@ pub struct FieldFill {
     pub value: String,
 }
 
-/// Everything a person wrote on a document and has not saved: the fields they filled and the
-/// marks they made.
+/// Everything a person wrote on a document and has not saved: the fields they filled, the marks
+/// they made, and what they did to the marks the file already held.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct MarkupSave {
     /// The fields filled, one entry for each.
     pub fills: Vec<FieldFill>,
-    /// The marks made.
+    /// The marks to write: those made, which have no [`Mark::existing`], and those the file held
+    /// that were moved, recoloured or reworded, which have it. A mark the file held and the person
+    /// left alone is not here.
     pub marks: Vec<Mark>,
+    /// The marks the file held that were deleted, as they were in the file.
+    pub removed: Vec<Mark>,
 }
 
 impl MarkupSave {
     /// Whether there is nothing to write.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.fills.is_empty() && self.marks.is_empty()
+        self.fills.is_empty() && self.marks.is_empty() && self.removed.is_empty()
     }
 }
 
@@ -457,6 +497,7 @@ mod tests {
             page: PageIndex(0),
             color: MarkColor::Yellow,
             shape,
+            existing: None,
         }
     }
 
@@ -545,6 +586,14 @@ mod tests {
                 to: PagePoint::at(1000, 520),
             }
         );
+    }
+
+    #[test]
+    fn a_colour_in_the_file_is_the_nearest_of_the_palette() {
+        assert_eq!(MarkColor::nearest(255, 255, 0), MarkColor::Yellow);
+        assert_eq!(MarkColor::nearest(250, 20, 20), MarkColor::Red);
+        assert_eq!(MarkColor::nearest(0, 0, 0), MarkColor::Black);
+        assert_eq!(MarkColor::nearest(10, 132, 255), MarkColor::Blue);
     }
 
     #[test]

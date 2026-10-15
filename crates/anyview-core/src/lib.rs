@@ -57,7 +57,8 @@ pub use kind::{
     kind_of_mime, opened_globs, opened_mimes,
 };
 pub use markup::{
-    FieldFill, Mark, MarkColor, MarkShape, MarkTool, MarkupSave, NOTE_SIZE, PagePoint, PageRect,
+    FieldFill, Mark, MarkColor, MarkRef, MarkShape, MarkTool, MarkupSave, NOTE_SIZE, PagePoint,
+    PageRect,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Deadline, Peek, PeekBudget, StageSupport};
