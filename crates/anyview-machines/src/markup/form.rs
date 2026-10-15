@@ -1,6 +1,7 @@
 //! Filling in the form: moving the keyboard between fields and writing their values.
 
-use super::model::{MarkupOut, PdfMarkup, Typing};
+use super::input::MarkupOut;
+use super::model::{PdfMarkup, Typing};
 use anyview_core::{Permille, WidgetKind};
 
 /// How far above the top of a field the page is shown when the keyboard moves to it.

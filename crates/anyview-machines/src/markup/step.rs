@@ -1,6 +1,7 @@
 //! The markup's transitions.
 
-use super::model::{Allowance, MarkupIn, MarkupOut, PdfMarkup, Selected, Typing, Using, Written};
+use super::input::{MarkupIn, MarkupOut};
+use super::model::{Allowance, PdfMarkup, Selected, Typing, Using, Written};
 use anyview_core::Mark;
 use std::collections::BTreeMap;
 
