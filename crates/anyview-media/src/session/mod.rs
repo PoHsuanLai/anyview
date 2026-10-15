@@ -22,20 +22,37 @@
 //! media thread, which is not the thread that presents (FINDINGS, "`Player::poll` works from a
 //! thread that does not present").
 
+// mpv-wgpu's host hands frames over a memfd ring and a seqpacket socket, which are Linux's: the
+// player is built there. Everywhere else `absent` has the same types and no player can be made.
+#[cfg(target_os = "linux")]
 mod convert;
+#[cfg(target_os = "linux")]
 mod idle;
+#[cfg(target_os = "linux")]
 mod loaded;
+#[cfg(target_os = "linux")]
 mod opening;
 mod options;
 mod report;
 
+#[cfg(not(target_os = "linux"))]
+mod absent;
+
+#[cfg(target_os = "linux")]
 pub use idle::Refused;
+#[cfg(target_os = "linux")]
 pub use opening::Opened;
 pub use options::{AudioDriver, MpvHost};
 pub use report::{Frame, Report};
 
+#[cfg(not(target_os = "linux"))]
+pub use absent::{Opened, Refused, Session};
+
+#[cfg(target_os = "linux")]
 use crate::command::PictureSlot;
+#[cfg(target_os = "linux")]
 use crate::error::MediaError;
+#[cfg(target_os = "linux")]
 use mpv_wgpu_player::Player;
 
 /// A session with nothing asked for yet.
@@ -51,18 +68,21 @@ pub struct Opening;
 pub struct Loaded;
 
 /// One mpv player, in the state `S`.
+#[cfg(target_os = "linux")]
 pub struct Session<S> {
     player: Player,
     /// Which state it is in: a marker, read only by the compiler.
     _state: S,
 }
 
+#[cfg(target_os = "linux")]
 impl<S> std::fmt::Debug for Session<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Session").finish_non_exhaustive()
     }
 }
 
+#[cfg(target_os = "linux")]
 impl<S> Session<S> {
     /// Call `wake` whenever mpv wants attention. It may run on an mpv thread and must only
     /// wake the owner, who then calls `poll`.
@@ -94,6 +114,7 @@ impl<S> Session<S> {
 
 /// A failure of the player as this crate reports it: the ones that say the mpv process is gone,
 /// silent or would not start are typed, since the viewer shows them as a stopped player.
+#[cfg(target_os = "linux")]
 pub(super) fn fault(error: mpv_wgpu_player::Error) -> MediaError {
     match error {
         mpv_wgpu_player::Error::HostGone => MediaError::PlayerGone,

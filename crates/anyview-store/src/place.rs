@@ -7,11 +7,9 @@ use crate::attrs::copy_attributes;
 use crate::error::{StoreError, StoreOp};
 use crate::io::io_error;
 use crate::sweep::sweep_leftovers;
-use rustix::fs::{CWD, RenameFlags};
-use rustix::io::Errno;
+use crate::sys::{self, Claimed};
 use std::fs;
 use std::io::{self, ErrorKind};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -47,15 +45,15 @@ pub fn free_beside(file: &Path, suffix: &str, extension: &str) -> Option<PathBuf
 }
 
 /// `from` renamed to `to`, which must not exist: a file made there a moment ago is never replaced.
-/// The kernel decides (`renameat2` with `RENAME_NOREPLACE`). Where a file system cannot, a hard
-/// link claims the name and the old one is removed; a folder, which cannot be linked, is looked
-/// for first (the one case with a window left).
+/// The kernel decides (`renameat2` with `RENAME_NOREPLACE`; `RENAME_EXCL` on macOS). Where a file
+/// system or a platform cannot (Windows), a hard link claims the name and the old one is removed;
+/// a folder, which cannot be linked, is looked for first (the one case with a window left).
 pub fn rename_noreplace(from: &Path, to: &Path) -> Result<(), StoreError> {
-    match rustix::fs::renameat_with(CWD, from, CWD, to, RenameFlags::NOREPLACE) {
-        Ok(()) => Ok(()),
-        Err(Errno::EXIST) => Err(exists(to)),
-        Err(Errno::INVAL | Errno::NOSYS | Errno::OPNOTSUPP) => rename_by_link(from, to),
-        Err(error) => Err(io_error(StoreOp::Rename, from, &error.into())),
+    match sys::rename_noreplace(from, to) {
+        Claimed::Renamed => Ok(()),
+        Claimed::Taken => Err(exists(to)),
+        Claimed::Unsupported => rename_by_link(from, to),
+        Claimed::Failed(error) => Err(io_error(StoreOp::Rename, from, &error)),
     }
 }
 
@@ -102,10 +100,7 @@ pub fn copy_new(from: &Path, to: &Path) -> Result<(), StoreError> {
         .metadata()
         .map_err(|e| io_error(StoreOp::Stat, from, &e))?;
     let partial = partial_beside(to);
-    let mut copy = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
+    let mut copy = sys::with_mode(fs::OpenOptions::new().write(true).create_new(true), 0o600)
         .open(&partial)
         .map_err(|e| io_error(StoreOp::Write, &partial, &e))?;
     let copied = copy_bytes(&mut source, &mut copy).and_then(|()| {

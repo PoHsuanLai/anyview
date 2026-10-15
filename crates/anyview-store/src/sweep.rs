@@ -1,6 +1,7 @@
 //! Leftovers of a process that died while writing: the hidden temporary files a save or an
 //! export makes beside a person's file, named for the process that made them.
 
+use crate::sys::is_running;
 use std::fs;
 use std::path::Path;
 
@@ -62,17 +63,6 @@ fn leading_pid(tail: &str, rule: TailRule) -> Option<i32> {
         return None;
     }
     pid.parse().ok()
-}
-
-/// Whether process `pid` exists. A process we may not signal still exists.
-fn is_running(pid: i32) -> bool {
-    let Some(pid) = rustix::process::Pid::from_raw(pid) else {
-        return true;
-    };
-    !matches!(
-        rustix::process::test_kill_process(pid),
-        Err(rustix::io::Errno::SRCH)
-    )
 }
 
 #[cfg(test)]

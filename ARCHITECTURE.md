@@ -339,7 +339,13 @@ read through `LocalFiles`, because quire's sealed frames load nothing else.
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root; the
 implementations are reached through `portable`, `linux` and `testing`. A second platform adds `macos/` or
-`windows/` beside `linux/` and selects it in `lib.rs`; no other crate changes.
+`windows/` beside `linux/` and selects it in `lib.rs`; no other crate changes. None has been needed yet: macOS and
+Windows are served by `portable` (its opener and reveal commands, the latchkey socket or named pipe), and the
+few places that differ by platform are `cfg`s at the edge: `uri` (a Windows path is `/C:/..`), the thumbnail
+cache's private modes, and `plugin/runner_absent.rs` (bayonet's runner is Unix's, so on Windows every plugin
+request answers that it cannot be started). Off Linux, `anyview-media`'s `session/absent.rs` has the player's types and no
+player (mpv-wgpu's host is a memfd ring and a seqpacket socket), and `anyview-store`'s `sys/` is the one place
+that names `rustix` and `std::os::unix`, with a standard-library half for Windows.
 
 **Two halves, one feature.** The owner's rule (quire design/36) is that everything but the desktop itself is
 cross-platform and the desktop's services are additive extras. So `portable` is built everywhere and calls no

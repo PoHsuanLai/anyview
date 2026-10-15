@@ -159,12 +159,14 @@ jobs:
           cargo test -p anyview --test anyview --locked -- media_hub:: mpris_bus::
           cargo test -p anyview-pane --features player --test pane --locked
 
-  # The headless half of the library builds off Linux: what a mail client or a terminal links to
-  # look at a file (anyview-peek without its `pane`, so no renderer and no window). Nothing in that
-  # tree may be Linux-only. The viewer itself is a Linux desktop program and is gated above.
+  # The whole viewer builds off Linux (build only: nothing has run there). The workspace with every
+  # default feature off, which is the portable build (no `quire-desktop`: no D-Bus, no Linux
+  # services), then the viewer binary with the built-in audio player, then the pane with its player
+  # host. The headless peek and the machines are checked alone as well, as an embedder takes them. The
+  # video player (mpv-wgpu's host, over a memfd ring) is Linux's, so it is not part of these builds.
   peek-macos:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -180,9 +182,18 @@ jobs:
       - name: Machines build
         run: cargo check -p anyview-machines --locked
 
+      - name: Workspace builds (portable features)
+        run: cargo check --workspace --no-default-features --locked
+
+      - name: Viewer builds (with the built-in audio player)
+        run: cargo check -p anyview --no-default-features --features audio --locked
+
+      - name: Pane builds (with its player host)
+        run: cargo check -p anyview-pane --features player --locked
+
   peek-windows:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -197,3 +208,12 @@ jobs:
 
       - name: Machines build
         run: cargo check -p anyview-machines --locked
+
+      - name: Workspace builds (portable features)
+        run: cargo check --workspace --no-default-features --locked
+
+      - name: Viewer builds (with the built-in audio player)
+        run: cargo check -p anyview --no-default-features --features audio --locked
+
+      - name: Pane builds (with its player host)
+        run: cargo check -p anyview-pane --features player --locked

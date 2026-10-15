@@ -1,13 +1,13 @@
 //! What a file was when the viewer read it, so a save can tell that someone else has changed it
 //! since, and so the replacement keeps its mode and owner.
 
+use crate::sys;
 use std::fs::Metadata;
-use std::os::unix::fs::MetadataExt;
 
 /// A file's identity and state at one moment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Original {
-    /// The whole `st_mode`: the permission bits, set-user-id and sticky bits included.
+    /// The permission bits (on Unix the whole `st_mode`, set-user-id and sticky bits included).
     pub(crate) mode: u32,
     pub(crate) links: u64,
     len: u64,
@@ -18,11 +18,11 @@ pub(crate) struct Original {
 impl Original {
     pub(crate) fn of(meta: &Metadata) -> Original {
         Original {
-            mode: meta.mode() & 0o7777,
-            links: meta.nlink(),
+            mode: sys::mode_of(meta),
+            links: sys::links_of(meta),
             len: meta.len(),
-            modified: (meta.mtime(), meta.mtime_nsec()),
-            inode: meta.ino(),
+            modified: sys::modified_of(meta),
+            inode: sys::identity_of(meta),
         }
     }
 

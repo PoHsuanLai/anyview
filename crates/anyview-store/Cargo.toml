@@ -10,11 +10,14 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
-# Safe wrappers of renameat2 (no-replace renames), extended attributes, ownership, `kill(pid, 0)` and the store's `flock`.
-rustix = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+# Safe wrappers of renameat2 (no-replace renames), extended attributes, ownership, `kill(pid, 0)` and
+# the store's `flock`: `src/sys/unix.rs`. Windows takes the standard library's (`src/sys/windows.rs`).
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true }
 
 [lints]
 workspace = true

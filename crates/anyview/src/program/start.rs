@@ -108,13 +108,13 @@ fn launch_viewer(request: Request, env: Env) -> ExitCode {
 
 /// The single-instance claim of this build: the session bus (with bus activation) on the Linux
 /// desktop, the per-user socket everywhere else.
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 fn instance_of(env: &Env) -> impl Instance {
     anyview_platform::linux::DbusInstance::new(env.clone())
 }
 
 /// The single-instance claim of this build: the per-user socket.
-#[cfg(not(feature = "quire-desktop"))]
+#[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
 fn instance_of(_env: &Env) -> impl Instance {
     anyview_platform::portable::LatchkeyInstance::new()
 }

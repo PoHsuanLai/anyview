@@ -2,17 +2,10 @@
 //! the address it was downloaded from. Best effort: a file system that has no birth time or no
 //! extended attributes leaves that field absent.
 
+use crate::sys;
 use anyview_core::{ByteLen, Facts, FileDetails, FileName, Input, ModTime, Sniffed};
-use rustix::fs::getxattr;
 use std::fs;
-use std::os::unix::fs::MetadataExt;
 use std::path::Path;
-
-/// The extended attribute browsers and download managers record a file's address in.
-const ORIGIN_ATTRIBUTE: &str = "user.xdg.origin.url";
-
-/// The most bytes of an address read: longer is not an address a person would read.
-const ORIGIN_LIMIT: usize = 4096;
 
 /// The details of the file at `path` (a link is followed). Blocking: it stats the file and reads
 /// one extended attribute. A file that cannot be looked at has no details at all.
@@ -33,8 +26,8 @@ pub fn file_details(path: &Path) -> FileDetails {
             .parent()
             .filter(|folder| !folder.as_os_str().is_empty())
             .map(|folder| folder.display().to_string()),
-        origin: origin_of(path),
-        mode: Some(meta.mode() & 0o777),
+        origin: sys::origin_of(path),
+        mode: sys::permission_bits(&meta),
     }
 }
 
@@ -57,22 +50,14 @@ pub fn general_facts(input: &Input, sniffed: &Sniffed) -> Facts {
     }
 }
 
-fn origin_of(path: &Path) -> Option<String> {
-    let mut value = vec![0_u8; ORIGIN_LIMIT];
-    let length = getxattr(path, ORIGIN_ATTRIBUTE, value.as_mut_slice()).ok()?;
-    let text = String::from_utf8(value[..length].to_vec()).ok()?;
-    let text = text.trim_matches(|c: char| c == '\0' || c.is_whitespace());
-    (!text.is_empty()).then(|| text.to_owned())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustix::fs::{XattrFlags, setxattr};
-    use std::os::unix::fs::PermissionsExt;
 
     #[test]
+    #[cfg(unix)]
     fn a_file_reports_its_size_dates_folder_and_mode() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("a.txt");
         fs::write(&path, b"hello").unwrap();
@@ -89,7 +74,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn the_download_address_is_read_from_the_extended_attribute() {
+        use rustix::fs::{XattrFlags, setxattr};
+        const ORIGIN_ATTRIBUTE: &str = "user.xdg.origin.url";
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("a.pdf");
         fs::write(&path, b"x").unwrap();

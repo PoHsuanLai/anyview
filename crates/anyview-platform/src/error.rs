@@ -120,6 +120,7 @@ pub enum PlatformError {
     },
 }
 
+#[cfg(unix)]
 impl From<bayonet::run::RunError<Capability>> for PlatformError {
     fn from(error: bayonet::run::RunError<Capability>) -> Self {
         use bayonet::run::RunError;

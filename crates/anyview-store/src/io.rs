@@ -2,12 +2,12 @@
 //! Nothing here decides anything; the pure modules say what to write.
 
 use crate::error::{StoreError, StoreOp};
+use crate::sys;
 use anyview_core::{ByteLen, FileStamp, ModTime};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::fs;
 use std::io::{self, Write};
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 pub(crate) fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreError {
@@ -48,14 +48,7 @@ pub(crate) fn write_private_json<T: Serialize>(path: &Path, value: &T) -> Result
 
 /// The folder `path` and every missing one above it, readable by its owner alone.
 pub(crate) fn create_private_dir(path: &Path) -> Result<(), StoreError> {
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(path)
-        .map_err(|e| io_error(StoreOp::CreateDir, path, &e))?;
-    // A folder an older version made with the default mode is closed now.
-    let _kept = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
-    Ok(())
+    sys::create_private_dir(path).map_err(|e| io_error(StoreOp::CreateDir, path, &e))
 }
 
 fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), StoreError> {
@@ -71,13 +64,15 @@ fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), 
     temp_name.push(".tmp");
     let temp = dir.join(temp_name);
 
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(mode)
-        .open(&temp)
-        .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
+    let mut file = sys::with_mode(
+        fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true),
+        mode,
+    )
+    .open(&temp)
+    .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
     file.write_all(&bytes)
         .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
     file.sync_all()

@@ -11,10 +11,10 @@ use crate::io::io_error;
 use crate::original::Original;
 use crate::place::save_temp_beside;
 use crate::sweep::sweep_leftovers;
+use crate::sys;
 use crate::versions::{Kept, Origin, SavedAt, VersionId, Versions};
 use std::fs;
 use std::io::Write;
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 /// The bytes an edit produced for `target`, not yet saved. Applying an edit is the caller's work;
@@ -224,10 +224,7 @@ impl BackedUp {
     }
 
     fn write_temp(&self, temp: &Path) -> Result<(), StoreError> {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
+        let mut file = sys::with_mode(fs::OpenOptions::new().write(true).create_new(true), 0o600)
             .open(temp)
             .map_err(|e| io_error(StoreOp::Write, temp, &e))?;
         if let Ok(old) = fs::File::open(&self.target)
@@ -239,7 +236,7 @@ impl BackedUp {
             .write_to(&mut file)
             .map_err(|e| io_error(StoreOp::Write, temp, &e))?;
         // After the write: a write by anyone but root clears set-user-id and set-group-id.
-        file.set_permissions(fs::Permissions::from_mode(self.original.mode))
+        sys::set_mode(&file, self.original.mode)
             .map_err(|e| io_error(StoreOp::Permissions, temp, &e))?;
         file.sync_all()
             .map_err(|e| io_error(StoreOp::Sync, temp, &e))

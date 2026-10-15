@@ -3,7 +3,8 @@
 
 use anyview_core::FilePath;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_encode};
-use std::os::unix::ffi::OsStrExt;
+use std::borrow::Cow;
+use std::path::Path;
 
 /// Everything but the unreserved characters and the separator is escaped, as the thumbnail
 /// spec's reference implementation does.
@@ -14,10 +15,35 @@ const ESCAPED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'.')
     .remove(b'~');
 
+/// What is escaped on this platform: a drive letter's colon stays as it is on Windows.
+#[cfg(windows)]
+const ESCAPED_HERE: &AsciiSet = &ESCAPED.remove(b':');
+#[cfg(not(windows))]
+const ESCAPED_HERE: &AsciiSet = ESCAPED;
+
+/// The path as the bytes of the URI's path part. A Unix path is bytes and need not be UTF-8.
+#[cfg(unix)]
+fn path_bytes(path: &Path) -> Cow<'_, [u8]> {
+    use std::os::unix::ffi::OsStrExt;
+    Cow::Borrowed(path.as_os_str().as_bytes())
+}
+
+/// The path as the bytes of the URI's path part: `C:\a b` is `/C:/a b`, as Windows programs write
+/// a file URI (`file:///C:/a%20b`).
+#[cfg(not(unix))]
+fn path_bytes(path: &Path) -> Cow<'_, [u8]> {
+    let text = path.to_string_lossy().replace('\\', "/");
+    if text.starts_with('/') {
+        Cow::Owned(text.into_bytes())
+    } else {
+        Cow::Owned(format!("/{text}").into_bytes())
+    }
+}
+
 /// `path` as an absolute `file:///...` URI with its bytes percent-encoded.
 pub fn file_uri(path: &FilePath) -> String {
-    // Bytes, not `str`: a path need not be UTF-8.
-    let encoded = percent_encode(path.as_path().as_os_str().as_bytes(), ESCAPED);
+    let bytes = path_bytes(path.as_path());
+    let encoded = percent_encode(&bytes, ESCAPED_HERE);
     format!("file://{encoded}")
 }
 
