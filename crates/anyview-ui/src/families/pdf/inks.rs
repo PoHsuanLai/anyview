@@ -25,6 +25,8 @@ pub(super) enum InkKind {
     Round,
     /// A line, or one stroke of an arrow's head.
     Stroke,
+    /// Freehand strokes, drawn as a polyline in the box that holds them.
+    Sketch,
     /// A note's icon.
     Note,
     /// A text box with its words.
@@ -53,6 +55,12 @@ pub(super) struct Ink {
     pub style: String,
     /// The words of a text box.
     pub text: String,
+    /// The points of a sketch's strokes, each stroke as `x,y` pairs in logical pixels from the top
+    /// left of its box, the strokes divided by `|`.
+    pub path: String,
+    /// The width and height of the box a sketch is drawn in, in logical pixels, never less than
+    /// one, so the strokes are drawn at the page's own scale.
+    pub extent: (f32, f32),
 }
 
 fn color(color: MarkColor) -> String {
@@ -76,6 +84,8 @@ fn ink(kind: InkKind, state: InkState, style: String) -> Ink {
         state,
         style,
         text: String::new(),
+        path: String::new(),
+        extent: (1.0, 1.0),
     }
 }
 
@@ -116,6 +126,27 @@ fn line(
         }
     }
     strokes
+}
+
+/// The points of `strokes` as `x,y` pairs in logical pixels from the top left of `rect`, on a page
+/// `size` logical pixels across and down; a stroke's pairs separated by spaces and the strokes by
+/// `|`.
+fn stroke_points(strokes: &[Vec<PagePoint>], rect: PageRect, size: (f32, f32)) -> String {
+    strokes
+        .iter()
+        .map(|stroke| {
+            stroke
+                .iter()
+                .map(|point| {
+                    let x = point.x.0.saturating_sub(rect.left.0) as f32 * size.0 / 1000.0;
+                    let y = point.y.0.saturating_sub(rect.top.0) as f32 * size.1 / 1000.0;
+                    format!("{x:.1},{y:.1}")
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("|")
 }
 
 /// `mark` drawn on a page `size` logical pixels across and down.
@@ -167,6 +198,17 @@ pub(super) fn inks_of(mark: &Mark, size: (f32, f32), state: InkState) -> Vec<Ink
         )],
         MarkShape::Line { from, to } => line(&paint, (*from, *to), size, false, state),
         MarkShape::Arrow { from, to } => line(&paint, (*from, *to), size, true, state),
+        MarkShape::Ink(strokes) => {
+            let rect = mark.bounds();
+            vec![Ink {
+                path: stroke_points(strokes, rect, size),
+                extent: (
+                    (rect.width() as f32 * size.0 / 1000.0).max(1.0),
+                    (rect.height() as f32 * size.1 / 1000.0).max(1.0),
+                ),
+                ..ink(InkKind::Sketch, state, boxed(&paint, rect))
+            }]
+        }
         MarkShape::TextBox { rect, text } => vec![Ink {
             text: text.clone(),
             ..ink(InkKind::Words, state, boxed(&paint, *rect))
@@ -244,6 +286,11 @@ mod tests {
                     to: PagePoint::at(100, 100),
                 },
                 vec![InkKind::Stroke, InkKind::Stroke, InkKind::Stroke],
+            ),
+            (
+                "a sketch is one box holding its strokes",
+                MarkShape::Ink(vec![vec![PagePoint::at(0, 0), PagePoint::at(100, 100)]]),
+                vec![InkKind::Sketch],
             ),
             (
                 "a note is its icon",

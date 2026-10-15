@@ -287,7 +287,7 @@ fn picture_commands(stage: &Stage, offer: PictureOffer, tool: crate::Tool) -> Ve
 }
 
 /// The tools a mark can be made with, in the order the palette lists them.
-const MARK_TOOLS: [MarkTool; 9] = [
+const MARK_TOOLS: [MarkTool; 10] = [
     MarkTool::Highlight,
     MarkTool::Underline,
     MarkTool::Strikethrough,
@@ -296,6 +296,7 @@ const MARK_TOOLS: [MarkTool; 9] = [
     MarkTool::Oval,
     MarkTool::Line,
     MarkTool::Arrow,
+    MarkTool::Sketch,
     MarkTool::TextBox,
 ];
 

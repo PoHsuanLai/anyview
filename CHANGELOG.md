@@ -12,6 +12,7 @@ versioning, with pre-releases while the program is in beta.
 
 - Fill in a PDF's form as Preview does. Text fields, check boxes, radio buttons and lists of choices are live on the page: press one to type or tick it, and Tab and Shift Tab go through the fields in the document's order. A form with no fields shows nothing extra. What you fill in is held like a picture's edits (the edited mark in the title bar, ⌘Z, Save and Don't Save on leaving) and ⌘S appends it to the file, so another viewer shows the values.
 - Mark up a PDF: a Markup tool beside Select and Pan in the title bar. Highlight, underline and strike through the words you drag over (yellow first, and the colours Preview offers), leave a note, draw a rectangle, an oval, a line or an arrow, or add a text box; pick a mark to move it or delete it. Marks are saved as standard annotations other viewers show. A signed document asks before it is changed, and a document that does not let you mark it offers no Markup tool. Select now selects the words under a drag.
+- Sketch draws freehand on a page, as Preview's does; it is saved as an ink annotation other viewers show.
 
 ### Editing data
 

@@ -11,7 +11,7 @@ use anyview_core::{
 };
 use pdfrum::{Color, Point, Rect, Rotation};
 use pdfrum_edit::{
-    AnnotBorder, AnnotWrite, CircleSpec, EditDoc, FreeTextSpec, LineEndingStyle, LineSpec,
+    AnnotBorder, AnnotWrite, CircleSpec, EditDoc, FreeTextSpec, InkSpec, LineEndingStyle, LineSpec,
     MarkupKind, MarkupSpec, Quad, SaveMode, SaveOptions, SquareSpec, TextSpec, add_annotation,
 };
 
@@ -148,6 +148,7 @@ fn annotation_of(mark: &Mark, place: &Place) -> Option<AnnotWrite> {
         ),
         MarkShape::Line { from, to } => Some(line(place, color, *from, *to, false)),
         MarkShape::Arrow { from, to } => Some(line(place, color, *from, *to, true)),
+        MarkShape::Ink(strokes) => ink(place, color, strokes, border),
         MarkShape::TextBox { rect, text } => {
             Some(FreeTextSpec::new(place.rect(*rect), color, text.clone()).into())
         }
@@ -168,6 +169,25 @@ fn text_markup(
             .quads(covered.into_iter().map(Quad::from))
             .into(),
     )
+}
+
+/// Freehand `strokes`; `None` when they hold no point.
+fn ink(
+    place: &Place,
+    color: Color,
+    strokes: &[Vec<PagePoint>],
+    border: AnnotBorder,
+) -> Option<AnnotWrite> {
+    let placed: Vec<Vec<Point>> = strokes
+        .iter()
+        .map(|stroke| stroke.iter().map(|point| place.point(*point)).collect())
+        .collect();
+    let bounds = placed
+        .iter()
+        .flatten()
+        .map(|point| Rect::from_points(*point, *point))
+        .reduce(|a, b| a.union(b))?;
+    Some(InkSpec::new(bounds, color, placed).border(border).into())
 }
 
 /// A line from `from` to `to`, with an arrow head at its end when `arrow`.
