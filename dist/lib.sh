@@ -61,6 +61,75 @@ choose_sudo() {
   fi
 }
 
+# One scratch directory for the run, made by make_scratch and removed when the script ends: the
+# rendered files, and the tree staged for the one elevated step.
+SCRATCH=""
+make_scratch() {
+  SCRATCH="$(mktemp -d)"
+  trap 'rm -rf -- "${SCRATCH:?}"' EXIT
+}
+
+# plain_path WHAT PATH: succeed for a path that can be written, as it is, into a sed program, a D-Bus or
+# desktop Exec= line and a TOML string. Others (a space, a quote, a backslash, a | or & or %) are
+# refused, as autotools refuses a prefix it cannot quote, rather than escaped for each place.
+plain_path() {
+  case "$2" in
+    ''|*[!A-Za-z0-9_./+@:,=-]*)
+      say "install.sh: $1 ($2) has a character that does not go safely into the files written from it; use letters, digits and _ . / + @ : , = -"
+      return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+# A system prefix is written in one elevated step, so a prompt that is declined leaves nothing
+# half installed and a prompt that is kept (pkexec, doas without persist) is asked once. Everything is
+# first put, as the person, into $STAGE/tree/<destination>; $STAGE/first and $STAGE/list name each file
+# with its mode, the receipt in "first" so a copy that stops half way is still one uninstall.sh can undo.
+# STAGE stays empty (files are written one by one, as the person or as root) for a person's own prefix,
+# a DESTDIR, and a dry run.
+STAGE=""
+stage_begin() { # after choose_sudo and make_scratch
+  [[ -n "$SUDO" && "$DRY_RUN" == no ]] || return 0
+  STAGE="$SCRATCH/stage"
+  mkdir -p -- "$STAGE/tree"
+  : >"$STAGE/first"
+  : >"$STAGE/list"
+}
+
+# put_file MODE SRC DST [LIST]: write SRC as DST with MODE, or stage it for commit_staged.
+put_file() {
+  local mode="$1" src="$2" dst="$3" list="${4:-list}"
+  if [[ -n "$STAGE" ]]; then
+    say "  stage $dst"
+    install -Dm"$mode" "$src" "$STAGE/tree$dst"
+    printf '%s %s\n' "$mode" "$dst" >>"$STAGE/$list"
+  else
+    step "install $dst" privileged install -Dm"$mode" "$src" "$(dest "$dst")"
+  fi
+}
+
+# What the elevated step runs, given the stage and the prefix (plain sh: it is root's).
+APPLY_STAGED='set -eu
+stage=$1 prefix=$2
+for list in first list; do
+  while read -r mode dst; do
+    install -Dm"$mode" "$stage/tree$dst" "$dst"
+  done <"$stage/$list"
+done
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$prefix/share/applications"
+fi
+if [ -d "$prefix/share/icons/hicolor" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -q -t -f "$prefix/share/icons/hicolor"
+fi'
+
+# commit_staged PREFIX: the one elevated call, which copies what was staged and refreshes the caches.
+commit_staged() {
+  [[ -n "$STAGE" ]] || return 0
+  step "copy the staged files into $1 and refresh the desktop's caches" \
+    privileged sh -c "$APPLY_STAGED" sh "$STAGE" "$1"
+}
+
 # The icon sizes the repo ships: <ICON_DIR>/<px>.png (assets/icons, Viewer's own icon; the 1024 px master
 # and the Windows .ico are in assets/icon-source, as hicolor has no 1024 size).
 # Prints one pixel size per line; prints nothing (and warns) when the directory is absent.
@@ -115,6 +184,6 @@ write_receipt() {
   [[ -f "$(dest "$receipt")" ]] && old="$(cat "$(dest "$receipt")")"
   tmp="$(mktemp)"
   { [[ -z "$old" ]] || printf '%s\n' "$old"; printf '%s\n' "${RECEIPT_NEW[@]}"; } | awk '!seen[$0]++' >"$tmp"
-  step "install $receipt" privileged install -Dm644 "$tmp" "$(dest "$receipt")"
-  rm -f "$tmp"
+  put_file 644 "$tmp" "$receipt" first
+  rm -f -- "$tmp"
 }

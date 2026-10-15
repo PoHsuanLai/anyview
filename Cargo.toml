@@ -437,3 +437,14 @@ match_wildcard_for_single_variants = "deny"
 # 5.5 GB and one lane's target about 300 GB on the shared machine). `test` inherits `dev`.
 [profile.dev]
 debug = "line-tables-only"
+
+# The release binary, as the desktop programs people compare it with build theirs (Alacritty, Helix,
+# Zed, cosmic-*): thin LTO for the cross-crate inlining a UI toolkit's many small crates need, at a
+# fraction of fat LTO's link time and memory; one codegen unit per crate so that inlining is not cut at
+# unit borders; `strip = "debuginfo"` drops the DWARF but keeps the symbol table, so a crash backtrace
+# still names its functions. `panic` stays unwind: the peek and media workers catch a panic on a hostile
+# file and turn it into a failed card.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

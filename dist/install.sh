@@ -97,7 +97,10 @@ done
 [[ -n "$PREFIX" ]] || PREFIX="$(default_prefix)"
 PREFIX="${PREFIX%/}"
 [[ "$PREFIX" == /* ]] || { say "install.sh: --prefix must be an absolute path"; exit 2; }
+plain_path "the prefix" "$PREFIX" || { say "  (name another with --prefix DIR)"; exit 2; }
 choose_sudo "$PREFIX"
+[[ "$DRY_RUN" == yes ]] || make_scratch
+stage_begin
 
 TARGET="${CARGO_TARGET_DIR:-$HERE/target}"
 BIN="${ANYVIEW_BIN:-$TARGET/release/anyview}"
@@ -218,6 +221,7 @@ if [[ "$WITH_MPV" == yes ]]; then
 fi
 if [[ "$WITH_MPV" == yes ]]; then
   [[ "$MPV_PATH" == /* ]] || MPV_PATH="$(cd "$(dirname "$MPV_PATH")" 2>/dev/null && pwd)/$(basename "$MPV_PATH")"
+  plain_path "the mpv path" "$MPV_PATH" || { say "  (name another with --mpv PATH)"; exit 2; }
   if [[ "$DRY_RUN" == no && "$MPV_ABSENT" == no && ! -x "$MPV_PATH" ]]; then
     say "install.sh: $MPV_PATH is not an executable mpv (use --mpv PATH)"
     exit 1
@@ -272,12 +276,23 @@ install_file() {
   # Written below, so this run owns it (an identical file already there is not recorded).
   note_install_dirs "$(dirname "$dst")"
   note_install_file "$dst"
-  step "install $dst" privileged install -Dm"$mode" "$src" "$real"
+  put_file "$mode" "$src" "$dst"
 }
 
 say "2. files"
 install_file 755 "$BIN" "$PREFIX/bin/anyview"
-install_file 644 "$HERE/dist/$APP_ID.desktop" "$PREFIX/share/applications/$APP_ID.desktop"
+# The entry names the binary by its installed path, like the service files below: a prefix that is not on
+# the session's PATH would otherwise leave a menu entry that starts nothing.
+entry="$PREFIX/share/applications/$APP_ID.desktop"
+if [[ "$DRY_RUN" == yes ]]; then
+  say "  install $entry"
+  say "      (Exec=$PREFIX/bin/anyview %U, TryExec=$PREFIX/bin/anyview, from dist/$APP_ID.desktop)"
+else
+  rendered_entry="$SCRATCH/entry"
+  sed -e "s|^Exec=.*|Exec=$PREFIX/bin/anyview %U|" -e "s|^TryExec=.*|TryExec=$PREFIX/bin/anyview|" \
+    "$HERE/dist/$APP_ID.desktop" >"$rendered_entry"
+  install_file 644 "$rendered_entry" "$entry"
+fi
 install_file 644 "$HERE/dist/$APP_ID.metainfo.xml" "$PREFIX/share/metainfo/$APP_ID.metainfo.xml"
 # The licences: the viewer's own two and the notices for the crates built into it.
 for doc in LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md; do
@@ -295,8 +310,7 @@ if [[ "$DRY_RUN" == yes ]]; then
   say "  install $service"
   say "      (Exec=$PREFIX/bin/anyview, from dist/$BUS_NAME.service)"
 else
-  rendered="$(mktemp)"
-  trap 'rm -f "$rendered"' EXIT
+  rendered="$SCRATCH/service"
   sed "s|^Exec=.*|Exec=$PREFIX/bin/anyview|" "$HERE/dist/$BUS_NAME.service" >"$rendered"
   install_file 644 "$rendered" "$service"
 fi
@@ -310,10 +324,9 @@ if [[ "$DRY_RUN" == yes ]]; then
   say "  install $agent_service"
   say "      (Exec=$PREFIX/bin/anyview, from dist/$APP_ID.service)"
 else
-  rendered_agent="$(mktemp)"
+  rendered_agent="$SCRATCH/agent-service"
   sed "s|^Exec=.*|Exec=$PREFIX/bin/anyview|" "$HERE/dist/$APP_ID.service" >"$rendered_agent"
   install_file 644 "$rendered_agent" "$agent_service"
-  rm -f "$rendered_agent"
 fi
 install_file 644 "$HERE/dist/intents/$APP_ID.toml" "$PREFIX/share/quire/intents/$APP_ID.toml"
 for skill_dir in "$HERE"/dist/skills/*/; do
@@ -335,8 +348,7 @@ if [[ "$WITH_FFMPEG" == yes ]]; then
     say "  install $manifest"
     say "      (path = $PREFIX/libexec/anyview/anyview-ffmpeg, from dist/plugins/anyview-ffmpeg.toml.in)"
   else
-    rendered_plugin="$(mktemp)"
-    trap 'rm -f "$rendered" "${rendered_plugin:-}"' EXIT
+    rendered_plugin="$SCRATCH/ffmpeg-manifest"
     sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-ffmpeg.toml.in" >"$rendered_plugin"
     install_file 644 "$rendered_plugin" "$manifest"
   fi
@@ -356,11 +368,9 @@ install_picture_plugin() {
     say "  install $manifest"
     say "      (path = $PREFIX/libexec/anyview/anyview-$id, from dist/plugins/anyview-$id.toml.in)"
   else
-    local rendered_pic
-    rendered_pic="$(mktemp)"
+    local rendered_pic="$SCRATCH/$id-manifest"
     sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-$id.toml.in" >"$rendered_pic"
     install_file 644 "$rendered_pic" "$manifest"
-    rm -f "$rendered_pic"
   fi
   local tool
   for tool in "$@"; do command -v "$tool" >/dev/null 2>&1 && return 0; done
@@ -379,8 +389,7 @@ if [[ "$WITH_MPV" == yes ]]; then
     say "  install $manifest"
     say "      (mpv = $MPV_PATH, cplugin = $PREFIX/libexec/anyview/mpv-wgpu-cplugin.so, from dist/plugins/anyview-mpv.toml.in)"
   else
-    rendered_mpv="$(mktemp)"
-    trap 'rm -f "$rendered" "${rendered_plugin:-}" "$rendered_mpv"' EXIT
+    rendered_mpv="$SCRATCH/mpv-manifest"
     sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" "$HERE/dist/plugins/anyview-mpv.toml.in" >"$rendered_mpv"
     install_file 644 "$rendered_mpv" "$manifest"
   fi
@@ -396,9 +405,17 @@ done
 say "3b. receipt"
 write_receipt "$PREFIX"
 
+# For a system prefix everything above was staged; this is the one place that asks for root.
+if [[ -n "$STAGE" ]]; then
+  say "3c. copy"
+  commit_staged "$PREFIX"
+fi
+
 say "4. desktop databases"
 if [[ -n "$DESTDIR" ]]; then
   say "  skipped: staging into $DESTDIR registers nothing"
+elif [[ -n "$STAGE" ]]; then
+  say "  refreshed by the copy above"
 else
   if command -v update-desktop-database >/dev/null 2>&1; then
     step "refresh the desktop entry cache" privileged update-desktop-database "$PREFIX/share/applications"

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The jobs only read the repository; nothing here pushes, comments or publishes.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
@@ -14,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # The runner ships toolchains this build never uses; removing them leaves room for the
       # workspace's test binaries.
@@ -43,9 +47,9 @@ jobs:
       - name: Toolchain
         run: rustup show active-toolchain || rustup toolchain install
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2
         with:
           tool: cargo-deny
 
@@ -77,6 +81,11 @@ jobs:
       - name: Install test
         run: bash dev/install-test.sh
 
+      # The mpv-wgpu rev install.sh fetches is Cargo.toml's, and the version Cargo.toml, the metainfo
+      # and the changelog name is one.
+      - name: Release metadata agrees
+        run: bash scripts/check-release.sh
+
       - name: Metadata
         run: |
           desktop-file-validate dist/org.quire.Anyview.desktop
@@ -87,7 +96,7 @@ jobs:
           python3 scripts/third-party-notices.py "$RUNNER_TEMP/notices.md"
           diff -q "$RUNNER_TEMP/notices.md" THIRD-PARTY-NOTICES.md
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: dev/syntax-dump
 
@@ -106,7 +115,7 @@ jobs:
     env:
       ANYVIEW_REQUIRE_PLAYER: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Free disk space
         run: |
@@ -133,7 +142,7 @@ jobs:
       - name: Toolchain
         run: rustup show active-toolchain || rustup toolchain install
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       # mpv-wgpu's C plugin, at the rev Cargo.toml pins the player to, in a target directory of its
       # own (it is not part of this workspace). mpv-wgpu's own CI builds and tests it against the
@@ -168,13 +177,13 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
       - name: Toolchain
         run: rustup show active-toolchain || rustup toolchain install
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Peek builds headless
         run: cargo check -p anyview-peek --no-default-features --locked
@@ -195,13 +204,13 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Toolchain
         shell: bash
         run: rustup show active-toolchain || rustup toolchain install
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - name: Peek builds headless
         run: cargo check -p anyview-peek --no-default-features --locked

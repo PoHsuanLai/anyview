@@ -2,6 +2,7 @@
 //! the packets alone, so no picture is decoded.
 
 use crate::error::FfmpegError;
+use crate::ffprobe::FILE_ONLY;
 use crate::units::Micros;
 use serde::Deserialize;
 use std::path::Path;
@@ -63,7 +64,9 @@ fn packets(
         .args(["-v", "error", "-print_format", "json", "-select_streams"])
         .arg(index.to_string())
         .args(["-read_intervals", &interval])
-        .args(["-show_entries", "packet=pts_time,flags", "-i"])
+        .args(["-show_entries", "packet=pts_time,flags"])
+        .args(FILE_ONLY)
+        .arg("-i")
         .arg(input)
         .stdin(Stdio::null())
         .output()

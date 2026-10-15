@@ -1,7 +1,7 @@
 //! A picture of a recording: one frame, or the cover of a sound, scaled and read back as raw RGBA.
 
 use crate::error::FfmpegError;
-use crate::ffprobe::{Probed, Stream};
+use crate::ffprobe::{FILE_ONLY, Probed, Stream};
 use crate::units::Micros;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -151,7 +151,7 @@ fn frame(
     (width, height): (u32, u32),
 ) -> Result<Vec<u8>, FfmpegError> {
     let mut command = Command::new(ffmpeg);
-    command.args(["-v", "error", "-nostdin"]);
+    command.args(["-v", "error", "-nostdin"]).args(FILE_ONLY);
     if at > Micros(0) {
         command.arg("-ss").arg(at.ffmpeg_seconds());
     }

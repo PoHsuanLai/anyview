@@ -3,7 +3,7 @@
 
 use crate::encoders::Encoders;
 use crate::error::FfmpegError;
-use crate::ffprobe::{Medium, Number, Probed, Stream};
+use crate::ffprobe::{FILE_ONLY, Medium, Number, Probed, Stream};
 use crate::target::Target;
 use crate::units::Micros;
 use anyview_plugin_protocol::ExportRequest;
@@ -179,6 +179,8 @@ pub fn plan(
         "pipe:1",
         "-y",
     ]);
+    // An input option: it belongs to the `-i` below, and the output (a claimed file) is untouched.
+    push(&FILE_ONLY);
     if cut.seek > Micros(0) {
         push(&["-ss", &cut.seek.ffmpeg_seconds()]);
     }
@@ -348,6 +350,7 @@ mod tests {
             "{text}"
         );
         assert!(text.ends_with(" /.part-out.x"), "{text}");
+        assert!(text.contains(" -protocol_whitelist file -ss "), "{text}");
         assert_eq!(planned.total, Micros(1_268_000));
     }
 
