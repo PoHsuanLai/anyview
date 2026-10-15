@@ -110,10 +110,13 @@ fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
         .aligned(CellAlign::Trailing)
         .sorting(Sorting::Fixed);
     let data = sheet.widths.iter().enumerate().map(|(at, chars)| {
-        let align = if sheet.kinds.get(at) == Some(&ColumnKind::Number) {
-            CellAlign::Trailing
-        } else {
-            CellAlign::Leading
+        // Numbers stand at the end, a yes or no's tick and its title in the middle.
+        let align = match sheet.kinds.get(at) {
+            Some(ColumnKind::Number) => CellAlign::Trailing,
+            Some(ColumnKind::YesNo) => CellAlign::Center,
+            Some(ColumnKind::Text | ColumnKind::Link | ColumnKind::Tag) | None => {
+                CellAlign::Leading
+            }
         };
         let id = u32::try_from(at).unwrap_or(GUTTER - 1);
         let width = Px(f32::from(chars.0) * pitch / 4.0 + pitch);

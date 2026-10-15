@@ -24,7 +24,6 @@
    not here); a tag is a small rounded fill round the value; a cell with nothing in it is a faint
    dash. */
 .viewer-cell-number{ font-variant-numeric:tabular-nums; }
-.viewer-cell-yes-no{ display:block; width:100%; text-align:center; }
 .viewer-cell-link{ text-decoration:underline; text-decoration-color:var(--ink-faint); text-underline-offset:var(--s-2); }
 .viewer-cell-tag{ display:inline-block; padding:0 var(--s-8); border-radius:var(--r-small); background:var(--fill-quaternary); color:var(--ink-soft); }
 .viewer-cell-empty{ color:var(--ink-faint); }
