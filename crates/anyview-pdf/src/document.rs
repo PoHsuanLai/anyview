@@ -2,8 +2,8 @@
 
 use crate::error::PdfError;
 use crate::geometry::{MilliPoints, PageSize};
-use anyview_core::{PageCount, PageIndex};
-use pdfrum::Document;
+use anyview_core::{Mark, PageCount, PageIndex};
+use pdfrum::{Document, ObjRef};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,6 +23,8 @@ pub struct PdfDocument {
     doc: Arc<Document>,
     count: PageCount,
     sizes: Vec<PageSize>,
+    /// Annotations left out of every drawing of the pages: the ones the window draws itself.
+    hidden: Vec<ObjRef>,
 }
 
 impl PdfDocument {
@@ -59,7 +61,28 @@ impl PdfDocument {
             doc: Arc::new(doc),
             count,
             sizes,
+            hidden: Vec::new(),
         })
+    }
+
+    /// This document with the annotations that are `marks` left out of every drawing of its pages
+    /// (the window draws them itself, so that they can be moved and deleted). A mark made in this
+    /// session, which has no [`Mark::existing`], hides nothing. The result is a different
+    /// document by [`PdfDocument::id`], so no worker reuses a page it prepared with them drawn.
+    #[must_use]
+    pub fn hiding(mut self, marks: &[Mark]) -> PdfDocument {
+        self.hidden = marks
+            .iter()
+            .filter_map(|mark| mark.existing)
+            .map(|held| ObjRef::new(held.number, held.generation))
+            .collect();
+        self.id = DocId(NEXT_ID.fetch_add(1, Ordering::Relaxed));
+        self
+    }
+
+    /// The annotations left out of every drawing.
+    pub(crate) fn hidden(&self) -> &[ObjRef] {
+        &self.hidden
     }
 
     /// Which document this is.

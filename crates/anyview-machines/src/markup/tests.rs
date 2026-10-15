@@ -3,8 +3,8 @@
 
 use super::{Allowance, MarkupIn, MarkupOut, PdfMarkup, Using};
 use anyview_core::{
-    FormWidget, Mark, MarkColor, MarkShape, MarkTool, PageIndex, PagePoint, PageRect, Permille,
-    WidgetAccess, WidgetKind,
+    FormWidget, Mark, MarkColor, MarkRef, MarkShape, MarkTool, PageIndex, PagePoint, PageRect,
+    Permille, WidgetAccess, WidgetKind,
 };
 use std::sync::Arc;
 
@@ -55,13 +55,45 @@ fn widgets() -> Vec<FormWidget> {
 }
 
 fn landed(filling: Allowance, marking: Allowance) -> PdfMarkup {
+    landed_with(filling, marking, Vec::new())
+}
+
+fn landed_with(filling: Allowance, marking: Allowance, marks: Vec<Mark>) -> PdfMarkup {
     PdfMarkup::default()
         .step(MarkupIn::Landed {
             widgets: Arc::from(widgets()),
             filling,
             marking,
+            marks: Arc::from(marks),
         })
         .0
+}
+
+/// Two rectangles the file already held, on page 0, at objects 7 and 8.
+fn held() -> Vec<Mark> {
+    let held = |number: u32, rect: PageRect| Mark {
+        page: PageIndex(0),
+        color: MarkColor::Red,
+        shape: MarkShape::Rectangle(rect),
+        existing: Some(MarkRef {
+            number,
+            generation: 0,
+        }),
+    };
+    vec![
+        held(7, rect(100, 100, 300, 200)),
+        held(8, rect(500, 500, 700, 600)),
+    ]
+}
+
+fn marking_over_held() -> PdfMarkup {
+    run(
+        landed_with(Allowance::Granted, Allowance::Granted, held()),
+        [
+            MarkupIn::Using(Using::Marking),
+            MarkupIn::Tool(MarkTool::Pointer),
+        ],
+    )
 }
 
 fn open() -> PdfMarkup {
@@ -404,6 +436,7 @@ fn selected_words_are_marked_in_the_colour_chosen_and_yellow_is_the_first() {
             page: PageIndex(0),
             color: MarkColor::Yellow,
             shape: MarkShape::Highlight(lines.clone()),
+            existing: None,
         }]
     );
     assert!(!yellow.has_selection(), "the selection is used up");
@@ -529,4 +562,53 @@ fn leaving_the_markup_tool_puts_away_what_was_half_done() {
         ],
     );
     assert!(drawing.draft().is_none() && drawing.marks().is_empty());
+}
+
+#[test]
+fn the_marks_a_file_holds_are_not_an_edit_until_they_are_changed() {
+    let markup = marking_over_held();
+    assert_eq!(markup.marks().len(), 2);
+    assert!(!markup.is_edited());
+    assert!(markup.save().is_empty());
+}
+
+#[test]
+fn a_mark_the_file_holds_moves_and_is_saved_with_its_reference() {
+    let moved = run(
+        marking_over_held(),
+        [
+            press(200, 150),
+            MarkupIn::Drag(point(250, 250)),
+            MarkupIn::Release,
+        ],
+    );
+    assert!(moved.is_edited());
+    let save = moved.save();
+    let [mark] = save.marks.as_slice() else {
+        panic!("only the moved mark is written: {:?}", save.marks)
+    };
+    assert_eq!(mark.existing.map(|held| held.number), Some(7));
+    assert_eq!(mark.shape, MarkShape::Rectangle(rect(150, 200, 350, 300)));
+    assert!(save.removed.is_empty());
+    // Taking the move back leaves nothing to write.
+    assert!(run(moved, [MarkupIn::Undo]).save().is_empty());
+}
+
+#[test]
+fn a_mark_the_file_holds_is_deleted_and_saved_as_removed() {
+    let gone = run(
+        marking_over_held(),
+        [press(600, 550), MarkupIn::Release, MarkupIn::Delete],
+    );
+    assert_eq!(gone.marks().len(), 1);
+    let save = gone.save();
+    assert!(save.marks.is_empty());
+    let [removed] = save.removed.as_slice() else {
+        panic!("one removed: {:?}", save.removed)
+    };
+    assert_eq!(removed.existing.map(|held| held.number), Some(8));
+    // Letting everything go brings it back.
+    let discarded = run(gone, [MarkupIn::Discard]);
+    assert_eq!(discarded.marks().len(), 2);
+    assert!(!discarded.is_edited());
 }

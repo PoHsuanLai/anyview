@@ -436,6 +436,7 @@ fn markup_landed(c: &Carry, doc: &crate::LoadedDoc) -> Option<MarkupIn> {
         widgets,
         filling,
         marking,
+        marks,
     } = doc.view().markup()?
     else {
         return None;
@@ -458,6 +459,7 @@ fn markup_landed(c: &Carry, doc: &crate::LoadedDoc) -> Option<MarkupIn> {
         widgets,
         filling,
         marking,
+        marks,
     })
 }
 

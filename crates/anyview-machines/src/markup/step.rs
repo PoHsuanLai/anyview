@@ -6,6 +6,7 @@ use super::model::{
 use anyview_core::{
     Mark, MarkShape, MarkTool, NOTE_SIZE, PageIndex, PagePoint, PageRect, Permille, WidgetKind,
 };
+use std::collections::BTreeMap;
 
 /// The least a rectangle, an oval or a line must be dragged to be drawn, in thousandths of the page.
 const LEAST: u32 = 10;
@@ -31,11 +32,18 @@ impl PdfMarkup {
                 widgets,
                 filling,
                 marking,
+                marks,
             } => {
+                let opened = Written {
+                    fills: BTreeMap::new(),
+                    marks: marks.to_vec(),
+                };
                 self = PdfMarkup {
                     widgets,
                     filling,
                     marking,
+                    now: opened.clone(),
+                    opened,
                     using: self.using,
                     tool: self.tool,
                     color: self.color,
@@ -99,7 +107,7 @@ impl PdfMarkup {
                 self.drag = None;
             }
             MarkupIn::Discard => {
-                self.now = Written::default();
+                self.now = self.opened.clone();
                 self.undo.clear();
                 self.redo.clear();
                 self.typing = Typing::Idle;
@@ -300,6 +308,7 @@ impl PdfMarkup {
             page: selected.page,
             color: self.color,
             shape,
+            existing: None,
         });
     }
 
@@ -348,6 +357,7 @@ impl PdfMarkup {
                         at,
                         text: String::new(),
                     },
+                    existing: None,
                 });
                 self.picked = Some(index);
                 self.writing = Some(index);
@@ -459,6 +469,7 @@ impl PdfMarkup {
             page,
             color: self.color,
             shape,
+            existing: None,
         });
         self.picked = Some(index);
         if writes {

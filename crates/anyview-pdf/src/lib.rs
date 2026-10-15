@@ -70,7 +70,7 @@ pub use geometry::{MilliPoints, PageSize, displayed};
 pub use info::{FormatVersion, Orientation, PageFormat, PdfInfo, Protection, Restriction, Tagging};
 pub use job::{PdfBackend, PdfDone, PdfJob};
 pub use layout::{PageLayout, PagePlace};
-pub use markup::{page_words, write_markup};
+pub use markup::{existing_marks, page_words, write_markup};
 pub use outline::{Disclosure, LinkTarget, OutlineEntry, PdfLink, outline, page_links};
 pub use pictures::{PagePicture, pdf_of_pictures};
 pub use render::{End, PdfWorker, Raster, Tile};

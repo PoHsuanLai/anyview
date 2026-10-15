@@ -9,7 +9,7 @@ use crate::tile::{TileBatch, TileKey, ZoomBucket, tile_rect};
 use anyview_core::work::Stop;
 use anyview_core::{Dpi, PageIndex, PixelLen, PixelSize};
 use pdfrum::{
-    Color, DeviceRect, OwnedPreparedPage, Pixmap, Region, RenderOptions, RenderSession,
+    Color, DeviceRect, ObjRef, OwnedPreparedPage, Pixmap, Region, RenderOptions, RenderSession,
     VelloCpuBackend,
 };
 
@@ -121,10 +121,12 @@ impl End {
     }
 }
 
-fn options(scale: f64) -> RenderOptions {
+/// How a page is drawn at `scale`, leaving out `hidden` annotations.
+fn options(scale: f64, hidden: &[ObjRef]) -> RenderOptions {
     RenderOptions::builder()
         .scale(scale)
         .background(Color::WHITE)
+        .hidden_annotations(hidden.iter().copied())
         .build()
 }
 
@@ -185,7 +187,7 @@ fn prepared_for(
     let page = doc.owned_page(batch.page).map_err(End::Failed)?;
     let scale = f64::from(batch.zoom.scale().0) / 1000.0;
     let device = device_size(page.width(), page.height(), scale);
-    let prepared = page.prepare(&options(scale), &mut worker.session);
+    let prepared = page.prepare(&options(scale, doc.hidden()), &mut worker.session);
     if halt.is_up() {
         return Err(End::Stopped);
     }
@@ -234,7 +236,8 @@ fn draw_tiles(
     End::Complete
 }
 
-/// Draws all of `page` at `dpi` (72 dpi is a point to a pixel) for an export.
+/// Draws all of `page` at `dpi` (72 dpi is a point to a pixel) for an export, with every
+/// annotation the file holds: an export is of the file, not of the window.
 pub(crate) fn render_page(
     doc: &PdfDocument,
     worker: &mut PdfWorker,
@@ -249,7 +252,7 @@ pub(crate) fn render_page(
     let drawn = doc
         .page(page)
         .and_then(|page| {
-            page.render_on(VelloCpuBackend, &options(scale), session)
+            page.render_on(VelloCpuBackend, &options(scale, &[]), session)
                 .map_err(PdfError::from)
         })
         .map(Raster);

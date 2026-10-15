@@ -7,11 +7,12 @@ use crate::io::OpenError;
 use crate::{Allowance, EditCaution, EditOffer, MarkupIn};
 use anyview_core::work::Stop;
 use anyview_core::{
-    BookFormat, Facts, FormWidget, FormatDetail, PageCount, PageIndex, Sniffed, Source,
+    BookFormat, Facts, FormWidget, FormatDetail, Mark, PageCount, PageIndex, Sniffed, Source,
 };
 use anyview_machines::{OutlineFold, OutlineShape};
 use anyview_pdf::{
-    Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, form_widgets, outline,
+    Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, existing_marks,
+    form_widgets, outline,
 };
 use std::io::ErrorKind;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -101,6 +102,9 @@ pub struct PdfDoc {
     filling: Allowance,
     /// Whether the document lets the person mark its pages.
     marking: Allowance,
+    /// The annotations the file already holds that the window draws itself, as marks; the
+    /// document is drawn without them.
+    marks: Arc<[Mark]>,
     scratch: Mutex<Vec<PdfWorker>>,
 }
 
@@ -121,6 +125,7 @@ impl PdfDoc {
             widgets: Arc::from(Vec::new()),
             filling: Allowance::Withheld,
             marking: Allowance::Withheld,
+            marks: Arc::from(Vec::new()),
             ..PdfDoc::with_facts(facts, document)
         }
     }
@@ -132,6 +137,8 @@ impl PdfDoc {
             EditOffer::Plain
         };
         let outline = outline(&document);
+        let marks = existing_marks(&document);
+        let document = document.hiding(&marks);
         let allowed = |yes: bool| {
             if yes {
                 Allowance::Granted
@@ -144,6 +151,7 @@ impl PdfDoc {
             widgets: Arc::from(form_widgets(&document)),
             filling: allowed(document.permits_filling()),
             marking: allowed(document.permits_marks()),
+            marks: Arc::from(marks),
             origin: PdfOrigin::File,
             shape: OutlineShape::of(outline.iter().map(|entry| entry.depth)),
             opening: OutlineFold::folded(
@@ -176,6 +184,7 @@ impl PdfDoc {
             widgets: Arc::clone(&self.widgets),
             filling: self.filling,
             marking: self.marking,
+            marks: Arc::clone(&self.marks),
         }
     }
 
