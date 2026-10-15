@@ -2,11 +2,14 @@
 //! rectangle of a crop while it is drawn, and the steps that can be taken back. A pure state like
 //! the pointer tool's; the file is written only when the host is asked to (⌘S).
 
+mod aspect;
 mod crop;
+mod drag;
 mod model;
 mod step;
 #[cfg(test)]
 mod tests;
 
-pub use crop::{CropAspect, CropBox, CropGrip, CropLean, CropShape};
+pub use aspect::{CropAspect, CropLean, CropShape};
+pub use crop::{CropBox, CropGrip};
 pub use model::{PictureEditIn, PictureEditing, PictureEdits};

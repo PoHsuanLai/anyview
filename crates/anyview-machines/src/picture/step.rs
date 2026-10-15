@@ -1,6 +1,7 @@
 //! The picture edits' transitions.
 
-use super::crop::{CropAspect, CropBox};
+use super::aspect::CropAspect;
+use super::crop::CropBox;
 use super::model::{Crop, Cropping, Held, PictureEditIn, PictureEditing, PictureEdits};
 use anyview_core::{Adjust, PixelSize};
 

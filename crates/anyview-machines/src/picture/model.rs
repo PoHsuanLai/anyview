@@ -2,7 +2,8 @@
 //! the crop rectangle while it is being drawn. Nothing here touches the file: the edits wait in
 //! this state until the person saves.
 
-use super::crop::{CropAspect, CropBox, CropGrip};
+use super::aspect::CropAspect;
+use super::crop::{CropBox, CropGrip};
 use anyview_core::{Adjust, Axis, DocPoint, DocUnit, PixelSize, QuarterTurn};
 
 /// Whether the open picture can be changed. A picture whose file takes the changes in place is
