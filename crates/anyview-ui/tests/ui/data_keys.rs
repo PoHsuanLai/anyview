@@ -37,8 +37,17 @@ fn window_on(paths: &[PathBuf]) -> Harness {
     harness
 }
 
+/// The selected row's text: a table's held columns and the ones that scroll are each a row, and
+/// the one that scrolls is the selected row assistive technology hears.
 fn selected_row(harness: &Harness) -> Option<String> {
-    harness.text_of(".ds-row[aria-selected=true]")
+    let held = harness.text_of(".ds-vtable-held .ds-vtable-item[data-selected=yes]");
+    let rest = harness
+        .text_of(".ds-vtable-rows [aria-selected=true]")
+        .or_else(|| harness.text_of(".ds-row[aria-selected=true]"));
+    match (held, rest) {
+        (Some(held), Some(rest)) => Some(format!("{held} {rest}")),
+        (held, rest) => rest.or(held),
+    }
 }
 
 #[test]

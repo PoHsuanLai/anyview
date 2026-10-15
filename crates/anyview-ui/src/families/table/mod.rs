@@ -6,6 +6,7 @@ mod doc;
 mod find;
 mod kind;
 mod panel;
+mod pick;
 mod sort;
 mod view;
 
@@ -26,6 +27,7 @@ use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
 use ds::prelude::Icon;
+use ds_core::selection::RowSelection;
 use std::sync::Arc;
 
 /// CSV, TSV, XLSX, ODS and XLS files, shown as rows under a header.
@@ -108,6 +110,23 @@ impl StageView for TableStageView {
             | Stage::Text(_)
             | Stage::Tree(_) => Vec::new(),
         }
+    }
+
+    fn copy_text(
+        doc: &Arc<TableDoc>,
+        stage: &Stage,
+        rows: &RowSelection,
+        sorted: Option<&SortedOrder>,
+    ) -> Option<String> {
+        let Stage::Table(stage) = stage else {
+            return None;
+        };
+        let sheet = doc.sheets.get(stage.sheet().0 as usize)?; // a u32 fits a usize
+        // An order that is for another sheet or another column is not the one the rows are in.
+        let order = sorted
+            .filter(|order| order.sheet == stage.sheet() && Some(order.sort) == stage.sort())
+            .map(|order| order.order.as_slice());
+        Some(pick::copy_text(sheet, rows, order))
     }
 
     fn stage(doc: &Arc<TableDoc>, cx: &StageCx) -> Element {

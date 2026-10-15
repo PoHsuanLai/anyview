@@ -236,7 +236,7 @@ fn escape_undoes_what_the_stage_has_open() {
     // A find over a table is put away before the cursor is.
     let table_finding = Stage::Table(TableStage::Selected {
         sheet: SheetNo(0),
-        row: RowNo(2),
+        rows: ds_core::selection::RowSelection::single(2),
         sort: None,
         find: Some(StageFind::asked(TypedText::from_static("cat"))),
         scale: ContentScale::ACTUAL,

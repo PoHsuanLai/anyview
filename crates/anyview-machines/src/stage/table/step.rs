@@ -5,6 +5,7 @@ use crate::stage::row::RowNo;
 use crate::stage::zoom::ContentScale;
 use crate::typed::TypedText;
 use ds_core::machine::Machine;
+use ds_core::selection::{Pick, RowSelection};
 use ds_core::time::stamp::Stamp;
 
 type Step = (TableStage, Vec<TableOut>);
@@ -17,9 +18,10 @@ impl Machine for TableStage {
 
     fn step(self, input: TableIn, _at: Stamp, params: &TableParams, _cx: &()) -> Step {
         let look = self.look();
-        let (sheet, row, sort) = (self.sheet(), self.row(), self.sort());
-        let (sheet, row, sort, look, outs) = advance((sheet, row, sort), look, input, params);
-        (TableStage::of(sheet, row, sort, look), outs)
+        let (sheet, sort) = (self.sheet(), self.sort());
+        let rows = self.selection().cloned().unwrap_or_default();
+        let (sheet, rows, sort, look, outs) = advance((sheet, rows, sort), look, input, params);
+        (TableStage::of(sheet, rows, sort, look), outs)
     }
 
     fn wake(&self) -> Option<Stamp> {
@@ -39,9 +41,13 @@ fn sheet_asked(sheet: SheetNo, input: &TableIn, total: SheetTotal) -> Option<She
         TableIn::ChooseSheet(chosen) if chosen.0 <= last => Some(*chosen),
         TableIn::ChooseSheet(_)
         | TableIn::Select(_)
+        | TableIn::Pick(_)
+        | TableIn::SelectAll
         | TableIn::Move(_)
         | TableIn::PressHeader(_)
+        | TableIn::Reseat(_)
         | TableIn::Deselect
+        | TableIn::Copy
         | TableIn::Find(_)
         | TableIn::Results { .. }
         | TableIn::NextHit
@@ -103,56 +109,91 @@ fn answered(
     }
 }
 
-/// The sheet, the cursor, the sort, the find and the zoom after `input`, and what it asks for.
+/// The cursor of `rows` as the stage names a row.
+fn cursor_of(rows: &RowSelection) -> Option<RowNo> {
+    let at = rows.cursor().or_else(|| rows.rows().next())?;
+    u32::try_from(at).ok().map(RowNo)
+}
+
+/// `rows` after `pick`, when the sheet has the row of `pick`.
+fn picked(rows: RowSelection, pick: Pick, params: &TableParams) -> RowSelection {
+    match pick.row < params.rows as usize {
+        // a u32 fits a usize
+        true => rows.picked(pick),
+        false => rows,
+    }
+}
+
+/// The picked rows after Esc: several narrow to the cursor's row, one is put away.
+fn escaped(rows: RowSelection) -> RowSelection {
+    match rows.count() > 1 {
+        true => rows.narrowed(),
+        false => RowSelection::none(),
+    }
+}
+
+/// The sheet, the picked rows, the sort, the find and the zoom after `input`, and what it asks for.
 fn advance(
-    (sheet, row, sort): (SheetNo, Option<RowNo>, Option<ColumnSort>),
+    (sheet, rows, sort): (SheetNo, RowSelection, Option<ColumnSort>),
     look: Look,
     input: TableIn,
     params: &TableParams,
 ) -> (
     SheetNo,
-    Option<RowNo>,
+    RowSelection,
     Option<ColumnSort>,
     Look,
     Vec<TableOut>,
 ) {
     let Look { find, scale } = look;
-    let stay = |find: Option<StageFind>, outs: Vec<TableOut>| {
-        (sheet, row, sort, Look { find, scale }, outs)
+    let stay = |rows: RowSelection, find: Option<StageFind>, outs: Vec<TableOut>| {
+        (sheet, rows, sort, Look { find, scale }, outs)
     };
     match input {
-        // Another sheet has other rows and other columns: the cursor and the sort do not carry
-        // over, and a find that is up searches this sheet.
+        // Another sheet has other rows and other columns: the picked rows and the sort do not
+        // carry over, and a find that is up searches this sheet.
         TableIn::NextSheet | TableIn::PreviousSheet | TableIn::ChooseSheet(_) => {
             match sheet_asked(sheet, &input, params.sheets).filter(|next| *next != sheet) {
                 Some(next) => {
                     let (find, outs) = asked_again(find);
-                    (next, None, None, Look { find, scale }, outs)
+                    (next, RowSelection::none(), None, Look { find, scale }, outs)
                 }
-                None => stay(find, vec![]),
+                None => stay(rows, find, vec![]),
             }
         }
-        TableIn::Select(picked) => (sheet, Some(picked), sort, Look { find, scale }, vec![]),
-        TableIn::Move(step) => (
-            sheet,
-            step.from(row, params.rows, params.page).or(row),
-            sort,
-            Look { find, scale },
-            vec![],
-        ),
-        // The rows change places, so the row the cursor was on is somewhere else.
+        TableIn::Select(row) => stay(RowSelection::single(row.0 as usize), find, vec![]), // a u32 fits a usize
+        TableIn::Pick(pick) => stay(picked(rows, pick, params), find, vec![]),
+        TableIn::SelectAll => stay(rows.all(params.rows as usize), find, vec![]), // a u32 fits a usize
+        TableIn::Move(step) => {
+            let moved = step.from(cursor_of(&rows), params.rows, params.page);
+            let rows = moved.map_or(rows, |to| RowSelection::single(to.0 as usize)); // a u32 fits a usize
+            stay(rows, find, vec![])
+        }
+        // The rows change places: the picked ones stay at their places until the view, which
+        // has the new order, says where they went.
         TableIn::PressHeader(column) if column < params.columns => (
             sheet,
-            None,
+            rows,
             ColumnSort::after_press(sort, column),
             Look { find, scale },
             vec![],
         ),
-        TableIn::PressHeader(_) | TableIn::Elapsed => stay(find, vec![]),
-        TableIn::Deselect => (sheet, None, sort, Look { find, scale }, vec![]),
+        TableIn::PressHeader(_) | TableIn::Elapsed => stay(rows, find, vec![]),
+        TableIn::Reseat(moved) => match rows.is_empty() {
+            true => stay(rows, find, vec![]),
+            false => stay(moved, find, vec![]),
+        },
+        TableIn::Deselect => stay(escaped(rows), find, vec![]),
+        TableIn::Copy => {
+            let outs = match rows.is_empty() {
+                true => vec![],
+                false => vec![TableOut::Copy(rows.clone())],
+            };
+            stay(rows, find, outs)
+        }
         TableIn::Find(query) => {
             let outs = vec![TableOut::Find(FindOut::asked(&query))];
-            stay(Some(StageFind::asked(query)), outs)
+            stay(rows, Some(StageFind::asked(query)), outs)
         }
         TableIn::Results {
             query,
@@ -160,30 +201,30 @@ fn advance(
             nearest,
         } => {
             let (find, outs) = answered(find, &query, FindHits::answered(count, nearest));
-            stay(find, outs)
+            stay(rows, find, outs)
         }
         TableIn::NextHit => {
             let (find, outs) = hit_moved(find, |hits| hits.stepped(HitStep::Next));
-            stay(find, outs)
+            stay(rows, find, outs)
         }
         TableIn::PreviousHit => {
             let (find, outs) = hit_moved(find, |hits| hits.stepped(HitStep::Previous));
-            stay(find, outs)
+            stay(rows, find, outs)
         }
         TableIn::GoToHit(hit) => {
             let (find, outs) = hit_moved(find, |hits| hits.jumped(hit));
-            stay(find, outs)
+            stay(rows, find, outs)
         }
         TableIn::CloseFind => {
             let outs = match find {
                 Some(_) => vec![TableOut::Find(FindOut::Clear)],
                 None => vec![],
             };
-            stay(None, outs)
+            stay(rows, None, outs)
         }
         TableIn::ZoomStep(dir) => (
             sheet,
-            row,
+            rows,
             sort,
             Look {
                 find,
@@ -193,7 +234,7 @@ fn advance(
         ),
         TableIn::ZoomActual => (
             sheet,
-            row,
+            rows,
             sort,
             Look {
                 find,

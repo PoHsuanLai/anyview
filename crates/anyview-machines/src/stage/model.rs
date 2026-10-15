@@ -120,7 +120,7 @@ impl StageOut {
             )
             | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
             | StageOut::Media(_)
-            | StageOut::Table(TableOut::Find(_))
+            | StageOut::Table(TableOut::Find(_) | TableOut::Copy(_))
             | StageOut::Tree(TreeOut::Find(_)) => None,
         }
     }
@@ -144,6 +144,7 @@ impl StageOut {
                 | TextOut::Wrapped(_),
             )
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
+            | StageOut::Table(TableOut::Copy(_))
             | StageOut::Media(_) => None,
         }
     }

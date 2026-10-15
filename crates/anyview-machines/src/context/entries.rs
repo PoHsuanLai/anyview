@@ -34,6 +34,7 @@ const GROUPS: &[&[(ContextPick, &str)]] = &[
         file(FileAction::RotateRight, "Rotate Right"),
     ],
     &[
+        stage(StageCommand::CopyRows, "Copy"),
         file(FileAction::CopyFile, "Copy"),
         file(FileAction::CopyPath, "Copy Path"),
     ],

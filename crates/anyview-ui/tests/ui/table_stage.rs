@@ -4,8 +4,9 @@
 use crate::support;
 
 use anyview_ui::WorkKind;
+use dioxus::prelude::Modifiers;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Driver, Harness, Input, PointerAction, PointerInput, Query};
 use std::path::PathBuf;
 use std::time::Duration;
 use support::{Gate, VIEW, Wiring, chord, press, type_text, window, wired};
@@ -107,8 +108,15 @@ fn press_head(harness: &mut Harness) {
     settle(harness);
 }
 
+/// The first row's cells: the columns held in place, then the ones that scroll.
 fn first_row(harness: &Harness) -> String {
-    harness.text_of(".ds-table-cells").unwrap_or_default()
+    let held = harness
+        .text_of(".ds-vtable-held .ds-table-cells")
+        .unwrap_or_default();
+    let rest = harness
+        .text_of(".ds-vtable-columns .ds-table-cells")
+        .unwrap_or_default();
+    format!("{held}{rest}")
 }
 
 #[test]
@@ -264,24 +272,39 @@ fn wide() -> String {
     body
 }
 
-/// Whether the current hit's cell is inside the room the table shows in, sideways.
+/// Whether the current hit's cell is in view, sideways: in a column that is held in place, or
+/// inside the columns that scroll and so clear of the held ones.
 fn hit_in_room(harness: &Harness) -> bool {
-    let (Some(room), Some(cell)) = (
-        harness.rect("[data-body=table]"),
-        harness.rect(".viewer-hit-current"),
-    ) else {
+    let Some(cell) = harness.rect(".viewer-hit-current") else {
         return false;
     };
-    cell.origin.x.0 >= room.origin.x.0 - 1.0
-        && cell.origin.x.0 + cell.size.width.0 <= room.origin.x.0 + room.size.width.0 + 1.0
+    let inside = |room: ds::base::geometry::units::Rect| {
+        cell.origin.x.0 >= room.origin.x.0 - 1.0
+            && cell.origin.x.0 + cell.size.width.0 <= room.origin.x.0 + room.size.width.0 + 1.0
+    };
+    let Some(held) = harness.rect(".ds-vtable-held") else {
+        return false;
+    };
+    if harness.count(".viewer-held .viewer-hit-current") > 0 {
+        return inside(held);
+    }
+    // The columns that scroll, from the held ones' edge to the table's: the scrolling box's own
+    // rect moves with its scroll in Blitz, so it is not the room.
+    harness.rect("[data-body=\"table\"]").is_some_and(|table| {
+        let start = held.origin.x.0 + held.size.width.0;
+        let mut room = table;
+        room.origin.x.0 = start;
+        room.size.width.0 = table.origin.x.0 + table.size.width.0 - start;
+        inside(room)
+    })
 }
 
 #[test]
 fn a_hit_in_a_column_off_to_the_side_scrolls_the_table_sideways_to_its_cell() {
     let (_dir, mut harness) = open("wide.csv", &wide());
     let (room, body) = (
-        harness.rect("[data-body=table]").expect("the room"),
-        harness.rect(".ds-vtable-body").expect("the columns"),
+        harness.rect(".ds-vtable-columns").expect("the room"),
+        harness.rect(".ds-vtable-track").expect("the columns"),
     );
     assert!(
         body.size.width.0 > room.size.width.0 * 2.0,
@@ -301,7 +324,12 @@ fn a_hit_in_a_column_off_to_the_side_scrolls_the_table_sideways_to_its_cell() {
     settle(&mut harness);
     assert!(
         hit_in_room(&harness),
-        "the next hit is in the first column, and the table came back to it"
+        "the next hit is in the first column, which is held in place and so in view"
+    );
+    assert_eq!(
+        harness.count(".viewer-held .viewer-hit-current"),
+        1,
+        "and it is in the held pane"
     );
 }
 
@@ -404,19 +432,21 @@ fn zoom_scales_the_rows_of_a_table_and_actual_size_returns() {
 fn numbers_kept_as_numbers_sort_by_value_not_by_their_digits() {
     let (_dir, mut harness) = open("counts.csv", "n,name\n10,a\n9,b\n100,c\n");
     press_head(&mut harness);
-    // the gutter number, then the cells, row after row
-    let rows = harness.text_of(".ds-vtable-rows").unwrap_or_default();
-    assert!(rows.contains("19b210a3100c"), "9, 10, 100: {rows}");
+    // The gutter number and the held first column, row after row, then the other cells.
+    let held = harness.text_of(".ds-vtable-held").unwrap_or_default();
+    let rest = harness.text_of(".ds-vtable-rows").unwrap_or_default();
+    assert!(held.contains("192103100"), "9, 10, 100: {held}");
+    assert!(rest.contains("bac"), "their names follow them: {rest}");
 }
 
-/// The width of the `at`th header cell, counting the gutter as the first.
+/// The width of the `at`th header cell, counting the gutter as the first. The gutter and the
+/// first column are held in place, in a header of their own.
 fn head_width(harness: &Harness, at: usize) -> f32 {
-    harness
-        .rect(&format!(".ds-table-head:nth-child({at})"))
-        .expect("a header cell")
-        .size
-        .width
-        .0
+    let selector = match at {
+        1 | 2 => format!(".ds-vtable-held-head .ds-table-head:nth-child({at})"),
+        _ => format!(".ds-vtable-head-track .ds-table-head:nth-child({})", at - 2),
+    };
+    harness.rect(&selector).expect("a header cell").size.width.0
 }
 
 /// A table with a short id column, a long description column and a flag column to take the rest.
@@ -445,5 +475,108 @@ fn each_column_is_as_wide_as_its_content_asks_and_the_widths_follow_zoom() {
         (zoomed - text * 1.5).abs() < 2.0,
         "zoomed to 150%, the description is {zoomed} px, wanted {} px",
         text * 1.5
+    );
+}
+
+/// A sheet of twelve rows, `n+1,name n`.
+fn twelve() -> String {
+    let mut body = String::from("id,name\n");
+    for n in 0..12 {
+        body.push_str(&format!("{},name{n}\n", n + 1));
+    }
+    body
+}
+
+/// The row at place `row`, in the columns that scroll.
+fn row_at(row: usize) -> String {
+    format!(".ds-vtable-columns .ds-vtable-item[data-row=\"{row}\"]")
+}
+
+/// Click the middle of `selector` with `held` down.
+fn click_holding(harness: &mut Harness, selector: &str, held: Modifiers) {
+    let at = harness.centre(selector).expect("a row on screen");
+    let click = PointerInput::new(
+        at,
+        PointerAction::Click(ds::base::press::PointerButton::Primary),
+    );
+    harness.send(Input::Pointer(click.with_mods(held)));
+    settle(harness);
+}
+
+fn status(harness: &Harness) -> String {
+    harness.text_of(".viewer-table-status").unwrap_or_default()
+}
+
+#[test]
+fn rows_are_picked_as_in_finders_list_and_copy_puts_them_on_the_clipboard() {
+    let (_dir, mut harness) = open("picks.csv", &twelve());
+    assert_eq!(status(&harness), "12 rows \u{b7} 2 columns");
+    click_holding(&mut harness, &row_at(2), Modifiers::empty());
+    assert_eq!(
+        status(&harness),
+        "12 rows \u{b7} 2 columns",
+        "one row picked says nothing more"
+    );
+    // The row is drawn picked in both panes.
+    assert_eq!(harness.count(".ds-vtable-item[data-selected=yes]"), 2);
+    click_holding(&mut harness, &row_at(5), Modifiers::SHIFT);
+    assert_eq!(status(&harness), "4 rows selected");
+    click_holding(&mut harness, &row_at(9), Modifiers::SUPER);
+    assert_eq!(status(&harness), "5 rows selected");
+    chord(&mut harness, 'c');
+    assert_eq!(
+        harness.clipboard_text().as_deref(),
+        Some("3\tname2\n4\tname3\n5\tname4\n6\tname5\n10\tname9"),
+        "the picked rows, tab-separated, with no header"
+    );
+    click_holding(&mut harness, &row_at(4), Modifiers::SUPER);
+    assert_eq!(
+        status(&harness),
+        "4 rows selected",
+        "a toggle takes a row out"
+    );
+    press(&mut harness, ShortcutKey::Escape);
+    assert_eq!(
+        status(&harness),
+        "12 rows \u{b7} 2 columns",
+        "Esc narrows to the cursor's row"
+    );
+    assert_eq!(harness.count(".ds-vtable-item[data-selected=yes]"), 2);
+    chord(&mut harness, 'a');
+    assert_eq!(status(&harness), "12 rows selected");
+    click_holding(&mut harness, &row_at(3), Modifiers::empty());
+    assert_eq!(
+        harness.count(".ds-vtable-item[data-selected=yes]"),
+        2,
+        "a plain click narrows to one row"
+    );
+}
+
+#[test]
+fn the_same_rows_stay_picked_when_a_sort_moves_them() {
+    let (_dir, mut harness, gate) = held_sorts();
+    click_holding(&mut harness, &row_at(0), Modifiers::empty());
+    let picked = |harness: &Harness| {
+        (
+            harness.text_of(".ds-vtable-columns .ds-row[aria-selected=true]"),
+            harness.attr(".ds-vtable-item[data-selected=yes]", "data-row"),
+        )
+    };
+    assert_eq!(
+        picked(&harness),
+        (Some("b".to_owned()), Some("0".to_owned()))
+    );
+    press_head(&mut harness);
+    assert_eq!(
+        picked(&harness),
+        (Some("b".to_owned()), Some("0".to_owned())),
+        "the rows wait in their order, and so does the pick"
+    );
+    gate.release(WorkKind::Sort);
+    settle(&mut harness);
+    assert_eq!(
+        picked(&harness),
+        (Some("b".to_owned()), Some("1".to_owned())),
+        "the sorted order puts the same row of the file one place down"
     );
 }
