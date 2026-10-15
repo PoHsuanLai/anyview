@@ -118,7 +118,9 @@ fn offered(action: FileAction, ability: StageAbilities, offers: Offers) -> bool 
                 && playback == Playback::Playable
                 && exports == Exports::Offered
         }
-        FileAction::RevertTo => !ability.edits.is_empty() && writable,
+        FileAction::RevertTo => {
+            !ability.edits.is_empty() && edit != EditOffer::Withheld && writable
+        }
         FileAction::Export | FileAction::ConvertTo => {
             ability.export.is_some() && exports == Exports::Offered
         }
@@ -227,6 +229,8 @@ pub(super) fn commands(
         .filter(|command| offers.access == FileAccess::Writable || !changes_file(**command))
         // The two views of a text file are listed as "Show Preview" and "Show Source" below.
         .filter(|command| **command != StageCommand::ToggleSource)
+        // The arrows between cells are keys, not rows of the palette.
+        .filter(|command| !matches!(command, StageCommand::PreviousCell | StageCommand::NextCell))
         .filter(|command| stage.input_for(**command, params).is_some())
         .map(|command| Command::Stage(*command));
     let views = match (stage, params.text.views) {
@@ -320,6 +324,10 @@ fn changes_file(command: StageCommand) -> bool {
             | StageCommand::MovePageLater
             | StageCommand::Edit
             | StageCommand::Save
+            | StageCommand::AddRow
+            | StageCommand::DeletePicked
+            | StageCommand::AddItem
+            | StageCommand::RenameKey
     )
 }
 
@@ -522,6 +530,11 @@ pub(super) fn params(
     {
         measured.raster =
             crate::families::adjusted_raster(measured.raster.clone(), raster, base, adjust, area);
+    }
+    // A pane, and a file that refuses a save, change nothing: no cell and no node is typed into.
+    if pane || access == FileAccess::ReadOnly {
+        measured.table.editable = crate::Editable::No;
+        measured.tree.editable = crate::Editable::No;
     }
     if pane {
         measured.text.editable = crate::Editable::No;
@@ -779,8 +792,16 @@ mod tests {
             ),
             ("code", Code, with(&[Export, ConvertTo, Print])),
             ("plain text", PlainText, with(&[Export, ConvertTo, Print])),
-            ("a table has no export", Table, with(&[])),
-            ("a tree has no export", Tree, with(&[])),
+            (
+                "a table is edited in place: no export, but its versions",
+                Table,
+                with(&[SaveCopy, RevertTo]),
+            ),
+            (
+                "a tree is edited in place: no export, but its versions",
+                Tree,
+                with(&[SaveCopy, RevertTo]),
+            ),
             ("a book has no export", Book, with(&[])),
             ("a font is a card of facts", Font, with(&[])),
             ("an archive is a card of facts", Archive, with(&[])),

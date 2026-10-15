@@ -52,7 +52,8 @@ pub use code::{
     tokens_html,
 };
 pub use edit::{
-    Buffer, EDIT_BYTES, EditRefusal, EditText, Motion, Preedit, Revision, Selection, Session,
+    Buffer, EDIT_BYTES, EditRefusal, EditStamp, EditText, Motion, Preedit, Revision, Selection,
+    Session,
 };
 pub use encoding::{Coverage, DETECT_BYTES, Detected, LegacyEncoding, TextCodec, detect};
 pub use error::TextError;
@@ -68,7 +69,9 @@ pub use peek::{
     TablePeek, TablePeeked, TableSource, Tally, TreePeek, TreePeeked,
 };
 pub use table::{
-    CharWidth, ColumnCount, HeaderMode, RowCount, RowIndex, SHEET_ROWS, Separator, Sheet,
-    TABLE_BYTES, Table, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook,
+    CharWidth, ColumnCount, HeaderMode, RowCount, RowIndex, RowRef, SHEET_ROWS, Separator, Sheet,
+    TABLE_BYTES, Table, TableEdits, Undid, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook,
 };
-pub use tree::{ChildCount, NodeKind, Openness, RowLabel, Tree, TreeRow, VisibleRow};
+pub use tree::{
+    ChildCount, NodeKind, Openness, RowLabel, Tree, TreeEditError, TreeRow, TreeSession, VisibleRow,
+};

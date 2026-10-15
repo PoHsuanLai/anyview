@@ -1,6 +1,12 @@
 use super::*;
+use crate::edits::Rewind;
+use crate::stage::data_edits::{
+    AfterTyping, DataEdits, EditDepth, EditLog, EditSessionIn, EditSessionOut, RowOrder, TypingIn,
+    TypingSeed, TypingState,
+};
 use crate::stage::find::{FindHits, FindOut, HitCount, HitIndex, StageFind};
 use crate::stage::row::{RowNo, RowStep};
+use crate::stage::text::{Changes, Editable};
 use crate::stage::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use ds_core::machine::Machine;
@@ -19,6 +25,7 @@ const fn browsing_by(sheet: u32, sort: Option<ColumnSort>) -> TableStage {
         sort,
         find: None,
         scale: ContentScale::ACTUAL,
+        cells: Cells::NONE,
     }
 }
 fn selected_by(sheet: u32, row: u32, sort: Option<ColumnSort>) -> TableStage {
@@ -28,6 +35,7 @@ fn selected_by(sheet: u32, row: u32, sort: Option<ColumnSort>) -> TableStage {
         sort,
         find: None,
         scale: ContentScale::ACTUAL,
+        cells: Cells::NONE,
     }
 }
 /// Several rows picked, with the anchor and the cursor where the last pick left them.
@@ -43,6 +51,7 @@ fn several(
         sort,
         find: None,
         scale: ContentScale::ACTUAL,
+        cells: Cells::NONE,
     }
 }
 const fn pick(row: usize, how: PickHow) -> TableIn {
@@ -420,6 +429,7 @@ fn the_table_stage_steps_as_the_table_says() {
             columns: 3,
             rows: 10,
             page: 4,
+            editable: Editable::No,
         };
         let (next, outs) = before.step(input, Stamp(0), &params, &());
         assert_eq!(next, after, "{name}");
@@ -449,6 +459,7 @@ fn copy_asks_for_the_picked_rows_and_with_none_picked_asks_for_nothing() {
         columns: 3,
         rows: 10,
         page: 4,
+        editable: Editable::No,
     };
     let picked = several(0, (2, 4), 2..5, None);
     let (next, outs) = picked.clone().step(TableIn::Copy, Stamp(0), &params, &());
@@ -474,6 +485,7 @@ fn finding(sheet: u32, hits: FindHits) -> TableStage {
         sort: None,
         find: Some(StageFind { query: CAT, hits }),
         scale: ContentScale::ACTUAL,
+        cells: Cells::NONE,
     }
 }
 
@@ -484,18 +496,24 @@ fn found(count: u32, at: u32) -> FindHits {
 fn zoomed(stage: TableStage, scale: ContentScale) -> TableStage {
     match stage {
         TableStage::Browsing {
-            sheet, sort, find, ..
+            sheet,
+            sort,
+            find,
+            cells,
+            ..
         } => TableStage::Browsing {
             sheet,
             sort,
             find,
             scale,
+            cells,
         },
         TableStage::Selected {
             sheet,
             rows,
             sort,
             find,
+            cells,
             ..
         } => TableStage::Selected {
             sheet,
@@ -503,6 +521,7 @@ fn zoomed(stage: TableStage, scale: ContentScale) -> TableStage {
             sort,
             find,
             scale,
+            cells,
         },
     }
 }
@@ -536,6 +555,7 @@ fn a_find_in_a_table_asks_for_a_search_and_follows_its_answer() {
                     hits: FindHits::Idle,
                 }),
                 scale: ContentScale::ACTUAL,
+                cells: Cells::NONE,
             },
             search(FindOut::Clear),
         ),
@@ -627,6 +647,7 @@ fn a_find_in_a_table_asks_for_a_search_and_follows_its_answer() {
                     hits: found(3, 1),
                 }),
                 scale: ContentScale::ACTUAL,
+                cells: Cells::NONE,
             },
             vec![],
         ),
@@ -644,6 +665,7 @@ fn a_find_in_a_table_asks_for_a_search_and_follows_its_answer() {
             columns: 3,
             rows: 10,
             page: 4,
+            editable: Editable::No,
         };
         let (next, outs) = before.step(input, Stamp(0), &params, &());
         assert_eq!(next, after, "{name}: state");
@@ -680,5 +702,371 @@ fn zooming_a_table_steps_its_scale_and_keeps_the_cursor() {
         let (next, outs) = before.step(input, Stamp(0), &TableParams::default(), &());
         assert_eq!(next, after, "{name}");
         assert!(outs.is_empty(), "{name}");
+    }
+}
+
+const EDITABLE: TableParams = TableParams {
+    sheets: SheetTotal(1),
+    columns: 3,
+    rows: 10,
+    page: 4,
+    editable: Editable::Yes,
+};
+
+/// A row picked, with the cell cursor, what is typed and what the window says of the edits.
+fn at_cell(row: u32, column: Option<u32>, typing: TypingState, log: EditLog) -> TableStage {
+    TableStage::Selected {
+        sheet: SheetNo(0),
+        rows: RowSelection::single(row as usize),
+        sort: None,
+        find: None,
+        scale: ContentScale::ACTUAL,
+        cells: Cells {
+            focus: column.map_or(CellFocus::Row, |column| CellFocus::Cell(ColumnNo(column))),
+            edits: DataEdits { log, typing },
+        },
+    }
+}
+
+fn unsaved(undo: u32) -> EditLog {
+    EditLog {
+        changes: Changes::Unsaved,
+        undo: EditDepth(undo),
+        ..EditLog::NONE
+    }
+}
+
+fn typed(text: &'static str) -> TypedText {
+    TypedText::from_static(text)
+}
+
+/// Name, whether the file takes edits, state before, input, state after, outputs.
+type CellCase = (
+    &'static str,
+    Editable,
+    TableStage,
+    TableIn,
+    TableStage,
+    Vec<TableOut>,
+);
+
+#[test]
+fn cells_are_stepped_typed_into_and_taken_as_a_spreadsheet_does() {
+    let none = EditLog::NONE;
+    let begin = |seed| TableIn::Typing(TypingIn::Begin(seed));
+    let commit = |text, then| TableIn::Typing(TypingIn::Commit(text, then));
+    let sets = |row, column, text| {
+        vec![TableOut::Set {
+            row: RowNo(row),
+            column: ColumnNo(column),
+            text,
+            sort: None,
+        }]
+    };
+    let cases: Vec<CellCase> = vec![
+        (
+            "return types into the first cell of the picked row",
+            Editable::Yes,
+            selected(0, 2),
+            begin(TypingSeed::Existing),
+            at_cell(2, Some(0), TypingState::Value(TypingSeed::Existing), none),
+            vec![],
+        ),
+        (
+            "return types into the cell the cursor is on",
+            Editable::Yes,
+            at_cell(2, Some(1), TypingState::Idle, none),
+            begin(TypingSeed::Existing),
+            at_cell(2, Some(1), TypingState::Value(TypingSeed::Existing), none),
+            vec![],
+        ),
+        (
+            "a key typed on a picked cell replaces its text",
+            Editable::Yes,
+            at_cell(2, Some(1), TypingState::Idle, none),
+            begin(TypingSeed::Typed(typed("x"))),
+            at_cell(
+                2,
+                Some(1),
+                TypingState::Value(TypingSeed::Typed(typed("x"))),
+                none,
+            ),
+            vec![],
+        ),
+        (
+            "with no row picked there is no cell to type into",
+            Editable::Yes,
+            browsing(0),
+            begin(TypingSeed::Existing),
+            browsing(0),
+            vec![],
+        ),
+        (
+            "a file that cannot be edited starts no typing",
+            Editable::No,
+            selected(0, 2),
+            begin(TypingSeed::Existing),
+            selected(0, 2),
+            vec![],
+        ),
+        (
+            "a double-click picks the row alone and types into the cell",
+            Editable::Yes,
+            browsing(0),
+            TableIn::EditAt(RowNo(4), ColumnNo(2)),
+            at_cell(4, Some(2), TypingState::Value(TypingSeed::Existing), none),
+            vec![],
+        ),
+        (
+            "a double-click below the last row does nothing",
+            Editable::Yes,
+            browsing(0),
+            TableIn::EditAt(RowNo(40), ColumnNo(0)),
+            browsing(0),
+            vec![],
+        ),
+        (
+            "right from the row goes to the first cell",
+            Editable::Yes,
+            selected(0, 2),
+            TableIn::StepCell(CellStep::Right),
+            at_cell(2, Some(0), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "right goes on to the next cell",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Idle, none),
+            TableIn::StepCell(CellStep::Right),
+            at_cell(2, Some(1), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "right stops at the last cell",
+            Editable::Yes,
+            at_cell(2, Some(2), TypingState::Idle, none),
+            TableIn::StepCell(CellStep::Right),
+            at_cell(2, Some(2), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "left stops at the first cell",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Idle, none),
+            TableIn::StepCell(CellStep::Left),
+            at_cell(2, Some(0), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "the arrows keep the cell cursor on a read-only file where it was",
+            Editable::No,
+            selected(0, 2),
+            TableIn::StepCell(CellStep::Right),
+            selected(0, 2),
+            vec![],
+        ),
+        (
+            "a click on a cell picks its row and puts the cell cursor on it",
+            Editable::Yes,
+            selected(0, 5),
+            TableIn::FocusCell(RowNo(2), ColumnNo(2)),
+            at_cell(2, Some(2), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "return takes the text and goes down a row",
+            Editable::Yes,
+            at_cell(2, Some(1), TypingState::Value(TypingSeed::Existing), none),
+            commit(typed("hi"), AfterTyping::Down),
+            at_cell(3, Some(1), TypingState::Idle, none),
+            sets(2, 1, typed("hi")),
+        ),
+        (
+            "return on the last row stays on it",
+            Editable::Yes,
+            at_cell(9, Some(1), TypingState::Value(TypingSeed::Existing), none),
+            commit(typed("hi"), AfterTyping::Down),
+            at_cell(9, Some(1), TypingState::Idle, none),
+            sets(9, 1, typed("hi")),
+        ),
+        (
+            "tab takes the text and goes right a cell",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Value(TypingSeed::Existing), none),
+            commit(typed("hi"), AfterTyping::Right),
+            at_cell(2, Some(1), TypingState::Idle, none),
+            sets(2, 0, typed("hi")),
+        ),
+        (
+            "the caret leaving takes the text and stays",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Value(TypingSeed::Existing), none),
+            commit(typed("hi"), AfterTyping::Stay),
+            at_cell(2, Some(0), TypingState::Idle, none),
+            sets(2, 0, typed("hi")),
+        ),
+        (
+            "escape lets the text go",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Value(TypingSeed::Existing), none),
+            TableIn::Typing(TypingIn::Cancel),
+            at_cell(2, Some(0), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "text taken when nothing was being typed is no edit",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Idle, none),
+            commit(typed("hi"), AfterTyping::Down),
+            at_cell(2, Some(0), TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "a row is added below the cursor in the file's order",
+            Editable::Yes,
+            TableStage::Selected {
+                sheet: SheetNo(0),
+                rows: RowSelection::single(3),
+                sort: up(1),
+                find: None,
+                scale: ContentScale::ACTUAL,
+                cells: Cells::NONE,
+            },
+            TableIn::AddRow,
+            selected(0, 3),
+            vec![TableOut::AddRow {
+                below: RowNo(3),
+                sort: up(1),
+            }],
+        ),
+        (
+            "rows taken away leave none picked and the sort put away",
+            Editable::Yes,
+            several(0, (2, 4), 2..5, up(1)),
+            TableIn::DeleteRows,
+            browsing(0),
+            vec![TableOut::DeleteRows {
+                rows: RowSelection::of_rows(Some(2), Some(4), 2..5),
+                sort: up(1),
+            }],
+        ),
+        (
+            "a read-only file takes no row away",
+            Editable::No,
+            selected(0, 3),
+            TableIn::DeleteRows,
+            selected(0, 3),
+            vec![],
+        ),
+        (
+            "undo is asked for only when there is something to take back",
+            Editable::Yes,
+            at_cell(2, Some(0), TypingState::Idle, unsaved(1)),
+            TableIn::Session(EditSessionIn::Undo),
+            at_cell(2, Some(0), TypingState::Idle, unsaved(1)),
+            vec![TableOut::Session(EditSessionOut::Rewind(Rewind::Undo))],
+        ),
+        (
+            "undo with nothing to take back asks for nothing",
+            Editable::Yes,
+            selected(0, 2),
+            TableIn::Session(EditSessionIn::Undo),
+            selected(0, 2),
+            vec![],
+        ),
+        (
+            "save is asked for only while there are changes",
+            Editable::Yes,
+            selected(0, 2),
+            TableIn::Session(EditSessionIn::Save),
+            selected(0, 2),
+            vec![],
+        ),
+        (
+            "saving the changes asks the window to write them",
+            Editable::Yes,
+            at_cell(2, None, TypingState::Idle, unsaved(1)),
+            TableIn::Session(EditSessionIn::Save),
+            at_cell(2, None, TypingState::Idle, unsaved(1)),
+            vec![TableOut::Session(EditSessionOut::Save)],
+        ),
+        (
+            "letting the changes go says so and marks them saved",
+            Editable::Yes,
+            at_cell(2, None, TypingState::Idle, unsaved(1)),
+            TableIn::Session(EditSessionIn::Discard),
+            at_cell(
+                2,
+                None,
+                TypingState::Idle,
+                EditLog {
+                    changes: Changes::Saved,
+                    undo: EditDepth(1),
+                    ..EditLog::NONE
+                },
+            ),
+            vec![TableOut::Session(EditSessionOut::Discard)],
+        ),
+        (
+            "what the window says of the edits is taken as it is",
+            Editable::Yes,
+            selected(0, 2),
+            TableIn::Session(EditSessionIn::Logged(unsaved(2))),
+            at_cell(2, None, TypingState::Idle, unsaved(2)),
+            vec![],
+        ),
+        (
+            "a header press is ignored once rows came or went",
+            Editable::Yes,
+            at_cell(
+                2,
+                None,
+                TypingState::Idle,
+                EditLog {
+                    rows: RowOrder::Changed,
+                    ..EditLog::NONE
+                },
+            ),
+            TableIn::PressHeader(1),
+            at_cell(
+                2,
+                None,
+                TypingState::Idle,
+                EditLog {
+                    rows: RowOrder::Changed,
+                    ..EditLog::NONE
+                },
+            ),
+            vec![],
+        ),
+        (
+            "escape with the cursor put away leaves the cells too",
+            Editable::Yes,
+            at_cell(2, Some(1), TypingState::Idle, unsaved(1)),
+            TableIn::Deselect,
+            TableStage::Browsing {
+                sheet: SheetNo(0),
+                sort: None,
+                find: None,
+                scale: ContentScale::ACTUAL,
+                cells: Cells {
+                    focus: CellFocus::Row,
+                    edits: DataEdits {
+                        log: unsaved(1),
+                        typing: TypingState::Idle,
+                    },
+                },
+            },
+            vec![],
+        ),
+    ];
+    for (name, editable, before, input, after, want) in cases {
+        let params = TableParams {
+            editable,
+            ..EDITABLE
+        };
+        let (next, outs) = before.step(input, Stamp(0), &params, &());
+        assert_eq!(next, after, "{name}: state");
+        assert_eq!(outs, want, "{name}: outputs");
     }
 }

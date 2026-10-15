@@ -81,6 +81,13 @@ const TEXT: StageAbilities = StageAbilities {
     ..READ_ONLY
 };
 
+/// A table or a tree is edited in place and written back, which keeps the file's versions to go
+/// back to. (A file the viewer cannot write back says so in its edit offer, and offers nothing.)
+const DATA: StageAbilities = StageAbilities {
+    edits: &[FileAction::RevertTo],
+    ..READ_ONLY
+};
+
 impl Stage {
     /// What this stage can do. The one match on the stage for the file actions it carries out.
     #[must_use]
@@ -90,7 +97,8 @@ impl Stage {
             Stage::Pdf(_) => PDF,
             Stage::Media(_) => MEDIA,
             Stage::Text(_) => TEXT,
-            Stage::NoStage | Stage::Table(_) | Stage::Tree(_) => READ_ONLY,
+            Stage::Table(_) | Stage::Tree(_) => DATA,
+            Stage::NoStage => READ_ONLY,
         }
     }
 }

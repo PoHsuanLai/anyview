@@ -151,15 +151,16 @@ mod tests {
             .map(|row| row.iter().map(|cell| (*cell).to_owned()).collect())
             .collect();
         let table = Table::from_rows(rows, HeaderMode::Present, Coverage::Whole);
-        TableDoc {
-            sheets: vec![Arc::new(super::super::doc::SheetDoc {
+        TableDoc::new(
+            vec![Arc::new(super::super::doc::SheetDoc {
                 name: String::new(),
                 widths: Vec::new(),
                 kinds: Vec::new(),
                 table,
             })],
-            facts: anyview_core::Facts::empty(),
-        }
+            anyview_core::Facts::empty(),
+            None,
+        )
     }
 
     #[test]
@@ -236,6 +237,7 @@ mod tests {
             sort: Some(by),
             find: None,
             scale: crate::ContentScale::ACTUAL,
+            cells: crate::Cells::default(),
         });
         // name, stage, order, row the cursor goes to
         let cases: Vec<(&str, &Stage, Option<&SortedOrder>, u32)> = vec![

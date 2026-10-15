@@ -5,6 +5,7 @@
 //! `anyview-ui`, and the host writes what [`Session::file_bytes`] gives back.
 
 mod buffer;
+mod log;
 mod motion;
 mod session;
 mod text;
@@ -13,5 +14,7 @@ mod text;
 mod tests;
 
 pub use buffer::{Buffer, Revision};
+pub use log::EditStamp;
+pub(crate) use log::Log;
 pub use session::{Motion, Preedit, Selection, Session};
 pub use text::{EDIT_BYTES, EditRefusal, EditText};

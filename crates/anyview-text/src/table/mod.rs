@@ -2,10 +2,12 @@
 //! delimited file is indexed by record and its rows are parsed a window at a time (`indexed`); a
 //! spreadsheet's sheet, and a table parsed from text, hold their rows.
 
+mod edit;
 mod header;
 mod indexed;
 mod separator;
 mod workbook;
+mod write;
 
 #[cfg(test)]
 mod tests;
@@ -20,6 +22,7 @@ use indexed::{Indexed, RecordIndex, WINDOW_ROWS};
 use std::ops::Range;
 use std::sync::Arc;
 
+pub use edit::{RowRef, TableEdits, Undid};
 pub use separator::Separator;
 pub use workbook::{SHEET_ROWS, Sheet, WORKBOOK_BYTES, WORKBOOK_CELLS, Workbook};
 

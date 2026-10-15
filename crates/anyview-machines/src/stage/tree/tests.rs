@@ -1,6 +1,12 @@
 use super::*;
+use crate::edits::Rewind;
+use crate::stage::data_edits::{
+    AfterTyping, DataEdits, EditDepth, EditLog, EditSessionIn, EditSessionOut, TypingIn,
+    TypingSeed, TypingState,
+};
 use crate::stage::find::{FindHits, FindOut, HitCount, HitIndex, StageFind};
 use crate::stage::row::{RowNo, RowStep};
+use crate::stage::text::Editable;
 use crate::stage::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use anyview_core::{OpenNodes, TreePath};
@@ -15,6 +21,7 @@ fn browsing(open: OpenNodes) -> TreeStage {
         open,
         find: None,
         scale: ContentScale::ACTUAL,
+        edits: DataEdits::NONE,
     }
 }
 fn selected(open: OpenNodes, row: u32) -> TreeStage {
@@ -23,6 +30,7 @@ fn selected(open: OpenNodes, row: u32) -> TreeStage {
         row: RowNo(row),
         find: None,
         scale: ContentScale::ACTUAL,
+        edits: DataEdits::NONE,
     }
 }
 fn top() -> OpenNodes {
@@ -30,7 +38,13 @@ fn top() -> OpenNodes {
 }
 
 /// Ten visible rows, four to a page.
-const PARAMS: TreeParams = TreeParams { rows: 10, page: 4 };
+const PARAMS: TreeParams = TreeParams {
+    rows: 10,
+    page: 4,
+    editable: Editable::No,
+    under: NodeUnder::Nothing,
+    key: KeyUnder::Absent,
+};
 
 /// Name, state before, input, state after.
 type Case = (&'static str, TreeStage, TreeIn, TreeStage);
@@ -147,11 +161,13 @@ fn finding(open: OpenNodes, row: Option<u32>, hits: FindHits) -> TreeStage {
             row: RowNo(row),
             find,
             scale: ContentScale::ACTUAL,
+            edits: DataEdits::NONE,
         },
         None => TreeStage::Browsing {
             open,
             find,
             scale: ContentScale::ACTUAL,
+            edits: DataEdits::NONE,
         },
     }
 }
@@ -259,14 +275,26 @@ fn a_find_in_a_tree_asks_for_a_search_follows_its_answer_and_opens_the_way_to_a_
 fn zooming_a_tree_steps_its_scale_and_keeps_where_it_is() {
     let bigger = ContentScale::ACTUAL.stepped(ZoomDir::In);
     let with = |stage: TreeStage, scale: ContentScale| match stage {
-        TreeStage::Browsing { open, find, .. } => TreeStage::Browsing { open, find, scale },
+        TreeStage::Browsing {
+            open, find, edits, ..
+        } => TreeStage::Browsing {
+            open,
+            find,
+            scale,
+            edits,
+        },
         TreeStage::Selected {
-            open, row, find, ..
+            open,
+            row,
+            find,
+            edits,
+            ..
         } => TreeStage::Selected {
             open,
             row,
             find,
             scale,
+            edits,
         },
     };
     let (zoomed, outs) =
@@ -275,4 +303,188 @@ fn zooming_a_tree_steps_its_scale_and_keeps_where_it_is() {
     assert!(outs.is_empty());
     let (actual, _) = zoomed.step(TreeIn::ZoomActual, Stamp(0), &PARAMS, &());
     assert_eq!(actual, selected(top(), 3));
+}
+
+const EDITABLE: TreeParams = TreeParams {
+    rows: 10,
+    page: 4,
+    editable: Editable::Yes,
+    under: NodeUnder::Scalar,
+    key: KeyUnder::Present,
+};
+
+/// The cursor on a row, with what is typed and what the window says of the edits.
+fn typing_at(row: u32, typing: TypingState, log: EditLog) -> TreeStage {
+    TreeStage::Selected {
+        open: top(),
+        row: RowNo(row),
+        find: None,
+        scale: ContentScale::ACTUAL,
+        edits: DataEdits { log, typing },
+    }
+}
+
+/// Name, the parameters, state before, input, state after, outputs.
+type EditCase = (
+    &'static str,
+    TreeParams,
+    TreeStage,
+    TreeIn,
+    TreeStage,
+    Vec<TreeOut>,
+);
+
+#[test]
+fn a_tree_types_into_a_value_or_a_key_and_asks_for_the_change() {
+    let none = EditLog::NONE;
+    let begin = TreeIn::Typing(TypingIn::Begin(TypingSeed::Existing));
+    let text = TypedText::from_static("new");
+    let on = |under, key| TreeParams {
+        under,
+        key,
+        ..EDITABLE
+    };
+    let cases: Vec<EditCase> = vec![
+        (
+            "return types into a value",
+            EDITABLE,
+            typing_at(3, TypingState::Idle, none),
+            begin.clone(),
+            typing_at(3, TypingState::Value(TypingSeed::Existing), none),
+            vec![],
+        ),
+        (
+            "an object or an array has no text to type",
+            on(NodeUnder::Container, KeyUnder::Present),
+            typing_at(3, TypingState::Idle, none),
+            begin.clone(),
+            typing_at(3, TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "a file that cannot be edited starts no typing",
+            TreeParams {
+                editable: Editable::No,
+                ..EDITABLE
+            },
+            typing_at(3, TypingState::Idle, none),
+            begin,
+            typing_at(3, TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "shift return types a new key",
+            EDITABLE,
+            typing_at(3, TypingState::Idle, none),
+            TreeIn::RenameKey,
+            typing_at(3, TypingState::Key, none),
+            vec![],
+        ),
+        (
+            "an item of an array has no key to type",
+            on(NodeUnder::Scalar, KeyUnder::Absent),
+            typing_at(3, TypingState::Idle, none),
+            TreeIn::RenameKey,
+            typing_at(3, TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "the value typed is asked for, and the cursor goes down",
+            EDITABLE,
+            typing_at(3, TypingState::Value(TypingSeed::Existing), none),
+            TreeIn::Typing(TypingIn::Commit(text.clone(), AfterTyping::Down)),
+            typing_at(4, TypingState::Idle, none),
+            vec![TreeOut::Set {
+                row: RowNo(3),
+                text: text.clone(),
+            }],
+        ),
+        (
+            "the key typed is asked for",
+            EDITABLE,
+            typing_at(3, TypingState::Key, none),
+            TreeIn::Typing(TypingIn::Commit(text.clone(), AfterTyping::Stay)),
+            typing_at(3, TypingState::Idle, none),
+            vec![TreeOut::Rename {
+                row: RowNo(3),
+                text: text.clone(),
+            }],
+        ),
+        (
+            "escape lets what is typed go",
+            EDITABLE,
+            typing_at(3, TypingState::Key, none),
+            TreeIn::Typing(TypingIn::Cancel),
+            typing_at(3, TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "a node is added below the cursor",
+            EDITABLE,
+            typing_at(3, TypingState::Idle, none),
+            TreeIn::AddItem,
+            typing_at(3, TypingState::Idle, none),
+            vec![TreeOut::Add(RowNo(3))],
+        ),
+        (
+            "the node under the cursor is taken away",
+            EDITABLE,
+            typing_at(3, TypingState::Idle, none),
+            TreeIn::DeleteItem,
+            typing_at(3, TypingState::Idle, none),
+            vec![TreeOut::Delete(RowNo(3))],
+        ),
+        (
+            "the root is not taken away",
+            EDITABLE,
+            typing_at(0, TypingState::Idle, none),
+            TreeIn::DeleteItem,
+            typing_at(0, TypingState::Idle, none),
+            vec![],
+        ),
+        (
+            "the rows the edit left are taken as the window says",
+            EDITABLE,
+            typing_at(3, TypingState::Idle, none),
+            TreeIn::Reshaped {
+                open: top().opened(at(&[1])),
+                row: Some(RowNo(4)),
+            },
+            TreeStage::Selected {
+                open: top().opened(at(&[1])),
+                row: RowNo(4),
+                find: None,
+                scale: ContentScale::ACTUAL,
+                edits: DataEdits::NONE,
+            },
+            vec![],
+        ),
+        (
+            "undo is asked for when there is something to take back",
+            EDITABLE,
+            typing_at(
+                3,
+                TypingState::Idle,
+                EditLog {
+                    undo: EditDepth(2),
+                    ..none
+                },
+            ),
+            TreeIn::Session(EditSessionIn::Undo),
+            typing_at(
+                3,
+                TypingState::Idle,
+                EditLog {
+                    undo: EditDepth(2),
+                    ..none
+                },
+            ),
+            vec![TreeOut::Session(EditSessionOut::Rewind(Rewind::Undo))],
+        ),
+    ];
+    for (name, params, before, input, after, want) in cases {
+        let (next, outs) = before.step(input, Stamp(0), &params, &());
+        assert_eq!(next, after, "{name}: state");
+        assert_eq!(outs, want, "{name}: outputs");
+    }
 }

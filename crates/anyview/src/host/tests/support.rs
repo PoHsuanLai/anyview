@@ -5,7 +5,8 @@ use crate::media::{Exports, MediaHub};
 use crate::runtime::{Mailbox, Pool, PoolSize};
 use crate::seam::NoticeWaker;
 use anyview_core::{
-    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, Resume, SniffStep, Source, sniff,
+    ByteLen, FileHead, FileName, FilePath, FileStamp, ModTime, Resume, SniffStep, Source,
+    ZipEntries, sniff, sniff_zip,
 };
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
@@ -31,8 +32,14 @@ pub fn path(text: &str) -> FilePath {
 pub fn probed(at: &Path, name: &str, bytes: &[u8]) -> Opened {
     std::fs::write(at.join(name), bytes).unwrap();
     let file = FileName::new(name).unwrap();
-    let SniffStep::Done(sniffed) = sniff(&FileHead::new(bytes), &file) else {
-        panic!("{name} needs a look inside");
+    let sniffed = match sniff(&FileHead::new(bytes), &file) {
+        SniffStep::Done(sniffed) => sniffed,
+        // A zip is told what is inside it, as the host's probe would read: the fixtures that are
+        // zips are workbooks.
+        SniffStep::LookInside(probe) => sniff_zip(
+            probe,
+            &ZipEntries::new(["[Content_Types].xml", "xl/workbook.xml"], None),
+        ),
     };
     let stamp = FileStamp {
         len: ByteLen(bytes.len() as u64),

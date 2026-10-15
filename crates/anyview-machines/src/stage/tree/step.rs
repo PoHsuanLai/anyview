@@ -1,5 +1,6 @@
 //! The tree stage's transitions.
 
+use super::edit::{self, Worked};
 use super::model::{Look, TreeIn, TreeOut, TreeParams, TreeStage};
 use crate::stage::find::{FindHits, FindOut, HitStep, StageFind};
 use crate::stage::row::RowNo;
@@ -29,12 +30,14 @@ impl Machine for TreeStage {
                 open: _,
                 find: _,
                 scale: _,
+                edits: _,
             }
             | TreeStage::Selected {
                 open: _,
                 row: _,
                 find: _,
                 scale: _,
+                edits: _,
             } => None,
         }
     }
@@ -86,11 +89,20 @@ fn advance(
     input: TreeIn,
     params: &TreeParams,
 ) -> (OpenNodes, Option<RowNo>, Look, Vec<TreeOut>) {
-    let Look { find, scale } = look;
-    let kept = |open: OpenNodes,
-                row: Option<RowNo>,
-                find: Option<StageFind>,
-                outs: Vec<TreeOut>| { (open, row, Look { find, scale }, outs) };
+    let Look { find, scale, edits } = look;
+    let kept =
+        |open: OpenNodes, row: Option<RowNo>, find: Option<StageFind>, outs: Vec<TreeOut>| {
+            (
+                open,
+                row,
+                Look {
+                    find,
+                    scale,
+                    edits: edits.clone(),
+                },
+                outs,
+            )
+        };
     match input {
         TreeIn::Toggle(path) => kept(open.toggled(&path), row, find, vec![]),
         TreeIn::Open(path) => kept(open.opened(path), row, find, vec![]),
@@ -144,6 +156,7 @@ fn advance(
             Look {
                 find,
                 scale: scale.stepped(dir),
+                edits,
             },
             vec![],
         ),
@@ -153,9 +166,25 @@ fn advance(
             Look {
                 find,
                 scale: ContentScale::ACTUAL,
+                edits,
             },
             vec![],
         ),
+        TreeIn::Typing(_)
+        | TreeIn::RenameKey
+        | TreeIn::AddItem
+        | TreeIn::DeleteItem
+        | TreeIn::Reshaped { .. }
+        | TreeIn::Session(_) => {
+            let worked = edit::apply((open, row, edits), input, params);
+            let Worked {
+                open,
+                row,
+                edits,
+                outs,
+            } = worked;
+            (open, row, Look { find, scale, edits }, outs)
+        }
         TreeIn::Elapsed => kept(open, row, find, vec![]),
     }
 }

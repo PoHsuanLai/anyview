@@ -133,6 +133,21 @@ async fn edited_text_is_written_over_the_file_with_the_original_kept_and_only_te
         Carry::Declined(Declined::Edit),
         "a picture takes no text"
     );
+    // A delimited table and a JSON document are written whole as a text is; a workbook is not.
+    for (name, bytes, taken) in [
+        ("cells.csv", &b"a,b\n1,2\n"[..], true),
+        ("nodes.json", &b"{\"a\":1}"[..], true),
+        ("sheet.xlsx", &b"PK\x03\x04"[..], false),
+    ] {
+        let file = probed(dir.path(), name, bytes);
+        let (shown, _) = route(Shown::default(), HostRequest::Opened(file));
+        let (_, carry) = route(shown, HostRequest::SaveText(text()));
+        assert_eq!(
+            matches!(carry, Carry::Desktop(_)),
+            taken,
+            "{name}: {carry:?}"
+        );
+    }
     let (_, carry) = route(Shown::default(), HostRequest::SaveText(text()));
     assert_eq!(carry, Carry::Declined(Declined::NoFileShown));
 }

@@ -4,6 +4,7 @@
 
 use super::arrive::shown_path;
 use super::carry::Carry;
+use super::data_edit;
 use super::shelf::{Doc, Settle};
 use crate::families::{Held, found_in};
 use crate::io::{HostRequest, Job, SaveEnd, TextSave};
@@ -37,7 +38,7 @@ fn tell(c: &Carry, input: TextIn) {
 }
 
 /// The file's name between quotes, for a sentence.
-fn quoted(c: &Carry) -> String {
+pub(super) fn quoted(c: &Carry) -> String {
     shown_path(c)
         .and_then(|path| path.file_name().map(|name| name.as_str().to_owned()))
         .map_or_else(
@@ -115,6 +116,8 @@ pub(super) fn forget(c: &Carry) {
     let edit = c.shelf.edit;
     let (mut session, mut settle, mut doc, mut writing) =
         (edit.session, edit.settle, edit.doc, edit.writing);
+    let mut data_writing = edit.data_writing;
+    data_writing.set(None);
     session.set(None);
     settle.set(Settle::Idle);
     doc.set(Doc::Current);
@@ -145,6 +148,9 @@ pub(super) fn save(c: &Carry) {
 pub(super) fn saved(c: &Carry, path: &FilePath, end: SaveEnd) {
     if shown_path(c).as_ref() != Some(path) {
         return;
+    }
+    if data_edit::shows_data(c) {
+        return data_edit::saved(c, path, end);
     }
     let edit = c.shelf.edit;
     let (mut session, mut settle, mut doc) = (edit.session, edit.settle, edit.doc);
@@ -185,6 +191,9 @@ pub(super) fn stamped(
         return Heard::NotMine;
     };
     let showing: Stage = dispatch.machine.state().peek().stage.clone();
+    if let (Stage::Table(_) | Stage::Tree(_), Some(now)) = (&showing, stamp) {
+        return data_edit::stamped(c, known, path, now, &showing);
+    }
     let (Some(edited), Some(now)) = (showing.edited(), stamp) else {
         return Heard::NotMine;
     };
@@ -236,7 +245,7 @@ fn reload(c: &Carry) {
 }
 
 /// `now` is the stamp the window knows the file by from here on.
-fn adopt(c: &Carry, path: &FilePath, now: FileStamp) {
+pub(super) fn adopt(c: &Carry, path: &FilePath, now: FileStamp) {
     let mut probe = c.shelf.probe;
     let with = |probed: crate::Opened| crate::Opened {
         source: Source::new(path.clone(), now),

@@ -1,6 +1,7 @@
 //! Turning what the person asked for into an input for the stage that is showing: palette
 //! commands and keys both end here, so a command means one thing wherever it came from.
 
+use super::data_edits::{EditSessionIn, TypingIn, TypingSeed, TypingState};
 use super::find::{FindHits, HitIndex, StageFind};
 use super::media::{
     ControlOffer, MediaAbilities, MediaIn, MediaStage, StepDirection, TrackKind, TrimEdge,
@@ -8,12 +9,13 @@ use super::media::{
 use super::model::{Stage, StageIn, StageParams};
 use super::pdf::{LineDir, PageEdits, PdfIn, PdfParams, PdfStage, end, nudged, start};
 use super::raster::{RasterIn, RasterParams, RasterStage};
-use super::row::RowStep;
-use super::table::{TableIn, TableStage};
-use super::text::{Editable, Edited, TextIn, TextParams, TextStage, TextStep};
-use super::tree::{TreeIn, TreeStage};
+use super::row::{RowNo, RowStep};
+use super::table::{CellStep, TableIn, TableParams, TableStage};
+use super::text::{Changes, Editable, Edited, TextIn, TextParams, TextStage, TextStep};
+use super::tree::{KeyUnder, NodeUnder, TreeIn, TreeParams, TreeStage};
 use super::zoom::ZoomDir;
 use crate::command::StageCommand;
+use crate::edits::Rewind;
 use crate::typed::TypedText;
 use anyview_core::{Speed, Zoom};
 
@@ -28,8 +30,8 @@ impl Stage {
             Stage::Pdf(stage) => pdf(command, stage, &params.pdf).map(StageIn::Pdf),
             Stage::Media(_) => media(command, &params.media.abilities).map(StageIn::Media),
             Stage::Text(stage) => text(command, stage, &params.text).map(StageIn::Text),
-            Stage::Table(stage) => table(command, stage).map(StageIn::Table),
-            Stage::Tree(_) => tree(command).map(StageIn::Tree),
+            Stage::Table(stage) => table(command, stage, &params.table).map(StageIn::Table),
+            Stage::Tree(stage) => tree(command, stage, &params.tree).map(StageIn::Tree),
         }
     }
 
@@ -44,6 +46,92 @@ impl Stage {
             | Stage::Media(_)
             | Stage::Table(_)
             | Stage::Tree(_) => None,
+        }
+    }
+
+    /// Whether the data the stage edits (a table's cells, a tree's nodes) has changes that are not
+    /// on disk. A text's are told by [`Stage::edited`].
+    #[must_use]
+    pub fn data_changes(&self) -> Changes {
+        match self {
+            Stage::Table(stage) => stage.cells().edits.log.changes,
+            Stage::Tree(stage) => stage.edits().log.changes,
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_) => Changes::Saved,
+        }
+    }
+
+    /// The input that takes back the last edit of a table's cells or a tree's nodes, or does the
+    /// one taken back again, when there is one to; `None` for the other stages and when nothing is
+    /// held to go back to.
+    #[must_use]
+    pub fn rewind_input(&self, rewind: Rewind) -> Option<StageIn> {
+        let log = match self {
+            Stage::Table(stage) => stage.cells().edits.log,
+            Stage::Tree(stage) => stage.edits().log,
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_) => return None,
+        };
+        let (held, input) = match rewind {
+            Rewind::Undo => (log.undo, EditSessionIn::Undo),
+            Rewind::Redo => (log.redo, EditSessionIn::Redo),
+        };
+        if held.0 == 0 {
+            return None;
+        }
+        match self {
+            Stage::Table(_) => Some(StageIn::Table(TableIn::Session(input))),
+            Stage::Tree(_) => Some(StageIn::Tree(TreeIn::Session(input))),
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_) => None,
+        }
+    }
+
+    /// The input that starts typing `text` into the cell under a table's cell cursor, when a key
+    /// typed now would: the cursor is on a cell of a file that can be edited and nothing is typed
+    /// in. `None` anywhere else, so the key is a key of the viewer's.
+    #[must_use]
+    pub fn typed_into(&self, text: TypedText, params: &StageParams) -> Option<StageIn> {
+        match self {
+            Stage::Table(stage)
+                if stage.column().is_some()
+                    && stage.cells().edits.typing == TypingState::Idle
+                    && params.table.editable == Editable::Yes =>
+            {
+                Some(StageIn::Table(TableIn::Typing(TypingIn::Begin(
+                    TypingSeed::Typed(text),
+                ))))
+            }
+            Stage::Table(_)
+            | Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_)
+            | Stage::Tree(_) => None,
+        }
+    }
+
+    /// Whether a value of a table or a tree is being typed into: the keys are the field's.
+    #[must_use]
+    pub fn is_typing(&self) -> bool {
+        match self {
+            Stage::Table(stage) => stage.cells().edits.typing != TypingState::Idle,
+            Stage::Tree(stage) => stage.edits().typing != TypingState::Idle,
+            Stage::NoStage
+            | Stage::Raster(_)
+            | Stage::Pdf(_)
+            | Stage::Media(_)
+            | Stage::Text(_) => false,
         }
     }
 
@@ -249,7 +337,13 @@ fn raster(command: StageCommand, stage: &RasterStage, params: &RasterParams) -> 
         | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
-        | StageCommand::Save => None,
+        | StageCommand::Save
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }
 
@@ -312,7 +406,13 @@ fn pdf(command: StageCommand, stage: &PdfStage, params: &PdfParams) -> Option<Pd
         | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
-        | StageCommand::Save => None,
+        | StageCommand::Save
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }
 
@@ -381,7 +481,13 @@ fn media(command: StageCommand, abilities: &MediaAbilities) -> Option<MediaIn> {
         | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
-        | StageCommand::Save => None,
+        | StageCommand::Save
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }
 
@@ -432,11 +538,19 @@ fn text(command: StageCommand, stage: &TextStage, params: &TextParams) -> Option
         | StageCommand::PreviousSheet
         | StageCommand::CollapseAll
         | StageCommand::SelectAll
-        | StageCommand::CopyRows => None,
+        | StageCommand::CopyRows
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }
 
-fn table(command: StageCommand, stage: &TableStage) -> Option<TableIn> {
+fn table(command: StageCommand, stage: &TableStage, params: &TableParams) -> Option<TableIn> {
+    let editing = params.editable == Editable::Yes;
+    let picked = stage.row().is_some();
     match command {
         StageCommand::NextSheet => Some(TableIn::NextSheet),
         StageCommand::PreviousSheet => Some(TableIn::PreviousSheet),
@@ -454,6 +568,16 @@ fn table(command: StageCommand, stage: &TableStage) -> Option<TableIn> {
         StageCommand::ZoomToActual => Some(TableIn::ZoomActual),
         StageCommand::SelectAll => Some(TableIn::SelectAll),
         StageCommand::CopyRows if stage.selected_count() > 0 => Some(TableIn::Copy),
+        StageCommand::Edit if editing && picked => {
+            Some(TableIn::Typing(TypingIn::Begin(TypingSeed::Existing)))
+        }
+        StageCommand::PreviousCell if editing && picked => Some(TableIn::StepCell(CellStep::Left)),
+        StageCommand::NextCell if editing && picked => Some(TableIn::StepCell(CellStep::Right)),
+        StageCommand::AddRow if editing && picked => Some(TableIn::AddRow),
+        StageCommand::DeletePicked if editing && picked => Some(TableIn::DeleteRows),
+        StageCommand::Save if stage.cells().edits.log.changes == Changes::Unsaved => {
+            Some(TableIn::Session(EditSessionIn::Save))
+        }
         StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
         | StageCommand::ToggleSource
@@ -479,11 +603,19 @@ fn table(command: StageCommand, stage: &TableStage) -> Option<TableIn> {
         | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
-        | StageCommand::Save => None,
+        | StageCommand::Save
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }
 
-fn tree(command: StageCommand) -> Option<TreeIn> {
+fn tree(command: StageCommand, stage: &TreeStage, params: &TreeParams) -> Option<TreeIn> {
+    let editing = params.editable == Editable::Yes;
+    let picked = stage.row();
     match command {
         StageCommand::CollapseAll => Some(TreeIn::CollapseAll),
         StageCommand::LineUp => Some(TreeIn::Move(RowStep::Up)),
@@ -498,6 +630,21 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         StageCommand::ZoomIn => Some(TreeIn::ZoomStep(ZoomDir::In)),
         StageCommand::ZoomOut => Some(TreeIn::ZoomStep(ZoomDir::Out)),
         StageCommand::ZoomToActual => Some(TreeIn::ZoomActual),
+        StageCommand::Edit if editing && picked.is_some() && params.under == NodeUnder::Scalar => {
+            Some(TreeIn::Typing(TypingIn::Begin(TypingSeed::Existing)))
+        }
+        StageCommand::RenameKey
+            if editing && picked.is_some() && params.key == KeyUnder::Present =>
+        {
+            Some(TreeIn::RenameKey)
+        }
+        StageCommand::AddItem if editing && picked.is_some() => Some(TreeIn::AddItem),
+        StageCommand::DeletePicked if editing && picked.is_some_and(|row| row != RowNo(0)) => {
+            Some(TreeIn::DeleteItem)
+        }
+        StageCommand::Save if stage.edits().log.changes == Changes::Unsaved => {
+            Some(TreeIn::Session(EditSessionIn::Save))
+        }
         StageCommand::ZoomToFit
         | StageCommand::ZoomToWidth
         | StageCommand::ToggleSource
@@ -525,6 +672,12 @@ fn tree(command: StageCommand) -> Option<TreeIn> {
         | StageCommand::CopyRows
         | StageCommand::Edit
         | StageCommand::Done
-        | StageCommand::Save => None,
+        | StageCommand::Save
+        | StageCommand::PreviousCell
+        | StageCommand::NextCell
+        | StageCommand::AddRow
+        | StageCommand::DeletePicked
+        | StageCommand::AddItem
+        | StageCommand::RenameKey => None,
     }
 }

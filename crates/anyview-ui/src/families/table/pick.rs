@@ -67,6 +67,28 @@ fn push_cell(text: &mut String, cell: &str) {
     }
 }
 
+/// The rows `rows` as Numbers copies them, for a sheet whose cells are read through `read`, the text
+/// at a place of the order shown and a column: what a sheet with edits made to it is read by.
+pub(super) fn copy_read(
+    columns: usize,
+    rows: &RowSelection,
+    read: impl Fn(usize, usize) -> String,
+) -> String {
+    let mut text = String::new();
+    for (line, place) in rows.rows().enumerate() {
+        if line > 0 {
+            text.push('\n');
+        }
+        for column in 0..columns {
+            if column > 0 {
+                text.push('\t');
+            }
+            push_cell(&mut text, &read(place, column));
+        }
+    }
+    text
+}
+
 /// The rows `rows` of `sheet` as Numbers copies them: a line for each, its cells between tabs, in
 /// the order shown (`order`, the file's own when `None`), with no header.
 pub(super) fn copy_text(sheet: &SheetDoc, rows: &RowSelection, order: Option<&[u32]>) -> String {

@@ -120,8 +120,22 @@ impl StageOut {
             )
             | StageOut::Pdf(PdfOut::ScrollTo(_) | PdfOut::Find(_) | PdfOut::Edit(_))
             | StageOut::Media(_)
-            | StageOut::Table(TableOut::Find(_) | TableOut::Copy(_))
-            | StageOut::Tree(TreeOut::Find(_)) => None,
+            | StageOut::Table(
+                TableOut::Find(_)
+                | TableOut::Copy(_)
+                | TableOut::Set { .. }
+                | TableOut::AddRow { .. }
+                | TableOut::DeleteRows { .. }
+                | TableOut::Session(_),
+            )
+            | StageOut::Tree(
+                TreeOut::Find(_)
+                | TreeOut::Set { .. }
+                | TreeOut::Rename { .. }
+                | TreeOut::Add(_)
+                | TreeOut::Delete(_)
+                | TreeOut::Session(_),
+            ) => None,
         }
     }
 
@@ -144,7 +158,20 @@ impl StageOut {
                 | TextOut::Wrapped(_),
             )
             | StageOut::Pdf(PdfOut::Remember(_) | PdfOut::ScrollTo(_) | PdfOut::Edit(_))
-            | StageOut::Table(TableOut::Copy(_))
+            | StageOut::Table(
+                TableOut::Copy(_)
+                | TableOut::Set { .. }
+                | TableOut::AddRow { .. }
+                | TableOut::DeleteRows { .. }
+                | TableOut::Session(_),
+            )
+            | StageOut::Tree(
+                TreeOut::Set { .. }
+                | TreeOut::Rename { .. }
+                | TreeOut::Add(_)
+                | TreeOut::Delete(_)
+                | TreeOut::Session(_),
+            )
             | StageOut::Media(_) => None,
         }
     }

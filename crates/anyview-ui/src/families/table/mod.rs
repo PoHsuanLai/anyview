@@ -3,6 +3,7 @@
 //! (`view`), parsed from the file a window at a time.
 
 mod doc;
+mod edits;
 mod find;
 mod kind;
 mod panel;
@@ -16,14 +17,16 @@ pub use sort::SortedOrder;
 pub(crate) use sort::sort_sheet;
 
 use crate::families::FoundHits;
-use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
+use crate::families::view::{Area, EditDone, Held, HitLine, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenPort};
 use crate::{
-    Command, HitIndex, PanelTab, PanelTabs, SheetNo, SheetTotal, Stage, StageCommand, StageFamily,
-    StageIn, StageParams, TableIn, TableParams, Ticket, TypedText,
+    Command, EditOffer, Editable, HitIndex, PanelTab, PanelTabs, SheetNo, SheetTotal, Stage,
+    StageCommand, StageFamily, StageIn, StageOut, StageParams, TableIn, TableParams, Ticket,
+    TypedText,
 };
 use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, Sniffed, Source};
+use anyview_text::EditStamp;
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
@@ -87,31 +90,32 @@ impl StageView for TableStageView {
                     .get(at)
                     .map_or(0, |sheet| sheet.table.columns().0),
                 sheets: SheetTotal(u32::try_from(doc.sheets.len()).unwrap_or(u32::MAX)),
-                rows: doc
-                    .sheets
-                    .get(at)
-                    .map_or(0, |sheet| sheet.table.row_count().0),
+                rows: doc.rows_now(at),
                 page: view::page_of(area, scale),
+                editable: if doc.is_editable() {
+                    Editable::Yes
+                } else {
+                    Editable::No
+                },
             },
             ..StageParams::default()
         }
     }
 
-    fn arrived(_doc: &TableDoc, stage: &Stage, _left_at: &anyview_core::Resume) -> Vec<StageIn> {
+    fn arrived(doc: &TableDoc, stage: &Stage, _left_at: &anyview_core::Resume) -> Vec<StageIn> {
+        // What the stage holds of the edits is what the document that has landed holds.
+        let held = doc.edits();
+        let log = held.as_ref().map_or(crate::EditLog::NONE, edits::log_of);
+        let mut told = vec![StageIn::Table(TableIn::Session(
+            crate::EditSessionIn::Logged(log),
+        ))];
         // A find that was up is asked again of the document that has landed.
-        match stage {
-            Stage::Table(table) => table
-                .find()
-                .map(|find| StageIn::Table(TableIn::Find(find.query.clone())))
-                .into_iter()
-                .collect(),
-            Stage::NoStage
-            | Stage::Raster(_)
-            | Stage::Pdf(_)
-            | Stage::Media(_)
-            | Stage::Text(_)
-            | Stage::Tree(_) => Vec::new(),
+        if let Stage::Table(table) = stage
+            && let Some(find) = table.find()
+        {
+            told.push(StageIn::Table(TableIn::Find(find.query.clone())));
         }
+        told
     }
 
     fn copy_text(
@@ -128,7 +132,48 @@ impl StageView for TableStageView {
         let order = sorted
             .filter(|order| order.sheet == stage.sheet() && Some(order.sort) == stage.sort())
             .map(|order| order.order.as_slice());
-        Some(pick::copy_text(sheet, rows, order))
+        // The cells as they are with the edits made to them.
+        let held = doc.edits();
+        match (stage.sheet(), held.as_ref()) {
+            (SheetNo(0), Some(live)) => {
+                let columns = sheet.table.columns().0 as usize; // a u32 fits a usize
+                Some(pick::copy_read(columns, rows, |place, column| {
+                    edits::text_at((live, &sheet.table), order, place, column)
+                }))
+            }
+            (_, Some(_) | None) => Some(pick::copy_text(sheet, rows, order)),
+        }
+    }
+
+    fn edit(
+        doc: &Arc<TableDoc>,
+        ticket: Ticket,
+        stage: &Stage,
+        out: &StageOut,
+        order: Option<&SortedOrder>,
+    ) -> EditDone {
+        edits::carry(doc, ticket, stage, out, order)
+    }
+
+    fn written(doc: &TableDoc, stamp: EditStamp) -> Vec<StageIn> {
+        let mut held = doc.edits();
+        match held.as_mut() {
+            Some(live) => {
+                live.mark_saved(stamp);
+                vec![StageIn::Table(TableIn::Session(
+                    crate::EditSessionIn::Logged(edits::log_of(live)),
+                ))]
+            }
+            None => Vec::new(),
+        }
+    }
+
+    fn edit_offer(doc: &TableDoc) -> EditOffer {
+        if doc.is_editable() {
+            EditOffer::Plain
+        } else {
+            EditOffer::Withheld
+        }
     }
 
     fn stage(doc: &Arc<TableDoc>, cx: &StageCx) -> Element {

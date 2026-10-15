@@ -26,7 +26,7 @@ type Window = Arc<Vec<Vec<String>>>;
 
 /// Where a scan is in a record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum State {
+pub(super) enum State {
     /// Between records: nothing of the next has been read.
     Between,
     /// At the start of a field.
@@ -42,7 +42,7 @@ enum State {
 
 /// What a byte did to the records.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Event {
+pub(super) enum Event {
     Nothing,
     /// A record starts here, in its first field.
     Start,
@@ -75,7 +75,7 @@ fn unit_char(codec: TextCodec, bytes: &[u8], at: usize) -> Option<u8> {
 /// The scan's next state, and what `ch` did. A line break outside quotes ends a record (`\r`,
 /// `\n` or `\r\n`), and a line with nothing on it is no record, as the `csv` reader has it; a
 /// quote opens a quoted field only at the start of a field.
-fn step(state: State, ch: Option<u8>, separator: u8) -> (State, Event) {
+pub(super) fn step(state: State, ch: Option<u8>, separator: u8) -> (State, Event) {
     let line_break = matches!(ch, Some(b'\r' | b'\n'));
     let quote = ch == Some(b'"');
     let split = ch == Some(separator);
@@ -112,6 +112,16 @@ pub(super) struct RecordIndex {
 }
 
 impl RecordIndex {
+    /// The offset of record 0, 64, 128, ….
+    pub(super) fn starts(&self) -> &[u64] {
+        &self.starts
+    }
+
+    /// Where the bytes counted end.
+    pub(super) fn end(&self) -> u64 {
+        self.end
+    }
+
     /// Streams `source` once between the offsets of `span` (the first byte after any byte-order
     /// mark, and the end). Ends with [`TextError::Interrupted`] when `interrupt` says so, once per chunk. When `coverage` says the file goes on past the end, a record the end
     /// cuts short is left out.
@@ -210,6 +220,31 @@ impl Indexed {
             skip: 0,
             windows: Arc::new(Mutex::new(VecDeque::new())),
         }
+    }
+
+    /// The bytes the records are in.
+    pub(super) fn source(&self) -> &Arc<dyn ReadAt> {
+        &self.source
+    }
+
+    /// How the bytes are encoded.
+    pub(super) fn codec(&self) -> TextCodec {
+        self.codec
+    }
+
+    /// The byte that separates the cells.
+    pub(super) fn separator(&self) -> u8 {
+        self.separator
+    }
+
+    /// How many records come before the first row.
+    pub(super) fn skip(&self) -> u32 {
+        self.skip
+    }
+
+    /// Where the records start.
+    pub(super) fn index(&self) -> &RecordIndex {
+        &self.index
     }
 
     /// The same records with the first `skip` of them not counted as rows.

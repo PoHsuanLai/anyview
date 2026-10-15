@@ -19,7 +19,7 @@ use anyview_core::{
     FilePath, FileStamp, FindOptions, LineIndex, Resume, Sequence, Sniffed, Source,
 };
 use anyview_peek::StillSource;
-use anyview_text::{EditRefusal, EditText, Highlighter};
+use anyview_text::{EditRefusal, EditStamp, EditText, Highlighter, TableEdits};
 use ds_blitz::TextureHandle;
 use std::sync::Arc;
 
@@ -188,6 +188,17 @@ pub enum Job {
         /// The open text file.
         doc: Arc<TextDoc>,
     },
+    /// Build the file an open table is with its edits made to it, to be written over the file.
+    DataBytes {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The open table.
+        doc: Arc<TableDoc>,
+        /// The edits to make, as they stood when the person saved.
+        edits: Box<TableEdits>,
+        /// The state of the edits the file will be in.
+        stamp: EditStamp,
+    },
     /// Probe and open the file `path`, for the person to arrive at it without waiting.
     Preload {
         /// The file.
@@ -269,6 +280,15 @@ pub enum Done {
         ticket: Ticket,
         /// What came of it.
         result: Result<EditText, EditRefusal>,
+    },
+    /// The file an open table makes with its edits, built to be written; or why it could not be.
+    DataBytes {
+        /// The load this work belongs to.
+        ticket: Ticket,
+        /// The state of the edits the file is in.
+        stamp: EditStamp,
+        /// What came of it.
+        result: Result<Vec<u8>, OpenError>,
     },
     /// The host wrote the edited text over `path`, or could not.
     Saved {
@@ -363,6 +383,7 @@ impl Job {
             | Job::SearchNodes { .. }
             | Job::Sort { .. }
             | Job::EditRead { .. }
+            | Job::DataBytes { .. }
             | Job::Stat { .. }
             | Job::Folder { .. }
             | Job::Versions { .. } => WorkLane::Visible,
@@ -392,6 +413,7 @@ impl Job {
             | Job::SearchCells { ticket, .. }
             | Job::SearchNodes { ticket, .. }
             | Job::Sort { ticket, .. }
+            | Job::DataBytes { ticket, .. }
             | Job::EditRead { ticket, .. } => *ticket,
             Job::Pdf(task) => task.ticket(),
             Job::Preload { .. }
@@ -452,6 +474,11 @@ impl Job {
             Job::EditRead { ticket, .. } => Done::EditText {
                 ticket: *ticket,
                 result: Err(EditRefusal::Unreadable(std::io::ErrorKind::Other)),
+            },
+            Job::DataBytes { ticket, stamp, .. } => Done::DataBytes {
+                ticket: *ticket,
+                stamp: *stamp,
+                result: Err(OpenError::Crashed),
             },
             Job::Preload { path, .. } => Done::Preloaded {
                 path: path.clone(),
@@ -564,6 +591,16 @@ impl Job {
             Job::EditRead { ticket, doc } => Done::EditText {
                 ticket,
                 result: doc.read_for_edit(),
+            },
+            Job::DataBytes {
+                ticket,
+                doc,
+                edits,
+                stamp,
+            } => Done::DataBytes {
+                ticket,
+                stamp,
+                result: doc.written(&edits).map_err(OpenError::from),
             },
             Job::Preload { path, link } => Done::Preloaded {
                 loaded: preloaded(&path, &link, resume, locks, stop),

@@ -3,10 +3,10 @@
 
 use super::outcome::{Declined, Outcome};
 use super::route::{Carry, Shown, Task};
-use anyview_core::{FileName, FilePath, FormatKind, MarkupSave, edits_for};
+use anyview_core::{FileName, FilePath, FormatDetail, FormatKind, MarkupSave, edits_for};
 use anyview_machines::{Trail, TrailIn, TrailOut};
 use anyview_store::VersionId;
-use anyview_ui::{EditRequest, HostRequest, Rewind, TextSave, TypedText, VersionKey};
+use anyview_ui::{EditRequest, HostRequest, Opened, Rewind, TextSave, TypedText, VersionKey};
 use std::path::Path;
 
 impl Shown {
@@ -108,13 +108,13 @@ pub(super) fn edit(shown: Shown, request: EditRequest) -> (Shown, Carry) {
     })
 }
 
-/// The text of the open file as the person edited it, saved in place when the file is text and
-/// no other save is being written.
+/// The bytes of the open file as the person edited them (its text, its cells or its nodes), saved
+/// in place when the file is one that is edited that way and no other save is being written.
 pub(super) fn save_text(shown: Shown, save: TextSave) -> (Shown, Carry) {
     let Some(probed) = shown.file().cloned() else {
         return declined(shown, Declined::NoFileShown);
     };
-    if !is_text(probed.sniffed.kind()) {
+    if !takes_whole_bytes(&probed) {
         return declined(shown, Declined::Edit);
     }
     if anyview_store::is_read_only(probed.source.path().as_path()) {
@@ -146,12 +146,24 @@ pub(super) fn save_markup(shown: Shown, save: MarkupSave) -> (Shown, Carry) {
     saves(shown, outs, || Task::SaveMarkup { file: probed, save })
 }
 
-/// Whether files of `kind` are edited as text.
-fn is_text(kind: FormatKind) -> bool {
-    matches!(
-        kind,
-        FormatKind::PlainText | FormatKind::Markdown | FormatKind::Code
-    )
+/// Whether the file is one whose edits are written as the whole of its new bytes: a text, a
+/// delimited table or a JSON document. A workbook is a table that is never written back.
+fn takes_whole_bytes(probed: &Opened) -> bool {
+    match probed.sniffed.kind() {
+        FormatKind::PlainText | FormatKind::Markdown | FormatKind::Code | FormatKind::Tree => true,
+        FormatKind::Table => matches!(probed.sniffed.detail(), FormatDetail::Table(_)),
+        FormatKind::Pdf
+        | FormatKind::Raster
+        | FormatKind::Vector
+        | FormatKind::Video
+        | FormatKind::Audio
+        | FormatKind::Font
+        | FormatKind::Archive
+        | FormatKind::Book
+        | FormatKind::Office
+        | FormatKind::Folder
+        | FormatKind::Other => false,
+    }
 }
 
 /// Undo or redo: the version the trail names is put back.

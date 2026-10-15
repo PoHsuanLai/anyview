@@ -1,7 +1,9 @@
 //! The tree stage's states and inputs.
 
+use crate::stage::data_edits::{DataEdits, EditSessionIn, EditSessionOut, TypingIn, TypingState};
 use crate::stage::find::{FindOut, HitCount, HitIndex, StageFind};
 use crate::stage::row::{RowNo, RowStep};
+use crate::stage::text::Editable;
 use crate::stage::zoom::{ContentScale, ZoomDir};
 use crate::typed::TypedText;
 use anyview_core::{OpenNodes, TreePath};
@@ -18,6 +20,8 @@ pub enum TreeStage {
         find: Option<StageFind>,
         /// How large the rows are drawn.
         scale: ContentScale,
+        /// What is typed in, and what the window says of the edits.
+        edits: DataEdits,
     },
     /// Reading with the cursor on a row.
     Selected {
@@ -29,34 +33,60 @@ pub enum TreeStage {
         find: Option<StageFind>,
         /// How large the rows are drawn.
         scale: ContentScale,
+        /// What is typed in, and what the window says of the edits.
+        edits: DataEdits,
     },
 }
 
 impl TreeStage {
     /// The stage with the cursor on `row`, or on none.
     pub(super) fn of(open: OpenNodes, row: Option<RowNo>, look: Look) -> Self {
-        let Look { find, scale } = look;
+        let Look { find, scale, edits } = look;
         match row {
             Some(row) => TreeStage::Selected {
                 open,
                 row,
                 find,
                 scale,
+                edits,
             },
-            None => TreeStage::Browsing { open, find, scale },
+            // With no row under the cursor nothing is typed in.
+            None => TreeStage::Browsing {
+                open,
+                find,
+                scale,
+                edits: DataEdits {
+                    typing: TypingState::Idle,
+                    ..edits
+                },
+            },
         }
     }
 
     /// The open nodes, the row and the look, taken apart.
     pub(super) fn into_parts(self) -> (OpenNodes, Option<RowNo>, Look) {
         match self {
-            TreeStage::Browsing { open, find, scale } => (open, None, Look { find, scale }),
+            TreeStage::Browsing {
+                open,
+                find,
+                scale,
+                edits,
+            } => (open, None, Look { find, scale, edits }),
             TreeStage::Selected {
                 open,
                 row,
                 find,
                 scale,
-            } => (open, Some(row), Look { find, scale }),
+                edits,
+            } => (open, Some(row), Look { find, scale, edits }),
+        }
+    }
+
+    /// What is typed in, and what the window says of the edits.
+    #[must_use]
+    pub fn edits(&self) -> &DataEdits {
+        match self {
+            TreeStage::Browsing { edits, .. } | TreeStage::Selected { edits, .. } => edits,
         }
     }
 
@@ -100,6 +130,7 @@ impl Default for TreeStage {
             open: OpenNodes::top_level(),
             find: None,
             scale: ContentScale::ACTUAL,
+            edits: DataEdits::default(),
         }
     }
 }
@@ -109,6 +140,7 @@ impl Default for TreeStage {
 pub(super) struct Look {
     pub(super) find: Option<StageFind>,
     pub(super) scale: ContentScale,
+    pub(super) edits: DataEdits,
 }
 
 /// What moves the stage.
@@ -159,6 +191,23 @@ pub enum TreeIn {
     ZoomStep(ZoomDir),
     /// Draw the rows at actual size.
     ZoomActual,
+    /// Typing into the value under the cursor, or its key: begun by Return, taken or let go.
+    Typing(TypingIn),
+    /// Shift-Return: type a new key for the node under the cursor.
+    RenameKey,
+    /// Add a node below the one under the cursor.
+    AddItem,
+    /// Take away the node under the cursor.
+    DeleteItem,
+    /// The edits made the rows different: these nodes are open and the cursor is on this row.
+    Reshaped {
+        /// The nodes that are open now.
+        open: OpenNodes,
+        /// The row the cursor is on now.
+        row: Option<RowNo>,
+    },
+    /// The edits as a whole: undo, redo, save, let go, and what the window says of them.
+    Session(EditSessionIn),
     /// The clock; the stage keeps no timer.
     Elapsed,
 }
@@ -174,14 +223,62 @@ impl From<ds_core::machine::Elapsed> for TreeIn {
 pub enum TreeOut {
     /// Something for the search: run it, show a hit, clear the marks.
     Find(FindOut),
+    /// Make this text the value of the node at this row (a place among the visible rows).
+    Set {
+        /// The row.
+        row: RowNo,
+        /// What the value is from now on, as typed.
+        text: TypedText,
+    },
+    /// Make this text the key of the node at this row.
+    Rename {
+        /// The row.
+        row: RowNo,
+        /// The key from now on.
+        text: TypedText,
+    },
+    /// Add a node below the one at this row.
+    Add(RowNo),
+    /// Take away the node at this row.
+    Delete(RowNo),
+    /// Something about the edits as a whole.
+    Session(EditSessionOut),
+}
+
+/// What the node under the cursor holds, as far as typing into it goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NodeUnder {
+    /// There is no node under the cursor.
+    #[default]
+    Nothing,
+    /// A string, a number, `true`, `false` or `null`: its value is typed in.
+    Scalar,
+    /// An object or an array, or a line that is no value: there is no text to type in.
+    Container,
+}
+
+/// Whether the node under the cursor has a key to rename.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum KeyUnder {
+    /// It has none: the root, or an item of an array.
+    #[default]
+    Absent,
+    /// It is an entry of an object.
+    Present,
 }
 
 /// What the stage needs to know of the open file: how many rows are visible, which the open nodes
-/// decide, and how many fit the room.
+/// decide, how many fit the room, and what the node under the cursor allows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TreeParams {
     /// How many rows the open nodes make visible.
     pub rows: u32,
     /// How many rows fit the room: what a page up or down moves by.
     pub page: u32,
+    /// Whether the nodes can be edited and the file written back.
+    pub editable: Editable,
+    /// What the node under the cursor holds.
+    pub under: NodeUnder,
+    /// Whether the node under the cursor has a key.
+    pub key: KeyUnder,
 }

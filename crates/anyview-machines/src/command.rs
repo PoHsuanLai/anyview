@@ -147,6 +147,22 @@ pub enum StageCommand {
     Done,
     /// Save the edited text to its file.
     Save,
+    /// Move the cell cursor of a table to the cell before.
+    PreviousCell,
+    /// Move the cell cursor of a table to the cell after.
+    NextCell,
+    /// Add an empty row below the one picked in a table.
+    #[word(label = "Add Row Below")]
+    AddRow,
+    /// Take away the rows picked in a table, or the node picked in a tree.
+    #[word(label = "Delete")]
+    DeletePicked,
+    /// Add a node below the one picked in a tree.
+    #[word(label = "Add Item Below")]
+    AddItem,
+    /// Type a new key for the node picked in a tree.
+    #[word(label = "Rename Key")]
+    RenameKey,
 }
 
 /// The commands a chord stands for. The first row of a command is the one the palette shows.
@@ -166,6 +182,7 @@ const CHORDS: &[(Act, StageCommand)] = &[
     (Act::Done, StageCommand::Done),
     (Act::Save, StageCommand::Save),
     (Act::SelectAll, StageCommand::SelectAll),
+    (Act::AddRow, StageCommand::AddRow),
     (Act::File(FileAction::CopyFile), StageCommand::CopyRows),
 ];
 
@@ -208,6 +225,14 @@ const KEYS: &[(&[ShortcutKey], StageCommand)] = &[
     (&[ShortcutKey::Char('o')], StageCommand::MarkTrimEnd),
     (&[ShortcutKey::Char('c')], StageCommand::CollapseAll),
     (&[ShortcutKey::Enter], StageCommand::Edit),
+    (
+        &[ShortcutKey::Shift, ShortcutKey::Enter],
+        StageCommand::RenameKey,
+    ),
+    (&[ShortcutKey::Left], StageCommand::PreviousCell),
+    (&[ShortcutKey::Right], StageCommand::NextCell),
+    (&[ShortcutKey::Delete], StageCommand::DeletePicked),
+    (&[ShortcutKey::Insert], StageCommand::AddItem),
 ];
 
 impl StageCommand {

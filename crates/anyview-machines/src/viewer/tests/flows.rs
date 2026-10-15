@@ -661,3 +661,73 @@ fn closing_finishing_and_saving_a_text_ask_when_a_question_is_due() {
         "saving over another program's changes asks first"
     );
 }
+
+fn table_with(log: EditLog) -> Viewer {
+    Viewer {
+        stage: Stage::Table(TableStage::Selected {
+            sheet: SheetNo(0),
+            rows: ds_core::selection::RowSelection::single(1),
+            sort: None,
+            find: None,
+            scale: crate::stage::ContentScale::ACTUAL,
+            cells: Cells {
+                focus: CellFocus::Row,
+                edits: DataEdits {
+                    log,
+                    typing: TypingState::Idle,
+                },
+            },
+        }),
+        ..Viewer::default()
+    }
+}
+
+#[test]
+fn a_table_with_unsaved_edits_asks_before_it_is_left_and_takes_undo_for_its_edits() {
+    use crate::edits::Rewind;
+    use crate::sheet::{Departure, Sheet, SheetIn};
+    let params = params();
+    let step = |viewer: Viewer, input: ViewerIn| viewer.step(input, Stamp(0), &(), &params);
+    let edited = EditLog {
+        changes: Changes::Unsaved,
+        undo: EditDepth(1),
+        ..EditLog::NONE
+    };
+    let there = Departure::Open(path("/b.csv"));
+    let (asked, outs) = step(table_with(edited), ViewerIn::Open(path("/b.csv")));
+    assert_eq!(asked.sheet, Sheet::Unsaved(there.clone()));
+    assert!(!probes(&outs, "/b.csv"), "nothing is opened yet");
+    // Don't Save lets the edits go and opens the file.
+    let (_, outs) = step(asked.clone(), ViewerIn::Sheet(SheetIn::Discard));
+    assert!(probes(&outs, "/b.csv"));
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Table(TableOut::Session(
+            EditSessionOut::Discard
+        ))))
+    );
+    // Save asks the stage to write them, and the file is opened once the host says it has.
+    let (saving, outs) = step(asked, ViewerIn::Sheet(SheetIn::Confirm));
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Table(TableOut::Session(
+            EditSessionOut::Save
+        ))))
+    );
+    assert_eq!(saving.after_save, Some(there));
+    let (written, _) = step(
+        saving,
+        ViewerIn::Stage(StageIn::Table(TableIn::Session(EditSessionIn::Logged(
+            EditLog::NONE,
+        )))),
+    );
+    let (_, outs) = step(written, ViewerIn::Saved(SaveEnd::Written));
+    assert!(probes(&outs, "/b.csv"), "the edits are in the file");
+    // Undo takes back the edit of the cells; with none held it is the last save that is.
+    let (_, outs) = step(table_with(edited), act(Act::Undo));
+    assert!(
+        outs.contains(&ViewerOut::Stage(StageOut::Table(TableOut::Session(
+            EditSessionOut::Rewind(Rewind::Undo)
+        ))))
+    );
+    let (_, outs) = step(table_with(EditLog::NONE), act(Act::Undo));
+    assert!(outs.contains(&ViewerOut::Rewind(Rewind::Undo)));
+}

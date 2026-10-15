@@ -9,14 +9,20 @@
 
 use super::SortedOrder;
 use super::doc::{SheetDoc, TableDoc};
+use super::edits::{row_at, text_at};
 use super::kind::{ColumnKind, is_yes};
 use super::pick::reseat;
+use crate::families::inline_edit::InlineEdit;
 use crate::families::rows::scaled_px;
 use crate::families::view::{Held, StageCx};
 use crate::families::{Mark, cut};
 use crate::io::Job;
-use crate::{ColumnSort, ContentScale, HitIndex, SheetNo, SortDirection, Stage, StageIn, TableIn};
-use anyview_text::{Coverage, RowIndex, Tally};
+use crate::{
+    AfterTyping, CellFocus, Cells, ColumnNo, ColumnSort, ContentScale, HitIndex, RowNo, SheetNo,
+    SortDirection, Stage, StageIn, TableIn, TypingIn, TypingSeed, TypingState,
+};
+use anyview_text::{Coverage, RowIndex, RowRef, Tally};
+use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;
 use ds::components::lists::table::model::{
@@ -179,12 +185,11 @@ fn kind_class(kind: ColumnKind) -> &'static str {
 /// What the status line under the table says: how many rows and columns the shown sheet has, or,
 /// once several rows are picked, how many (Finder's status bar). A sheet that holds only the start
 /// of its file says so with a plus after the rows.
-fn status_of(sheet: &SheetDoc, picked: usize) -> String {
+fn status_of(sheet: &SheetDoc, rows: u32, picked: usize) -> String {
     if picked > 1 {
         let picked = Tally::Exact(u32::try_from(picked).unwrap_or(u32::MAX));
         return format!("{} rows selected", picked.text());
     }
-    let rows = sheet.table.row_count().0;
     let rows = match sheet.table.coverage() {
         Coverage::Whole => Tally::Exact(rows),
         Coverage::Prefix => Tally::AtLeast(rows),
@@ -211,20 +216,28 @@ fn held_columns(sheet: &SheetDoc) -> usize {
 
 #[component]
 pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
-    let (sheet_no, by, cursor, picked, scale) = match &cx.stage {
+    let (sheet_no, by, cursor, picked, scale, cells_now) = match &cx.stage {
         Stage::Table(stage) => (
             stage.sheet(),
             stage.sort(),
             stage.row(),
             stage.selection().cloned(),
             stage.scale(),
+            stage.cells().clone(),
         ),
         Stage::NoStage
         | Stage::Raster(_)
         | Stage::Pdf(_)
         | Stage::Media(_)
         | Stage::Text(_)
-        | Stage::Tree(_) => (SheetNo(0), None, None, None, ContentScale::ACTUAL),
+        | Stage::Tree(_) => (
+            SheetNo(0),
+            None,
+            None,
+            None,
+            ContentScale::ACTUAL,
+            Cells::default(),
+        ),
     };
     // The hit the find is on, so its cell is marked apart from the others.
     let current = cx.stage.find_state().and_then(|(_, hits)| hits.current());
@@ -304,16 +317,28 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         }
     }));
     let send = cx.send;
+    let rows_now = doc.0.rows_now(sheet_no.0 as usize); // a u32 fits a usize
+    let rows = rows_now as usize; // a u32 fits a usize
+    latest.set((picked.clone(), rows));
+    // The rows are drawn again when the edits change, a cell is typed in or the cell cursor moves,
+    // though the rows picked stay: the cells read this.
+    let mut shown = use_signal(|| (cells_now.clone(), cursor));
+    use_effect(use_reactive!(|cells_now, cursor| {
+        shown.set((cells_now, cursor));
+    }));
+    let editable = doc.0.is_editable();
+    let typing = use_callback(move |input: TypingIn| {
+        send.call(StageIn::Table(TableIn::Typing(input)));
+    });
     let sheet: Arc<SheetDoc> = match doc.0.sheets.get(sheet_no.0 as usize) {
         // a u32 fits a usize
         Some(sheet) => Arc::clone(sheet),
         None => return rsx! { div { class: "viewer-data viewer-scrolls" } },
     };
-    let rows = sheet.table.row_count().0 as usize; // a u32 fits a usize
-    latest.set((picked.clone(), rows));
     let kept = held_columns(&sheet);
     let held = Arc::clone(&sheet);
     let marked = cx.hits.clone();
+    let table_doc = Arc::clone(&doc.0);
     let cell = use_callback(move |(row, column): (usize, usize)| {
         let Some(column) = column.checked_sub(1) else {
             let held_class = if kept > 0 { " viewer-held" } else { "" };
@@ -327,15 +352,66 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         } else {
             ""
         };
+        let (cells, at_cursor) = shown.read().clone();
         let sorted = order.read();
-        let file_row = match &*sorted {
-            Some(sorted) => sorted.order.get(row).copied(),
+        let order_slice: Option<&[u32]> = match &*sorted {
+            Some(order) => Some(order.order.as_slice()),
             None => None,
+        };
+        // The cell as the edits leave it, and the row of the file it is in for the find's marks.
+        let (text, file_row) = match table_doc.edits().as_ref() {
+            Some(live) => {
+                let file = match row_at(live, order_slice, row) {
+                    Some(RowRef::File(file)) => Some(file),
+                    Some(RowRef::New(_)) | None => None,
+                };
+                (text_at((live, &held.table), order_slice, row, column), file)
+            }
+            None => {
+                let file = order_slice
+                    .and_then(|order| order.get(row).copied())
+                    .unwrap_or_else(|| u32::try_from(row).unwrap_or(u32::MAX));
+                (held.table.cell(RowIndex(file), column), Some(file))
+            }
+        };
+        let column_no = ColumnNo(u32::try_from(column).unwrap_or(u32::MAX));
+        let row_no = RowNo(u32::try_from(row).unwrap_or(u32::MAX));
+        let here = at_cursor == Some(row_no) && cells.focus == CellFocus::Cell(column_no);
+        let focus_class = if here { " viewer-cell-focus" } else { "" };
+        if here && let TypingState::Value(seed) = &cells.edits.typing {
+            let start = match seed {
+                TypingSeed::Existing => text.clone(),
+                TypingSeed::Typed(typed) => typed.as_str().to_owned(),
+            };
+            return rsx! {
+                span { class: "viewer-cell viewer-cell-editing{held_class}",
+                    InlineEdit {
+                        seed: start,
+                        on_return: AfterTyping::Down,
+                        on_tab: Some(AfterTyping::Right),
+                        send: typing,
+                    }
+                }
+            };
         }
-        .unwrap_or_else(|| u32::try_from(row).unwrap_or(u32::MAX));
-        let text = held.table.cell(RowIndex(file_row), column);
-        let marks: Vec<(std::ops::Range<usize>, Mark)> = match marked.as_ref() {
-            Some(found) => {
+        // A click puts the cell cursor on the cell; a double-click types into it.
+        let reach = move |event: MouseEvent| {
+            let held_keys = Modifiers::SHIFT
+                | Modifiers::CONTROL
+                | Modifiers::META
+                | Modifiers::SUPER
+                | Modifiers::ALT;
+            if editable && !event.modifiers().intersects(held_keys) {
+                send.call(StageIn::Table(TableIn::FocusCell(row_no, column_no)));
+            }
+        };
+        let edit_here = move |_: MouseEvent| {
+            if editable {
+                send.call(StageIn::Table(TableIn::EditAt(row_no, column_no)));
+            }
+        };
+        let marks: Vec<(std::ops::Range<usize>, Mark)> = match (marked.as_ref(), file_row) {
+            (Some(found), Some(file_row)) => {
                 let (first, on_row) = found.0.in_row(file_row);
                 on_row
                     .iter()
@@ -352,12 +428,17 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
                     })
                     .collect()
             }
-            None => Vec::new(),
+            (Some(_) | None, Some(_) | None) => Vec::new(),
         };
         let kind = held.kinds.get(column).copied().unwrap_or_default();
         if text.trim().is_empty() {
             return rsx! {
-                span { class: "viewer-cell viewer-cell-empty{held_class}", "—" }
+                span {
+                    class: "viewer-cell viewer-cell-empty{held_class}{focus_class}",
+                    onclick: reach,
+                    ondoubleclick: edit_here,
+                    "—"
+                }
             };
         }
         // A yes is a tick and a no is nothing, unless a find is on the cell: then its text shows,
@@ -365,13 +446,18 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
         if kind == ColumnKind::YesNo && marks.is_empty() {
             let tick = if is_yes(&text) { "✓" } else { "" };
             return rsx! {
-                span { class: "viewer-cell viewer-cell-yes-no{held_class}", "{tick}" }
+                span {
+                    class: "viewer-cell viewer-cell-yes-no{held_class}{focus_class}",
+                    onclick: reach,
+                    ondoubleclick: edit_here,
+                    "{tick}"
+                }
             };
         }
         let pieces = cut(&text, &marks);
-        let class = format!("viewer-cell {}{held_class}", kind_class(kind));
+        let class = format!("viewer-cell {}{held_class}{focus_class}", kind_class(kind));
         rsx! {
-            span { class,
+            span { class, onclick: reach, ondoubleclick: edit_here,
                 for (piece , mark) in pieces {
                     span { class: mark.class(), "{piece}" }
                 }
@@ -385,7 +471,11 @@ pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
             }
         };
     }
-    let status = status_of(&sheet, picked.as_ref().map_or(0, RowSelection::count));
+    let status = status_of(
+        &sheet,
+        rows_now,
+        picked.as_ref().map_or(0, RowSelection::count),
+    );
     rsx! {
         div {
             class: "viewer-data viewer-scrolls",

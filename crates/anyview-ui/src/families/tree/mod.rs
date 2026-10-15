@@ -3,6 +3,7 @@
 //! time.
 
 mod doc;
+mod edits;
 mod find;
 mod view;
 
@@ -11,15 +12,16 @@ pub(crate) use find::search_tree;
 
 use crate::families::FoundHits;
 use crate::families::SortedOrder;
-use crate::families::view::{Area, Held, HitLine, StageCx, StageView};
+use crate::families::view::{Area, EditDone, Held, HitLine, StageCx, StageView};
 use crate::io::{Job, OpenError, OpenPort};
 use crate::{
-    Command, ContentScale, HitIndex, PanelTab, PanelTabs, Stage, StageCommand, StageFamily,
-    StageIn, StageParams, Ticket, TreeIn, TreeParams, TypedText,
+    Command, ContentScale, EditOffer, Editable, HitIndex, KeyUnder, NodeUnder, PanelTab, PanelTabs,
+    Stage, StageCommand, StageFamily, StageIn, StageOut, StageParams, Ticket, TreeIn, TreeParams,
+    TypedText,
 };
 use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, Resume, Sniffed, Source};
-use anyview_text::Coverage;
+use anyview_text::{Coverage, EditStamp, NodeKind, RowLabel};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::{RankedSlot, essentials};
@@ -53,8 +55,9 @@ impl StageView for TreeStageView {
     }
 
     fn params(doc: &TreeDoc, stage: &Stage, area: Option<Area>) -> StageParams {
+        let tree = doc.now();
         let rows = match stage {
-            Stage::Tree(stage) => doc.tree.visible_count(stage.open()),
+            Stage::Tree(stage) => tree.visible_count(stage.open()),
             Stage::NoStage
             | Stage::Raster(_)
             | Stage::Pdf(_)
@@ -71,29 +74,67 @@ impl StageView for TreeStageView {
             | Stage::Text(_)
             | Stage::Table(_) => ContentScale::ACTUAL,
         };
+        let (under, key) = under_cursor(&tree, stage);
         StageParams {
             tree: TreeParams {
                 rows,
                 page: view::page_of(area, scale),
+                editable: if doc.is_editable() {
+                    Editable::Yes
+                } else {
+                    Editable::No
+                },
+                under,
+                key,
             },
             ..StageParams::default()
         }
     }
 
-    fn arrived(_doc: &TreeDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
+    fn arrived(doc: &TreeDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {
+        // What the stage holds of the edits is what the document that has landed holds.
+        let held = doc.session();
+        let log = held.as_ref().map_or(crate::EditLog::NONE, edits::log_of);
+        let mut told = vec![StageIn::Tree(TreeIn::Session(
+            crate::EditSessionIn::Logged(log),
+        ))];
         // A find that was up is asked again of the document that has landed.
-        match stage {
-            Stage::Tree(tree) => tree
-                .find()
-                .map(|find| StageIn::Tree(TreeIn::Find(find.query.clone())))
-                .into_iter()
-                .collect(),
-            Stage::NoStage
-            | Stage::Raster(_)
-            | Stage::Pdf(_)
-            | Stage::Media(_)
-            | Stage::Text(_)
-            | Stage::Table(_) => Vec::new(),
+        if let Stage::Tree(tree) = stage
+            && let Some(find) = tree.find()
+        {
+            told.push(StageIn::Tree(TreeIn::Find(find.query.clone())));
+        }
+        told
+    }
+
+    fn edit(
+        doc: &Arc<TreeDoc>,
+        _ticket: Ticket,
+        stage: &Stage,
+        out: &StageOut,
+        _order: Option<&SortedOrder>,
+    ) -> EditDone {
+        edits::carry(doc, stage, out)
+    }
+
+    fn written(doc: &TreeDoc, stamp: EditStamp) -> Vec<StageIn> {
+        let mut held = doc.session();
+        match held.as_mut() {
+            Some(session) => {
+                session.mark_saved(stamp);
+                vec![StageIn::Tree(TreeIn::Session(
+                    crate::EditSessionIn::Logged(edits::log_of(session)),
+                ))]
+            }
+            None => Vec::new(),
+        }
+    }
+
+    fn edit_offer(doc: &TreeDoc) -> EditOffer {
+        if doc.is_editable() {
+            EditOffer::Plain
+        } else {
+            EditOffer::Withheld
         }
     }
 
@@ -158,5 +199,38 @@ impl StageView for TreeStageView {
                 Coverage::Whole | Coverage::Prefix,
             ) => None,
         }
+    }
+}
+
+/// What the node under the cursor holds and whether it has a key, as the stage needs to know to
+/// offer typing into it.
+fn under_cursor(tree: &anyview_text::Tree, stage: &Stage) -> (NodeUnder, KeyUnder) {
+    let Stage::Tree(shown) = stage else {
+        return (NodeUnder::Nothing, KeyUnder::Absent);
+    };
+    let Some(row) = shown.row() else {
+        return (NodeUnder::Nothing, KeyUnder::Absent);
+    };
+    let found = tree
+        .visible(shown.open(), row.0..row.0.saturating_add(1))
+        .into_iter()
+        .next();
+    match found {
+        Some(visible) => {
+            let under = match visible.row.kind {
+                NodeKind::String
+                | NodeKind::Number
+                | NodeKind::True
+                | NodeKind::False
+                | NodeKind::Null => NodeUnder::Scalar,
+                NodeKind::Object | NodeKind::Array | NodeKind::Unreadable => NodeUnder::Container,
+            };
+            let key = match visible.row.label {
+                RowLabel::Key(_) => KeyUnder::Present,
+                RowLabel::Root | RowLabel::Index(_) => KeyUnder::Absent,
+            };
+            (under, key)
+        }
+        None => (NodeUnder::Nothing, KeyUnder::Absent),
     }
 }

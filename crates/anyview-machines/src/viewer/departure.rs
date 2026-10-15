@@ -15,7 +15,7 @@ use crate::markup::MarkupIn;
 use crate::navigate::NavigateIn;
 use crate::picture::PictureEditIn;
 use crate::sheet::{Departure, SheetIn};
-use crate::stage::{Changes, Outside, Stage, StageIn, TextIn};
+use crate::stage::{Changes, EditSessionIn, Outside, Stage, StageIn, TableIn, TextIn, TreeIn};
 use crate::trim::TrimIn;
 use ds_core::time::stamp::Stamp;
 
@@ -95,12 +95,10 @@ pub(super) fn walks(input: &NavigateIn) -> bool {
 /// fields and marks, or the text being edited.
 pub(super) fn save_open(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
     match viewer.stage {
-        Stage::Text(_) => save_text(viewer, at, params),
+        Stage::Text(_) | Stage::Table(_) | Stage::Tree(_) => save_text(viewer, at, params),
         Stage::Media(_) => super::trim::save(viewer, at, params),
         Stage::Pdf(_) => save_markup(viewer, at, params),
-        Stage::NoStage | Stage::Raster(_) | Stage::Table(_) | Stage::Tree(_) => {
-            save(viewer, at, params)
-        }
+        Stage::NoStage | Stage::Raster(_) => save(viewer, at, params),
     }
 }
 
@@ -128,9 +126,19 @@ pub(super) fn discard(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step 
         ),
         Stage::Media(_) => super::trim::trim_in(viewer, TrimIn::Discard, at, params),
         Stage::Pdf(_) => markup_in(viewer, MarkupIn::Discard, at, params),
-        Stage::NoStage | Stage::Raster(_) | Stage::Table(_) | Stage::Tree(_) => {
-            picture(viewer, PictureEditIn::Discard, at, params)
-        }
+        Stage::Table(_) => stage(
+            viewer,
+            StageIn::Table(TableIn::Session(EditSessionIn::Discard)),
+            at,
+            params,
+        ),
+        Stage::Tree(_) => stage(
+            viewer,
+            StageIn::Tree(TreeIn::Session(EditSessionIn::Discard)),
+            at,
+            params,
+        ),
+        Stage::NoStage | Stage::Raster(_) => picture(viewer, PictureEditIn::Discard, at, params),
     }
 }
 

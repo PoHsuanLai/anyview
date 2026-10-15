@@ -124,6 +124,20 @@ const TEXT: &[FileAction] = &[
     Export,
     ConvertTo,
 ];
+/// A table or a document of nodes, which the viewer edits in place: what a plain file has, and the
+/// versions that edit keeps.
+const DATA: &[FileAction] = &[
+    Open,
+    RevealInFolder,
+    CopyFile,
+    CopyPath,
+    Share,
+    Rename,
+    Duplicate,
+    MoveToTrash,
+    SaveCopy,
+    RevertTo,
+];
 const FOLDER: &[FileAction] = &[
     Open,
     RevealInFolder,
@@ -169,8 +183,8 @@ fn profile_of(kind: FormatKind) -> KindProfile {
         FormatKind::Audio => profile("audio/mpeg", AUDIO, MEDIA_EDITS, Stage),
         FormatKind::Markdown => profile("text/markdown", TEXT, NO_EDITS, Stage),
         FormatKind::Code | FormatKind::PlainText => profile("text/plain", TEXT, NO_EDITS, Stage),
-        FormatKind::Table => profile("text/csv", PLAIN, NO_EDITS, Stage),
-        FormatKind::Tree => profile("application/json", PLAIN, NO_EDITS, Stage),
+        FormatKind::Table => profile("text/csv", DATA, NO_EDITS, Stage),
+        FormatKind::Tree => profile("application/json", DATA, NO_EDITS, Stage),
         FormatKind::Font => profile("font/ttf", PLAIN, NO_EDITS, PeekOnly),
         FormatKind::Archive => profile("application/zip", PLAIN, NO_EDITS, PeekOnly),
         FormatKind::Book => profile("application/epub+zip", PLAIN, NO_EDITS, Stage),
