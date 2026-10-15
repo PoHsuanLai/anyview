@@ -94,6 +94,8 @@ pub fn open_with(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>) -> Rig
 /// which screen it says it is on.
 #[derive(Default)]
 pub struct Wired {
+    /// The shared thumbnail cache the first frames come from (empty unless a test seeds it).
+    pub thumbnails: FakeThumbnails,
     pub images: Option<ImageHost>,
     pub helpers: Option<Arc<HelperHost>>,
     pub ack: SizerAck,
@@ -153,7 +155,7 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
     let mut factory = Factory::new(
         workforce.workers(),
         Arc::new(desktop),
-        Arc::new(CachedPictures(FakeThumbnails::default())),
+        Arc::new(CachedPictures(wired.thumbnails.clone())),
         Watcher::start(SETTLE).ok().map(Arc::new),
         Appearances::fixed(Look::default()),
         Arc::new(PlayerHost::new(hub.clone())),

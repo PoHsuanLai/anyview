@@ -1,4 +1,5 @@
 use super::*;
+use crate::peek::{Deadline, PeekBudget};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -124,4 +125,31 @@ fn ticketed_is_current_only_for_its_own_ticket() {
 fn ticketed_map_keeps_the_ticket() {
     let mapped = Ticketed::new(Ticket(7), 20).map(|n| n + 1);
     assert_eq!(mapped, Ticketed::new(Ticket(7), 21));
+}
+
+#[test]
+fn a_stop_and_a_deadline_answer_the_one_question_a_loop_asks() {
+    let past = Deadline::of(
+        &PeekBudget::DEFAULT.with_time(Duration::ZERO),
+        Instant::now(),
+    );
+    let raised = Stop::new();
+    raised.request();
+    let lapsed = Stop::with_deadline(Instant::now());
+    let fresh = Stop::new();
+    // name, the interrupt, whether it says to end
+    let cases: Vec<(&str, &dyn Interrupt, bool)> = vec![
+        ("a deadline already past", &past as &dyn Interrupt, true),
+        ("no deadline", &Deadline::NEVER as &dyn Interrupt, false),
+        ("a raised stop", &raised as &dyn Interrupt, true),
+        (
+            "a stop whose deadline lapsed",
+            &lapsed as &dyn Interrupt,
+            true,
+        ),
+        ("a fresh stop", &fresh as &dyn Interrupt, false),
+    ];
+    for (name, interrupt, ends) in cases {
+        assert_eq!(interrupt.interrupted(), ends, "{name}");
+    }
 }

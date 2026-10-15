@@ -4,6 +4,7 @@
 //! Entries whose names start with a dot are not counted, as a file manager does not list them.
 
 use crate::error::PeekError;
+use anyview_core::work::Interrupt;
 use anyview_core::{
     ByteLen, Deadline, FactLabel, FactValue, Facts, FileHead, FileName, FilePath, FormatKind,
     Input, Peek, PeekBudget, SniffStep, Sniffed, ZipEntries, sniff, sniff_zip,
@@ -14,7 +15,6 @@ use ds_core::word::Word;
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::Path;
-use std::time::Instant;
 
 /// The most entries a peek counts; a folder with more is reported as "at least" this many.
 pub const FOLDER_ENTRIES: usize = 10_000;
@@ -79,7 +79,7 @@ impl Peek for FolderPeek {
         };
         // The listing and the sniffing are the loops that grow with the folder; both stop at the
         // budget's time and report what they had counted.
-        let deadline = Deadline::of(budget, Instant::now());
+        let deadline = budget.deadline_from_now();
         let mut entries = visible(path, deadline)?;
         let capped = entries.len() > FOLDER_ENTRIES;
         entries.truncate(FOLDER_ENTRIES);
@@ -95,7 +95,7 @@ impl Peek for FolderPeek {
                 folders += 1;
                 continue;
             }
-            if deadline.passed(Instant::now()) {
+            if deadline.interrupted() {
                 reads_left = 0;
             }
             files += 1;
@@ -143,7 +143,7 @@ fn visible(path: &Path, deadline: Deadline) -> Result<Vec<DirEntry>, PeekError> 
             entries.push(entry);
         }
         // One more than the cap is enough to know the folder has more.
-        if entries.len() > FOLDER_ENTRIES || deadline.passed(Instant::now()) {
+        if entries.len() > FOLDER_ENTRIES || deadline.interrupted() {
             break;
         }
     }

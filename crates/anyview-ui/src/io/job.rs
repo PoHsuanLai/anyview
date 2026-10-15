@@ -496,7 +496,7 @@ impl Job {
                 link,
             } => Done::Peeked {
                 ticket,
-                result: peek_for(ticket, &probed.source, &probed.sniffed, &link),
+                result: peek_for(ticket, &probed.source, &probed.sniffed, &link, stop),
             },
             Job::Open {
                 ticket,
@@ -504,7 +504,7 @@ impl Job {
                 link,
             } => Done::Opened {
                 ticket,
-                result: open_for(ticket, &probed.source, &probed.sniffed, &link),
+                result: open_for(ticket, &probed.source, &probed.sniffed, &link, stop),
             },
             Job::Lines {
                 ticket,
@@ -513,7 +513,7 @@ impl Job {
                 rows,
             } => Done::Lines {
                 ticket,
-                result: doc.window(first, rows).map_err(OpenError::from),
+                result: doc.window(first, rows, stop).map_err(OpenError::from),
             },
             Job::Search {
                 ticket,
@@ -566,7 +566,7 @@ impl Job {
                 result: doc.read_for_edit(),
             },
             Job::Preload { path, link } => Done::Preloaded {
-                loaded: preloaded(&path, &link, resume, locks),
+                loaded: preloaded(&path, &link, resume, locks, stop),
                 path,
             },
             Job::Stat { path } => Done::Stamped {
@@ -618,11 +618,19 @@ fn preloaded(
     link: &OpenPort,
     resume: &dyn ResumeSource,
     locks: &dyn FileLocks,
+    stop: &Stop,
 ) -> Option<Preloaded> {
     let probed = probed(path, resume, locks).ok()?;
     if probed.source.stamp().len.0 > PRELOAD_LIMIT {
         return None;
     }
-    let doc = open_for(Ticket::default(), &probed.source, &probed.sniffed, link).ok()?;
+    let doc = open_for(
+        Ticket::default(),
+        &probed.source,
+        &probed.sniffed,
+        link,
+        stop,
+    )
+    .ok()?;
     Some(Preloaded { probed, doc })
 }

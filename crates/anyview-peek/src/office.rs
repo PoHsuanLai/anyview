@@ -5,7 +5,8 @@ use crate::body::Body;
 use crate::described::Described;
 use crate::error::PeekError;
 use crate::frames::cover_picture;
-use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
+use anyview_archive::{OfficeLook, ThumbnailCodec, office_look_until};
+use anyview_core::work::Interrupt;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, Input, Peek, PeekBudget, Sniffed,
 };
@@ -45,14 +46,21 @@ impl Peek for OfficePeek {
                 picture: None,
             });
         };
-        let mut look = office_look(src, *format)?;
-        let picture = look.thumbnail.take().and_then(|thumbnail| {
-            let name = match thumbnail.codec {
-                ThumbnailCodec::Png => "thumbnail.png",
-                ThumbnailCodec::Jpeg => "thumbnail.jpg",
-            };
-            cover_picture(&thumbnail.bytes, name, budget)
-        });
+        let deadline = budget.deadline_from_now();
+        let mut look = office_look_until(src, *format, &deadline)?;
+        // Decoding the document's own picture is the slow step: it is skipped once time is up, and
+        // the card is the facts.
+        let picture = look
+            .thumbnail
+            .take()
+            .filter(|_| !deadline.interrupted())
+            .and_then(|thumbnail| {
+                let name = match thumbnail.codec {
+                    ThumbnailCodec::Png => "thumbnail.png",
+                    ThumbnailCodec::Jpeg => "thumbnail.jpg",
+                };
+                cover_picture(&thumbnail.bytes, name, budget)
+            });
         Ok(OfficeLooked {
             described,
             look,

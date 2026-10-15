@@ -1,7 +1,8 @@
 //! The two reads a book makes of its zip, both through `anyview-archive`.
 
 use crate::error::BookError;
-use anyview_archive::{EntryKind, EntryLimit, ExtractLimits, extract, list};
+use anyview_archive::{EntryKind, EntryLimit, ExtractLimits, extract_until, list};
+use anyview_core::work::Interrupt;
 use anyview_core::{ArchiveFormat, ByteLen, Input};
 
 /// The most bytes of the zip's index a book reads.
@@ -21,11 +22,23 @@ pub(crate) fn file_names(input: &Input) -> Result<Vec<String>, BookError> {
         .collect())
 }
 
-/// The bytes of the entry `name` of the zip at `input`, at most `allowed` of them.
-pub(crate) fn read(input: &Input, name: &str, allowed: ByteLen) -> Result<Vec<u8>, BookError> {
+/// The bytes of the entry `name` of the zip at `input`, at most `allowed` of them; ended with an
+/// interrupted archive error when `interrupt` says so.
+pub(crate) fn read(
+    input: &Input,
+    name: &str,
+    allowed: ByteLen,
+    interrupt: &dyn Interrupt,
+) -> Result<Vec<u8>, BookError> {
     let limits = ExtractLimits {
         entry: allowed,
         scanned: allowed,
     };
-    Ok(extract(input, ArchiveFormat::Zip, name, limits)?)
+    Ok(extract_until(
+        input,
+        ArchiveFormat::Zip,
+        name,
+        limits,
+        interrupt,
+    )?)
 }

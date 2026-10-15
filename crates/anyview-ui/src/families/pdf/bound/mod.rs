@@ -10,6 +10,7 @@ mod kept;
 
 use crate::io::OpenError;
 use anyview_book::BookError;
+use anyview_core::work::Stop;
 use anyview_core::{BookFormat, Facts, FormatDetail, Sniffed, Source};
 use anyview_pdf::PdfDocument;
 
@@ -19,9 +20,15 @@ pub(super) struct Bound {
     pub(super) facts: Facts,
 }
 
+/// What an open that `stop` ended says: a book bound from the chapters read before it would be a
+/// shorter book, so nothing is kept.
+fn interrupted() -> OpenError {
+    BookError::Archive(anyview_archive::ArchiveError::Interrupted).into()
+}
+
 /// Bind the book `src` (an EPUB or a comic zip). Blocking: reads the book and lays it out, unless
-/// the session has bound this version of it already.
-pub(super) fn bind(src: &Source, sniffed: &Sniffed) -> Result<Bound, OpenError> {
+/// the session has bound this version of it already. `stop` is asked before each chapter or page.
+pub(super) fn bind(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<Bound, OpenError> {
     let FormatDetail::Book(format) = sniffed.detail() else {
         return Err(OpenError::Unrecognised);
     };
@@ -31,8 +38,8 @@ pub(super) fn bind(src: &Source, sniffed: &Sniffed) -> Result<Bound, OpenError> 
             // The book's own rows only: the General section (kind, size, dates) is the window's.
             let base = Facts::empty();
             let (bytes, facts) = match format {
-                BookFormat::Epub => epub::bind(src.path(), base)?,
-                BookFormat::Cbz => comic::bind(src.path(), base)?,
+                BookFormat::Epub => epub::bind(src.path(), base, stop)?,
+                BookFormat::Cbz => comic::bind(src.path(), base, stop)?,
             };
             (kept::put(src, bytes, &facts), facts)
         }

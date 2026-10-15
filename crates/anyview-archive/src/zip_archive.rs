@@ -4,7 +4,8 @@ use crate::entry::{
     COUNT_LIMIT, Entry, EntryKind, EntryLimit, Holds, Listing, Seen, Tally, TallyStep,
 };
 use crate::error::ArchiveError;
-use crate::limit::Limited;
+use crate::limit::{Limited, pull};
+use anyview_core::work::Interrupt;
 use anyview_core::{ArchiveFormat, ByteLen, Input, ZipEntries};
 use std::io::{BufReader, Read};
 use zip::ZipArchive;
@@ -19,6 +20,7 @@ pub(crate) fn list(
     format: ArchiveFormat,
     limit: EntryLimit,
     budget: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Listing, ArchiveError> {
     let file = ArchiveError::open(src)?;
     let (reader, hit) = Limited::new(BufReader::new(file), budget.0);
@@ -30,6 +32,13 @@ pub(crate) fn list(
     let mut tally = Tally::new(limit);
     let mut seen = Seen::All;
     for index in 0..archive.len() {
+        if interrupt.interrupted() {
+            if tally.is_empty() {
+                return Err(ArchiveError::Interrupted);
+            }
+            seen = Seen::Start;
+            break;
+        }
         let entry = match archive.by_index_raw(index) {
             Ok(file) => Entry {
                 path: file.name().to_owned(),
@@ -64,6 +73,7 @@ pub(crate) fn extract(
     format: ArchiveFormat,
     name: &str,
     allowed: ByteLen,
+    interrupt: &dyn Interrupt,
 ) -> Result<Vec<u8>, ArchiveError> {
     let file = ArchiveError::open(src)?;
     let mut archive = ZipArchive::new(BufReader::new(file))
@@ -86,11 +96,12 @@ pub(crate) fn extract(
     if entry.size() > allowed.0 {
         return Err(ArchiveError::TooLarge { allowed });
     }
-    let mut bytes = Vec::new();
-    (&mut entry)
-        .take(allowed.0.saturating_add(1))
-        .read_to_end(&mut bytes)
+    let pulled = pull(&mut entry, allowed.0, interrupt)
         .map_err(|error| ArchiveError::malformed(format, error))?;
+    if pulled.interrupted {
+        return Err(ArchiveError::Interrupted);
+    }
+    let bytes = pulled.bytes;
     if bytes.len() as u64 > allowed.0 {
         return Err(ArchiveError::TooLarge { allowed });
     }

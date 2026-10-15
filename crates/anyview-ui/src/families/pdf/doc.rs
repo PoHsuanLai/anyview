@@ -5,6 +5,7 @@
 use crate::families::view::Area;
 use crate::io::OpenError;
 use crate::{EditCaution, EditOffer};
+use anyview_core::work::Stop;
 use anyview_core::{BookFormat, Facts, FormatDetail, PageCount, PageIndex, Sniffed, Source};
 use anyview_machines::{OutlineFold, OutlineShape};
 use anyview_pdf::{Disclosure, OutlineEntry, PageSize, PdfDocument, PdfError, PdfWorker, outline};
@@ -196,8 +197,8 @@ pub(super) fn open(src: &Source) -> Result<PdfDoc, OpenError> {
 
 /// Open the book `src` as the PDF it is bound as. Blocking: reads it and lays it out, unless this
 /// session has bound this version of it already.
-pub(super) fn open_book(src: &Source, sniffed: &Sniffed) -> Result<PdfDoc, OpenError> {
-    let bound = super::bound::bind(src, sniffed)?;
+pub(super) fn open_book(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<PdfDoc, OpenError> {
+    let bound = super::bound::bind(src, sniffed, stop)?;
     let origin = match sniffed.detail() {
         FormatDetail::Book(BookFormat::Cbz) => PdfOrigin::Comic,
         FormatDetail::None

@@ -124,18 +124,20 @@ impl TextDoc {
         self.highlighter.snippet(self.syntax, source)
     }
 
-    /// `rows` lines from `first`, highlighted. Blocking.
+    /// `rows` lines from `first`, highlighted. Blocking; ended with an interrupted error, before any
+    /// more of the file is parsed, when `stop` is raised.
     pub fn window(
         &self,
         first: LineIndex,
         rows: u32,
+        stop: &Stop,
     ) -> Result<LineWindow, anyview_text::TextError> {
         let end = LineIndex(first.0.saturating_add(rows));
         let lines = self
             .code
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .highlight(&self.highlighter, first..end)?;
+            .highlight(&self.highlighter, first..end, stop)?;
         Ok(LineWindow { first, lines })
     }
 
@@ -198,8 +200,13 @@ impl TextDoc {
 }
 
 /// Open the text file `src`. Blocking: indexes every line once, renders Markdown.
-pub(crate) fn open(src: &Source, sniffed: &Sniffed, link: &OpenPort) -> Result<TextDoc, OpenError> {
-    let text = TextLines::open(FileBytes::open(src)?)?;
+pub(crate) fn open(
+    src: &Source,
+    sniffed: &Sniffed,
+    link: &OpenPort,
+    stop: &Stop,
+) -> Result<TextDoc, OpenError> {
+    let text = TextLines::open_until(FileBytes::open(src)?, stop)?;
     let count = text.line_count();
     let encoding = text.encoding().label();
     let rendered = markdown(src, sniffed, &text, count, &link.highlighter)?;
@@ -258,11 +265,12 @@ pub(crate) fn first_frame(
     src: &Source,
     sniffed: &Sniffed,
     link: &OpenPort,
+    stop: &Stop,
 ) -> Result<Option<TextDoc>, OpenError> {
     if src.stamp().len.0 <= FIRST_FRAME_BYTES {
         return Ok(None);
     }
-    let text = TextLines::open(FileBytes::first(src, ByteLen(FIRST_FRAME_BYTES))?)?;
+    let text = TextLines::open_until(FileBytes::first(src, ByteLen(FIRST_FRAME_BYTES))?, stop)?;
     let count = text.line_count();
     let syntax = syntax_of(sniffed, &link.highlighter);
     let facts = Facts::empty()

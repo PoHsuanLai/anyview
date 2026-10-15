@@ -11,6 +11,7 @@ use crate::{
     Command, EditOffer, HitIndex, LoadFlow, MediaOffer, PanelParams, PanelTab, PanelTabs, Stage,
     StageIn, StageParams, Ticket, TypedText,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -183,12 +184,15 @@ pub trait StageView: 'static {
     type Doc: Debug + Send + Sync + 'static;
 
     /// Open the file whose type `sniffed` established. Blocking: runs on a worker, and uploads
-    /// what it can into `link` itself.
+    /// what it can into `link` itself. `stop` is raised when the person has left the file: an open
+    /// asks it inside the loops that are its own (indexing, unpacking, laying out) and ends with an
+    /// error nobody reads. A decoder that takes no `Stop` is not reached by it.
     fn open(
         ticket: Ticket,
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        stop: &Stop,
     ) -> Result<Self::Doc, OpenError>;
     /// The cheap first frame of the file, shown while `open` runs, or `None` when there is not one
     /// for this file. Blocking, on a worker; only called for a family whose `FLOW` is
@@ -198,6 +202,7 @@ pub trait StageView: 'static {
         _src: &Source,
         _sniffed: &Sniffed,
         _link: &OpenPort,
+        _stop: &Stop,
     ) -> Result<Option<Self::Doc>, OpenError> {
         Ok(None)
     }

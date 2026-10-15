@@ -1,5 +1,6 @@
 use super::*;
 use crate::bytes::FileBytes;
+use anyview_core::work::Stop;
 use anyview_core::{ByteLen, FilePath, FileStamp, ModTime, Source};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -248,4 +249,12 @@ fn a_missing_file_names_its_path() {
     };
     let src = Source::new(FilePath::new("/nonexistent/x.log").unwrap(), stamp);
     assert!(matches!(FileBytes::open(&src), Err(TextError::Read { .. })));
+}
+
+#[test]
+fn an_index_pass_told_to_stop_leaves_no_half_indexed_text() {
+    let stop = Stop::new();
+    stop.request();
+    let opened = TextLines::open_until(Vec::<u8>::from(numbered(300)), &stop);
+    assert!(matches!(opened, Err(TextError::Interrupted)), "{opened:?}");
 }

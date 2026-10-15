@@ -3,6 +3,7 @@
 use crate::error::FontError;
 use crate::face::{Face, Variation, read};
 use crate::tables::sparse;
+use anyview_core::work::Interrupt;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FontFormat, FormatDetail, FormatKind, Input, Peek,
     PeekBudget, Sniffed,
@@ -34,9 +35,13 @@ impl Peek for FontPeek {
                 kind: sniffed.kind(),
             });
         };
+        let deadline = budget.deadline_from_now();
         match format {
             FontFormat::Ttf | FontFormat::Otf | FontFormat::Ttc => {
-                let sparse = sparse(src, budget.bytes)?;
+                let sparse = sparse(src, budget.bytes, &deadline)?;
+                if deadline.interrupted() {
+                    return Err(FontError::Interrupted);
+                }
                 let (face, _) = read(&sparse.sfnt)?;
                 Ok(FontPeeked {
                     format: *format,
@@ -45,7 +50,7 @@ impl Peek for FontPeek {
                 })
             }
             FontFormat::Woff => {
-                let bytes = crate::woff::to_sfnt(&read_whole(src, budget.bytes)?)?;
+                let bytes = crate::woff::to_sfnt(&read_whole(src, budget.bytes)?, &deadline)?;
                 let (face, faces) = read(&bytes)?;
                 Ok(FontPeeked {
                     format: *format,

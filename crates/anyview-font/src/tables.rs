@@ -4,6 +4,7 @@
 
 use crate::error::FontError;
 use crate::woff::{Table, sfnt};
+use anyview_core::work::Interrupt;
 use anyview_core::{ByteLen, Input};
 
 /// The tables the peek reads: the names, the glyph count and variation, the character map, the
@@ -93,8 +94,13 @@ fn be16(bytes: &[u8], at: usize) -> Option<u16> {
 
 /// The first face of the font file `src`, with the tables the peek reads. The bytes it reads are
 /// the directory and those tables, and no more than `allowed`: a face whose directory and wanted
-/// tables together exceed it is [`FontError::OverBudget`].
-pub(crate) fn sparse(src: &Input, allowed: ByteLen) -> Result<Sparse, FontError> {
+/// tables together exceed it is [`FontError::OverBudget`]. `interrupt` is asked before each table
+/// is read: [`FontError::Interrupted`].
+pub(crate) fn sparse(
+    src: &Input,
+    allowed: ByteLen,
+    interrupt: &dyn Interrupt,
+) -> Result<Sparse, FontError> {
     let mut reader = Reader {
         src,
         allowed,
@@ -140,6 +146,9 @@ pub(crate) fn sparse(src: &Input, allowed: ByteLen) -> Result<Sparse, FontError>
     }
     let mut data = Vec::with_capacity(records.len());
     for record in &records {
+        if interrupt.interrupted() {
+            return Err(FontError::Interrupted);
+        }
         data.push(reader.take(record.offset, record.length)?);
     }
     let tables: Vec<Table<'_>> = records

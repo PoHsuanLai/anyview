@@ -10,7 +10,8 @@ pub use contents::TocEntry;
 use crate::error::BookError;
 use crate::seal::Chapter;
 use crate::zip_read::read;
-use anyview_core::{ByteLen, Input, SectionCount, SectionIndex};
+use anyview_core::work::Interrupt;
+use anyview_core::{ByteLen, Deadline, Input, SectionCount, SectionIndex};
 use package::Package;
 
 /// The largest package part (container, package document, contents) that is read.
@@ -42,9 +43,14 @@ impl Epub {
     /// [`BookError::Empty`].
     pub fn open(input: impl Into<Input>) -> Result<Epub, BookError> {
         let input = input.into();
-        let container = read(&input, "META-INF/container.xml", PART_LIMIT)?;
+        let container = read(
+            &input,
+            "META-INF/container.xml",
+            PART_LIMIT,
+            &Deadline::NEVER,
+        )?;
         let package_path = package::rootfile(&container)?;
-        let document = read(&input, &package_path, PART_LIMIT)?;
+        let document = read(&input, &package_path, PART_LIMIT, &Deadline::NEVER)?;
         let package = package::parse(&package_path, &document)?;
         let count = u32::try_from(package.spine.len())
             .ok()
@@ -80,11 +86,22 @@ impl Epub {
 
     /// The chapter `at` as sealed HTML. Blocking.
     pub fn chapter(&self, at: SectionIndex) -> Result<Chapter, BookError> {
-        chapter::read_chapter(&self.input, &self.package, at)
+        self.chapter_until(at, &Deadline::NEVER)
+    }
+
+    /// [`Epub::chapter`], ended with an interrupted archive error as soon as `interrupt` says so:
+    /// it is asked before each part of the zip is unpacked and once the chapter is sealed, so a
+    /// chapter that lost an image to it is never returned as whole. Blocking.
+    pub fn chapter_until(
+        &self,
+        at: SectionIndex,
+        interrupt: &dyn Interrupt,
+    ) -> Result<Chapter, BookError> {
+        chapter::read_chapter(&self.input, &self.package, at, interrupt)
     }
 
     /// The bytes of the entry `entry`, for a cover. Blocking.
     pub(crate) fn entry(&self, entry: &str, allowed: ByteLen) -> Result<Vec<u8>, BookError> {
-        read(&self.input, entry, allowed)
+        read(&self.input, entry, allowed, &Deadline::NEVER)
     }
 }

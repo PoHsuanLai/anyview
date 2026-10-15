@@ -7,7 +7,8 @@ use crate::families::specimen::{SpecimenSheet, is_drawn};
 use crate::families::view::{Area, StageCx, StageView};
 use crate::io::{OpenError, OpenPort, Readable};
 use crate::{Command, PanelTab, PanelTabs, Stage, StageFamily, StageParams, Ticket};
-use anyview_archive::{OfficeLook, ThumbnailCodec, office_look};
+use anyview_archive::{OfficeLook, ThumbnailCodec, office_look_until};
+use anyview_core::work::Stop;
 use anyview_core::{
     ByteLen, FactLabel, FactValue, Facts, FileAction, FileHead, FileName, FormatDetail, FormatKind,
     PeekBudget, PixelArea, RasterTarget, SniffStep, Sniffed, Source, sniff,
@@ -179,6 +180,7 @@ impl StageView for PeekOnlyStageView {
         src: &Source,
         sniffed: &Sniffed,
         _link: &OpenPort,
+        stop: &Stop,
     ) -> Result<PeekOnlyDoc, OpenError> {
         let name = src
             .path()
@@ -188,7 +190,9 @@ impl StageView for PeekOnlyStageView {
             .with(FactLabel::Kind, super::kind_row(src, sniffed))
             .with(FactLabel::Size, FactValue::size(src.stamp().len));
         let look = match sniffed.detail() {
-            FormatDetail::Office(format) => office_look(src.on_disk(), *format).unwrap_or_default(),
+            FormatDetail::Office(format) => {
+                office_look_until(src.on_disk(), *format, stop).unwrap_or_default()
+            }
             FormatDetail::None
             | FormatDetail::Raster(_)
             | FormatDetail::Code(_)

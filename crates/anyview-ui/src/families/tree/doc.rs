@@ -1,6 +1,7 @@
 //! A JSON file indexed for showing: its tree, read a window at a time, and the rows of the Info tab.
 
 use crate::io::OpenError;
+use anyview_core::work::Stop;
 use anyview_core::{
     Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source,
 };
@@ -23,11 +24,11 @@ pub struct TreeDoc {
 }
 
 /// Open the JSON file `src`. Blocking.
-pub(super) fn open(src: &Source, sniffed: &Sniffed) -> Result<TreeDoc, OpenError> {
+pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<TreeDoc, OpenError> {
     let (FormatKind::Tree, FormatDetail::Tree(format)) = (sniffed.kind(), sniffed.detail()) else {
         return Err(OpenError::Unrecognised);
     };
-    let (tree, coverage) = Tree::read(src.on_disk(), *format, TREE_BYTES)?;
+    let (tree, coverage) = Tree::read_until(src.on_disk(), *format, TREE_BYTES, stop)?;
     let root = tree.row(&anyview_core::TreePath::root())?;
     let entries = match coverage {
         Coverage::Whole => root.children.0.to_string(),

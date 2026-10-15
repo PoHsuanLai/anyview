@@ -1,4 +1,6 @@
 use super::*;
+use anyview_core::Deadline;
+use anyview_core::work::Stop;
 
 fn code(source: &str, name: &str) -> (Highlighter, CodeLines<Vec<u8>>) {
     let highlighter = Highlighter::new();
@@ -14,8 +16,12 @@ fn highlight(
     from: u32,
     to: u32,
 ) -> Vec<TokenLine> {
-    code.highlight(highlighter, LineIndex(from)..LineIndex(to))
-        .unwrap()
+    code.highlight(
+        highlighter,
+        LineIndex(from)..LineIndex(to),
+        &Deadline::NEVER,
+    )
+    .unwrap()
 }
 
 fn class_of_text(line: &TokenLine, text: &str) -> Option<TokenClass> {
@@ -446,4 +452,17 @@ fn fenced_labels_find_the_added_languages() {
 fn the_packed_syntax_set_loads_with_the_default_and_the_added_syntaxes() {
     let h = Highlighter::new();
     assert!(h.set.syntaxes().len() > 90, "the dump did not load");
+}
+
+#[test]
+fn a_raised_stop_ends_a_window_and_the_next_ask_goes_on_without_it() {
+    let source = (0..300)
+        .map(|n| format!("let a{n} = {n};\n"))
+        .collect::<String>();
+    let (h, mut c) = code(&source, "rust");
+    let stop = Stop::new();
+    stop.request();
+    let ended = c.highlight(&h, LineIndex(200)..LineIndex(210), &stop);
+    assert!(matches!(ended, Err(TextError::Interrupted)), "{ended:?}");
+    assert_eq!(highlight(&h, &mut c, 200, 210).len(), 10);
 }

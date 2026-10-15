@@ -32,6 +32,7 @@ use crate::{
     PanelTab, PanelTabs, PdfIn, PdfParams, Stage, StageFamily, StageIn, StageParams, Ticket,
     Viewport,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FormatKind, PixelLen, PixelSize, Resume, Sniffed, Source, Zoom};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::priority::RankedSlot;
@@ -50,9 +51,10 @@ impl StageView for PdfStageView {
         src: &Source,
         sniffed: &Sniffed,
         _link: &OpenPort,
+        stop: &Stop,
     ) -> Result<PdfDoc, OpenError> {
         if sniffed.kind() == FormatKind::Book {
-            doc::open_book(src, sniffed)
+            doc::open_book(src, sniffed, stop)
         } else {
             doc::open(src)
         }

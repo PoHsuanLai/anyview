@@ -56,6 +56,10 @@ pub enum ArchiveError {
     /// The entry is not a file (a folder or a link) and has no bytes to extract.
     #[error("the entry is not a file")]
     NotAFile,
+    /// The work was told to end before it had anything to give: the peek's time ran out, or the
+    /// person left the file.
+    #[error("the work was interrupted")]
+    Interrupted,
 }
 
 impl ArchiveError {

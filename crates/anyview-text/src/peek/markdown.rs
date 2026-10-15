@@ -6,6 +6,7 @@ use crate::encoding::TextCodec;
 use crate::error::TextError;
 use crate::lines::split_start;
 use crate::markdown::{Heading, NoFiles, RenderEnv, render};
+use anyview_core::work::Interrupt;
 use anyview_core::{FactLabel, FactValue, Facts, FormatKind, Input, Peek, PeekBudget, Sniffed};
 
 /// What a peek of a Markdown file holds.
@@ -56,7 +57,12 @@ impl Peek for MarkdownPeek {
         budget: &PeekBudget,
     ) -> Result<MarkdownPeeked, TextError> {
         expect_kind(sniffed, Self::KIND)?;
-        let head = read_head(src, budget)?;
+        let deadline = budget.deadline_from_now();
+        let head = read_head(src, budget, &deadline)?;
+        // Rendering is the slow step and a late read is a partial one: the card is the facts.
+        if deadline.interrupted() {
+            return Err(TextError::Interrupted);
+        }
         let (_, lines) = split_start(&head.text, 0);
         let rendered = render(
             start_of(&head.text),

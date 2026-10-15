@@ -13,6 +13,7 @@ use super::tree::TreeStageView;
 use super::view::{LoadedDoc, StageView};
 use crate::io::{OpenError, OpenPort};
 use crate::{LoadFlow, StageFamily, Ticket};
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FormatKind, Sniffed, Source};
 use anyview_fs::OnDisk;
 use anyview_store::general_facts as general_of;
@@ -70,6 +71,7 @@ struct Opener<'a> {
     src: &'a Source,
     sniffed: &'a Sniffed,
     link: &'a OpenPort,
+    stop: &'a Stop,
 }
 
 impl FamilyVisitor for Opener<'_> {
@@ -77,17 +79,19 @@ impl FamilyVisitor for Opener<'_> {
 
     fn visit<S: StageView>(self) -> Self::Out {
         let general = general_facts(self.src, self.sniffed);
-        S::open(self.ticket, self.src, self.sniffed, self.link)
+        S::open(self.ticket, self.src, self.sniffed, self.link, self.stop)
             .map(|doc| LoadedDoc::of::<S>(doc).describing(general))
     }
 }
 
-/// Open the file whose type `sniffed` established with the view that shows it. Blocking.
+/// Open the file whose type `sniffed` established with the view that shows it. Blocking; ended
+/// early, with an error, where the view's own loops see `stop` raised.
 pub(crate) fn open_for(
     ticket: Ticket,
     src: &Source,
     sniffed: &Sniffed,
     link: &OpenPort,
+    stop: &Stop,
 ) -> Result<LoadedDoc, OpenError> {
     visit(
         sniffed.kind(),
@@ -96,6 +100,7 @@ pub(crate) fn open_for(
             src,
             sniffed,
             link,
+            stop,
         },
     )
 }
@@ -121,13 +126,14 @@ struct FirstFrame<'a> {
     src: &'a Source,
     sniffed: &'a Sniffed,
     link: &'a OpenPort,
+    stop: &'a Stop,
 }
 
 impl FamilyVisitor for FirstFrame<'_> {
     type Out = Result<Option<LoadedDoc>, OpenError>;
 
     fn visit<S: StageView>(self) -> Self::Out {
-        let doc = S::first_frame(self.ticket, self.src, self.sniffed, self.link)?;
+        let doc = S::first_frame(self.ticket, self.src, self.sniffed, self.link, self.stop)?;
         let general = general_facts(self.src, self.sniffed);
         Ok(doc.map(|doc| LoadedDoc::of::<S>(doc).describing(general)))
     }
@@ -140,6 +146,7 @@ pub(crate) fn peek_for(
     src: &Source,
     sniffed: &Sniffed,
     link: &OpenPort,
+    stop: &Stop,
 ) -> Result<Option<LoadedDoc>, OpenError> {
     visit(
         sniffed.kind(),
@@ -148,6 +155,7 @@ pub(crate) fn peek_for(
             src,
             sniffed,
             link,
+            stop,
         },
     )
 }

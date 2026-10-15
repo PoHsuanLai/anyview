@@ -2,8 +2,10 @@
 
 use crate::support;
 
-use anyview_book::{Comic, Epub, comic_cover, epub_cover, natural_order};
+use anyview_archive::ArchiveError;
+use anyview_book::{BookError, Comic, Epub, comic_cover, epub_cover, natural_order};
 use anyview_core::SectionIndex;
+use anyview_core::work::Stop;
 
 #[test]
 fn an_epub_reads_its_metadata_spine_and_cover() {
@@ -102,4 +104,16 @@ fn a_zip_without_chapters_or_pages_is_empty() {
     let dir = tempfile::tempdir().unwrap();
     let path = support::write_zip(dir.path(), "none.cbz", &[("a.txt", b"x")]);
     assert!(Comic::open(&path).is_err());
+}
+
+#[test]
+fn a_chapter_told_to_stop_is_never_returned_as_a_whole_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let epub = Epub::open(support::epub(dir.path())).unwrap();
+    let stop = Stop::new();
+    stop.request();
+    assert_eq!(
+        epub.chapter_until(SectionIndex(0), &stop).map(|c| c.body),
+        Err(BookError::Archive(ArchiveError::Interrupted))
+    );
 }

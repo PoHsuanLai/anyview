@@ -5,6 +5,8 @@ use crate::error::BookError;
 use crate::seal::{Assets, Chapter, seal};
 use crate::zip_path::directory_of;
 use crate::zip_read::read;
+use anyview_archive::ArchiveError;
+use anyview_core::work::Interrupt;
 use anyview_core::{
     ByteLen, FileHead, FileName, FormatKind, Input, SectionIndex, SniffStep, sniff,
 };
@@ -24,23 +26,30 @@ pub(super) fn read_chapter(
     input: &Input,
     package: &Package,
     at: SectionIndex,
+    interrupt: &dyn Interrupt,
 ) -> Result<Chapter, BookError> {
     let item = package
         .spine
         .get(at.0 as usize)
         .ok_or(BookError::NoSuchSection)?;
-    let html = text_of(&read(input, &item.entry, CHAPTER_LIMIT)?);
+    let html = text_of(&read(input, &item.entry, CHAPTER_LIMIT, interrupt)?);
     let assets = ZipAssets {
         input,
         taken: Cell::new(0),
+        interrupt,
     };
-    Ok(seal(&html, directory_of(&item.entry), &assets))
+    let chapter = seal(&html, directory_of(&item.entry), &assets);
+    if interrupt.interrupted() {
+        return Err(BookError::Archive(ArchiveError::Interrupted));
+    }
+    Ok(chapter)
 }
 
 /// The files of the zip, read as a chapter asks for them.
 struct ZipAssets<'a> {
     input: &'a Input,
     taken: Cell<u64>,
+    interrupt: &'a dyn Interrupt,
 }
 
 impl Assets for ZipAssets<'_> {
@@ -48,7 +57,7 @@ impl Assets for ZipAssets<'_> {
         if self.taken.get() >= TOTAL_LIMIT {
             return None;
         }
-        let bytes = read(self.input, entry, ASSET_LIMIT).ok()?;
+        let bytes = read(self.input, entry, ASSET_LIMIT, self.interrupt).ok()?;
         let mime = image_mime(entry, &bytes)?;
         self.taken.set(self.taken.get() + bytes.len() as u64);
         Some(format!(
@@ -61,7 +70,7 @@ impl Assets for ZipAssets<'_> {
         if self.taken.get() >= TOTAL_LIMIT {
             return None;
         }
-        let bytes = read(self.input, entry, ASSET_LIMIT).ok()?;
+        let bytes = read(self.input, entry, ASSET_LIMIT, self.interrupt).ok()?;
         self.taken.set(self.taken.get() + bytes.len() as u64);
         Some(text_of(&bytes))
     }

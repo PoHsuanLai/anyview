@@ -181,8 +181,8 @@ no other public path. A module names only modules above it in this list.
 | `export` | the per-format export enums, `AudioTarget`, `ExportChoice`, `ExportJob` (its `Transcode` is a cut, a track or a conversion of a recording) and its payloads |
 | `resume` | `Resume`, `TrackChoice` |
 | `facts` | `Fact`, `Facts`, `FactLabel` (and where each label is listed by default: `group`, `tier`), `FactGroup` (the sections of the Info panel, in display order, `General` last), `Tier` (headline rows make the summary line, `Facts::summary`), `FactValue` and its constructors (size with exact bytes, date, coordinate, altitude, version), `FactTime`, `LocalZone` (the person's time zone, read from the system by `jiff`; every shown time is converted to it and never names a zone), `Coordinate`, `kind_name` (Finder's "JPEG image"), and `FileDetails` with `Facts::general` (the General section: kind, size, created, modified, where, where from, permissions); `label`, `group`, `value`, `when`, `place`, `summary`, `kind_name` and `file` are private |
-| `peek` | `Peek`, `PeekBudget`, `Deadline` (the budget's time as an instant a long loop asks about; cooperative), `StageSupport` |
-| `work` | `Backend`, `Stop`, `StopState`, `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
+| `peek` | `Peek`, `PeekBudget` (`deadline_from_now`), `Deadline` (the budget's time as an instant a long loop asks about; cooperative; an `Interrupt`), `StageSupport` |
+| `work` | `Backend`, `Stop`, `StopState`, `Interrupt` (the one question a loop asks to end early: a peek's `Deadline` and a viewer job's `Stop` both answer it; reading the clock is its implementations', not the loop's), `Ticket`, `Ticketed`: the contract with the threads. The one public module: reached as `anyview_core::work::X` |
 | `APP_NAME` | the name a person sees ("Viewer"): the welcome title, the helper sheet, the now-playing identity. Identifiers (binary, app id, bus names) keep `anyview` |
 | `profile` | the one match on `FormatKind`: `actions_for`, `edits_for`, `mime_for`, `stage_support` |
 

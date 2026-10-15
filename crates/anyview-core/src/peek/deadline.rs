@@ -1,6 +1,6 @@
-//! A peek's time limit as a value a long loop can ask about. It is cooperative: a loop that
-//! checks it stops soon after the limit, and a decoder that never returns is not stopped by it
-//! (the host replaces that worker instead).
+//! A peek's time limit as a value a long loop can ask about (it is an `Interrupt`). It is
+//! cooperative: a loop that checks it stops soon after the limit, and a decoder that never returns
+//! is not stopped by it (the host replaces that worker instead).
 
 use super::PeekBudget;
 use std::time::Instant;
@@ -17,6 +17,11 @@ impl Deadline {
     /// added to an instant has no limit.
     pub fn of(budget: &PeekBudget, start: Instant) -> Deadline {
         Deadline(start.checked_add(budget.time))
+    }
+
+    /// The instant the deadline falls at, or `None` for no limit.
+    pub(crate) fn limit(self) -> Option<Instant> {
+        self.0
     }
 
     /// Whether `now` is at or past the deadline; the caller reads the clock, once per check.

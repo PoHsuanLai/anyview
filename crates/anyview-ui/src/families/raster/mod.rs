@@ -15,6 +15,7 @@ use crate::{
     Animation, Command, FrameCount, LoadFlow, PanelTab, PanelTabs, RasterIn, Stage, StageFamily,
     StageIn, StageParams, Ticket, Tool,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Adjust, Facts, Permille, PixelSize, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -64,6 +65,7 @@ impl StageView for RasterStageView {
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        _stop: &Stop,
     ) -> Result<Option<RasterDoc>, OpenError> {
         doc::first_frame(src, sniffed, link)
     }
@@ -73,6 +75,7 @@ impl StageView for RasterStageView {
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        _stop: &Stop,
     ) -> Result<RasterDoc, OpenError> {
         let target = RasterOpen {
             source: src.clone(),

@@ -24,6 +24,7 @@ use crate::{
     Stage, StageCommand, StageFamily, StageIn, StageParams, TextExtent, TextIn, TextParams,
     TextStage, TextView, TextViews, Ticket, TypedText,
 };
+use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, FormatKind, LineIndex, Resume, Sniffed, Source};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::CapsuleSlot;
@@ -55,8 +56,9 @@ impl StageView for TextStageView {
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        stop: &Stop,
     ) -> Result<Option<TextDoc>, OpenError> {
-        doc::first_frame(src, sniffed, link)
+        doc::first_frame(src, sniffed, link, stop)
     }
 
     fn open(
@@ -64,8 +66,9 @@ impl StageView for TextStageView {
         src: &Source,
         sniffed: &Sniffed,
         link: &OpenPort,
+        stop: &Stop,
     ) -> Result<TextDoc, OpenError> {
-        doc::open(src, sniffed, link)
+        doc::open(src, sniffed, link, stop)
     }
 
     fn facts(doc: &TextDoc) -> Facts {
