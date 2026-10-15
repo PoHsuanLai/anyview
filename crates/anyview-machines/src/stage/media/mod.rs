@@ -1,6 +1,7 @@
 //! The media stage: opening, playing, paused, scrubbing, ended, failed, over what the player
 //! reports.
 
+mod command;
 mod event;
 mod model;
 mod playing;
@@ -9,6 +10,7 @@ mod step;
 #[cfg(test)]
 mod tests;
 
+pub(super) use command::input_for;
 pub use event::{EndReason, Pace, PlayerCommand, PlayerEvent, StepDirection, TrackKind, TrimEdge};
 pub use model::{
     AfterScrub, ControlOffer, MediaAbilities, MediaError, MediaIn, MediaOut, MediaParams,
