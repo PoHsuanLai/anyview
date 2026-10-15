@@ -187,7 +187,15 @@ fn a_rectangle_under_the_least_size_can_still_be_dragged() {
     let shaped = boxed(0, 0, 16, 16).shaped((16, 9));
     assert_eq!(shaped, boxed(0, 3, 16, 9));
     // name, the rectangle, the picture, grip, the pointer's move in whole pixels, the rectangle after
-    const CASES: &[(&str, CropBox, PixelSize, CropGrip, (i64, i64), CropBox)] = &[
+    type Case = (
+        &'static str,
+        CropBox,
+        PixelSize,
+        CropGrip,
+        (i64, i64),
+        CropBox,
+    );
+    const CASES: &[Case] = &[
         (
             "the top edge of a rectangle shorter than the least side",
             boxed(0, 3, 16, 9),

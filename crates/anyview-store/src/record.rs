@@ -154,7 +154,7 @@ mod tests {
             resume_file_name(&path("/b")).unwrap()
         );
         assert_eq!(
-            resume_file_name(&path("/a/./c")).unwrap(),
+            resume_file_name(&path("/a/./b/../c")).unwrap(),
             resume_file_name(&path("/a/c")).unwrap()
         );
     }
