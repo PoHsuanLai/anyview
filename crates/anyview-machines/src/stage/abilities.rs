@@ -58,7 +58,6 @@ const MEDIA: StageAbilities = StageAbilities {
     edits: &[FileAction::Trim],
     export: Some(ExportFamily::Media),
     playing: Playing::Plays,
-    ..READ_ONLY
 };
 
 const TEXT: StageAbilities = StageAbilities {
