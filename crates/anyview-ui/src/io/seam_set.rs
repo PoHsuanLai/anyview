@@ -5,8 +5,8 @@
 use super::helpers::{HelperSource, NoHelpers};
 use super::media::{MediaHost, NoPlayer};
 use super::seams::{
-    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoVersions, ResumeKeeper,
-    ResumeSource, VersionSource,
+    FileLocks, Forgetful, ImagePlugins, NoImagePlugins, NoLocks, NoPanelMemory, NoVersions,
+    PanelMemory, ResumeKeeper, ResumeSource, VersionSource,
 };
 use anyview_machines::PlatformAbilities;
 use anyview_peek::{NoStills, StillSource};
@@ -41,6 +41,8 @@ pub struct Seams {
     /// Where the views and places are written, when the window keeps them itself instead of
     /// asking its host through `HostRequest::Opened` and `HostRequest::Remember`.
     pub(crate) keeper: Option<Arc<dyn ResumeKeeper>>,
+    /// The left panel's width across launches.
+    pub(crate) panel: Arc<dyn PanelMemory>,
     /// Which files refuse a save in place.
     pub(crate) locks: Arc<dyn FileLocks>,
     /// The versions kept of a file.
@@ -71,6 +73,7 @@ impl Default for Seams {
         Seams {
             resume: Arc::new(Forgetful),
             keeper: None,
+            panel: Arc::new(NoPanelMemory),
             locks: Arc::new(NoLocks),
             versions: Arc::new(NoVersions),
             first_frames: Arc::new(NoStills),
@@ -101,6 +104,13 @@ impl Seams {
             keeper: Some(keeper),
             ..self
         }
+    }
+
+    /// The same seams remembering the left panel's width in `panel`: without it the panel opens
+    /// at its own width every time.
+    #[must_use]
+    pub fn with_panel_memory(self, panel: Arc<dyn PanelMemory>) -> Seams {
+        Seams { panel, ..self }
     }
 
     /// The same seams asking `locks` which files refuse a save in place: without it every file

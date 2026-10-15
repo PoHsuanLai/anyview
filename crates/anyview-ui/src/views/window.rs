@@ -52,14 +52,36 @@ use ds_core::word::Word;
 use futures_util::StreamExt;
 use std::rc::Rc;
 
-/// The left panel's pane: 240 wide, between 220 and 320, and it folds away when dragged past half
-/// its least. It sits beside the stage, so opening it shrinks the stage and not the window.
-const PANEL: PaneSpec = PaneSpec {
-    preferred: PaneSize::Fixed(Px(super::panel::WIDTH as f32)),
-    min: PaneSize::Fixed(Px(220.0)),
-    max: PaneSize::Fixed(Px(320.0)),
-    collapsing: Collapsing::Snaps,
-};
+/// The least the left panel is dragged to, in logical pixels.
+const PANEL_LEAST: u32 = 220;
+
+/// The most the left panel is dragged to, in logical pixels.
+const PANEL_MOST: u32 = 320;
+
+/// The left panel's pane: 240 wide by default, or the width the person left it at, between 220 and
+/// 320, and it folds away when dragged past half its least. It sits beside the stage, so opening
+/// it shrinks the stage and not the window. A width kept from another launch is held to that
+/// range, so a stale or edited value cannot give a pane the drag would not.
+fn panel_pane(kept: Option<u32>) -> PaneSpec {
+    let width = kept.map_or(super::panel::WIDTH, |kept| {
+        kept.clamp(PANEL_LEAST, PANEL_MOST)
+    });
+    PaneSpec {
+        preferred: PaneSize::Fixed(Px(width as f32)),
+        min: PaneSize::Fixed(Px(PANEL_LEAST as f32)),
+        max: PaneSize::Fixed(Px(PANEL_MOST as f32)),
+        collapsing: Collapsing::Snaps,
+    }
+}
+
+/// The width of the left panel in `sizes`, the sizes a split view reports once a drag settles, in
+/// whole logical pixels.
+fn panel_width_in(sizes: &[PaneSize]) -> Option<u32> {
+    match sizes.first()? {
+        PaneSize::Fixed(Px(width)) => Some(width.round().max(0.0) as u32),
+        PaneSize::Share(_) => None,
+    }
+}
 
 /// Below this width the info panel lies over the content instead of beside it (a pane or a window
 /// alike): opening it would leave the content too little room.
@@ -470,6 +492,15 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         Some(_) | None => BarRoom::Roomy,
     };
     let trailing = if bar == BarRoom::Bare { None } else { trailing };
+    // The width the person left the panel at, read once as the window opens. A pane keeps the
+    // host's behaviour: its edge has no memory.
+    let panel_spec = use_hook(|| panel_pane(edge.panel_width()));
+    let panel_kept = edge.clone();
+    let panel_resized = move |sizes: Vec<PaneSize>| {
+        if let Some(width) = panel_width_in(&sizes) {
+            panel_kept.keep_panel_width(width);
+        }
+    };
     // A pane dragged open or shut asks the machine for the same: opening is idempotent (the tab
     // is the one the panel would show), so a drag that reports it twice does not close it again.
     let panel_wanted = move |(_, shown): (usize, Shown)| {
@@ -650,10 +681,11 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 // A folded pane leaves the split view altogether: its divider would take a strip at the
                 // stage's left edge (a right-click there, a drag that starts there).
                 panes: match (pane_shown, overlay) {
-                    (Shown::Visible, false) => vec![SplitPane::new(PANEL, panel.clone())],
+                    (Shown::Visible, false) => vec![SplitPane::new(panel_spec, panel.clone())],
                     (Shown::Visible, true) | (Shown::Hidden, _) => Vec::new(),
                 },
                 on_shown: panel_wanted,
+                on_resized: panel_resized,
                 common: Common {
                     extra_class: ExtraClass::parse("viewer-split").ok(),
                     ..Common::default()

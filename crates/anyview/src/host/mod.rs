@@ -44,7 +44,7 @@ pub use path_watch::{PATH_SETTLE, PathWatch};
 pub use pictures::{CachedPictures, PosterPictures};
 pub use plugin_registry::PluginRegistry;
 pub use remembering::{PlaceWriter, REMEMBER_EVERY};
-pub use resume::HostedResume;
+pub use resume::{HostedPanel, HostedResume};
 pub use resume_handed::HandedResume;
 pub use route::{Carry, Shown, Task, WindowTask, route};
 pub use saving::prune_versions;

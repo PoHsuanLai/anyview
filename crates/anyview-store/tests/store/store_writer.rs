@@ -122,6 +122,31 @@ fn view_memory_comes_back_only_for_the_same_file() {
 }
 
 #[test]
+fn the_panel_width_comes_back_once_saved_and_a_damaged_record_is_an_error() {
+    let scratch = tempfile::tempdir().unwrap();
+    let root = scratch.path().join("store");
+    let writer = StoreWriter::new(&root, cap(10));
+    assert_eq!(
+        writer.load_panel_width().unwrap(),
+        None,
+        "nothing saved yet"
+    );
+    writer.save_panel_width(288).unwrap();
+    assert_eq!(writer.load_panel_width().unwrap(), Some(288));
+    writer.save_panel_width(260).unwrap();
+    assert_eq!(
+        writer.load_panel_width().unwrap(),
+        Some(260),
+        "the last one"
+    );
+    fs::write(root.join("panel.json"), "not json").unwrap();
+    assert!(matches!(
+        writer.load_panel_width(),
+        Err(StoreError::Corrupt { .. })
+    ));
+}
+
+#[test]
 fn saving_nothing_forgets_what_was_saved() {
     let scratch = tempfile::tempdir().unwrap();
     let writer = StoreWriter::new(scratch.path().join("store"), cap(10));

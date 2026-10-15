@@ -21,6 +21,13 @@ pub(crate) struct ResumeRecord {
     pub resume: Resume,
 }
 
+/// What is stored of the left panel: the width the person left it at, in logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct PanelRecord {
+    /// The panel's width.
+    pub width: u32,
+}
+
 /// The name a path's record is stored under: its FNV-1a hash in 16 hex digits. FNV is written out
 /// here because the standard hasher's output is not promised across Rust versions, and a changed
 /// name would orphan every record. A collision is harmless: the record names its path, and a load

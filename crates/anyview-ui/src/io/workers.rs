@@ -432,6 +432,18 @@ impl Edge {
         self.reply.post(Done::Notice(notice));
     }
 
+    /// The width the person left the left panel at last time, in logical pixels, when the host
+    /// remembers one.
+    #[must_use]
+    pub fn panel_width(&self) -> Option<u32> {
+        self.seams.panel.recall()
+    }
+
+    /// The person left the left panel `width` logical pixels wide: the host keeps it.
+    pub fn keep_panel_width(&self, width: u32) {
+        self.seams.panel.keep(width);
+    }
+
     /// Whether this edge was given a keeper, so the window writes the views and places itself.
     #[must_use]
     pub fn keeps(&self) -> bool {
