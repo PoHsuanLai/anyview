@@ -7,3 +7,4 @@ mod flows;
 mod picture;
 mod support;
 mod table;
+mod trim;

@@ -7,13 +7,13 @@
 use crate::support;
 
 use anyview_core::{
-    ChapterIndex, Fact, FactLabel, FactValue, MediaChapter, MediaExport, MediaExportKind,
+    ChapterIndex, Edit, Fact, FactLabel, FactValue, MediaChapter, MediaExport, MediaExportKind,
     MediaLength, MediaTags, MediaTime, MediaTrack, Percent, Resume, Speed, StreamKind, TimeRange,
     TrackChoice, TrackId, TrackPlay, VideoPresence, Volume,
 };
 use anyview_ui::{
-    ExportDraft, HostRequest, MediaError, MediaNotice, MediaOffer, Pace, PlayerCommand,
-    PlayerEvent, Presentation, StepDirection, TrackKind,
+    EditRequest, ExportDraft, HostRequest, MediaError, MediaNotice, MediaOffer, Pace,
+    PlayerCommand, PlayerEvent, Presentation, StepDirection, TrackKind,
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Driver, Harness, Input, Query, Viewport};
@@ -1443,5 +1443,132 @@ fn the_dialog_offers_a_bitrate_for_lossy_audio_only_and_a_range_only_where_marks
         [ExportDraft::Media(MediaExport::AudioOnly(
             anyview_core::AudioTarget::Mp3(anyview_core::Bitrate::from_kbps(256))
         ))]
+    );
+}
+
+#[test]
+fn trim_brings_up_a_bar_that_is_dragged_applied_and_saved_over_the_file() {
+    let offer = MediaOffer::new(vec![MediaExportKind::Trim], None);
+    let Opened {
+        mut harness,
+        player,
+        requests,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    settle(&mut harness);
+    assert_eq!(
+        harness.count(".viewer-trim"),
+        0,
+        "no bar until it is asked for"
+    );
+
+    // Command-T brings the bar up and holds the player while the part to keep is chosen.
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('t')));
+    settle(&mut harness);
+    assert_eq!(harness.count(".viewer-trim"), 1, "the bar is up");
+    assert_eq!(
+        harness.count(".viewer-trim-handle"),
+        2,
+        "a handle for each end"
+    );
+    assert!(
+        line.sent()
+            .contains(&PlayerCommand::SetPlayback(Pace::Paused)),
+        "{:?}",
+        line.sent()
+    );
+    hover(&mut harness);
+    assert_eq!(
+        harness.count(".ds-scrubber"),
+        0,
+        "the bar's controls stand in for the player's while a part is chosen"
+    );
+
+    // The end handle is dragged from the right end to a little past sixty seconds of a hundred.
+    let track = harness.rect(".viewer-trim-track").unwrap();
+    let at = |share: f32| Point {
+        x: Px(track.origin.x.0 + track.size.width.0 * share),
+        y: Px(track.origin.y.0 + track.size.height.0 / 2.0),
+    };
+    harness.send(Input::drag(at(0.99), at(0.605), 6));
+    settle(&mut harness);
+    let seeks: Vec<MediaTime> = line
+        .sent()
+        .iter()
+        .filter_map(|command| {
+            if let PlayerCommand::Seek(to) = command {
+                Some(*to)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let shown = seeks.last().expect("the player shows the handle's frame").0 / 1_000_000;
+    assert!(
+        (60..=61).contains(&shown),
+        "the frame at the handle: {shown} s"
+    );
+
+    // Return applies it: the bar goes and the recording is the part kept.
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(&mut harness);
+    assert_eq!(harness.count(".viewer-trim"), 0, "the bar goes");
+    hover(&mut harness);
+    let text = readouts(&harness);
+    assert!(text.contains("1:00"), "the length is the part kept: {text}");
+    assert!(!text.contains("1:40"), "not the whole recording: {text}");
+
+    // Command-S saves it over the file, from the start to where the handle was left.
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('s')));
+    settle(&mut harness);
+    let saved: Vec<(MediaTime, MediaTime)> = requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|request| {
+            if let HostRequest::Edit(EditRequest {
+                edit: Edit::Trim { start, end },
+                ..
+            }) = request
+            {
+                Some((*start, *end))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(saved.len(), 1, "{saved:?}");
+    let (start, end) = saved[0];
+    assert_eq!(start, MediaTime::default());
+    assert!(
+        (60..=61).contains(&(end.0 / 1_000_000)),
+        "kept up to the handle: {end:?}"
+    );
+}
+
+#[test]
+fn trim_without_the_plugin_names_the_package_that_adds_it_and_brings_up_no_bar() {
+    let offer = MediaOffer::new(vec![], Some(needs("anyview-ffmpeg", "convert it")));
+    let Opened {
+        mut harness,
+        player,
+        ..
+    } = open_answering(Answer::Plays, Some(offer));
+    let line = player.latest().unwrap();
+    playing(&line, 25);
+    settle(&mut harness);
+    harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('t')));
+    settle(&mut harness);
+    let said = harness.text_of(".viewer-sheet").unwrap_or_default();
+    assert!(
+        said.contains("can\u{2019}t be trimmed") && said.contains("anyview-ffmpeg"),
+        "{said}"
+    );
+    assert_eq!(
+        harness.count(".viewer-trim"),
+        0,
+        "no bar over a recording nothing can cut"
     );
 }

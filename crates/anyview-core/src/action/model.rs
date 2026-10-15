@@ -40,6 +40,8 @@ pub enum FileAction {
     FlipHorizontal,
     /// Mirror the content top to bottom.
     FlipVertical,
+    /// Keep part of a recording and cut the rest, in place.
+    Trim,
     /// Play the audio with no window.
     PlayInBackground,
     /// Play the video in a small window above the others.

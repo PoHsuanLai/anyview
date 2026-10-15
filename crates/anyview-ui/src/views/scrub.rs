@@ -2,7 +2,7 @@
 //! in thousandths of the length; the stage in times, so the length is read from the stage.
 
 use super::shelf::Dispatch;
-use crate::families::{level_to_volume, place_to_time};
+use crate::families::{bar_time, level_to_volume};
 use crate::{MediaIn, Stage, StageIn, ViewerIn};
 use dioxus::prelude::*;
 use ds::components::chrome::capsule::model::ScrubEvent;
@@ -22,18 +22,19 @@ pub(super) fn scrubbed(dispatch: Dispatch, event: ScrubEvent) {
     let Some(length) = stage.length() else {
         return;
     };
+    let kept = state.trim.applied();
     match event {
         ScrubEvent::Start(at) => {
             send(dispatch, MediaIn::ScrubStart);
-            send(dispatch, MediaIn::ScrubTo(place_to_time(at, length)));
+            send(dispatch, MediaIn::ScrubTo(bar_time(at, length, kept)));
         }
-        ScrubEvent::Move(at) => send(dispatch, MediaIn::ScrubTo(place_to_time(at, length))),
+        ScrubEvent::Move(at) => send(dispatch, MediaIn::ScrubTo(bar_time(at, length, kept))),
         ScrubEvent::End(at) => {
-            send(dispatch, MediaIn::ScrubTo(place_to_time(at, length)));
+            send(dispatch, MediaIn::ScrubTo(bar_time(at, length, kept)));
             send(dispatch, MediaIn::ScrubEnd);
         }
         ScrubEvent::Cancel => send(dispatch, MediaIn::ScrubCancel),
-        ScrubEvent::Seek(at) => send(dispatch, MediaIn::SeekTo(place_to_time(at, length))),
+        ScrubEvent::Seek(at) => send(dispatch, MediaIn::SeekTo(bar_time(at, length, kept))),
     }
 }
 

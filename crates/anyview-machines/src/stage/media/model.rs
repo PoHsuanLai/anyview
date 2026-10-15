@@ -79,6 +79,18 @@ impl MediaStage {
         }
     }
 
+    /// Where playback is, once the recording is open: the slider's place while it is dragged.
+    #[must_use]
+    pub fn position(&self) -> Option<MediaTime> {
+        match self {
+            MediaStage::Playing { at, .. }
+            | MediaStage::Paused { at, .. }
+            | MediaStage::Ended { at, .. } => Some(*at),
+            MediaStage::Scrubbing { to, .. } => Some(*to),
+            MediaStage::Opening | MediaStage::Failed(_) => None,
+        }
+    }
+
     /// The same state with the length the player has now said; a stage that is not showing a
     /// recording yet has no length to change.
     pub(super) fn with_length(self, length: MediaLength) -> MediaStage {

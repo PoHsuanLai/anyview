@@ -9,7 +9,7 @@ use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
 use crate::picture::PictureEditIn;
 use crate::presentation::{Presentation, PresentationIn};
-use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn};
+use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn, Wanted};
 use crate::stage::{Stage, StageIn, TextIn};
 use anyview_core::{Axis, Edit, FileAction, FindOption, QuarterTurn};
 use ds_core::time::stamp::Stamp;
@@ -90,9 +90,11 @@ pub(super) fn export(viewer: Viewer, at: Stamp, params: &ViewerParams) -> Step {
             let offer = &params.sheet.media;
             match (offer.first(), offer.needs()) {
                 (Some(choice), _) => Some(SheetIn::OpenExport(ExportDraft::Media(choice))),
-                (None, Some(needs)) => {
-                    Some(SheetIn::OpenUnavailable(needs.clone(), offer.helper()))
-                }
+                (None, Some(needs)) => Some(SheetIn::OpenUnavailable(
+                    needs.clone(),
+                    offer.helper(),
+                    Wanted::Export,
+                )),
                 (None, None) => None,
             }
         }
@@ -121,6 +123,7 @@ fn file_action(viewer: Viewer, action: FileAction, at: Stamp, params: &ViewerPar
         FileAction::PlayInMiniWindow => presentation(viewer, PresentationIn::ToMini, at, params),
         FileAction::SaveCopy => (viewer, vec![ViewerOut::NameCopy]),
         FileAction::RevertTo => (viewer, vec![ViewerOut::ListVersions]),
+        FileAction::Trim => super::trim::begin(viewer, at, params),
         FileAction::RotateLeft => edit(
             viewer,
             Edit::Rotate(QuarterTurn::ThreeQuarter),
@@ -182,7 +185,7 @@ fn picture_edit(viewer: Viewer, edit: Edit, at: Stamp, params: &ViewerParams) ->
     let input = match edit {
         Edit::Rotate(turn) => PictureEditIn::Turn(turn),
         Edit::Flip(axis) => PictureEditIn::Flip(axis),
-        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) => {
+        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Adjust(_) | Edit::Trim { .. } => {
             return (viewer, vec![]);
         }
     };

@@ -35,6 +35,7 @@ pub fn route(press: &Press, regions: Regions<'_>) -> Route {
         | Sheet::Unavailable {
             needs: _,
             helper: _,
+            wanted: _,
         }
         | Sheet::ConfirmTrash
         | Sheet::ConfirmEdit {
@@ -96,7 +97,9 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             Act::Find if can_find(regions.stage) => Some(Route::OpenFind),
             Act::Info => Some(Route::Panel(info_toggle(regions.panel))),
             Act::Close => Some(Route::CloseWindow),
-            Act::Save if matches!(regions.stage, Stage::Raster(_)) => Some(Route::Save),
+            Act::Save if matches!(regions.stage, Stage::Raster(_) | Stage::Media(_)) => {
+                Some(Route::Save)
+            }
             Act::OpenFile if regions.platform.has(DesktopService::FileChooser) => {
                 Some(Route::OpenFile)
             }

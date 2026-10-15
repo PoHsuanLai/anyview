@@ -14,6 +14,7 @@ use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
 use crate::stage::{Changes, Stage, StageIn, StageOut, StageParams};
+use crate::trim::{MediaTrim, TrimIn};
 use crate::{PlatformAbilities, SaveEnd};
 use anyview_core::{FileAction, FilePath, FindOptions};
 
@@ -54,6 +55,9 @@ pub struct Viewer {
     pub panel_said: PanelSay,
     /// What has been done to the open picture and not saved.
     pub picture: PictureEdits,
+    /// The trim of the open recording: the bar while it is up, and the stretch kept once it is
+    /// applied and not saved.
+    pub trim: MediaTrim,
     /// Where the person was going when they chose to save the picture's changes first: they go
     /// when the saved file has been read again.
     pub after_save: Option<Departure>,
@@ -98,11 +102,12 @@ impl Viewer {
     #[must_use]
     pub fn unsaved(&self) -> bool {
         let picture = self.picture.is_edited() && matches!(self.stage, Stage::Raster(_));
+        let trim = self.trim.is_edited() && matches!(self.stage, Stage::Media(_));
         let text = self
             .stage
             .edited()
             .is_some_and(|edited| edited.changes == Changes::Unsaved);
-        picture || text
+        picture || trim || text
     }
 
     /// A viewer launched in `presentation` (a quick look, a window, a background session): it is
@@ -155,6 +160,8 @@ pub enum ViewerIn {
     Hand(HandIn),
     /// An edit of the open picture, or the crop rectangle being moved.
     Picture(PictureEditIn),
+    /// The trim bar of the open recording: a handle moved, Trim, or Cancel.
+    Trim(TrimIn),
     /// Run a command from a control the window drew (a capsule button): the same thing the
     /// palette runs for the row it picked.
     Run(Command),

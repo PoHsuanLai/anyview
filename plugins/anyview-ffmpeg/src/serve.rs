@@ -171,7 +171,7 @@ mod tests {
             encoders: Encoders::parse("---\n A....D flac x\n"),
         });
         let greeting = hello(&ready);
-        assert_eq!(greeting.targets, ["trim", "audio-copy", "flac"]);
+        assert_eq!(greeting.targets, ["trim", "audio-copy", "flac", "cut"]);
         assert!(greeting.provides.contains(&Capability::Export));
         assert_eq!(Target::parse(&greeting.targets[2]), Some(Target::Flac));
     }

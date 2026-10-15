@@ -41,6 +41,27 @@ fn read(path: &Path) -> String {
 }
 
 #[test]
+fn a_save_can_take_its_content_from_a_file_and_leaves_that_file_alone() {
+    let s = scratch("before");
+    let produced = s.file.with_file_name("produced.bin");
+    fs::write(&produced, "after, from a file").unwrap();
+    let written = s
+        .versions
+        .back_up(Pending::from_file(&s.file, &produced), SavedAt(100))
+        .unwrap()
+        .write_in_place()
+        .unwrap();
+
+    assert_eq!(read(&s.file), "after, from a file");
+    assert_eq!(
+        read(&produced),
+        "after, from a file",
+        "the source is only read"
+    );
+    assert_eq!(s.versions.list(&s.file).unwrap()[0].id, written.kept);
+}
+
+#[test]
 fn a_save_replaces_the_file_and_keeps_the_original() {
     let s = scratch("before");
     let backed = s

@@ -8,10 +8,11 @@ mod doc;
 mod live;
 mod panel;
 mod shelf;
+mod trim;
 mod view;
 mod window;
 
-pub(crate) use capsule::{level_to_volume, place_to_time};
+pub(crate) use capsule::{bar_time, level_to_volume};
 pub use doc::MediaDoc;
 pub(crate) use live::tabs_offered;
 pub use live::{MediaLive, MediaPlace, TrimMarks};

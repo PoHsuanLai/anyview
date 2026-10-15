@@ -56,7 +56,16 @@ fn with_ffmpeg_it_offers_everything_and_every_target_it_lists_is_in_the_manifest
         ]
     );
     // Fedora's ffmpeg-free has aac, libmp3lame, flac, pcm and libopus.
-    for target in ["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus"] {
+    for target in [
+        "trim",
+        "audio-copy",
+        "m4a",
+        "mp3",
+        "flac",
+        "wav",
+        "opus",
+        "cut",
+    ] {
         assert!(
             hello.targets.iter().any(|t| t == target),
             "{target} in {:?}",
@@ -84,7 +93,7 @@ fn an_ffmpeg_without_an_encoder_lists_only_the_targets_it_can_write() {
     let scratch = Scratch::new();
     let fake = scratch.fake_ffmpeg("exit 0");
     let (hello, _) = greeting(&support::with_ffmpeg(&fake));
-    assert_eq!(hello.targets, ["trim", "audio-copy", "flac"]);
+    assert_eq!(hello.targets, ["trim", "audio-copy", "flac", "cut"]);
     assert!(hello.provides.contains(&Capability::Export));
 }
 
@@ -142,7 +151,7 @@ fn the_runner_hands_back_the_greeting_so_a_host_offers_only_what_can_be_written(
     let fake = scratch.fake_ffmpeg("exit 0");
     let plugin = scratch.install(&support::with_ffmpeg(&fake));
     let hello = PluginRunner::default().hello(&plugin).unwrap();
-    assert_eq!(hello.targets, ["trim", "audio-copy", "flac"]);
+    assert_eq!(hello.targets, ["trim", "audio-copy", "flac", "cut"]);
     assert!(hello.provides.contains(&Capability::Export));
 
     let missing = scratch.install(&["--ffmpeg".to_owned(), "/nonexistent/ffmpeg".to_owned()]);

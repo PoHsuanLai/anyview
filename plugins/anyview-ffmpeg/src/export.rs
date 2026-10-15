@@ -88,7 +88,7 @@ fn cut_for(
     let (start, _) = range_of(request)?;
     let video = probed
         .video()
-        .filter(|_| target == Target::Trim && start > Micros(0));
+        .filter(|_| matches!(target, Target::Trim | Target::CutInPlace) && start > Micros(0));
     let Some(video) = video else {
         return Ok(Cut::at(start));
     };

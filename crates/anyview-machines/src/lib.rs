@@ -34,6 +34,7 @@ mod stage;
 mod testing;
 mod time;
 mod trail;
+mod trim;
 mod typed;
 mod viewer;
 
@@ -66,7 +67,7 @@ pub use sheet::{
     HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
     PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
     Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList, VersionRow,
-    format_of, kind_hint, kind_name, quality_of,
+    Wanted, format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
     AfterScrub, Animation, Changes, ColumnSort, ContentScale, ControlOffer, Destination, Editable,
@@ -82,6 +83,7 @@ pub use stage::{
 };
 pub use stage::{OutlineFold, OutlineIn, OutlineOut, OutlineShape};
 pub use trail::{Trail, TrailIn, TrailOut, TrailStacks};
+pub use trim::{MIN_KEPT, MediaTrim, TrimIn, TrimWindow};
 pub use typed::TypedText;
 pub use viewer::{Choosing, PanelSay, Trashing, Viewer, ViewerIn, ViewerOut, ViewerParams};
 

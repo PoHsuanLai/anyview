@@ -24,6 +24,15 @@ impl EditRequest {
         }
     }
 
+    /// `edit` of a recording, which has no pages and says the first.
+    #[must_use]
+    pub fn of_recording(edit: Edit) -> Self {
+        EditRequest {
+            edit,
+            page: PageIndex(0),
+        }
+    }
+
     /// `edit` asked on `page` of a PDF.
     #[must_use]
     pub fn on_page(edit: Edit, page: PageIndex) -> Self {

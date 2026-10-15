@@ -18,7 +18,7 @@ struct KindProfile {
 use FileAction::{
     ConvertTo, CopyFile, CopyPath, Duplicate, Export, FlipHorizontal, FlipVertical, MoveToTrash,
     Open, PlayInBackground, PlayInMiniWindow, Print, Rename, RevealInFolder, RevertTo, RotateLeft,
-    RotateRight, SaveCopy, Share,
+    RotateRight, SaveCopy, Share, Trim,
 };
 
 /// A file with nothing to do but handle it.
@@ -90,6 +90,9 @@ const VIDEO: &[FileAction] = &[
     Duplicate,
     MoveToTrash,
     Export,
+    SaveCopy,
+    RevertTo,
+    Trim,
     PlayInMiniWindow,
 ];
 const AUDIO: &[FileAction] = &[
@@ -103,6 +106,9 @@ const AUDIO: &[FileAction] = &[
     MoveToTrash,
     Export,
     ConvertTo,
+    SaveCopy,
+    RevertTo,
+    Trim,
     PlayInBackground,
 ];
 const TEXT: &[FileAction] = &[
@@ -131,6 +137,7 @@ const FOLDER: &[FileAction] = &[
 
 const NO_EDITS: &[EditKind] = &[];
 const IMAGE_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::Flip, EditKind::Adjust];
+const MEDIA_EDITS: &[EditKind] = &[EditKind::Trim];
 const PDF_EDITS: &[EditKind] = &[EditKind::Rotate, EditKind::DeletePages, EditKind::MovePage];
 
 const fn profile(
@@ -153,8 +160,8 @@ fn profile_of(kind: FormatKind) -> KindProfile {
         FormatKind::Pdf => profile("application/pdf", PDF, PDF_EDITS, Stage),
         FormatKind::Raster => profile("image/png", IMAGE, IMAGE_EDITS, Stage),
         FormatKind::Vector => profile("image/svg+xml", VECTOR, NO_EDITS, Stage),
-        FormatKind::Video => profile("video/mp4", VIDEO, NO_EDITS, Stage),
-        FormatKind::Audio => profile("audio/mpeg", AUDIO, NO_EDITS, Stage),
+        FormatKind::Video => profile("video/mp4", VIDEO, MEDIA_EDITS, Stage),
+        FormatKind::Audio => profile("audio/mpeg", AUDIO, MEDIA_EDITS, Stage),
         FormatKind::Markdown => profile("text/markdown", TEXT, NO_EDITS, Stage),
         FormatKind::Code | FormatKind::PlainText => profile("text/plain", TEXT, NO_EDITS, Stage),
         FormatKind::Table => profile("text/csv", PLAIN, NO_EDITS, Stage),

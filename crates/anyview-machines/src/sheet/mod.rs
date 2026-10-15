@@ -18,7 +18,7 @@ pub use departure::Departure;
 pub use draft::{ExportDraft, ExportFamily, ExportKindPick};
 pub use facts::ExportFacts;
 pub use helper::{HelperEnd, HelperPhase};
-pub use model::{Sheet, SheetIn, SheetOut, SheetParams};
+pub use model::{Sheet, SheetIn, SheetOut, SheetParams, Wanted};
 pub use offer::MediaOffer;
 pub use option::{
     ExportControl, ExportOption, MAX_LONG_EDGE, PageSpan, SizePick, TrimSpan, format_of, quality_of,

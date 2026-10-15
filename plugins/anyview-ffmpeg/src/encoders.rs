@@ -41,11 +41,12 @@ impl Encoders {
     /// The encoder that writes `target`: none for a copy, which needs one, and none when the
     /// system has none.
     pub fn for_target(&self, target: Target) -> Option<&'static str> {
-        target
-            .encoders()
-            .iter()
-            .copied()
-            .find(|name| self.0.contains(*name))
+        self.first_of(target.encoders())
+    }
+
+    /// The first of `names`, best first, that this FFmpeg has.
+    pub fn first_of(&self, names: &[&'static str]) -> Option<&'static str> {
+        names.iter().copied().find(|name| self.0.contains(*name))
     }
 
     /// Whether `target` can be written here: a copy always, an encoding when an encoder is there.
@@ -84,7 +85,10 @@ mod tests {
         assert_eq!(encoders.for_target(Target::Mp3), None);
         assert_eq!(encoders.for_target(Target::Opus), Some("opus"));
         let slugs: Vec<_> = encoders.targets().into_iter().map(Target::slug).collect();
-        assert_eq!(slugs, ["trim", "audio-copy", "m4a", "flac", "wav", "opus"]);
+        assert_eq!(
+            slugs,
+            ["trim", "audio-copy", "m4a", "flac", "wav", "opus", "cut"]
+        );
     }
 
     #[test]
@@ -97,6 +101,6 @@ mod tests {
     fn nothing_listed_leaves_only_the_copies() {
         let none = Encoders::default();
         let slugs: Vec<_> = none.targets().into_iter().map(Target::slug).collect();
-        assert_eq!(slugs, ["trim", "audio-copy"]);
+        assert_eq!(slugs, ["trim", "audio-copy", "cut"]);
     }
 }

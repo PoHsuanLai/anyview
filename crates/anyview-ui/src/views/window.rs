@@ -295,6 +295,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         edit: EventHandler::new(move |input: PictureEditIn| {
             dispatch.send(ViewerIn::Picture(input));
         }),
+        trim: state.trim.clone(),
+        trim_in: EventHandler::new(move |input: crate::TrimIn| {
+            dispatch.send(ViewerIn::Trim(input));
+        }),
         ticket,
         area: area(),
         send: EventHandler::new(move |input: StageIn| dispatch.send(ViewerIn::Stage(input))),
@@ -766,10 +770,11 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                     }
                 },
-                Sheet::Unavailable { needs, helper } => rsx! {
+                Sheet::Unavailable { needs, helper, wanted } => rsx! {
                     UnavailableSheet {
                         needs: needs.clone(),
                         helper: *helper,
+                        wanted: *wanted,
                         onclose: move |()| dispatch.send(ViewerIn::Sheet(SheetIn::Cancel)),
                         oninstall: move |helper| dispatch.send(ViewerIn::Sheet(SheetIn::OfferHelper(helper))),
                     }
