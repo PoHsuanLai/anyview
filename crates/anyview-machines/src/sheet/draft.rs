@@ -7,7 +7,7 @@
 //! generic function below does for each of them what the trait is for.
 
 use super::offer::MediaOffer;
-use super::option::requality;
+use super::tune::requality;
 use anyview_core::{
     ExportChoice, MediaExport, MediaExportKind, PdfExport, PdfExportKind, RasterExport,
     RasterExportKind, TextExport, TextExportKind,

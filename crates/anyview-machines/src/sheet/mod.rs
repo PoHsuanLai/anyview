@@ -13,6 +13,7 @@ mod picture;
 mod step;
 #[cfg(test)]
 mod tests;
+mod tune;
 mod versions;
 mod words;
 
@@ -22,12 +23,11 @@ pub use facts::ExportFacts;
 pub use helper::{HelperEnd, HelperPhase};
 pub use model::{Sheet, SheetIn, SheetOut, SheetParams, Wanted};
 pub use offer::MediaOffer;
-pub use option::{
-    ExportControl, ExportOption, MAX_LONG_EDGE, PageSpan, SizePick, TrimSpan, format_of, quality_of,
-};
+pub use option::{ExportControl, ExportOption, MAX_LONG_EDGE, PageSpan, SizePick, TrimSpan};
 pub use picture::{
     MAX_RESIZED_AREA, MAX_RESIZED_SIDE, PictureSheet, PictureSheetIn, PictureSheetOut,
     ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
 };
+pub use tune::{format_of, quality_of};
 pub use versions::{VersionKey, VersionList, VersionRow};
 pub use words::{kind_hint, kind_name};
