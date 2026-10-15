@@ -17,9 +17,9 @@ use crate::stage::{Changes, Outside, Stage, StageIn, TextIn};
 use ds_core::time::stamp::Stamp;
 
 /// Go where `departure` says, or first ask what to do with changes that are not saved. A picture
-/// that was only turned or mirrored, in a file that takes that without loss, is not asked about:
-/// as in Preview and Loupe the turn is kept, and the person goes on once the file has been
-/// written (its original stays a version to revert to).
+/// changed in a file that takes the change without loss is not asked about: as in Preview, a turn,
+/// a crop or a new size is kept, and the person goes on once the file has been written (its
+/// original stays a version to revert to).
 pub(super) fn leaving(
     viewer: Viewer,
     departure: Departure,
@@ -55,13 +55,12 @@ pub(super) fn leaving(
     }
 }
 
-/// Whether the open picture's changes are only turns and mirrors that its file takes as they are,
-/// so that leaving writes them without a question.
+/// Whether the open picture's changes are ones its file takes without loss, so that leaving writes
+/// them without a question.
 fn keeps_unasked(viewer: &Viewer, params: &ViewerParams) -> bool {
     matches!(viewer.stage, Stage::Raster(_))
         && viewer.picture.can_edit()
         && viewer.picture.is_edited()
-        && viewer.picture.is_turned_only()
         && params.sheet.edit == EditOffer::Plain
 }
 
