@@ -490,8 +490,17 @@ fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
         (
             "no way to install is a phase of its own",
             helping(Installing),
-            SheetIn::HelperEnded(heic, End::Unsupported("heif-dec".to_owned())),
-            helping(Unsupported("heif-dec".to_owned())),
+            SheetIn::HelperEnded(
+                heic,
+                End::Unsupported {
+                    program: "heif-dec".to_owned(),
+                    command: Some("sudo pacman -S libheif".to_owned()),
+                },
+            ),
+            helping(Unsupported {
+                program: "heif-dec".to_owned(),
+                command: Some("sudo pacman -S libheif".to_owned()),
+            }),
             vec![],
         ),
         (
@@ -524,7 +533,10 @@ fn the_install_sheet_asks_installs_and_follows_how_it_ended() {
         ),
         (
             "Return closes no way to install",
-            helping(Unsupported("heif-dec".to_owned())),
+            helping(Unsupported {
+                program: "heif-dec".to_owned(),
+                command: None,
+            }),
             SheetIn::Confirm,
             Sheet::Closed,
             vec![SheetOut::Closed],

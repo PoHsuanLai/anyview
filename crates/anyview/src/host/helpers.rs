@@ -9,7 +9,8 @@ use anyview_core::{Fact, Helper};
 use anyview_ui::{HelperEnd, HelperSource, HelperWords, Need};
 use ds::prelude::Word;
 use ds_helpers::{
-    Capability, Catalog, Entry, Environment, Helpers, Installer, Missing, Outcome, Presence,
+    Capability, Catalog, Entry, Environment, Helpers, InstallLine, Installer, Missing, Outcome,
+    Presence,
 };
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
@@ -75,6 +76,15 @@ fn needed_on_path(missing: &Missing) -> String {
     }
 }
 
+/// The command to install the tool by hand: the one line for the person's distro family. Where
+/// the family is not known there is a line for each, and none of them is theirs.
+fn command_of(missing: &Missing) -> Option<String> {
+    match missing.install_lines.as_slice() {
+        [line] => Some(InstallLine::text(line)),
+        [] | [_, _, ..] => None,
+    }
+}
+
 impl HelperHost {
     /// A host over `catalog`, looking for tools in `environment` and installing through
     /// `installer`. A tool that appears makes `registry` read the plugins again.
@@ -129,13 +139,19 @@ impl HelperHost {
     /// so the file that waited opens with it.
     pub async fn provide(&self, helper: Helper) -> HelperEnd {
         let Some(capability) = capability_of(helper) else {
-            return HelperEnd::Unsupported(helper.slug().to_owned());
+            return HelperEnd::Unsupported {
+                program: helper.slug().to_owned(),
+                command: None,
+            };
         };
         let end = match self.helpers.provide(&capability).await {
             Outcome::Installed => HelperEnd::Installed,
             Outcome::Declined => HelperEnd::Declined,
             Outcome::NotFound(missing) => HelperEnd::NotFound(looked_for(&missing)),
-            Outcome::Unsupported(missing) => HelperEnd::Unsupported(needed_on_path(&missing)),
+            Outcome::Unsupported(missing) => HelperEnd::Unsupported {
+                program: needed_on_path(&missing),
+                command: command_of(&missing),
+            },
             Outcome::Failed(reason) => HelperEnd::Failed(reason),
         };
         if end == HelperEnd::Installed {

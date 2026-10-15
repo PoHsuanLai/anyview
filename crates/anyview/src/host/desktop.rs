@@ -295,7 +295,13 @@ where
         Task::PickFile => pick(parts).await,
         Task::Provide(helper) => match &parts.helpers {
             Some(helpers) => Outcome::Helped(helper, helpers.provide(helper).await),
-            None => Outcome::Helped(helper, HelperEnd::Unsupported(helper.slug().to_owned())),
+            None => Outcome::Helped(
+                helper,
+                HelperEnd::Unsupported {
+                    program: helper.slug().to_owned(),
+                    command: None,
+                },
+            ),
         },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),

@@ -8,7 +8,10 @@ use anyview_plugin::{
 use anyview_plugin_protocol::Capability;
 use anyview_ui::{HelperEnd, HelperSource, HelperWords};
 use ds::prelude::Word;
-use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Missing, Outcome as Installed};
+use ds_helpers::{
+    Catalog, Environment, FakeInstaller, Family, InstallLine, Installer, Missing,
+    Outcome as Installed, PackageName,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -98,6 +101,20 @@ fn nothing() -> Missing {
         package: None,
         program: None,
         install_lines: Vec::new(),
+    }
+}
+
+/// A `Missing` for the HEIC decoder with an install line for each of `families`.
+fn with_lines(families: &[Family]) -> Missing {
+    Missing {
+        install_lines: families
+            .iter()
+            .map(|family| InstallLine {
+                family: *family,
+                package: PackageName::new("libheif-tools").unwrap(),
+            })
+            .collect(),
+        ..nothing()
     }
 }
 
@@ -255,7 +272,26 @@ async fn what_the_installer_answers_is_what_the_window_is_told() {
         (
             "no way to install",
             Installed::Unsupported(nothing()),
-            HelperEnd::Unsupported("heif-dec".to_owned()),
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: None,
+            },
+        ),
+        (
+            "no way to install, the one line for the distro's family",
+            Installed::Unsupported(with_lines(&[Family::Dnf])),
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: Some("sudo dnf install libheif-tools".to_owned()),
+            },
+        ),
+        (
+            "no way to install, a line for every family is none of them theirs",
+            Installed::Unsupported(with_lines(&[Family::Dnf, Family::Apt])),
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: None,
+            },
         ),
         (
             "failed",
@@ -340,7 +376,10 @@ async fn the_desktop_carries_an_install_out_and_says_how_it_ended() {
         outcome,
         Outcome::Helped(
             Helper::HeicDecode,
-            HelperEnd::Unsupported("heic-decode".to_owned())
+            HelperEnd::Unsupported {
+                program: "heic-decode".to_owned(),
+                command: None,
+            }
         ),
         "a program with no list of its tools cannot install one"
     );
