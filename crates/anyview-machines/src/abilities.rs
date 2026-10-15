@@ -79,6 +79,7 @@ impl PlatformAbilities {
             | FileAction::FlipVertical
             | FileAction::ConvertTo
             | FileAction::PlayInMiniWindow
+            | FileAction::Trim
             | FileAction::PlayInBackground => true,
         }
     }

@@ -152,7 +152,7 @@ pub fn edited(bytes: &[u8], sniffed: &Sniffed, edit: Edit) -> Result<Vec<u8>, Im
             axis: Some(axis),
         },
         Edit::Adjust(adjust) => return adjust::adjusted(bytes, sniffed, adjust),
-        Edit::DeletePages(_) | Edit::MovePage { .. } => {
+        Edit::DeletePages(_) | Edit::MovePage { .. } | Edit::Trim { .. } => {
             return Err(ImageError::NotAnImageEdit { kind: edit.kind() });
         }
     };

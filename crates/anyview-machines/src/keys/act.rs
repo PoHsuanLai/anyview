@@ -177,7 +177,8 @@ impl Act {
 
 /// The standard actions the viewer does not offer, so they give their chords away: it never styles
 /// text (a text being edited is plain), and Get Info takes the Italic chord, ⌘I, as Preview does.
-const FORGONE: &[StandardAction] = &[StandardAction::Italic];
+/// It has no font panel either, so Trim takes the Show Fonts chord, ⌘T, as QuickTime Player does.
+const FORGONE: &[StandardAction] = &[StandardAction::Italic, StandardAction::ShowFonts];
 
 /// The viewer's name in the keymap, or `None` if it does not read (a test rules that out).
 pub fn app() -> Option<AppId> {

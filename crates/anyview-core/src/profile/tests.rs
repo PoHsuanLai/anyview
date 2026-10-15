@@ -79,8 +79,14 @@ const CASES: &[Row] = &[
     ),
     row(
         FormatKind::Video,
-        &[FileAction::Export, FileAction::PlayInMiniWindow],
-        &[],
+        &[
+            FileAction::Export,
+            FileAction::SaveCopy,
+            FileAction::RevertTo,
+            FileAction::Trim,
+            FileAction::PlayInMiniWindow,
+        ],
+        &[EditKind::Trim],
         StageSupport::Stage,
     ),
     row(
@@ -88,9 +94,12 @@ const CASES: &[Row] = &[
         &[
             FileAction::Export,
             FileAction::ConvertTo,
+            FileAction::SaveCopy,
+            FileAction::RevertTo,
+            FileAction::Trim,
             FileAction::PlayInBackground,
         ],
-        &[],
+        &[EditKind::Trim],
         StageSupport::Stage,
     ),
     row(
@@ -190,6 +199,7 @@ fn edit_actions_appear_exactly_when_the_edit_is_offered() {
         (FileAction::RotateRight, EditKind::Rotate),
         (FileAction::FlipHorizontal, EditKind::Flip),
         (FileAction::FlipVertical, EditKind::Flip),
+        (FileAction::Trim, EditKind::Trim),
     ];
     for kind in FormatKind::ALL {
         let actions = actions_for(*kind);
