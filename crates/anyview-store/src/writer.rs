@@ -12,13 +12,18 @@ use crate::history::{History, HistoryCap, HistoryEntry, history_after_view};
 use crate::io;
 use crate::label::resume_label;
 use crate::reader::{HISTORY_FILE, HistoryRead, read_history};
-use crate::record::{Prune, ResumeRecord, applicable, prune_decision, resume_file_name};
+use crate::record::{
+    PanelRecord, Prune, ResumeRecord, applicable, prune_decision, resume_file_name,
+};
 use crate::viewed::Viewed;
 use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
 use std::path::PathBuf;
 
 /// The directory inside a store root that holds one file of view memory per viewed file.
 const RESUME_DIR: &str = "resume";
+
+/// The file inside a store root that holds the width of the left panel.
+const PANEL_FILE: &str = "panel.json";
 
 /// The result of recording a view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,6 +124,20 @@ impl StoreWriter {
     ) -> Result<Option<Resume>, StoreError> {
         let record = io::read_json::<ResumeRecord>(&self.resume_path(path)?)?;
         Ok(record.and_then(|record| applicable(record, path, current)))
+    }
+
+    /// Remembers that the left panel was left `width` logical pixels wide. It is one value for the
+    /// person, not one per file.
+    pub fn save_panel_width(&self, width: u32) -> Result<(), StoreError> {
+        let _lock = StoreLock::exclusive(&self.root)?;
+        io::write_json(&self.root.join(PANEL_FILE), &PanelRecord { width })
+    }
+
+    /// The width the left panel was left at: `None` when none was remembered. A damaged record
+    /// is the error; treat it as nothing remembered.
+    pub fn load_panel_width(&self) -> Result<Option<u32>, StoreError> {
+        let record = io::read_json::<PanelRecord>(&self.root.join(PANEL_FILE))?;
+        Ok(record.map(|record| record.width))
     }
 
     fn resume_path(&self, path: &FilePath) -> Result<PathBuf, StoreError> {

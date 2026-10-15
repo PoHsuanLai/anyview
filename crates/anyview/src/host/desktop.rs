@@ -25,7 +25,7 @@ use anyview_ui::{DesktopService, EditRequest, HelperEnd, PlatformAbilities, Vers
 use ds::prelude::Word;
 use std::fmt::Display;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -40,6 +40,14 @@ pub trait Hosting: Send + Sync + 'static {
     /// Where the person left `source`, if the file is as it was then. Blocking: call it from a
     /// worker.
     fn resume(&self, source: &Source) -> Option<Resume>;
+
+    /// The width, in logical pixels, the person left the left panel at, if one was kept: read
+    /// from the store as the desktop was made, and since changed by `keep_panel_width`, so it
+    /// does not block.
+    fn panel_width(&self) -> Option<u32>;
+
+    /// Keep `width` as the left panel's. Does not block: the write runs on the blocking pool.
+    fn keep_panel_width(&self, width: u32);
 
     /// The versions kept of `path`, newest first, as the Revert To sheet lists them. Blocking:
     /// call it from a worker.
@@ -80,6 +88,8 @@ struct Parts<R, S, P, T, F, L> {
     store: Arc<Store>,
     versions: Versions,
     remembering: PlaceWriter,
+    /// The width the left panel was left at, as the store had it and the windows have changed it.
+    panel: Mutex<Option<u32>>,
     media: Media,
     helpers: Option<Arc<HelperHost>>,
     images: Arc<ImageHost>,
@@ -138,6 +148,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
             images,
         } = services;
         let store = Arc::new(store);
+        let panel = Mutex::new(store.panel_width().unwrap_or_default());
         Desktop {
             runtime: runtime.clone(),
             parts: Arc::new(Parts {
@@ -149,6 +160,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
                 links,
                 remembering: PlaceWriter::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
+                panel,
                 versions,
                 media,
                 helpers,
@@ -216,6 +228,29 @@ where
             .unwrap_or_default()
     }
 
+    fn panel_width(&self) -> Option<u32> {
+        *self
+            .parts
+            .panel
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn keep_panel_width(&self, width: u32) {
+        *self
+            .parts
+            .panel
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(width);
+        let parts = Arc::clone(&self.parts);
+        self.runtime.spawn_blocking(move || {
+            super::feedback::report(&failed(
+                "keep the panel's width",
+                parts.store.keep_panel_width(width),
+            ));
+        });
+    }
+
     fn kept_versions(&self, path: &FilePath) -> Vec<VersionRow> {
         saving::rows_of(&self.parts.versions, path)
     }
@@ -260,7 +295,13 @@ where
         Task::PickFile => pick(parts).await,
         Task::Provide(helper) => match &parts.helpers {
             Some(helpers) => Outcome::Helped(helper, helpers.provide(helper).await),
-            None => Outcome::Helped(helper, HelperEnd::Unsupported(helper.slug().to_owned())),
+            None => Outcome::Helped(
+                helper,
+                HelperEnd::Unsupported {
+                    program: helper.slug().to_owned(),
+                    command: None,
+                },
+            ),
         },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),

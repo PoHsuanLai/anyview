@@ -90,6 +90,7 @@ impl Wiring {
         let again = send.clone();
         let seams = Seams::default()
             .with_resume_source(resume_of(seed))
+            .with_panel_memory(Arc::clone(&seed.factory.panel))
             .with_version_source(Arc::clone(&seed.factory.versions))
             .with_first_frames(Arc::clone(&seed.factory.first_frames))
             .with_media(Arc::clone(&seed.factory.media))

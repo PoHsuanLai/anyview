@@ -2,7 +2,9 @@
 //! pictures, the permissions of a file and the versions kept of it. All are blocking (a file read,
 //! a cache lookup), so a worker calls them, never the UI thread; all are read-only, and what the
 //! window wants kept goes out as a `HostRequest`. The small picture the host already has for a file
-//! is `anyview_peek::StillSource`, which the launcher lends its pane as well.
+//! is `anyview_peek::StillSource`, which the launcher lends its pane as well. The one exception is
+//! [`PanelMemory`]: it answers from memory, so the UI thread may ask it, and it is told the width
+//! to keep.
 
 use super::helpers::Need;
 use super::job::Opened;
@@ -28,6 +30,17 @@ pub trait ResumeKeeper: Debug + Send + Sync + 'static {
     /// The person is at `resume` in `source`'s file; `Resume::Nothing` forgets the place. Blocking,
     /// and a failure is the keeper's to log.
     fn remember(&self, source: &Source, resume: &Resume);
+}
+
+/// The width of the left panel across launches, kept by the host.
+pub trait PanelMemory: Debug + Send + Sync + 'static {
+    /// The width in logical pixels the person left the panel at, if one was kept. Does not block:
+    /// the host answers from memory.
+    fn recall(&self) -> Option<u32>;
+
+    /// The person left the panel `width` logical pixels wide. Does not block: the host writes it
+    /// on its own thread, and a failure is its to log.
+    fn keep(&self, width: u32);
 }
 
 /// What asking the plugins for a picture of a file came to.
@@ -105,6 +118,18 @@ impl ResumeSource for Forgetful {
     fn recall(&self, _path: &FilePath, _stamp: FileStamp) -> Resume {
         Resume::Nothing
     }
+}
+
+/// The default `PanelMemory`: nothing is remembered, so the panel opens at its own width.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NoPanelMemory;
+
+impl PanelMemory for NoPanelMemory {
+    fn recall(&self) -> Option<u32> {
+        None
+    }
+
+    fn keep(&self, _width: u32) {}
 }
 
 /// The default `ImagePlugins`: none are installed and none is known, so a file only the plugins can

@@ -29,8 +29,8 @@ pub use notice::Notice;
 pub(crate) use probe::probe;
 pub use seam_set::Seams;
 pub use seams::{
-    FileAccess, FileLocks, ImagePlugins, PluginPicture, Readable, ResumeKeeper, ResumeSource,
-    VersionSource,
+    FileAccess, FileLocks, ImagePlugins, PanelMemory, PluginPicture, Readable, ResumeKeeper,
+    ResumeSource, VersionSource,
 };
 pub use workers::{
     Edge, HostRequest, NaturalSize, NotOpened, Reply, SizeBasis, TextSave, Work, WorkKind, Workers,

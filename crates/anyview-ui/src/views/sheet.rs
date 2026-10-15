@@ -8,6 +8,7 @@ use ds::components::controls::button_model::Answers;
 use ds::components::overlays::alert_model::{AlertButton, AlertRole};
 use ds::prelude::{Alert, Button, Choice, FieldFocus, RadioGroup, Sheet, TextField};
 use ds_core::word::Word;
+use ds_shell::accounts::model::CopyState;
 use ds_shell::helpers::{HelperPhase as Sheeted, HelperSheet};
 
 /// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
@@ -221,12 +222,15 @@ pub(super) fn InstallSheet(
     ondismiss: EventHandler<()>,
 ) -> Element {
     let HelperWords { app, tool, purpose } = words;
+    // The sheet says "Copied" once the command is on the clipboard; a clipboard that cannot be
+    // written leaves the button as it was, as a copy in a text does.
+    let mut copy = use_signal(|| CopyState::Idle);
     let phase = match phase {
         HelperPhase::Ask => Sheeted::Ask,
         HelperPhase::Installing => Sheeted::Installing,
         HelperPhase::Failed(reason) => Sheeted::Failed { reason },
         HelperPhase::NotFound(package) => Sheeted::NotFound { package },
-        HelperPhase::Unsupported(program) => Sheeted::Unsupported { program },
+        HelperPhase::Unsupported { program, command } => Sheeted::Unsupported { program, command },
     };
     rsx! {
         HelperSheet {
@@ -234,6 +238,12 @@ pub(super) fn InstallSheet(
             tool,
             purpose,
             phase,
+            copy: copy(),
+            on_copy: move |command: String| {
+                if ds_blitz::clipboard::write_text(&command).is_ok() {
+                    copy.set(CopyState::Copied);
+                }
+            },
             on_install: move |()| oninstall.call(()),
             on_dismiss: move |()| ondismiss.call(()),
         }

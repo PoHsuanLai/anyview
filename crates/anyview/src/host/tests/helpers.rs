@@ -8,7 +8,10 @@ use anyview_plugin::{
 use anyview_plugin_protocol::Capability;
 use anyview_ui::{HelperEnd, HelperSource, HelperWords};
 use ds::prelude::Word;
-use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Missing, Outcome as Installed};
+use ds_helpers::{
+    Catalog, Environment, FakeInstaller, Family, InstallLine, Installer, Missing,
+    Outcome as Installed, PackageName,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -91,12 +94,50 @@ fn host(
     (host, fake)
 }
 
-/// What a scripted installer is told to answer with: the request's own `Missing` replaces it.
+/// What a scripted installer is told to answer with: the request's own `Missing` replaces it, so
+/// the lines a fake gives never reach the host (`command_of` is tried on its own).
 fn nothing() -> Missing {
     Missing {
         capability: ds_helpers::Capability::new("heic-decode").unwrap(),
         package: None,
         program: None,
+        install_lines: Vec::new(),
+    }
+}
+
+/// A `Missing` for the HEIC decoder with an install line for each of `families`.
+fn with_lines(families: &[Family]) -> Missing {
+    Missing {
+        install_lines: families
+            .iter()
+            .map(|family| InstallLine {
+                family: *family,
+                package: PackageName::new("libheif-tools").unwrap(),
+            })
+            .collect(),
+        ..nothing()
+    }
+}
+
+#[test]
+fn the_command_to_copy_is_the_one_line_for_the_distro_and_none_when_it_is_not_known() {
+    // name, the families with a line, the command
+    let cases: &[(&str, &[Family], Option<&str>)] = &[
+        ("no package for the distro", &[], None),
+        (
+            "the distro's family",
+            &[Family::Dnf],
+            Some("sudo dnf install libheif-tools"),
+        ),
+        (
+            "a line for every family: none is theirs",
+            &[Family::Dnf, Family::Apt],
+            None,
+        ),
+    ];
+    for (name, families, want) in cases {
+        let command = crate::host::helpers::command_of(&with_lines(families));
+        assert_eq!(command.as_deref(), *want, "{name}");
     }
 }
 
@@ -252,9 +293,12 @@ async fn what_the_installer_answers_is_what_the_window_is_told() {
             HelperEnd::NotFound("libheif-tools".to_owned()),
         ),
         (
-            "no way to install",
+            "no way to install: the Fedora line to copy",
             Installed::Unsupported(nothing()),
-            HelperEnd::Unsupported("heif-dec".to_owned()),
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: Some("sudo dnf install libheif-tools".to_owned()),
+            },
         ),
         (
             "failed",
@@ -339,7 +383,10 @@ async fn the_desktop_carries_an_install_out_and_says_how_it_ended() {
         outcome,
         Outcome::Helped(
             Helper::HeicDecode,
-            HelperEnd::Unsupported("heic-decode".to_owned())
+            HelperEnd::Unsupported {
+                program: "heic-decode".to_owned(),
+                command: None,
+            }
         ),
         "a program with no list of its tools cannot install one"
     );

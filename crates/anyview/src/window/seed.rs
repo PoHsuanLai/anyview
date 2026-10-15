@@ -3,11 +3,13 @@
 use super::fit::parse_screen;
 use super::opening::Opening;
 use crate::host::{
-    Appearances, HelperHost, HostedResume, HostedVersions, Hosting, ImageHost, Watcher,
+    Appearances, HelperHost, HostedPanel, HostedResume, HostedVersions, Hosting, ImageHost, Watcher,
 };
 use anyview_peek::StillSource;
 use anyview_platform::WindowStacking;
-use anyview_ui::{ImagePlugins, MediaHost, Presentation, ResumeSource, VersionSource, Workers};
+use anyview_ui::{
+    ImagePlugins, MediaHost, PanelMemory, Presentation, ResumeSource, VersionSource, Workers,
+};
 use ds_blitz::Extent;
 use std::sync::Arc;
 
@@ -21,6 +23,8 @@ pub struct Factory {
     pub hosting: Arc<dyn Hosting>,
     /// Where files were left, read for every window's probes.
     pub resume: Arc<dyn ResumeSource>,
+    /// The width the left panel was left at, kept for every window.
+    pub panel: Arc<dyn PanelMemory>,
     /// The kept versions of a file, listed for the Revert To sheet.
     pub versions: Arc<dyn VersionSource>,
     /// The small pictures shown while a file opens.
@@ -71,6 +75,7 @@ impl Factory {
         Factory {
             workers,
             resume: Arc::new(HostedResume(Arc::clone(&hosting))),
+            panel: Arc::new(HostedPanel(Arc::clone(&hosting))),
             versions: Arc::new(HostedVersions(Arc::clone(&hosting))),
             hosting,
             first_frames,

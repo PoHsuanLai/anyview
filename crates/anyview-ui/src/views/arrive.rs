@@ -119,7 +119,7 @@ fn available(c: &Carry, helper: Helper) {
             HelperPhase::Ask
             | HelperPhase::Failed(_)
             | HelperPhase::NotFound(_)
-            | HelperPhase::Unsupported(_) => {
+            | HelperPhase::Unsupported { .. } => {
                 dispatch.send(ViewerIn::Sheet(SheetIn::HelperEnded(
                     helper,
                     HelperEnd::Installed,

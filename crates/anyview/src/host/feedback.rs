@@ -224,7 +224,7 @@ pub(super) fn line_of(outcome: &Outcome) -> Option<String> {
             "no package for {} in the software sources",
             helper.slug()
         )),
-        Outcome::Helped(helper, HelperEnd::Unsupported(_)) => {
+        Outcome::Helped(helper, HelperEnd::Unsupported { .. }) => {
             Some(format!("cannot install {} on this system", helper.slug()))
         }
         Outcome::Helped(helper, HelperEnd::Failed(why)) => {

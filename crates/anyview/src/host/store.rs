@@ -58,4 +58,16 @@ impl Store {
         let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
         writer.load_resume(path, stamp)
     }
+
+    /// The width the person left the left panel at, if one was kept. Blocking.
+    pub fn panel_width(&self) -> Result<Option<u32>, StoreError> {
+        let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
+        writer.load_panel_width()
+    }
+
+    /// Keep the width the person left the left panel at. Blocking.
+    pub fn keep_panel_width(&self, width: u32) -> Result<(), StoreError> {
+        let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
+        writer.save_panel_width(width)
+    }
 }

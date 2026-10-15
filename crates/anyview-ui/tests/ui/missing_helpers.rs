@@ -302,7 +302,20 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
         ),
         (
             "no way to install",
-            HelperEnd::Unsupported("heif-dec".to_owned()),
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: None,
+            },
+            "unsupported",
+            "Viewer cannot install libheif tools here",
+            "heif-dec",
+        ),
+        (
+            "no way to install, with the command to run by hand",
+            HelperEnd::Unsupported {
+                program: "heif-dec".to_owned(),
+                command: Some("sudo pacman -S libheif".to_owned()),
+            },
             "unsupported",
             "Viewer cannot install libheif tools here",
             "heif-dec",
@@ -324,8 +337,20 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
         } = open_heic();
         click(&mut harness, INSTALL_ON_CARD);
         press(&mut harness, ShortcutKey::Enter);
+        let command = match &end {
+            HelperEnd::Unsupported { command, .. } => command.clone(),
+            HelperEnd::Installed
+            | HelperEnd::Declined
+            | HelperEnd::NotFound(_)
+            | HelperEnd::Failed(_) => None,
+        };
         edge.helped(Helper::HeicDecode, end);
         settle(&mut harness);
+        assert_eq!(
+            harness.text_of(".ds-helper-command-text"),
+            command,
+            "{name}: the command, when there is one, is shown"
+        );
         assert_eq!(phase(&harness).as_deref(), Some(want_phase), "{name}");
         assert_eq!(
             harness.text_of(".ds-alert-title").unwrap_or_default(),

@@ -83,22 +83,25 @@ on. It is a reference, not a log: how each was found lives in git history.
   tiled states, so on a real desktop a snapped window is still resized (the compositor answers with its own
   size). It starts working when the blitz fork patches winit to report them. The unit test covers it
   through the vocabulary: a window told it is tiled on any edge is never asked for a size.
-- **The left panel's width is kept for the window's life, not across launches.** The panel is a `SplitView` pane
-  (`PaneSpec` 240, between 220 and 320); quire v0.3.1's split view keeps the width a drag gave it in the view and
-  reports only whether the pane is open (`on_shown`), so a new window opens at 240. Ends when the split view
-  reports a pane's size to persist.
+- **A double-click on the left panel's divider returns to the width kept, not to 240.** The panel's width is kept
+  across launches (`PanelMemory`, `panel.json` in the store), and a window opens at it by making it the pane's
+  `preferred` size, which quire's split view also resets to; it has no separate starting size. The width is read
+  once as the program starts, so a second process sees what the first wrote only on its own start. Ends when
+  quire's `SplitPane` takes a starting size apart from `preferred`.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
   a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
   pure `hand` machine's cases and the viewer step, not by a held key in the harness.
 
-- **A window is fitted to a guess of the screen's work area.** quire v0.2.20 reports the whole output on Wayland (a
-  layer-shell panel is never told to a client), so `window::fit` takes a fixed 32 logical pixels off the top
-  (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A taller panel, or a dock, is covered only by the 85%.
-  Before a window is mapped quire knows the output's whole-number scale, not the fractional one, so the first
-  window of a run (opened before the event loop, with no screen at all) is fitted to a 1920 by 1200 screen at
-  scale 1 and corrected once its first file has loaded (`WindowFit` reads the exact `WindowSizer::screen()`);
-  a picture whose header gave its size, on a fractionally scaled output, opens at that size and is corrected by
-  the same step. Ends when quire reports the compositor's reserved zones.
+- **A window is fitted to a guess of the screen's work area off the desktop shell.** Where the desktop's shell
+  reports the work area (`WorkBasis::Desktop`, its panels and docks already taken off) `window::fit` uses it as it
+  is. Elsewhere quire reports the whole output on Wayland (a layer-shell panel is never told to a client), so
+  `window::fit` takes a fixed 32 logical pixels off the top (`TOP_BAR`, GNOME's bar) and caps to 85% of the rest. A
+  taller panel, or a dock, is covered only by the 85%. Before a window is mapped quire knows the output's
+  whole-number scale, not the fractional one, so the first window of a run (opened before the event loop, with no
+  screen at all) is fitted to a 1920 by 1200 screen at scale 1 and corrected once its first file has loaded
+  (`WindowFit` reads the exact `WindowSizer::screen()`); a picture whose header gave its size, on a fractionally
+  scaled output, opens at that size and is corrected by the same step. Ends when every desktop reports the
+  compositor's reserved zones.
 - **A video's size comes from its header only.** The window opens at a recording's resolution when the mp4 or
   Matroska header says it (`anyview_peek::natural_size`). The player line (`MediaLine`, `MediaNotice`) does not
   report the picture's size, so a container the header readers do not know opens at the default window. Ends
