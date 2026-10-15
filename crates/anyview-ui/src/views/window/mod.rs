@@ -22,7 +22,7 @@ use self::hooks::{
 use self::keys::{KeyScene, window_key};
 use self::layers::{context_view, palette_view, titlebar_view};
 use self::layout::{NARROW_BELOW, bar_room, capsule_shows_something, panel_pane, panel_width_in};
-use self::parts::{find_hits, load_state, panel_tabs, window_title};
+use self::parts::{capsule_slots, find_hits, load_state, panel_tabs, reveal, window_title};
 use self::sheets::sheet_view;
 use self::wiring::{Wiring, use_wiring};
 use super::chrome::{BarRoom, Controls};
@@ -31,9 +31,6 @@ use super::failed::{FailedScreen, Offer};
 use super::panel::InfoPanel;
 use super::press::press_of;
 use super::scrub::{levelled, scrubbed};
-use super::session::{Probe, offered_slots, without_find};
-use super::shelf::Shelf;
-use crate::io::HostRequest;
 use crate::{
     ChromeIn, Command, ContextIn, ContextMenu, HandIn, Launch, LoadFailure, NavigateIn,
     Palette as PaletteState, PaneChrome, Panel, PanelIn, PanelTab, Presentation, Sheet, Spot,
@@ -156,15 +153,12 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     let machine_params = dispatch.params();
     // The capsule lists from what the palette and the menu list: a button for a file action the
     // file does not take (a rotate on a file that refuses a save) is not drawn.
-    let slots = current
-        .as_ref()
-        .map(|(_, doc)| {
-            let listed = doc.view().slots(&cx);
-            // A pane has no palette for the Find button to open.
-            let listed = if hosted { without_find(listed) } else { listed };
-            offered_slots(listed, &machine_params.files)
-        })
-        .unwrap_or_default();
+    let slots = capsule_slots(
+        current.as_ref().map(|(_, doc)| doc),
+        &cx,
+        hosted,
+        &machine_params.files,
+    );
     let capsule_drawn =
         !(hosted && pane_chrome == PaneChrome::Minimal) && capsule_shows_something(&slots, area());
     let (failure, phase) = load_state(state.load, current.is_some(), shelf);
@@ -400,20 +394,5 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             {context_view(&state.context, context_rows, dispatch)}
             {sheet_view(&state.sheet, dispatch, shelf, &carry.edge, export_facts, &offer)}
         }
-    }
-}
-
-/// The file's name, for a question about it.
-fn title_of(probe: &Probe) -> Option<String> {
-    probe
-        .found()
-        .and_then(|probed| probed.source.path().file_name())
-        .map(|name| name.as_str().to_owned())
-}
-
-/// Show the file the window last asked for in its folder.
-fn reveal(edge: &crate::Edge, shelf: &Shelf) {
-    if let Some(file) = shelf.wanted.peek().clone() {
-        edge.request(HostRequest::Reveal(file));
     }
 }

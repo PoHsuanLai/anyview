@@ -1,16 +1,18 @@
 //! What the window works out from the machine's state and the shelf each time it draws: the tabs
-//! the info panel offers, where the load stands, and the name the window shows.
+//! the info panel offers, where the load stands, the name the window shows, the capsule's slots
+//! and the hits of a find.
 
-use super::super::session::WHOLE_HITS;
+use super::super::session::{Probe, WHOLE_HITS, offered_slots, without_find};
 use super::super::shelf::Shelf;
-use super::title_of;
 use crate::families::LoadedDoc;
+use crate::io::HostRequest;
 use crate::{
-    HitLine, Load, LoadFailure, Palette as PaletteState, PaletteScope, PaneChrome, PanelTabs,
-    Stage, StageCx, Viewer,
+    Command, HitLine, Load, LoadFailure, Palette as PaletteState, PaletteScope, PaneChrome,
+    PanelTabs, Stage, StageCx, Viewer,
 };
-use anyview_core::FilePath;
+use anyview_core::{FileAction, FilePath};
 use dioxus::prelude::*;
+use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::prelude::*;
 
 /// The tabs the info panel offers for `current`, the document on screen: its own, with the
@@ -96,4 +98,38 @@ pub(super) fn find_hits(
         .and_then(|(_, hits)| hits.count())
         .map_or(0, |count| count.0);
     (hit_lines, found)
+}
+
+/// The file's name, for a question about it.
+pub(super) fn title_of(probe: &Probe) -> Option<String> {
+    probe
+        .found()
+        .and_then(|probed| probed.source.path().file_name())
+        .map(|name| name.as_str().to_owned())
+}
+
+/// Show the file the window last asked for in its folder.
+pub(super) fn reveal(edge: &crate::Edge, shelf: &Shelf) {
+    if let Some(file) = shelf.wanted.peek().clone() {
+        edge.request(HostRequest::Reveal(file));
+    }
+}
+
+/// The capsule's slots for `current`, the document on screen: those the file takes (`files` is
+/// what the palette and the menu list), so a button for a file action the file does not take (a
+/// rotate on a file that refuses a save) is not drawn. A pane has no palette for the Find button
+/// to open.
+pub(super) fn capsule_slots(
+    current: Option<&LoadedDoc>,
+    cx: &StageCx,
+    hosted: bool,
+    files: &[FileAction],
+) -> Vec<RankedSlot<Command>> {
+    current
+        .map(|doc| {
+            let listed = doc.view().slots(cx);
+            let listed = if hosted { without_find(listed) } else { listed };
+            offered_slots(listed, files)
+        })
+        .unwrap_or_default()
 }

@@ -1,7 +1,7 @@
 //! The sheets the viewer window can have up, each drawn from the machine's `Sheet` and answering
 //! with a sheet input.
 
-use super::title_of;
+use super::parts::title_of;
 use crate::views::export::ExportSheet;
 use crate::views::resize::ResizeSheet;
 use crate::views::sheet::{
