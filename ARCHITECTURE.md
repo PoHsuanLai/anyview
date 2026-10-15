@@ -1658,7 +1658,7 @@ action's chord that no region claims runs as the palette's row does (`Act::File`
 Don't Save in the question about unsaved changes, as in a Mac's dialogs.
 
 The right-click menu is the palette's command list under a Mac's grouping, so the menu, the palette
-and the shortcuts cannot drift: `views/session.rs` builds the one `commands` list (with what the
+and the shortcuts cannot drift: `views/session/` builds the one `commands` list (with what the
 file allows: playback, the edit offer, `FileAccess`), `context::entries` picks the rows a context
 menu shows from it, and a row is run by the same `run` a palette row is. A secondary click on the
 content (not on the capsule or the titlebar) sends `ContextIn::Open` with the pointer; the menu
