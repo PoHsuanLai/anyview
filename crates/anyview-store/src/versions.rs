@@ -25,11 +25,11 @@ use crate::error::{StoreError, StoreOp};
 use crate::io::{self, io_error};
 use crate::original::Original;
 use crate::save::{BackedUp, Pending, Written};
+use crate::sys;
 use anyview_core::ByteLen;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{ErrorKind, Read};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
 /// The folder under a person's state directory that holds the store (`<state>/anyview/versions`
@@ -310,16 +310,14 @@ impl Versions {
                 stem: format!("{:012}-{n:04}", at.0),
             };
             let data = id.data_path(&self.root);
-            let mut slot = match fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(&data)
-            {
-                Ok(slot) => slot,
-                Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
-                Err(error) => return Err(io_error(StoreOp::Write, &data, &error)),
-            };
+            let mut slot =
+                match sys::with_mode(fs::OpenOptions::new().write(true).create_new(true), 0o600)
+                    .open(&data)
+                {
+                    Ok(slot) => slot,
+                    Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
+                    Err(error) => return Err(io_error(StoreOp::Write, &data, &error)),
+                };
             let copied = std::io::copy(&mut source, &mut slot)
                 .and_then(|size| slot.sync_all().map(|()| size));
             return match copied {

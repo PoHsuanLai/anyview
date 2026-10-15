@@ -75,8 +75,7 @@ impl Raw {
             .filter(char::is_ascii_alphanumeric)
             .collect();
         let link = dir.path().join(format!("in.{extension}"));
-        std::os::unix::fs::symlink(path, &link)
-            .map_err(|error| ToolError::io("link the file", &error))?;
+        link_file(path, &link).map_err(|error| ToolError::io("link the file", &error))?;
         let out = match program {
             Program::DcrawEmu(tool) => {
                 let mut command = Command::new(tool);
@@ -96,6 +95,18 @@ impl Raw {
         };
         Ok((dir, out))
     }
+}
+
+/// `link` as a symbolic link to `target`.
+#[cfg(unix)]
+fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+/// `link` as a symbolic link to `target`.
+#[cfg(windows)]
+fn link_file(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(target, link)
 }
 
 /// The one file `dcraw_emu` wrote next to `link`.

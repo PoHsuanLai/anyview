@@ -1,6 +1,7 @@
 //! What a session is made with.
 
 use ds_core::word::Word;
+#[cfg(target_os = "linux")]
 use mpv_wgpu_player::{AudioOutput, Host, SubprocessOptions};
 use std::path::PathBuf;
 
@@ -14,6 +15,7 @@ pub struct MpvHost {
     pub cplugin: PathBuf,
 }
 
+#[cfg(target_os = "linux")]
 impl MpvHost {
     pub(super) fn host(&self) -> Host {
         Host::Subprocess(SubprocessOptions {
@@ -46,6 +48,7 @@ impl AudioDriver {
         Word::parse(name)
     }
 
+    #[cfg(target_os = "linux")]
     pub(super) fn output(self) -> AudioOutput {
         match self {
             AudioDriver::Auto => AudioOutput::Auto,

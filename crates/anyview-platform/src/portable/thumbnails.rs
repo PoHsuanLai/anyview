@@ -11,15 +11,11 @@ use anyview_core::{FilePath, FileStamp, PixelLen, PixelSize};
 use md5::{Digest, Md5};
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{BufWriter, Cursor, Write};
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 const URI_KEY: &str = "Thumb::URI";
 const MTIME_KEY: &str = "Thumb::MTime";
 const SIZE_KEY: &str = "Thumb::Size";
-/// The spec asks for a private cache: only the owner reads it.
-const PRIVATE_FILE: u32 = 0o600;
-const PRIVATE_DIR: u32 = 0o700;
 
 /// [`ThumbnailCache`] under `env`'s cache directory.
 #[derive(Debug, Clone)]
@@ -73,10 +69,7 @@ impl ThumbnailCache for FreedesktopThumbnails {
     ) -> Result<(), PlatformError> {
         let path = self.path(file, size);
         let directory = path.parent().unwrap_or(&self.root);
-        DirBuilder::new()
-            .recursive(true)
-            .mode(PRIVATE_DIR)
-            .create(directory)
+        create_private_dir(directory)
             .map_err(|error| PlatformError::io(IoOp::CreateDir, directory, &error))?;
         let tags = Tags {
             uri: file_uri(file),
@@ -181,16 +174,37 @@ fn to_rgba(samples: &[u8], color: png::ColorType) -> Option<Vec<u8>> {
     }
 }
 
+/// The folder and every missing one above it. The spec asks for a private cache, so on a platform
+/// with modes only the owner reads it; elsewhere the user's own cache folder is private already.
+fn create_private_dir(directory: &Path) -> std::io::Result<()> {
+    let mut builder = DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(directory)
+}
+
+/// Options that create or truncate a file for writing, readable by its owner alone where the
+/// platform has modes.
+fn private_file() -> OpenOptions {
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options
+}
+
 /// Write `bytes` beside `path` and rename them over it, so a reader never sees half a file.
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), PlatformError> {
     let temporary = path.with_extension("png.tmp");
     let write = || -> std::io::Result<()> {
-        let file: File = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(PRIVATE_FILE)
-            .open(&temporary)?;
+        let file: File = private_file().open(&temporary)?;
         let mut out = BufWriter::new(file);
         out.write_all(bytes)?;
         out.into_inner().map_err(|e| e.into_error())?.sync_all()
@@ -282,6 +296,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn the_file_carries_the_spec_chunks_and_is_private() {
         use std::os::unix::fs::PermissionsExt;
         let scratch = tempfile::tempdir().unwrap();

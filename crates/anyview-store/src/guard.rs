@@ -7,10 +7,8 @@
 
 use crate::error::{StoreError, StoreOp};
 use crate::io::io_error;
-use rustix::fs::FlockOperation;
-use rustix::io::Errno;
+use crate::sys;
 use std::fs::{self, File, OpenOptions};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Condvar, Mutex, PoisonError};
 
@@ -50,7 +48,7 @@ impl Drop for SaveTurn {
 const LOCK_FILE: &str = ".lock";
 
 /// The right to write one store, across every process, held until it is dropped. The lock is
-/// advisory `flock(2)` on an open file, so the system releases it when the holder exits, however
+/// advisory lock on an open file (`flock(2)`; `LockFileEx` on Windows), so the system releases it when the holder exits, however
 /// it exits: a crashed writer never leaves the store locked. It also excludes a second
 /// [`StoreLock`] taken in this process, because `flock` belongs to the open file, not the process.
 #[derive(Debug)]
@@ -65,20 +63,17 @@ impl StoreLock {
     pub(crate) fn exclusive(root: &Path) -> Result<StoreLock, StoreError> {
         fs::create_dir_all(root).map_err(|e| io_error(StoreOp::CreateDir, root, &e))?;
         let path = root.join(LOCK_FILE);
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(&path)
-            .map_err(|e| io_error(StoreOp::Lock, &path, &e))?;
-        loop {
-            match rustix::fs::flock(&file, FlockOperation::LockExclusive) {
-                Ok(()) => return Ok(StoreLock { _file: file }),
-                Err(Errno::INTR) => {}
-                Err(errno) => return Err(io_error(StoreOp::Lock, &path, &errno.into())),
-            }
-        }
+        let file = sys::with_mode(
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false),
+            0o600,
+        )
+        .open(&path)
+        .map_err(|e| io_error(StoreOp::Lock, &path, &e))?;
+        sys::lock_exclusive(&file).map_err(|e| io_error(StoreOp::Lock, &path, &e))?;
+        Ok(StoreLock { _file: file })
     }
 }

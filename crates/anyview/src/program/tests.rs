@@ -74,7 +74,7 @@ async fn the_first_launch_is_the_viewer_and_the_second_forwards_its_request_and_
     );
 }
 
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 #[tokio::test]
 async fn with_no_bus_the_launch_runs_alone_rather_than_dropping_its_request() {
     let scratch = tempfile::tempdir().unwrap();

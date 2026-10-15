@@ -39,8 +39,8 @@ impl Dirs {
             data: dirs::data_dir().unwrap_or_else(|| home.join(".local/share")),
             cache: dirs::cache_dir().unwrap_or_else(|| home.join(".cache")),
             state: dirs::state_dir().unwrap_or_else(|| home.join(".local/state")),
-            config_dirs: search_path("XDG_CONFIG_DIRS", "/etc/xdg"),
-            data_dirs: search_path("XDG_DATA_DIRS", "/usr/local/share:/usr/share"),
+            config_dirs: search_path("XDG_CONFIG_DIRS", SYSTEM_CONFIG),
+            data_dirs: search_path("XDG_DATA_DIRS", SYSTEM_DATA),
             home,
         }
     }
@@ -62,15 +62,26 @@ impl Dirs {
     }
 }
 
-/// A colon-separated search path variable, or `default` when it is unset or empty.
+/// The system directories searched when `XDG_CONFIG_DIRS` is unset. Windows has no such place.
+#[cfg(not(windows))]
+const SYSTEM_CONFIG: &str = "/etc/xdg";
+#[cfg(windows)]
+const SYSTEM_CONFIG: &str = "";
+
+/// The system directories searched when `XDG_DATA_DIRS` is unset. Windows has no such place.
+#[cfg(not(windows))]
+const SYSTEM_DATA: &str = "/usr/local/share:/usr/share";
+#[cfg(windows)]
+const SYSTEM_DATA: &str = "";
+
+/// A search path variable in the platform's own list syntax (colons, or semicolons on Windows), or
+/// `default` when it is unset or empty.
 fn search_path(variable: &str, default: &str) -> Vec<PathBuf> {
-    let text = std::env::var(variable)
-        .ok()
+    let text = std::env::var_os(variable)
         .filter(|text| !text.is_empty())
-        .unwrap_or_else(|| default.to_owned());
-    text.split(':')
-        .filter(|part| !part.is_empty())
-        .map(PathBuf::from)
+        .unwrap_or_else(|| OsString::from(default));
+    std::env::split_paths(&text)
+        .filter(|part| !part.as_os_str().is_empty())
         .collect()
 }
 

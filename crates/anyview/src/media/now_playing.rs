@@ -1,6 +1,6 @@
 //! The desktop's now-playing entry, when the desktop has one to give.
 
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 use anyview_platform::linux::MprisSession;
 use anyview_platform::{Env, MediaControl, MediaSession, MediaState, PlatformError};
 
@@ -10,7 +10,7 @@ use anyview_platform::{Env, MediaControl, MediaSession, MediaState, PlatformErro
 #[derive(Debug)]
 pub enum NowPlaying {
     /// The viewer as an MPRIS player.
-    #[cfg(feature = "quire-desktop")]
+    #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
     Mpris(MprisSession),
     /// No entry: publishing is nothing, and no control ever arrives.
     Absent,
@@ -19,7 +19,7 @@ pub enum NowPlaying {
 impl NowPlaying {
     /// Claim the player's name on `env`'s session bus; with no bus the entry is absent, and the
     /// reason is said once. A build without `quire-desktop` has no entry and says nothing.
-    #[cfg(feature = "quire-desktop")]
+    #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
     pub async fn register(env: &Env) -> NowPlaying {
         match MprisSession::register(env).await {
             Ok(session) => NowPlaying::Mpris(session),
@@ -31,7 +31,7 @@ impl NowPlaying {
     }
 
     /// This build has no desktop services: no entry.
-    #[cfg(not(feature = "quire-desktop"))]
+    #[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
     pub async fn register(_env: &Env) -> NowPlaying {
         NowPlaying::Absent
     }
@@ -40,7 +40,7 @@ impl NowPlaying {
 impl MediaSession for NowPlaying {
     async fn publish(&self, state: &MediaState) -> Result<(), PlatformError> {
         match self {
-            #[cfg(feature = "quire-desktop")]
+            #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
             NowPlaying::Mpris(session) => session.publish(state).await,
             NowPlaying::Absent => {
                 let _ = state;
@@ -51,7 +51,7 @@ impl MediaSession for NowPlaying {
 
     async fn next_control(&mut self) -> Option<MediaControl> {
         match self {
-            #[cfg(feature = "quire-desktop")]
+            #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
             NowPlaying::Mpris(session) => session.next_control().await,
             NowPlaying::Absent => std::future::pending().await,
         }

@@ -12,10 +12,10 @@ use super::saving;
 use super::store::Store;
 use super::trash::Trash;
 use anyview_core::{Edit, FileName, FilePath, Resume, Source, claimed_mimes, opened_globs};
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 use anyview_platform::linux::{FileManagerReveal, MailShare, PortalPicker, PortalPrinter};
 use anyview_platform::portable::SystemOpen;
-#[cfg(not(feature = "quire-desktop"))]
+#[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
 use anyview_platform::portable::{NoPicker, NoPrinter, NoShare, SystemReveal};
 use anyview_platform::{
     Env, FileKinds, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
@@ -58,14 +58,14 @@ pub trait Hosting: Send + Sync + 'static {
 
 /// The desktop this build runs on: the Linux desktop's services (`quire-desktop`), each over D-Bus or
 /// the freedesktop files.
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 pub type PlatformDesktop =
     Desktop<FileManagerReveal, MailShare, PortalPrinter, SystemTrash, PortalPicker, SystemOpen>;
 
 /// The desktop this build runs on: the portable one. Links and Show in Folder go through the
 /// platform's opener and the trash is the system's; sharing, printing and the file
 /// chooser are absent, and each answers "not available".
-#[cfg(not(feature = "quire-desktop"))]
+#[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
 pub type PlatformDesktop =
     Desktop<SystemReveal, NoShare, NoPrinter, SystemTrash, NoPicker, SystemOpen>;
 
@@ -158,7 +158,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
     }
 }
 
-#[cfg(feature = "quire-desktop")]
+#[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 impl PlatformDesktop {
     /// The Linux desktop of `env`, its store under `store`.
     #[must_use]
@@ -176,7 +176,7 @@ impl PlatformDesktop {
     }
 }
 
-#[cfg(not(feature = "quire-desktop"))]
+#[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
 impl PlatformDesktop {
     /// The portable desktop of `env`, its store under `store`.
     #[must_use]

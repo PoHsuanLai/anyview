@@ -1,6 +1,6 @@
 # anyview
 
-anyview is a file viewer for Linux desktops: images, PDF, text and code, Markdown, tables, JSON, audio and
+anyview is a file viewer for Linux desktops (it also compiles for macOS and Windows): images, PDF, text and code, Markdown, tables, JSON, audio and
 video, fonts, archives and books (EPUB and CBZ) in one window, and the same format library as the launcher's
 preview pane. It is a Rust workspace written in layers, from the pure vocabulary (`anyview-core`) up to the
 app, and builds on the quire design system. `ARCHITECTURE.md` is the map, `CONVENTIONS.md` the rules,
@@ -159,7 +159,7 @@ All panes of a window share the one `Workers` pool. With `with_store(root)` the 
 - There are no settings yet. Light, dark, accent colour and reduced motion follow the desktop.
 - After the last window closes the program keeps running for ten minutes so the next open is quick.
 - Shortcuts follow your system's keyboard settings: Command on a Mac-style desktop, Ctrl on Windows and most Linux desktops, drawn as that platform draws them.
-- Built and run on Linux (Wayland, the freedesktop portals and D-Bus); the portable build (`--no-default-features`, above) compiles the viewer without its D-Bus parts but has not run on macOS or Windows. Single-instance, Open With, Share, Print and Trash have been exercised against fakes, not yet on a real desktop.
+- Built and run on Linux (Wayland, the freedesktop portals and D-Bus). The portable build (`--no-default-features`, above) compiles the whole viewer without its D-Bus parts, and CI builds it for macOS and Windows on every change, but it has not run on either. There the video player (it needs Linux's shared-memory frames) and, on Windows, plugins are absent, and so is Open.... Single-instance, Open With, Share, Print and Trash have been exercised against fakes, not yet on a real desktop.
 - It makes no network connection and sends nothing anywhere.
 
 ## Reporting a problem

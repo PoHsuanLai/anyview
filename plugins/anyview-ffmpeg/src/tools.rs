@@ -2,7 +2,6 @@
 
 use crate::error::FfmpegError;
 use std::ffi::OsString;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -130,9 +129,22 @@ fn find(
     })
 }
 
+/// Whether `path` is a file that can be run: one with an execute bit where there are bits to read,
+/// else (Windows) any file, since starting it says otherwise.
 fn is_program(path: &Path) -> bool {
     path.metadata()
-        .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
+        .is_ok_and(|meta| meta.is_file() && can_execute(&meta))
+}
+
+#[cfg(unix)]
+fn can_execute(meta: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    meta.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(not(unix))]
+fn can_execute(_meta: &std::fs::Metadata) -> bool {
+    true
 }
 
 fn version_of(tool: &'static str, program: &Path) -> Result<Version, FfmpegError> {

@@ -8,7 +8,12 @@
 
 mod discover;
 mod route;
+// bayonet starts a plugin with a process group, a poll on its pipes and a kill of the group, which
+// are Unix's. Elsewhere `runner_absent` has the same runner and every request says that plugins
+// cannot be started there.
+#[cfg_attr(not(unix), path = "runner_absent.rs")]
 mod runner;
+#[cfg(unix)]
 mod wire;
 
 pub use discover::{Discovery, Rejected, discover, discover_in};

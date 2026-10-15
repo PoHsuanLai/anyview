@@ -109,20 +109,25 @@ on. It is a reference, not a log: how each was found lives in git history.
   pixels (`stage/pdf/place.rs` `LINE`, 80), and Page Down is one whole PDF page; the view's cursor (device
   pixels, `families/pdf/steer.rs`) is what knows them. Ends when a line and a page are asked of the view's
   `Steering` in pixels and the machine only hears where the reader landed.
-- **The portable build has no file chooser, so it has no Open....** The platform abilities set (below) hides
+- **The portable build has no file chooser, so it has no Open....** (A chooser for macOS and Windows would be
+  `rfd`, which is not in the dependency tree yet.) The platform abilities set (below) hides
   Open..., Print and Share where their service is absent, so the portable build shows none of them
   (a launch with files, drag and drop and the command line still open files). Ends when a portable chooser is
   written: `NoPicker` is replaced and its `present()` says yes.
 - **The install offer follows PackageKit as the program started.** `ds-desktop`'s `Helpers` capability is probed
   once at start (`program::start::can_install`); a PackageKit that appears later is not noticed until a restart.
   Without `quire-desktop` the probe has no bus, so no Install... is offered (the row still names the tool).
-- **The portable build has not been run on macOS or Windows.** `anyview-platform` (with or without
-  `quire-desktop`) passes `cargo check` for `x86_64-apple-darwin`, and `portable`'s opener command lines are
-  table-tested for all three platforms, but nothing has run there, and the crate does not compile for Windows:
-  `std::os::unix` in the thumbnail cache, `uri` and plugin discovery, and `rustix` in the plugin pipe, need a
-  platform module. quire still pulls `zbus` (`ds-settings`) and `wayland-client` (`ds-blitz`) into every build;
-  `--no-default-features` checks anyview's own code and anyview-platform's own tree (no `zbus`), not the final
-  graph. Ends when quire's portable lane lands and the viewer is built and run on a Mac.
+- **The portable build compiles on macOS and Windows and has not been run on either.** CI builds the workspace
+  with its default features off, the viewer with `audio`, and the pane with its player on `macos-latest` and
+  `windows-latest` (`cargo check --locked`; nothing is linked or run). `portable`'s opener command lines are
+  table-tested for all three platforms. What is Linux's alone is left out of those builds: the video player
+  (`anyview-media`'s `session/absent.rs` has its types and refuses to start one), the D-Bus services
+  (`quire-desktop`) and, on Windows, the plugin runner (bayonet starts a plugin with a process group and a
+  poll on its pipes; `plugin/runner_absent.rs` answers every request that the plugin cannot be started, so
+  Windows shows only what the built-in readers give). quire still pulls `zbus` (`ds-settings`, `ds-helpers`)
+  into every build, unused off Linux. Ends when the viewer is built and run on a Mac and on Windows, a
+  bayonet runner for Windows (a job object and overlapped pipes) exists, and the video player has a
+  portable frame transport.
 - **Single instance without the bus starts nothing.** The bus starts the viewer for a call to its name
   (`dist/org.quire.Anyview1.service`); the per-user socket (latchkey) does not, so a launcher cannot call a
   viewer that is not running. Linux with `quire-desktop` keeps the bus for that, and `forward_over` stays the
@@ -464,9 +469,9 @@ on. It is a reference, not a log: how each was found lives in git history.
 - **The thumbnail cache has no `fail/` directory and no `xx-large`.** A file that cannot be thumbnailed is
   retried every time, and the 1024-pixel size of spec 1.0 is not offered. Ends when the launcher's pane
   measures that retry cost or asks for the size.
-- **`file_uri` uses Unix path bytes.** `uri.rs` reads the path as raw bytes (`OsStrExt`), so it does not
-  build on Windows. Ends when `windows/` is added: `uri.rs` then encodes through `to_string_lossy` for that
-  target.
+- **`file_uri` on Windows goes through `to_string_lossy`.** A Unix path is encoded as raw bytes, so a name
+  that is not UTF-8 survives; a Windows path is `C:\a b` written `file:///C:/a%20b`, with a lossy conversion of
+  an unpaired surrogate. A UNC path is not special-cased.
 - **The bus tests need `dbus-daemon`.** The bus tests start one with a private configuration and skip
   with a message on stderr when the program is missing, so a machine without it passes without running them.
   Ends when CI is known to have `dbus-daemon`: make a missing one a failure.
@@ -906,7 +911,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   with a page that says so (`PdfPage::Failed`), and `PdfThumb` draws the glyph plate.
 - **A path is opened in `anyview-fs`, not in `anyview-core` or `anyview-store`.** Core does no I/O, so
   `Input::from(&FilePath)` is `FilePath::on_disk()` (the `OnDisk` trait). The adapter is its own crate because
-  `anyview-store` reads extended attributes and cannot build on Windows, and the headless peek must; and a
+  `anyview-store` reads extended attributes (its Windows half is the standard library's) and the headless peek must build everywhere without it; and a
   module of `anyview-peek` would be out of reach of `anyview-text`, which opens a window of lines by offset.
 - **The launcher and the viewer sniff a zip with one window.** The peek's probe reads 8 MiB of a zip's central
   directory (it read 256 KiB, the viewer's own 8 MiB), so a comic or a book with many thousands of entries is
@@ -1139,8 +1144,11 @@ on. It is a reference, not a log: how each was found lives in git history.
   process. Readers (`read_history`, `load_resume`) take no lock: a rename is atomic. A temporary file a crashed
   writer left is `<name>.tmp`, never listed (only `.json` is) and truncated by the next write. Platforms: Linux
   and macOS use `flock`, which both have; `flock` can be unreliable on NFS, where a store would not normally be.
-  `anyview-store` is Unix-only today (`std::os::unix` in `io.rs`) and is not in the macOS and Windows peek
-  builds' trees; if it ever builds on Windows the lock becomes `LockFileEx` on the same file.
+  `anyview-store` names `rustix` and `std::os::unix` only in `src/sys/unix.rs`; `src/sys/windows.rs` does the
+  same with the standard library: the lock is `File::lock` (`LockFileEx`), the mode is the read-only flag, a
+  save is always by replacement (a file's other names are not counted), a no-replace rename is a hard link,
+  the origin of a download is the `Zone.Identifier` stream, and a leftover temporary file is never swept
+  (a process's life is not asked).
 - **`dist/install.sh` writes a receipt** (`<prefix>/share/anyview/install-receipt`) naming the files it wrote and
   the directories it made; `uninstall.sh` removes exactly those, directories only when empty. An install from
   before the receipt is removed by file names, as it was.
