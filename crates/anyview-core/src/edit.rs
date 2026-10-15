@@ -1,6 +1,6 @@
 //! Edits: each change the viewer can save in place, described as data.
 
-use crate::units::{Axis, MediaTime, PageIndex, PageRange, PixelLen, PixelSize, QuarterTurn};
+use crate::units::{Axis, PageIndex, PageRange, PixelLen, PixelSize, QuarterTurn, TimeRange};
 use ds_core::word::Word;
 
 /// One change to a file. An edit is a value: the save pipeline applies it, undo stores it.
@@ -23,13 +23,9 @@ pub enum Edit {
     /// Everything done to a picture since it was opened, as one change: cut down, mirrored,
     /// turned and resized.
     Adjust(Adjust),
-    /// Keep one stretch of a recording and drop the rest.
-    Trim {
-        /// Where the kept stretch begins.
-        start: MediaTime,
-        /// Where it ends; always after `start`.
-        end: MediaTime,
-    },
+    /// Keep one stretch of a recording and drop the rest. The range cannot end before it starts,
+    /// also when it is read back from a store.
+    Trim(TimeRange),
     /// Everything written on a document's pages since it was opened, as one change: the form
     /// fields filled and the marks made. What was written is the viewer's, not the edit's.
     Markup,
@@ -238,7 +234,7 @@ impl Edit {
             Edit::DeletePages(_) => EditKind::DeletePages,
             Edit::MovePage { .. } => EditKind::MovePage,
             Edit::Adjust(_) => EditKind::Adjust,
-            Edit::Trim { .. } => EditKind::Trim,
+            Edit::Trim(_) => EditKind::Trim,
             Edit::Markup => EditKind::Markup,
         }
     }
@@ -247,6 +243,7 @@ impl Edit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::units::MediaTime;
     use ds_core::testing::word_matches_serde;
 
     fn range(first: u32, last: u32) -> PageRange {
@@ -283,10 +280,7 @@ mod tests {
             ),
             (Edit::Adjust(Adjust::NONE), EditKind::Adjust),
             (
-                Edit::Trim {
-                    start: MediaTime(1),
-                    end: MediaTime(2),
-                },
+                Edit::Trim(TimeRange::new(MediaTime(1), Some(MediaTime(2))).unwrap()),
                 EditKind::Trim,
             ),
             (Edit::Markup, EditKind::Markup),
@@ -333,10 +327,9 @@ mod tests {
                 r#"{"kind":"adjust","v":{"crop":{"left":1,"top":2,"size":{"width":30,"height":40}},"reflection":"mirrored","turn":"quarter","size":{"width":15,"height":20}}}"#,
             ),
             (
-                Edit::Trim {
-                    start: MediaTime(1_500_000),
-                    end: MediaTime(2_500_000),
-                },
+                Edit::Trim(
+                    TimeRange::new(MediaTime(1_500_000), Some(MediaTime(2_500_000))).unwrap(),
+                ),
                 r#"{"kind":"trim","v":{"start":1500000,"end":2500000}}"#,
             ),
         ];

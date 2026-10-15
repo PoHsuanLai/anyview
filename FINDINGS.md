@@ -1205,3 +1205,10 @@ on. It is a reference, not a log: how each was found lives in git history.
   has no type for them. `crates/anyview-core/tests/anyview-core/dist.rs` checks the line against the registry where it is installed.
 - **Revert To is listed for a picture or a PDF that has no kept version.** Its sheet says there is nothing to go back
   to. Ends when the window knows the kept versions of the file before it is asked.
+- **`PagePoint` and `PageRect` have public fields, so a value outside 0 to 1000 can be built.** Every producer clamps
+  (`PagePoint::at`, `PageRect::moved`, the PDF crate's `displayed`), and `PageRect::near` saturates, so a stray value
+  cannot panic, only hit-test oddly. Ends when the fields go private behind a clamping constructor (about 50 literal
+  sites across the pdf, machines and ui crates).
+- **Core reads the monotonic clock and the system time zone in three places.** `Interrupt` for `Deadline` and `Stop`,
+  `PeekBudget::deadline_from_now`, and `LocalZone::system` (used by `FactValue::date`); the crate docs name them. Ends
+  when the deadline and zone are passed in by the host, which touches every back end that takes an `Interrupt`.

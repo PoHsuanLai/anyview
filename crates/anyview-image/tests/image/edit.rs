@@ -300,7 +300,7 @@ fn a_series_of_turns_and_flips_folded_into_one_adjustment_places_the_pixels_as_t
             Edit::DeletePages(_)
             | Edit::MovePage { .. }
             | Edit::Adjust(_)
-            | Edit::Trim { .. }
+            | Edit::Trim(_)
             | Edit::Markup => folded,
         };
         let at_once = edited(&before, &kind, Edit::Adjust(folded)).unwrap();

@@ -5,11 +5,11 @@
 use crate::families::{LineWindow, LoadedDoc, family_of, views_of};
 use crate::io::{DesktopService, NaturalSize, Opened};
 use crate::{
-    Allowance, Changes, ChromeParams, Command, ContextParams, EditOffer, ExportFacts, FileAccess,
-    HitIndex, HitList, MarkupCommand, MediaOffer, Motion, Palette, PaletteParams, PaletteScope,
-    PaneChrome, PanelParams, PlatformAbilities, Playing, Presentation, PresentationParams,
-    SheetParams, Spot, Stage, StageAbilities, StageCommand, StageParams, TextParams, TextView,
-    TextViews, Ticket, TypedText, ViewerParams, Writing,
+    Allowance, Changes, Command, ContextParams, EditOffer, ExportFacts, FileAccess, HitIndex,
+    HitList, MarkupCommand, MediaOffer, Motion, Palette, PaletteParams, PaletteScope, PaneChrome,
+    PanelParams, PlatformAbilities, Playing, Presentation, SheetParams, Spot, Stage,
+    StageAbilities, StageCommand, StageParams, TextParams, TextView, TextViews, Ticket, TypedText,
+    ViewerParams, Writing,
 };
 use anyview_core::{
     Adjust, FileAction, FindOption, FindOptions, FormatKind, MarkTool, Reach, actions_for, reach,
@@ -517,13 +517,10 @@ pub(super) fn params(
     };
     let mut measured = match doc {
         Some(doc) => doc.view().params(stage, area, lines),
-        None => StageParams {
-            text: TextParams {
-                views: kind.map_or(TextViews::default(), views_of),
-                ..TextParams::default()
-            },
-            ..StageParams::default()
-        },
+        None => StageParams::default().with_text(TextParams {
+            views: kind.map_or(TextViews::default(), views_of),
+            ..TextParams::default()
+        }),
     };
     if let (Stage::Raster(raster), Some(area), Some(doc), false) =
         (stage, area, doc, adjust.is_none())
@@ -598,26 +595,26 @@ pub(super) fn params(
             | Command::Install(_) => None,
         })
         .collect();
-    ViewerParams {
-        files,
-        chrome: ChromeParams::default(),
-        context: ContextParams {
-            entries: entries(&listed, panel.tabs),
-            centre: centre_of(area),
-        },
-        palette: PaletteParams {
-            rows: rows_for(listed, &query, scope, (stage, find)),
-        },
-        panel,
-        platform,
-        presentation: PresentationParams::default(),
-        sheet: SheetParams {
-            media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
-            edit: offer,
-            export: export_facts(stage, doc, &measured, marks),
-        },
-        stage: measured,
-    }
+    let context = ContextParams {
+        entries: entries(&listed, panel.tabs),
+        centre: centre_of(area),
+    };
+    let palette = PaletteParams {
+        rows: rows_for(listed, &query, scope, (stage, find)),
+    };
+    let sheet = SheetParams {
+        media: doc.map_or_else(MediaOffer::default, |doc| doc.view().media_offer()),
+        edit: offer,
+        export: export_facts(stage, doc, &measured, marks),
+    };
+    ViewerParams::default()
+        .with_files(files)
+        .with_context(context)
+        .with_palette(palette)
+        .with_panel(panel)
+        .with_platform(platform)
+        .with_sheet(sheet)
+        .with_stage(measured)
 }
 
 /// What the export sheet is told of the open file: the pages of a document and where the reader
@@ -976,12 +973,11 @@ mod tests {
             edited: Edited::default(),
             find: None,
         });
-        let params = |editable| StageParams {
-            text: TextParams {
+        let params = |editable| {
+            StageParams::default().with_text(TextParams {
                 editable,
                 ..TextParams::default()
-            },
-            ..StageParams::default()
+            })
         };
         let locked = Offers {
             access: FileAccess::ReadOnly,

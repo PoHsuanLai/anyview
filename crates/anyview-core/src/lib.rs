@@ -1,6 +1,9 @@
 //! The viewer's pure vocabulary: what a file is, how it is told apart, the units the viewer counts
 //! in, the sequence arrow keys walk, the actions, edits and exports a file offers, and the view
-//! memory a file keeps. No I/O, no clock, no renderer: effects belong to the crates above.
+//! memory a file keeps. No I/O and no renderer: effects belong to the crates above. Three small
+//! exceptions read the machine, each named where it is: `work::Interrupt` and
+//! `PeekBudget::deadline_from_now` read the monotonic clock, and `LocalZone::system` reads the
+//! system time zone. Everything else takes the time as an argument.
 //!
 //! Every public item is reached from this root, once, except the contract with the threads, which
 //! is reached through its one public module, `work`, and the front doors, which [`prelude`] names

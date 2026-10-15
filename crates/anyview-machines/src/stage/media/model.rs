@@ -227,11 +227,26 @@ pub struct MediaAbilities {
 
 /// What the stage needs from settings, and from the player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct MediaParams {
     /// How far a seek key jumps (setting `viewer.media.seek_step`, default 5 s).
     pub seek_step: MediaTime,
     /// What the player can do.
     pub abilities: MediaAbilities,
+}
+
+impl MediaParams {
+    /// These parameters with a seek key jumping `seek_step`.
+    #[must_use]
+    pub const fn with_seek_step(self, seek_step: MediaTime) -> Self {
+        MediaParams { seek_step, ..self }
+    }
+
+    /// These parameters with the player able to do `abilities`.
+    #[must_use]
+    pub const fn with_abilities(self, abilities: MediaAbilities) -> Self {
+        MediaParams { abilities, ..self }
+    }
 }
 
 impl Default for MediaParams {

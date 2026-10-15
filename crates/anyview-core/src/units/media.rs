@@ -150,10 +150,26 @@ pub struct ChapterIndex(pub u32);
 
 /// A stretch of a recording: from `start` to `end`, or to the end of the recording when `end` is
 /// `None`. The constructor refuses an end that is not after the start.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "TimeRangeWire")]
 pub struct TimeRange {
     start: MediaTime,
     end: Option<MediaTime>,
+}
+
+/// The stored shape of a [`TimeRange`], checked on load.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+struct TimeRangeWire {
+    start: MediaTime,
+    end: Option<MediaTime>,
+}
+
+impl TryFrom<TimeRangeWire> for TimeRange {
+    type Error = crate::CoreError;
+
+    fn try_from(wire: TimeRangeWire) -> Result<Self, crate::CoreError> {
+        TimeRange::new(wire.start, wire.end)
+    }
 }
 
 impl TimeRange {

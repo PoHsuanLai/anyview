@@ -152,9 +152,9 @@ mod tests {
                 &[("/b", 5, 1), ("/a", 10, 1)],
             ),
             (
-                "a path is the same after normalising",
+                "a path is the same without its . and doubled separators",
                 &[("/a/b", 1, 1)],
-                ("/a/./c/../b", 2, 1),
+                ("/a/./b", 2, 1),
                 3,
                 &[("/a/b", 2, 1)],
             ),

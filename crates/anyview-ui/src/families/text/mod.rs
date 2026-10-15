@@ -84,18 +84,15 @@ impl StageView for TextStageView {
             Some(_) => TextViews::RenderedAndSource,
             None => TextViews::SourceOnly,
         };
-        StageParams {
-            text: TextParams {
-                views,
-                extent: TextExtent {
-                    lines: LineTotal(doc.line_count().0),
-                    page: PageLines(0),
-                },
-                editable: doc.editable(),
-                ..TextParams::default()
+        StageParams::default().with_text(TextParams {
+            views,
+            extent: TextExtent {
+                lines: LineTotal(doc.line_count().0),
+                page: PageLines(0),
             },
-            ..StageParams::default()
-        }
+            editable: doc.editable(),
+            ..TextParams::default()
+        })
     }
 
     fn params_seen(
@@ -112,16 +109,14 @@ impl StageView for TextStageView {
         let rows = view::rows_of(area.size.height.0, place.scale);
         let from = lines.map_or(&[][..], |window| window.from(place.line));
         let page = wrap::lines_per_page(from, rows, area.size.width.0, place.wrap, place.scale);
-        StageParams {
-            text: TextParams {
-                extent: TextExtent {
-                    page: PageLines(page),
-                    ..params.text.extent
-                },
-                ..params.text
+        let text = TextParams {
+            extent: TextExtent {
+                page: PageLines(page),
+                ..params.text.extent
             },
-            ..params
-        }
+            ..params.text
+        };
+        params.with_text(text)
     }
 
     fn arrived(_doc: &TextDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {

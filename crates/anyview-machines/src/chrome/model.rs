@@ -87,6 +87,7 @@ pub enum ChromeOut {
 
 /// The chrome's timing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ChromeParams {
     /// Idle time before the chrome hides (setting `viewer.chrome.hide_after`; quire
     /// design/20 section 2.6 proposes 2000 ms).
@@ -102,6 +103,24 @@ impl ChromeParams {
     pub const HIDE_AFTER: Duration = Duration::from_millis(2000);
     /// `--t-quick`.
     pub const QUICK: Duration = Duration::from_millis(150);
+
+    /// These timings with the chrome hiding after `hide_after` of idle time.
+    #[must_use]
+    pub const fn with_hide_after(self, hide_after: Duration) -> Self {
+        ChromeParams { hide_after, ..self }
+    }
+
+    /// These timings with the fade in lasting `reveal`.
+    #[must_use]
+    pub const fn with_reveal(self, reveal: Duration) -> Self {
+        ChromeParams { reveal, ..self }
+    }
+
+    /// These timings with the fade out lasting `hide`.
+    #[must_use]
+    pub const fn with_hide(self, hide: Duration) -> Self {
+        ChromeParams { hide, ..self }
+    }
 }
 
 impl Default for ChromeParams {

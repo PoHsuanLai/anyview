@@ -66,10 +66,10 @@ pub use presentation::{
 pub use remembering::{Noted, REMEMBER_EVERY, Remembering};
 pub use sheet::{
     Departure, ExportControl, ExportDraft, ExportFacts, ExportFamily, ExportKindPick, ExportOption,
-    HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_SIDE, MediaOffer, PageSpan, PictureSheet,
-    PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit,
-    Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan, VersionKey, VersionList, VersionRow,
-    Wanted, format_of, kind_hint, kind_name, quality_of,
+    HelperEnd, HelperPhase, MAX_LONG_EDGE, MAX_RESIZED_AREA, MAX_RESIZED_SIDE, MediaOffer,
+    PageSpan, PictureSheet, PictureSheetIn, PictureSheetOut, ResizeChange, ResizeDraft,
+    ResizeProportion, ResizeUnit, Sheet, SheetIn, SheetOut, SheetParams, SizePick, TrimSpan,
+    VersionKey, VersionList, VersionRow, Wanted, format_of, kind_hint, kind_name, quality_of,
 };
 pub use stage::{
     AfterScrub, AfterTyping, Animation, CellFocus, CellStep, Cells, Changes, ColumnNo, ColumnSort,

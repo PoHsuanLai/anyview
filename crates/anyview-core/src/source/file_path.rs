@@ -1,11 +1,13 @@
-//! `FilePath`: an absolute, lexically normalised path.
+//! `FilePath`: an absolute path with `.` and repeated separators removed.
 
 use crate::error::CoreError;
 use crate::source::FileName;
 use std::path::{Component, Path, PathBuf};
 
-/// An absolute path with `.` and `..` resolved lexically (no file system access, so symlinks are
-/// not followed) and repeated separators collapsed. `..` at the root stays at the root.
+/// An absolute path with `.` dropped and repeated separators collapsed. A `..` is kept, because
+/// `/a/link/../b` names the parent of what `link` points to, which only the file system can tell;
+/// resolving it here would name another file. A `..` at the root is dropped, as the file system
+/// does. The last component, as a [`FileName`], is lossy for a name that is not valid UTF-8.
 ///
 /// Stored in view history, so it deserialises through [`FilePath::new`] and a relative path in a
 /// stored file is refused at load. A path that is not valid UTF-8 cannot be written to JSON.
@@ -56,7 +58,7 @@ impl From<FilePath> for PathBuf {
     }
 }
 
-/// `path` with `.` dropped, `..` resolved against what precedes it, and `..` at a root dropped.
+/// `path` with `.` dropped and `..` at a root dropped.
 fn normalised(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for component in path.components() {
@@ -66,7 +68,7 @@ fn normalised(path: &Path) -> PathBuf {
             Component::ParentDir => {
                 let at_root = out.parent().is_none();
                 if !at_root {
-                    out.pop();
+                    out.push(component.as_os_str());
                 }
             }
             Component::Normal(part) => out.push(part),
@@ -80,15 +82,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn paths_normalise_lexically() {
+    fn paths_are_tidied_but_not_resolved() {
         const CASES: &[(&str, &str, &str)] = &[
             ("plain", "/a/b/c.png", "/a/b/c.png"),
             ("dot", "/a/./b", "/a/b"),
-            ("dotdot", "/a/b/../c", "/a/c"),
+            ("dotdot is kept", "/a/b/../c", "/a/b/../c"),
             ("double separator", "/a//b", "/a/b"),
             ("trailing separator", "/a/b/", "/a/b"),
             ("dotdot at root", "/../a", "/a"),
-            ("dotdot past root", "/a/../../b", "/b"),
+            ("dotdot past root", "/a/../../b", "/a/../../b"),
             ("root", "/", "/"),
         ];
         for (name, input, want) in CASES {

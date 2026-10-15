@@ -15,10 +15,10 @@ pub enum StopState {
 }
 
 /// A request to end work early, handed to `Backend::run`. Clones share one flag, so the caller
-/// keeps a clone and raises it while a worker polls its own. The deadline is plain data and this
-/// type never reads a clock: the question "is it past?" takes the instant (`stopped_at`), and
-/// the worker passes `Instant::now()`. A loop that does not hold a clock asks it as an
-/// [`Interrupt`](super::Interrupt), which reads one. A back end with its own deadline (a per-render limit)
+/// keeps a clone and raises it while a worker polls its own. The deadline is plain data and
+/// the type's own methods never read a clock: the question "is it past?" takes the instant
+/// (`stopped_at`), and the worker passes `Instant::now()`. A loop that does not hold a clock asks
+/// it as an [`Interrupt`](super::Interrupt), whose impl for `Stop` reads one. A back end with its own deadline (a per-render limit)
 /// reads `deadline` and uses that instead.
 #[derive(Debug, Clone, Default)]
 pub struct Stop {

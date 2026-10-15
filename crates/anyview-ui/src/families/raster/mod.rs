@@ -42,14 +42,12 @@ pub(crate) fn adjusted_raster(
     let kept = adjust.kept(base).size;
     let turn = geometry::turn_of(raster).then(adjust.turn);
     let fit = geometry::fit(kept, turn, area);
-    crate::RasterParams {
-        viewport: crate::Viewport {
+    timing
+        .with_viewport(crate::Viewport {
             shown: geometry::scale_of(raster, fit),
             fit,
-        },
-        centre: geometry::centre_of(raster, kept, turn),
-        ..timing
-    }
+        })
+        .with_centre(geometry::centre_of(raster, kept, turn))
 }
 
 /// Raster and vector images.
@@ -102,28 +100,20 @@ impl StageView for RasterStageView {
     }
 
     fn params(doc: &RasterDoc, stage: &Stage, area: Option<Area>) -> StageParams {
-        let timing = crate::RasterParams {
-            delays: doc.delays(),
-            runs: doc.runs,
-            ..crate::RasterParams::default()
-        };
+        let timing = crate::RasterParams::default()
+            .with_delays(doc.delays())
+            .with_runs(doc.runs);
         let (Stage::Raster(raster), Some(area)) = (stage, area) else {
-            return StageParams {
-                raster: timing,
-                ..StageParams::default()
-            };
+            return StageParams::default().with_raster(timing);
         };
         let turn = geometry::turn_of(raster);
         let fit = geometry::fit(doc.size, turn, area);
         let shown = geometry::scale_of(raster, fit);
-        StageParams {
-            raster: crate::RasterParams {
-                viewport: crate::Viewport { shown, fit },
-                centre: geometry::centre_of(raster, doc.size, turn),
-                ..timing
-            },
-            ..StageParams::default()
-        }
+        StageParams::default().with_raster(
+            timing
+                .with_viewport(crate::Viewport { shown, fit })
+                .with_centre(geometry::centre_of(raster, doc.size, turn)),
+        )
     }
 
     fn natural(doc: &RasterDoc) -> Option<NaturalSize> {

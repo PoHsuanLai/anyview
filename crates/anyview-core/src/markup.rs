@@ -83,10 +83,10 @@ impl PageRect {
     /// Whether `at` is inside it or within `reach` thousandths of it.
     #[must_use]
     pub fn near(self, at: PagePoint, reach: u32) -> bool {
-        at.x.0 + reach >= self.left.0
-            && at.x.0 <= self.right.0 + reach
-            && at.y.0 + reach >= self.top.0
-            && at.y.0 <= self.bottom.0 + reach
+        at.x.0.saturating_add(reach) >= self.left.0
+            && at.x.0 <= self.right.0.saturating_add(reach)
+            && at.y.0.saturating_add(reach) >= self.top.0
+            && at.y.0 <= self.bottom.0.saturating_add(reach)
     }
 
     /// Whether the two overlap.

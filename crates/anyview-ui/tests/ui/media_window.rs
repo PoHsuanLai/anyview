@@ -1529,11 +1529,11 @@ fn trim_brings_up_a_bar_that_is_dragged_applied_and_saved_over_the_file() {
         .iter()
         .filter_map(|request| {
             if let HostRequest::Edit(EditRequest {
-                edit: Edit::Trim { start, end },
+                edit: Edit::Trim(range),
                 ..
             }) = request
             {
-                Some((*start, *end))
+                Some((range.start(), range.end()?))
             } else {
                 None
             }
