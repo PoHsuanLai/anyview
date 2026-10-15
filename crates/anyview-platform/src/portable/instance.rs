@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Sender, channel};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// The agent's name: it becomes a directory under the runtime directory, and part of a pipe name
 /// on Windows.
@@ -25,6 +25,8 @@ const AGENT: &str = "anyview";
 const DOOR: Duration = Duration::from_secs(3);
 /// How long a launch waits for the whole exchange before it gives up and runs on alone.
 const EXCHANGE: Duration = Duration::from_secs(10);
+/// How long a launch waits between asking for the lock and knocking again.
+const KNOCK: Duration = Duration::from_millis(20);
 /// How long the accept loop rests after the door fails, so a failing door does not spin.
 const REST: Duration = Duration::from_millis(100);
 
@@ -120,25 +122,43 @@ enum Settled {
 }
 
 /// Take the lock and open the door, or hand `request` to the viewer that has them.
+///
+/// The lock held with no door to knock on is a viewer on its way in or on its way out: one that
+/// has the lock and is about to listen, or one that has closed its door and is about to let go
+/// (or a moment in which another process briefly shares the lock's file). Either way it settles
+/// within moments, so the launch asks again, the lock and then the door, until [`DOOR`] is up:
+/// a viewer that was leaving leaves this launch the viewer, and one that was arriving takes the
+/// request.
 fn settle(
     agent: Agent,
     sender: Sender<Request>,
     request: &Request,
 ) -> Result<Settled, PlatformError> {
-    match agent.listen() {
-        Ok(listening) => Ok(Settled::Primary(Door::open(agent, listening, sender))),
-        Err(Latch::AlreadyRunning) => forward(&agent, request).map(|()| Settled::Forwarded),
-        Err(error) => Err(failed("claim the viewer's socket", &error)),
+    let deadline = Instant::now() + DOOR;
+    loop {
+        match agent.listen() {
+            Ok(listening) => return Ok(Settled::Primary(Door::open(agent, listening, sender))),
+            Err(Latch::AlreadyRunning) => {}
+            Err(error) => return Err(failed("claim the viewer's socket", &error)),
+        }
+        let knocked = agent
+            .connect()
+            .map_err(|error| failed("connect to the running viewer", &error))?;
+        if let Some(stream) = knocked {
+            return forward(stream, request).map(|()| Settled::Forwarded);
+        }
+        if Instant::now() >= deadline {
+            return Err(failed(
+                "connect to the running viewer",
+                &"it holds the lock and did not open its door in time",
+            ));
+        }
+        std::thread::sleep(KNOCK);
     }
 }
 
-/// Send `request` to the running viewer and wait for it to say it took it.
-fn forward(agent: &Agent, request: &Request) -> Result<(), PlatformError> {
-    // The viewer holds the lock a moment before its door is open; knocking again covers it. Nothing
-    // is started here: the closure is the point where latchkey would launch a viewer.
-    let mut stream = agent
-        .connect_or_start(|| Ok(()), DOOR)
-        .map_err(|error| failed("connect to the running viewer", &error))?;
+/// Send `request` to the running viewer over `stream` and wait for it to say it took it.
+fn forward(mut stream: Stream, request: &Request) -> Result<(), PlatformError> {
     let mut line = frame::encode(request);
     line.push('\n');
     stream
