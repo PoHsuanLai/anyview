@@ -3,6 +3,8 @@
 //! the steps that can be taken back. A pure state like the picture's edits; the file is written
 //! only when the host is asked to (⌘S).
 
+mod form;
+mod marks;
 mod model;
 mod step;
 #[cfg(test)]
