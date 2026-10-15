@@ -155,7 +155,7 @@ mod tests {
             sheets: vec![Arc::new(super::super::doc::SheetDoc {
                 name: String::new(),
                 widths: Vec::new(),
-                numeric: Vec::new(),
+                kinds: Vec::new(),
                 table,
             })],
             facts: anyview_core::Facts::empty(),

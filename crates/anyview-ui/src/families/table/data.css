@@ -1,8 +1,8 @@
 /* Data views: a table and a tree share a row height (the compact row), the data face and the body
    size. The table is quire's VirtualTable, whose header is above its rows and so stays put. Its
-   header and cells are quire's to style (ds-lint DsInternals): the Numbers-look column rules and
-   the header's hairline once scrolled are its `ColumnRules::Hairline` and `HeaderRule`. Tokens
-   only. */
+   header, rows and selection are quire's to style (ds-lint DsInternals): Finder's list look, with
+   faint stripes, an inset rounded selection and the header's hairline once scrolled, is its
+   `TableLook::Striped` and `HeaderRule`. What a cell holds is drawn here. Tokens only. */
 
 /* The data starts under the titlebar by the shared `.viewer-scrolls` rule (views/window.css); this
    sets the other three edges. */
@@ -19,3 +19,14 @@
 .viewer-node-count{ color:var(--ink-faint); }
 .viewer-sheets{ display:flex; flex-direction:column; }
 .viewer-panel-note{ margin:auto 0 0; color:var(--ink-faint); font-size:var(--fs-help); }
+/* A cell by what its column holds (kind.rs). A number sits at the trailing edge in tabular figures,
+   digits as written; a yes is a centred tick; a link is quiet text underlined faintly (opening is
+   not here); a tag is a small rounded fill round the value; a cell with nothing in it is a faint
+   dash. */
+.viewer-cell-number{ font-variant-numeric:tabular-nums; }
+.viewer-cell-yes-no{ display:block; width:100%; text-align:center; }
+.viewer-cell-link{ text-decoration:underline; text-decoration-color:var(--ink-faint); text-underline-offset:var(--s-2); }
+.viewer-cell-tag{ display:inline-block; padding:0 var(--s-8); border-radius:var(--r-small); background:var(--fill-quaternary); color:var(--ink-soft); }
+.viewer-cell-empty{ color:var(--ink-faint); }
+/* The status line under the rows, as Finder's: centred, small, in the secondary ink over a hairline. */
+.viewer-table-status{ flex:none; margin:0; padding:var(--s-4) var(--s-12); text-align:center; font-family:var(--font-ui); font-size:var(--fs-help); color:var(--ink-soft); border-top:var(--hair) solid var(--line); }

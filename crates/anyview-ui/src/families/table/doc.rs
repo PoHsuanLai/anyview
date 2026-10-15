@@ -2,8 +2,8 @@
 //! ask for, and the rows of the Info tab. A delimited file is indexed, not held; a workbook's sheets
 //! are held.
 
+use super::kind::{ColumnKind, column_kind};
 use crate::io::OpenError;
-use crate::is_numeric;
 use anyview_archive::office_look;
 use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, OfficeFormat, Sniffed, Source,
@@ -22,9 +22,8 @@ pub struct SheetDoc {
     pub table: Table,
     /// The width each column wants, in characters.
     pub widths: Vec<CharWidth>,
-    /// Whether each column holds numbers, so its cells sit at the trailing edge and it sorts as
-    /// numbers.
-    pub numeric: Vec<bool>,
+    /// What each column holds, so its cells are drawn by it (numbers sit at the trailing edge).
+    pub kinds: Vec<ColumnKind>,
 }
 
 /// An opened table file.
@@ -36,19 +35,18 @@ pub struct TableDoc {
     pub facts: Facts,
 }
 
-/// How many rows at the top of a table decide whether a column is numbers.
+/// How many rows at the top of a table decide what a column holds.
 const NUMERIC_SAMPLE_ROWS: u32 = 10_000;
 
-/// Whether each column of `table` is a column of numbers, as far as its first
-/// [`NUMERIC_SAMPLE_ROWS`] rows say: a table of millions of rows is read for this once, in
-/// windows, and only that much of it.
-fn numeric_columns(table: &Table) -> Vec<bool> {
+/// What each column of `table` holds, as far as its first [`NUMERIC_SAMPLE_ROWS`] rows say: a table
+/// of millions of rows is read for this once, in windows, and only that much of it.
+fn column_kinds(table: &Table) -> Vec<ColumnKind> {
     let sample = table
         .rows(RowIndex(0)..RowIndex(NUMERIC_SAMPLE_ROWS))
         .unwrap_or_default();
     (0..table.columns().0 as usize) // a u32 fits a usize
         .map(|column| {
-            is_numeric(
+            column_kind(
                 sample
                     .iter()
                     .map(|row| row.get(column).map_or("", String::as_str)),
@@ -60,7 +58,7 @@ fn numeric_columns(table: &Table) -> Vec<bool> {
 fn sheet(name: String, table: Table) -> Arc<SheetDoc> {
     Arc::new(SheetDoc {
         widths: table.column_widths(),
-        numeric: numeric_columns(&table),
+        kinds: column_kinds(&table),
         name,
         table,
     })

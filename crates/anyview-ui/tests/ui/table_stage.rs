@@ -49,6 +49,39 @@ fn a_json_file_shows_as_a_tree_of_its_top_level() {
     assert!(harness.text_of(".viewer-node-key").is_some());
 }
 
+#[test]
+fn cells_are_drawn_by_what_their_column_holds_with_a_status_line_under_them() {
+    let mut body = String::from("name,qty,done,site,region\n");
+    for n in 0..24 {
+        let region = ["Asia", "Europe", "Africa"][n % 3];
+        let site = if n == 1 { "" } else { "nyc.gov" };
+        let done = if n % 2 == 0 { "true" } else { "false" };
+        body.push_str(&format!(
+            "city {n},\"{}\",{done},{site},{region}\n",
+            1000 + n
+        ));
+    }
+    let (_dir, harness) = open("kinds.csv", &body);
+    assert!(harness.count(".viewer-cell-number") > 0, "numbers");
+    assert!(harness.count(".viewer-cell-yes-no") > 0, "yes and no");
+    assert_eq!(
+        harness.text_of(".viewer-cell-yes-no").as_deref(),
+        Some("\u{2713}"),
+        "a yes is a tick"
+    );
+    assert!(harness.count(".viewer-cell-link") > 0, "links");
+    assert!(harness.count(".viewer-cell-tag") > 0, "tags");
+    assert_eq!(
+        harness.text_of(".viewer-cell-empty").as_deref(),
+        Some("\u{2014}"),
+        "an empty cell is a dash"
+    );
+    assert_eq!(
+        harness.text_of(".viewer-table-status").as_deref(),
+        Some("24 rows \u{b7} 5 columns")
+    );
+}
+
 /// The first column's header, which sorts the rows when pressed.
 const HEAD: &str = ".ds-table-column[data-sorting=\"sortable\"]";
 
