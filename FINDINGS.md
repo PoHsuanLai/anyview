@@ -626,10 +626,13 @@ on. It is a reference, not a log: how each was found lives in git history.
   With `WGPU_BACKEND=vulkan` in the environment the first frame is at 127 to 150 ms, first content at about
   140 to 160 ms: near the budget, not yet under it every run. quire could not cut it (no `set_var`, the renderer
   reads the backends from the environment only; a thread loading fonts, a GPU warm-up thread and building the
-  renderer last were each tried and gained nothing beyond noise). Ends when the renderer takes its backends as an
-  option and ds-blitz passes Vulkan on Linux; until then the launcher can set `WGPU_BACKEND=vulkan` (the `.desktop`
-  and service `Exec=` lines, `env WGPU_BACKEND=vulkan ...`), which this change does not do: a GL-only machine would
-  have no adapter at all.
+  renderer last were each tried and gained nothing beyond noise). Since quire 120f2341 (its 3c1ccd81, on the
+  blitz fork's 063ff2b6 and the anyrender fork's d4ae3885) a window probes only the platform's primary backend
+  (Vulkan on Linux, Metal on Apple, DX12 on Windows) and falls back once to wgpu's full set when that finds no
+  adapter, so a GL-only machine still draws; `WGPU_BACKEND` still wins. That is the `WGPU_BACKEND=vulkan` case
+  above without the environment, so first content is expected near 140 to 160 ms. Not yet measured on the
+  owner's session: in the virtual KWin the tests use, every variant takes about 290 ms to the first buffer, so
+  the gain does not show there. The launcher sets no `WGPU_BACKEND`.
   Warm: a request forwarded to a viewer with no window open has its window created 30 ms after the
   second launch started (`anyview file` to the compositor's map, 5 ms of it the forwarding), 33 ms with the first frame,
   inside 50 ms; a viewer with a window open and the arrow key to the next picture's first frame is 4.5 to 4.8 ms.
