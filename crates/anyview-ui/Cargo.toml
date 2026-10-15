@@ -34,6 +34,7 @@ ds-core = { workspace = true }
 ds-shell = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
+log = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

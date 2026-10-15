@@ -579,3 +579,20 @@ fn flights_are_numbered_apart() {
     numbers.dedup();
     assert_eq!(numbers.len(), all);
 }
+
+#[test]
+fn page_caches_let_go_of_the_pages_farthest_from_the_reader_and_ask_for_them_again() {
+    use super::live::{KEPT_PAGES, keep_nearest};
+    use std::collections::{HashMap, HashSet};
+    let total = u32::try_from(KEPT_PAGES * 2 + 1).unwrap();
+    let mut held: HashMap<PageIndex, ()> = (0..total).map(|page| (PageIndex(page), ())).collect();
+    let mut asked: HashSet<PageIndex> = held.keys().copied().collect();
+    keep_nearest(&mut held, &mut asked, PageIndex(0));
+    assert_eq!(held.len(), KEPT_PAGES);
+    assert!(held.contains_key(&PageIndex(0)));
+    assert!(!held.contains_key(&PageIndex(total - 1)));
+    assert!(
+        !asked.contains(&PageIndex(total - 1)),
+        "read again when wanted"
+    );
+}

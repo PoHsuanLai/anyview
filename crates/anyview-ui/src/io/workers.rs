@@ -4,7 +4,7 @@
 //! the window's mailbox through the [`Reply`] the work carries. Results are machine inputs with
 //! the load's ticket, so one that arrives after the person left the file is a listed no-op.
 
-use super::job::{Done, Job, Keeping, OpenPort, Opened, WorkLane};
+use super::job::{Done, Job, Keeping, OpenPort, Opened, Replaces, WorkLane};
 use super::media::{MediaPort, MediaSupport};
 use super::notice::Notice;
 use super::seam_set::Seams;
@@ -77,6 +77,15 @@ impl std::fmt::Debug for Work {
     }
 }
 
+/// What a panic said: its message when it was a string, which `panic!` with text always is.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("no message")
+}
+
 impl Work {
     /// The queue this belongs on: the job decides.
     #[must_use]
@@ -97,6 +106,7 @@ impl Work {
     /// hostile file) is answered as a failure, so the window never waits on a result that cannot
     /// come.
     pub fn run(self) {
+        let kind = self.kind();
         let Work {
             job,
             reply,
@@ -109,15 +119,23 @@ impl Work {
             return;
         }
         let failure = job.crashed();
-        let searching = job.searches();
+        let replaceable = job.replaces() != Replaces::Nothing;
         let ran = catch_unwind(AssertUnwindSafe(|| {
             job.run(resume.as_ref(), locks.as_ref(), versions.as_ref(), &stop)
         }));
-        // A search that was replaced while it read has only some of the hits: nobody waits on it.
-        if searching && stop.stopped() == StopState::Stopped {
+        // A search that was replaced while it read has only some of the hits, and a window of
+        // lines that was replaced has been scrolled past: nobody waits on either.
+        if replaceable && stop.stopped() == StopState::Stopped {
             return;
         }
-        reply.post(ran.unwrap_or(failure));
+        let done = ran.unwrap_or_else(|payload| {
+            log::error!(
+                "a {kind:?} job panicked: {}",
+                panic_message(payload.as_ref())
+            );
+            failure
+        });
+        reply.post(done);
     }
 
     /// Whether the work has been told to end, because a newer load or a newer search replaced
@@ -334,12 +352,13 @@ impl Drop for Mailbox {
 /// raises it, so what the person left behind (a search of the last query, an open of the last
 /// file) ends early instead of running to its end. The newest search of the load has a stop of
 /// its own, which the next search of the load raises: a query typed over an older one ends the
-/// older one's reading.
+/// older one's reading. The newest window of lines is the same: one scrolled past is not read.
 #[derive(Debug, Default)]
 struct Held {
     ticket: Ticket,
     stop: Stop,
     search: Stop,
+    lines: Stop,
 }
 
 impl std::fmt::Debug for Edge {
@@ -464,7 +483,7 @@ impl Edge {
     /// Ask a worker to do `job`; its result arrives in the mailbox.
     pub(crate) fn submit(&self, job: Job) {
         let job_ticket = job.ticket();
-        let stop = self.stop_for_job(job_ticket, job.searches());
+        let stop = self.stop_for_job(job_ticket, job.replaces());
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
@@ -479,12 +498,13 @@ impl Edge {
     /// job of a load already left starts stopped. Work that belongs to no load is never stopped.
     #[cfg(test)]
     fn stop_for(&self, ticket: Ticket) -> Stop {
-        self.stop_for_job(ticket, false)
+        self.stop_for_job(ticket, Replaces::Nothing)
     }
 
-    /// The stop of a job of the load `ticket`: the load's, or for a search `searching` its own,
-    /// which ends with the load and when a newer search of the load is asked for.
-    fn stop_for_job(&self, ticket: Ticket, searching: bool) -> Stop {
+    /// The stop of a job of the load `ticket`: the load's, or for a search or a window of lines
+    /// (`replaces`) its own, which ends with the load and when a newer job of that kind is asked
+    /// for.
+    fn stop_for_job(&self, ticket: Ticket, replaces: Replaces) -> Stop {
         if ticket == Ticket::default() {
             return Stop::new();
         }
@@ -497,18 +517,22 @@ impl Edge {
         if ticket > held.ticket {
             held.stop.request();
             held.search.request();
+            held.lines.request();
             *held = Held {
                 ticket,
                 stop: Stop::new(),
                 search: Stop::new(),
+                lines: Stop::new(),
             };
         }
-        if !searching {
-            return held.stop.clone();
-        }
-        held.search.request();
-        held.search = Stop::new();
-        held.search.clone()
+        let own = match replaces {
+            Replaces::Nothing => return held.stop.clone(),
+            Replaces::Search => &mut held.search,
+            Replaces::Lines => &mut held.lines,
+        };
+        own.request();
+        *own = Stop::new();
+        own.clone()
     }
 
     /// What an open of a file into `texture` needs.
@@ -626,10 +650,10 @@ mod tests {
     #[test]
     fn a_newer_search_stops_the_older_one_and_a_newer_load_stops_the_search() {
         let edge = edge();
-        let load = edge.stop_for_job(Ticket(1), false);
-        let older = edge.stop_for_job(Ticket(1), true);
+        let load = edge.stop_for_job(Ticket(1), Replaces::Nothing);
+        let older = edge.stop_for_job(Ticket(1), Replaces::Search);
         assert_eq!(older.stopped(), StopState::Running);
-        let newer = edge.stop_for_job(Ticket(1), true);
+        let newer = edge.stop_for_job(Ticket(1), Replaces::Search);
         assert_eq!(
             older.stopped(),
             StopState::Stopped,
@@ -637,14 +661,23 @@ mod tests {
         );
         assert_eq!(newer.stopped(), StopState::Running);
         assert_eq!(load.stopped(), StopState::Running, "the load goes on");
-        edge.stop_for_job(Ticket(2), false);
+        let scrolled_past = edge.stop_for_job(Ticket(1), Replaces::Lines);
+        let visible = edge.stop_for_job(Ticket(1), Replaces::Lines);
+        assert_eq!(scrolled_past.stopped(), StopState::Stopped);
+        assert_eq!(visible.stopped(), StopState::Running);
+        assert_eq!(
+            newer.stopped(),
+            StopState::Running,
+            "a window is not a query"
+        );
+        edge.stop_for_job(Ticket(2), Replaces::Nothing);
         assert_eq!(
             newer.stopped(),
             StopState::Stopped,
             "a newer load ends its searches"
         );
         assert_eq!(
-            edge.stop_for_job(Ticket(1), true).stopped(),
+            edge.stop_for_job(Ticket(1), Replaces::Search).stopped(),
             StopState::Stopped,
             "a search of a load already left starts stopped"
         );

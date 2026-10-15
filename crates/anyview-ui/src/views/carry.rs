@@ -327,8 +327,12 @@ fn copy_rows(c: &Carry, rows: &RowSelection) {
     let stage = dispatch.machine.state().peek().stage.clone();
     let sorted = c.shelf.sorted.peek().clone();
     let order = sorted.as_ref().map(|held| held.0.as_ref());
-    if let Some(text) = doc.view().copy_text(&stage, rows, order) {
-        let _unwritten = ds_blitz::clipboard::write_text(&text);
+    if let Some(text) = doc.view().copy_text(&stage, rows, order)
+        && let Err(error) = ds_blitz::clipboard::write_text(&text)
+    {
+        log::warn!("the rows could not be copied: {error}");
+        c.toasts
+            .push("Couldn\u{2019}t copy the rows.".to_owned(), None);
     }
 }
 

@@ -6,8 +6,8 @@ use super::data_edit;
 use super::editing;
 use super::session::Probe;
 use crate::families::{FoundHits, Held, SortedOrder};
-use crate::io::NaturalSize;
 use crate::io::{Done, HostRequest, Job, NotOpened, Notice, SizeBasis};
+use crate::io::{NaturalSize, cause_chain};
 use crate::{
     Allowance, EditOffer, FileAccess, Freshness, HelperEnd, HelperPhase, HitCount, HitIndex,
     LoadIn, MarkupIn, NavigateIn, Panel, PictureEditIn, PictureEditing, Presentation, Sheet,
@@ -27,10 +27,15 @@ pub(super) fn arrived(done: Done, c: &Carry) {
         Done::Opened { ticket, result } => opened(c, ticket, result),
         Done::Lines { ticket, result } => {
             let mut lines = c.shelf.lines;
-            if let (Some((held, _)), Ok(window)) = (c.shelf.shown_now(), result)
-                && held == ticket
-            {
-                lines.set(Some(Held(Arc::new(window))));
+            let Some((held, _)) = c.shelf.shown_now() else {
+                return;
+            };
+            if held != ticket {
+                return;
+            }
+            match result {
+                Ok(window) => lines.set(Some(Held(Arc::new(window)))),
+                Err(error) => couldnt(c, "read", &error),
             }
         }
         Done::Sorted { ticket, order } => sorted(c, ticket, order),
@@ -46,7 +51,14 @@ pub(super) fn arrived(done: Done, c: &Carry) {
             query,
             options,
             result,
-        } => found(c, ticket, (query, options), result.unwrap_or_default()),
+        } => match result {
+            Ok(hits) => found(c, ticket, (query, options), hits),
+            Err(error) => {
+                if c.shelf.loaded.peek().as_ref().map(|(held, _)| *held) == Some(ticket) {
+                    couldnt(c, "search", &error);
+                }
+            }
+        },
         Done::Pdf { ticket, answer } => pdf_arrived(c, ticket, answer),
         Done::Media { ticket } => media_arrived(c, ticket),
         Done::Preloaded { path, loaded } => {
@@ -289,6 +301,11 @@ fn send(c: &Carry, input: ViewerIn) {
 /// A file that would not load is still a different file: it sizes the window as any new file
 /// with no natural size does (the default window), rather than leaving the last file's size.
 fn failed(c: &Carry, ticket: Ticket, error: &crate::OpenError) {
+    log::warn!(
+        "{} could not be opened: {}",
+        wanted_name(c),
+        cause_chain(error)
+    );
     size_window(c, ticket, SizeBasis::Default);
     let reason = error.failure();
     if let Some(file) = c.shelf.wanted.peek().clone() {
@@ -296,6 +313,33 @@ fn failed(c: &Carry, ticket: Ticket, error: &crate::OpenError) {
             .request(HostRequest::NotOpened(NotOpened { file, reason }));
     }
     send(c, ViewerIn::Load(LoadIn::Failed { ticket, reason }));
+}
+
+/// The name of the file the window was asked for, for a log line.
+fn wanted_name(c: &Carry) -> String {
+    c.shelf
+        .wanted
+        .peek()
+        .as_ref()
+        .map_or_else(String::new, |file| file.as_path().display().to_string())
+}
+
+/// Work on the file on screen failed after it had opened: say so, as the saves do, rather than
+/// leave the person with an empty answer or a blank page.
+fn couldnt(c: &Carry, what: &str, error: &crate::OpenError) {
+    let name = shown_path(c).and_then(|path| path.file_name().map(|name| name.as_str().to_owned()));
+    log::warn!(
+        "could not {what} {}: {}",
+        name.as_deref().unwrap_or("the file"),
+        cause_chain(error)
+    );
+    c.toasts.push(
+        format!(
+            "Couldn\u{2019}t {what} {}.",
+            name.as_deref().unwrap_or("the file")
+        ),
+        None,
+    );
 }
 
 fn probed(c: &Carry, ticket: Ticket, result: Result<crate::Opened, crate::OpenError>) {
@@ -333,7 +377,15 @@ fn peeked(c: &Carry, ticket: Ticket, result: Result<Option<crate::LoadedDoc>, cr
             send(c, ViewerIn::Load(LoadIn::Peeked { ticket }));
         }
         Ok(Some(_)) => {}
-        Ok(None) | Err(_) => send(c, ViewerIn::Load(LoadIn::PeekFailed { ticket })),
+        Ok(None) => send(c, ViewerIn::Load(LoadIn::PeekFailed { ticket })),
+        Err(error) => {
+            log::warn!(
+                "{} could not be previewed: {}",
+                wanted_name(c),
+                cause_chain(&error)
+            );
+            send(c, ViewerIn::Load(LoadIn::PeekFailed { ticket }));
+        }
     }
 }
 

@@ -76,6 +76,28 @@ pub(super) struct PdfLive {
     fold: Option<OutlineFold>,
 }
 
+/// How many pages' thumbnails, links or words are kept around the reader once there are more than
+/// twice as many: the farthest are let go and asked for again if the reader returns.
+pub(super) const KEPT_PAGES: usize = 128;
+
+/// Lets go of the entries of `held` farthest from `reader`, down to [`KEPT_PAGES`], once there are
+/// twice that many; each page let go is forgotten in `asked` too, so it is read again when wanted.
+pub(super) fn keep_nearest<T>(
+    held: &mut HashMap<PageIndex, T>,
+    asked: &mut HashSet<PageIndex>,
+    reader: PageIndex,
+) {
+    if held.len() <= KEPT_PAGES * 2 {
+        return;
+    }
+    let mut pages: Vec<PageIndex> = held.keys().copied().collect();
+    pages.sort_by_key(|page| page.0.abs_diff(reader.0));
+    for page in pages.split_off(KEPT_PAGES) {
+        held.remove(&page);
+        asked.remove(&page);
+    }
+}
+
 impl PdfLive {
     pub(super) fn tiles(&self) -> &TileCache {
         &self.tiles
@@ -133,6 +155,9 @@ impl PdfLive {
         });
         self.tiles
             .trim(BUDGET, schedule.zoom(), reader, &|key| schedule.wants(key));
+        keep_nearest(&mut self.thumbs, &mut self.thumbs_asked, reader);
+        keep_nearest(&mut self.links, &mut self.links_asked, reader);
+        keep_nearest(&mut self.words, &mut self.words_asked, reader);
         let flying: HashSet<TileKey> = self
             .flights
             .values()

@@ -94,6 +94,17 @@ pub enum Keeping {
     },
 }
 
+/// What a newer job of the same load replaces, and so what stop it runs under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Replaces {
+    /// No older job: the job runs under the load's own stop.
+    Nothing,
+    /// The older search of the load.
+    Search,
+    /// The older read of a window of lines of the load.
+    Lines,
+}
+
 /// One unit of blocking work.
 #[derive(Debug)]
 pub enum Job {
@@ -392,13 +403,20 @@ impl Job {
         }
     }
 
-    /// Whether the job searches an open file for a phrase, so that a newer search replaces it.
+    /// Which older job of its load a newer one of this kind makes pointless: a search is replaced
+    /// by the next query, a window of lines by the next window scrolled to.
     #[must_use]
-    pub(super) fn searches(&self) -> bool {
-        matches!(
+    pub(super) fn replaces(&self) -> Replaces {
+        if matches!(
             self,
             Job::Search { .. } | Job::SearchCells { .. } | Job::SearchNodes { .. }
-        )
+        ) {
+            Replaces::Search
+        } else if matches!(self, Job::Lines { .. }) {
+            Replaces::Lines
+        } else {
+            Replaces::Nothing
+        }
     }
 
     /// The load this job belongs to; `Ticket::default()` for a job that belongs to none.
