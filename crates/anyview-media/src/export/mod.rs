@@ -11,5 +11,5 @@ mod request;
 
 pub use ask::{Ask, ask_of, offered_kinds, target_of};
 pub use naming::{NameHints, output_path};
-pub use plan::plan_export;
+pub use plan::{cut_job, plan_export};
 pub use request::{ExportProgress, ExportReport, ExportRequest, ProgressSink};

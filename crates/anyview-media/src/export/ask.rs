@@ -65,6 +65,7 @@ pub fn ask_of(job: &ExportJob) -> Result<Ask, MediaError> {
     };
     let (target, bitrate) = match (streams, audio) {
         (StreamPick::Everything, _) => ("trim", None),
+        (StreamPick::Original, _) => ("cut", None),
         (StreamPick::AudioOnly, AudioTarget::Copy) => ("audio-copy", None),
         (StreamPick::AudioOnly, AudioTarget::M4a(rate)) => ("m4a", Some(*rate)),
         (StreamPick::AudioOnly, AudioTarget::Mp3(rate)) => ("mp3", Some(*rate)),
@@ -120,6 +121,13 @@ mod tests {
                 transcode(StreamPick::Everything, AudioTarget::Copy, from_one),
                 "trim",
                 (1_000_000, None),
+                None,
+            ),
+            (
+                "a cut over the recording itself asks for the target that keeps everything",
+                transcode(StreamPick::Original, AudioTarget::Copy, cut),
+                "cut",
+                (1_000_000, Some(2_000_000)),
                 None,
             ),
             (

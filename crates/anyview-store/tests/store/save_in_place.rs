@@ -53,7 +53,11 @@ fn a_save_can_take_its_content_from_a_file_and_leaves_that_file_alone() {
         .unwrap();
 
     assert_eq!(read(&s.file), "after, from a file");
-    assert_eq!(read(&produced), "after, from a file", "the source is only read");
+    assert_eq!(
+        read(&produced),
+        "after, from a file",
+        "the source is only read"
+    );
     assert_eq!(s.versions.list(&s.file).unwrap()[0].id, written.kept);
 }
 

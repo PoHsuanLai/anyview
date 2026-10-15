@@ -953,6 +953,7 @@ frame for a recording too short for it. A sound shows its attached cover; one wi
 | Target | Writes | How |
 | --- | --- | --- |
 | `trim` | the recording cut to `range`, in the container the output's extension names | stream copy of every picture (not covers), sound and subtitle stream; chapters and tags kept |
+| `cut` | the recording itself, made shorter: what Trim saves over the file | like `trim`, but every tag is kept (none is blanked), and the sound of a recording with no pictures is decoded and written again in its own codec at the rate it had unless it is PCM or has no encoder here, so the cut falls on the sample; a recording with pictures is cut at a keyframe |
 | `audio-copy` | the audio track as it is | `-c copy` of the track FFmpeg would pick (most channels), or `stream` |
 | `m4a`, `mp3`, `opus` | AAC, MP3 (LAME), Opus (libopus, else the native encoder) | `bitrate`, 192 kbit/s when absent; at most two channels; MP3 resamples to 44.1 kHz when LAME lacks the rate, Opus to 48 kHz |
 | `flac`, `wav` | lossless FLAC, 16-bit PCM | the source's rate and channels |

@@ -236,7 +236,7 @@ for id in ffmpeg heif raw; do
   check "no placeholder is left in the $id manifest" bash -c "! grep -q '@' $manifest"
   check "the receipt lists the $id program and manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/anyview-$id' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/anyview/plugins/$id.toml' $installed/share/anyview/install-receipt"
 done
-check "the ffmpeg manifest lists the export targets" grep -q 'targets = \["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus"\]' "$installed/share/anyview/plugins/ffmpeg.toml"
+check "the ffmpeg manifest lists the export targets" grep -q 'targets = \["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus", "cut"\]' "$installed/share/anyview/plugins/ffmpeg.toml"
 check "the heif manifest provides decode and thumbnail" bash -c "grep -q 'capability = \"decode\"' $installed/share/anyview/plugins/heif.toml && grep -q 'capability = \"thumbnail\"' $installed/share/anyview/plugins/heif.toml"
 check "the plugins were built in one release cargo run" grep -q "cargo build --release -p anyview-ffmpeg -p anyview-heif -p anyview-raw " "$cargo_log"
 cache="$XDG_CACHE_HOME/anyview/build/mpv-wgpu-${rev:0:12}"

@@ -119,4 +119,7 @@ pub enum StreamPick {
     Everything,
     /// The audio track only.
     AudioOnly,
+    /// Every stream, tag and chapter, as the recording has them, made shorter: the recording
+    /// itself rather than a copy made to be shared. Saving a trim over the file asks for this.
+    Original,
 }

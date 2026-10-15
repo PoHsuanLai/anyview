@@ -17,11 +17,14 @@ pub enum Target {
     Wav,
     /// Opus.
     Opus,
+    /// The recording itself, made shorter: every stream, tag and chapter kept, and the sound
+    /// written again where a copy could not be cut exactly. The viewer saves it over the file.
+    CutInPlace,
 }
 
 impl Target {
     /// Every target, in the order the manifest lists them.
-    pub const ALL: [Target; 7] = [
+    pub const ALL: [Target; 8] = [
         Target::Trim,
         Target::AudioCopy,
         Target::M4a,
@@ -29,6 +32,7 @@ impl Target {
         Target::Flac,
         Target::Wav,
         Target::Opus,
+        Target::CutInPlace,
     ];
 
     /// The name the manifest and the protocol use.
@@ -41,6 +45,7 @@ impl Target {
             Target::Flac => "flac",
             Target::Wav => "wav",
             Target::Opus => "opus",
+            Target::CutInPlace => "cut",
         }
     }
 
@@ -52,7 +57,7 @@ impl Target {
     /// The encoders that write it, best first; none for a copy.
     pub fn encoders(self) -> &'static [&'static str] {
         match self {
-            Target::Trim | Target::AudioCopy => &[],
+            Target::Trim | Target::AudioCopy | Target::CutInPlace => &[],
             Target::M4a => &["aac"],
             Target::Mp3 => &["libmp3lame"],
             Target::Flac => &["flac"],
