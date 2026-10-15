@@ -147,6 +147,11 @@ fn marks_become_standard_annotations_other_viewers_show() {
             from: PagePoint::at(400, 700),
             to: PagePoint::at(600, 760),
         }),
+        mark(MarkShape::Ink(vec![vec![
+            PagePoint::at(700, 700),
+            PagePoint::at(750, 720),
+            PagePoint::at(800, 700),
+        ]])),
         mark(MarkShape::TextBox {
             rect: rect(100, 800, 400, 850),
             text: "Hello".to_owned(),
@@ -171,6 +176,7 @@ fn marks_become_standard_annotations_other_viewers_show() {
             Subtype::Circle,
             Subtype::Line,
             Subtype::Line,
+            Subtype::Ink,
             Subtype::FreeText,
         ]
     );

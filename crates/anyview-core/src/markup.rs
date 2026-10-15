@@ -193,6 +193,8 @@ pub enum MarkTool {
     Line,
     /// Draw an arrow.
     Arrow,
+    /// Draw freehand.
+    Sketch,
     /// Draw a box to type in.
     #[word(label = "Text Box")]
     TextBox,
@@ -246,6 +248,8 @@ pub enum MarkShape {
         /// Where the head is.
         to: PagePoint,
     },
+    /// Freehand strokes, each the points the pointer went through.
+    Ink(Vec<Vec<PagePoint>>),
     /// A box with words in it.
     TextBox {
         /// The box.
@@ -294,6 +298,15 @@ impl Mark {
             MarkShape::Line { from, to } | MarkShape::Arrow { from, to } => {
                 PageRect::spanning(*from, *to)
             }
+            MarkShape::Ink(strokes) => strokes
+                .iter()
+                .flatten()
+                .map(|point| PageRect::spanning(*point, *point))
+                .reduce(PageRect::joined)
+                .unwrap_or(PageRect::spanning(
+                    PagePoint::default(),
+                    PagePoint::default(),
+                )),
         }
     }
 
@@ -307,6 +320,15 @@ impl Mark {
             MarkShape::Line { from, to } | MarkShape::Arrow { from, to } => {
                 nearer_than(*from, *to, at, reach)
             }
+            MarkShape::Ink(strokes) => strokes.iter().any(|stroke| {
+                stroke
+                    .windows(2)
+                    .any(|pair| nearer_than(pair[0], pair[1], at, reach))
+                    || stroke.len() == 1
+                        && stroke
+                            .iter()
+                            .any(|point| nearer_than(*point, *point, at, reach))
+            }),
             MarkShape::Note { .. }
             | MarkShape::Rectangle(_)
             | MarkShape::Oval(_)
@@ -350,6 +372,12 @@ impl Mark {
                 from: from.moved(by.0, by.1),
                 to: to.moved(by.0, by.1),
             },
+            MarkShape::Ink(strokes) => MarkShape::Ink(
+                strokes
+                    .iter()
+                    .map(|stroke| stroke.iter().map(|point| point.moved(by.0, by.1)).collect())
+                    .collect(),
+            ),
             MarkShape::TextBox { rect, text } => MarkShape::TextBox {
                 rect: shift(rect),
                 text: text.clone(),

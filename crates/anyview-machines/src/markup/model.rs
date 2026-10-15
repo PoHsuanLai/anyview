@@ -54,6 +54,7 @@ pub(super) enum Drag {
         tool: MarkTool,
         from: PagePoint,
         to: PagePoint,
+        trail: Vec<PagePoint>,
     },
     /// The mark at `index` being moved: where the pointer took hold of it, and what was written
     /// before it moved.
@@ -65,7 +66,7 @@ pub(super) enum Drag {
 }
 
 /// A shape on its way to being a mark, as the view draws it while the pointer is down.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Draft {
     /// The page it is on.
     pub page: PageIndex,
@@ -75,6 +76,8 @@ pub struct Draft {
     pub from: PagePoint,
     /// Where it is now.
     pub to: PagePoint,
+    /// The points the pointer has gone through, for a sketch; empty for any other tool.
+    pub trail: Vec<PagePoint>,
 }
 
 /// The words selected on a page, as the lines they make.
@@ -350,11 +353,13 @@ impl PdfMarkup {
                 tool,
                 from,
                 to,
+                trail,
             }) => Some(Draft {
                 page: *page,
                 tool: *tool,
                 from: *from,
                 to: *to,
+                trail: trail.clone(),
             }),
             Some(Drag::Move { .. }) | None => None,
         }
@@ -371,7 +376,8 @@ impl PdfMarkup {
             | MarkShape::Rectangle(_)
             | MarkShape::Oval(_)
             | MarkShape::Line { .. }
-            | MarkShape::Arrow { .. } => None,
+            | MarkShape::Arrow { .. }
+            | MarkShape::Ink(_) => None,
         }
     }
 }

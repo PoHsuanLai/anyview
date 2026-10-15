@@ -330,6 +330,46 @@ fn a_drag_with_a_tool_draws_its_shape_and_a_small_one_draws_nothing() {
 }
 
 #[test]
+fn a_sketch_is_one_ink_mark_of_the_points_dragged_through_and_undo_takes_it_back() {
+    let drawn = run(
+        marking(),
+        [
+            MarkupIn::Tool(MarkTool::Sketch),
+            press(100, 100),
+            MarkupIn::Drag(point(150, 120)),
+            MarkupIn::Drag(point(150, 120)),
+            MarkupIn::Drag(point(200, 160)),
+        ],
+    );
+    let draft = drawn.draft().expect("a draft");
+    assert_eq!(draft.trail.len(), 3);
+    let done = run(drawn, [MarkupIn::Release]);
+    assert_eq!(
+        kinds(&done),
+        vec![&MarkShape::Ink(vec![vec![
+            point(100, 100),
+            point(150, 120),
+            point(200, 160),
+        ]])]
+    );
+    let undone = run(done, [MarkupIn::Undo]);
+    assert!(undone.marks().is_empty());
+}
+
+#[test]
+fn a_click_with_the_sketch_tool_draws_nothing() {
+    let clicked = run(
+        marking(),
+        [
+            MarkupIn::Tool(MarkTool::Sketch),
+            press(100, 100),
+            MarkupIn::Release,
+        ],
+    );
+    assert!(clicked.marks().is_empty());
+}
+
+#[test]
 fn the_shape_is_a_draft_until_the_pointer_is_let_go() {
     let markup = run(
         marking(),

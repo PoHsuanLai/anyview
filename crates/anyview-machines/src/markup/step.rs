@@ -290,6 +290,7 @@ impl PdfMarkup {
             | MarkTool::Oval
             | MarkTool::Line
             | MarkTool::Arrow
+            | MarkTool::Sketch
             | MarkTool::TextBox => {
                 self.selected = Some(selected);
                 return;
@@ -355,6 +356,7 @@ impl PdfMarkup {
             | MarkTool::Oval
             | MarkTool::Line
             | MarkTool::Arrow
+            | MarkTool::Sketch
             | MarkTool::TextBox) => {
                 self.picked = None;
                 self.drag = Some(Drag::Draw {
@@ -362,6 +364,11 @@ impl PdfMarkup {
                     tool,
                     from: at,
                     to: at,
+                    trail: if tool == MarkTool::Sketch {
+                        vec![at]
+                    } else {
+                        Vec::new()
+                    },
                 });
             }
         }
@@ -369,7 +376,14 @@ impl PdfMarkup {
 
     fn drag_to(&mut self, at: PagePoint) {
         match &mut self.drag {
-            Some(Drag::Draw { to, .. }) => *to = at,
+            Some(Drag::Draw {
+                to, trail, tool, ..
+            }) => {
+                *to = at;
+                if *tool == MarkTool::Sketch && trail.last() != Some(&at) {
+                    trail.push(at);
+                }
+            }
             Some(Drag::Move { index, from, base }) => {
                 let by = (
                     i32::try_from(at.x.0).unwrap_or(0) - i32::try_from(from.x.0).unwrap_or(0),
@@ -401,13 +415,21 @@ impl PdfMarkup {
                 tool,
                 from,
                 to,
-            }) => self.draw(page, tool, from, to),
+                trail,
+            }) => self.draw(page, tool, from, to, trail),
             None => {}
         }
     }
 
     /// The shape dragged from `from` to `to` becomes a mark, unless it is too small to be one.
-    fn draw(&mut self, page: PageIndex, tool: MarkTool, from: PagePoint, to: PagePoint) {
+    fn draw(
+        &mut self,
+        page: PageIndex,
+        tool: MarkTool,
+        from: PagePoint,
+        to: PagePoint,
+        trail: Vec<PagePoint>,
+    ) {
         let rect = PageRect::spanning(from, to);
         let big = rect.width() >= LEAST && rect.height() >= LEAST;
         let long = rect.width() >= LEAST || rect.height() >= LEAST;
@@ -416,6 +438,7 @@ impl PdfMarkup {
             MarkTool::Oval if big => MarkShape::Oval(rect),
             MarkTool::Line if long => MarkShape::Line { from, to },
             MarkTool::Arrow if long => MarkShape::Arrow { from, to },
+            MarkTool::Sketch if trail.len() >= 2 => MarkShape::Ink(vec![trail]),
             MarkTool::TextBox => MarkShape::TextBox {
                 rect: if big { rect } else { box_at(from) },
                 text: String::new(),
@@ -424,6 +447,7 @@ impl PdfMarkup {
             | MarkTool::Oval
             | MarkTool::Line
             | MarkTool::Arrow
+            | MarkTool::Sketch
             | MarkTool::Pointer
             | MarkTool::Highlight
             | MarkTool::Underline
@@ -458,7 +482,8 @@ impl PdfMarkup {
                 | MarkShape::Rectangle(_)
                 | MarkShape::Oval(_)
                 | MarkShape::Line { .. }
-                | MarkShape::Arrow { .. } => {}
+                | MarkShape::Arrow { .. }
+                | MarkShape::Ink(_) => {}
             }
         }
     }

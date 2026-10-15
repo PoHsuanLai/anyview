@@ -113,6 +113,26 @@ pub(super) fn PageBox(
                     if !ink.text.is_empty() {
                         span { class: "viewer-pdf-ink-text", "{ink.text}" }
                     }
+                    if !ink.path.is_empty() {
+                        // Drawn as quire's own vectors are: the stroke in the svg's attributes, its
+                        // colour the box's `color` (the stylesheet does not reach inside an svg).
+                        svg {
+                            class: "viewer-pdf-sketch",
+                            "data-ds-svg": "sketch",
+                            "aria-hidden": "true",
+                            view_box: "0 0 {ink.extent.0} {ink.extent.1}",
+                            for stroke in ink.path.split('|') {
+                                polyline {
+                                    points: "{stroke}",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    "stroke-width": "2",
+                                    "stroke-linecap": "round",
+                                    "stroke-linejoin": "round",
+                                }
+                            }
+                        }
+                    }
                 }
             }
             for field in fields {

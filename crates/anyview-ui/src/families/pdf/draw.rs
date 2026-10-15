@@ -198,7 +198,8 @@ impl Drawing<'_> {
             | MarkShape::Rectangle(_)
             | MarkShape::Oval(_)
             | MarkShape::Line { .. }
-            | MarkShape::Arrow { .. } => return None,
+            | MarkShape::Arrow { .. }
+            | MarkShape::Ink(_) => return None,
         };
         Some(Writing {
             label,
@@ -235,6 +236,7 @@ fn shape_of(draft: Draft) -> Option<MarkShape> {
         MarkTool::Oval => Some(MarkShape::Oval(PageRect::spanning(from, to))),
         MarkTool::Line => Some(MarkShape::Line { from, to }),
         MarkTool::Arrow => Some(MarkShape::Arrow { from, to }),
+        MarkTool::Sketch => Some(MarkShape::Ink(vec![draft.trail])),
         MarkTool::TextBox => Some(MarkShape::TextBox {
             rect: PageRect::spanning(from, to),
             text: String::new(),

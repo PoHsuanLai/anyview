@@ -23,6 +23,7 @@ const GROUPS: [&[MarkTool]; 3] = [
         MarkTool::Oval,
         MarkTool::Line,
         MarkTool::Arrow,
+        MarkTool::Sketch,
     ],
 ];
 

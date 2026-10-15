@@ -178,3 +178,49 @@ fn tab_reaches_a_drop_down_closed_and_a_press_opens_it() {
     settle(&mut harness);
     assert_eq!(harness.count(".ds-menu"), 1, "a press opens the menu");
 }
+
+/// Sketch draws what the pointer is dragged through, as Preview's does: one stroke over the page,
+/// saved as an ink mark through the points dragged over.
+#[test]
+fn a_sketch_dragged_over_the_page_is_drawn_and_saved_as_ink() {
+    let (_dir, mut harness, requests) = written("plain.pdf", pdf_fixture::fixture_bytes());
+    from_the_palette(&mut harness, "sketch");
+    let page = harness.rect(".viewer-pdf-page").expect("the first page");
+    let at = |across: f32, down: f32| Point {
+        x: Px(page.origin.x.0 + page.size.width.0 * across),
+        y: Px(page.origin.y.0 + page.size.height.0 * down),
+    };
+    harness.send(Input::drag(at(0.3, 0.4), at(0.6, 0.5), 8));
+    settle(&mut harness);
+    assert_eq!(
+        harness.count(".viewer-pdf-sketch polyline"),
+        1,
+        "the stroke is drawn over the page"
+    );
+    let points = harness
+        .attr(".viewer-pdf-sketch polyline", "points")
+        .unwrap_or_default();
+    assert!(
+        points.split(' ').count() >= 2,
+        "through the points dragged over: {points:?}"
+    );
+    // And it is painted: the middle of the stroke is the mark's colour, not the white of the page.
+    let middle = at(0.45, 0.45);
+    let shot = harness.render().expect("the window renders");
+    let ink = shot.get_pixel(middle.x.0 as u32, middle.y.0 as u32).0;
+    assert!(
+        u32::from(ink[0]) + u32::from(ink[1]) + u32::from(ink[2]) < 600,
+        "the stroke is painted at {middle:?}: {ink:?}"
+    );
+    chord(&mut harness, 's');
+    let asked = saves(&requests);
+    assert_eq!(asked.len(), 1);
+    let [mark] = asked[0].marks.as_slice() else {
+        panic!("one mark: {:?}", asked[0].marks)
+    };
+    let MarkShape::Ink(strokes) = &mark.shape else {
+        panic!("an ink mark: {mark:?}")
+    };
+    assert_eq!(strokes.len(), 1, "one stroke");
+    assert!(strokes[0].len() >= 2, "{strokes:?}");
+}
