@@ -1,59 +1,32 @@
-//! The picture on screen: a clipped room holding one `TextureLayer` at the box geometry placed,
-//! and the pointer and gestures that move it. The view reads the machine's state and sends it
-//! inputs; every decision (what a pinch means at this zoom, where a double-click goes) is the
-//! machine's.
+//! The picture on screen: a clipped room holding one texture layer, and the crop over it.
 
-use super::crop::CropOverlay;
-use super::doc::RasterDoc;
-use super::geometry::{
+use super::super::crop::CropOverlay;
+use super::super::doc::RasterDoc;
+use super::super::geometry::{
     centre_of, fit, frame_of, held_source, in_file, limited_pan, place, point_under, pointer_delta,
-    reach_in_picture, scale_of, turn_of,
+    reach_in_picture, scale_of,
 };
-use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
+use super::layout::{CROP_REACH, laid_out, over, rotation, sampling_at, under};
+use crate::families::view::{Held, StageCx, WHEEL_ZOOM};
 use crate::families::{UnavailableCard, listed, note_of};
-use crate::{PictureEditIn, RasterIn, RasterStage, Stage, StageIn, Tool};
-use anyview_core::{
-    DocPoint, DocUnit, FormatKind, Permille, PixelSize, QuarterTurn, Reflection, Zoom,
-};
+use crate::{PictureEditIn, RasterIn, RasterStage, Stage, StageIn};
+use anyview_core::{DocPoint, DocUnit, FormatKind, Permille, QuarterTurn, Reflection, Zoom};
 use dioxus::prelude::*;
-use ds::components::controls::segmented::Tracking;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::{Choice, SegmentedControl, Shortcut, ShortcutKey, Tooltip};
 use ds::prelude::{Point, use_platform};
-use ds_blitz::{Sampling, TexelRect, TextureFit, TextureLayer};
+use ds_blitz::{TexelRect, TextureFit, TextureLayer};
 use ds_core::command::holds_primary;
-
-/// Whether `at`, a point of the window, is over the room.
-fn over(area: Area, at: Point) -> bool {
-    let (x, y) = (at.x.0 - area.origin.x.0, at.y.0 - area.origin.y.0);
-    x >= 0.0 && y >= 0.0 && x < area.size.width.0 && y < area.size.height.0
-}
-
-/// How the texture is resampled at `scale`: smooth when shrunk, hard pixels when blown up.
-fn sampling_at(scale: Permille) -> Sampling {
-    match scale.0 {
-        0..1000 => Sampling::Bicubic,
-        1000..3000 => Sampling::Bilinear,
-        _ => Sampling::Nearest,
-    }
-}
-
-/// The CSS rotation of the texture's box.
-fn rotation(turn: QuarterTurn) -> u16 {
-    turn.degrees()
-}
 
 /// The stage: the picture, or the card of a file whose plugin is not installed.
 #[component]
-pub(super) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
+pub(crate) fn RasterContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     match doc.0.needs.clone() {
         Some(needs) => rsx! { Unshown { doc: doc.clone(), needs, cx: cx.clone() } },
         None => rsx! { PictureContent { doc: doc.clone(), cx: cx.clone() } },
     }
 }
-
 /// A file with no picture because the plugin that decodes it is not installed: the card a
 /// recording without a player has, with the package that would show it.
 #[component]
@@ -70,30 +43,6 @@ fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
         }
     }
 }
-
-/// How near an edge of the crop rectangle still takes hold of it, in logical pixels of the room.
-const CROP_REACH: f32 = 10.0;
-
-/// The picture as the stage lays it out: the part of the file's picture that is kept, and how far
-/// it is turned (by the stage and by the person's edits).
-fn laid_out(cx: &StageCx, stage: &RasterStage, size: PixelSize) -> (PixelSize, QuarterTurn) {
-    let adjust = cx.picture.adjust();
-    (adjust.kept(size).size, turn_of(stage).then(adjust.turn))
-}
-
-/// The point of the picture as shown that is under (`at`, in the room) now.
-fn under(
-    cx: &StageCx,
-    stage: &RasterStage,
-    size: PixelSize,
-    area: Area,
-    at: (f32, f32),
-) -> DocPoint {
-    let (kept, turn) = laid_out(cx, stage, size);
-    let shown = scale_of(stage, fit(kept, turn, area));
-    point_under(centre_of(stage, kept, turn), shown, area, at)
-}
-
 #[component]
 fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
     let mut last = use_signal(|| None::<(f32, f32)>);
@@ -361,40 +310,6 @@ fn PictureContent(doc: Held<RasterDoc>, cx: StageCx) -> Element {
             }
             if let Some(overlay) = overlay {
                 {overlay}
-            }
-        }
-    }
-}
-
-/// Select | Pan, as Preview's tool control, and Crop beside them when the picture can be saved with
-/// changes: a drag pans a zoomed picture under Pan (or while Space is held) and moves the corners of
-/// the crop rectangle under Crop. It sits on the titlebar's trailing side, where the window can show
-/// a mode that stays. The tip is the owner's terse `Name  Key`: the key is H, which switches the
-/// tool.
-#[component]
-pub(crate) fn PointerModes(tool: Tool, tools: Vec<Tool>, onpick: EventHandler<Tool>) -> Element {
-    let choices: Vec<Choice<Tool>> = tools
-        .iter()
-        .map(|offered| Choice::new(*offered, offered.label()))
-        .collect();
-    rsx! {
-        Tooltip {
-            text: "Pointer Tool",
-            shortcut: Some(Shortcut(vec![ShortcutKey::Char('h')])),
-            div {
-                class: "viewer-modes",
-                onpointerdown: move |event: PointerEvent| event.stop_propagation(),
-                ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
-                SegmentedControl::<Tool> {
-                    label: "Pointer mode",
-                    choices,
-                    tracking: Tracking::SelectOne(tool),
-                    onchange: move |picked: Tool| {
-                        if picked != tool {
-                            onpick.call(picked);
-                        }
-                    },
-                }
             }
         }
     }

@@ -1,22 +1,21 @@
-//! The pages on screen: a clipped room holding the pages in view, each a box of tiles, and the
-//! pointer and gestures that move it. The view reads the machine's state and sends it inputs; the
-//! decisions (which page is at the top, what a zoom step means) are the machine's, and the tiles
-//! are asked of the workers here because only the view knows what the room shows.
+//! The pages on screen: a clipped room holding the pages in view, each a box of tiles.
 
-use super::doc::{PdfDoc, PdfOrigin, room_of};
-use super::dock::MarkupDock;
-use super::draw::{Drawing, UNMEASURED};
-use super::live::{Wants, page_view};
-use super::page::PageBox;
-use super::scene::{Frame, Scene, fits, scale_of};
-use super::steer::{Cursor, Steering};
-use super::words;
-use super::work::{PdfAsk, PdfTask};
-use crate::families::view::{Area, Held, StageCx, WHEEL_ZOOM};
-use crate::io::{HostRequest, Job};
-use crate::{
-    Destination, FindHits, HitIndex, MarkupIn, PageView, PdfIn, PdfStage, Stage, StageIn, Tool,
+use super::super::doc::{PdfDoc, PdfOrigin, room_of};
+use super::super::dock::MarkupDock;
+use super::super::draw::{Drawing, UNMEASURED};
+use super::super::live::{Wants, page_view};
+use super::super::page::PageBox;
+use super::super::scene::{Frame, Scene, fits, scale_of};
+use super::super::steer::{Cursor, Steering};
+use super::super::words;
+use super::super::work::{PdfAsk, PdfTask};
+use super::hits::{current_hit, web_address};
+use super::pointer::{
+    CLICK_SLOP, Dragging, PointerUse, device, in_room, over, released, room_device, whole_pixels,
 };
+use crate::families::view::{Held, StageCx, WHEEL_ZOOM};
+use crate::io::{HostRequest, Job};
+use crate::{Destination, MarkupIn, PageView, PdfIn, StageIn, Tool};
 use anyview_core::{PageIndex, Permille, Zoom};
 use anyview_pdf::LinkTarget;
 use dioxus::html::input_data::MouseButton;
@@ -24,104 +23,21 @@ use dioxus::prelude::*;
 use ds::host::captured::{CapturedPointer, PointerPhase};
 use ds::host::gesture::{Gesture, WheelDelivery, use_gestures_with};
 use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
-use ds::prelude::{Point, use_platform};
+use ds::prelude::use_platform;
 use ds_blitz::use_gpu;
 use ds_core::command::holds_primary;
-use ds_core::word::Word;
 use std::sync::Arc;
 
 /// How near a mark's ink a press counts as on it, in thousandths of the page.
 const REACH: u32 = 8;
-
-/// What a drag with the primary button does on the pages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Word)]
-enum PointerUse {
-    /// It moves the pages.
-    Panning,
-    /// It selects the words under it.
-    Selecting,
-    /// It draws, picks and moves marks.
-    Marking,
-}
-
-/// A drag that is not a pan: the page it went down on, and where the words it selects begin.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Dragging {
-    /// Words being selected from the one at `anchor`.
-    Words { page: PageIndex, anchor: usize },
-    /// A shape being drawn, or a mark being moved.
-    Shape { page: PageIndex },
-}
-
-/// A point of the window as a point of the room, in device pixels; a point above or left of the
-/// room is its edge.
-fn room_device(at: (f32, f32), area: Area) -> (u32, u32) {
-    let across = |value: f32, origin: f32| u32::try_from(device(value - origin, area)).unwrap_or(0);
-    (across(at.0, area.origin.x.0), across(at.1, area.origin.y.0))
-}
-
-/// How far a drag may travel and still be a click on a link, in logical pixels.
-const CLICK_SLOP: f32 = 6.0;
-
 /// Where the reader starts when the stage is not the PDF stage yet.
 const START: PageView = PageView {
     page: PageIndex(0),
     offset: Permille(0),
     zoom: Zoom::Fit,
 };
-
-fn over(area: Area, at: Point) -> bool {
-    let (x, y) = (at.x.0 - area.origin.x.0, at.y.0 - area.origin.y.0);
-    x >= 0.0 && y >= 0.0 && x < area.size.width.0 && y < area.size.height.0
-}
-
-/// A distance in logical pixels as device pixels.
-fn device(logical: f32, area: Area) -> i64 {
-    // A pointer distance is far inside i64, so rounding to whole pixels cannot overflow.
-    (logical * area.scale).round() as i64
-}
-
-/// `logical` and the `carried` remainder as whole device pixels, and the remainder left over.
-fn whole_pixels(logical: f32, carried: f32, area: Area) -> (i64, f32) {
-    let total = logical * area.scale + carried;
-    let whole = total.round();
-    (whole as i64, total - whole)
-}
-
-/// A point of the window as a point of the room, in device pixels.
-fn in_room(at: Point, area: Area) -> (u32, u32) {
-    room_device((at.x.0, at.y.0), area)
-}
-
-/// The hit the machine is on, when a find has one.
-fn current_hit(stage: &Stage) -> Option<HitIndex> {
-    match stage {
-        Stage::Pdf(PdfStage::Finding { hits, .. }) => match hits {
-            FindHits::Found(_) => hits.current(),
-            FindHits::Idle | FindHits::Pending | FindHits::NoMatch => None,
-        },
-        Stage::Pdf(PdfStage::Reading { .. } | PdfStage::Jumping { .. })
-        | Stage::NoStage
-        | Stage::Raster(_)
-        | Stage::Media(_)
-        | Stage::Text(_)
-        | Stage::Table(_)
-        | Stage::Tree(_) => None,
-    }
-}
-
-/// The web address a link may open: only the schemes a person expects a PDF to open.
-fn web_address(uri: &str) -> Option<String> {
-    let (scheme, _) = uri.split_once(':')?;
-    const SCHEMES: [&str; 3] = ["http", "https", "mailto"];
-    SCHEMES
-        .iter()
-        .any(|allowed| scheme.eq_ignore_ascii_case(allowed))
-        .then(|| uri.to_owned())
-}
-
 #[component]
-pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
+pub(crate) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
     let gpu = use_gpu();
     let area = room_of(cx.area);
     let frame = area.map_or(UNMEASURED, Frame::of);
@@ -454,23 +370,5 @@ pub(super) fn PdfContent(doc: Held<PdfDoc>, cx: StageCx) -> Element {
                 MarkupDock { tool, color: marking_color, picked: any_picked, run }
             }
         }
-    }
-}
-
-/// The pointer was let go after a drag that selects or draws: words drawn over with the tool that
-/// marks words are marked, and a shape is made.
-fn released(
-    drag: Dragging,
-    pointer: PointerUse,
-    tool: anyview_core::MarkTool,
-    mark: EventHandler<MarkupIn>,
-) {
-    match drag {
-        Dragging::Words { .. } => {
-            if pointer == PointerUse::Marking {
-                mark.call(MarkupIn::Apply(tool));
-            }
-        }
-        Dragging::Shape { .. } => mark.call(MarkupIn::Release),
     }
 }

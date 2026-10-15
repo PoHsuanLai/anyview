@@ -1,222 +1,55 @@
-//! A sheet on screen: quire's `VirtualTable`, a header over the rows it mounts. Only the rows
-//! near the viewport exist as elements and each is asked of the sheet by `(row, column)`, which
-//! parses the window of the file it is in, so a sheet of any size costs a screenful. A row-number gutter leads the columns;
-//! numeric columns sit at the trailing edge; the header's presses sort the rows for the eye
-//! only (the stage machine keeps the sort, the file is never reordered). The gutter and the
-//! first column are held in place while the others scroll sideways under them, and rows are
-//! picked as in Finder's list: a click, Command-click, Shift-click, Shift and the arrows, Select
-//! All, with Copy putting them on the clipboard as tab-separated lines (`pick`).
+//! A sheet on screen: quire's `VirtualTable` and what the pointer and keys do in it.
 
-use super::SortedOrder;
-use super::doc::{SheetDoc, TableDoc};
-use super::edits::{row_at, text_at};
-use super::kind::{ColumnKind, is_yes};
-use super::pick::reseat;
+use super::super::SortedOrder;
+use super::super::doc::{SheetDoc, TableDoc};
+use super::super::edits::{row_at, text_at};
+use super::super::kind::{ColumnKind, is_yes};
+use super::super::pick::reseat;
+use super::look::{columns_of, held_columns, kind_class, status_of};
+use super::scroll::show_across;
 use crate::families::inline_edit::InlineEdit;
-use crate::families::rows::scaled_px;
 use crate::families::view::{Held, StageCx};
 use crate::families::{Mark, cut};
 use crate::io::Job;
 use crate::views::press::CHORD_KEYS;
 use crate::{
-    AfterTyping, CellFocus, Cells, ColumnNo, ColumnSort, ContentScale, HitIndex, RowNo, SheetNo,
-    SortDirection, Stage, StageIn, TableIn, TypingIn, TypingSeed, TypingState,
+    AfterTyping, CellFocus, Cells, ColumnNo, ContentScale, HitIndex, RowNo, SheetNo, Stage,
+    StageIn, TableIn, TypingIn, TypingSeed, TypingState,
 };
-use anyview_text::{Coverage, RowIndex, RowRef, Tally};
+use anyview_text::{RowIndex, RowRef};
 use dioxus::html::ModifiersInteraction as _;
 use dioxus::prelude::*;
 use ds::components::controls::scroller::handle::use_scroller;
-use ds::components::lists::table::model::{
-    CellAlign, Sort, SortDirection as Way, Sorting, TableColumn,
-};
-use ds::components::lists::virtual_table::{VirtualTable, columns_id, row_pitch};
+use ds::components::lists::table::model::Sort;
+use ds::components::lists::virtual_table::{VirtualTable, row_pitch};
 use ds::components::overlays::empty_state::EmptyState;
-use ds::host::document::{DocumentHost, use_document_host};
-use ds::host::found::Found;
-use ds::host::measure::client_rect;
-use ds::host::reveal::{ScrollSpan, nearest_scroll};
+use ds::host::document::use_document_host;
 use ds::prelude::{Common, Icon, Px, TableLook};
-use ds::style::busy::wait_out_busy;
-use ds_blitz::{ElementId, ScrollAnimate, ScrollAxis, ScrollCmd, ScrollHandle, use_scroll_handle};
+use ds_blitz::use_scroll_handle;
 use ds_core::selection::{Pick, RowSelection};
 use std::rc::Rc;
 use std::sync::Arc;
 
 /// The gutter's column id: no column of a file has it.
-const GUTTER: u32 = u32::MAX;
-
+pub(super) const GUTTER: u32 = u32::MAX;
 /// The id of the table's box, which scrolls sideways when the columns are wider than the room.
-const TABLE_ID: &str = "viewer-table";
-
+pub(super) const TABLE_ID: &str = "viewer-table";
 /// How many of the leading columns are held in place while the others scroll sideways: the
 /// row-number gutter and the sheet's first column.
-const PINNED: usize = 2;
-
+pub(super) const PINNED: usize = 2;
 /// The room the table fills: it does not scroll, so its rect is where the table shows.
-const ROOM: &str = "[data-body=\"table\"]";
-
+pub(super) const ROOM: &str = "[data-body=\"table\"]";
 /// The columns held in place, which the columns that scroll start beside.
-const HELD: &str = "[data-body=\"table\"] .ds-vtable-held";
-
+pub(super) const HELD: &str = "[data-body=\"table\"] .ds-vtable-held";
 /// The cell the current hit is in: its text is marked apart.
-const CURRENT_HIT: &str = "[data-body=\"table\"] .viewer-hit-current";
-
+pub(super) const CURRENT_HIT: &str = "[data-body=\"table\"] .viewer-hit-current";
 /// The current hit's cell when it is in a column that is held in place, which is always in view.
-const CURRENT_HELD_HIT: &str = "[data-body=\"table\"] .viewer-held .viewer-hit-current";
-
+pub(super) const CURRENT_HELD_HIT: &str = "[data-body=\"table\"] .viewer-held .viewer-hit-current";
 /// How many times a hit's cell is looked for: it exists once its row is mounted, a frame or two
 /// after the cursor moved to the row.
-const LOOKS: usize = 8;
-
-/// Scroll the table sideways the least that shows the cell of the current hit, clear of the
-/// columns that are held in place. Quire's scroller moves the rows up and down; the columns wider
-/// than the room are the table's own box, which is moved by a command. A hit in a held column
-/// needs no scroll. Call it from a task.
-async fn show_across(host: Rc<dyn DocumentHost>, scroll: ScrollHandle) {
-    let columns = columns_id(TABLE_ID);
-    for attempt in 0..LOOKS {
-        wait_out_busy(attempt).await;
-        match host.geometry().find(CURRENT_HELD_HIT) {
-            Found::Element(_) => return,
-            Found::Busy => continue,
-            Found::Missing | Found::BadSelector | Found::Unreachable => {}
-        }
-        let (Found::Element(table), Found::Element(held), Found::Element(cell)) = (
-            host.geometry().find(ROOM),
-            host.geometry().find(HELD),
-            host.geometry().find(CURRENT_HIT),
-        ) else {
-            continue;
-        };
-        let (Some(table), Some(held), Some(cell)) = (
-            client_rect(&table).await,
-            client_rect(&held).await,
-            client_rect(&cell).await,
-        ) else {
-            continue;
-        };
-        if cell.size.width.0 <= 0.0 {
-            continue;
-        }
-        // All three rects are the window's. The room is the columns that scroll: from where the
-        // held columns end to the table's right edge. The scrolling box's own rect is not used,
-        // since Blitz moves a scrolled box's rect by its own scroll.
-        let start = held.origin.x.0 + held.size.width.0;
-        let span = ScrollSpan {
-            start: cell.origin.x.0 - start,
-            length: cell.size.width.0,
-        };
-        let by = nearest_scroll(0.0, table.origin.x.0 + table.size.width.0 - start, span);
-        if by != 0.0 {
-            scroll.send(ScrollCmd::By {
-                element: ElementId::new(&columns),
-                axis: ScrollAxis::X,
-                delta: f64::from(by),
-                animate: ScrollAnimate::Instant,
-            });
-        }
-        return;
-    }
-}
-
-/// How many rows a page up or down moves by: the room's height in rows, less one for the header,
-/// so the row the cursor left stays in view.
-pub(super) fn page_of(area: Option<crate::Area>, scale: ContentScale) -> u32 {
-    area.map_or(1, |area| {
-        let rows = (area.size.height.0 / scaled_px(scale)).floor();
-        // a count of rows on screen is far below u32's range, and a negative one is none
-        (rows as u32).saturating_sub(2).max(1)
-    })
-}
-
-/// The title of column `at`: the header's cell, or `Column N` when the file has no header.
-pub(super) fn title(sheet: &SheetDoc, at: usize) -> String {
-    match sheet.table.header() {
-        Some(header) => header.get(at).cloned().unwrap_or_default(),
-        None => format!("Column {}", at + 1),
-    }
-}
-
-/// The columns: the row-number gutter, then each column of the sheet at the width its first rows
-/// ask for. A character is a quarter of a row's height wide and a cell keeps a row of room around
-/// its text (half for the padding, half for a sort arrow in the header), so the widths follow the row token, and the zoom.
-fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColumn<u32>> {
-    let pitch = row_pitch().0 * scale.factor();
-    let gutter = TableColumn::new(GUTTER, "#", Px(pitch * 2.0))
-        .aligned(CellAlign::Trailing)
-        .sorting(Sorting::Fixed);
-    let data = sheet.widths.iter().enumerate().map(|(at, chars)| {
-        // Numbers stand at the end, a yes or no's tick and its title in the middle.
-        let align = match sheet.kinds.get(at) {
-            Some(ColumnKind::Number) => CellAlign::Trailing,
-            Some(ColumnKind::YesNo) => CellAlign::Center,
-            Some(ColumnKind::Text | ColumnKind::Link | ColumnKind::Tag) | None => {
-                CellAlign::Leading
-            }
-        };
-        let id = u32::try_from(at).unwrap_or(GUTTER - 1);
-        let width = Px(f32::from(chars.0) * pitch / 4.0 + pitch);
-        TableColumn::new(id, title(sheet, at), width).aligned(align)
-    });
-    std::iter::once(gutter).chain(data).collect()
-}
-
-/// The sort the machine keeps, as quire's header draws it.
-fn drawn(by: ColumnSort) -> Sort<u32> {
-    Sort {
-        column: by.column,
-        direction: match by.direction {
-            SortDirection::Ascending => Way::Ascending,
-            SortDirection::Descending => Way::Descending,
-        },
-    }
-}
-
-/// The class a cell of `kind` takes besides the cell's own.
-fn kind_class(kind: ColumnKind) -> &'static str {
-    match kind {
-        ColumnKind::Text => "",
-        ColumnKind::Number => "viewer-cell-number",
-        ColumnKind::YesNo => "viewer-cell-yes-no",
-        ColumnKind::Link => "viewer-cell-link",
-        ColumnKind::Tag => "viewer-cell-tag",
-    }
-}
-
-/// What the status line under the table says: how many rows and columns the shown sheet has, or,
-/// once several rows are picked, how many (Finder's status bar). A sheet that holds only the start
-/// of its file says so with a plus after the rows.
-fn status_of(sheet: &SheetDoc, rows: u32, picked: usize) -> String {
-    if picked > 1 {
-        let picked = Tally::Exact(u32::try_from(picked).unwrap_or(u32::MAX));
-        return format!("{} rows selected", picked.text());
-    }
-    let rows = match sheet.table.coverage() {
-        Coverage::Whole => Tally::Exact(rows),
-        Coverage::Prefix => Tally::AtLeast(rows),
-    };
-    let columns = sheet.table.columns().0;
-    format!(
-        "{} {} · {} {}",
-        rows.text(),
-        if rows == Tally::Exact(1) {
-            "row"
-        } else {
-            "rows"
-        },
-        Tally::Exact(columns).text(),
-        if columns == 1 { "column" } else { "columns" },
-    )
-}
-
-/// How many of the sheet's columns are held in place: the gutter and the first column, but never
-/// all of them (quire always leaves one to scroll).
-fn held_columns(sheet: &SheetDoc) -> usize {
-    PINNED.min(sheet.widths.len())
-}
-
+pub(super) const LOOKS: usize = 8;
 #[component]
-pub(super) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
+pub(crate) fn TableContent(doc: Held<TableDoc>, cx: StageCx) -> Element {
     let (sheet_no, by, cursor, picked, scale, cells_now) = match &cx.stage {
         Stage::Table(stage) => (
             stage.sheet(),
