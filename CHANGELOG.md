@@ -5,6 +5,10 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Recordings
+
+- Trim… (⌘T, the palette and the right-click menu) trims a video or a song in place, as QuickTime Player does. A bar comes up over the player with two yellow handles on a track the length of the recording; drag them to choose the part to keep, Space plays just that part, Return (Trim) applies it and Esc leaves. The player then shows only the part kept, and ⌘S saves it over the file with the original kept as a version to go back to with Revert To. Leaving a trimmed recording asks Save or Don't Save, and ⌘Z takes the trim back before it is saved. A video is cut at the keyframe at or before the start; a song is cut to the sample, written again in its own format at the quality it had when it could not be copied exactly. Without the FFmpeg plugin, Trim… offers to install it. Save a Copy and Revert To are now in the menus of recordings too.
+
 ### Palette
 
 - Find has Match Case and Whole Words, listed as checked rows under "Options" beside a find's matches. They stay as you left them for the window, for text and PDF files alike, and switching one searches again with the palette still up.

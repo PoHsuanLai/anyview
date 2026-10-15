@@ -76,13 +76,19 @@ enum Loss {
 /// The encoders that write `codec` again, best first, and whether it loses detail. PCM is absent:
 /// copying it is exact. So is a codec FFmpeg has no encoder for here, which is copied.
 fn encoders_of(codec: &str) -> Option<(&'static [&'static str], Loss)> {
+    const AAC: &[&str] = &["aac"];
+    const MP3: &[&str] = &["libmp3lame"];
+    const OPUS: &[&str] = &["libopus"];
+    const VORBIS: &[&str] = &["libvorbis"];
+    const FLAC: &[&str] = &["flac"];
+    const ALAC: &[&str] = &["alac"];
     match codec {
-        "aac" => Some((&["aac"], Loss::Lossy)),
-        "mp3" => Some((&["libmp3lame"], Loss::Lossy)),
-        "opus" => Some((&["libopus"], Loss::Lossy)),
-        "vorbis" => Some((&["libvorbis"], Loss::Lossy)),
-        "flac" => Some((&["flac"], Loss::Lossless)),
-        "alac" => Some((&["alac"], Loss::Lossless)),
+        "aac" => Some((AAC, Loss::Lossy)),
+        "mp3" => Some((MP3, Loss::Lossy)),
+        "opus" => Some((OPUS, Loss::Lossy)),
+        "vorbis" => Some((VORBIS, Loss::Lossy)),
+        "flac" => Some((FLAC, Loss::Lossless)),
+        "alac" => Some((ALAC, Loss::Lossless)),
         _ => None,
     }
 }
