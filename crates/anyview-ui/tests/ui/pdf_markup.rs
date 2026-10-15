@@ -141,3 +141,40 @@ fn words_dragged_over_with_the_highlighter_are_highlighted_and_saved_as_a_mark()
     let line: PageRect = lines[0];
     assert!(line.left.0 < 200 && line.right.0 > 300, "{line:?}");
 }
+
+/// A drop-down reached with Tab takes the keyboard with its menu closed, and an arrow opens it; one
+/// pressed opens its menu at once. Preview's form fields do both.
+#[test]
+fn tab_reaches_a_drop_down_closed_and_a_press_opens_it() {
+    let (_dir, mut harness, _requests) = written("form.pdf", pdf_fixture::form_bytes());
+    let name = harness
+        .centre(".viewer-field[data-kind=text]")
+        .expect("the text field");
+    harness.send(Input::click(name));
+    settle(&mut harness);
+    // The text field, the check box, then the drop-down.
+    press(&mut harness, ShortcutKey::Tab);
+    press(&mut harness, ShortcutKey::Tab);
+    assert_eq!(
+        harness
+            .attr(".viewer-field[data-state=held]", "data-kind")
+            .as_deref(),
+        Some("choice"),
+        "Tab goes on to the drop-down"
+    );
+    assert_eq!(harness.count(".ds-menu"), 0, "with its menu closed");
+    press(&mut harness, ShortcutKey::Down);
+    assert_eq!(harness.count(".ds-menu"), 1, "an arrow opens it");
+    press(&mut harness, ShortcutKey::Escape);
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 0);
+    // A press on the drop-down, from no field, opens it at once.
+    press(&mut harness, ShortcutKey::Escape);
+    settle(&mut harness);
+    let choice = harness
+        .centre(".viewer-field[data-kind=choice]")
+        .expect("the drop-down");
+    harness.send(Input::click(choice));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 1, "a press opens the menu");
+}

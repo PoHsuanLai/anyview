@@ -9,7 +9,7 @@ use crate::geometry::displayed;
 use anyview_core::{FieldFill, FormWidget, PageIndex, PageRect, WidgetAccess, WidgetKind};
 use pdfrum::{SaveOptions, Subtype};
 use pdfrum_common::{Diagnostics, Limits};
-use pdfrum_doc::form::{Field, FieldKind, Form};
+use pdfrum_doc::form::{Field, FieldKind, Form, field_attr};
 use pdfrum_object::{Dict, Name, Object, Resolve, names};
 
 /// A choice field's options (`/Opt`): pdfrum-doc keeps its own copy of the key private.
@@ -117,9 +117,12 @@ fn widget_of(
 }
 
 /// The value each of `options` writes: the export value of an option written as a pair in the
-/// field's own `/Opt`, else the option itself.
+/// field's `/Opt` (its own or one it inherits from a parent, as `options` reads it), else the option
+/// itself.
 fn exports_of(field: &Field, options: &[String], r: &impl Resolve) -> Vec<String> {
-    let pairs = field.dict.array(&OPT, r);
+    let (limits, mut diags) = (Limits::default(), Diagnostics::default());
+    let opt = field_attr(&field.dict, &OPT, r, &limits, &mut diags);
+    let pairs = opt.as_ref().and_then(Object::as_array);
     options
         .iter()
         .enumerate()

@@ -112,6 +112,11 @@ pub fn form_bytes() -> Vec<u8> {
         form("18 18"),
         form("18 18"),
     ];
+    pdf_of(&objects)
+}
+
+/// `objects` as a PDF file, numbered from 1 in order, the first the catalog.
+fn pdf_of(objects: &[String]) -> Vec<u8> {
     let mut out = b"%PDF-1.4\n".to_vec();
     let mut offsets = Vec::new();
     for (index, body) in objects.iter().enumerate() {
@@ -133,6 +138,23 @@ pub fn form_bytes() -> Vec<u8> {
         .as_bytes(),
     );
     out
+}
+
+/// A one-page PDF whose drop-down is a kid field (`order.size`) that inherits its kind and its
+/// `/Opt`, export and label pairs, from its parent.
+pub fn inherited_choice_bytes() -> Vec<u8> {
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R /AcroForm 4 0 R >>".to_owned(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_owned(),
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Annots [6 0 R] >>".to_owned(),
+        "<< /Fields [5 0 R] /DA (/Helv 12 Tf 0 g) >>".to_owned(),
+        "<< /FT /Ch /Ff 131072 /T (order) /Opt [[(s) (Small)] [(l) (Large)]] /Kids [6 0 R] >>"
+            .to_owned(),
+        "<< /Type /Annot /Subtype /Widget /T (size) /V (s) /Parent 5 0 R \
+         /Rect [72 520 200 540] /P 3 0 R /F 4 >>"
+            .to_owned(),
+    ];
+    pdf_of(&objects)
 }
 
 /// The fixture, opened.
