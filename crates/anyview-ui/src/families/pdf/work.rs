@@ -4,7 +4,7 @@
 //! page's pixels never pass through the UI thread: the answer carries the handle, nothing else.
 
 use super::doc::PdfDoc;
-use crate::io::{Stop, WorkLane};
+use crate::io::{Stop, WorkLane, cause_chain};
 use crate::{Ticket, TypedText};
 use anyview_core::{Dpi, FindOptions, PageIndex, PageRect, PixelSize};
 use anyview_pdf::{
@@ -226,11 +226,23 @@ impl PdfTask {
             },
             PdfAsk::Links { page } => PdfAnswer::Links {
                 page,
-                links: page_links(&doc.document, page).unwrap_or_default(),
+                links: page_links(&doc.document, page).unwrap_or_else(|error| {
+                    log::warn!(
+                        "the links of page {page:?} could not be read: {}",
+                        cause_chain(&error)
+                    );
+                    Vec::new()
+                }),
             },
             PdfAsk::Words { page } => PdfAnswer::Words {
                 page,
-                words: page_words(&doc.document, page).unwrap_or_default(),
+                words: page_words(&doc.document, page).unwrap_or_else(|error| {
+                    log::warn!(
+                        "the words of page {page:?} could not be read: {}",
+                        cause_chain(&error)
+                    );
+                    Vec::new()
+                }),
             },
         }
     }
@@ -312,6 +324,9 @@ fn tiles(
         .filter(|key| !unfinished.contains(key) && !failed.contains(key));
     let mut missing: Vec<TileKey> = missing.collect();
     // The tile a failed draw stopped at cannot be drawn; the ones after it were never tried.
+    if let End::Failed(error) = &end {
+        log::warn!("a page could not be drawn: {}", cause_chain(error));
+    }
     if let End::Failed(_) = end
         && !missing.is_empty()
     {
@@ -351,7 +366,11 @@ fn search(ticket: Ticket, doc: &PdfDoc, asked: (TypedText, FindOptions), stop: &
 fn finish(end: &End) -> Finish {
     match end {
         End::Complete => Finish::Complete,
-        End::Stopped | End::Failed(_) => Finish::Cut,
+        End::Stopped => Finish::Cut,
+        End::Failed(error) => {
+            log::warn!("a search of the document failed: {}", cause_chain(error));
+            Finish::Cut
+        }
     }
 }
 
@@ -362,7 +381,17 @@ fn thumb(ticket: Ticket, doc: &PdfDoc, gpu: &Gpu, page: PageIndex) -> Option<Tex
     let PdfDone::Page { raster, .. } = done else {
         return None;
     };
-    match upload(gpu, &raster.ok()?) {
+    let raster = match raster {
+        Ok(raster) => raster,
+        Err(error) => {
+            log::warn!(
+                "the thumbnail of page {page:?} could not be drawn: {}",
+                cause_chain(&error)
+            );
+            return None;
+        }
+    };
+    match upload(gpu, &raster) {
         Upload::Done(texture) => Some(texture),
         Upload::Later | Upload::Never => None,
     }

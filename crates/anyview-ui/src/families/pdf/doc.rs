@@ -234,6 +234,7 @@ impl PdfDoc {
 
 /// Open the PDF `src`. Blocking.
 pub(super) fn open(src: &Source) -> Result<PdfDoc, OpenError> {
+    OpenError::admit_len(src.stamp().len)?;
     let document = PdfDocument::open(src.path().as_path())
         .map_err(|error| OpenError::Pdf(PdfFailure::of(&error)))?;
     Ok(PdfDoc::of(document))

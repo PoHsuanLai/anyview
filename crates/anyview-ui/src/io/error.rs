@@ -35,6 +35,9 @@ pub enum OpenError {
     /// A decoder panicked on this file; the work was abandoned and the viewer went on.
     #[error("the file could not be read")]
     Crashed,
+    /// The file is larger than the viewer reads whole into memory.
+    #[error("the file is too large to open")]
+    TooLarge,
     /// The file has no bytes and its name says it is not text.
     #[error("the file is empty")]
     Empty,
@@ -43,7 +46,21 @@ pub enum OpenError {
     Unrecognised,
 }
 
+/// The most a file may be for the viewer to read it whole into memory before decoding: the
+/// ceiling `anyview-image` holds a decode's peak to, since a file over it cannot be decoded
+/// within that peak, and a parse that allocates for a larger one would abort the whole process.
+const READ_WHOLE_LIMIT: u64 = 1536 * 1024 * 1024;
+
 impl OpenError {
+    /// `Ok` when a file of `len` bytes may be read whole, else the file is too large to open.
+    pub(crate) fn admit_len(len: anyview_core::ByteLen) -> Result<(), OpenError> {
+        if len.0 > READ_WHOLE_LIMIT {
+            Err(OpenError::TooLarge)
+        } else {
+            Ok(())
+        }
+    }
+
     /// What the load machine is told.
     #[must_use]
     pub fn failure(&self) -> LoadFailure {
@@ -65,6 +82,7 @@ impl OpenError {
             | OpenError::Media(_)
             | OpenError::Plugin(_)
             | OpenError::Unrecognised => LoadFailure::Unsupported,
+            OpenError::TooLarge => LoadFailure::TooLarge,
             OpenError::Crashed => LoadFailure::Damaged,
             OpenError::Empty => LoadFailure::Empty,
         }
@@ -106,6 +124,18 @@ fn book_failure(error: &anyview_book::BookError) -> LoadFailure {
         (None, true) => LoadFailure::Locked,
         (None, false) => LoadFailure::Damaged,
     }
+}
+
+/// `error` and each error it was caused by, joined with `: `, for a log line.
+pub(crate) fn cause_chain(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 #[cfg(test)]

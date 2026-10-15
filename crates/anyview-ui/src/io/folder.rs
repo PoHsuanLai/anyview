@@ -8,8 +8,9 @@ use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
 use std::cmp::Ordering;
 
 /// The files of the folder `path` is in, as the sequence the arrow keys walk, pointing at `path`.
-/// Hidden files and sub-folders are left out. When `path` is itself a folder, or is not among
-/// what the listing found, the sequence is that one file alone. Blocking.
+/// Hidden files and sub-folders are left out; a link to a file counts as that file. When `path`
+/// is itself a folder, or is not among what the listing found, the sequence is that one file
+/// alone. Blocking.
 pub fn folder_sequence(path: &FilePath) -> Result<Sequence, OpenError> {
     let alone = || {
         Sequence::new(
@@ -23,11 +24,15 @@ pub fn folder_sequence(path: &FilePath) -> Result<Sequence, OpenError> {
     let listing = std::fs::read_dir(parent.as_path()).map_err(|e| OpenError::Read(e.kind()))?;
     let mut entries: Vec<FilePath> = listing
         .filter_map(Result::ok)
-        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter(|entry| {
+            // A link to a file is listed as the file, as Finder lists an alias's target; the
+            // metadata follows the link, and a broken one is not a file.
+            std::fs::metadata(entry.path()).is_ok_and(|facts| facts.is_file())
+        })
         .filter_map(|entry| FilePath::new(entry.path()).ok())
         .filter(|entry| !is_hidden(entry))
         .collect();
-    entries.sort_by(name_order);
+    entries.sort_by_cached_key(name_key);
     let origin = SequenceOrigin::Folder(parent);
     Ok(NonEmpty::from_vec(entries)
         .and_then(|entries| Sequence::starting_at(entries, path, origin).ok())
@@ -39,15 +44,34 @@ fn is_hidden(path: &FilePath) -> bool {
         .is_some_and(|name| name.as_str().starts_with('.'))
 }
 
-/// Names compared without regard to case, digits as numbers (`img2` before `img10`), and the
-/// exact bytes breaking a tie so the order is total.
-fn name_order(a: &FilePath, b: &FilePath) -> Ordering {
-    let name = |path: &FilePath| {
-        path.file_name()
-            .map_or_else(String::new, |name| name.as_str().to_owned())
-    };
-    let (a, b) = (name(a), name(b));
-    natural(&a.to_lowercase(), &b.to_lowercase()).then_with(|| a.cmp(&b))
+/// A name as the order reads it, made once per file: the lower-cased name compared with digits
+/// as numbers (`img2` before `img10`), and the exact name breaking a tie so the order is total.
+#[derive(PartialEq, Eq)]
+struct NameKey {
+    folded: String,
+    exact: String,
+}
+
+impl Ord for NameKey {
+    fn cmp(&self, other: &Self) -> Ordering {
+        natural(&self.folded, &other.folded).then_with(|| self.exact.cmp(&other.exact))
+    }
+}
+
+impl PartialOrd for NameKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn name_key(path: &FilePath) -> NameKey {
+    let exact = path
+        .file_name()
+        .map_or_else(String::new, |name| name.as_str().to_owned());
+    NameKey {
+        folded: exact.to_lowercase(),
+        exact,
+    }
 }
 
 /// `a` against `b`, runs of digits compared as numbers and everything else by character.
@@ -127,7 +151,7 @@ mod tests {
         ];
         for (name, given, want) in CASES {
             let mut paths: Vec<FilePath> = given.iter().map(|n| path(n)).collect();
-            paths.sort_by(name_order);
+            paths.sort_by_cached_key(name_key);
             let got: Vec<String> = paths
                 .iter()
                 .map(|p| p.file_name().unwrap().as_str().to_owned())
@@ -143,6 +167,13 @@ mod tests {
             std::fs::write(dir.path().join(name), b"x").unwrap();
         }
         std::fs::create_dir(dir.path().join("sub")).unwrap();
+        #[cfg(unix)]
+        {
+            // A link to a file is listed as the file; a link to a folder is not.
+            std::os::unix::fs::symlink(dir.path().join("a.txt"), dir.path().join("a2.txt"))
+                .unwrap();
+            std::os::unix::fs::symlink(dir.path().join("sub"), dir.path().join("sub2")).unwrap();
+        }
         let root = std::fs::canonicalize(dir.path()).unwrap();
         let given = FilePath::new(root.join("b2.png")).unwrap();
         let sequence = folder_sequence(&given).unwrap();
@@ -151,7 +182,12 @@ mod tests {
             .iter()
             .map(|p| p.file_name().unwrap().as_str().to_owned())
             .collect();
-        assert_eq!(names, ["a.txt", "b2.png", "b10.png"]);
+        let want: &[&str] = if cfg!(unix) {
+            &["a.txt", "a2.txt", "b2.png", "b10.png"]
+        } else {
+            &["a.txt", "b2.png", "b10.png"]
+        };
+        assert_eq!(names, want);
         assert_eq!(sequence.current(), &given);
         assert_eq!(
             sequence.origin(),

@@ -337,7 +337,12 @@ pub(crate) fn pieces(line: &TokenLine, hits: &[FindHit], current: Option<usize>)
         for (position, hit) in hits.iter().enumerate() {
             let (from, to) = (hit.from.0 as usize, hit.to.0 as usize);
             let (from, to) = (from.max(cursor), to.min(end));
-            if from >= to {
+            // An edge in the middle of a character is the search and the highlighter disagreeing:
+            // that hit is left unmarked rather than cut the text there.
+            if from >= to
+                || !span.text.is_char_boundary(from - start)
+                || !span.text.is_char_boundary(to - start)
+            {
                 continue;
             }
             push(

@@ -17,6 +17,7 @@ mod workers;
 pub use anyview_core::work::{Backend, Stop};
 pub use anyview_machines::{DesktopService, PlatformAbilities, SaveEnd};
 pub use error::OpenError;
+pub(crate) use error::cause_chain;
 pub use folder::folder_sequence;
 pub use helpers::{HelperSource, HelperWords, Need};
 pub use job::{Done, Job, Keeping, OpenPort, Opened, Preloaded, WorkLane};

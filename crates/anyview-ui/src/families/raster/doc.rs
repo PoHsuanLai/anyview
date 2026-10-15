@@ -146,6 +146,7 @@ impl Backend for RasterBackend {
 }
 
 fn decode_into(target: &RasterOpen) -> Result<RasterDoc, OpenError> {
+    OpenError::admit_len(target.source.stamp().len)?;
     // The file is read once: the decoder, the facts and the edit offer share these bytes.
     let bytes = file_bytes(&target.source.on_disk())?;
     let mut doc = decoded(target, &bytes)?;
@@ -295,7 +296,7 @@ fn raw_into(target: &RasterOpen, bytes: &[u8]) -> Result<RasterDoc, OpenError> {
         }
         PluginPicture::Missing(needs) => Some(needs),
         PluginPicture::Failed(reason) => {
-            eprintln!("anyview: the raw plugin could not develop the file: {reason}");
+            log::warn!("the raw plugin could not develop the file: {reason}");
             None
         }
         PluginPicture::Unserved => None,
@@ -469,7 +470,9 @@ fn upload(texture: &TextureHandle, picture: &Rgba8) -> Result<PixelSize, OpenErr
     let limit = texture
         .gpu()
         .device()
-        .map_or(u32::MAX, |device| device.limits().max_texture_dimension_2d);
+        .map_or(u32::MAX, |device| device.limits().max_texture_dimension_2d)
+        // A device that reports no room at all would shrink the picture for ever.
+        .max(1);
     let size = picture.size();
     if size.width.0.max(size.height.0) > limit {
         return upload(
