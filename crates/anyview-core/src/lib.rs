@@ -23,6 +23,7 @@ mod kind;
 mod markup;
 mod media;
 mod peek;
+mod percent;
 pub mod prelude;
 mod profile;
 mod resume;
@@ -65,6 +66,7 @@ pub use markup::{
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
 pub use peek::{Deadline, Peek, PeekBudget, StageSupport};
+pub use percent::percent_decode;
 pub use profile::{actions_for, edits_for, mime_for, stage_support};
 pub use resume::{Resume, TrackChoice, TrackId};
 pub use sequence::{

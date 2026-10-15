@@ -2,7 +2,7 @@
 //! is read through an injected reader and written into the HTML as one.
 
 use super::links::scheme;
-use anyview_core::{FileHead, FileName, FilePath, FormatKind, SniffStep, sniff};
+use anyview_core::{FileHead, FileName, FilePath, FormatKind, SniffStep, percent_decode, sniff};
 use std::collections::HashMap;
 use std::io::Read;
 
@@ -54,31 +54,6 @@ impl LocalFiles for DiskFiles {
             .ok()?;
         (bytes.len() <= most).then_some(bytes)
     }
-}
-
-/// `%20` and its kind decoded, bytes that are not valid percent escapes left as they are.
-fn percent_decode(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        let escaped = (bytes[i] == b'%')
-            .then(|| bytes.get(i + 1..i + 3))
-            .flatten()
-            .and_then(|hex| std::str::from_utf8(hex).ok())
-            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
-        match escaped {
-            Some(byte) => {
-                out.push(byte);
-                i += 3;
-            }
-            None => {
-                out.push(bytes[i]);
-                i += 1;
-            }
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// The file an image reference names: the reference without its query and fragment, percent
@@ -267,21 +242,6 @@ mod tests {
             Inliner::new(Some(&base), &NoFiles).data_url("pic.png"),
             None
         );
-    }
-
-    #[test]
-    fn percent_escapes_decode_and_malformed_ones_stay() {
-        const CASES: &[(&str, &str)] = &[
-            ("a%20b", "a b"),
-            ("%C3%A9", "é"),
-            ("100%", "100%"),
-            ("%zz", "%zz"),
-            ("%2", "%2"),
-            ("plain", "plain"),
-        ];
-        for (text, want) in CASES {
-            assert_eq!(percent_decode(text), *want, "{text}");
-        }
     }
 
     /// A reader that counts the files it is asked for.

@@ -1,29 +1,6 @@
 //! Paths inside a zip: the references a package makes, resolved to entry names.
 
-/// `%20` and its kind decoded; bytes that are not valid escapes stay as they are.
-pub(crate) fn percent_decode(text: &str) -> String {
-    let bytes = text.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        let escaped = (bytes[i] == b'%')
-            .then(|| bytes.get(i + 1..i + 3))
-            .flatten()
-            .and_then(|hex| std::str::from_utf8(hex).ok())
-            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
-        match escaped {
-            Some(byte) => {
-                out.push(byte);
-                i += 3;
-            }
-            None => {
-                out.push(bytes[i]);
-                i += 1;
-            }
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
+use anyview_core::percent_decode;
 
 /// The directory part of the entry name `path`, with its trailing slash, or empty.
 pub(crate) fn directory_of(path: &str) -> &str {
