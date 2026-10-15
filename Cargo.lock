@@ -680,7 +680,6 @@ dependencies = [
 name = "anyview-text"
 version = "0.1.0-beta.1"
 dependencies = [
- "anyview-archive",
  "anyview-core",
  "anyview-fs",
  "calamine",

@@ -4,11 +4,10 @@ use super::{HeaderMode, Table};
 use crate::bytes::read_range;
 use crate::encoding::Coverage;
 use crate::error::TextError;
-use anyview_archive::{ArchiveError, EntryKind, EntryLimit, ExtractLimits};
 use anyview_core::work::Interrupt;
-use anyview_core::{ArchiveFormat, ByteLen, Deadline, Input};
+use anyview_core::{ByteLen, Deadline, Input};
 use calamine::{Cell, Data, DataRef, Reader, Sheets, open_workbook_auto_from_rs};
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 /// The largest workbook file that is opened: a sheet is read into memory whole.
@@ -20,9 +19,6 @@ const PART_BYTES: ByteLen = ByteLen(64 * 1024 * 1024);
 
 /// The most those parts add up to.
 const PARTS_BYTES: u64 = 256 * 1024 * 1024;
-
-/// The most of a zip's central directory that is read to check its parts.
-const DIRECTORY_BYTES: ByteLen = ByteLen(16 * 1024 * 1024);
 
 /// The last serial Excel itself writes as a date (9999-12-31).
 const LAST_SERIAL: f64 = 2_958_465.0;
@@ -65,65 +61,48 @@ fn failed(error: impl std::fmt::Display) -> TextError {
 /// than they should be, or whose shared-string table states more strings than it has bytes: the
 /// reader reserves for that count before it reads a string. The sheets themselves are streamed
 /// and bounded by [`gather`]. Sizes are the ones the zip states.
-fn check_parts(src: &Input, interrupt: &dyn Interrupt) -> Result<(), TextError> {
+fn check_parts(bytes: &Arc<[u8]>, interrupt: &dyn Interrupt) -> Result<(), TextError> {
     let too_large = || TextError::WorkbookTooLarge {
         allowed: PART_BYTES,
     };
-    let listing = anyview_archive::list_until(
-        src.clone(),
-        ArchiveFormat::Zip,
-        EntryLimit(u32::MAX),
-        DIRECTORY_BYTES,
-        interrupt,
-    )
-    .map_err(archive_failed)?;
-    if matches!(listing.count, anyview_archive::EntryCount::AtLeast(_)) {
-        return Err(too_large());
-    }
+    // The whole file is at most `WORKBOOK_BYTES`, so its central directory is too.
+    let mut zip = zip::ZipArchive::new(Cursor::new(Arc::clone(bytes))).map_err(failed)?;
     let mut total = 0_u64;
-    for entry in &listing.entries {
-        let path = entry.path.to_ascii_lowercase();
-        let unpacked_whole = entry.kind == EntryKind::File
+    for index in 0..zip.len() {
+        if interrupt.interrupted() {
+            return Err(TextError::Interrupted);
+        }
+        let entry = zip.by_index_raw(index).map_err(failed)?;
+        let path = entry.name().to_ascii_lowercase();
+        let unpacked_whole = entry.is_file()
             && !path.contains("/worksheets/")
             && [".xml", ".bin", ".rels"]
                 .iter()
                 .any(|end| path.ends_with(end));
-        let size = entry.size.map_or(0, |size| size.0);
         if unpacked_whole {
-            total = total.saturating_add(size);
-            if size > PART_BYTES.0 || total > PARTS_BYTES {
+            total = total.saturating_add(entry.size());
+            if entry.size() > PART_BYTES.0 || total > PARTS_BYTES {
                 return Err(too_large());
             }
         }
     }
-    let strings = anyview_archive::extract_until(
-        src.clone(),
-        ArchiveFormat::Zip,
-        "xl/sharedStrings.xml",
-        ExtractLimits::new(PART_BYTES, PART_BYTES),
-        interrupt,
-    );
-    match strings {
-        Ok(part) if states_more_than_fits(&part) => Err(failed("the shared strings are damaged")),
-        Ok(_) | Err(ArchiveError::NoSuchEntry { .. } | ArchiveError::NotAFile) => Ok(()),
-        Err(error) => Err(archive_failed(error)),
+    let Ok(strings) = zip.by_name("xl/sharedStrings.xml") else {
+        // No shared strings (an ODS, an XLSB, a workbook of numbers), or a part the reader will
+        // refuse for itself.
+        return Ok(());
+    };
+    let mut part = Vec::new();
+    strings
+        .take(PART_BYTES.0.saturating_add(1))
+        .read_to_end(&mut part)
+        .map_err(failed)?;
+    if u64::try_from(part.len()).unwrap_or(u64::MAX) > PART_BYTES.0 {
+        return Err(too_large());
     }
-}
-
-fn archive_failed(error: ArchiveError) -> TextError {
-    match error {
-        ArchiveError::Interrupted => TextError::Interrupted,
-        ArchiveError::TooLarge { allowed } | ArchiveError::OverBudget { allowed } => {
-            TextError::WorkbookTooLarge { allowed }
-        }
-        other @ (ArchiveError::Read { .. }
-        | ArchiveError::WrongKind { .. }
-        | ArchiveError::NoBudget
-        | ArchiveError::Malformed { .. }
-        | ArchiveError::Encrypted
-        | ArchiveError::NoSuchEntry { .. }
-        | ArchiveError::NotAFile) => failed(other),
+    if states_more_than_fits(&part) {
+        return Err(failed("the shared strings are damaged"));
     }
+    Ok(())
 }
 
 /// Whether any `uniqueCount` attribute in the shared strings states more strings than the part
@@ -355,7 +334,7 @@ impl Workbook {
         // (sniffed by content), whether they are a file or were handed in.
         let bytes: Arc<[u8]> = read_range(src.bytes(), 0..WORKBOOK_BYTES.0)?.into();
         if bytes.starts_with(b"PK") {
-            check_parts(src, interrupt)?;
+            check_parts(&bytes, interrupt)?;
         }
         // The readers index and allocate from what the file states; a panic in one is a workbook
         // that does not open.

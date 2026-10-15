@@ -9,12 +9,13 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-anyview-archive = { workspace = true }
 anyview-core = { workspace = true }
 # `OpenFile`, the one way a path is opened (core does no I/O).
 anyview-fs = { workspace = true }
 ds-core = { workspace = true }
 calamine = { workspace = true }
+# Reads a zipped workbook's directory before calamine does (calamine already brings it in).
+zip = { workspace = true }
 chardetng = { workspace = true }
 csv = { workspace = true }
 encoding_rs = { workspace = true }
@@ -26,8 +27,6 @@ unicode-segmentation = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-# Builds the workbook the sheet tests read: a test fixture, never a normal dependency.
-zip = { workspace = true }
 
 # Makes the named pipe the image reader must refuse.
 [target.'cfg(target_os = "linux")'.dev-dependencies]
