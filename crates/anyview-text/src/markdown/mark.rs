@@ -139,7 +139,8 @@ pub fn page_hits(html: &str, needle: &Needle, keep: usize) -> PageHits {
 }
 
 /// `html` with every hit of `needle` wrapped in `<mark>`, the one numbered `current` (counting
-/// from zero, as [`page_hits`] counts) marked `data-current`.
+/// from zero, as [`page_hits`] counts) marked `data-current` with that number, so a page marked for
+/// another hit is told from it.
 #[must_use]
 pub fn mark_page(html: &str, needle: &Needle, current: Option<usize>) -> String {
     let mut out = String::with_capacity(html.len() + 64);
@@ -152,11 +153,11 @@ pub fn mark_page(html: &str, needle: &Needle, current: Option<usize>) -> String 
             return;
         }
         out.push_str(html.get(copied..from).unwrap_or_default());
-        out.push_str(if Some(number) == current {
-            "<mark data-current=\"yes\">"
+        if Some(number) == current {
+            out.push_str(&format!("<mark data-current=\"{number}\">"));
         } else {
-            "<mark>"
-        });
+            out.push_str("<mark>");
+        }
         out.push_str(html.get(from..to).unwrap_or_default());
         out.push_str("</mark>");
         copied = to;
@@ -230,7 +231,7 @@ mod tests {
                 "<p>cat</p><p>cat</p>",
                 "cat",
                 Some(1),
-                "<p><mark>cat</mark></p><p><mark data-current=\"yes\">cat</mark></p>",
+                "<p><mark>cat</mark></p><p><mark data-current=\"1\">cat</mark></p>",
             ),
             (
                 "an entity in the run is kept as written",
