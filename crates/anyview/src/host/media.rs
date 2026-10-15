@@ -6,7 +6,7 @@ use super::saving;
 use crate::media::{ExportEnd, ExportTool, Exports, MediaHub, WriteRoute};
 use anyview_core::{
     AudioTarget, ExportJob, FileHead, FileName, FilePath, FormatDetail, FormatKind, MediaExport,
-    MediaTime, RasterTarget, Resume, SniffStep, StreamPick, Subtitles, TimeRange, sniff,
+    RasterTarget, Resume, SniffStep, StreamPick, Subtitles, TimeRange, sniff,
 };
 use anyview_media::{ExportRequest, MediaError, NameHints, ShotContent};
 use anyview_plugin::Subject;
@@ -123,12 +123,9 @@ pub(super) async fn trim_in_place(
     versions: &Versions,
     at: SavedAt,
     file: &Opened,
-    (start, end): (MediaTime, MediaTime),
+    range: TimeRange,
 ) -> Outcome {
     let source = file.source.path();
-    let Ok(range) = TimeRange::new(start, Some(end)) else {
-        return Outcome::NotWritten("the part to keep is empty".to_owned());
-    };
     let subject = Subject {
         kind: file.sniffed.kind(),
         mime: Some(file.sniffed.mime()),

@@ -75,20 +75,17 @@ impl StageView for TreeStageView {
             | Stage::Table(_) => ContentScale::ACTUAL,
         };
         let (under, key) = under_cursor(&tree, stage);
-        StageParams {
-            tree: TreeParams {
-                rows,
-                page: view::page_of(area, scale),
-                editable: if doc.is_editable() {
-                    Editable::Yes
-                } else {
-                    Editable::No
-                },
-                under,
-                key,
+        StageParams::default().with_tree(TreeParams {
+            rows,
+            page: view::page_of(area, scale),
+            editable: if doc.is_editable() {
+                Editable::Yes
+            } else {
+                Editable::No
             },
-            ..StageParams::default()
-        }
+            under,
+            key,
+        })
     }
 
     fn arrived(doc: &TreeDoc, stage: &Stage, _left_at: &Resume) -> Vec<StageIn> {

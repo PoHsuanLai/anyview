@@ -82,17 +82,22 @@ impl Default for ContentScale {
     }
 }
 
-/// The zoom one step from the scale shown: `step` is the factor in thousandths (1250 is x1.25).
-/// A step out that reaches the fit scale is the fit zoom itself, so zooming out is a way back to
-/// it; every other result is clamped to the zoom limits.
-pub fn stepped(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
+/// The scale one step from the one shown: `step` thousandths bigger for `In`, smaller for `Out`.
+fn stepped_target(viewport: Viewport, dir: ZoomDir, step: Permille) -> Permille {
     let shown = u64::from(viewport.shown.0.max(1));
     let step = u64::from(step.0.max(1001));
     let target = match dir {
         ZoomDir::In => shown * step / 1000,
         ZoomDir::Out => shown * 1000 / step,
     };
-    let target = Permille(u32::try_from(target).unwrap_or(u32::MAX));
+    Permille(u32::try_from(target).unwrap_or(u32::MAX))
+}
+
+/// The zoom one step from the scale shown: `step` is the factor in thousandths (1250 is x1.25).
+/// A step out that reaches the fit scale is the fit zoom itself, so zooming out is a way back to
+/// it; every other result is clamped to the zoom limits.
+pub fn stepped(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
+    let target = stepped_target(viewport, dir, step);
     match dir {
         ZoomDir::Out if target <= viewport.fit => Zoom::Fit,
         ZoomDir::In | ZoomDir::Out => Zoom::scaled(target),
@@ -104,12 +109,7 @@ pub fn stepped(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
 /// the fit scale, either way, is the fit zoom itself, so fit is always a stop on the way.
 pub fn stepped_past_fit(viewport: Viewport, dir: ZoomDir, step: Permille) -> Zoom {
     let shown = u64::from(viewport.shown.0.max(1));
-    let step = u64::from(step.0.max(1001));
-    let target = match dir {
-        ZoomDir::In => shown * step / 1000,
-        ZoomDir::Out => shown * 1000 / step,
-    };
-    let target = Permille(u32::try_from(target).unwrap_or(u32::MAX));
+    let target = stepped_target(viewport, dir, step);
     let crosses = match dir {
         ZoomDir::Out => u64::from(viewport.fit.0) < shown && target <= viewport.fit,
         ZoomDir::In => viewport.shown < viewport.fit && target >= viewport.fit,

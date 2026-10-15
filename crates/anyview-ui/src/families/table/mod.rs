@@ -83,23 +83,20 @@ impl StageView for TableStageView {
             | Stage::Text(_)
             | Stage::Tree(_) => crate::ContentScale::ACTUAL,
         };
-        StageParams {
-            table: TableParams {
-                columns: doc
-                    .sheets
-                    .get(at)
-                    .map_or(0, |sheet| sheet.table.columns().0),
-                sheets: SheetTotal(u32::try_from(doc.sheets.len()).unwrap_or(u32::MAX)),
-                rows: doc.rows_now(at),
-                page: view::page_of(area, scale),
-                editable: if doc.is_editable() {
-                    Editable::Yes
-                } else {
-                    Editable::No
-                },
+        StageParams::default().with_table(TableParams {
+            columns: doc
+                .sheets
+                .get(at)
+                .map_or(0, |sheet| sheet.table.columns().0),
+            sheets: SheetTotal(u32::try_from(doc.sheets.len()).unwrap_or(u32::MAX)),
+            rows: doc.rows_now(at),
+            page: view::page_of(area, scale),
+            editable: if doc.is_editable() {
+                Editable::Yes
+            } else {
+                Editable::No
             },
-            ..StageParams::default()
-        }
+        })
     }
 
     fn arrived(doc: &TableDoc, stage: &Stage, _left_at: &anyview_core::Resume) -> Vec<StageIn> {

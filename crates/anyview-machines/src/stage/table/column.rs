@@ -124,37 +124,38 @@ impl Key {
     }
 }
 
-/// The digits at the front of `chars`, taken off it, without their leading zeros.
-fn digits(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> String {
-    let mut run = String::new();
-    while let Some(d) = chars.next_if(char::is_ascii_digit) {
-        run.push(d);
-    }
-    run.trim_start_matches('0').to_owned()
+/// The digits at the front of `text` without their leading zeros, and what follows them.
+fn digits(text: &str) -> (&str, &str) {
+    let end = text
+        .bytes()
+        .position(|byte| !byte.is_ascii_digit())
+        .unwrap_or(text.len());
+    let (run, rest) = text.split_at(end);
+    (run.trim_start_matches('0'), rest)
 }
 
 /// Two texts' order with the runs of digits in them compared as numbers, so `file2` comes before
-/// `file10`. The texts are already case-folded.
-fn natural(a: &str, b: &str) -> Ordering {
-    let (mut a, mut b) = (a.chars().peekable(), b.chars().peekable());
+/// `file10`. The texts are already case-folded. Nothing is allocated: this runs for every
+/// comparison of a sort.
+fn natural(mut a: &str, mut b: &str) -> Ordering {
     loop {
-        match (a.peek().copied(), b.peek().copied()) {
+        match (a.chars().next(), b.chars().next()) {
             (None, None) => return Ordering::Equal,
             (None, Some(_)) => return Ordering::Less,
             (Some(_), None) => return Ordering::Greater,
             (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
-                let (x, y) = (digits(&mut a), digits(&mut b));
-                let order = x.len().cmp(&y.len()).then_with(|| x.cmp(&y));
+                let ((x, rest_a), (y, rest_b)) = (digits(a), digits(b));
+                let order = x.len().cmp(&y.len()).then_with(|| x.cmp(y));
                 if order != Ordering::Equal {
                     return order;
                 }
+                (a, b) = (rest_a, rest_b);
             }
             (Some(x), Some(y)) => {
                 if x != y {
                     return x.cmp(&y);
                 }
-                a.next();
-                b.next();
+                (a, b) = (a.split_at(x.len_utf8()).1, b.split_at(y.len_utf8()).1);
             }
         }
     }

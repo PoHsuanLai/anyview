@@ -1,6 +1,6 @@
 use super::{MIN_KEPT, MediaTrim, TrimIn, TrimWindow};
 use crate::stage::TrimEdge::{End, Start};
-use anyview_core::{Edit, MediaLength, MediaTime};
+use anyview_core::{Edit, MediaLength, MediaTime, TimeRange};
 
 const fn secs(seconds: u64) -> MediaTime {
     MediaTime::from_secs(seconds)
@@ -165,10 +165,9 @@ fn applying_keeps_the_stretch_and_saving_it_is_an_edit_of_that_stretch() {
     );
     assert_eq!(
         trim.edit(),
-        Some(Edit::Trim {
-            start: secs(10),
-            end: secs(50)
-        })
+        TimeRange::new(secs(10), Some(secs(50)))
+            .ok()
+            .map(Edit::Trim)
     );
     // Without anything chosen, nothing is a trim.
     let whole = run(&[up(), TrimIn::Apply]);

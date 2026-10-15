@@ -345,12 +345,12 @@ where
             file,
             request:
                 EditRequest {
-                    edit: Edit::Trim { start, end },
+                    edit: Edit::Trim(range),
                     ..
                 },
         } => {
             let at = parts.store.saved_at();
-            media::trim_in_place(&parts.media, &parts.versions, at, &file, (start, end)).await
+            media::trim_in_place(&parts.media, &parts.versions, at, &file, range).await
         }
         Task::Edit { file, request } => {
             let parts = Arc::clone(parts);

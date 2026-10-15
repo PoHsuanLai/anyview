@@ -300,22 +300,24 @@ impl CropBox {
                 ..self
             };
         }
+        // A rectangle can be smaller than `LEAST` (a held shape makes one), so each bound is kept
+        // inside the picture before it is clamped to.
         let (west, east, north, south) = grip.sides();
         let least_x = LEAST.min(width);
         let least_y = LEAST.min(height);
         let (mut l, mut t) = (px(self.left), px(self.top));
         let (mut r, mut b) = (px(self.right()), px(self.bottom()));
         if west {
-            l = (l + dx).clamp(0, r - least_x);
+            l = (l + dx).clamp(0, (r - least_x).max(0));
         }
         if east {
-            r = (r + dx).clamp(l + least_x, width);
+            r = (r + dx).clamp((l + least_x).min(width), width);
         }
         if north {
-            t = (t + dy).clamp(0, b - least_y);
+            t = (t + dy).clamp(0, (b - least_y).max(0));
         }
         if south {
-            b = (b + dy).clamp(t + least_y, height);
+            b = (b + dy).clamp((t + least_y).min(height), height);
         }
         match ratio {
             None => CropBox {

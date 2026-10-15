@@ -182,6 +182,52 @@ fn dragging_a_grip_moves_its_sides_and_stays_inside_the_picture() {
 }
 
 #[test]
+fn a_rectangle_under_the_least_size_can_still_be_dragged() {
+    // A 16:9 shape cut from a 16 by 16 corner is 16 by 9 at the top, 3 pixels down.
+    let shaped = boxed(0, 0, 16, 16).shaped((16, 9));
+    assert_eq!(shaped, boxed(0, 3, 16, 9));
+    // name, the rectangle, the picture, grip, the pointer's move in whole pixels, the rectangle after
+    type Case = (
+        &'static str,
+        CropBox,
+        PixelSize,
+        CropGrip,
+        (i64, i64),
+        CropBox,
+    );
+    const CASES: &[Case] = &[
+        (
+            "the top edge of a rectangle shorter than the least side",
+            boxed(0, 3, 16, 9),
+            SHOWN,
+            CropGrip::North,
+            (0, -5),
+            boxed(0, 0, 16, 12),
+        ),
+        (
+            "the right edge of a narrow rectangle against the edge of a narrow picture",
+            boxed(14, 0, 6, 100),
+            size(20, 100),
+            CropGrip::East,
+            (5, 0),
+            boxed(14, 0, 6, 100),
+        ),
+    ];
+    for (name, start, shown, grip, (x, y), want) in CASES {
+        for ratio in [None, Some((9, 16))] {
+            let got = start.dragged(*grip, by(*x, *y), *shown, ratio);
+            if ratio.is_none() {
+                assert_eq!(got, *want, "{name}");
+            }
+            assert!(
+                got.right() <= shown.width.0 && got.bottom() <= shown.height.0,
+                "{name} stays inside"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_drag_moves_by_whole_pixels_rounded_to_the_nearest() {
     let start = boxed(100, 50, 200, 100);
     // name, move in 64ths of a pixel, left after

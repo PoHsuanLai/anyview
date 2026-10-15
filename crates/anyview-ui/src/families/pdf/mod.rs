@@ -95,10 +95,7 @@ impl StageView for PdfStageView {
                 fit: fit.page,
             };
         }
-        StageParams {
-            pdf,
-            ..StageParams::default()
-        }
+        StageParams::default().with_pdf(pdf)
     }
 
     /// The place the file was left is put back now that the page count is known: before it, the

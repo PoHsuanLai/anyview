@@ -177,8 +177,11 @@ impl StageOut {
     }
 }
 
-/// What each stage needs from the view and settings.
+/// What each stage needs from the view and settings. The params of the stages that only describe the
+/// open file (`PdfParams`, `TextParams`, `TableParams`, `TreeParams`) are plain data a host fills
+/// whole; this struct, which a stage's settings are added to, is `#[non_exhaustive]`.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub struct StageParams {
     /// For the raster stage.
     pub raster: RasterParams,
@@ -192,4 +195,42 @@ pub struct StageParams {
     pub table: TableParams,
     /// For the tree stage.
     pub tree: TreeParams,
+}
+
+impl StageParams {
+    /// These parameters with `raster` for the raster stage.
+    #[must_use]
+    pub fn with_raster(self, raster: RasterParams) -> Self {
+        StageParams { raster, ..self }
+    }
+
+    /// These parameters with `pdf` for the PDF stage.
+    #[must_use]
+    pub fn with_pdf(self, pdf: PdfParams) -> Self {
+        StageParams { pdf, ..self }
+    }
+
+    /// These parameters with `media` for the media stage.
+    #[must_use]
+    pub fn with_media(self, media: MediaParams) -> Self {
+        StageParams { media, ..self }
+    }
+
+    /// These parameters with `text` for the text stage.
+    #[must_use]
+    pub fn with_text(self, text: TextParams) -> Self {
+        StageParams { text, ..self }
+    }
+
+    /// These parameters with `table` for the table stage.
+    #[must_use]
+    pub fn with_table(self, table: TableParams) -> Self {
+        StageParams { table, ..self }
+    }
+
+    /// These parameters with `tree` for the tree stage.
+    #[must_use]
+    pub fn with_tree(self, tree: TreeParams) -> Self {
+        StageParams { tree, ..self }
+    }
 }

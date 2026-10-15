@@ -190,7 +190,7 @@ fn picture_edit(viewer: Viewer, edit: Edit, at: Stamp, params: &ViewerParams) ->
         Edit::DeletePages(_)
         | Edit::MovePage { .. }
         | Edit::Adjust(_)
-        | Edit::Trim { .. }
+        | Edit::Trim(_)
         | Edit::Markup => {
             return (viewer, vec![]);
         }

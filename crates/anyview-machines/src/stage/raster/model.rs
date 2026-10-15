@@ -196,6 +196,7 @@ pub enum RasterOut {
 
 /// What the stage needs from the view and from settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct RasterParams {
     /// The scale on screen and the fit scale.
     pub viewport: Viewport,
@@ -209,6 +210,44 @@ pub struct RasterParams {
     pub runs: Runs,
     /// Whether the desktop asks for less movement.
     pub motion: Motion,
+}
+
+impl RasterParams {
+    /// These parameters with the view at `viewport`.
+    #[must_use]
+    pub fn with_viewport(self, viewport: Viewport) -> Self {
+        RasterParams { viewport, ..self }
+    }
+
+    /// These parameters with `centre` at the middle of the view.
+    #[must_use]
+    pub fn with_centre(self, centre: DocPoint) -> Self {
+        RasterParams { centre, ..self }
+    }
+
+    /// These parameters with a zoom step of `step` thousandths.
+    #[must_use]
+    pub fn with_step(self, step: Permille) -> Self {
+        RasterParams { step, ..self }
+    }
+
+    /// These parameters with an animation's frames staying `delays`.
+    #[must_use]
+    pub fn with_delays(self, delays: FrameDelays) -> Self {
+        RasterParams { delays, ..self }
+    }
+
+    /// These parameters with an animation asking for `runs`.
+    #[must_use]
+    pub fn with_runs(self, runs: Runs) -> Self {
+        RasterParams { runs, ..self }
+    }
+
+    /// These parameters with the desktop asking for `motion`.
+    #[must_use]
+    pub fn with_motion(self, motion: Motion) -> Self {
+        RasterParams { motion, ..self }
+    }
 }
 
 impl Default for RasterParams {

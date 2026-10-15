@@ -38,7 +38,7 @@ pub fn page_op(edit: Edit, current: PageIndex) -> Result<PageOp, PdfError> {
         }),
         Edit::DeletePages(range) => Ok(PageOp::Delete(range)),
         Edit::MovePage { from, to } => Ok(PageOp::Move { from, to }),
-        Edit::Flip(_) | Edit::Adjust(_) | Edit::Trim { .. } | Edit::Markup => {
+        Edit::Flip(_) | Edit::Adjust(_) | Edit::Trim(_) | Edit::Markup => {
             Err(PdfError::EditUnsupported { kind: edit.kind() })
         }
     }

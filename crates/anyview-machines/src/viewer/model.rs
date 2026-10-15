@@ -250,6 +250,7 @@ pub enum ViewerOut {
 
 /// Everything the regions read besides their inputs.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub struct ViewerParams {
     /// The chrome's timing.
     pub chrome: ChromeParams,
@@ -270,4 +271,63 @@ pub struct ViewerParams {
     pub files: Vec<FileAction>,
     /// What the platform can do: Open is bound only when it has a file chooser.
     pub platform: PlatformAbilities,
+}
+
+impl ViewerParams {
+    /// These parameters with the chrome timed by `chrome`.
+    #[must_use]
+    pub fn with_chrome(self, chrome: ChromeParams) -> Self {
+        ViewerParams { chrome, ..self }
+    }
+
+    /// These parameters with the open file having the tabs of `panel`.
+    #[must_use]
+    pub fn with_panel(self, panel: PanelParams) -> Self {
+        ViewerParams { panel, ..self }
+    }
+
+    /// These parameters with the palette's rows of `palette`.
+    #[must_use]
+    pub fn with_palette(self, palette: PaletteParams) -> Self {
+        ViewerParams { palette, ..self }
+    }
+
+    /// These parameters with the context menu's rows of `context`.
+    #[must_use]
+    pub fn with_context(self, context: ContextParams) -> Self {
+        ViewerParams { context, ..self }
+    }
+
+    /// These parameters with `presentation` for what the open file is.
+    #[must_use]
+    pub fn with_presentation(self, presentation: PresentationParams) -> Self {
+        ViewerParams {
+            presentation,
+            ..self
+        }
+    }
+
+    /// These parameters with the sheets opening on `sheet`.
+    #[must_use]
+    pub fn with_sheet(self, sheet: SheetParams) -> Self {
+        ViewerParams { sheet, ..self }
+    }
+
+    /// These parameters with the stages reading `stage`.
+    #[must_use]
+    pub fn with_stage(self, stage: StageParams) -> Self {
+        ViewerParams { stage, ..self }
+    }
+
+    /// These parameters with `files` as the file actions the open file offers.
+    #[must_use]
+    pub fn with_files(self, files: Vec<FileAction>) -> Self {
+        ViewerParams { files, ..self }
+    }
+
+    /// These parameters with the platform able to do `platform`.
+    #[must_use]
+    pub fn with_platform(self, platform: PlatformAbilities) -> Self {
+        ViewerParams { platform, ..self }
+    }
 }

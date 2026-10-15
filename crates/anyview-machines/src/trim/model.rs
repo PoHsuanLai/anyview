@@ -1,7 +1,7 @@
 //! The trim's state, inputs and what it can be asked.
 
 use crate::stage::TrimEdge;
-use anyview_core::{Edit, MediaLength, MediaTime};
+use anyview_core::{Edit, MediaLength, MediaTime, TimeRange};
 
 /// The least a trim keeps, so that both handles can still be taken hold of.
 pub const MIN_KEPT: MediaTime = MediaTime::from_millis(100);
@@ -124,9 +124,9 @@ impl MediaTrim {
     /// The edit that saves the applied trim.
     #[must_use]
     pub fn edit(&self) -> Option<Edit> {
-        self.applied.map(|window| Edit::Trim {
-            start: window.start,
-            end: window.end,
-        })
+        let window = self.applied?;
+        TimeRange::new(window.start, Some(window.end))
+            .ok()
+            .map(Edit::Trim)
     }
 }

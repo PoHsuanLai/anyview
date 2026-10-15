@@ -1,11 +1,17 @@
 //! The sheets of editing a picture: Adjust Size, and the question asked when a picture with
 //! changes that are not saved is about to be left.
 
+use super::option::MAX_LONG_EDGE;
 use anyview_core::{PixelLen, PixelSize};
 
-/// The most a side of a resized picture may be, so that a mistyped number cannot ask for a
-/// picture no memory holds.
-pub const MAX_RESIZED_SIDE: u32 = 30_000;
+/// The most a side of a resized picture may be: the longest side an export may ask for, so that
+/// the two agree.
+pub const MAX_RESIZED_SIDE: u32 = MAX_LONG_EDGE.0;
+
+/// The most pixels a resized picture may hold (400 MB as 8-bit RGBA), so that a mistyped number
+/// cannot ask for a picture no memory holds. A side cap alone would allow a square of
+/// 16 384 pixels, a gigabyte.
+pub const MAX_RESIZED_AREA: u64 = 100_000_000;
 
 /// What the numbers of Adjust Size count.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -58,6 +64,28 @@ fn held(value: u64) -> u32 {
 }
 
 impl ResizeDraft {
+    /// The two sides when one, `typed`, was set and the other was `other`: the draft's sides
+    /// brought inside `MAX_RESIZED_AREA`. `from` is the original `(typed, other)` sides. Kept
+    /// proportions shrink the typed side, so that the other keeps following it; free sides shrink
+    /// the other one.
+    fn within_area(self, typed: u32, other: u32, from: (u32, u32)) -> (u32, u32) {
+        let (typed, other) = match self.proportion {
+            ResizeProportion::Kept => {
+                let room = MAX_RESIZED_AREA * u64::from(from.0) / u64::from(from.1);
+                let typed = typed.min(u32::try_from(room.isqrt()).unwrap_or(MAX_RESIZED_SIDE));
+                let typed = typed.max(1);
+                (
+                    typed,
+                    held(scaled(typed, u64::from(from.1), u64::from(from.0))),
+                )
+            }
+            ResizeProportion::Free => (typed, other),
+        };
+        // Rounding can leave the area a little over; the other side gives way.
+        let room = MAX_RESIZED_AREA / u64::from(typed);
+        (typed, held(u64::from(other).min(room)))
+    }
+
     /// The sheet for a picture that is `from` now: its own size, in pixels, keeping its
     /// proportions.
     #[must_use]
@@ -143,13 +171,8 @@ impl ResizeDraft {
         let (from_w, from_h) = (self.from.width.0.max(1), self.from.height.0.max(1));
         match change {
             ResizeChange::Width(value) => {
-                let width = self.pixels_along(value, from_w);
-                let height = match self.proportion {
-                    ResizeProportion::Kept => {
-                        held(scaled(width, u64::from(from_h), u64::from(from_w)))
-                    }
-                    ResizeProportion::Free => self.height,
-                };
+                let typed = self.pixels_along(value, from_w);
+                let (width, height) = self.within_area(typed, self.height, (from_w, from_h));
                 ResizeDraft {
                     width,
                     height,
@@ -157,13 +180,8 @@ impl ResizeDraft {
                 }
             }
             ResizeChange::Height(value) => {
-                let height = self.pixels_along(value, from_h);
-                let width = match self.proportion {
-                    ResizeProportion::Kept => {
-                        held(scaled(height, u64::from(from_w), u64::from(from_h)))
-                    }
-                    ResizeProportion::Free => self.width,
-                };
+                let typed = self.pixels_along(value, from_h);
+                let (height, width) = self.within_area(typed, self.width, (from_h, from_w));
                 ResizeDraft {
                     width,
                     height,
@@ -172,16 +190,12 @@ impl ResizeDraft {
             }
             ResizeChange::Unit(unit) => ResizeDraft { unit, ..self },
             ResizeChange::Proportion(proportion) => {
-                let height = match proportion {
-                    ResizeProportion::Kept => {
-                        held(scaled(self.width, u64::from(from_h), u64::from(from_w)))
-                    }
-                    ResizeProportion::Free => self.height,
-                };
+                let draft = ResizeDraft { proportion, ..self };
+                let (width, height) = draft.within_area(self.width, self.height, (from_w, from_h));
                 ResizeDraft {
+                    width,
                     height,
-                    proportion,
-                    ..self
+                    ..draft
                 }
             }
         }
@@ -303,10 +317,20 @@ mod tests {
                 (1, 1),
             ),
             (
-                "never above the most",
+                "never above the most, kept in proportion within the area",
                 &[ResizeChange::Width(99_999)],
-                size(MAX_RESIZED_SIDE, 22_500),
-                (MAX_RESIZED_SIDE, 22_500),
+                size(11_547, 8660),
+                (11_547, 8660),
+            ),
+            (
+                "free sides give way to each other past the area",
+                &[
+                    ResizeChange::Proportion(ResizeProportion::Free),
+                    ResizeChange::Width(16_000),
+                    ResizeChange::Height(16_000),
+                ],
+                size(6250, 16_000),
+                (6250, 16_000),
             ),
         ];
         for (name, changes, want, shown) in CASES {
@@ -329,8 +353,8 @@ mod tests {
         let percent = draft.changed(ResizeChange::Unit(ResizeUnit::Percent));
         assert_eq!(
             percent.most(),
-            7500,
-            "30000 pixels from the longer side of 400"
+            4096,
+            "16384 pixels from the longer side of 400"
         );
     }
 }

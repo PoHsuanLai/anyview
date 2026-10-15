@@ -14,7 +14,9 @@ use crate::stage::{
 };
 use crate::trim::{MediaTrim, TrimIn};
 use crate::viewer::{Viewer, ViewerIn, ViewerOut, ViewerParams};
-use anyview_core::{Edit, Fact, FactLabel, FactValue, FileAction, MediaExportKind, MediaTime};
+use anyview_core::{
+    Edit, Fact, FactLabel, FactValue, FileAction, MediaExportKind, MediaTime, TimeRange,
+};
 use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 use ds_core::vocab::{Shortcut, ShortcutKey};
@@ -104,10 +106,9 @@ const UNDO: ViewerIn = ViewerIn::Key(Press::Act(Act::Undo));
 const REDO: ViewerIn = ViewerIn::Key(Press::Act(Act::Redo));
 
 fn the_save() -> ViewerOut {
-    ViewerOut::Edit(EditRequest::of_recording(Edit::Trim {
-        start: secs(10),
-        end: secs(50),
-    }))
+    ViewerOut::Edit(EditRequest::of_recording(Edit::Trim(
+        TimeRange::new(secs(10), Some(secs(50))).unwrap(),
+    )))
 }
 
 fn saves(outs: &[ViewerOut]) -> bool {
