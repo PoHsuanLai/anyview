@@ -11,7 +11,7 @@ use anyview_peek::{is_audio, natural_size};
 use anyview_ui::{NaturalSize, SizeBasis, audio_window_size};
 use ds::window::tiled::Tiled;
 use ds::window::vocab::{Fullscreen, Maximized, WindowState};
-use ds_blitz::{Extent, Fit, Reserve, ScreenArea, WindowSize, WindowSizer};
+use ds_blitz::{Extent, Fit, Reserve, ScreenArea, WindowSize, WindowSizer, WorkBasis};
 
 /// The window of a file with no natural size (text, code, a table, a book, a folder, a failure): 1000
 /// by 700 logical pixels.
@@ -30,9 +30,10 @@ pub(crate) const COMPACT_LEAST: Extent = Extent::new(320, 240);
 /// 1200 logical pixels, so the 85% cap is 1632 by 1020.
 const DEFAULT_SCREEN: Extent = Extent::new(1920, 1200);
 
-/// What the desktop's top bar takes off the screen, as far as a client can know: 32 logical pixels,
-/// the height of GNOME's bar (KDE's panel and macOS's menu bar are about as tall). Wayland reports
-/// no panel or dock to a client, so without this the cap would be 85% of the whole output.
+/// What the desktop's top bar takes off a screen whose work area is not known, as far as a client
+/// can guess: 32 logical pixels, the height of GNOME's bar (KDE's panel and macOS's menu bar are
+/// about as tall). Wayland reports no panel or dock to a client, so without the desktop shell's
+/// word (`WorkBasis::Desktop`) the cap would be 85% of the whole output.
 const TOP_BAR: Reserve = Reserve {
     top: 32,
     right: 0,
@@ -40,13 +41,24 @@ const TOP_BAR: Reserve = Reserve {
     left: 0,
 };
 
-/// The area a window is fitted to on `screen`: its work area less the top bar, in logical pixels,
-/// or [`DEFAULT_SCREEN`] when no screen is known. `replaced` (the screen a test names) replaces
-/// either. quire caps a window to 85% of it (`Extent::fit_with`).
+/// The area a window is fitted to on `screen`, in logical pixels, or [`DEFAULT_SCREEN`] when no
+/// screen is known. A work area the desktop shell reported (`WorkBasis::Desktop`) already
+/// excludes its panels and docks and is used as it is, and so is one the app was given a reserve
+/// for (`WorkBasis::LessReserve`); the whole output (`WorkBasis::WholeOutput`) has the top bar
+/// guess taken off ([`TOP_BAR`]). `replaced` (the screen a test names) replaces any of them.
+/// quire caps a window to 85% of it (`Extent::fit_with`).
 pub(crate) fn work_for(screen: Option<ScreenArea>, replaced: Option<Extent>) -> Extent {
     replaced
-        .or_else(|| screen.map(|area| area.less(TOP_BAR).work))
+        .or_else(|| screen.map(work_of))
         .unwrap_or(DEFAULT_SCREEN)
+}
+
+/// The part of `area` a window is fitted to.
+fn work_of(area: ScreenArea) -> Extent {
+    match area.basis {
+        WorkBasis::Desktop | WorkBasis::LessReserve => area.work,
+        WorkBasis::WholeOutput => area.less(TOP_BAR).work,
+    }
 }
 
 /// `WIDTHxHEIGHT` as an extent; `None` when it is not two positive whole numbers.
@@ -196,7 +208,7 @@ mod tests {
     use dioxus::prelude::*;
     use ds::prelude::Scale;
     use ds::window::tiled::TileEdge;
-    use ds_blitz::{ScreenOf, WorkBasis};
+    use ds_blitz::ScreenOf;
     use ds_harness::{Clock, Harness, HarnessConfig, Viewport, WindowScreen};
 
     /// A screen whose 85% is 1700 by 1020.
@@ -276,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn the_work_area_is_the_screen_less_the_top_bar_and_a_fixed_one_without() {
+    fn the_work_area_is_the_shells_else_the_screen_less_the_top_bar_and_a_fixed_one_without() {
         let hd = output(Extent::new(1920, 1080), Scale(120));
         assert_eq!(work_for(Some(hd), None), Extent::new(1920, 1048));
         let retina = output(Extent::new(3840, 2160), Scale(240));
@@ -295,8 +307,27 @@ mod tests {
             Extent::new(640, 480),
             "the override wins"
         );
-        let less = hd.less(TOP_BAR);
-        assert_eq!(less.basis, WorkBasis::LessReserve);
+        let reported = ScreenArea {
+            work: Extent::new(1920, 1000),
+            basis: WorkBasis::Desktop,
+            ..hd
+        };
+        assert_eq!(
+            work_for(Some(reported), None),
+            Extent::new(1920, 1000),
+            "the shell's work area is exact, with no top bar guessed off it"
+        );
+        let given = hd.less(Reserve {
+            top: 0,
+            right: 0,
+            bottom: 48,
+            left: 0,
+        });
+        assert_eq!(
+            work_for(Some(given), None),
+            Extent::new(1920, 1032),
+            "a reserve the app gave is kept as given"
+        );
     }
 
     #[test]

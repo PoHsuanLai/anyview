@@ -97,6 +97,7 @@ fn nothing() -> Missing {
         capability: ds_helpers::Capability::new("heic-decode").unwrap(),
         package: None,
         program: None,
+        install_lines: Vec::new(),
     }
 }
 
