@@ -2,6 +2,8 @@
 //! source view.
 
 mod command;
+mod editing;
+mod finding;
 mod model;
 mod step;
 mod steps;
