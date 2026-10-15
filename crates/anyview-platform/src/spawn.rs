@@ -50,17 +50,33 @@ pub struct ProcessSpawn;
 impl Spawn for ProcessSpawn {
     fn spawn(&self, argv: &Argv) -> Result<(), PlatformError> {
         use std::process::{Command, Stdio};
-        Command::new(argv.program())
+        let child = Command::new(argv.program())
             .args(argv.args())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map(drop)
             .map_err(|error| PlatformError::Spawn {
                 program: argv.program().to_owned(),
                 kind: error.kind(),
-            })
+            })?;
+        reap(child, argv.program().to_owned());
+        Ok(())
+    }
+}
+
+/// Wait for `child` on a thread of its own, so a program that ends is not left a zombie for the
+/// life of the viewer, and say when it ends badly (an opener that cannot open anything).
+fn reap(mut child: std::process::Child, program: String) {
+    let waiter = std::thread::Builder::new()
+        .name("anyview-reaper".to_owned())
+        .spawn(move || match child.wait() {
+            Ok(status) if status.success() => {}
+            Ok(status) => log::warn!("{program} ended with {status}"),
+            Err(error) => log::warn!("cannot wait for {program}: {error}"),
+        });
+    if let Err(error) = waiter {
+        log::warn!("cannot reap a program: {error}");
     }
 }
 

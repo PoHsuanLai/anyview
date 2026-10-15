@@ -77,11 +77,17 @@ impl MprisSession {
 impl MprisSession {
     /// The `file:` URL of the cover `state` carries: the one already written when the cover is
     /// the same, else the new cover written out. `None` for no cover, or one that cannot be
-    /// written.
-    async fn art_url_for(&self, held: &Player, state: &MediaState) -> Option<String> {
+    /// written. `before` and `before_url` are what the player held until now; the disk write
+    /// happens with no lock on the player, so a client reading it never waits behind the disk.
+    async fn art_url_for(
+        &self,
+        before: &MediaState,
+        before_url: Option<String>,
+        state: &MediaState,
+    ) -> Option<String> {
         let art = state.art.clone()?;
-        if held.state.art.as_ref() == Some(&art) {
-            return held.art_url.clone();
+        if before.art.as_ref() == Some(&art) {
+            return before_url;
         }
         let folder = self.art_folder.clone();
         let written = tokio::task::spawn_blocking(move || art::write(&folder, &art))
@@ -103,9 +109,14 @@ impl MediaSession for MprisSession {
             .interface::<_, Player>(OBJECT_PATH)
             .await
             .map_err(emit)?;
+        let (held_state, before_url) = {
+            let held = player.get().await;
+            (held.state.clone(), held.art_url.clone())
+        };
+        let art_url = self
+            .art_url_for(&held_state, before_url.clone(), state)
+            .await;
         let mut held = player.get_mut().await;
-        let before_url = held.art_url.clone();
-        let art_url = self.art_url_for(&held, state).await;
         let before = std::mem::replace(&mut held.state, state.clone());
         held.art_url = art_url;
         let emitter = player.signal_emitter();

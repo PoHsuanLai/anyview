@@ -12,6 +12,7 @@ use md5::{Digest, Md5};
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const URI_KEY: &str = "Thumb::URI";
 const MTIME_KEY: &str = "Thumb::MTime";
@@ -187,11 +188,11 @@ fn create_private_dir(directory: &Path) -> std::io::Result<()> {
     builder.create(directory)
 }
 
-/// Options that create or truncate a file for writing, readable by its owner alone where the
-/// platform has modes.
+/// Options that create a new file for writing (never one that is there), readable by its owner
+/// alone where the platform has modes.
 fn private_file() -> OpenOptions {
     let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
@@ -200,17 +201,31 @@ fn private_file() -> OpenOptions {
     options
 }
 
-/// Write `bytes` beside `path` and rename them over it, so a reader never sees half a file.
+/// Counts the temporary names this program has made, so two writers never share one.
+static NEXT_TEMPORARY: AtomicU64 = AtomicU64::new(0);
+
+/// Write `bytes` beside `path` and rename them over it, so a reader never sees half a file. The
+/// temporary name is the writer's own, and it is removed again when the write fails.
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), PlatformError> {
-    let temporary = path.with_extension("png.tmp");
+    let temporary = path.with_extension(format!(
+        "{}-{}.tmp",
+        std::process::id(),
+        NEXT_TEMPORARY.fetch_add(1, Ordering::Relaxed)
+    ));
     let write = || -> std::io::Result<()> {
         let file: File = private_file().open(&temporary)?;
         let mut out = BufWriter::new(file);
         out.write_all(bytes)?;
         out.into_inner().map_err(|e| e.into_error())?.sync_all()
     };
-    write().map_err(|error| PlatformError::io(IoOp::Write, &temporary, &error))?;
-    std::fs::rename(&temporary, path).map_err(|error| PlatformError::io(IoOp::Rename, path, &error))
+    if let Err(error) = write() {
+        drop(std::fs::remove_file(&temporary));
+        return Err(PlatformError::io(IoOp::Write, &temporary, &error));
+    }
+    std::fs::rename(&temporary, path).map_err(|error| {
+        drop(std::fs::remove_file(&temporary));
+        PlatformError::io(IoOp::Rename, path, &error)
+    })
 }
 
 #[cfg(test)]
@@ -318,7 +333,16 @@ mod tests {
         assert!(chunks.contains(&("Thumb::MTime".into(), "5".into())));
         let mode = std::fs::metadata(&written).unwrap().permissions().mode();
         assert_eq!(mode & 0o777, 0o600);
-        assert!(!written.with_extension("png.tmp").exists());
+        let leftover = std::fs::read_dir(written.parent().unwrap())
+            .unwrap()
+            .any(|entry| {
+                entry
+                    .unwrap()
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "tmp")
+            });
+        assert!(!leftover, "no temporary stays beside the thumbnail");
     }
 
     #[test]

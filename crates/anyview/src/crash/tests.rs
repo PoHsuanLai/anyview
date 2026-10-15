@@ -8,6 +8,7 @@ fn report(at: u64) -> Report {
         location: "src/x.rs:1:2".to_owned(),
         version: "0.1.0-beta.1".to_owned(),
         at,
+        backtrace: "0: anyview::main".to_owned(),
     }
 }
 
@@ -23,7 +24,13 @@ fn names(dir: &Path) -> Vec<String> {
 #[test]
 fn a_report_names_thread_message_location_and_version() {
     let text = report(5).to_string();
-    for part in ["0.1.0-beta.1", "main", "boom", "src/x.rs:1:2"] {
+    for part in [
+        "0.1.0-beta.1",
+        "main",
+        "boom",
+        "src/x.rs:1:2",
+        "anyview::main",
+    ] {
         assert!(text.contains(part), "{part} in {text}");
     }
 }

@@ -207,7 +207,7 @@ pub fn notice_of_declined(why: Declined) -> Option<Notice> {
 
 /// The program's one log line: the detail a notice leaves out, for whoever reads stderr.
 pub fn log(line: &str) {
-    eprintln!("anyview: {line}");
+    log::warn!("{line}");
 }
 
 /// The log line of an outcome that did not go as asked; `Done` and its kin say nothing.

@@ -119,7 +119,8 @@ async fn a_request_forwarded_to_the_viewer_arrives_as_an_opening_per_file() {
         panic!("the first launch is the viewer");
     };
     let (openings, mut arrived) = unbounded::<Arrival>();
-    let serving = tokio::spawn(relay(primary, openings));
+    let (requests, _door) = listen(primary);
+    let serving = tokio::spawn(relay(requests, openings));
 
     instance.forward(Request::Open(files.clone()));
     let mut got = Vec::new();
@@ -175,7 +176,8 @@ async fn a_handoff_forwarded_to_the_viewer_opens_the_results_it_names_not_the_fo
         panic!("the first launch is the viewer");
     };
     let (openings, mut arrived) = unbounded::<Arrival>();
-    let serving = tokio::spawn(relay(primary, openings));
+    let (requests, _door) = listen(primary);
+    let serving = tokio::spawn(relay(requests, openings));
 
     instance.forward(Request::Handoff(Handoff {
         file: files[0].clone(),
@@ -197,4 +199,16 @@ async fn a_handoff_forwarded_to_the_viewer_opens_the_results_it_names_not_the_fo
         Some(results),
         "the walk is the search's results, not the three files of the folder"
     );
+}
+
+#[tokio::test]
+async fn a_request_that_arrived_and_was_not_read_comes_back_when_the_door_closes() {
+    let instance = FakeInstance::new(FakeRole::FirstLaunch);
+    let Role::Primary(primary) = claim_role(&instance, &Request::Open(vec![])).await else {
+        panic!("the first launch is the viewer");
+    };
+    let late = Request::Open(vec![path("/a/1.png")]);
+    instance.forward(late.clone());
+
+    assert_eq!(primary.close(), vec![late]);
 }

@@ -47,6 +47,12 @@ fn a_recorded_view_is_read_back_with_its_label() {
     assert_eq!(entry.kind, FormatKind::Pdf);
     assert_eq!(entry.viewed, Viewed(1000));
     assert_eq!(entry.label, ResumeLabel::Page { number: 143 });
+
+    // The history lists every file the person opened: nobody else reads it or the folder.
+    use std::os::unix::fs::PermissionsExt;
+    let mode = |path: &std::path::Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&root), 0o700);
+    assert_eq!(mode(&root.join("history.json")), 0o600);
 }
 
 #[test]

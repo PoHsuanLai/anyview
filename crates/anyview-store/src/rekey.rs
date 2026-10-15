@@ -29,7 +29,7 @@ impl Versions {
                 saved_at: version.saved_at,
                 size: version.size.0,
             };
-            io::write_private_json(&kept.sidecar_path(&self.root), &sidecar)?;
+            io::write_json(&kept.sidecar_path(&self.root), &sidecar)?;
             io::remove(&version.id.sidecar_path(&self.root))?;
             io::remove(&version.id.data_path(&self.root))?;
             moved += 1;

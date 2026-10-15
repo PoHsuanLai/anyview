@@ -132,7 +132,7 @@ impl PlaceWriter {
             .store
             .remember(source.path(), source.stamp(), resume)
         {
-            eprintln!("anyview: cannot keep the place: {error}");
+            log::warn!("cannot keep the place: {error}");
         }
     }
 }

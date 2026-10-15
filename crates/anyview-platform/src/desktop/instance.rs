@@ -58,7 +58,7 @@ impl Instance for DbusInstance {
                 // The agent layer is an extra: a viewer that cannot offer it (no docket on this
                 // desktop, its name taken) still is the viewer.
                 if let Err(error) = intents::serve(&connection, sender).await {
-                    eprintln!("anyview: not offered to the agent layer: {error}");
+                    log::warn!("not offered to the agent layer: {error}");
                 }
                 Ok(Claim::Primary(Primary::new(requests, Box::new(connection))))
             }

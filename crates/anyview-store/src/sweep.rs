@@ -10,13 +10,25 @@ use std::path::Path;
 /// still running is not touched. Best effort: a folder that cannot be read has none to remove.
 /// Returns how many went.
 pub fn sweep_leftovers(dir: &Path) -> usize {
+    sweep_where(dir, leftover_of)
+}
+
+/// Deletes the scratch files in `dir` called `<prefix>-<pid>-<n>.<extension>` whose process is gone:
+/// the files a trim or a frame export of a viewer that was killed left in its cache folder. A
+/// file of a process that is still running is not touched. Returns how many went.
+pub fn sweep_scratch(dir: &Path, prefix: &str) -> usize {
+    sweep_where(dir, |name| scratch_of(name, prefix))
+}
+
+/// Deletes the files in `dir` whose name `owner_of` says a process made, if that process is gone.
+fn sweep_where(dir: &Path, owner_of: impl Fn(&str) -> Option<i32>) -> usize {
     let Ok(entries) = fs::read_dir(dir) else {
         return 0;
     };
     let mut removed = 0;
     for entry in entries.flatten() {
         let name = entry.file_name();
-        let Some(pid) = name.to_str().and_then(leftover_of) else {
+        let Some(pid) = name.to_str().and_then(&owner_of) else {
             continue;
         };
         let is_file = entry.file_type().is_ok_and(|kind| kind.is_file());
@@ -25,6 +37,13 @@ pub fn sweep_leftovers(dir: &Path) -> usize {
         }
     }
     removed
+}
+
+/// The process that made the scratch file called `name`, or `None` when it is not one of `prefix`'s.
+fn scratch_of(name: &str, prefix: &str) -> Option<i32> {
+    let rest = name.strip_prefix(prefix)?.strip_prefix('-')?;
+    let (tail, _extension) = rest.split_once('.')?;
+    leading_pid(tail, TailRule::NumberRequired)
 }
 
 /// The process that made the temporary file called `name`, or `None` when it is not one.
@@ -96,6 +115,20 @@ mod tests {
     fn a_leftover_names_the_process_that_made_it() {
         for (name, file, want) in CASES {
             assert_eq!(leftover_of(file), *want, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_scratch_file_names_the_process_that_made_it() {
+        const SCRATCH: &[(&str, &str, &str, Option<i32>)] = &[
+            ("a trim", "trim", "trim-4242-3.mkv", Some(4242)),
+            ("a frame", "frame", "frame-4242-0.png", Some(4242)),
+            ("another prefix", "trim", "frame-4242-0.png", None),
+            ("no number", "trim", "trim-4242.mkv", None),
+            ("not a pid", "trim", "trim-x-1.mkv", None),
+        ];
+        for (name, prefix, file, want) in SCRATCH {
+            assert_eq!(scratch_of(file, prefix), *want, "{name}");
         }
     }
 }

@@ -210,8 +210,9 @@ impl Versions {
         let sidecar: Sidecar = io::read_json(&id.sidecar_path(&self.root))?
             .ok_or_else(|| StoreError::NoSuchVersion { id: id.to_string() })?;
         let data = id.data_path(&self.root);
-        let bytes = fs::read(&data).map_err(|e| io_error(StoreOp::Read, &data, &e))?;
-        self.back_up(Pending::new(sidecar.path, bytes), at)?
+        // Looked at now, so a version whose data is gone fails before the file is backed up.
+        fs::metadata(&data).map_err(|e| io_error(StoreOp::Stat, &data, &e))?;
+        self.back_up(Pending::from_file(sidecar.path, data), at)?
             .write_in_place()
     }
 
@@ -262,7 +263,7 @@ impl Versions {
             saved_at: at,
             size,
         };
-        if let Err(error) = io::write_private_json(&id.sidecar_path(&self.root), &sidecar) {
+        if let Err(error) = io::write_json(&id.sidecar_path(&self.root), &sidecar) {
             io::remove(&id.data_path(&self.root))?;
             return Err(error);
         }

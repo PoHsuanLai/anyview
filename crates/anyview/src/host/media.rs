@@ -111,7 +111,7 @@ async fn transcode(media: &Media, file: &Opened, job: ExportJob) -> Outcome {
     }
 }
 
-/// Which cut of a recording the scratch folder holds next: the names are never the same twice.
+/// Which cut or frame the scratch folder holds next: the names are never the same twice.
 static NEXT_CUT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// The recording `file` made shorter, kept from `start` to `end`, and saved over itself with its
@@ -250,9 +250,11 @@ async fn frame(
     let png = match target {
         RasterTarget::Png => final_path.clone(),
         RasterTarget::Jpeg(_) | RasterTarget::Webp | RasterTarget::Avif(_) | RasterTarget::Tiff => {
-            media
-                .scratch
-                .join(format!("frame-{}.png", std::process::id()))
+            media.scratch.join(format!(
+                "frame-{}-{}.png",
+                std::process::id(),
+                NEXT_CUT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ))
         }
     };
     let (Ok(shot), Ok(to)) = (FilePath::new(&png), FilePath::new(&final_path)) else {
@@ -291,6 +293,8 @@ enum RecodeError {
     #[error("{0}")]
     Io(#[from] std::io::Error),
     #[error("{0}")]
+    Place(#[from] anyview_export::ExportError),
+    #[error("{0}")]
     Name(#[from] anyview_core::CoreError),
     #[error("{0}")]
     Image(#[from] anyview_image::ImageError),
@@ -314,7 +318,7 @@ fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), R
         }
     };
     let encoded = anyview_image::encode(&picture, target)?;
-    Ok(std::fs::write(to.as_path(), encoded)?)
+    Ok(anyview_export::write_new(&encoded, to.as_path())?)
 }
 
 #[cfg(test)]

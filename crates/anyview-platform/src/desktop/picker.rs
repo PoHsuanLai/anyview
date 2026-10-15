@@ -31,11 +31,13 @@ impl PortalPicker {
 
 impl Picker for PortalPicker {
     async fn pick(&self, kinds: &FileKinds) -> Result<PickOutcome, PlatformError> {
-        let Ok(builder) = self.env.session_builder() else {
-            return Ok(PickOutcome::NoDialog);
+        let builder = match self.env.session_builder() {
+            Ok(builder) => builder,
+            Err(error) => return Ok(no_dialog("find the session bus", &error)),
         };
-        let Ok(connection) = builder.build().await else {
-            return Ok(PickOutcome::NoDialog);
+        let connection = match builder.build().await {
+            Ok(connection) => connection,
+            Err(error) => return Ok(no_dialog("connect to the session bus", &error)),
         };
         let mut answered = answers(&connection, "choose", CALL).await?;
         let mut options: HashMap<&str, Value<'_>> = HashMap::from([
@@ -47,17 +49,17 @@ impl Picker for PortalPicker {
             options.insert("filters", filters);
             options.insert("current_filter", current);
         }
-        let Ok(proxy) = Proxy::new(&connection, DESKTOP, DESKTOP_PATH, FILE_CHOOSER).await else {
-            return Ok(PickOutcome::NoDialog);
+        let proxy = match Proxy::new(&connection, DESKTOP, DESKTOP_PATH, FILE_CHOOSER).await {
+            Ok(proxy) => proxy,
+            Err(error) => return Ok(no_dialog("reach the file chooser", &error)),
         };
         // No portal that offers the chooser is the same as no dialog; once it is up, a failure is
         // the call's.
-        if proxy
+        if let Err(error) = proxy
             .call_method("OpenFile", &(UNPARENTED, TITLE, options))
             .await
-            .is_err()
         {
-            return Ok(PickOutcome::NoDialog);
+            return Ok(no_dialog("ask the file chooser", &error));
         }
         let (response, results) = answered.next_answer().await?;
         match response {
@@ -67,6 +69,13 @@ impl Picker for PortalPicker {
                     .and_then(|value| <Vec<String>>::try_from(value.try_clone().ok()?).ok())
                     .ok_or_else(|| failure(CALL, "no files in the answer"))?;
                 let files: Vec<FilePath> = uris.iter().filter_map(|uri| path_of(uri)).collect();
+                if files.len() < uris.len() {
+                    log::warn!(
+                        "{} of the {} chosen files are not local files and were left out",
+                        uris.len() - files.len(),
+                        uris.len()
+                    );
+                }
                 if files.is_empty() {
                     Err(failure(CALL, "the answer names no local file"))
                 } else {
@@ -77,6 +86,13 @@ impl Picker for PortalPicker {
             Response::Ended => Err(failure(CALL, "the dialog ended without an answer")),
         }
     }
+}
+
+/// The portal could not show a dialog; the reason goes to the log, because the person only hears
+/// that the desktop has no file chooser.
+fn no_dialog(step: &str, error: &dyn std::fmt::Display) -> PickOutcome {
+    log::warn!("no file dialog: cannot {step}: {error}");
+    PickOutcome::NoDialog
 }
 
 /// What the first filter is called.

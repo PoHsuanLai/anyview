@@ -26,6 +26,7 @@ anyview-ui = { workspace = true }
 ds = { workspace = true }
 # `AppHandle` (what a session with no window holds open) and `TextureHandle` (where the picture goes).
 ds-blitz = { workspace = true }
+log = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 

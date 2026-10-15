@@ -39,11 +39,13 @@ impl PaneStore {
 
 impl ResumeSource for PaneStore {
     fn recall(&self, path: &FilePath, stamp: FileStamp) -> Resume {
-        self.writer
-            .load_resume(path, stamp)
-            .ok()
-            .flatten()
-            .unwrap_or(Resume::Nothing)
+        match self.writer.load_resume(path, stamp) {
+            Ok(found) => found.unwrap_or(Resume::Nothing),
+            Err(error) => {
+                log::warn!("cannot read the kept place: {error}");
+                Resume::Nothing
+            }
+        }
     }
 }
 
@@ -55,7 +57,7 @@ impl ResumeKeeper for PaneStore {
             (self.now)(),
             &Resume::Nothing,
         ) {
-            eprintln!("anyview: cannot record the view: {error}");
+            log::warn!("cannot record the view: {error}");
         }
     }
 
@@ -64,7 +66,7 @@ impl ResumeKeeper for PaneStore {
             .writer
             .save_resume(source.path(), source.stamp(), resume)
         {
-            eprintln!("anyview: cannot keep the place: {error}");
+            log::warn!("cannot keep the place: {error}");
         }
     }
 }

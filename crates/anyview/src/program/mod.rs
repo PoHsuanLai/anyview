@@ -9,6 +9,8 @@ mod start;
 #[cfg(test)]
 mod tests;
 
-pub use relay::{Arrival, Want, WelcomeWhen, open_each, open_windows, relay, wants_of};
+pub use relay::{
+    Arrival, Doorway, Want, WelcomeWhen, hand_on, listen, open_each, open_windows, relay, wants_of,
+};
 pub use role::{Role, claim_role};
 pub use start::{WARM_FOR, run};

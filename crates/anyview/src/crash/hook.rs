@@ -1,6 +1,7 @@
 //! The panic hook.
 
 use super::{Report, write_report};
+use std::backtrace::Backtrace;
 use std::panic::{PanicHookInfo, set_hook};
 use std::path::PathBuf;
 
@@ -10,6 +11,11 @@ use std::path::PathBuf;
 pub fn install(dir: PathBuf, version: &'static str, now: impl Fn() -> u64 + Send + Sync + 'static) {
     set_hook(Box::new(move |info| {
         let report = report_of(info, version, now());
+        if report.recovered() {
+            // The pool catches it: it is logged, and does not push a real crash out of the folder.
+            log::error!("a job panicked and was recovered:\n{report}");
+            return;
+        }
         eprint!("{report}");
         match write_report(&dir, &report) {
             Ok(path) => eprintln!("report: {}", path.display()),
@@ -36,5 +42,6 @@ fn report_of(info: &PanicHookInfo<'_>, version: &str, at: u64) -> Report {
             .map_or_else(|| "unknown".to_owned(), ToString::to_string),
         version: version.to_owned(),
         at,
+        backtrace: Backtrace::force_capture().to_string(),
     }
 }

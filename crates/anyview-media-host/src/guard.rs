@@ -31,7 +31,7 @@ impl<D: MediaDriver> Guarded<D> {
 
     fn broke(&mut self) -> MediaEvent {
         self.broken = Broken::Yes;
-        eprintln!("anyview: the player panicked");
+        log::warn!("the player panicked");
         MediaEvent::Failed(BROKEN.to_owned())
     }
 }

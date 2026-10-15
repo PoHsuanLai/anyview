@@ -18,7 +18,7 @@ use anyview_plugin::Subject;
 use anyview_runtime::{Actor, Mailbox, RuntimeError, UiWaker};
 use anyview_ui::MediaNotice;
 use ds_blitz::{AppHandle, AppHold};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, Weak};
@@ -119,6 +119,8 @@ pub(super) struct Inner {
     updates: UnboundedSender<Update>,
     sessions: Mutex<Vec<Entry>>,
     shots: Mutex<Vec<ShotWaiter>>,
+    /// Background sessions that ended before their entry was registered: the entry is not added.
+    finished_early: Mutex<HashSet<SessionId>>,
     app: Option<AppHandle>,
     audio: AudioDriver,
     plugins: Arc<dyn PlayerPlugins>,
@@ -187,6 +189,10 @@ impl Inner {
         let owner = {
             let mut sessions = locked(&self.sessions);
             let at = sessions.iter().position(|entry| entry.id == id);
+            if at.is_none() {
+                // A player that fails at once ends before its caller has registered it.
+                locked(&self.finished_early).insert(id);
+            }
             at.map(|at| sessions.remove(at))
         };
         locked(&self.sounding).gone(id);
@@ -243,7 +249,15 @@ impl Inner {
     }
 
     fn register(&self, id: SessionId, file: FilePath, owner: Owner) {
-        locked(&self.sessions).push(Entry { id, file, owner });
+        let mut sessions = locked(&self.sessions);
+        if matches!(owner, Owner::Background(_)) && locked(&self.finished_early).remove(&id) {
+            // Over already: it must not be kept, with its claim on the event loop. Its line is
+            // dropped off the lock, which its own thread may be waiting for.
+            drop(sessions);
+            drop(owner);
+            return;
+        }
+        sessions.push(Entry { id, file, owner });
     }
 
     /// Tell the window of session `id` something.
@@ -341,6 +355,7 @@ impl MediaHub {
             updates,
             sessions: Mutex::new(Vec::new()),
             shots: Mutex::new(Vec::new()),
+            finished_early: Mutex::new(HashSet::new()),
             app,
             audio,
             plugins,
@@ -604,7 +619,7 @@ where
         if let Some(state) = pending.take()
             && let Err(error) = session.publish(&state).await
         {
-            eprintln!("anyview: cannot publish the now-playing entry: {error}");
+            log::warn!("cannot publish the now-playing entry: {error}");
         }
         tokio::select! {
             control = session.next_control() => {

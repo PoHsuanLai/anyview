@@ -7,6 +7,7 @@
 pub mod cli;
 pub mod crash;
 pub mod host;
+pub mod logger;
 pub mod media;
 pub mod program;
 /// The threads of the program (`anyview-runtime`), under the name the binary's modules use.
