@@ -218,9 +218,10 @@ DIRECT=(
 # quire's ds-helpers (capped reads and atomic writes, for anyview-fs, -store and -platform) adds
 # ds-helpers and ds-peer everywhere, and to the headless peek toml with serde_spanned and toml_writer
 # too (its catalog is TOML): the headless budget rose by five, the others by one or two.
+# porter 3beb7a1's porter-dbus links porter-daemon, which reaches the viewer through docket-dbus: one more.
 BUDGETS=(
   "anyview-peek: 578"
-  "anyview: 699"
+  "anyview: 700"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
