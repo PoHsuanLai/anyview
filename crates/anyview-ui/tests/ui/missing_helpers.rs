@@ -347,7 +347,7 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
         edge.helped(Helper::HeicDecode, end);
         settle(&mut harness);
         assert_eq!(
-            harness.text_of(".ds-helper-command-text"),
+            harness.text_of(".ds-command-line-text"),
             command,
             "{name}: the command, when there is one, is shown"
         );

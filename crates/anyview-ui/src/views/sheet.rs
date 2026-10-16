@@ -5,10 +5,10 @@ use crate::{EditCaution, HelperPhase, HelperWords, TypedText, VersionKey, Versio
 use anyview_core::{Edit, Fact, Helper};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
+use ds::components::controls::copy_state::CopyState;
 use ds::components::overlays::alert_model::{AlertButton, AlertRole};
 use ds::prelude::{Alert, Button, Choice, FieldFocus, RadioGroup, Sheet, TextField};
 use ds_core::word::Word;
-use ds_shell::accounts::model::CopyState;
 use ds_shell::helpers::{HelperPhase as Sheeted, HelperSheet};
 
 /// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
