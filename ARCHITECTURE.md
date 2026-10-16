@@ -71,7 +71,7 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-media` | `anyview-core`, `ds-core` (`Word`, for the closed vocabularies); with `audio`, `symphonia` (the decoders `anyview-peek` already links for probing) and `cpal` (the sound card) |
 | `anyview-image` | `anyview-core`, `ds-core` (`Word`, for the facts' labels) |
 | `anyview-text` | `anyview-core`, `anyview-fs` (`OpenFile`, for a window of lines read by offset), `ds-core` (`Word` for token classes, and `base64` for `data:` URLs) |
-| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, bayonet (`host`), `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `porter-core` and `prov` (docket's app side, section 2n) |
+| `anyview-platform` | `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol`, bayonet (`host`), `ds-core` (`Word` for the closed vocabularies); with `quire-desktop`, `docket-client`, `docket-core`, `docket-dbus` (who may call the provider), `porter-core` and `prov` (docket's app side, section 2n) |
 | `anyview-pdf` | `anyview-core` |
 | `anyview-export` | `anyview-core`, `anyview-image`, `anyview-pdf`, `anyview-store` (`free_beside`, `link_new`, `partial_beside`, `sweep_leftovers`: the one way to claim a name), `anyview-text`, `ds-blitz` (`pdf`, behind the `print` feature: the printer of a text document), `ds-core` (`Word`, for the extension's slug) |
 | `anyview-archive` | `anyview-core`, `ds-core` (`Word` for entry kinds) |
@@ -1846,8 +1846,10 @@ only with `quire-desktop` (design/36): `scripts/check-portable.sh` still builds 
   not declared. The file is embedded in `anyview-platform` (`include_str!`) and parsed with docket-core's
   `Manifest` and `validate`, so the file the installer ships is the file the viewer answers for.
 - **Serving.** `DbusInstance::claim` already owns `org.quire.Anyview1` for single instance; once it holds the name
-  it calls docket-client's `serve_on` on the same connection, which exports `org.quire.IntentProvider1` and claims
-  `org.quire.Anyview` (the name docket calls). `ViewerIntents::perform` turns `anyview.file.open` into the
+  it calls docket-client's `serve_on_with` on the same connection, which exports `org.quire.IntentProvider1` and
+  claims `org.quire.Anyview` (the name docket calls). Only intentd is answered: docket-dbus's `Identity` finds the
+  caller's process in `/proc` and asks the systemd manager for `intentd.service`'s main process, never trusting a
+  bus name. `DbusInstance::with_proc_root` gives it a fixture `/proc` instead, for a test on a private bus. `ViewerIntents::perform` turns `anyview.file.open` into the
   `Request::Open` a second launch would have forwarded, on the same channel the program already reads, so a call
   opens in the running window like any forwarded launch. Every path must be absolute and exist, or the whole call is
   refused and nothing opens. A failure to serve is logged and the viewer carries on without the agent layer.
