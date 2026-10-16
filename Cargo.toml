@@ -247,9 +247,9 @@ clap = { version = "4", features = ["derive"] }
 # spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `docket-dbus` names who may call it; `prov` is the label and name
 # vocabulary its signatures use.
-docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "e1e5802168c756dc5c04d5b609b2947d1a36bc27", default-features = false, features = ["dbus"] }
-docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "e1e5802168c756dc5c04d5b609b2947d1a36bc27" }
-docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "e1e5802168c756dc5c04d5b609b2947d1a36bc27" }
+docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "c67929dd060609ce5c039ce87ff0f43507c935a6", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "c67929dd060609ce5c039ce87ff0f43507c935a6" }
+docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "c67929dd060609ce5c039ce87ff0f43507c935a6" }
 prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "99cc9deb198860293253c534c4d26b382ec8b87e" }
