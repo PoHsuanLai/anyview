@@ -10,6 +10,11 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+# The capped whole-file read the desktop's apps share (no UI, bus or runtime).
+ds-helpers = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

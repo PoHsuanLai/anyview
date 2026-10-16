@@ -38,7 +38,8 @@ enum SaveError {
 
 /// The bytes `file` becomes under `request`.
 fn edited(file: &Opened, request: EditRequest) -> Result<Vec<u8>, EditError> {
-    let bytes = std::fs::read(file.source.path().as_path()).map_err(EditError::Read)?;
+    let bytes = anyview_fs::read_whole(file.source.path().as_path(), anyview_fs::WHOLE_FILE_CAP)
+        .map_err(EditError::Read)?;
     match file.sniffed.kind() {
         FormatKind::Raster => Ok(anyview_image::edited(&bytes, &file.sniffed, request.edit)?),
         FormatKind::Pdf => {
@@ -86,7 +87,7 @@ pub(super) fn save_markup(
     save: &MarkupSave,
 ) -> Outcome {
     let path = file.source.path();
-    let result = std::fs::read(path.as_path())
+    let result = anyview_fs::read_whole(path.as_path(), anyview_fs::WHOLE_FILE_CAP)
         .map_err(EditError::Read)
         .and_then(|bytes| {
             let document = PdfDocument::from_bytes(bytes)?;

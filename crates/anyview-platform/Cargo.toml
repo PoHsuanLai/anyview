@@ -20,6 +20,8 @@ quire-desktop = ["dep:docket-client", "dep:docket-core", "dep:docket-dbus", "dep
 testing = ["dep:tempfile"]
 
 [dependencies]
+# Capped reads and atomic writes of the thumbnail and cover caches: quire's, shared by the desktop's apps.
+ds-helpers = { workspace = true }
 anyview-core = { workspace = true }
 anyview-plugin = { workspace = true }
 anyview-plugin-protocol = { workspace = true }

@@ -27,10 +27,14 @@ const PANEL_FILE: &str = "panel.json";
 
 /// The result of recording a view.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ViewRecorded {
     /// Set when the history file on disk was damaged and was replaced by a fresh one: the
     /// damage, for the caller's log. `None` when the history was read normally or was absent.
     pub replaced_damaged: Option<StoreError>,
+    /// Where the damaged history was kept (`history.json.bad-<seconds>` beside it), when there
+    /// was one: it is moved aside, never written over.
+    pub kept_at: Option<PathBuf>,
 }
 
 /// Writes the store at one root.
@@ -54,8 +58,9 @@ impl StoreWriter {
     /// history with a label derived from `resume`. Then the view memory of files that are gone,
     /// replaced, or no longer in the history is deleted, so it is the one write that prunes.
     ///
-    /// A damaged `history.json` is replaced and reported in the result; a disk failure leaves the
-    /// file as it was and is the error. A failure while pruning comes after the history was
+    /// A damaged `history.json` is moved aside to `history.json.bad-<viewed>`, a fresh one is
+    /// written, and both are reported in the result; a disk failure (including one moving the
+    /// damaged file aside) leaves the file as it was and is the error. A failure while pruning comes after the history was
     /// written.
     pub fn record_view(
         &self,
@@ -66,11 +71,17 @@ impl StoreWriter {
     ) -> Result<ViewRecorded, StoreError> {
         resume_file_name(path)?; // refuses a path JSON cannot hold, before anything is written
         let _lock = StoreLock::exclusive(&self.root)?;
-        let (before, replaced_damaged) = match read_history(&self.root) {
-            HistoryRead::Loaded(history) => (history, None),
-            HistoryRead::Absent => (History::default(), None),
+        let history_file = self.root.join(HISTORY_FILE);
+        let (before, replaced_damaged, kept_at) = match read_history(&self.root) {
+            HistoryRead::Loaded(history) => (history, None, None),
+            HistoryRead::Absent => (History::default(), None, None),
             HistoryRead::Unavailable(error @ StoreError::Corrupt { .. }) => {
-                (History::default(), Some(error))
+                let kept = io::move_aside(&history_file, viewed.0)?;
+                log::warn!(
+                    "the history was damaged ({error}); kept it at {} and started a new one",
+                    kept.display()
+                );
+                (History::default(), Some(error), Some(kept))
             }
             HistoryRead::Unavailable(
                 error @ (StoreError::Io { .. }
@@ -87,9 +98,12 @@ impl StoreWriter {
             label: resume_label(resume),
         };
         let after = history_after_view(&before, entry, self.cap);
-        io::write_json(&self.root.join(HISTORY_FILE), &after)?;
+        io::write_json(&history_file, &after)?;
         self.prune_resume(&after)?;
-        Ok(ViewRecorded { replaced_damaged })
+        Ok(ViewRecorded {
+            replaced_damaged,
+            kept_at,
+        })
     }
 
     /// Remembers `resume` for `path`, whose file has `stamp` now (the stamp read when the file

@@ -4,7 +4,6 @@
 use super::links::scheme;
 use anyview_core::{FileHead, FileName, FilePath, FormatKind, SniffStep, percent_decode, sniff};
 use std::collections::HashMap;
-use std::io::Read;
 
 /// The largest image, in bytes, that is inlined: a `data:` URL is a third larger than the file and
 /// lives in the HTML string.
@@ -39,20 +38,9 @@ pub struct DiskFiles;
 
 impl LocalFiles for DiskFiles {
     fn read(&self, path: &FilePath, most: usize) -> Option<Vec<u8>> {
-        // Asked before opening, because opening a named pipe waits for a writer, and again after,
-        // so the file that is read is the file that was looked at.
-        if !std::fs::metadata(path.as_path()).ok()?.is_file() {
-            return None;
-        }
-        let file = std::fs::File::open(path.as_path()).ok()?;
-        if !file.metadata().ok()?.is_file() {
-            return None;
-        }
-        let mut bytes = Vec::new();
-        file.take(u64::try_from(most).ok()?.saturating_add(1))
-            .read_to_end(&mut bytes)
-            .ok()?;
-        (bytes.len() <= most).then_some(bytes)
+        // A regular file only (a named pipe would wait for a writer), and at most `most` bytes.
+        let cap = anyview_core::ByteLen(u64::try_from(most).ok()?);
+        anyview_fs::read_whole(path.as_path(), cap).ok()
     }
 }
 

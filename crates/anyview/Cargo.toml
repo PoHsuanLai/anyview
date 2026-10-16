@@ -43,7 +43,7 @@ dioxus = { workspace = true }
 ds = { workspace = true }
 ds-blitz = { workspace = true }
 ds-desktop = { workspace = true }
-ds-helpers = { workspace = true }
+ds-helpers = { workspace = true, features = ["quire-desktop"] }
 ds-settings = { workspace = true, features = ["dioxus", "tokio"] }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }

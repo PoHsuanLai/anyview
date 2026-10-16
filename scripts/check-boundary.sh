@@ -215,18 +215,21 @@ DIRECT=(
 # ds-motion and ds-style along; the PDF page and the pane's size now have headless types of the peek's
 # own and `ds` is the `pane` feature's), with no renderer, no window system, no dioxus and no encoder.
 # It reaches none of HEADLESS_FORBIDDEN, and CI builds it on macOS and Windows.
+# quire's ds-helpers (capped reads and atomic writes, for anyview-fs, -store and -platform) adds
+# ds-helpers and ds-peer everywhere, and to the headless peek toml with serde_spanned and toml_writer
+# too (its catalog is TOML): the headless budget rose by five, the others by one or two.
 BUDGETS=(
-  "anyview-peek: 576"
-  "anyview: 698"
+  "anyview-peek: 578"
+  "anyview: 699"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
-  "anyview-media-host: 608"
+  "anyview-media-host: 610"
 )
-HEADLESS_BUDGET=195
+HEADLESS_BUDGET=200
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=609
+PANE_PLAYER_BUDGET=611
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
@@ -377,14 +380,14 @@ fi
 EDGES=(
   "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-machines anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
   "anyview-core: ds-core"
-  "anyview-store: anyview-core"
-  "anyview-fs: anyview-core"
+  "anyview-store: anyview-core ds-helpers"
+  "anyview-fs: anyview-core ds-helpers"
   "anyview-machines: anyview-core ds-core"
   "anyview-ui: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-machines anyview-pdf anyview-peek anyview-store anyview-text ds ds-blitz ds-core ds-shell"
   "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-store anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core docket-client docket-core docket-dbus porter-core prov"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-helpers docket-client docket-core docket-dbus porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"

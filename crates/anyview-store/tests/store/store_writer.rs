@@ -229,6 +229,28 @@ fn a_damaged_history_is_replaced_and_reported_not_a_panic() {
         Some(StoreError::Corrupt { .. })
     ));
     assert_eq!(read_history(&root).entries().len(), 1);
+    // The damaged bytes are kept beside it, not written over.
+    let kept = recorded.kept_at.unwrap();
+    assert_eq!(kept, root.join("history.json.bad-1"));
+    assert_eq!(fs::read_to_string(&kept).unwrap(), "{ not json");
+}
+
+#[test]
+fn a_history_that_cannot_be_read_is_never_replaced() {
+    let scratch = tempfile::tempdir().unwrap();
+    let root = scratch.path().join("store");
+    // A folder where the history file should be: not a file the store can read, so not one it
+    // may write over either.
+    fs::create_dir_all(root.join("history.json")).unwrap();
+    let (path, _) = viewed_file(scratch.path(), "a.txt", "a");
+    let writer = StoreWriter::new(&root, cap(5));
+
+    assert!(
+        writer
+            .record_view(&path, FormatKind::PlainText, Viewed(1), &Resume::Nothing)
+            .is_err()
+    );
+    assert!(root.join("history.json").is_dir(), "left as it was");
 }
 
 #[test]
