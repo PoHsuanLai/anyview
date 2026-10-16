@@ -4,7 +4,6 @@ use super::media::{bitrate, range};
 use super::pages::{orientation, page_range, pages, paper};
 use super::picture::{image_format, metadata, quality, resolution, size};
 use crate::{ExportControl, ExportDraft, ExportFacts, ExportOption, PageSpan};
-use anyview_core::{Bitrate, Orientation};
 use dioxus::prelude::*;
 
 /// One option of the export, as a row of the form.

@@ -8,8 +8,8 @@ use anyview_core::{
     FactLabel, FactValue, Facts, FormatDetail, FormatKind, PixelArea, PixelLen, PixelSize,
     RasterFormat, RasterTarget, Sniffed, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_image::{Decoded, Fidelity, ImageError, Plays, decode_bytes, fidelity, file_bytes};
-use ds_blitz::Pixels;
 use std::sync::Arc;
 
 /// The most pixels a plugin may be asked to decode: a 64 megapixel photograph, 256 MiB of RGBA.

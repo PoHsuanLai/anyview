@@ -10,7 +10,7 @@ use crate::{
     FindOut, HitIndex, MediaOut, PdfOut, Stage, StageIn, StageOut, TableOut, TextIn, TextOut,
     TreeOut, TypedText, ViewerIn,
 };
-use anyview_core::{Edit, FindOptions};
+use anyview_core::FindOptions;
 use dioxus::prelude::*;
 use ds_core::selection::RowSelection;
 

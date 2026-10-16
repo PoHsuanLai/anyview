@@ -4,7 +4,6 @@ use super::super::geometry::{centre_of, fit, point_under, scale_of, turn_of};
 use crate::RasterStage;
 use crate::families::view::{Area, StageCx};
 use anyview_core::{DocPoint, Permille, PixelSize, QuarterTurn};
-use dioxus::prelude::*;
 use ds::prelude::Point;
 use ds_blitz::Sampling;
 

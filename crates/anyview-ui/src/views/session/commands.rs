@@ -7,6 +7,7 @@ use crate::{
     TextView, TextViews, Writing,
 };
 use anyview_core::{FormatKind, MarkTool, Reach, actions_for, reach};
+use ds_core::word::Word;
 
 /// The commands the palette lists for a file of `kind` showing `stage`: the file actions the
 /// viewer offers for the kind, then the stage's commands it has, in the shared order. What

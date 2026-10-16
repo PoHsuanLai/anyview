@@ -3,8 +3,7 @@
 
 use super::super::carry::Carry;
 use super::results::send;
-use crate::io::HostRequest;
-use crate::{NavigateIn, Stage, StageIn, Ticket, ViewerIn};
+use crate::{Stage, StageIn, Ticket, ViewerIn};
 use dioxus::prelude::*;
 
 /// The player of `ticket` has news. A wake that comes before the document has landed is not lost:

@@ -9,7 +9,7 @@ use super::stage::staged;
 use crate::io::{Edge, HostRequest, Job};
 use crate::{
     ChromeOut, EditRequest, LoadOut, PaletteOut, PanelOut, PresentationOut, SheetIn, SheetOut,
-    Stage, TypedText, ViewerIn, ViewerOut,
+    TypedText, ViewerIn, ViewerOut,
 };
 use anyview_core::{Edit, FilePath};
 use dioxus::prelude::*;

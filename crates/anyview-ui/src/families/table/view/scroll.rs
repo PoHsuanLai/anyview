@@ -1,8 +1,6 @@
 //! Bringing the current hit of a find into view across the held rows and the scrolling ones.
 
 use super::content::{CURRENT_HELD_HIT, CURRENT_HIT, HELD, LOOKS, ROOM, TABLE_ID};
-use dioxus::html::ModifiersInteraction as _;
-use dioxus::prelude::*;
 use ds::components::lists::virtual_table::columns_id;
 use ds::host::document::DocumentHost;
 use ds::host::found::Found;

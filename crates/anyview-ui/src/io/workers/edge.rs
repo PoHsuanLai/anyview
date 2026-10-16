@@ -209,14 +209,14 @@ impl Edge {
     /// The stop of the load `ticket` names: its jobs share one, a newer load raises it, and a
     /// job of a load already left starts stopped. Work that belongs to no load is never stopped.
     #[cfg(test)]
-    fn stop_for(&self, ticket: Ticket) -> Stop {
+    pub(super) fn stop_for(&self, ticket: Ticket) -> Stop {
         self.stop_for_job(ticket, Replaces::Nothing)
     }
 
     /// The stop of a job of the load `ticket`: the load's, or for a search or a window of lines
     /// (`replaces`) its own, which ends with the load and when a newer job of that kind is asked
     /// for.
-    fn stop_for_job(&self, ticket: Ticket, replaces: Replaces) -> Stop {
+    pub(super) fn stop_for_job(&self, ticket: Ticket, replaces: Replaces) -> Stop {
         if ticket == Ticket::default() {
             return Stop::new();
         }

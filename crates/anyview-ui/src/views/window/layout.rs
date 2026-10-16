@@ -20,7 +20,7 @@ const PANEL_MOST: u32 = 320;
 /// it shrinks the stage and not the window. A width kept from another launch is held to that
 /// range, so a stale or edited value cannot give a pane the drag would not.
 pub(super) fn panel_pane(kept: Option<u32>) -> PaneSpec {
-    let width = kept.map_or(super::panel::WIDTH, |kept| {
+    let width = kept.map_or(super::super::panel::WIDTH, |kept| {
         kept.clamp(PANEL_LEAST, PANEL_MOST)
     });
     PaneSpec {

@@ -12,7 +12,6 @@ use anyview_core::work::Stop;
 use anyview_core::{Facts, FindOptions, LineIndex, Resume, Sniffed, Source};
 use anyview_text::EditStamp;
 use dioxus::prelude::*;
-use ds::components::chrome::capsule::priority::RankedSlot;
 use ds_core::selection::RowSelection;
 use std::fmt::Debug;
 use std::sync::Arc;

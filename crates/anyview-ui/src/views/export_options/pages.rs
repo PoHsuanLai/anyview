@@ -5,6 +5,7 @@ use crate::{ExportDraft, ExportFacts, ExportOption, PageSpan};
 use anyview_core::{Orientation, PageIndex, PageSelection, PaperSize, TextExport};
 use dioxus::prelude::*;
 use ds::components::fields::field_row::{FieldRow, RowLayout};
+use ds_core::word::Word;
 
 pub(super) fn pages(span: PageSpan, ontune: EventHandler<ExportOption>) -> Element {
     rsx! {

@@ -9,7 +9,7 @@ use crate::Ticket;
 use crate::families::{open_for, peek_for, search_sheet, search_tree, sort_sheet};
 use anyview_core::FilePath;
 use anyview_core::work::Stop;
-use anyview_text::{EditRefusal, EditText};
+use anyview_text::EditRefusal;
 
 /// The largest file a preload opens: the next file is worth opening ahead only while that is
 /// cheap, and a file this large is better opened when it is asked for.

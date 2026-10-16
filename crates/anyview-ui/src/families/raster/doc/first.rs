@@ -4,10 +4,12 @@ use super::build::{facts, file_metadata_facts, name_of, upload};
 use super::types::RasterDoc;
 use crate::io::{OpenError, OpenPort};
 use crate::{EditOffer, Runs};
+use anyview_core::Peek;
 use anyview_core::{
     ByteLen, Facts, FormatDetail, FormatKind, PeekBudget, PixelArea, PixelSize, RasterFormat,
     Sniffed, Source,
 };
+use anyview_fs::OnDisk;
 use anyview_image::{ImagePeek, RasterPeek, Rgba8, VectorPeek, declared_size};
 use std::time::Duration;
 

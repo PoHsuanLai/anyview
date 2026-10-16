@@ -1,6 +1,6 @@
 use super::commands::{commands, picture_commands};
 use super::offers::{Exports, Offers, PictureOffer, Playback};
-use super::rows::{names, offered_slots, ranked};
+use super::rows::{names, offered_slots};
 use crate::families::family_of;
 use crate::{
     Command, ContextEntry, ContextPick, EditOffer, FileAccess, PanelTab, PanelTabs,
@@ -10,7 +10,7 @@ use FileAction::{
     ConvertTo, CopyFile, CopyPath, Export, FlipHorizontal, FlipVertical, PlayInBackground,
     PlayInMiniWindow, Print, RevertTo, RotateLeft, RotateRight, SaveCopy, Share, Trim,
 };
-use anyview_core::{Adjust, FileAction, FormatKind};
+use anyview_core::{FileAction, FormatKind};
 use anyview_machines::seam::entries;
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;

@@ -5,7 +5,7 @@ use super::super::doc::{SheetDoc, TableDoc};
 use super::super::edits::{row_at, text_at};
 use super::super::kind::{ColumnKind, is_yes};
 use super::super::pick::reseat;
-use super::look::{columns_of, held_columns, kind_class, status_of};
+use super::look::{columns_of, drawn, held_columns, kind_class, status_of};
 use super::scroll::show_across;
 use crate::families::inline_edit::InlineEdit;
 use crate::families::view::{Held, StageCx};

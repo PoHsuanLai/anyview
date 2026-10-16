@@ -26,6 +26,7 @@ use ds::host::pointer_capture::{PointerHold, use_pointer_capture};
 use ds::prelude::use_platform;
 use ds_blitz::use_gpu;
 use ds_core::command::holds_primary;
+use ds_core::word::Word;
 use std::sync::Arc;
 
 /// How near a mark's ink a press counts as on it, in thousandths of the page.

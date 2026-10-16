@@ -1,7 +1,6 @@
 //! The hit a find is on and the address a link may open.
 
 use crate::{FindHits, HitIndex, PdfStage, Stage};
-use dioxus::prelude::*;
 
 /// The hit the machine is on, when a find has one.
 pub(super) fn current_hit(stage: &Stage) -> Option<HitIndex> {

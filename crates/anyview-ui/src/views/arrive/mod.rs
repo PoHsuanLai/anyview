@@ -6,6 +6,5 @@ mod media;
 mod open;
 mod results;
 
-pub(super) use media::drain_media;
 pub(super) use open::landed;
 pub(super) use results::{arrived, shown_path};

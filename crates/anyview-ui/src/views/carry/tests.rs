@@ -2,7 +2,6 @@
 
 use super::out::copy_name;
 use anyview_core::FilePath;
-use dioxus::prelude::*;
 
 #[test]
 fn a_copy_is_named_after_its_file() {

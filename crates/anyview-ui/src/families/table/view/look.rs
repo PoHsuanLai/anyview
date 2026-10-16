@@ -7,7 +7,6 @@ use super::content::{GUTTER, PINNED};
 use crate::families::rows::scaled_px;
 use crate::{ColumnSort, ContentScale, SortDirection};
 use anyview_text::{Coverage, Tally};
-use dioxus::prelude::*;
 use ds::components::lists::table::model::SortDirection as Way;
 use ds::components::lists::table::model::{CellAlign, Sort, Sorting, TableColumn};
 use ds::components::lists::virtual_table::row_pitch;
@@ -53,7 +52,7 @@ pub(super) fn columns_of(sheet: &SheetDoc, scale: ContentScale) -> Vec<TableColu
     std::iter::once(gutter).chain(data).collect()
 }
 /// The sort the machine keeps, as quire's header draws it.
-fn drawn(by: ColumnSort) -> Sort<u32> {
+pub(super) fn drawn(by: ColumnSort) -> Sort<u32> {
     Sort {
         column: by.column,
         direction: match by.direction {

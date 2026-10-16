@@ -2,7 +2,6 @@
 //! and what a landed document tells the machines.
 
 use super::super::carry::Carry;
-use super::super::editing;
 use super::super::session::Probe;
 use super::media::drain_media;
 use super::results::{send, shown_path};

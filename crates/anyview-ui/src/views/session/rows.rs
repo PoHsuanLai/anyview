@@ -5,7 +5,6 @@ use crate::{Command, HitIndex, HitList, PaletteScope, Stage, StageCommand, Typed
 use anyview_core::{FileAction, FindOption, FindOptions};
 use ds::components::chrome::capsule::model::CapsuleSlot;
 use ds::components::chrome::capsule::priority::RankedSlot;
-use ds_core::word::Word;
 
 /// The capsule's `slots` without the buttons for a file action the file does not take (`files` is
 /// what the palette and the menu list), and without the dividers that leave: none first or last,
