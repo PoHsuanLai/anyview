@@ -3,7 +3,7 @@
 //! dropped, one outside its limits is brought inside.
 
 use anyview_core::{
-    Bitrate, Dpi, MetadataCarry, Orientation, PaperSize, Percent, Permille, PixelLen, Quality,
+    Bitrate, Dpi, MetadataCarry, Orientation, PaperSize, Percent, Permille, PixelLen,
     RasterExportKind, Resize,
 };
 

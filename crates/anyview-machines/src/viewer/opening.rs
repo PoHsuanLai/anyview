@@ -2,7 +2,7 @@
 
 use super::find::palette;
 use super::model::{Choosing, PanelSay, Trashing, Viewer, ViewerOut, ViewerParams};
-use super::region::{Step, sheet, stage};
+use super::region::{Step, sheet};
 use super::step::{context, navigate};
 use crate::context::ContextIn;
 use crate::hand::{HandIn, Tool};
@@ -16,6 +16,7 @@ use crate::sheet::SheetIn;
 use crate::stage::{Stage, StageFamily};
 use crate::trim::MediaTrim;
 use anyview_core::{FilePath, NonEmpty, Sequence, SequenceOrigin};
+use ds_core::machine::Machine;
 use ds_core::time::stamp::Stamp;
 
 /// Start loading `path`: the load takes a new ticket, and whatever showed the file before goes,
