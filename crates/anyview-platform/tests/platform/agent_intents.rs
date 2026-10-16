@@ -1,7 +1,7 @@
 //! The viewer offered to docket, the agent layer: the shipped manifest is a valid one, and a
 //! `Perform` from the router on a private bus reaches the viewer's own request channel. No real
-//! session bus, router or desktop is involved: the test owns `org.quire.Intents1` itself, the name
-//! a provider trusts, on a bus of its own.
+//! session bus, router or desktop is involved: a provider answers only intentd's main process, and
+//! a fixture `/proc` says the test's process is it.
 
 #![cfg(feature = "quire-desktop")]
 
@@ -23,7 +23,6 @@ use zbus::zvariant::Value;
 
 const PROVIDER_PATH: &str = "/org/quire/IntentProvider1";
 const PROVIDER_INTERFACE: &str = "org.quire.IntentProvider1";
-const ROUTER_NAME: &str = "org.quire.Intents1";
 
 fn shipped_manifest() -> String {
     let file =
@@ -93,8 +92,24 @@ async fn perform(caller: &zbus::Connection, invocation: String) -> zbus::Result<
     Ok(serde_json::from_str(&text).unwrap())
 }
 
-async fn viewer(bus: &PrivateBus) -> Primary {
+/// A fixture `/proc` in `root` in which this test's process is the main process of
+/// `intentd.service`, the router's unit.
+fn router_proc(root: &Path) {
+    let pid = std::process::id();
+    let process = root.join(pid.to_string());
+    std::fs::create_dir_all(&process).unwrap();
+    std::fs::write(
+        process.join("cgroup"),
+        "0::/user.slice/user-1000.slice/user@1000.service/app.slice/intentd.service\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(root.join("units")).unwrap();
+    std::fs::write(root.join("units/intentd.service"), pid.to_string()).unwrap();
+}
+
+async fn viewer(bus: &PrivateBus, proc_root: &Path) -> Primary {
     match DbusInstance::new(bus.env())
+        .with_proc_root(proc_root.to_owned())
         .claim(&Request::Open(Vec::new()))
         .await
         .unwrap()
@@ -104,20 +119,15 @@ async fn viewer(bus: &PrivateBus) -> Primary {
     }
 }
 
-async fn router(bus: &PrivateBus) -> zbus::Connection {
-    let router = connect(bus).await;
-    router.request_name(ROUTER_NAME).await.unwrap();
-    router
-}
-
 #[tokio::test]
 async fn a_file_open_from_the_router_reaches_the_viewers_open_path() {
     let Some(bus) = PrivateBus::start() else {
         return;
     };
-    let mut primary = viewer(&bus).await;
-    let router = router(&bus).await;
     let scratch = tempfile::tempdir().unwrap();
+    router_proc(&scratch.path().join("proc"));
+    let mut primary = viewer(&bus, &scratch.path().join("proc")).await;
+    let router = connect(&bus).await;
     let (a, b) = (scratch.path().join("a.png"), scratch.path().join("b b.pdf"));
     std::fs::write(&a, b"a").unwrap();
     std::fs::write(&b, b"b").unwrap();
@@ -136,9 +146,10 @@ async fn a_missing_file_refuses_the_whole_call_and_opens_nothing() {
     let Some(bus) = PrivateBus::start() else {
         return;
     };
-    let mut primary = viewer(&bus).await;
-    let router = router(&bus).await;
     let scratch = tempfile::tempdir().unwrap();
+    router_proc(&scratch.path().join("proc"));
+    let mut primary = viewer(&bus, &scratch.path().join("proc")).await;
+    let router = connect(&bus).await;
     let (here, gone) = (
         scratch.path().join("here.png"),
         scratch.path().join("gone.png"),
@@ -161,9 +172,17 @@ async fn only_the_router_may_call_the_provider() {
     let Some(bus) = PrivateBus::start() else {
         return;
     };
-    let mut primary = viewer(&bus).await;
-    let intruder = connect(&bus).await;
+    // In intentd's unit, but not its main process: a process that moved itself in.
     let scratch = tempfile::tempdir().unwrap();
+    let proc_root = scratch.path().join("proc");
+    router_proc(&proc_root);
+    std::fs::write(
+        proc_root.join("units/intentd.service"),
+        (std::process::id() + 1).to_string(),
+    )
+    .unwrap();
+    let mut primary = viewer(&bus, &proc_root).await;
+    let intruder = connect(&bus).await;
     let file = scratch.path().join("a.png");
     std::fs::write(&file, b"a").unwrap();
 

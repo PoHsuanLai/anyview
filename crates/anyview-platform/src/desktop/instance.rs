@@ -20,12 +20,26 @@ const OBJECT_PATH: &str = "/org/quire/Anyview1";
 #[derive(Debug, Clone)]
 pub struct DbusInstance {
     env: Env,
+    proc_root: Option<PathBuf>,
 }
 
 impl DbusInstance {
     /// An instance claim on `env`'s session bus.
     pub fn new(env: Env) -> Self {
-        DbusInstance { env }
+        DbusInstance {
+            env,
+            proc_root: None,
+        }
+    }
+
+    /// The same, finding docket's router in the fixture tree `root` instead of the system's
+    /// `/proc`: `<root>/<pid>/cgroup` names a process's unit and `<root>/units/intentd.service`
+    /// holds the router's pid. How a test on a private bus stands in for `intentd.service`.
+    pub fn with_proc_root(self, root: PathBuf) -> Self {
+        DbusInstance {
+            proc_root: Some(root),
+            ..self
+        }
     }
 }
 
@@ -57,7 +71,9 @@ impl Instance for DbusInstance {
             Ok(connection) => {
                 // The agent layer is an extra: a viewer that cannot offer it (no docket on this
                 // desktop, its name taken) still is the viewer.
-                if let Err(error) = intents::serve(&connection, sender).await {
+                if let Err(error) =
+                    intents::serve(&connection, sender, self.proc_root.as_deref()).await
+                {
                     log::warn!("not offered to the agent layer: {error}");
                 }
                 Ok(Claim::Primary(Primary::new(requests, Box::new(connection))))
