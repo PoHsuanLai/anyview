@@ -318,7 +318,7 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
             },
             "unsupported",
             "Viewer cannot install libheif tools here",
-            "heif-dec",
+            "Run this in Terminal",
         ),
         (
             "the package manager failed",
