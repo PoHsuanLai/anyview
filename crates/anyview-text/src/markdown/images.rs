@@ -2,7 +2,7 @@
 //! is read through an injected reader and written into the HTML as one.
 
 use super::links::scheme;
-use anyview_core::{FileHead, FileName, FilePath, FormatKind, SniffStep, percent_decode, sniff};
+use anyview_core::{FilePath, image_data_url, percent_decode};
 use std::collections::HashMap;
 
 /// The largest image, in bytes, that is inlined: a `data:` URL is a third larger than the file and
@@ -113,24 +113,7 @@ impl<'a> Inliner<'a> {
             return None;
         }
         let name = path.file_name()?;
-        let mime = image_mime(&bytes, &name)?;
-        Some(format!(
-            "data:{mime};base64,{}",
-            ds_core::base64::encode(&bytes)
-        ))
-    }
-}
-
-/// The MIME type of an image file, or `None` for a file that sniffs as anything else.
-fn image_mime(bytes: &[u8], name: &FileName) -> Option<String> {
-    let head = FileHead::new(&bytes[..bytes.len().min(4096)]);
-    match sniff(&head, name) {
-        SniffStep::Done(sniffed)
-            if matches!(sniffed.kind(), FormatKind::Raster | FormatKind::Vector) =>
-        {
-            Some(sniffed.mime().as_str().to_owned())
-        }
-        SniffStep::Done(_) | SniffStep::LookInside(_) => None,
+        image_data_url(&bytes, &name)
     }
 }
 

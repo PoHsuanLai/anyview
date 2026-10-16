@@ -7,9 +7,7 @@ use crate::zip_path::directory_of;
 use crate::zip_read::read;
 use anyview_archive::ArchiveError;
 use anyview_core::work::Interrupt;
-use anyview_core::{
-    ByteLen, FileHead, FileName, FormatKind, Input, SectionIndex, SniffStep, sniff,
-};
+use anyview_core::{ByteLen, FileName, Input, SectionIndex, image_data_url};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -83,9 +81,9 @@ impl ZipAssets<'_> {
             .and_then(|bytes| {
                 self.taken.set(self.taken.get() + bytes.len() as u64);
                 match kind {
-                    Kind::Image => image_mime(entry, &bytes).map(|mime| {
-                        format!("data:{mime};base64,{}", ds_core::base64::encode(&bytes))
-                    }),
+                    Kind::Image => FileName::new(entry.rsplit('/').next().unwrap_or(entry))
+                        .ok()
+                        .and_then(|name| image_data_url(&bytes, &name)),
                     Kind::Text => Some(text_of(&bytes)),
                 }
             });
@@ -101,19 +99,5 @@ impl Assets for ZipAssets<'_> {
 
     fn text(&self, entry: &str) -> Option<String> {
         self.take(Kind::Text, entry)
-    }
-}
-
-/// The media type of the picture `bytes` holds, or `None` when the entry is not a picture.
-fn image_mime(entry: &str, bytes: &[u8]) -> Option<String> {
-    let name = FileName::new(entry.rsplit('/').next().unwrap_or(entry)).ok()?;
-    let head = FileHead::new(&bytes[..bytes.len().min(4096)]);
-    match sniff(&head, &name) {
-        SniffStep::Done(sniffed)
-            if matches!(sniffed.kind(), FormatKind::Raster | FormatKind::Vector) =>
-        {
-            Some(sniffed.mime().as_str().to_owned())
-        }
-        SniffStep::Done(_) | SniffStep::LookInside(_) => None,
     }
 }

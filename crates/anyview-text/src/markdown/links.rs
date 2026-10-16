@@ -18,8 +18,9 @@ pub(super) fn scheme(url: &str) -> Option<String> {
 /// `url` when it is safe to put in a link: a fragment, a relative reference, or one of the
 /// allowed schemes. Anything else becomes `#`.
 pub(super) fn safe_link(url: &str) -> String {
-    // A browser drops tabs and line breaks (and any control character) before it reads the
-    // scheme, so `java<tab>script:` is `javascript:` to it.
+    // A browser (the WHATWG URL parser) drops leading and trailing controls and spaces, and tabs
+    // and line breaks anywhere, before it reads the scheme, so `java<tab>script:` is
+    // `javascript:` to it. Dropping every control character is a superset of that.
     let seen: String = url.chars().filter(|c| !c.is_ascii_control()).collect();
     match scheme(seen.trim()) {
         Some(scheme) if !SCHEMES.contains(&scheme.as_str()) => "#".to_owned(),
@@ -53,6 +54,36 @@ mod tests {
             ("tab inside the scheme", "java\tscript:alert(1)", "#"),
             ("line break inside the scheme", "java\nscript:alert(1)", "#"),
             ("control before the scheme", "\u{1}javascript:alert(1)", "#"),
+            ("capitals and a tab", "JAVA\tSCRIPT:alert(1)", "#"),
+            (
+                "carriage return inside the scheme",
+                "java\rscript:alert(1)",
+                "#",
+            ),
+            ("line break before the colon", "javascript\n:alert(1)", "#"),
+            (
+                "control and space before the scheme",
+                "\u{1} javascript:alert(1)",
+                "#",
+            ),
+            (
+                "space and tab before the scheme",
+                " \tjavascript:alert(1)",
+                "#",
+            ),
+            (
+                "no-break space before the scheme",
+                "\u{a0}javascript:alert(1)",
+                "#",
+            ),
+            ("data with a tab", "data\t:text/html,x", "#"),
+            ("vbscript with a line break", "vb\nscript:x", "#"),
+            (
+                "tab in an allowed scheme",
+                "https\t://example.com",
+                "https\t://example.com",
+            ),
+            ("tab in a relative path", "docs/a\tb:c", "docs/a\tb:c"),
         ];
         for (name, url, want) in CASES {
             assert_eq!(safe_link(url), *want, "{name}");

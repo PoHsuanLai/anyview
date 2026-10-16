@@ -126,10 +126,8 @@ mod tests {
         red.save(&path).unwrap();
         let mut png = std::io::Cursor::new(Vec::new());
         red.write_to(&mut png, image::ImageFormat::Png).unwrap();
-        let inline = format!(
-            "data:image/png;base64,{}",
-            ds_core::base64::encode(png.get_ref())
-        );
+        let name = anyview_core::FileName::new("red.png").unwrap();
+        let inline = anyview_core::image_data_url(png.get_ref(), &name).unwrap();
         // name, href, pictures the drawing holds
         let cases: Vec<(&str, String, usize)> = vec![
             ("a data url is read", inline, 1),

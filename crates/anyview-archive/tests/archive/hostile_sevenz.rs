@@ -131,3 +131,79 @@ fn a_real_7z_still_lists_and_extracts() {
         })
     );
 }
+
+/// The header of a valid 7z, cut out: the bytes before it (packed data, `offset` of them after the
+/// start header) and the header itself.
+fn split_header(bytes: &[u8]) -> (u64, Vec<u8>, Vec<u8>) {
+    let word = |from: usize| u64::from_le_bytes(bytes[from..from + 8].try_into().unwrap());
+    let (offset, size) = (word(12), word(20));
+    let at = 32 + offset as usize;
+    (
+        offset,
+        bytes[32..at].to_vec(),
+        bytes[at..at + size as usize].to_vec(),
+    )
+}
+
+/// Every damaged copy of `header`: cut at each length, each byte flipped, zeroed or set to a huge
+/// count, and each byte replaced by an eight-byte number of all ones.
+fn damaged(header: &[u8]) -> Vec<(String, Vec<u8>)> {
+    let mut all = Vec::new();
+    for cut in 0..header.len() {
+        all.push((format!("cut to {cut} bytes"), header[..cut].to_vec()));
+    }
+    for at in 0..header.len() {
+        for (what, byte) in [
+            ("flipped", !header[at]),
+            ("zeroed", 0),
+            ("set to 0x7F", 0x7F),
+            ("set to 0x80", 0x80),
+            ("set to 0xFF", 0xFF),
+        ] {
+            let mut copy = header.to_vec();
+            copy[at] = byte;
+            all.push((format!("byte {at} {what}"), copy));
+        }
+        let inflated = [&header[..at], &number(u64::MAX), &header[at + 1..]].concat();
+        all.push((format!("byte {at} made a number of all ones"), inflated));
+    }
+    all
+}
+
+#[test]
+fn a_damaged_header_is_refused_or_listed_within_its_caps_and_never_panics() {
+    let dir = tempfile::tempdir().unwrap();
+    let real = sevenz_of(dir.path(), ENTRIES);
+    let (offset, packed, header) = split_header(&real);
+    // A header written by hand, plain, with a folder and a coder of every shape the checker walks.
+    let plain = [
+        &[0x01, 0x04, 0x07, 0x0B, 0x01, 0x00, 0x01, 0x21, 0x05, 0x00][..],
+        &[0x0C, 0x01, 0x00, 0x00, 0x00],
+    ]
+    .concat();
+    // name, packed bytes before the header, offset they take, header
+    let seeds = [
+        ("a real 7z", packed, offset, header),
+        ("a plain header", Vec::new(), 0, plain),
+    ];
+    let mut tried = 0;
+    for (seed, packed, offset, header) in seeds {
+        for (what, header) in damaged(&header) {
+            let body = [packed.as_slice(), &header].concat();
+            let bytes = with_start_header(offset, header.len() as u64, &body);
+            let path = write(dir.path(), "damaged.7z", &bytes);
+            // A listing that returns has neither panicked nor allocated from a claim (that aborts).
+            let outcome = list(
+                &path,
+                ArchiveFormat::SevenZip,
+                EntryLimit(100),
+                ByteLen(1024 * 1024),
+            );
+            if let Ok(listing) = outcome {
+                assert!(listing.entries.len() <= 100, "{seed}: {what}");
+            }
+            tried += 1;
+        }
+    }
+    assert!(tried > 300, "the corpus is {tried} headers");
+}

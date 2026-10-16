@@ -8,6 +8,7 @@
 mod detect;
 mod extension;
 mod head;
+mod inline;
 mod magic;
 mod ole;
 mod sniffed;
@@ -19,6 +20,7 @@ mod tests;
 
 pub use detect::{sniff, sniff_folder};
 pub use head::FileHead;
+pub use inline::image_data_url;
 pub use ole::{OleStreams, is_ole, sniff_ole};
 pub use sniffed::{SniffStep, Sniffed, ZipProbe};
 pub use zip::{ZipEntries, sniff_zip};

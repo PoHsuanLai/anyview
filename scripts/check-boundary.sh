@@ -406,7 +406,7 @@ EDGES=(
   "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"
   "anyview-runtime: anyview-core"
   "anyview-archive: anyview-core ds-core"
-  "anyview-book: anyview-archive anyview-core ds-core"
+  "anyview-book: anyview-archive anyview-core"
   "anyview-font: anyview-core"
   "anyview-pdf: anyview-core"
   "anyview-export: anyview-core anyview-image anyview-pdf anyview-store anyview-text ds-blitz ds-core"
