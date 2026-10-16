@@ -101,7 +101,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   once as the program starts, so a second process sees what the first wrote only on its own start. Ends when
   quire's `SplitPane` takes a starting size apart from `preferred`.
 - **The harness cannot hold a key.** `Input::key` is a press and a release, so a test cannot show Space held across
-  a window deactivation; the release on `WindowState::activated == Inactive` (`views/window.rs`) is covered by the
+  a window deactivation; the release on `WindowState::activated == Inactive` (`views/window/`) is covered by the
   pure `hand` machine's cases and the viewer step, not by a held key in the harness.
 
 - **A window is fitted to a guess of the screen's work area off the desktop shell.** Where the desktop's shell
@@ -565,7 +565,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   is what lets a restored place be applied without the start of the file being reported, and kept, in
   front of it.
 - **A recording's place is kept once it has moved a second or changed a setting, and never while opening.**
-  `views/arrive.rs` compares what the player reports with what was last kept, and keeps nothing until the
+  `views/arrive/` compares what the player reports with what was last kept, and keeps nothing until the
   stage has left `Opening`, so a player's first report cannot overwrite the place a file was left at.
   A place is put back with instructions sent at once, which the driver holds until the file opens.
 - **A recording left behind is released, and one ahead is never played.** `StageView::LEAVING` is `Release`

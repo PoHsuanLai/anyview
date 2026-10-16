@@ -373,21 +373,21 @@ desktop ability is a trait the host still holds, answered by a portable stand-in
 | Thumbnails, window stacking | `FreedesktopThumbnails` and `NoStacking`, re-exported from `linux` | the same, from `portable` |
 
 **What a file offers, declared once.** The commands of a file are the intersection of four tables, and the
-palette, the context menu, the capsule and the keys all read the result (`views/session.rs` `commands`, then
+palette, the context menu, the capsule and the keys all read the result (`views/session/commands.rs` `commands`, then
 `context::entries`, `offered_slots` and `ViewerParams::files`): the kind's actions (`anyview_core::actions_for`,
 which the launcher shares), what the showing stage can do to its file (`Stage::abilities` in
 `stage/abilities.rs`: the edits it carries out and the export it writes), what the file allows (a save in place, an
 edit that can be made, a player) and what the platform has (`PlatformAbilities`). `session::offered` is the one
 match over `FileAction`, so an action added to the vocabulary has to say where it applies. The stage's own
 commands are the ones its dispatch answers (`Stage::input_for`). The context menu only orders and titles; the
-capsule's file buttons are dropped when the file action is not listed. The table tests in `views/session.rs` hold
+capsule's file buttons are dropped when the file action is not listed. The table tests in `views/session/tests.rs` hold
 kind by command for the palette and the menu.
 
 **What the platform can do, and who hides what it cannot.** `Picker`, `Printer` and `Reveal`
 have `present()` (true unless the implementation only answers "not available": `NoPicker`, `NoPrinter`), and `Share` has its `targets()`. `host::Hosting::abilities()` reads them into
 `anyview_ui::PlatformAbilities` (a set of `DesktopService::{FileChooser, PrintDialog, Sharing,
 FileManager}`; `ALL` is the default), which the window's `Wiring` gives its `Seams` (`with_platform`). The views read it, never the operating
-system: `views/session.rs` `offered` filters the palette's commands (so the context menu and the file-action keys,
+system: `views/session/offers.rs` `offered` filters the palette's commands (so the context menu and the file-action keys,
 which derive from them, follow), `keys::Regions::platform` unbinds ⌘O, `StageCx::platform` gates the Show in Folder
 button of the card and picture screens, `Offer::of` those of the failure screen, and the
 welcome window drops Open.... The Install... of a missing tool is the host's: `HelperHost::installing_where` is
@@ -1294,23 +1294,23 @@ The single place a concept lives. Extend it; never write a second one.
 | A window of the viewer | `anyview::window::open_in_window`, `Seed` |
 | Stepping to the next or previous find hit, wrapping | `anyview_ui::FindHits` (`stage/find.rs`) |
 | A phrase found in a text, as hits that cut a line at character boundaries | `anyview_text::Needle`, `FindHit`, `TextLines::find` |
-| The palette as a find: the scope, the hit rows and "Show All", and the stage's find following it | `PaletteScope`, `HitList` (`palette/model.rs`), `step_with_scope` (`palette/step.rs`), `rows_for` (`views/session.rs`), `find_synced` (`viewer/step.rs`), `views/palette.rs` |
+| The palette as a find: the scope, the hit rows and "Show All", and the stage's find following it | `PaletteScope`, `HitList` (`palette/model.rs`), `step_with_scope` (`palette/step.rs`), `rows_for` (`views/session/rows.rs`), `find_synced` (`viewer/step.rs`), `views/palette.rs` |
 | The capsule's readout and steps while a find has hits | `families/found.rs` (`standing`) |
 | How soon a job is wanted, and which pool lane that is | `Job::lane` -> `WorkLane`; the binary's one mapping to the runtime's `Lane` (`seam/workforce.rs`) |
-| Which hits are on a line, how a line is cut at them, where the view scrolls to show one | `FoundHits`, `pieces`, `top_for` (`families/text/find.rs`) |
+| Which hits are on a line, how a line is cut at them, where the view scrolls to show one | `FoundHits`, `pieces`, `top_for` (`families/text/find/`) |
 | How many lines fit a page when long lines wrap | `families/text/wrap.rs` |
 | Where a key step through a text lands | `stage/text/steps.rs` |
 | What a stage remembers of where the person is, and puts back | `Stage::resume`, `Stage::restoring` (`stage/resume.rs`) |
 | Which files refuse a save in place (their edits are not offered) | `anyview_ui::FileLocks` and `Opened::access` (the binary implements it over `anyview_store::is_read_only`: `host/locks.rs`) |
-| Which rows the right-click menu has, in what order | `context/entries.rs` (`entries`), over the palette's `commands` (`views/session.rs`) |
+| Which rows the right-click menu has, in what order | `context/entries.rs` (`entries`), over the palette's `commands` (`views/session/commands.rs`) |
 | Where a file was left, read by the window | `anyview_ui::ResumeSource` (the binary implements it over `anyview_store`) |
 | Where a file is left, kept | `HostRequest::Remember` (the binary writes it through `anyview_store`) |
-| The cheap first frame of a file | `StageView::first_frame` (`families/view.rs`); a picture's from `anyview_peek::StillSource` (the host's thumbnail cache), an animation's or a vector's from `anyview_image`'s peeks, a text's the first bytes of the file (`families/text/doc.rs`) |
+| The cheap first frame of a file | `StageView::first_frame` (`families/view/stage.rs`); a picture's from `anyview_peek::StillSource` (the host's thumbnail cache), an animation's or a vector's from `anyview_image`'s peeks, a text's the first bytes of the file (`families/text/doc.rs`) |
 | The size a picture will have, without decoding it | `anyview_image::declared_size` |
 | The files opened ahead, and the one just left | `views/preloads.rs` |
 | The folder of a file as the list the arrow keys walk, in name order | `anyview_ui::folder_sequence` (`io/folder.rs`) |
 | Whether a changed file is reloaded | `anyview_ui::freshness` (`load/fresh.rs`); the host says a file changed through `Edge::changed` |
-| The frames of an animation, and the clock that plays them | `RasterDoc` strip (`families/raster/doc.rs`) for the textures and delays; the clock is `RasterStage::wake` (`stage/raster/step.rs`) |
+| The frames of an animation, and the clock that plays them | `RasterDoc` strip (`families/raster/doc/`) for the textures and delays; the clock is `RasterStage::wake` (`stage/raster/step.rs`) |
 | The zoom a step in or out lands on, and the point it holds still | `stage/zoom.rs` (`stepped`, `centre_about`) |
 | The person's directories, the session bus and starting a program | `anyview_platform::Env` (`env.rs`); nothing else reads `std::env`, `dirs` or a bus address |
 | One viewer process, and forwarding a launch to it | `anyview_platform::Instance`, `Request` |
@@ -1327,7 +1327,7 @@ The single place a concept lives. Extend it; never write a second one.
 | The facts of a kind with no built-in back end, from a plugin or the package that is missing | `anyview_platform::PluginRunner::peek_facts` |
 | Printing, sharing, revealing a file, keeping a window above | `anyview_platform::Printer`, `Share`, `Reveal`, `WindowStacking` |
 | Which view shows a kind of file, and opening it | `anyview_ui::visit`, `family_of` (`families/registry.rs`) |
-| What a family draws, controls and lists | `anyview_ui::StageView` (`families/view.rs`) |
+| What a family draws, controls and lists | `anyview_ui::StageView` (`families/view/stage.rs`) |
 | Where a picture lands in the room, and which texels show | `families/raster/geometry.rs` |
 | Where the pages of a PDF are in the room, what a zoom means for it, and the tiles the room asks for | `families/pdf/scene.rs` (`Scene`, `fits`, `scale_of`) |
 | Which PDF tiles are on the GPU, in flight or given up on, and the hits, thumbnails and links of the open PDF | `families/pdf/live.rs` (`PdfLive`, held by the window as `PdfShelf`) |
@@ -1658,7 +1658,7 @@ action's chord that no region claims runs as the palette's row does (`Act::File`
 Don't Save in the question about unsaved changes, as in a Mac's dialogs.
 
 The right-click menu is the palette's command list under a Mac's grouping, so the menu, the palette
-and the shortcuts cannot drift: `views/session.rs` builds the one `commands` list (with what the
+and the shortcuts cannot drift: `views/session/` builds the one `commands` list (with what the
 file allows: playback, the edit offer, `FileAccess`), `context::entries` picks the rows a context
 menu shows from it, and a row is run by the same `run` a palette row is. A secondary click on the
 content (not on the capsule or the titlebar) sends `ContextIn::Open` with the pointer; the menu
