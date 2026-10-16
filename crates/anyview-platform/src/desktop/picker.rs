@@ -2,7 +2,7 @@
 //! the one a sandboxed program must use, answers the `file://` URIs of what was chosen on a
 //! Request object (`portal`).
 
-use super::portal::{DESKTOP, DESKTOP_PATH, Response, UNPARENTED, answers, failure};
+use super::portal::{DESKTOP, DESKTOP_PATH, Response, UNPARENTED, answers, failure, unreached};
 use crate::env::Env;
 use crate::error::PlatformError;
 use crate::picker::{FileKinds, PickOutcome, Picker};
@@ -51,15 +51,19 @@ impl Picker for PortalPicker {
         }
         let proxy = match Proxy::new(&connection, DESKTOP, DESKTOP_PATH, FILE_CHOOSER).await {
             Ok(proxy) => proxy,
-            Err(error) => return Ok(no_dialog("reach the file chooser", &error)),
+            Err(error) => {
+                return unreached(CALL, "reach the file chooser", &error)
+                    .map_or(Ok(PickOutcome::NoDialog), Err);
+            }
         };
-        // No portal that offers the chooser is the same as no dialog; once it is up, a failure is
-        // the call's.
+        // No portal that offers the chooser is the same as no dialog; a portal that is there and
+        // fails is a failure, with its cause kept.
         if let Err(error) = proxy
             .call_method("OpenFile", &(UNPARENTED, TITLE, options))
             .await
         {
-            return Ok(no_dialog("ask the file chooser", &error));
+            return unreached(CALL, "ask the file chooser", &error)
+                .map_or(Ok(PickOutcome::NoDialog), Err);
         }
         let (response, results) = answered.next_answer().await?;
         match response {
@@ -88,8 +92,8 @@ impl Picker for PortalPicker {
     }
 }
 
-/// The portal could not show a dialog; the reason goes to the log, because the person only hears
-/// that the desktop has no file chooser.
+/// There is no session bus to reach a portal on; the reason goes to the log, because the person
+/// only hears that the desktop has no file chooser.
 fn no_dialog(step: &str, error: &dyn std::fmt::Display) -> PickOutcome {
     log::warn!("no file dialog: cannot {step}: {error}");
     PickOutcome::NoDialog

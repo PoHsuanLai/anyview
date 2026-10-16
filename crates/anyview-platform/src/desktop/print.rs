@@ -4,7 +4,7 @@
 //! known in advance from the `handle_token` option, so the answer is subscribed to before the
 //! call is made and cannot be missed.
 
-use super::portal::{DESKTOP, DESKTOP_PATH, Response, UNPARENTED, answers};
+use super::portal::{DESKTOP, DESKTOP_PATH, Response, UNPARENTED, answers, unreached};
 use crate::env::Env;
 use crate::error::PlatformError;
 use crate::printer::{JobTitle, PrintOutcome, Printer};
@@ -29,8 +29,9 @@ impl PortalPrinter {
     }
 }
 
-/// Where a portal call failed: before anything was shown (no portal, no print backend: the
-/// caller falls back to a viewer), or after, when the person has seen a dialog and must hear why.
+/// Where a portal call failed: before anything was shown because no portal is there (the caller
+/// falls back to a viewer), or otherwise, when the portal is there and failed; the failure keeps
+/// its cause.
 enum Stage {
     Before,
     After(PlatformError),
@@ -56,26 +57,24 @@ impl Printer for PortalPrinter {
     }
 }
 
-/// The portal could not show a dialog; the reason goes to the log, because the caller falls back
-/// to a viewer without saying why.
+/// There is no session bus to reach a portal on; the reason goes to the log, because the caller
+/// falls back to a viewer without saying why.
 fn no_dialog(step: &str, error: &dyn std::fmt::Display) -> PrintOutcome {
     log::warn!("no print dialog: cannot {step}: {error}");
     PrintOutcome::NoDialog
 }
 
-/// `Stage::Before` for a failure of `step`, which is logged.
-fn before<E: std::fmt::Display>(step: &'static str) -> impl FnOnce(E) -> Stage {
-    move |error| {
-        log::warn!("no print dialog: cannot {step}: {error}");
-        Stage::Before
-    }
+/// The stage a failed portal call `step` ends in: `Before` if no portal is there, else the
+/// failure, which is logged with its cause.
+fn reach(step: &'static str) -> impl FnOnce(zbus::Error) -> Stage {
+    move |error| unreached(CALL, step, &error).map_or(Stage::Before, Stage::After)
 }
 
 /// Show the dialog; the token if the person accepted, `None` if they cancelled.
 async fn prepare(connection: &Connection, title: &str) -> Result<Option<u32>, Stage> {
     let mut answers = answers(connection, "prepare", CALL)
         .await
-        .map_err(before("subscribe to the answer"))?;
+        .map_err(Stage::After)?;
     let empty: HashMap<&str, Value<'_>> = HashMap::new();
     let options: HashMap<&str, Value<'_>> = HashMap::from([
         ("handle_token", Value::from("prepare")),
@@ -83,13 +82,13 @@ async fn prepare(connection: &Connection, title: &str) -> Result<Option<u32>, St
     ]);
     portal(connection)
         .await
-        .map_err(before("reach the print portal"))?
+        .map_err(reach("reach the print portal"))?
         .call_method(
             "PreparePrint",
             &(UNPARENTED, title, &empty, &empty, options),
         )
         .await
-        .map_err(before("ask the print portal"))?;
+        .map_err(reach("ask the print portal"))?;
     let (response, results) = answers.next_answer().await.map_err(Stage::After)?;
     match response {
         Response::Success => results
@@ -119,7 +118,8 @@ async fn submit(
         ("modal", Value::from(true)),
     ]);
     portal(connection)
-        .await?
+        .await
+        .map_err(|error| PlatformError::bus("reach the print portal", error))?
         .call_method("Print", &(UNPARENTED, title, Fd::from(&file), options))
         .await
         .map_err(|error| PlatformError::bus("print through the portal", error))?;
@@ -159,8 +159,6 @@ fn sealed_file(pdf: &[u8]) -> Result<OwnedFd, PlatformError> {
     Ok(OwnedFd::from(memfd.into_file()))
 }
 
-async fn portal(connection: &Connection) -> Result<Proxy<'static>, PlatformError> {
-    Proxy::new(connection, DESKTOP, DESKTOP_PATH, PRINT)
-        .await
-        .map_err(|error| PlatformError::bus("reach the print portal", error))
+async fn portal(connection: &Connection) -> Result<Proxy<'static>, zbus::Error> {
+    Proxy::new(connection, DESKTOP, DESKTOP_PATH, PRINT).await
 }

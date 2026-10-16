@@ -33,6 +33,53 @@ impl Response {
     }
 }
 
+/// What the bus says when nothing answers at the portal's name or path: no portal is installed,
+/// or it offers no such method.
+const ABSENT: [&str; 5] = [
+    "org.freedesktop.DBus.Error.ServiceUnknown",
+    "org.freedesktop.DBus.Error.NameHasNoOwner",
+    "org.freedesktop.DBus.Error.UnknownMethod",
+    "org.freedesktop.DBus.Error.UnknownObject",
+    "org.freedesktop.DBus.Error.UnknownInterface",
+];
+
+/// Whether `error` says there is no portal to ask, as against a portal that is there and failed
+/// (access denied, a crashed backend, a sandbox without the permission).
+// `zbus::Error` is `#[non_exhaustive]`: every other error, today's and a later zbus's, is a portal
+// that failed rather than one that is not there.
+#[allow(clippy::wildcard_enum_match_arm)]
+fn is_absent(error: &zbus::Error) -> bool {
+    use zbus::fdo::Error as Fdo;
+    match error {
+        zbus::Error::MethodError(name, _, _) => ABSENT.contains(&name.as_str()),
+        zbus::Error::FDO(inner) => matches!(
+            **inner,
+            Fdo::ServiceUnknown(_)
+                | Fdo::NameHasNoOwner(_)
+                | Fdo::UnknownMethod(_)
+                | Fdo::UnknownObject(_)
+                | Fdo::UnknownInterface(_)
+        ),
+        _ => false,
+    }
+}
+
+/// What a failed portal call `step` of `call` means: `None` when no portal is there (the caller
+/// falls back to its calm "no dialog"), or the failure with its cause kept. Both are logged.
+pub(super) fn unreached(
+    call: &'static str,
+    step: &str,
+    error: &zbus::Error,
+) -> Option<PlatformError> {
+    if is_absent(error) {
+        log::warn!("no portal: cannot {step}: {error}");
+        None
+    } else {
+        log::warn!("the portal failed: cannot {step}: {error}");
+        Some(PlatformError::bus(call, format!("cannot {step}: {error}")))
+    }
+}
+
 /// An answer's results, by key.
 pub(super) type Results = HashMap<String, OwnedValue>;
 
@@ -100,6 +147,29 @@ mod tests {
         assert_eq!(
             request_path(":1.42", "print"),
             "/org/freedesktop/portal/desktop/request/1_42/print"
+        );
+    }
+
+    #[test]
+    fn only_a_missing_portal_is_absent() {
+        use zbus::fdo::Error as Fdo;
+        let cases = [
+            ("no service", Fdo::ServiceUnknown("p".to_owned()), true),
+            ("no owner", Fdo::NameHasNoOwner("p".to_owned()), true),
+            ("no method", Fdo::UnknownMethod("m".to_owned()), true),
+            ("denied", Fdo::AccessDenied("no".to_owned()), false),
+            ("failed", Fdo::Failed("crashed".to_owned()), false),
+        ];
+        for (name, error, absent) in cases {
+            assert_eq!(
+                is_absent(&zbus::Error::FDO(Box::new(error))),
+                absent,
+                "{name}"
+            );
+        }
+        assert!(
+            !is_absent(&zbus::Error::Failure("x".to_owned())),
+            "other errors fail"
         );
     }
 
