@@ -1907,7 +1907,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 3.0.6",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -5497,9 +5497,9 @@ checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
 
 [[package]]
 name = "pdfrum"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e117b160fddb031774a309f5f588bbf2c67717989b375c3881abc1ba77a77cf8"
+checksum = "eb4cb7c691cef28e120e33cd5c63a847d2c82bd235f0099c5029139b1ed91bc4"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5522,9 +5522,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-anyrender"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70f9971f3b6a48b6f8589910ec3f0dd002f7ac93f6917640e1c33fbe9f6f8801"
+checksum = "350949b5f4be3c833e64cc8b089d665d5a13a8a312f4474774e38674b7f1a3fe"
 dependencies = [
  "anyrender",
  "pdfrum-common",
@@ -5536,9 +5536,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-cmap"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "909bf67634e36ac4b982834031b01fa4661b66257057afcf80e420708d7064c0"
+checksum = "1e73e6244dc6554b2d11c091368bab6e02a6ac9b7247f2a715588abd585424e2"
 dependencies = [
  "pdfrum-common",
  "pdfrum-object",
@@ -5547,18 +5547,18 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-common"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e31df56ec25f533c012ee5eac1c1fa1d6e76c93a387c52c09ed6ce60ac7e51d9"
+checksum = "8085a06ea0cd26d607b71519182f7c918608ae18d9d8378d2156ec258119cad6"
 dependencies = [
  "kurbo",
 ]
 
 [[package]]
 name = "pdfrum-crypt"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff621ad3acc21df398d2616e02920503234b115ca67653efdf5e59a3ac1a4dcd"
+checksum = "a1535b6048e3ae440f6685d3125a0501f55008c847b68af4cc52b9e2a5d6cbb5"
 dependencies = [
  "aes",
  "cbc",
@@ -5575,9 +5575,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-doc"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41e2fb5727734e68b4da6cd1e82c5bf8db11ea6024f0516f8ff1fd8dad5b886d"
+checksum = "5b83c9d8d5a232d7c1f88b8f537581d495f79284207b34c4724065260d481139"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5592,9 +5592,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-edit"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb820594885a6d3e25bad20cd5c6254127509e022a2eef3700bd0555a2e41c79"
+checksum = "24126dbc46a0c9f726d17b7cbcc5c34e07272a1a6de01d59c2073a7be126e9c1"
 dependencies = [
  "getrandom 0.4.3",
  "kurbo",
@@ -5618,9 +5618,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-filters"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74448acb78a7ee9b518f431e93c15034e6ca93ffb6b797a4431132d92af8019e"
+checksum = "8b79b93c83172528e827d15f2b54d5d5c9884ef1c3327a9fd6c4622c8294b1a5"
 dependencies = [
  "miniz_oxide 0.9.1",
  "pdfrum-common",
@@ -5631,9 +5631,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-font"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dacbb28e0627bdb43f80a06c3d44e74adaa2e13b00dd51d145c797a5c6717434"
+checksum = "b77a8a5b34a8d46472c15c1195d094058c4b37e2fefcd777e3c8792c62fac7bd"
 dependencies = [
  "pdfrum-cmap",
  "pdfrum-common",
@@ -5648,9 +5648,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-form"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18ffd332f45bc1aa278f65aa19f024f423f7d5b1743b6c873c745df56312415c"
+checksum = "cd9b430fed6b283b455bb83c1c27b9e492a0114f4b85625fa5bba2a177d0570a"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5663,9 +5663,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-markdown"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45952a6ffa7bbe4a749c7d1502862ede87df1f0d8c6b48509b502bd3c638ac90"
+checksum = "0b8d5a725aa1f9595adf84283bcdfc428a29f9d643051a6df03be945e8a971dc"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5677,9 +5677,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-object"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29c024e1b4dce49c3c8510c50e0421523c3523ebd0cc45424541a19d95f200db"
+checksum = "e23add408d2db170b76f9e920b71341da0ca9dadc06c4b7d9f53c6f17d406227"
 dependencies = [
  "bytes",
  "pdfrum-common",
@@ -5689,9 +5689,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-page"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d503c8e5d5a79a423a0464165fd600bd48a38cbba072e7912c28809321ed4118"
+checksum = "50d857e6426f5cb016f6d6874b00eb4196389e574c8734d0f11c0eab0e399bfe"
 dependencies = [
  "kurbo",
  "moxcms 0.9.1",
@@ -5706,9 +5706,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-parser"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d7ab1c9604fe16eb52e520343d75c4b67420c6e0325d9b9ae1dab00584e5ff0"
+checksum = "ca70723ed7c04ae9d5710c6d1a6f4f6c909d86b7cb5f34101ed6c2b14fecd90d"
 dependencies = [
  "pdfrum-common",
  "pdfrum-crypt",
@@ -5719,9 +5719,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-raster-vello-cpu"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c427be87f2012a1c9d628a6538ace7c967511a3c4fec8aac3b2a71003df4e95"
+checksum = "80f50c84943d5ca85f9628791c3a8b1d51fcdf4608360677969a8e6deb05c3d1"
 dependencies = [
  "kurbo",
  "pdfrum-page",
@@ -5732,9 +5732,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-render"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d8e344d562538248978282d2bdc5cd0bfdae49863a41298dba852ad3a441549"
+checksum = "a74649a9c76d3163941f11982a377c5f8fe7b3903d2ca2d69310867c8e459255"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5748,9 +5748,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-text"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58e828a3dd307efc4837b0dca09ad515d554a53c1154605cbdf5c2ca58f7af0c"
+checksum = "0f961a96ca2e0a23b64e40a1378063340d566d8362b13f039675e444e3e34c72"
 dependencies = [
  "kurbo",
  "pdfrum-common",
@@ -5763,9 +5763,9 @@ dependencies = [
 
 [[package]]
 name = "pdfrum-type1"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "715dc6d81525859befde338e2ddb3a3b85b45a8dc8dbdf04b789d2197ce2d5de"
+checksum = "26d1c1d4896097f7aa47076b3fbcd71bd597d8c3b407795b7fb5e2c6069bb432"
 dependencies = [
  "pdfrum-common",
  "read-fonts 0.44.0",
