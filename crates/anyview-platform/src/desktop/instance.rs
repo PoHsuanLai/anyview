@@ -34,7 +34,9 @@ impl DbusInstance {
 
     /// The same, finding docket's router in the fixture tree `root` instead of the system's
     /// `/proc`: `<root>/<pid>/cgroup` names a process's unit and `<root>/units/intentd.service`
-    /// holds the router's pid. How a test on a private bus stands in for `intentd.service`.
+    /// holds the router's pid. How a test on a private bus stands in for `intentd.service`; docket
+    /// reads the tree only in a build with docket-dbus's `fixture-callers` (a test build's), and
+    /// any other build answers nobody, so a shipped viewer cannot be pointed at a fake `/proc`.
     pub fn with_proc_root(self, root: PathBuf) -> Self {
         DbusInstance {
             proc_root: Some(root),
