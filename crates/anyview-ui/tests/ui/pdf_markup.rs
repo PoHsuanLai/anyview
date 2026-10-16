@@ -154,7 +154,7 @@ fn words_dragged_over_with_the_highlighter_are_highlighted_and_saved_as_a_mark()
         panic!("a highlight: {mark:?}")
     };
     let line: PageRect = lines[0];
-    assert!(line.left.0 < 200 && line.right.0 > 300, "{line:?}");
+    assert!(line.left().0 < 200 && line.right().0 > 300, "{line:?}");
 }
 
 /// A drop-down reached with Tab takes the keyboard with its menu closed, and an arrow opens it; one
@@ -246,12 +246,12 @@ fn with_a_square() -> Vec<u8> {
     let square = Mark {
         page: PageIndex(0),
         color: MarkColor::Red,
-        shape: MarkShape::Rectangle(PageRect {
-            left: Permille(550),
-            top: Permille(300),
-            right: Permille(800),
-            bottom: Permille(450),
-        }),
+        shape: MarkShape::Rectangle(PageRect::new(
+            Permille(550),
+            Permille(300),
+            Permille(800),
+            Permille(450),
+        )),
         existing: None,
     };
     let doc = PdfDocument::from_bytes(pdf_fixture::fixture_bytes()).unwrap();
@@ -335,6 +335,6 @@ fn a_square_the_file_holds_is_dragged_and_saved_as_moved_with_its_reference() {
     let MarkShape::Rectangle(rect) = moved.shape else {
         panic!("a square: {moved:?}")
     };
-    assert!(rect.left.0 > 600, "moved to the right: {rect:?}");
+    assert!(rect.left().0 > 600, "moved to the right: {rect:?}");
     assert!(asked[0].removed.is_empty());
 }

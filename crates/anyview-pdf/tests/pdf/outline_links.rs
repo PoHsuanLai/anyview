@@ -45,6 +45,6 @@ fn links_say_where_they_are_and_where_they_lead() {
     );
     // [72 650 300 670] on a 612 x 792 page: x 72..300, and y 650..670 up from the bottom.
     let rect = links[0].rect;
-    assert_eq!((rect.left, rect.right), (Permille(118), Permille(490)));
-    assert_eq!((rect.top, rect.bottom), (Permille(154), Permille(179)));
+    assert_eq!((rect.left(), rect.right()), (Permille(118), Permille(490)));
+    assert_eq!((rect.top(), rect.bottom()), (Permille(154), Permille(179)));
 }

@@ -3,13 +3,20 @@
 use crate::units::Permille;
 
 /// A point on a page as displayed: each coordinate a thousandth of the page's width (`x`) or
-/// height (`y`), from the top left.
+/// height (`y`), from the top left. Always on the page: a coordinate past the whole is held at it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct PagePoint {
-    /// Across, 0 at the left edge and 1000 at the right.
-    pub x: Permille,
-    /// Down, 0 at the top edge and 1000 at the bottom.
-    pub y: Permille,
+    x: Permille,
+    y: Permille,
+}
+
+/// `value` held on the page.
+const fn held(value: Permille) -> Permille {
+    if value.0 > 1000 {
+        Permille::WHOLE
+    } else {
+        value
+    }
 }
 
 /// `value` moved by `by`, held on the page.
@@ -19,6 +26,27 @@ pub(super) fn shifted(value: Permille, by: i32) -> Permille {
 }
 
 impl PagePoint {
+    /// The point `x` across and `y` down, each held on the page.
+    #[must_use]
+    pub const fn new(x: Permille, y: Permille) -> PagePoint {
+        PagePoint {
+            x: held(x),
+            y: held(y),
+        }
+    }
+
+    /// Across, 0 at the left edge and 1000 at the right.
+    #[must_use]
+    pub const fn x(self) -> Permille {
+        self.x
+    }
+
+    /// Down, 0 at the top edge and 1000 at the bottom.
+    #[must_use]
+    pub const fn y(self) -> Permille {
+        self.y
+    }
+
     /// The point `x` and `y` thousandths in, held on the page.
     #[must_use]
     pub fn at(x: u32, y: u32) -> PagePoint {
@@ -39,20 +67,65 @@ impl PagePoint {
 }
 
 /// A rectangle on a page as displayed: each edge a thousandth of the page's width (left, right) or
-/// height (top, bottom), from the top left, so 0 to 1000 spans the page.
+/// height (top, bottom), from the top left, so 0 to 1000 spans the page. Always on the page and
+/// never reversed: the left edge is not past the right, nor the top past the bottom.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PageRect {
-    /// The left edge.
-    pub left: Permille,
-    /// The top edge.
-    pub top: Permille,
-    /// The right edge.
-    pub right: Permille,
-    /// The bottom edge.
-    pub bottom: Permille,
+    left: Permille,
+    top: Permille,
+    right: Permille,
+    bottom: Permille,
 }
 
 impl PageRect {
+    /// The rectangle with these edges, each held on the page, and a pair given the wrong way
+    /// round (left past right, top past bottom) swapped.
+    #[must_use]
+    pub const fn new(left: Permille, top: Permille, right: Permille, bottom: Permille) -> PageRect {
+        let (left, right) = (held(left), held(right));
+        let (top, bottom) = (held(top), held(bottom));
+        let (left, right) = if left.0 > right.0 {
+            (right, left)
+        } else {
+            (left, right)
+        };
+        let (top, bottom) = if top.0 > bottom.0 {
+            (bottom, top)
+        } else {
+            (top, bottom)
+        };
+        PageRect {
+            left,
+            top,
+            right,
+            bottom,
+        }
+    }
+
+    /// The left edge.
+    #[must_use]
+    pub const fn left(self) -> Permille {
+        self.left
+    }
+
+    /// The top edge.
+    #[must_use]
+    pub const fn top(self) -> Permille {
+        self.top
+    }
+
+    /// The right edge.
+    #[must_use]
+    pub const fn right(self) -> Permille {
+        self.right
+    }
+
+    /// The bottom edge.
+    #[must_use]
+    pub const fn bottom(self) -> Permille {
+        self.bottom
+    }
+
     /// The rectangle with these two opposite corners, whichever way round they are given.
     #[must_use]
     pub fn spanning(a: PagePoint, b: PagePoint) -> PageRect {

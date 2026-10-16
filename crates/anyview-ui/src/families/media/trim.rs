@@ -26,7 +26,7 @@ pub(super) fn time_at(x: f32, left: f32, width: f32, whole: MediaLength) -> Medi
 
 /// The handle a press at `at` takes hold of: the one it is nearer to, the start on a tie.
 pub(super) fn nearest(at: MediaTime, window: TrimWindow) -> TrimEdge {
-    if at.0.abs_diff(window.start.0) <= at.0.abs_diff(window.end.0) {
+    if at.0.abs_diff(window.start().0) <= at.0.abs_diff(window.end().0) {
         TrimEdge::Start
     } else {
         TrimEdge::End
@@ -78,13 +78,13 @@ pub(super) fn TrimBar(cx: StageCx) -> Element {
         | Stage::Table(_)
         | Stage::Tree(_) => (false, MediaTime::default()),
     };
-    let (start, end) = (percent(window.start, whole), percent(window.end, whole));
+    let (start, end) = (percent(window.start(), whole), percent(window.end(), whole));
     let head = percent(at, whole);
     let kept = end - start;
     let times = format!(
         "{} \u{2013} {}",
-        clock_text(window.start),
-        clock_text(window.end)
+        clock_text(window.start()),
+        clock_text(window.end())
     );
     let run = cx.run;
     let placed = move |x: f32| {
@@ -201,10 +201,8 @@ mod tests {
 
     #[test]
     fn a_press_takes_the_handle_it_is_nearer_to() {
-        let window = TrimWindow {
-            start: secs(20),
-            end: secs(60),
-        };
+        let window =
+            TrimWindow::new(secs(20), secs(60)).expect("a stretch with its end after its start");
         const CASES: &[(&str, u64, TrimEdge)] = &[
             ("before the start", 5, TrimEdge::Start),
             ("on the start", 20, TrimEdge::Start),

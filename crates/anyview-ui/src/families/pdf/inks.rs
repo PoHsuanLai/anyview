@@ -91,7 +91,7 @@ fn ink(kind: InkKind, state: InkState, style: String) -> Ink {
 
 /// A stroke of `length` logical pixels from `from`, turned `angle` radians clockwise.
 fn stroke_from(color: &str, from: PagePoint, length: f32, angle: f32, state: InkState) -> Ink {
-    let (left, top) = (from.x.0 as f32 / 10.0, from.y.0 as f32 / 10.0);
+    let (left, top) = (from.x().0 as f32 / 10.0, from.y().0 as f32 / 10.0);
     ink(
         InkKind::Stroke,
         state,
@@ -110,8 +110,8 @@ fn line(
     arrow: bool,
     state: InkState,
 ) -> Vec<Ink> {
-    let across = (to.x.0 as f32 - from.x.0 as f32) / 1000.0 * size.0;
-    let down = (to.y.0 as f32 - from.y.0 as f32) / 1000.0 * size.1;
+    let across = (to.x().0 as f32 - from.x().0 as f32) / 1000.0 * size.0;
+    let down = (to.y().0 as f32 - from.y().0 as f32) / 1000.0 * size.1;
     let angle = down.atan2(across);
     let mut strokes = vec![stroke_from(color, from, across.hypot(down), angle, state)];
     if arrow {
@@ -138,8 +138,8 @@ fn stroke_points(strokes: &[Vec<PagePoint>], rect: PageRect, size: (f32, f32)) -
             stroke
                 .iter()
                 .map(|point| {
-                    let x = point.x.0.saturating_sub(rect.left.0) as f32 * size.0 / 1000.0;
-                    let y = point.y.0.saturating_sub(rect.top.0) as f32 * size.1 / 1000.0;
+                    let x = point.x().0.saturating_sub(rect.left().0) as f32 * size.0 / 1000.0;
+                    let y = point.y().0.saturating_sub(rect.top().0) as f32 * size.1 / 1000.0;
                     format!("{x:.1},{y:.1}")
                 })
                 .collect::<Vec<_>>()
@@ -160,22 +160,15 @@ pub(super) fn inks_of(mark: &Mark, size: (f32, f32), state: InkState) -> Vec<Ink
         MarkShape::Underline(rects) => rects
             .iter()
             .map(|rect| {
-                let at = PageRect {
-                    top: rect.bottom,
-                    ..*rect
-                };
+                let at = PageRect::new(rect.left(), rect.bottom(), rect.right(), rect.bottom());
                 ink(InkKind::Rule, state, boxed(&paint, at))
             })
             .collect(),
         MarkShape::Strikethrough(rects) => rects
             .iter()
             .map(|rect| {
-                let middle = Permille(rect.top.0 + rect.height() / 2);
-                let at = PageRect {
-                    top: middle,
-                    bottom: middle,
-                    ..*rect
-                };
+                let middle = Permille(rect.top().0 + rect.height() / 2);
+                let at = PageRect::new(rect.left(), middle, rect.right(), middle);
                 ink(InkKind::Rule, state, boxed(&paint, at))
             })
             .collect(),
@@ -239,12 +232,12 @@ mod tests {
     }
 
     fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-        PageRect {
-            left: Permille(left),
-            top: Permille(top),
-            right: Permille(right),
-            bottom: Permille(bottom),
-        }
+        PageRect::new(
+            Permille(left),
+            Permille(top),
+            Permille(right),
+            Permille(bottom),
+        )
     }
 
     #[test]

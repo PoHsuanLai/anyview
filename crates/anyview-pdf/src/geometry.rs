@@ -53,12 +53,12 @@ pub fn displayed(rect: Rect, crop: Rect, rotation: Rotation) -> PageRect {
     let (ax, ay) = turned(upright(rect.x0, rect.y0));
     let (bx, by) = turned(upright(rect.x1, rect.y1));
     let thousandths = |fraction: f64| Permille((fraction.clamp(0.0, 1.0) * 1000.0).round() as u32);
-    PageRect {
-        left: thousandths(ax.min(bx)),
-        top: thousandths(ay.min(by)),
-        right: thousandths(ax.max(bx)),
-        bottom: thousandths(ay.max(by)),
-    }
+    PageRect::new(
+        thousandths(ax.min(bx)),
+        thousandths(ay.min(by)),
+        thousandths(ax.max(bx)),
+        thousandths(ay.max(by)),
+    )
 }
 
 #[cfg(test)]
@@ -66,12 +66,12 @@ mod tests {
     use super::*;
 
     const fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-        PageRect {
-            left: Permille(left),
-            top: Permille(top),
-            right: Permille(right),
-            bottom: Permille(bottom),
-        }
+        PageRect::new(
+            Permille(left),
+            Permille(top),
+            Permille(right),
+            Permille(bottom),
+        )
     }
 
     #[test]

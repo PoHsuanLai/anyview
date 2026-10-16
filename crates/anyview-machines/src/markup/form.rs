@@ -45,7 +45,7 @@ impl PdfMarkup {
         {
             outs.push(MarkupOut::Reveal {
                 page: widget.page,
-                offset: Permille(widget.rect.top.0.saturating_sub(ABOVE)),
+                offset: Permille(widget.rect.top().0.saturating_sub(ABOVE)),
             });
         }
         self.focus = Some(target);

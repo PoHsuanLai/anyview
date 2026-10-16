@@ -6,26 +6,51 @@ use anyview_core::{Edit, MediaLength, MediaTime, TimeRange};
 /// The least a trim keeps, so that both handles can still be taken hold of.
 pub const MIN_KEPT: MediaTime = MediaTime::from_millis(100);
 
-/// A stretch of the recording, from `start` to `end`.
+/// A stretch of the recording, from a start to an end that is after it. It wraps the core's
+/// [`TimeRange`], whose constructor holds that order, with an end that is always given.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TrimWindow {
-    /// Where the stretch begins.
-    pub start: MediaTime,
-    /// Where it ends; after `start`.
-    pub end: MediaTime,
+    range: TimeRange,
 }
 
 impl TrimWindow {
+    /// The stretch from `start` to `end`; `None` when `end` is not after `start`.
+    #[must_use]
+    pub fn new(start: MediaTime, end: MediaTime) -> Option<TrimWindow> {
+        TimeRange::new(start, Some(end))
+            .ok()
+            .map(|range| TrimWindow { range })
+    }
+
+    /// Where the stretch begins.
+    #[must_use]
+    pub fn start(self) -> MediaTime {
+        self.range.start()
+    }
+
+    /// Where it ends; after the start.
+    #[must_use]
+    pub fn end(self) -> MediaTime {
+        // `new` always gives an end; the start stands in for one that is missing.
+        self.range.end().unwrap_or_else(|| self.range.start())
+    }
+
+    /// The stretch as the core's range.
+    #[must_use]
+    pub fn range(self) -> TimeRange {
+        self.range
+    }
+
     /// `at`, or the nearest end of the stretch when it is outside.
     #[must_use]
     pub fn clamp(self, at: MediaTime) -> MediaTime {
-        at.max(self.start).min(self.end)
+        at.max(self.start()).min(self.end())
     }
 
     /// How long the stretch runs.
     #[must_use]
     pub fn length(self) -> MediaLength {
-        MediaLength(MediaTime(self.end.0.saturating_sub(self.start.0)))
+        MediaLength(MediaTime(self.end().0.saturating_sub(self.start().0)))
     }
 }
 
@@ -124,9 +149,6 @@ impl MediaTrim {
     /// The edit that saves the applied trim.
     #[must_use]
     pub fn edit(&self) -> Option<Edit> {
-        let window = self.applied?;
-        TimeRange::new(window.start, Some(window.end))
-            .ok()
-            .map(Edit::Trim)
+        self.applied.map(|window| Edit::Trim(window.range()))
     }
 }

@@ -8,8 +8,8 @@ const fn secs(seconds: u64) -> MediaTime {
 
 const WHOLE: MediaLength = MediaLength(secs(60));
 
-const fn window(start: MediaTime, end: MediaTime) -> TrimWindow {
-    TrimWindow { start, end }
+fn window(start: MediaTime, end: MediaTime) -> TrimWindow {
+    TrimWindow::new(start, end).expect("a window whose end is after its start")
 }
 
 fn run(inputs: &[TrimIn]) -> MediaTrim {

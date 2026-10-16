@@ -68,7 +68,7 @@ pub(super) fn trim_in(viewer: Viewer, input: TrimIn, at: Stamp, params: &ViewerP
 fn follows(media: &MediaStage, trim: &MediaTrim, input: TrimIn) -> Vec<MediaIn> {
     let hold = matches!(media, MediaStage::Playing { .. }).then_some(MediaIn::Toggle);
     let to_start = |window: Option<TrimWindow>| {
-        MediaIn::SeekTo(window.map_or_else(MediaTime::default, |window| window.start))
+        MediaIn::SeekTo(window.map_or_else(MediaTime::default, |window| window.start()))
     };
     match input {
         TrimIn::Begin(_) => hold.into_iter().collect(),
@@ -76,8 +76,8 @@ fn follows(media: &MediaStage, trim: &MediaTrim, input: TrimIn) -> Vec<MediaIn> 
             .handles()
             .map(|(_, window)| {
                 MediaIn::SeekTo(match edge {
-                    TrimEdge::Start => window.start,
-                    TrimEdge::End => window.end,
+                    TrimEdge::Start => window.start(),
+                    TrimEdge::End => window.end(),
                 })
             })
             .into_iter()
@@ -131,9 +131,9 @@ fn held_to(
     match input {
         MediaIn::Toggle => match media {
             MediaStage::Paused { at, .. } | MediaStage::Ended { at, .. }
-                if *at >= window.end || *at < window.start =>
+                if *at >= window.end() || *at < window.start() =>
             {
-                vec![MediaIn::SeekTo(window.start), MediaIn::Toggle]
+                vec![MediaIn::SeekTo(window.start()), MediaIn::Toggle]
             }
             MediaStage::Opening
             | MediaStage::Playing { .. }
@@ -180,7 +180,7 @@ fn held_to(
 fn overrun(viewer: Viewer, window: TrimWindow, at: Stamp, params: &ViewerParams) -> Step {
     let past = matches!(
         &viewer.stage,
-        Stage::Media(MediaStage::Playing { at: now, .. }) if *now >= window.end
+        Stage::Media(MediaStage::Playing { at: now, .. }) if *now >= window.end()
     );
     if !past {
         return (viewer, Vec::new());
@@ -188,7 +188,7 @@ fn overrun(viewer: Viewer, window: TrimWindow, at: Stamp, params: &ViewerParams)
     let (viewer, mut outs) = unbounded(viewer, StageIn::Media(MediaIn::Toggle), at, params);
     let (viewer, more) = unbounded(
         viewer,
-        StageIn::Media(MediaIn::SeekTo(window.end)),
+        StageIn::Media(MediaIn::SeekTo(window.end())),
         at,
         params,
     );

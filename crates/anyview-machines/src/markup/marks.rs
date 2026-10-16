@@ -13,14 +13,14 @@ const BOX: (u32, u32) = (250, 40);
 
 /// The default text box with its top left at `from`, held on the page.
 fn box_at(from: PagePoint) -> PageRect {
-    let left = from.x.0.min(1000 - BOX.0);
-    let top = from.y.0.min(1000 - BOX.1);
-    PageRect {
-        left: Permille(left),
-        top: Permille(top),
-        right: Permille(left + BOX.0),
-        bottom: Permille(top + BOX.1),
-    }
+    let left = from.x().0.min(1000 - BOX.0);
+    let top = from.y().0.min(1000 - BOX.1);
+    PageRect::new(
+        Permille(left),
+        Permille(top),
+        Permille(left + BOX.0),
+        Permille(top + BOX.1),
+    )
 }
 
 impl PdfMarkup {
@@ -93,8 +93,8 @@ impl PdfMarkup {
             }
             MarkTool::Note => {
                 let at = PagePoint::at(
-                    at.x.0.min(1000 - NOTE_SIZE.0),
-                    at.y.0.min(1000 - NOTE_SIZE.1),
+                    at.x().0.min(1000 - NOTE_SIZE.0),
+                    at.y().0.min(1000 - NOTE_SIZE.1),
                 );
                 let index = self.add(Mark {
                     page,
@@ -142,8 +142,8 @@ impl PdfMarkup {
             }
             Some(Drag::Move { index, from, base }) => {
                 let by = (
-                    i32::try_from(at.x.0).unwrap_or(0) - i32::try_from(from.x.0).unwrap_or(0),
-                    i32::try_from(at.y.0).unwrap_or(0) - i32::try_from(from.y.0).unwrap_or(0),
+                    i32::try_from(at.x().0).unwrap_or(0) - i32::try_from(from.x().0).unwrap_or(0),
+                    i32::try_from(at.y().0).unwrap_or(0) - i32::try_from(from.y().0).unwrap_or(0),
                 );
                 let index = *index;
                 if let Some(original) = base.marks.get(index) {

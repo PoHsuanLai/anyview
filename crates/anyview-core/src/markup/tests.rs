@@ -2,12 +2,12 @@ use super::*;
 use crate::units::{PageIndex, Permille};
 
 fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-    PageRect {
-        left: Permille(left),
-        top: Permille(top),
-        right: Permille(right),
-        bottom: Permille(bottom),
-    }
+    PageRect::new(
+        Permille(left),
+        Permille(top),
+        Permille(right),
+        Permille(bottom),
+    )
 }
 
 fn mark(shape: MarkShape) -> Mark {

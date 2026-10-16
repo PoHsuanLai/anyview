@@ -253,7 +253,7 @@ fn a_handle_shows_its_frame_and_return_and_escape_apply_and_cancel() {
 
     let (applied, _) = press(moved.clone(), &[ShortcutKey::Enter]);
     assert!(!applied.trim.is_choosing() && applied.trim.is_edited());
-    assert_eq!(applied.trim.applied().map(|w| w.start), Some(secs(20)));
+    assert_eq!(applied.trim.applied().map(|w| w.start()), Some(secs(20)));
     assert_eq!(applied.stage, Stage::Media(held(20)));
 
     let (cancelled, _) = press(moved, &[ShortcutKey::Escape]);

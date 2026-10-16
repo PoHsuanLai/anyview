@@ -13,7 +13,7 @@ impl Scene {
     ) -> Option<u64> {
         let place = self.layout.place(page)?;
         let first = rects.first()?;
-        let hit = place.top + u64::from(place.size.height.0) * u64::from(first.top.0) / 1000;
+        let hit = place.top + u64::from(place.size.height.0) * u64::from(first.top().0) / 1000;
         let top = hit
             .saturating_sub(u64::from(self.frame.height) / 3)
             .max(place.top);
@@ -26,7 +26,7 @@ impl Scene {
         let (Some(place), Some(first)) = (self.layout.place(page), rects.first()) else {
             return 0;
         };
-        let across = u64::from(place.size.width.0) * u64::from(first.left.0) / 1000;
+        let across = u64::from(place.size.width.0) * u64::from(first.left().0) / 1000;
         let at = u64::from(place.left) + across;
         let pan = at.saturating_sub(u64::from(self.frame.width) / 2);
         u32::try_from(pan).unwrap_or(u32::MAX).min(self.widest())

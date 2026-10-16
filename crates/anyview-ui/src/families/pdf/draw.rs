@@ -181,16 +181,11 @@ impl Drawing<'_> {
         let (label, rect) = match &mark.shape {
             MarkShape::TextBox { rect, .. } => ("Text box", *rect),
             MarkShape::Note { at, .. } => {
-                let top = Permille((at.y.0 + NOTE_SIZE.1).min(950));
-                let right = Permille((at.x.0 + 300).min(1000));
+                let top = Permille((at.y().0 + NOTE_SIZE.1).min(950));
+                let right = Permille((at.x().0 + 300).min(1000));
                 (
                     "Note",
-                    PageRect {
-                        left: at.x,
-                        top,
-                        right,
-                        bottom: Permille((top.0 + 60).min(1000)),
-                    },
+                    PageRect::new(at.x(), top, right, Permille((top.0 + 60).min(1000))),
                 )
             }
             MarkShape::Highlight(_)

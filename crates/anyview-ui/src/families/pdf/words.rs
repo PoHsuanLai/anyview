@@ -15,8 +15,8 @@ pub(super) fn nearest(words: &[PageRect], at: PagePoint) -> Option<usize> {
         .iter()
         .enumerate()
         .min_by_key(|(_, word)| {
-            let across = gap(at.x.0, word.left.0, word.right.0);
-            let down = gap(at.y.0, word.top.0, word.bottom.0);
+            let across = gap(at.x().0, word.left().0, word.right().0);
+            let down = gap(at.y().0, word.top().0, word.bottom().0);
             down * down * 16 + across * across
         })
         .map(|(index, _)| index)
@@ -25,8 +25,8 @@ pub(super) fn nearest(words: &[PageRect], at: PagePoint) -> Option<usize> {
 /// Whether `word` is on the line `line` is the box of so far: they overlap by more than half of
 /// the smaller of their heights.
 fn on_line(line: PageRect, word: PageRect) -> bool {
-    let top = line.top.0.max(word.top.0);
-    let bottom = line.bottom.0.min(word.bottom.0);
+    let top = line.top().0.max(word.top().0);
+    let bottom = line.bottom().0.min(word.bottom().0);
     bottom.saturating_sub(top) * 2 > line.height().min(word.height())
 }
 
@@ -59,12 +59,12 @@ mod tests {
     use anyview_core::Permille;
 
     fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-        PageRect {
-            left: Permille(left),
-            top: Permille(top),
-            right: Permille(right),
-            bottom: Permille(bottom),
-        }
+        PageRect::new(
+            Permille(left),
+            Permille(top),
+            Permille(right),
+            Permille(bottom),
+        )
     }
 
     /// Two lines of words: three on the first, two on the second.

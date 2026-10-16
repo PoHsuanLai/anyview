@@ -207,12 +207,12 @@ fn a_hit_still_marks_the_words_after_the_page_is_turned() {
 fn pixels(rect: PageRect, width: u32, height: u32) -> (u32, u32, u32, u32) {
     let at = |fraction: u32, whole: u32| fraction * whole / 1000;
     let (left, right) = (
-        at(rect.left.0, width),
-        at(rect.right.0, width).min(width - 1),
+        at(rect.left().0, width),
+        at(rect.right().0, width).min(width - 1),
     );
     let (top, bottom) = (
-        at(rect.top.0, height),
-        at(rect.bottom.0, height).min(height - 1),
+        at(rect.top().0, height),
+        at(rect.bottom().0, height).min(height - 1),
     );
     (left, top, (right - left).max(1), (bottom - top).max(1))
 }

@@ -31,12 +31,12 @@ fn stack(sizes: &[PageSize], scale: u32) -> Scene {
 }
 
 const fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-    PageRect {
-        left: Permille(left),
-        top: Permille(top),
-        right: Permille(right),
-        bottom: Permille(bottom),
-    }
+    PageRect::new(
+        Permille(left),
+        Permille(top),
+        Permille(right),
+        Permille(bottom),
+    )
 }
 
 #[test]
@@ -291,9 +291,9 @@ fn a_rectangle_of_a_page_is_a_percentage_of_its_box() {
         ),
         ("a word", rect(118, 180, 497, 200), (11.8, 18.0, 37.9, 2.0)),
         (
-            "a reversed rectangle has no size",
+            "a reversed rectangle is put the right way round",
             rect(500, 500, 400, 400),
-            (50.0, 50.0, 0.0, 0.0),
+            (40.0, 40.0, 10.0, 10.0),
         ),
     ];
     for (name, placed, want) in CASES {

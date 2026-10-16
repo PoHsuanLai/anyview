@@ -25,12 +25,7 @@ fn field() -> FormWidget {
         kind: WidgetKind::Text,
         access: WidgetAccess::Editable,
         page: PageIndex(0),
-        rect: PageRect {
-            left: Permille(100),
-            top: Permille(300),
-            right: Permille(400),
-            bottom: Permille(340),
-        },
+        rect: PageRect::new(Permille(100), Permille(300), Permille(400), Permille(340)),
         value: String::new(),
         on: String::new(),
         options: Vec::new(),
@@ -206,12 +201,12 @@ fn the_markup_tool_is_only_for_a_pdf_that_can_be_marked_and_the_pointer_follows_
 
 #[test]
 fn a_tool_chosen_with_words_selected_marks_them_and_without_turns_the_markup_tool_on() {
-    let lines = vec![PageRect {
-        left: Permille(100),
-        top: Permille(100),
-        right: Permille(400),
-        bottom: Permille(120),
-    }];
+    let lines = vec![PageRect::new(
+        Permille(100),
+        Permille(100),
+        Permille(400),
+        Permille(120),
+    )];
     let selected = markup(
         step(pdf(), key(&[ShortcutKey::Char('h')])).0,
         MarkupIn::Select(Some((PageIndex(0), lines))),

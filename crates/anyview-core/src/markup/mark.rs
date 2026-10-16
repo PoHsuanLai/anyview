@@ -191,14 +191,16 @@ impl Mark {
         let held = self.bounds().moved(dx, dy);
         let bounds = self.bounds();
         let by = (
-            i32::try_from(held.left.0).unwrap_or(0) - i32::try_from(bounds.left.0).unwrap_or(0),
-            i32::try_from(held.top.0).unwrap_or(0) - i32::try_from(bounds.top.0).unwrap_or(0),
+            i32::try_from(held.left().0).unwrap_or(0) - i32::try_from(bounds.left().0).unwrap_or(0),
+            i32::try_from(held.top().0).unwrap_or(0) - i32::try_from(bounds.top().0).unwrap_or(0),
         );
-        let shift = |rect: &PageRect| PageRect {
-            left: shifted(rect.left, by.0),
-            top: shifted(rect.top, by.1),
-            right: shifted(rect.right, by.0),
-            bottom: shifted(rect.bottom, by.1),
+        let shift = |rect: &PageRect| {
+            PageRect::new(
+                shifted(rect.left(), by.0),
+                shifted(rect.top(), by.1),
+                shifted(rect.right(), by.0),
+                shifted(rect.bottom(), by.1),
+            )
         };
         let shape = match &self.shape {
             MarkShape::Highlight(rects) => MarkShape::Highlight(rects.iter().map(shift).collect()),
@@ -240,9 +242,9 @@ impl Mark {
 
 /// Whether `at` is within `reach` of the segment from `a` to `b`.
 fn nearer_than(a: PagePoint, b: PagePoint, at: PagePoint, reach: u32) -> bool {
-    let (ax, ay) = (i64::from(a.x.0), i64::from(a.y.0));
-    let (dx, dy) = (i64::from(b.x.0) - ax, i64::from(b.y.0) - ay);
-    let (px, py) = (i64::from(at.x.0) - ax, i64::from(at.y.0) - ay);
+    let (ax, ay) = (i64::from(a.x().0), i64::from(a.y().0));
+    let (dx, dy) = (i64::from(b.x().0) - ax, i64::from(b.y().0) - ay);
+    let (px, py) = (i64::from(at.x().0) - ax, i64::from(at.y().0) - ay);
     let length = dx * dx + dy * dy;
     // The foot of the perpendicular, as a share of the segment held between its ends.
     let along = if length == 0 {

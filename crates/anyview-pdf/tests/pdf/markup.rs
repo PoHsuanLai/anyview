@@ -23,12 +23,12 @@ fn fill(name: &str, value: &str) -> FieldFill {
 }
 
 fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-    PageRect {
-        left: Permille(left),
-        top: Permille(top),
-        right: Permille(right),
-        bottom: Permille(bottom),
-    }
+    PageRect::new(
+        Permille(left),
+        Permille(top),
+        Permille(right),
+        Permille(bottom),
+    )
 }
 
 fn mark(shape: MarkShape) -> Mark {
@@ -70,8 +70,8 @@ fn the_widgets_are_read_with_their_kinds_in_the_documents_order() {
     assert!(widgets.iter().all(|w| w.page == PageIndex(0)));
     // The text field is the 200 x 20 point box at the left, a quarter of the way down the page.
     let name = widgets[0].rect;
-    assert_eq!((name.left.0, name.right.0), (118, 444));
-    assert!(name.top.0 > 200 && name.top.0 < 300, "{name:?}");
+    assert_eq!((name.left().0, name.right().0), (118, 444));
+    assert!(name.top().0 > 200 && name.top().0 < 300, "{name:?}");
 }
 
 #[test]
@@ -218,10 +218,10 @@ fn a_highlight_lands_over_the_words_it_was_drawn_on() {
     let (crop, rotation) = (page.crop_box(), page.rotation());
     let shown = anyview_pdf::displayed(highlight.rect(), crop, rotation);
     for (got, want) in [
-        (shown.left.0, first.left.0),
-        (shown.top.0, first.top.0),
-        (shown.right.0, first.right.0),
-        (shown.bottom.0, first.bottom.0),
+        (shown.left().0, first.left().0),
+        (shown.top().0, first.top().0),
+        (shown.right().0, first.right().0),
+        (shown.bottom().0, first.bottom().0),
     ] {
         assert!(got.abs_diff(want) <= 3, "{shown:?} vs {first:?}");
     }
@@ -327,10 +327,10 @@ fn the_annotations_a_file_holds_are_read_as_marks_with_their_references() {
         panic!("a square: {:?}", marks[0].shape)
     };
     for (got, want) in [
-        (first.left.0, 100),
-        (first.top.0, 500),
-        (first.right.0, 300),
-        (first.bottom.0, 600),
+        (first.left().0, 100),
+        (first.top().0, 500),
+        (first.right().0, 300),
+        (first.bottom().0, 600),
     ] {
         assert!(got.abs_diff(want) <= 3, "{first:?}");
     }
@@ -446,10 +446,10 @@ fn a_held_mark_that_moved_is_rewritten_where_it_is_and_the_rest_stays() {
         panic!("squares: {:?}", after[0].shape)
     };
     for (got, want) in [
-        (got.left.0, want.left.0),
-        (got.top.0, want.top.0),
-        (got.right.0, want.right.0),
-        (got.bottom.0, want.bottom.0),
+        (got.left().0, want.left().0),
+        (got.top().0, want.top().0),
+        (got.right().0, want.right().0),
+        (got.bottom().0, want.bottom().0),
     ] {
         assert!(got.abs_diff(want) <= 3, "{got:?} vs {want:?}");
     }

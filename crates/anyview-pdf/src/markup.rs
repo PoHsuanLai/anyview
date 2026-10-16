@@ -98,10 +98,7 @@ fn shape_of(annotation: &Annotation<'_>, place: &Place, r: &impl Resolve) -> Opt
         Subtype::Underline => quad_lines(annotation, place).map(MarkShape::Underline),
         Subtype::StrikeOut => quad_lines(annotation, place).map(MarkShape::Strikethrough),
         Subtype::Text => Some(MarkShape::Note {
-            at: PagePoint {
-                x: rect.left,
-                y: rect.top,
-            },
+            at: PagePoint::new(rect.left(), rect.top()),
             text: annotation.contents().unwrap_or_default(),
         }),
         Subtype::FreeText => Some(MarkShape::TextBox {
@@ -317,18 +314,13 @@ fn change_held(
 fn translation(place: &Place, base: &Mark, mark: &Mark) -> Option<(Point, Point)> {
     let (from, to) = (base.bounds(), mark.bounds());
     let by = (
-        i32::try_from(to.left.0).ok()? - i32::try_from(from.left.0).ok()?,
-        i32::try_from(to.top.0).ok()? - i32::try_from(from.top.0).ok()?,
+        i32::try_from(to.left().0).ok()? - i32::try_from(from.left().0).ok()?,
+        i32::try_from(to.top().0).ok()? - i32::try_from(from.top().0).ok()?,
     );
     if by == (0, 0) || without_words(&base.moved(by.0, by.1).shape) != without_words(&mark.shape) {
         return None;
     }
-    let corner = |rect: PageRect| {
-        place.point(PagePoint {
-            x: rect.left,
-            y: rect.top,
-        })
-    };
+    let corner = |rect: PageRect| place.point(PagePoint::new(rect.left(), rect.top()));
     Some((corner(from), corner(to)))
 }
 
@@ -380,7 +372,7 @@ struct Place {
 impl Place {
     /// `at`, a point of the page as displayed, in the file's user space (y up).
     fn point(self, at: PagePoint) -> Point {
-        let (a, b) = (f64::from(at.x.0) / 1000.0, f64::from(at.y.0) / 1000.0);
+        let (a, b) = (f64::from(at.x().0) / 1000.0, f64::from(at.y().0) / 1000.0);
         // The inverse of `displayed`: the turn undone, then the unturned page (y down) laid on
         // the crop box.
         let (u, v) = match self.rotation {
@@ -398,10 +390,7 @@ impl Place {
     /// `point`, in user space, as a point of the page as displayed.
     fn shown_point(&self, point: Point) -> PagePoint {
         let shown = displayed(Rect::from_points(point, point), self.crop, self.rotation);
-        PagePoint {
-            x: shown.left,
-            y: shown.top,
-        }
+        PagePoint::new(shown.left(), shown.top())
     }
 
     /// `rect`, in user space, as a rectangle of the page as displayed.
@@ -412,14 +401,8 @@ impl Place {
     /// `rect`, a rectangle of the page as displayed, in user space.
     fn rect(self, rect: PageRect) -> Rect {
         Rect::from_points(
-            self.point(PagePoint {
-                x: rect.left,
-                y: rect.top,
-            }),
-            self.point(PagePoint {
-                x: rect.right,
-                y: rect.bottom,
-            }),
+            self.point(PagePoint::new(rect.left(), rect.top())),
+            self.point(PagePoint::new(rect.right(), rect.bottom())),
         )
     }
 }

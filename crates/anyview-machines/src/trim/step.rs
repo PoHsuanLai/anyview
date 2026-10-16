@@ -13,10 +13,12 @@ impl MediaTrim {
                 if self.choosing.is_some() || whole.0 <= MIN_KEPT {
                     return self;
                 }
-                let window = self.applied.unwrap_or(TrimWindow {
-                    start: MediaTime::default(),
-                    end: whole.0,
-                });
+                let Some(window) = self
+                    .applied
+                    .or_else(|| TrimWindow::new(MediaTime::default(), whole.0))
+                else {
+                    return self;
+                };
                 MediaTrim {
                     choosing: Some(Choosing { whole, window }),
                     ..self
@@ -26,18 +28,19 @@ impl MediaTrim {
                 let Some(Choosing { whole, window }) = self.choosing else {
                     return self;
                 };
-                let window = match edge {
-                    TrimEdge::Start => TrimWindow {
-                        start: to.min(MediaTime(window.end.0.saturating_sub(MIN_KEPT.0))),
-                        end: window.end,
-                    },
-                    TrimEdge::End => TrimWindow {
-                        start: window.start,
-                        end: to
-                            .max(MediaTime(window.start.0.saturating_add(MIN_KEPT.0)))
+                let moved = match edge {
+                    TrimEdge::Start => TrimWindow::new(
+                        to.min(MediaTime(window.end().0.saturating_sub(MIN_KEPT.0))),
+                        window.end(),
+                    ),
+                    TrimEdge::End => TrimWindow::new(
+                        window.start(),
+                        to.max(MediaTime(window.start().0.saturating_add(MIN_KEPT.0)))
                             .min(whole.0),
-                    },
+                    ),
                 };
+                // A move that would leave no stretch leaves the handles where they were.
+                let window = moved.unwrap_or(window);
                 MediaTrim {
                     choosing: Some(Choosing { whole, window }),
                     ..self
@@ -47,7 +50,7 @@ impl MediaTrim {
                 let Some(Choosing { whole, window }) = self.choosing else {
                     return self;
                 };
-                let everything = window.start == MediaTime::default() && window.end == whole.0;
+                let everything = window.start() == MediaTime::default() && window.end() == whole.0;
                 MediaTrim {
                     choosing: None,
                     applied: (!everything).then_some(window),

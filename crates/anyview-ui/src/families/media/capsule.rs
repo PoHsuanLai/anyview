@@ -66,7 +66,7 @@ pub(crate) fn bar_time(at: Fraction, length: MediaLength, kept: Option<TrimWindo
     match kept {
         Some(window) => MediaTime(
             window
-                .start
+                .start()
                 .0
                 .saturating_add(place_to_time(at, window.length()).0),
         ),
@@ -123,7 +123,7 @@ pub(super) fn slots(doc: &MediaDoc, cx: &StageCx) -> Vec<RankedSlot<Command>> {
     // Once a trim is applied the recording is the stretch kept: its clock and its bar start at zero.
     let (at, length) = match cx.trim.applied() {
         Some(window) => (
-            MediaTime(at.0.saturating_sub(window.start.0)).min(window.length().0),
+            MediaTime(at.0.saturating_sub(window.start().0)).min(window.length().0),
             window.length(),
         ),
         None => (at, length),
@@ -249,10 +249,8 @@ mod tests {
     #[test]
     fn the_bar_runs_over_the_stretch_kept_once_a_trim_is_applied() {
         let length = MediaLength(MediaTime::from_secs(200));
-        let kept = TrimWindow {
-            start: MediaTime::from_secs(40),
-            end: MediaTime::from_secs(140),
-        };
+        let kept = TrimWindow::new(MediaTime::from_secs(40), MediaTime::from_secs(140))
+            .expect("a stretch with its end after its start");
         // name, the place on the bar, the stretch, the time
         let cases = [
             ("the start of the stretch", 0, Some(kept), 40),

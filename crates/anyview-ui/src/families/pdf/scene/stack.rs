@@ -233,9 +233,9 @@ pub(in crate::families::pdf) fn distance(a: ZoomBucket, b: ZoomBucket) -> u32 {
 pub(in crate::families::pdf) fn percent(rect: PageRect) -> (f32, f32, f32, f32) {
     let of = |permille: Permille| permille.0 as f32 / 10.0;
     (
-        of(rect.left),
-        of(rect.top),
-        of(Permille(rect.right.0.saturating_sub(rect.left.0))),
-        of(Permille(rect.bottom.0.saturating_sub(rect.top.0))),
+        of(rect.left()),
+        of(rect.top()),
+        of(Permille(rect.width())),
+        of(Permille(rect.height())),
     )
 }

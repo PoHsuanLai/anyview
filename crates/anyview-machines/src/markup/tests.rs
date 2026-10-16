@@ -9,12 +9,12 @@ use anyview_core::{
 use std::sync::Arc;
 
 fn rect(left: u32, top: u32, right: u32, bottom: u32) -> PageRect {
-    PageRect {
-        left: Permille(left),
-        top: Permille(top),
-        right: Permille(right),
-        bottom: Permille(bottom),
-    }
+    PageRect::new(
+        Permille(left),
+        Permille(top),
+        Permille(right),
+        Permille(bottom),
+    )
 }
 
 fn widget(name: &str, kind: WidgetKind, page: u32, value: &str) -> FormWidget {
@@ -482,7 +482,7 @@ fn a_note_is_written_where_the_page_is_pressed_and_goes_if_left_empty() {
     );
     let bounds = edge.marks()[0].bounds();
     assert!(
-        bounds.right.0 <= 1000 && bounds.bottom.0 <= 1000,
+        bounds.right().0 <= 1000 && bounds.bottom().0 <= 1000,
         "{bounds:?}"
     );
 }
