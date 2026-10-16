@@ -218,10 +218,11 @@ DIRECT=(
 # quire's ds-helpers (capped reads and atomic writes, for anyview-fs, -store and -platform) adds
 # ds-helpers and ds-peer everywhere, and to the headless peek toml with serde_spanned and toml_writer
 # too (its catalog is TOML): the headless budget rose by five, the others by one or two.
-# porter 3beb7a1's porter-dbus links porter-daemon, which reaches the viewer through docket-dbus: one more.
+# porter 063e9db's porter-dbus checks callers through peephole (peephole, -core and -bus) instead of
+# porter-daemon, and reaches the viewer through docket-dbus: two more than before porter-daemon left.
 BUDGETS=(
   "anyview-peek: 578"
-  "anyview: 700"
+  "anyview: 702"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
@@ -371,6 +372,15 @@ if [ "$pane_player" -gt "$PANE_PLAYER_BUDGET" ]; then
   fail=1
 else
   echo "budget holds: anyview-pane --features player has $pane_player packages of $PANE_PLAYER_BUDGET"
+fi
+
+# docket-dbus reads callers from a fixture /proc only with `fixture-callers`, a test build's
+# feature: the shipped viewer must never turn it on, or a fake /proc could name intentd.
+if cargo tree -p anyview -e features -i docket-dbus 2>/dev/null | grep -q 'fixture-callers'; then
+  echo "LEAK: the viewer builds docket-dbus with fixture-callers"
+  fail=1
+else
+  echo "fixture callers held: the viewer builds docket-dbus without fixture-callers"
 fi
 
 # The allowed edges between our own crates (ARCHITECTURE.md section 1): each crate's direct normal

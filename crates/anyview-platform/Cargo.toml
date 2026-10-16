@@ -58,3 +58,8 @@ workspace = true
 # The integration tests use the fakes and, with `quire-desktop`, the private bus behind `testing`.
 anyview-platform = { path = ".", default-features = false, features = ["testing"] }
 tempfile = { workspace = true }
+
+# The agent tests stand in for intentd with a fixture /proc, which docket-dbus reads only with
+# `fixture-callers`: a test build's feature, never a shipped one (check-boundary.sh).
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+docket-dbus = { workspace = true, features = ["fixture-callers"] }
