@@ -407,7 +407,11 @@ check "a system prefix is written with one elevated call" test "$(wc -l <"$eleva
 check "the elevated call installed the binary" test -x "$sys/prefix/bin/anyview"
 check "the elevated call wrote the receipt" grep -qx "file $sys/prefix/bin/anyview" "$sys/prefix/share/anyview/install-receipt"
 check "the elevated call refreshed both caches" bash -c "grep -q '^update-desktop-database' '$calls' && grep -q '^gtk-update-icon-cache' '$calls'"
+: >"$elevated"
+: >"$calls"
 SUDO="$scratch/fakesudo" bash "$repo/dist/uninstall.sh" --prefix "$sys/prefix" >/dev/null 2>&1
+check "a system uninstall is one elevated call" test "$(wc -l <"$elevated")" -eq 1
+check "the elevated uninstall removed everything" empty "$sys"
 : >"$calls"
 
 check "no tool was called throughout" test ! -s "$calls"

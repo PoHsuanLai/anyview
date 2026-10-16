@@ -36,6 +36,15 @@ done
 PREFIX="${PREFIX%/}"
 [[ "$PREFIX" == /* ]] || { say "uninstall.sh: --prefix must be an absolute path"; exit 2; }
 choose_sudo "$PREFIX"
+# For a system prefix every removal is written to a plan and run by one elevated call at the end, so
+# a prompt that is asked (pkexec, doas without persist) is asked once. PLAN stays empty (each file is
+# removed on its own, as the person or as root) for a person's own prefix, a DESTDIR, and a dry run.
+PLAN=""
+if [[ -n "$SUDO" && "$DRY_RUN" == no ]]; then
+  make_scratch
+  PLAN="$SCRATCH/plan"
+  : >"$PLAN"
+fi
 say "anyview uninstall from $PREFIX$([[ -n "$DESTDIR" ]] && echo " (staged in $DESTDIR)") ($([[ $DRY_RUN == yes ]] && echo 'dry run: nothing is changed' || echo 'for real'))"
 
 # remove_file DST: remove when present.
@@ -43,13 +52,49 @@ remove_file() {
   local real
   real="$(dest "$1")"
   if [[ -e "$real" ]]; then
-    step "remove $1" privileged rm -f "$real"
+    if [[ -n "$PLAN" ]]; then
+      say "  remove $1"
+      printf 'rm %s\n' "$real" >>"$PLAN"
+    else
+      step "remove $1" privileged rm -f "$real"
+    fi
     CHANGED=yes
   else
     say "  absent: $1"
   fi
 }
 CHANGED=no
+
+# remove_dir REAL...: remove the directories when empty, now or in the plan.
+remove_dir() {
+  local dir
+  for dir in "$@"; do
+    if [[ -n "$PLAN" ]]; then
+      printf 'rmdir %s\n' "$dir" >>"$PLAN"
+    else
+      privileged rmdir --ignore-fail-on-non-empty "$dir"
+    fi
+  done
+}
+
+# What the elevated step runs, given the plan, the prefix and whether anything was removed (plain sh:
+# it is root's).
+APPLY_PLAN='set -eu
+plan=$1 prefix=$2 changed=$3
+while read -r op path; do
+  case $op in
+    rm) rm -f -- "$path" ;;
+    rmdir) rmdir --ignore-fail-on-non-empty -- "$path" ;;
+  esac
+done <"$plan"
+if [ "$changed" = yes ]; then
+  if [ -d "$prefix/share/applications" ] && command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$prefix/share/applications"
+  fi
+  if [ -d "$prefix/share/icons/hicolor" ] && command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q -t -f "$prefix/share/icons/hicolor"
+  fi
+fi'
 
 # remove_recorded RECEIPT: the files and then the empty directories the receipt names, each only
 # when it lies under the prefix.
@@ -76,7 +121,7 @@ remove_recorded() {
   for path in ${files[@]+"${files[@]}"}; do remove_file "$path"; done
   if [[ "$DRY_RUN" == no ]]; then
     for ((i = ${#dirs[@]} - 1; i >= 0; i--)); do
-      [[ -d "$(dest "${dirs[i]}")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "${dirs[i]}")"
+      [[ -d "$(dest "${dirs[i]}")" ]] && remove_dir "$(dest "${dirs[i]}")"
     done
   fi
   return 0
@@ -112,7 +157,7 @@ else
   remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
   if [[ "$DRY_RUN" == no ]]; then
     for folder in libexec/anyview libexec share/anyview/plugins share/anyview share/doc/anyview share/quire/helpers share/quire/intents share/quire/skills/files-viewer share/quire/skills share/quire; do
-      [[ -d "$(dest "$PREFIX/$folder")" ]] && privileged rmdir --ignore-fail-on-non-empty "$(dest "$PREFIX/$folder")"
+      [[ -d "$(dest "$PREFIX/$folder")" ]] && remove_dir "$(dest "$PREFIX/$folder")"
     done
   fi
   # The sizes install wrote are the folders that hold the viewer's icon; a size another program
@@ -124,15 +169,23 @@ else
     icons_left=yes
     if [[ "$DRY_RUN" == no ]]; then
       apps="$(dirname "$icon")"
-      privileged rmdir --ignore-fail-on-non-empty "$apps" "$(dirname "$apps")"
+      remove_dir "$apps" "$(dirname "$apps")"
     fi
   done
   [[ "$icons_left" == yes ]] || say "  absent: the icons"
 fi
 
+if [[ -n "$PLAN" ]]; then
+  say "1b. remove"
+  step "remove the installed files and refresh the desktop's caches" \
+    privileged sh -c "$APPLY_PLAN" sh "$PLAN" "$PREFIX" "$CHANGED"
+fi
+
 say "2. desktop databases"
 if [[ -n "$DESTDIR" ]]; then
   say "  skipped: staging registers nothing"
+elif [[ -n "$PLAN" ]]; then
+  say "  refreshed by the removal above"
 elif [[ "$CHANGED" == yes ]]; then
   if command -v update-desktop-database >/dev/null 2>&1; then
     step "refresh the desktop entry cache" privileged update-desktop-database "$PREFIX/share/applications"
