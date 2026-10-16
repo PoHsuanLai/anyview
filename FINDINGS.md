@@ -6,18 +6,25 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
-- **A tagged release or a distro package cannot be built from this tree yet: it depends on forks and unreleased
-  libraries pinned by git rev.** The viewer links PoHsuanLai's forks of vello (five crates), anyrender (five) and
-  dioxus (five) through `[patch.crates-io]`, a blitz fork, and quire, chordkit, bayonet, docket, porter, latchkey,
-  mpv-wgpu and taffy at revs, none of them a crates.io release; `deny.toml` allows each git source by name. A
-  source build is reproducible while those repositories keep the revs (`Cargo.lock` is committed, CI builds with
-  `--locked`), so the beta ships from source. What a package or a binary release also needs is `cargo vendor` of
-  all of them, a licence and advisory check that covers the vendored tree (deny's graph is x86_64 Linux), a
-  release workflow that builds from a tag, and a tag on every fork rev so a rewritten branch cannot orphan it.
-  The pins move with the desktop manifest, so they are not changed here. `scripts/check-release.sh` (CI) fails
-  when `MPV_WGPU_REV` in `dist/install.sh` differs from the `mpv-wgpu-player` rev in `Cargo.toml`, and when the
-  version in `Cargo.toml`, the metainfo's newest release and `CHANGELOG.md`'s newest numbered entry differ. Ends
-  when the forks' changes are released upstream or the desktop manifest vendors them, and a tag workflow exists.
+- **A crates.io release or a distro package cannot be built from this tree: it depends on git forks and unreleased
+  libraries pinned by rev.** Forks of other projects: vello (five crates, `[patch.crates-io]`; ends when the
+  changes are released upstream), anyrender (five; the same), dioxus (five; the dirty-task fix, ends when a
+  dioxus release has it) and blitz (with taffy reached through it; ends when its changes are released upstream).
+  The owner's own libraries, none yet a crates.io release: quire, blitz-kit, chordkit, bayonet, docket, porter
+  (with almanac, stoker and peephole), latchkey and mpv-wgpu (each ends when it is published). `deny.toml` allows
+  each git source by name. A source build is reproducible while those repositories keep the revs (`Cargo.lock` is
+  committed, CI builds with `--locked`). The tag workflow (`.github/workflows/release.yml`) builds the Linux
+  tarball from that lock and drafts a GitHub release; it never publishes to crates.io, which refuses a git
+  dependency. A distro package also needs `cargo vendor` of all of them, a licence and advisory check that
+  covers the vendored tree (deny's graph is x86_64 Linux), and a tag on every fork rev so a rewritten branch
+  cannot orphan it. The pins move with the desktop manifest, so they are not changed here.
+  `scripts/check-release.sh` (CI) fails when `MPV_WGPU_REV` in `dist/install.sh` differs from the
+  `mpv-wgpu-player` rev in `Cargo.toml`, and when the version in `Cargo.toml`, the metainfo's newest release and
+  `CHANGELOG.md`'s newest numbered entry differ. Ends when every fork above is released (or the desktop manifest
+  vendors them).
+- **The metainfo has no `<screenshots>`.** Software centres list the entry without a picture. The repository
+  holds no checked-in screenshot of the viewer, and the entry may not point at an image that is not published. Ends when a screenshot of the running viewer is
+  checked in under `dist/` (or published at a stable URL) and the metainfo names it.
 - **A picture's edits are saved in its own format only where anyview-image has a writer.** A cut or a resize of a
   JPEG is encoded again at quality 92 (a turn or a mirror alone stays lossless through the orientation tag); a
   PNG or TIFF with 16-bit samples or a palette comes back as 8-bit RGBA when it is cut or resized (the save asks

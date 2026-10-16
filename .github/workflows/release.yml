@@ -1,0 +1,99 @@
+name: release
+
+# A tag `vX.Y.Z` builds the Linux release and drafts a GitHub release with the tarball and its
+# checksums; a person reads the draft and publishes it. Nothing here publishes to crates.io: the
+# workspace depends on git forks (FINDINGS.md), which crates.io refuses.
+on:
+  push:
+    tags: ["v*"]
+
+# Creating the release is the one write: the job below is the only one, and it has no other secret.
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      # The gate job's libraries for the release build (no dav1d: the AVIF feature is off in a release).
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libharfbuzz-dev libxml2-dev libpng-dev \
+            zlib1g-dev libbz2-dev liblzma-dev libglib2.0-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libdbus-1-dev libasound2-dev \
+            desktop-file-utils appstream
+
+      # rust-toolchain.toml pins the toolchain; rustup installs it on first use.
+      - name: Toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      # The tag, Cargo.toml, the metainfo and the changelog name one version.
+      - name: The tag names the version
+        run: |
+          bash scripts/check-release.sh
+          version=$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^version = "\(.*\)"$/\1/p}' Cargo.toml)
+          test "$GITHUB_REF_NAME" = "v$version" || {
+            echo "the tag $GITHUB_REF_NAME is not v$version, the version in Cargo.toml" >&2
+            exit 1
+          }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Metadata
+        run: |
+          desktop-file-validate dist/org.quire.Anyview.desktop
+          appstreamcli validate --no-net dist/org.quire.Anyview.metainfo.xml
+
+      # [profile.release] in Cargo.toml (thin LTO, one codegen unit, stripped debug info). The viewer
+      # and the three Rust plugins; the mpv plugin's C plugin is built by install.sh from the
+      # revision it pins, from a source checkout, so the tarball has no mpv plugin.
+      - name: Build
+        run: cargo build --release --locked -p anyview -p anyview-ffmpeg -p anyview-heif -p anyview-raw
+
+      - name: No linked codecs
+        run: bash dev/no-linked-codecs.sh target/release/anyview
+
+      # The tree install.sh expects beside dist/: the programs where it looks for a build
+      # (target/release), so `dist/install.sh --no-build` installs from the unpacked tarball.
+      - name: Tarball
+        run: |
+          name="anyview-$VERSION-linux-x86_64"
+          mkdir -p "out/$name/target/release" "out/$name/assets"
+          cp target/release/anyview target/release/anyview-ffmpeg target/release/anyview-heif \
+            target/release/anyview-raw "out/$name/target/release/"
+          cp -r dist "out/$name/dist"
+          cp -r assets/icons "out/$name/assets/icons"
+          cp LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md README.md CHANGELOG.md "out/$name/"
+          tar -C out -czf "out/$name.tar.gz" "$name"
+          (cd out && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          cat "out/$name.tar.gz.sha256"
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Viewer $VERSION" --notes-file - \
+            "out/anyview-$VERSION-linux-x86_64.tar.gz" \
+            "out/anyview-$VERSION-linux-x86_64.tar.gz.sha256" <<'NOTES'
+          Unpack the tarball and run `dist/install.sh --no-build` (see the README, "Install and uninstall").
+          The tarball holds the viewer and the ffmpeg, heif and raw plugins; the mpv plugin's C plugin is
+          built from source, so it is installed from a checkout (`dist/install.sh`). The CHANGELOG names
+          what changed.
+          NOTES

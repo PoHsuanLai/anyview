@@ -105,6 +105,39 @@ jobs:
           bash dev/syntax-dump/build.sh
           git diff --exit-code --stat -- crates/anyview-text/src/code/syntaxes.packdump
 
+  # The workspace's `rust-version`, which nothing else exercises (the other jobs run the toolchain
+  # rust-toolchain.toml pins). The headless peek and the machines, the parts an embedder takes, are
+  # checked on it; the desktop-linking crates are the gate job's. A raise of the pinned toolchain that
+  # leaves `rust-version` behind fails here, and the fix is to raise `rust-version` with it.
+  msrv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake clang \
+            libfontconfig-dev libfreetype-dev libharfbuzz-dev libxml2-dev libpng-dev \
+            zlib1g-dev libbz2-dev liblzma-dev
+
+      - name: Toolchain (the workspace's rust-version)
+        run: |
+          msrv=$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^rust-version = "\(.*\)"$/\1/p}' Cargo.toml)
+          test -n "$msrv"
+          rustup toolchain install "$msrv" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$msrv" >> "$GITHUB_ENV"
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Peek builds headless
+        run: cargo check -p anyview-peek --no-default-features --locked
+
+      - name: Machines build
+        run: cargo check -p anyview-machines --locked
+
   # The player with the real mpv: Ubuntu's own, which loads mpv-wgpu's C plugin, drawing on lavapipe
   # (the software Vulkan driver). The gate job's tests skip themselves with no mpv; here a skip is a
   # failure (ANYVIEW_REQUIRE_PLAYER), so this job fails where the player could not run. It runs only
