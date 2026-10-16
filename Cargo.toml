@@ -204,18 +204,18 @@ peniko = "0.6"
 # instanced, gradients, JPEG and PNG passthrough; `variable-fonts` lets the subsetter instance
 # variable and CFF2 faces). Every pdfrum crate comes from crates.io at one minor (0.5), so the tree holds
 # one copy of each (as quire's own manifest does).
-pdfrum-anyrender = "0.5.2"
-pdfrum-edit = { version = "0.5.2", features = ["variable-fonts"] }
-pdfrum-object = "0.5.2"
-pdfrum-common = "0.5.2"
+pdfrum-anyrender = "0.5.3"
+pdfrum-edit = { version = "0.5.3", features = ["variable-fonts"] }
+pdfrum-object = "0.5.3"
+pdfrum-common = "0.5.3"
 # Form fields read as data (their widgets, kinds, options): the facade hands out values, not where
 # a field is drawn. The tree already holds it through pdfrum.
-pdfrum-doc = "0.5.2"
+pdfrum-doc = "0.5.3"
 # Font tables read directly by ds-blitz's tests (cmap): the version parley already resolves at
 # the blitz rev. pdfrum pins its own skrifa for its painter; the two do not meet in a signature.
 skrifa = "0.44"
 # Reading PDFs back in tests (text, fonts, images, a rasterised page): dev-dependency only.
-pdfrum = { version = "0.5.2", default-features = false, features = ["vello-cpu"] }
+pdfrum = { version = "0.5.3", default-features = false, features = ["vello-cpu"] }
 # The print portal's fd, from a sealed anonymous file (ds-blitz's `print` feature, Linux only).
 memfd = "0.6"
 # Spellchecking (ds-blitz's `spell` feature): a pure-Rust Hunspell-compatible checker,

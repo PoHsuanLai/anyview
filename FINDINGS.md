@@ -462,9 +462,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   time. Textures of thumbnails already drawn stay on the shelf when their rows scroll away.
 - **A password-protected PDF is `LoadFailure::Unsupported`.** The viewer has no way to ask for a password;
   `PdfDocument::open_with_password` is there for the sheet that will. Ends with that sheet.
-- **pdfrum draws a 1 px blue box round every link annotation,** even when its `/Border` is `[0 0 0]`: the
-  tiles of the PDF fixture show it round both links. The links are clickable areas of the view and need no box.
-  Ends when pdfrum honours a zero border width or offers a render option without annotations.
 - **Legacy and unusual types fall to `Other`.** RAR, JPEG 2000, DjVu, JPEG XR, executables and
   the other types `infer` knows but no family holds are `Other` with `infer`'s media type, shown as
   facts. Ends per type when a family holds it.
