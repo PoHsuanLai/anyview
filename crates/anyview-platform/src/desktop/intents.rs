@@ -17,10 +17,12 @@ use docket_core::{
     SummonOrigin, SummonSerial, TargetValue, TextTarget, UndoFault, UndoToken, Undoable,
     ValidManifest, Visible, WindowPrivacy, validate,
 };
+use docket_dbus::callers::{Identity, intentd_only};
 use porter_core::Count;
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
 /// The bus name docket's router calls: the viewer's app name, which docket's activation file starts.
@@ -49,15 +51,19 @@ fn intents_error(reason: &dyn std::fmt::Display) -> PlatformError {
 }
 
 /// Serve the viewer's intents on `connection`, which already owns the viewer's own name, and claim
-/// the app name docket calls. Requests the router makes arrive on `sender`.
+/// the app name docket calls. Requests the router makes arrive on `sender`. Only intentd's unit is
+/// answered, found by its main process in the system's `/proc`, or in `proc_root` when a test
+/// gives a fixture tree of its own.
 pub(super) async fn serve(
     connection: &zbus::Connection,
     sender: Sender<Request>,
+    proc_root: Option<&Path>,
 ) -> Result<(), PlatformError> {
     let manifest = manifest()?;
     let window = PrivateWindow::new(&manifest);
     let provider = ViewerIntents::new(manifest, sender);
-    docket_client::serve_on(connection, provider, window, NoPrompt)
+    let callers = Arc::new(Identity::on(connection.clone(), intentd_only(), proc_root));
+    docket_client::serve_on_with(connection, provider, window, NoPrompt, callers)
         .await
         .map_err(|error| PlatformError::Bus {
             call: "offer the viewer to the agent layer",
