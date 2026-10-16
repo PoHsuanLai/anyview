@@ -245,11 +245,11 @@ clap = { version = "4", features = ["derive"] }
 # spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `docket-dbus` names who may call it; `prov` is the label and name
 # vocabulary its signatures use.
-docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "b98c539d87dca8ed4d989cfd92812bf661000089", default-features = false, features = ["dbus"] }
-docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "b98c539d87dca8ed4d989cfd92812bf661000089" }
-docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "b98c539d87dca8ed4d989cfd92812bf661000089" }
-prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "da9a2bdbe3d94b516af6104c3fc01218a4df2d10" }
-porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "da9a2bdbe3d94b516af6104c3fc01218a4df2d10" }
+docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "994117c0358406bdc493cba6eb713e264c645da8", default-features = false, features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "994117c0358406bdc493cba6eb713e264c645da8" }
+docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "994117c0358406bdc493cba6eb713e264c645da8" }
+prov = { git = "https://github.com/PoHsuanLai/porter.git", rev = "de060069eec36707705dc4c5b043d7f8a2f4e147" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter.git", rev = "de060069eec36707705dc4c5b043d7f8a2f4e147" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "ef0117ada46854702057c79515516da43b271455" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
