@@ -94,7 +94,7 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 
 | crate | feature | what it adds | the viewer |
 |---|---|---|---|
-| `anyview-platform` | `quire-desktop` | D-Bus single instance, the media session, portals, the file manager, the freedesktop entries (Linux; docket's app side) | on, through `anyview/quire-desktop` |
+| `anyview-platform` | `quire-desktop` | D-Bus single instance, the media session, portals, the file manager (Linux; docket's app side) | on, through `anyview/quire-desktop` |
 | `anyview-platform` | `testing` | the fakes and the private bus | tests only |
 | `anyview-media` | `player` | the typestate player over the person's mpv | on |
 | `anyview-media` | `audio` | the built-in audio player (symphonia, cpal) | on, through `anyview/audio` |
@@ -352,10 +352,10 @@ that names `rustix` and `std::os::unix`, with a standard-library half for Window
 
 **Two halves, one feature.** The owner's rule (quire design/36) is that everything but the desktop itself is
 cross-platform and the desktop's services are additive extras. So `portable` is built everywhere and calls no
-desktop service, and `desktop` (public path `anyview_platform::linux`, kept for `sill`) is the Linux desktop's services (D-Bus, the portals, MPRIS, the freedesktop
-application entries), built only with the feature `quire-desktop` on Linux. `quire-desktop` is opt-in
+desktop service, and `desktop` (public path `anyview_platform::linux`, kept for `sill`) is the Linux desktop's services (D-Bus, the portals, MPRIS),
+built only with the feature `quire-desktop` on Linux. `quire-desktop` is opt-in
 (the default build is the traits, the portable stand-ins and the `testing` fakes; Cargo has no per-target default
-features, so the code behind it is also gated on `target_os = "linux"`); the crate's `zbus`, `freedesktop-desktop-entry`, `memfd` and `futures-util` are optional
+features, so the code behind it is also gated on `target_os = "linux"`); the crate's `zbus`, `memfd` and `futures-util` are optional
 dependencies of that feature. The binary forwards it (`anyview/quire-desktop`, on in its defaults), and `--no-default-features` is the
 portable build. `anyview-platform` is declared in the workspace with `default-features = false`, so only the
 binary's feature decides it; `sill` takes the crate by path and asks for `quire-desktop`. Without the feature each
@@ -464,7 +464,7 @@ message when the program is not installed.
 
 `anyview-platform` depends on `latchkey`, `tokio` (channels, `spawn_blocking` and a timeout), `md-5`, `png`,
 `percent-encoding`, `serde_json`, `dirs`, and, behind `quire-desktop` on Linux, `zbus` (its `tokio` feature, so
-the binary's runtime drives it), `freedesktop-desktop-entry`, `memfd` and `futures-util`; also bayonet with its `host` feature (finding the manifests and running the plugins: `poll` on the plugin's pipe, so it is read with a deadline and no thread, and the process group it is killed with), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
+the binary's runtime drives it), `memfd` and `futures-util`; also bayonet with its `host` feature (finding the manifests and running the plugins: `poll` on the plugin's pipe, so it is read with a deadline and no thread, and the process group it is killed with), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks

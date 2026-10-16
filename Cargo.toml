@@ -235,7 +235,6 @@ upower_dbus = { git = "https://github.com/pop-os/dbus-settings-bindings", rev = 
 logind-zbus = "5"
 libpulse-binding = "2.30"
 system-tray = "0.8.9"
-freedesktop-desktop-entry = "0.8.3"
 freedesktop-icons = "0.4"
 nucleo-matcher = "0.3.1"
 fend-core = "1.5.8"

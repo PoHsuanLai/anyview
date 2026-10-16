@@ -220,9 +220,11 @@ DIRECT=(
 # too (its catalog is TOML): the headless budget rose by five, the others by one or two.
 # porter 063e9db's porter-dbus checks callers through peephole (peephole, -core and -bus) instead of
 # porter-daemon, and reaches the viewer through docket-dbus: two more than before porter-daemon left.
+# The unused freedesktop-desktop-entry left anyview-platform, and with it gettext-rs and gettext-sys
+# (C, LGPL) and five others the viewer reached: 695.
 BUDGETS=(
   "anyview-peek: 578"
-  "anyview: 702"
+  "anyview: 695"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
