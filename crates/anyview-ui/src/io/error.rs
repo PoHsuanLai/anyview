@@ -46,15 +46,10 @@ pub enum OpenError {
     Unrecognised,
 }
 
-/// The most a file may be for the viewer to read it whole into memory before decoding: the
-/// ceiling `anyview-image` holds a decode's peak to, since a file over it cannot be decoded
-/// within that peak, and a parse that allocates for a larger one would abort the whole process.
-const READ_WHOLE_LIMIT: u64 = 1536 * 1024 * 1024;
-
 impl OpenError {
     /// `Ok` when a file of `len` bytes may be read whole, else the file is too large to open.
     pub(crate) fn admit_len(len: anyview_core::ByteLen) -> Result<(), OpenError> {
-        if len.0 > READ_WHOLE_LIMIT {
+        if len > anyview_fs::WHOLE_FILE_CAP {
             Err(OpenError::TooLarge)
         } else {
             Ok(())

@@ -7,7 +7,7 @@ use anyview_core::{ByteLen, FileStamp, ModTime};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 pub(crate) fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreError {
@@ -18,12 +18,18 @@ pub(crate) fn io_error(op: StoreOp, path: &Path, error: &io::Error) -> StoreErro
     }
 }
 
+/// The most a store file may be: the history holds a few hundred paths and a record one, so a
+/// file over this is not one the store wrote.
+const STORE_FILE_CAP: ds_helpers::ReadCap = ds_helpers::ReadCap::mib(16);
+
 /// The JSON in `path`, or `None` when the file (or a directory above it) does not exist.
+/// Anything else that keeps it from being read is an error, never "absent": a FIFO or a folder at
+/// the path, or a refused read, is `Io` (left as it is), and a file over [`STORE_FILE_CAP`] is
+/// `Corrupt` (a writer moves it aside before writing a fresh one).
 pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, StoreError> {
-    let bytes = match fs::read(path) {
+    let bytes = match ds_helpers::read_capped(path, STORE_FILE_CAP) {
         Ok(bytes) => bytes,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(io_error(StoreOp::Read, path, &error)),
+        Err(error) => return read_failed(path, error),
     };
     serde_json::from_slice(&bytes)
         .map(Some)
@@ -33,22 +39,32 @@ pub(crate) fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, S
         })
 }
 
-/// Writes `value` as the whole content of `path`, for its owner alone: into `<name>.tmp` beside it,
-/// synced, renamed over `path`, and the directory synced so the rename survives a crash. A
-/// concurrent reader opens either the old file or the new one. One writer at a time: two would
-/// share the temporary name. The directory is created when missing, closed to everyone else: the
-/// history lists every file the person opened. A directory that refuses to sync is logged and the
-/// write still succeeds, since the file is in place.
+// `ReadError` is `non_exhaustive`: a failure this crate cannot name yet is a refused read, so
+// the file is left as it is.
+#[allow(clippy::wildcard_enum_match_arm)]
+fn read_failed<T>(path: &Path, error: ds_helpers::ReadError) -> Result<Option<T>, StoreError> {
+    match error {
+        ds_helpers::ReadError::NotFound { .. } => Ok(None),
+        ds_helpers::ReadError::NotRegular { .. } => Err(io_error(
+            StoreOp::Read,
+            path,
+            &io::Error::from(io::ErrorKind::InvalidInput),
+        )),
+        ds_helpers::ReadError::TooBig { .. } => Err(StoreError::Corrupt {
+            path: path.to_path_buf(),
+            reason: error.to_string(),
+        }),
+        ds_helpers::ReadError::Io { source, .. } => Err(io_error(StoreOp::Read, path, &source)),
+        other => Err(io_error(StoreOp::Read, path, &io::Error::other(other))),
+    }
+}
+
+/// Writes `value` as the whole content of `path` with quire's `ds_helpers::write_atomic`: a
+/// uniquely named temporary file beside it, synced, renamed over `path`, and the directory synced
+/// so the rename survives a crash. A concurrent reader opens either the old file or the new one,
+/// and two writers in this process take turns. A new file is its owner's alone; the directory is
+/// created when missing, closed to everyone else: the history lists every file the person opened.
 pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), StoreError> {
-    write_json_as(path, value, 0o600)
-}
-
-/// The folder `path` and every missing one above it, readable by its owner alone.
-pub(crate) fn create_private_dir(path: &Path) -> Result<(), StoreError> {
-    sys::create_private_dir(path).map_err(|e| io_error(StoreOp::CreateDir, path, &e))
-}
-
-fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), StoreError> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     create_private_dir(dir)?;
     let mut bytes = serde_json::to_vec(value).map_err(|error| StoreError::Corrupt {
@@ -56,35 +72,25 @@ fn write_json_as<T: Serialize>(path: &Path, value: &T, mode: u32) -> Result<(), 
         reason: error.to_string(),
     })?;
     bytes.push(b'\n');
+    ds_helpers::write_atomic(path, &bytes, ds_helpers::NewFileMode::OwnerOnly)
+        .map_err(|error| io_error(StoreOp::Write, &error.path, &error.source))
+}
 
-    let mut temp_name = path.file_name().unwrap_or_default().to_os_string();
-    temp_name.push(".tmp");
-    let temp = dir.join(temp_name);
+/// Moves the damaged store file at `path` aside, to `<name>.bad-<at>` beside it, so a fresh one
+/// can be written without losing the person's bytes. Returns where it went.
+pub(crate) fn move_aside(path: &Path, at: u64) -> Result<PathBuf, StoreError> {
+    ds_helpers::move_aside(path, ds_helpers::UnixSeconds(at))
+        .map_err(|error| io_error(StoreOp::Rename, &error.path, &error.source))
+}
 
-    let mut file = sys::with_mode(
-        fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true),
-        mode,
-    )
-    .open(&temp)
-    .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
-    file.write_all(&bytes)
-        .map_err(|e| io_error(StoreOp::Write, &temp, &e))?;
-    file.sync_all()
-        .map_err(|e| io_error(StoreOp::Sync, &temp, &e))?;
-    drop(file);
-    fs::rename(&temp, path).map_err(|e| io_error(StoreOp::Rename, path, &e))?;
-    if let Err(error) = fs::File::open(dir).and_then(|d| d.sync_all()) {
-        // The rename is done: a file system that cannot sync a directory did not lose the write.
-        log::warn!("cannot sync {}: {error}", dir.display());
-    }
-    Ok(())
+/// The folder `path` and every missing one above it, readable by its owner alone.
+pub(crate) fn create_private_dir(path: &Path) -> Result<(), StoreError> {
+    sys::create_private_dir(path).map_err(|e| io_error(StoreOp::CreateDir, path, &e))
 }
 
 /// The `.json` files directly inside `dir`; none when the directory does not exist. The
-/// temporary files of a write in progress end in `.tmp` and are not listed.
+/// temporary files of a write in progress end in `.tmp`, and a damaged file moved aside ends in
+/// `.bad-<seconds>`, so neither is listed.
 pub(crate) fn list_json(dir: &Path) -> Result<Vec<PathBuf>, StoreError> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,

@@ -44,13 +44,14 @@ pub fn is_regular(meta: &Metadata) -> bool {
 
 /// Opens `path` and returns the file with the metadata of the open handle. A path that is not a
 /// regular file once opened is refused with `ErrorKind::InvalidInput`. The path is stat-ed
-/// before it is opened as well, because opening a FIFO for reading blocks until something writes
-/// to it, and the check on the handle closes the window a swap would otherwise have.
+/// before it is opened, and on Unix it is opened with `O_NONBLOCK`, because opening a FIFO for
+/// reading otherwise blocks until something writes to it; the check on the handle then refuses
+/// a FIFO swapped in between the two.
 pub fn open_regular(path: &Path) -> Result<(File, Metadata)> {
     if !is_regular(&std::fs::metadata(path)?) {
         return Err(Error::from(ErrorKind::InvalidInput));
     }
-    let file = File::open(path)?;
+    let file = open_nonblocking(path)?;
     let meta = file.metadata()?;
     if is_regular(&meta) {
         Ok((file, meta))
@@ -59,30 +60,84 @@ pub fn open_regular(path: &Path) -> Result<(File, Metadata)> {
     }
 }
 
+#[cfg(unix)]
+fn open_nonblocking(path: &Path) -> Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    // A regular file ignores the flag; a FIFO opens at once instead of waiting for a writer.
+    let nonblock = i32::try_from(rustix::fs::OFlags::NONBLOCK.bits())
+        .map_err(|_| Error::from(ErrorKind::Unsupported))?;
+    std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(nonblock)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+fn open_nonblocking(path: &Path) -> Result<File> {
+    File::open(path)
+}
+
+/// The most a file may be for the viewer to read it whole into memory before decoding or editing:
+/// the ceiling `anyview-image` holds a decode's peak to, since a file over it cannot be decoded
+/// within that peak, and a parse that allocates for a larger one would abort the whole process.
+pub const WHOLE_FILE_CAP: ByteLen = ByteLen(1536 * 1024 * 1024);
+
+/// The regular file at `path`, read whole, when it is at most `cap` long. A missing file is
+/// `ErrorKind::NotFound`, anything that is not a regular file (a folder, a FIFO, a device)
+/// `ErrorKind::InvalidInput`, and a file over `cap`, or one that grows past it while it is read,
+/// `ErrorKind::FileTooLarge`: never a hang, and never more than `cap` bytes in memory. The read
+/// is quire's `ds_helpers::read_capped`, the one the desktop's apps share.
+pub fn read_whole(path: &Path, cap: ByteLen) -> Result<Vec<u8>> {
+    ds_helpers::read_capped(path, ds_helpers::ReadCap::bytes(cap.0)).map_err(io_error)
+}
+
+// `ReadError` is `non_exhaustive`: what falls to the wildcard is a failure this crate cannot
+// name yet, so it stays an error with its own message.
+#[allow(clippy::wildcard_enum_match_arm)]
+fn io_error(error: ds_helpers::ReadError) -> Error {
+    match error {
+        ds_helpers::ReadError::NotFound { .. } => Error::from(ErrorKind::NotFound),
+        ds_helpers::ReadError::NotRegular { .. } => Error::from(ErrorKind::InvalidInput),
+        ds_helpers::ReadError::TooBig { .. } => Error::from(ErrorKind::FileTooLarge),
+        ds_helpers::ReadError::Io { source, .. } => source,
+        other => Error::other(other),
+    }
+}
+
 /// An open regular file, read by offset.
 #[derive(Debug)]
-pub struct OpenFile(File);
+pub struct OpenFile {
+    file: File,
+    /// The length the file had when it was opened, for when its metadata can no longer be read.
+    opened: ByteLen,
+}
 
 impl OpenFile {
     /// The regular file at `path`, opened ([`open_regular`]).
     pub fn open(path: &Path) -> Result<OpenFile> {
-        open_regular(path).map(|(file, _)| OpenFile(file))
+        open_regular(path).map(|(file, meta)| OpenFile {
+            file,
+            opened: ByteLen(meta.len()),
+        })
     }
 }
 
 impl ReadAt for OpenFile {
+    /// The file's length now, or the one it had when opened if the system no longer says.
     fn len(&self) -> ByteLen {
-        ByteLen(self.0.metadata().map_or(0, |meta| meta.len()))
+        self.file
+            .metadata()
+            .map_or(self.opened, |meta| ByteLen(meta.len()))
     }
 
     #[cfg(unix)]
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        std::os::unix::fs::FileExt::read_at(&self.0, buf, offset)
+        std::os::unix::fs::FileExt::read_at(&self.file, buf, offset)
     }
 
     #[cfg(windows)]
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        std::os::windows::fs::FileExt::seek_read(&self.0, buf, offset)
+        std::os::windows::fs::FileExt::seek_read(&self.file, buf, offset)
     }
 }
 
@@ -179,6 +234,41 @@ mod tests {
         assert_eq!(open_regular(&file).unwrap().1.len(), 5);
         assert_eq!(
             open_regular(dir.path()).unwrap_err().kind(),
+            ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
+    fn a_whole_read_takes_a_regular_file_up_to_its_cap_and_names_every_refusal() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("a.txt");
+        std::fs::write(&file, b"hello").unwrap();
+        assert_eq!(read_whole(&file, ByteLen(5)).unwrap(), b"hello");
+        let kind = |path: &Path, cap: u64| read_whole(path, ByteLen(cap)).unwrap_err().kind();
+        assert_eq!(kind(&file, 4), ErrorKind::FileTooLarge);
+        assert_eq!(kind(&dir.path().join("gone"), 5), ErrorKind::NotFound);
+        assert_eq!(kind(dir.path(), 5), ErrorKind::InvalidInput);
+    }
+
+    // rustix has no mkfifo on Apple platforms; Linux is where the pipe is tried.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_named_pipe_is_refused_at_once_by_every_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let pipe = dir.path().join("pipe");
+        rustix::fs::mkfifoat(
+            rustix::fs::CWD,
+            &pipe,
+            rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR,
+        )
+        .unwrap();
+        // Nothing writes to the pipe: a blocking open would never return.
+        assert_eq!(
+            open_regular(&pipe).unwrap_err().kind(),
+            ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            read_whole(&pipe, WHOLE_FILE_CAP).unwrap_err().kind(),
             ErrorKind::InvalidInput
         );
     }

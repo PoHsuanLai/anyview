@@ -9,10 +9,9 @@ use crate::thumbnail::{ThumbPixels, ThumbSize, ThumbnailCache};
 use crate::uri::file_uri;
 use anyview_core::{FilePath, FileStamp, PixelLen, PixelSize};
 use md5::{Digest, Md5};
-use std::fs::{DirBuilder, File, OpenOptions};
-use std::io::{BufWriter, Cursor, Write};
+use std::fs::DirBuilder;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 const URI_KEY: &str = "Thumb::URI";
 const MTIME_KEY: &str = "Thumb::MTime";
@@ -53,10 +52,13 @@ impl ThumbnailCache for FreedesktopThumbnails {
         size: ThumbSize,
     ) -> Result<Option<ThumbPixels>, PlatformError> {
         let path = self.path(file, size);
-        let bytes = match std::fs::read(&path) {
+        let bytes = match ds_helpers::read_capped(&path, THUMBNAIL_CAP) {
             Ok(bytes) => bytes,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(PlatformError::io(IoOp::Read, path, &error)),
+            Err(error) if error.is_missing() => return Ok(None),
+            Err(error) => {
+                let error = std::io::Error::other(error);
+                return Err(PlatformError::io(IoOp::Read, path, &error));
+            }
         };
         Ok(decode(&bytes, &file_uri(file), mtime_seconds(stamp)))
     }
@@ -188,44 +190,16 @@ fn create_private_dir(directory: &Path) -> std::io::Result<()> {
     builder.create(directory)
 }
 
-/// Options that create a new file for writing (never one that is there), readable by its owner
-/// alone where the platform has modes.
-fn private_file() -> OpenOptions {
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    options
-}
+/// The most a cached thumbnail may be: a 1024-pixel PNG is a few MiB, so a file over this is not
+/// a thumbnail.
+const THUMBNAIL_CAP: ds_helpers::ReadCap = ds_helpers::ReadCap::mib(32);
 
-/// Counts the temporary names this program has made, so two writers never share one.
-static NEXT_TEMPORARY: AtomicU64 = AtomicU64::new(0);
-
-/// Write `bytes` beside `path` and rename them over it, so a reader never sees half a file. The
-/// temporary name is the writer's own, and it is removed again when the write fails.
+/// Write `bytes` as the file `path` with quire's `ds_helpers::write_atomic`, so a reader never sees
+/// half a file: a temporary file of this writer's own beside it, synced, renamed over it. A new
+/// thumbnail is readable by its owner alone, as the thumbnail specification asks.
 fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), PlatformError> {
-    let temporary = path.with_extension(format!(
-        "{}-{}.tmp",
-        std::process::id(),
-        NEXT_TEMPORARY.fetch_add(1, Ordering::Relaxed)
-    ));
-    let write = || -> std::io::Result<()> {
-        let file: File = private_file().open(&temporary)?;
-        let mut out = BufWriter::new(file);
-        out.write_all(bytes)?;
-        out.into_inner().map_err(|e| e.into_error())?.sync_all()
-    };
-    if let Err(error) = write() {
-        drop(std::fs::remove_file(&temporary));
-        return Err(PlatformError::io(IoOp::Write, &temporary, &error));
-    }
-    std::fs::rename(&temporary, path).map_err(|error| {
-        drop(std::fs::remove_file(&temporary));
-        PlatformError::io(IoOp::Rename, path, &error)
-    })
+    ds_helpers::write_atomic(path, bytes, ds_helpers::NewFileMode::OwnerOnly)
+        .map_err(|error| PlatformError::io(IoOp::Write, &error.path, &error.source))
 }
 
 #[cfg(test)]

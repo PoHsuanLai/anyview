@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 anyview-core = { workspace = true }
+# Capped reads, atomic writes and moving a damaged file aside: quire's, shared by the desktop's apps.
+ds-helpers = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

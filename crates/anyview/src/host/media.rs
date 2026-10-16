@@ -302,7 +302,7 @@ enum RecodeError {
 }
 
 fn recoded(from: &FilePath, to: &FilePath, target: RasterTarget) -> Result<(), RecodeError> {
-    let bytes = std::fs::read(from.as_path())?;
+    let bytes = anyview_fs::read_whole(from.as_path(), anyview_fs::WHOLE_FILE_CAP)?;
     let name = FileName::new("frame.png")?;
     let head = &bytes[..bytes.len().min(4096)];
     let SniffStep::Done(sniffed) = sniff(&FileHead::new(head), &name) else {

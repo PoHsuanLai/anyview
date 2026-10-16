@@ -3,8 +3,7 @@
 //! current cover's, named by a hash of its bytes so the same cover is never written twice.
 
 use crate::media::Artwork;
-use std::io::Write;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 
 /// The folder inside the cache directory that holds the cover.
@@ -38,19 +37,9 @@ pub(super) fn write(folder: &Path, art: &Artwork) -> Option<PathBuf> {
     let file = folder.join(&name);
     if !file.is_file() {
         // Beside the file and renamed over it, so a reader never sees half a picture.
-        let partial = folder.join(format!("{name}.partial"));
-        let mut out = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&partial)
+        ds_helpers::write_atomic(&file, &art.png, ds_helpers::NewFileMode::OwnerOnly)
+            .inspect_err(|error| log::warn!("cannot keep the cover: {error}"))
             .ok()?;
-        let written = out.write_all(&art.png).and_then(|()| out.flush());
-        if written.is_err() || std::fs::rename(&partial, &file).is_err() {
-            let _gone = std::fs::remove_file(&partial);
-            return None;
-        }
     }
     sweep(folder, &name);
     Some(file)
