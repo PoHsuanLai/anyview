@@ -3,9 +3,14 @@
 //! the steps that can be taken back. A pure state like the picture's edits; the file is written
 //! only when the host is asked to (⌘S).
 
+mod form;
+mod input;
+mod marks;
 mod model;
+mod query;
 mod step;
 #[cfg(test)]
 mod tests;
 
-pub use model::{Allowance, Draft, MarkupIn, MarkupOut, PdfMarkup, Using};
+pub use input::{MarkupIn, MarkupOut};
+pub use model::{Allowance, Draft, PdfMarkup, Using};

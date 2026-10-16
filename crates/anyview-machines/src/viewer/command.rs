@@ -18,7 +18,7 @@ use ds_core::time::stamp::Stamp;
 pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerParams) -> Step {
     match command {
         // Finding is the palette's: the Find button and the Find row open it as a find.
-        Command::Stage(StageCommand::Find) => super::step::open_find(viewer, at, params),
+        Command::Stage(StageCommand::Find) => super::find::open_find(viewer, at, params),
         // Done with changes unsaved asks first; Save over another program's changes asks too.
         Command::Stage(StageCommand::Done) => leaving(viewer, Departure::Finish, at, params),
         Command::Stage(StageCommand::Save) => save_text(viewer, at, params),
@@ -51,7 +51,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
                 (viewer, vec![])
             }
         }
-        Command::OpenFile => super::step::choose(viewer),
+        Command::OpenFile => super::opening::choose(viewer),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }
 }
@@ -65,7 +65,7 @@ fn find_option(viewer: Viewer, option: FindOption, at: Stamp, params: &ViewerPar
     };
     let asked = viewer.stage.find_state().map(|(query, _)| query.clone());
     match asked {
-        Some(query) => super::step::searched(viewer, &query, at, params),
+        Some(query) => super::find::searched(viewer, &query, at, params),
         None => (viewer, vec![]),
     }
 }

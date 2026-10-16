@@ -1,4 +1,5 @@
-use super::crop::{CropAspect, CropBox, CropGrip, CropLean, CropShape};
+use super::aspect::{CropAspect, CropLean, CropShape};
+use super::crop::{CropBox, CropGrip};
 use super::{PictureEditIn, PictureEditing, PictureEdits};
 use anyview_core::{
     Adjust, Axis, DocPoint, DocUnit, PixelLen, PixelRect, PixelSize, QuarterTurn, Reflection,
