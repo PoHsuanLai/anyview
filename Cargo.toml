@@ -24,6 +24,7 @@ members = [
   "crates/anyview-text",
   "crates/anyview-ui",
   "plugins/anyview-ffmpeg",
+  "plugins/anyview-plugin-common",
   "plugins/anyview-heif",
   "plugins/anyview-raw",
   "plugins/anyview-tool-kit",
@@ -73,6 +74,8 @@ anyview-store = { path = "crates/anyview-store" }
 anyview-text = { path = "crates/anyview-text" }
 anyview-ui = { path = "crates/anyview-ui" }
 anyview-ffmpeg = { path = "plugins/anyview-ffmpeg" }
+# What the plugins share without dragging `image` or `serde` in: fitting a picture, finding a program.
+anyview-plugin-common = { path = "plugins/anyview-plugin-common" }
 anyview-heif = { path = "plugins/anyview-heif" }
 anyview-raw = { path = "plugins/anyview-raw" }
 anyview-tool-kit = { path = "plugins/anyview-tool-kit" }

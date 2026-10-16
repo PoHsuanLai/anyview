@@ -14,8 +14,9 @@ mod picture;
 mod run;
 mod serve;
 
+pub use anyview_plugin_common::{Fit, Lookup, Picture, fitted};
 pub use error::ToolError;
-pub use lookup::{Lookup, find_tool};
-pub use picture::{Fit, Picture, fitted, load_picture, scaled};
+pub use lookup::find_tool;
+pub use picture::{load_picture, scaled};
 pub use run::{Ran, Stop, run_tool};
 pub use serve::{Backend, serve};

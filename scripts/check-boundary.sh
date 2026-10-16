@@ -90,8 +90,9 @@ cd "$(dirname "$0")/.."
 # runtime, bus, GPU, decoder, player or UI. anyview-plugin-fake is a plugin like any other: the protocol crate, and bayonet's testing fake for the wire faults
 # (its dev-dependencies, which the checks below do not look at, are the host's crates).
 # anyview-ffmpeg (under plugins/, since it is a program shipped as its own package and no layer of
-# the viewer) is a plugin like the fake one: the protocol crate, `serde`, `serde_json` and `thiserror`,
-# and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
+# the viewer) is a plugin like the fake one: the protocol crate, anyview-plugin-common (std only: how a
+# picture is fitted and how a program is found, shared with anyview-tool-kit), `serde`, `serde_json` and
+# `thiserror`, and nothing of the viewer's. It runs the person's ffprobe and ffmpeg, so it names no libav binding, no
 # player, and not anyview-media, anyview-platform, the core or the UI; `cargo tree` for it must show
 # no `ffmpeg-next` and no `rsmpv` (its dev-dependencies, the host's crates for the tests, are not looked at).
 # anyview-heif and anyview-raw are plugins too, over the shared `anyview-tool-kit` (the protocol crate,
@@ -108,6 +109,7 @@ FORBIDDEN_EVERYWHERE=(rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next libheif-rs lib
 
 RULES=(
   "anyview-ffmpeg: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom anyrender syntect"
+  "anyview-plugin-common: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image serde blitz-dom anyrender syntect"
   "anyview-tool-kit: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
   "anyview-heif: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
   "anyview-raw: anyview-core anyview-media anyview-platform anyview-plugin anyview-ui anyview-peek ds-core ds ds-blitz toml dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom anyrender syntect"
@@ -413,10 +415,10 @@ EDGES=(
   "anyview-plugin: anyview-core anyview-plugin-protocol bayonet"
   "anyview-plugin-protocol: bayonet"
   "anyview-plugin-fake: anyview-plugin-protocol bayonet"
-  "anyview-ffmpeg: anyview-plugin-protocol"
+  "anyview-ffmpeg: anyview-plugin-common anyview-plugin-protocol"
   "anyview-heif: anyview-plugin-protocol anyview-tool-kit"
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
-  "anyview-tool-kit: anyview-plugin-protocol"
+  "anyview-tool-kit: anyview-plugin-common anyview-plugin-protocol"
 )
   # quire, docket, porter and bayonet crates are git dependencies, so they show with their url where a
   # workspace crate shows a path. (bayonet is a path while it sits beside this checkout, and then shows

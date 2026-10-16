@@ -46,7 +46,8 @@ planned has no directory yet; its row is the rule it will carry.
 | L4 | `anyview-pane` | exists | the viewer as a pane another quire app hosts in its own window (temor, a terminal): `ViewerPane` over a `PaneEdge`, the `PaneRequest`s it makes of its host (`HostRequest` narrowed to what a region of a window can mean), and `PaneHandle`, which lends the host the pane's commands as a palette group; a thin crate over `anyview-ui`, so no new dependency, and only a host links it; with its `player` feature (off by default) a recording plays in the pane through `anyview-media-host` (`PaneEdge::with_player`), and without it a recording is handed to the host as `OpenElsewhere` |
 | plugin | `anyview-ffmpeg` (in `plugins/`) | exists | the FFmpeg plugin: a program that speaks protocol v1 and runs the person's `ffprobe` and `ffmpeg` for facts, pictures and exports of video and audio; links no libav (section 2l) |
 | plugin | `anyview-heif`, `anyview-raw` (in `plugins/`) | exists | the picture plugins: programs that speak protocol v1 and run the person's libheif tools (HEIC, HEIF, AVIF) or LibRaw's `dcraw_emu`/`dcraw` (a raw file in full, its preview as a thumbnail); they link no libheif and no LibRaw (section 2l, "The picture plugins") |
-| plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (manifest argument, environment variable, search path), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
+| plugin common | `anyview-plugin-common` (in `plugins/`) | exists | what every plugin that runs the person's programs shares, with no dependency: the size a picture is fitted to (`Fit`, `Picture`, `fitted`) and finding a program (manifest argument, environment variable, search path) |
+| plugin kit | `anyview-tool-kit` (in `plugins/`) | exists | what the two picture plugins share: finding a tool (over `anyview-plugin-common`'s lookup), running it with a deadline and a cancel, reading the PNG, TIFF or PPM it wrote, and the protocol's request loop |
 | dev | `anyview-plugin-fake` | exists | a test plugin that speaks protocol v1 for one invented kind, and the integration tests of discovery and the host's calls; never shipped |
 | L5 | `anyview` | exists | the binary: the command line, single instance, the windows, the plugins that play, read and write recordings, the exports and the desktop's now-playing entry (`media`; the player host and the hub are `anyview-media-host`), and the host that carries out what the windows ask through the platform |
 
@@ -58,9 +59,10 @@ planned has no directory yet; its row is the rule it will carry.
 | `anyview-plugin-protocol` | nothing in the workspace: bayonet without its host half (the wire), `serde`, `thiserror` |
 | `anyview-plugin` | `anyview-core`, `anyview-plugin-protocol`, bayonet (`host`) |
 | `anyview-plugin-fake` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
-| `anyview-tool-kit` | `anyview-plugin-protocol` |
+| `anyview-plugin-common` | nothing: std only |
+| `anyview-tool-kit` | `anyview-plugin-common`, `anyview-plugin-protocol` |
 | `anyview-heif`, `anyview-raw` | `anyview-plugin-protocol`, `anyview-tool-kit` (their tests also take the host's crates as dev-dependencies) |
-| `anyview-ffmpeg` | `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
+| `anyview-ffmpeg` | `anyview-plugin-common`, `anyview-plugin-protocol` (its tests also take `anyview-core`, `anyview-platform`, `anyview-plugin` as dev-dependencies) |
 | `anyview-store` | `anyview-core`, `ds-helpers` (no features: `read_capped`, `write_atomic` and `move_aside` for its JSON files) (and `rustix`, for the no-replace rename, extended attributes and `kill(pid, 0)`: safe wrappers, no `unsafe` here) |
 | `anyview-fs` | `anyview-core`, `ds-helpers` (no features: `read_capped` behind `read_whole`, the capped whole-file read every reader of the person's files uses; owner-approved 2026-10-16) |
 | `anyview-machines` | `anyview-core`, `ds-core` (the `Machine` trait, `Stamp` and `Word`, and `palette`, quire's palette machine and `TypedText`), `chordkit` (the keymap's nouns, for `Act`) |
@@ -131,7 +133,7 @@ measures each crate with the features in this table (`flags_of`), so its checks 
 | `anyview-plugin-protocol` | `anyview-core`, `ds-core`, `toml`, and everything `anyview-core` never reaches: bayonet's wire (no `host` feature, so no `toml`), serde and thiserror only, so a plugin author's tree stays theirs |
 | `anyview-plugin` | `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `image`, the `blitz-*` crates, `anyrender`, `syntect`: pure values, no effects |
 | `anyview-plugin-fake` | what the protocol crate never reaches, and `anyview-core`: a plugin knows the protocol and nothing of the viewer |
-| `anyview-heif`, `anyview-raw`, `anyview-tool-kit` | the same as `anyview-ffmpeg` below, but `image` is theirs to name (they read the PNG, TIFF or PPM a tool wrote): and `libheif-rs`, `libheif-sys`, `libraw-rs`, `libraw-sys`, `rsraw`, `rawloader` and `rawler` are forbidden in every crate's tree, with the libmpv and libav bindings |
+| `anyview-heif`, `anyview-raw`, `anyview-tool-kit`, `anyview-plugin-common` | the same as `anyview-ffmpeg` below, but `image` is theirs to name (they read the PNG, TIFF or PPM a tool wrote): and `libheif-rs`, `libheif-sys`, `libraw-rs`, `libraw-sys`, `rsraw`, `rawloader` and `rawler` are forbidden in every crate's tree, with the libmpv and libav bindings |
 | `anyview-ffmpeg` | `anyview-core`, `anyview-media`, `anyview-platform`, `anyview-plugin`, `anyview-ui`, `anyview-peek`, `ds-core`, `ds`, `ds-blitz`, `toml`, `dioxus`, `tokio`, `zbus`, `wgpu`, `pdfrum`, `mpv-wgpu-player`, `rsmpv`, `ffmpeg-next`, `ffmpeg-sys-next`, `image`, `blitz-dom`, `anyrender`, `syntect`: a plugin knows the protocol, `serde`, `serde_json` and `thiserror`, and runs programs; it never links the libraries those programs are made of |
 | every crate | `rsmpv`, `rsmpv-sys`, `ffmpeg-next`, `ffmpeg-sys-next`: no binding of libmpv or libav anywhere in the workspace (the script checks every crate in `crates/` and `plugins/` and `Cargo.lock`), and `dev/no-linked-codecs.sh` reads `ldd` of the built binary for `libmpv` and `libav*` |
 | every crate but `anyview-platform` | `zbus`, `ashpd`, `freedesktop-*`, and the macOS and Windows bindings (the script checks the `zbus`, `ashpd` and `freedesktop` names for every crate in `crates/` and `plugins/`) |
@@ -936,7 +938,7 @@ probes and exports recordings with. It lives in `plugins/` and not
 in `crates/` because it is a program with its own package and its own licence story, not a layer of the
 viewer: `crates/` holds what the viewer links, `plugins/` what it runs. It is the one place in the repository
 that reads the environment and starts programs on its own account, since that is what a plugin is. Its
-only edge is `anyview-plugin-protocol` (plus `serde`, `serde_json`, `thiserror`); `cargo tree` for it holds
+only edges are `anyview-plugin-protocol` and `anyview-plugin-common` (std only: picture fitting and program lookup, shared with the picture plugins; plus `serde`, `serde_json`, `thiserror`); `cargo tree` for it holds
 no `ffmpeg-next`, `ffmpeg-sys-next` or `rsmpv`, and `check-boundary` says so for its dependency tree.
 
 **Finding the tools.** `ffmpeg` and `ffprobe` are each found as an absolute path in the manifest's

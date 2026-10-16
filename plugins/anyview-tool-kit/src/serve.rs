@@ -1,8 +1,8 @@
 //! The plugin's main loop: greet with what this machine can do, take the one request, answer it.
 
 use crate::error::ToolError;
-use crate::picture::{Fit, Picture};
 use crate::run::Stop;
+use anyview_plugin_common::{Fit, Picture};
 use anyview_plugin_protocol::{
     Capability, Failure, Hello, HostMessage, ImageHeader, PROTOCOL_VERSION, PluginMessage,
     read_frame, write_frame,

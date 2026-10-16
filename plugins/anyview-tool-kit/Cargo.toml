@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyview-plugin-common = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
 # Reads the PNG, TIFF or PPM a tool wrote; pure Rust.
 image = { workspace = true, features = ["tiff", "pnm"] }

@@ -6,8 +6,9 @@ use crate::events::{Event, forward_host};
 use crate::export::export;
 use crate::facts::rows;
 use crate::ffprobe::probe;
-use crate::picture::{Fit, picture};
-use crate::tools::{Lookup, Tools};
+use crate::picture::picture;
+use crate::tools::Tools;
+use anyview_plugin_common::{Fit, Lookup};
 use anyview_plugin_protocol::{
     Capability, DecodeRequest, FactsReply, Failure, Hello, HostMessage, ImageHeader,
     PROTOCOL_VERSION, PluginMessage, ProbeRequest, ThumbnailRequest, write_frame,

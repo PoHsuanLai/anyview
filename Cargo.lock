@@ -417,6 +417,7 @@ dependencies = [
  "anyview-core",
  "anyview-platform",
  "anyview-plugin",
+ "anyview-plugin-common",
  "anyview-plugin-protocol",
  "ds-core",
  "serde",
@@ -629,6 +630,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyview-plugin-common"
+version = "0.1.0-beta.1"
+
+[[package]]
 name = "anyview-plugin-fake"
 version = "0.1.0-beta.1"
 dependencies = [
@@ -710,6 +715,7 @@ dependencies = [
 name = "anyview-tool-kit"
 version = "0.1.0-beta.1"
 dependencies = [
+ "anyview-plugin-common",
  "anyview-plugin-protocol",
  "image",
  "tempfile",

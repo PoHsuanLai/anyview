@@ -1,53 +1,13 @@
 //! Finding the person's `ffmpeg` and `ffprobe`, and checking they are FFmpeg.
 
 use crate::error::FfmpegError;
-use std::ffi::OsString;
+use anyview_plugin_common::{Lookup, NotRunnable, find_program};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 /// The oldest FFmpeg major this plugin drives: the options it passes (`-progress`, `-copypriorss`,
 /// `-map 0:V`) all exist from 4.
 const OLDEST_MAJOR: u32 = 4;
-
-/// Where each program may be named, in the order they are tried.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Lookup {
-    /// `--ffmpeg <absolute path>` from the manifest's arguments.
-    pub ffmpeg_arg: Option<PathBuf>,
-    /// `--ffprobe <absolute path>` from the manifest's arguments.
-    pub ffprobe_arg: Option<PathBuf>,
-    /// `ANYVIEW_FFMPEG`.
-    pub ffmpeg_env: Option<OsString>,
-    /// `ANYVIEW_FFPROBE`.
-    pub ffprobe_env: Option<OsString>,
-    /// `PATH`.
-    pub path: Option<OsString>,
-}
-
-impl Lookup {
-    /// The lookup the process's arguments and environment make.
-    pub fn from_process(
-        args: impl Iterator<Item = String>,
-        ffmpeg_env: Option<OsString>,
-        ffprobe_env: Option<OsString>,
-        path: Option<OsString>,
-    ) -> Lookup {
-        let args: Vec<String> = args.collect();
-        let after = |flag: &str| {
-            args.iter()
-                .position(|arg| arg == flag)
-                .and_then(|at| args.get(at + 1))
-                .map(PathBuf::from)
-        };
-        Lookup {
-            ffmpeg_arg: after("--ffmpeg"),
-            ffprobe_arg: after("--ffprobe"),
-            ffmpeg_env,
-            ffprobe_env,
-            path,
-        }
-    }
-}
 
 /// The FFmpeg release a program reports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,18 +34,8 @@ impl Tools {
     /// is the same suite, and asking it for its version too would add a process start to every
     /// request.
     pub fn locate(lookup: &Lookup) -> Result<Tools, FfmpegError> {
-        let ffmpeg = find(
-            "ffmpeg",
-            lookup.ffmpeg_arg.as_deref(),
-            lookup.ffmpeg_env.as_deref(),
-            lookup.path.as_deref(),
-        )?;
-        let ffprobe = find(
-            "ffprobe",
-            lookup.ffprobe_arg.as_deref(),
-            lookup.ffprobe_env.as_deref(),
-            lookup.path.as_deref(),
-        )?;
+        let ffmpeg = find(lookup, "ffmpeg")?;
+        let ffprobe = find(lookup, "ffprobe")?;
         let version = version_of("ffmpeg", &ffmpeg)?;
         Ok(Tools {
             ffmpeg,
@@ -95,56 +45,24 @@ impl Tools {
     }
 }
 
-/// The program `name`: the path an argument names, else the one the environment names, else the
-/// first match on the search path. A path that is named and does not run is an error, never a
-/// reason to look further, so a person who points at a program is not silently given another.
-fn find(
-    name: &'static str,
-    arg: Option<&Path>,
-    env: Option<&std::ffi::OsStr>,
-    path: Option<&std::ffi::OsStr>,
-) -> Result<PathBuf, FfmpegError> {
-    let named = arg
-        .map(Path::to_path_buf)
-        .or_else(|| env.filter(|value| !value.is_empty()).map(PathBuf::from));
-    if let Some(candidate) = named {
-        return if is_program(&candidate) {
-            Ok(candidate)
-        } else {
-            Err(FfmpegError::ToolMissing {
-                tool: name,
-                looked: format!("{} is not an executable file", candidate.display()),
-            })
-        };
+/// The program `name`: the path `--name` names, else the one `ANYVIEW_NAME` names, else the first
+/// match on the search path. A path that is named and does not run is an error, never a reason to
+/// look further (`find_program` is where that holds).
+fn find(lookup: &Lookup, name: &'static str) -> Result<PathBuf, FfmpegError> {
+    let flag = format!("--{name}");
+    let var = format!("ANYVIEW_{}", name.to_ascii_uppercase());
+    match find_program(lookup, &flag, &var, &[name]) {
+        Ok(Some(program)) => Ok(program),
+        Ok(None) => Err(FfmpegError::ToolMissing {
+            tool: name,
+            looked: "not on the search path, and no --ffmpeg, --ffprobe, ANYVIEW_FFMPEG or ANYVIEW_FFPROBE names it"
+                .to_owned(),
+        }),
+        Err(NotRunnable(candidate)) => Err(FfmpegError::ToolMissing {
+            tool: name,
+            looked: format!("{} is not an executable file", candidate.display()),
+        }),
     }
-    let found = path.and_then(|path| {
-        std::env::split_paths(path)
-            .map(|dir| dir.join(name))
-            .find(|candidate| is_program(candidate))
-    });
-    found.ok_or_else(|| FfmpegError::ToolMissing {
-        tool: name,
-        looked: "not on the search path, and no --ffmpeg, --ffprobe, ANYVIEW_FFMPEG or ANYVIEW_FFPROBE names it"
-            .to_owned(),
-    })
-}
-
-/// Whether `path` is a file that can be run: one with an execute bit where there are bits to read,
-/// else (Windows) any file, since starting it says otherwise.
-fn is_program(path: &Path) -> bool {
-    path.metadata()
-        .is_ok_and(|meta| meta.is_file() && can_execute(&meta))
-}
-
-#[cfg(unix)]
-fn can_execute(meta: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    meta.permissions().mode() & 0o111 != 0
-}
-
-#[cfg(not(unix))]
-fn can_execute(_meta: &std::fs::Metadata) -> bool {
-    true
 }
 
 fn version_of(tool: &'static str, program: &Path) -> Result<Version, FfmpegError> {
@@ -222,42 +140,28 @@ mod tests {
         }
     }
 
+    fn lookup(args: &[&str], env: &[(&str, &str)], path: &str) -> Lookup {
+        Lookup {
+            args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+            env: env
+                .iter()
+                .map(|(name, value)| ((*name).to_owned(), (*value).into()))
+                .collect(),
+            path: Some(path.into()),
+        }
+    }
+
     #[test]
-    fn arguments_come_before_the_environment_and_a_named_path_is_never_skipped() {
-        let lookup = Lookup::from_process(
-            ["--ffmpeg".to_owned(), "/nonexistent/ffmpeg".to_owned()].into_iter(),
-            Some("/usr/bin/ffmpeg".into()),
-            None,
-            Some("/usr/bin".into()),
-        );
-        assert_eq!(
-            lookup.ffmpeg_arg,
-            Some(PathBuf::from("/nonexistent/ffmpeg"))
+    fn a_named_program_that_is_missing_is_an_error_though_ffmpeg_is_on_the_path() {
+        let lookup = lookup(
+            &["--ffmpeg", "/nonexistent/ffmpeg"],
+            &[("ANYVIEW_FFMPEG", "/usr/bin/ffmpeg")],
+            "/usr/bin",
         );
         let error = Tools::locate(&lookup).unwrap_err();
         assert!(
             matches!(error, FfmpegError::ToolMissing { tool: "ffmpeg", .. }),
             "{error}"
         );
-    }
-
-    #[test]
-    fn the_environment_and_then_the_search_path_name_a_program() {
-        let by_env = find(
-            "sh",
-            None,
-            Some("/bin/sh".as_ref()),
-            Some("/nowhere".as_ref()),
-        );
-        assert_eq!(by_env.unwrap(), PathBuf::from("/bin/sh"));
-        let by_path = find(
-            "sh",
-            None,
-            Some("".as_ref()),
-            Some("/nowhere:/bin".as_ref()),
-        );
-        assert_eq!(by_path.unwrap(), PathBuf::from("/bin/sh"));
-        assert!(find("sh", None, None, Some("/nowhere".as_ref())).is_err());
-        assert!(find("sh", None, None, None).is_err());
     }
 }

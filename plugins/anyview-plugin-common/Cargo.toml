@@ -1,0 +1,12 @@
+[package]
+name = "anyview-plugin-common"
+description = "What every plugin that runs the person's own programs shares, and nothing else: how a picture is fitted to what the host asked for, and how a program is found (a manifest argument, an environment variable, the search path). Pure std."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

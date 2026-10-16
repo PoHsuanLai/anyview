@@ -13,6 +13,7 @@ name = "anyview-ffmpeg"
 path = "src/main.rs"
 
 [dependencies]
+anyview-plugin-common = { workspace = true }
 anyview-plugin-protocol = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
