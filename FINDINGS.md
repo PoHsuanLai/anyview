@@ -6,6 +6,18 @@ on. It is a reference, not a log: how each was found lives in git history.
 
 ## Open items
 
+- **A tagged release or a distro package cannot be built from this tree yet: it depends on forks and unreleased
+  libraries pinned by git rev.** The viewer links PoHsuanLai's forks of vello (five crates), anyrender (five) and
+  dioxus (five) through `[patch.crates-io]`, a blitz fork, and quire, chordkit, bayonet, docket, porter, latchkey,
+  mpv-wgpu and taffy at revs, none of them a crates.io release; `deny.toml` allows each git source by name. A
+  source build is reproducible while those repositories keep the revs (`Cargo.lock` is committed, CI builds with
+  `--locked`), so the beta ships from source. What a package or a binary release also needs is `cargo vendor` of
+  all of them, a licence and advisory check that covers the vendored tree (deny's graph is x86_64 Linux), a
+  release workflow that builds from a tag, and a tag on every fork rev so a rewritten branch cannot orphan it.
+  The pins move with the desktop manifest, so they are not changed here. `scripts/check-release.sh` (CI) fails
+  when `MPV_WGPU_REV` in `dist/install.sh` differs from the `mpv-wgpu-player` rev in `Cargo.toml`, and when the
+  version in `Cargo.toml`, the metainfo's newest release and `CHANGELOG.md`'s newest numbered entry differ. Ends
+  when the forks' changes are released upstream or the desktop manifest vendors them, and a tag workflow exists.
 - **A picture's edits are saved in its own format only where anyview-image has a writer.** A cut or a resize of a
   JPEG is encoded again at quality 92 (a turn or a mirror alone stays lossless through the orientation tag); a
   PNG or TIFF with 16-bit samples or a palette comes back as 8-bit RGBA when it is cut or resized (the save asks

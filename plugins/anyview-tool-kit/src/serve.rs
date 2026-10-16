@@ -121,6 +121,11 @@ fn answer(
             capability.name()
         )));
     }
+    // The tools take the path as a free argument, where a relative one such as `-o/etc/x` would be read as
+    // an option. The host always sends an absolute path; a frame that does not is refused.
+    if !path.is_absolute() {
+        return Err(ToolError::Unreadable("the path is not absolute".to_owned()));
+    }
     std::fs::metadata(&path).map_err(|error| ToolError::Unreadable(error.kind().to_string()))?;
     let picture = match made {
         Fit::Area(area) => backend.decode(&path, area, stop)?,

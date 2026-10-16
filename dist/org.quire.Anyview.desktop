@@ -4,6 +4,7 @@ Name=Viewer
 GenericName=File Viewer
 Comment=View images, documents, recordings, text and data
 Exec=anyview %U
+TryExec=anyview
 Icon=org.quire.Anyview
 StartupWMClass=org.quire.Anyview
 Terminal=false

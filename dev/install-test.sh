@@ -87,7 +87,8 @@ check "dry run called no tool" test ! -s "$calls"
 # 3. The real run, staged.
 install >"$scratch/install.out" 2>&1
 check "the binary is installed and executable" test -x "$installed/bin/anyview"
-check "the entry is installed" cmp -s "$repo/dist/org.quire.Anyview.desktop" "$installed/share/applications/org.quire.Anyview.desktop"
+entry="$installed/share/applications/org.quire.Anyview.desktop"
+check "the entry starts the installed binary" bash -c "grep -qx 'Exec=$prefix/bin/anyview %U' '$entry' && grep -qx 'TryExec=$prefix/bin/anyview' '$entry'"
 service="$installed/share/dbus-1/services/org.quire.Anyview1.service"
 check "the metainfo is installed" cmp -s "$repo/dist/org.quire.Anyview.metainfo.xml" "$installed/share/metainfo/org.quire.Anyview.metainfo.xml"
 check "the notices are installed under doc" cmp -s "$repo/THIRD-PARTY-NOTICES.md" "$installed/share/doc/anyview/THIRD-PARTY-NOTICES.md"
@@ -381,6 +382,33 @@ rm -rf "$stage" "$XDG_CACHE_HOME/anyview"
 # 7. A relative prefix is refused, and nothing was written for it.
 check "a relative prefix is refused" bash -c "! DESTDIR=$stage bash $repo/dist/install.sh --prefix rel >/dev/null 2>&1"
 check "the refusal wrote nothing" empty "$stage"
+
+# 8. A prefix with a character that sed, Exec= or TOML would take wrongly is refused before anything is written.
+for odd in "/opt/a b" '/opt/a|b' '/opt/a&b' '/opt/a"b' '/opt/a\b'; do
+  check "the prefix $odd is refused" bash -c '! DESTDIR="$0" bash "$1/dist/install.sh" --prefix "$2" >/dev/null 2>&1' "$stage" "$repo" "$odd"
+done
+check "the refusals wrote nothing" empty "$stage"
+
+# 9. A system prefix is written by one elevated call: everything is staged as the person, then copied
+# and the caches refreshed together. The prefix is in the scratch directory (not under HOME, so it is
+# taken for a system one) and SUDO names a stand-in that records each call and runs the command.
+sys="$scratch/sys"
+mkdir -p "$sys"
+elevated="$scratch/elevated.log"
+: >"$elevated"
+printf '#!/bin/sh\necho "$1" >> "%s"\nexec "$@"\n' "$elevated" >"$scratch/fakesudo"
+chmod +x "$scratch/fakesudo"
+: >"$calls"
+# Earlier sections removed the icons; this one installs them, so the icon cache is refreshed.
+mkdir -p "$icons"
+printf 'png16' >"$icons/16.png"
+SUDO="$scratch/fakesudo" bash "$repo/dist/install.sh" --prefix "$sys/prefix" --no-plugins >"$scratch/elevated.out" 2>&1
+check "a system prefix is written with one elevated call" test "$(wc -l <"$elevated")" -eq 1
+check "the elevated call installed the binary" test -x "$sys/prefix/bin/anyview"
+check "the elevated call wrote the receipt" grep -qx "file $sys/prefix/bin/anyview" "$sys/prefix/share/anyview/install-receipt"
+check "the elevated call refreshed both caches" bash -c "grep -q '^update-desktop-database' '$calls' && grep -q '^gtk-update-icon-cache' '$calls'"
+SUDO="$scratch/fakesudo" bash "$repo/dist/uninstall.sh" --prefix "$sys/prefix" >/dev/null 2>&1
+: >"$calls"
 
 check "no tool was called throughout" test ! -s "$calls"
 if [ "$failures" -ne 0 ]; then echo "$failures check(s) failed"; exit 1; fi

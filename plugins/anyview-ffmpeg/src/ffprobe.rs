@@ -192,11 +192,20 @@ impl Stream {
     }
 }
 
+/// The option every run of ffmpeg or ffprobe on a file starts its input with: only the `file` protocol
+/// may be opened, so a playlist or a reference inside a crafted file cannot make the program reach a
+/// network address or another file by a scheme. None of the runs reads its input from a pipe, so
+/// `pipe` is not listed; the `pipe:1` of `-progress` and of the raw picture is an output, which the
+/// option does not touch.
+pub const FILE_ONLY: [&str; 2] = ["-protocol_whitelist", "file"];
+
 /// Runs `ffprobe` on `input`.
 pub fn probe(ffprobe: &Path, input: &Path) -> Result<Probed, FfmpegError> {
     let output = Command::new(ffprobe)
         .args(["-v", "error", "-print_format", "json"])
-        .args(["-show_format", "-show_streams", "-show_chapters", "-i"])
+        .args(["-show_format", "-show_streams", "-show_chapters"])
+        .args(FILE_ONLY)
+        .arg("-i")
         .arg(input)
         .stdin(Stdio::null())
         .output()
