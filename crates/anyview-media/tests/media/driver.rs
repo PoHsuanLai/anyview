@@ -16,6 +16,7 @@ use anyview_media::{
     ShotContent,
 };
 use std::num::NonZeroU32;
+use std::time::{Duration, Instant};
 use support::{Rig, device, fixture};
 
 fn slot(width: u32, height: u32) -> MediaCommand {
@@ -149,7 +150,7 @@ fn a_file_mpv_holds_open_at_its_end_is_reported_as_ended() {
     // The child process reports the last position after the pause; said after the end it would
     // read as the file playing again, so nothing is said of the position until it moves again.
     for _ in 0..10 {
-        let _ = rig.wakes.recv_timeout(std::time::Duration::from_millis(50));
+        let _ = rig.wakes.recv_timeout(Duration::from_millis(50));
         let heard = rig.driver.woken();
         rig.events.extend(heard);
     }
@@ -259,15 +260,21 @@ fn a_saved_frame_is_the_pictures_own_size_and_a_missing_folder_is_a_failure() {
     rig.until("a frame", |_| seen.drawn() >= 1);
     let dir = tempfile::tempdir().unwrap();
     let to = anyview_core::FilePath::new(dir.path().join("frame.png")).unwrap();
-    rig.send(MediaCommand::Screenshot {
-        to: to.clone(),
-        content: ShotContent::Video,
-    });
-    assert!(
-        rig.has(|event| *event == MediaEvent::ShotSaved(to.clone())),
-        "{:?}",
-        rig.events
-    );
+    // mpv can refuse a shot just after the first frame it drew (`mpv error -12`): ask again a
+    // little later, letting the player work in between, until the shot is saved or the rig times out.
+    loop {
+        rig.send(MediaCommand::Screenshot {
+            to: to.clone(),
+            content: ShotContent::Video,
+        });
+        if rig.has(|event| *event == MediaEvent::ShotSaved(to.clone())) {
+            break;
+        }
+        let asked = Instant::now();
+        rig.until("a moment before asking again", |_| {
+            asked.elapsed() > Duration::from_millis(200)
+        });
+    }
     let bytes = std::fs::read(to.as_path()).unwrap();
     assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
     // IHDR: width and height are the clip's own 64 by 48, not the 256 by 192 slot.
