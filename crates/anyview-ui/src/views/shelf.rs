@@ -232,6 +232,22 @@ impl Dispatch {
         viewer_params(&self.machine.state().peek(), self.shelf, self.area)
     }
 
+    /// [`Dispatch::params`] for a memo: it subscribes to every signal the params are worked out
+    /// from, so the memo is worked out again when one of them changes and not on every render.
+    /// The machine's state covers the edits made to a table or a tree, which tell it of each one.
+    pub(super) fn watched_params(&self) -> ViewerParams {
+        drop(self.machine.state().read());
+        drop(self.area.read());
+        let shelf = self.shelf;
+        drop(shelf.loaded.read());
+        drop(shelf.peeked.read());
+        drop(shelf.lines.read());
+        drop(shelf.probe.read());
+        drop(shelf.wraps.read());
+        drop(shelf.media.read());
+        self.params()
+    }
+
     pub(super) fn send(&self, input: ViewerIn) {
         self.machine.send(input);
     }

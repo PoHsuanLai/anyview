@@ -150,7 +150,16 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
         hosted,
         pane_chrome,
     );
-    let machine_params = dispatch.params();
+    // Worked out again when what it reads changes, not at every render. The desktop's motion
+    // level is one of those reads, through the scope signal `Level::now` peeks at.
+    let scope = try_use_context::<Signal<ds::style::scope::Scope>>();
+    let params_memo = use_memo(move || {
+        if let Some(scope) = scope {
+            std::mem::drop(scope.read());
+        }
+        dispatch.watched_params()
+    });
+    let machine_params = params_memo();
     // The capsule lists from what the palette and the menu list: a button for a file action the
     // file does not take (a rotate on a file that refuses a save) is not drawn.
     let slots = capsule_slots(

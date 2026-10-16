@@ -120,6 +120,7 @@ pub(super) fn preload(c: &Carry, neighbours: &Neighbours) {
     } else {
         Vec::new()
     };
+    c.edge.preloads_wanted(&wanted);
     let fetch = shelf.preloads.write().want(&wanted);
     for path in fetch {
         let link = c.edge.link_for_preload(c.gpu.handle());

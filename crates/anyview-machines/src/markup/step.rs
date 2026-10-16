@@ -4,6 +4,7 @@ use super::input::{MarkupIn, MarkupOut};
 use super::model::{Allowance, PdfMarkup, Selected, Typing, Using, Written};
 use anyview_core::Mark;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 impl PdfMarkup {
     /// The markup after `input`, and what it asks for.
@@ -134,7 +135,7 @@ impl PdfMarkup {
             return;
         }
         let before = std::mem::replace(&mut self.now, next);
-        self.undo.push(before);
+        self.undo.push(Arc::new(before));
         self.redo.clear();
         self.typing = Typing::Idle;
     }
@@ -156,7 +157,10 @@ impl PdfMarkup {
             (&mut self.redo, &mut self.undo)
         };
         if let Some(there) = from.pop() {
-            to.push(std::mem::replace(&mut self.now, there));
+            to.push(Arc::new(std::mem::replace(
+                &mut self.now,
+                Arc::unwrap_or_clone(there),
+            )));
         }
         self.picked = None;
         self.writing = None;

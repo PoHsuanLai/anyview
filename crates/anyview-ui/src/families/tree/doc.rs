@@ -6,7 +6,7 @@ use anyview_core::{
     Fact, FactGroup, FactLabel, FactValue, Facts, FormatDetail, FormatKind, Sniffed, Source,
 };
 use anyview_fs::OnDisk;
-use anyview_text::{Coverage, EditText, Tree, TreeSession};
+use anyview_text::{Coverage, EDIT_BYTES, EditText, Tree, TreeSession};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 /// The most bytes of a file the tree scans. The scan holds an index, not the file, so this is far
@@ -68,12 +68,12 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<TreeD
     let (FormatKind::Tree, FormatDetail::Tree(format)) = (sniffed.kind(), sniffed.detail()) else {
         return Err(OpenError::Unrecognised);
     };
-    let (tree, coverage) = Tree::read_until(src.on_disk(), *format, TREE_BYTES, stop)?;
-    let session = match coverage {
-        Coverage::Whole => EditText::read(src.path().as_path())
-            .ok()
-            .and_then(|text| TreeSession::open(text, *format).ok()),
-        Coverage::Prefix => None,
+    let (tree, coverage, session) = match read_for_edit(src, *format) {
+        Some(session) => (session.tree().clone(), Coverage::Whole, Some(session)),
+        None => {
+            let (tree, coverage) = Tree::read_until(src.on_disk(), *format, TREE_BYTES, stop)?;
+            (tree, coverage, None)
+        }
     };
     let root = tree.row(&anyview_core::TreePath::root())?;
     let entries = match coverage {
@@ -85,4 +85,15 @@ pub(super) fn open(src: &Source, sniffed: &Sniffed, stop: &Stop) -> Result<TreeD
         .with(FactLabel::Size, FactValue::size(src.stamp().len))
         .with_fact(Fact::new(FactLabel::Items, FactValue::text(entries)).in_group(FactGroup::Data));
     Ok(TreeDoc::new(tree, coverage, facts, session))
+}
+
+/// The file read once, whole, for editing: the tree is the session's, so the index and the edits
+/// come from the same bytes. `None` when the file is too large to edit, is not UTF-8 or is not a
+/// document, and the caller then scans it for showing only.
+fn read_for_edit(src: &Source, format: anyview_core::TreeFormat) -> Option<TreeSession> {
+    if src.stamp().len.0 > EDIT_BYTES {
+        return None;
+    }
+    let text = EditText::read(src.path().as_path()).ok()?;
+    TreeSession::open(text, format).ok()
 }

@@ -123,3 +123,17 @@ fn work_of_a_load_already_left_starts_stopped_and_loadless_work_never_is() {
         "loadless work stops no load"
     );
 }
+
+#[test]
+fn a_preload_ends_when_its_file_is_no_longer_next_to_the_open_one() {
+    let edge = edge();
+    let path = |name: &str| FilePath::new(format!("/p/{name}")).unwrap();
+    let kept = edge.stop_for_preload(&path("a"));
+    let passed = edge.stop_for_preload(&path("b"));
+    edge.preloads_wanted(&[path("a")]);
+    assert_eq!(kept.stopped(), StopState::Running);
+    assert_eq!(passed.stopped(), StopState::Stopped);
+    let again = edge.stop_for_preload(&path("a"));
+    assert_eq!(kept.stopped(), StopState::Stopped, "asked again, replaced");
+    assert_eq!(again.stopped(), StopState::Running);
+}

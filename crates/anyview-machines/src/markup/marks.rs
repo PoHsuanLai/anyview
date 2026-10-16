@@ -4,6 +4,7 @@ use super::model::{Drag, PdfMarkup, Typing, Using};
 use anyview_core::{
     Mark, MarkShape, MarkTool, NOTE_SIZE, PageIndex, PagePoint, PageRect, Permille,
 };
+use std::sync::Arc;
 
 /// The least a rectangle, an oval or a line must be dragged to be drawn, in thousandths of the page.
 const LEAST: u32 = 10;
@@ -161,7 +162,7 @@ impl PdfMarkup {
         match self.drag.take() {
             Some(Drag::Move { base, .. }) => {
                 if self.now != base {
-                    self.undo.push(base);
+                    self.undo.push(Arc::new(base));
                     self.redo.clear();
                     self.typing = Typing::Idle;
                 }
@@ -261,7 +262,7 @@ impl PdfMarkup {
             && index + 1 == self.now.marks.len();
         if empty && just_made {
             if let Some(before) = self.undo.pop() {
-                self.now = before;
+                self.now = Arc::unwrap_or_clone(before);
             }
             self.picked = None;
         }

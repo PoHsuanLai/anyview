@@ -95,8 +95,10 @@ pub struct PdfMarkup {
     /// What the document held when it was opened: its own annotations as marks, and no fills.
     /// `now` differs from it by what the person has written.
     pub(super) opened: Written,
-    pub(super) undo: Vec<Written>,
-    pub(super) redo: Vec<Written>,
+    /// What was written before each change, shared so that cloning the markup (each render of the
+    /// window does) does not copy every step.
+    pub(super) undo: Vec<Arc<Written>>,
+    pub(super) redo: Vec<Arc<Written>>,
     pub(super) typing: Typing,
     pub(super) focus: Option<usize>,
     pub(super) using: Using,

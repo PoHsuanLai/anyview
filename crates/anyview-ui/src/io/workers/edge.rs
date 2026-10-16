@@ -29,6 +29,7 @@ pub struct Edge {
     highlighter: Arc<Highlighter>,
     seams: Seams,
     held: Arc<Mutex<Held>>,
+    preloading: Arc<Mutex<Vec<(FilePath, Stop)>>>,
 }
 
 /// The receiving end of an edge's results, held by one task at a time and given back to the edge
@@ -97,6 +98,7 @@ impl Edge {
             highlighter: Arc::new(Highlighter::new()),
             seams,
             held: Arc::default(),
+            preloading: Arc::default(),
         }
     }
 
@@ -195,7 +197,11 @@ impl Edge {
     /// Ask a worker to do `job`; its result arrives in the mailbox.
     pub(crate) fn submit(&self, job: Job) {
         let job_ticket = job.ticket();
-        let stop = self.stop_for_job(job_ticket, job.replaces());
+        let stop = if let Job::Preload { path, .. } = &job {
+            self.stop_for_preload(path)
+        } else {
+            self.stop_for_job(job_ticket, job.replaces())
+        };
         self.workers.submit(Work {
             job,
             reply: self.reply.clone(),
@@ -204,6 +210,42 @@ impl Edge {
             versions: Arc::clone(&self.seams.versions),
             stop,
         });
+    }
+
+    /// The files read ahead are now `around`: a preload of any other file, on its way or still
+    /// queued, is told to end, so a person moving quickly down a folder does not leave a queue of
+    /// opens for files they have passed.
+    pub(crate) fn preloads_wanted(&self, around: &[FilePath]) {
+        let mut ahead = self
+            .preloading
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        ahead.retain(|(path, stop)| {
+            let wanted = around.contains(path);
+            if !wanted {
+                stop.request();
+            }
+            wanted
+        });
+    }
+
+    /// The stop of a preload of `path`, its own: [`Edge::preloads_wanted`] raises it. A preload
+    /// of the same file asked again replaces the older one.
+    pub(super) fn stop_for_preload(&self, path: &FilePath) -> Stop {
+        let mut ahead = self
+            .preloading
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        ahead.retain(|(older, stop)| {
+            let same = older == path;
+            if same {
+                stop.request();
+            }
+            !same
+        });
+        let stop = Stop::new();
+        ahead.push((path.clone(), stop.clone()));
+        stop
     }
 
     /// The stop of the load `ticket` names: its jobs share one, a newer load raises it, and a
