@@ -55,6 +55,14 @@ ignore = [
     # ttf-parser: unmaintained. It comes through winit's client-side decorations (sctk-adwaita ->
     # ab_glyph) which parse only the system's UI font; no upgrade drops it. Remove when winit does.
     { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known flaw; reached only through the window frame's own font, not through opened files" },
+    # zip 8.6: three flaws of `ZipArchive::extract` and `ZipStreamReader::extract`, which unpack a whole
+    # archive to disk (SUID bits kept, symlinks out of the destination, permissions set through a
+    # symlink). Nothing calls either: anyview-archive lists a zip and reads one entry into memory, never
+    # to disk, and calamine reads its parts in memory. zip 9 fixes them, but calamine 0.36.1 (the
+    # newest) requires zip ^8.6. Remove these, and move the workspace to zip 9, when calamine does.
+    { id = "RUSTSEC-2026-0367", reason = "zip's extract() keeps SUID bits; nothing here calls extract, and calamine holds zip at 8" },
+    { id = "RUSTSEC-2026-0368", reason = "zip's extract() writes symlinks out of the destination; nothing here calls extract, and calamine holds zip at 8" },
+    { id = "RUSTSEC-2026-0369", reason = "zip's extract() sets permissions through symlinks; nothing here calls extract, and calamine holds zip at 8" },
 ]
 
 [bans]
