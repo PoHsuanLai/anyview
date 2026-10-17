@@ -180,9 +180,15 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
             .is_some_and(|(w, h)| (w.0, h.0) == (64, 48))
     });
 
-    // The desktop's one entry follows it.
-    eventually("the entry to say playing", || {
-        last_state(&rig.desk).is_some_and(|state| state.status == PlaybackStatus::Playing)
+    // The desktop's one entry follows it. The length can reach the entry an update after
+    // "playing" does, as it reaches the window a moment after the load.
+    eventually("the entry to say playing, with the length", || {
+        last_state(&rig.desk).is_some_and(|state| {
+            state.status == PlaybackStatus::Playing
+                && state
+                    .length
+                    .is_some_and(|length| length.0.as_millis() > 2900)
+        })
     });
     let entry = last_state(&rig.desk).unwrap();
     assert_eq!(
@@ -191,11 +197,6 @@ fn a_window_session_plays_shows_its_picture_and_obeys_the_desktop() {
         "no tag: the file's name"
     );
     assert_eq!(entry.file.as_ref(), Some(&clip));
-    assert!(
-        entry
-            .length
-            .is_some_and(|length| length.0.as_millis() > 2900)
-    );
 
     // The desktop's controls reach the player, and the window hears the result.
     rig.desk.press(MediaControl::Pause);
