@@ -63,6 +63,13 @@ ignore = [
     { id = "RUSTSEC-2026-0367", reason = "zip's extract() keeps SUID bits; nothing here calls extract, and calamine holds zip at 8" },
     { id = "RUSTSEC-2026-0368", reason = "zip's extract() writes symlinks out of the destination; nothing here calls extract, and calamine holds zip at 8" },
     { id = "RUSTSEC-2026-0369", reason = "zip's extract() sets permissions through symlinks; nothing here calls extract, and calamine holds zip at 8" },
+    # zbus 5's companion crates: zvariant, zvariant_derive and zbus_names are folded into zbus 6 as
+    # modules, so the standalone crates are marked unmaintained. No known flaw. zbus 5 comes through
+    # quire, docket, porter, peephole and ashpd, so the move to zbus 6 is the whole desktop's, not
+    # anyview's alone. Remove these when the desktop set moves to zbus 6.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant folded into zbus 6; no known flaw; zbus 5 comes through the desktop's own crates" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names folded into zbus 6; no known flaw; zbus 5 comes through the desktop's own crates" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive folded into zbus 6; no known flaw; zbus 5 comes through the desktop's own crates" },
 ]
 
 [bans]
