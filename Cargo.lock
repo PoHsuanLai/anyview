@@ -157,7 +157,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=b739cbdb8c3d9ed2a1b1d275aeed729964b13ef2#b739cbdb8c3d9ed2a1b1d275aeed729964b13ef2"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=2b8dc7530962ecbdee1c870b39d96d8d2a01e3dc#2b8dc7530962ecbdee1c870b39d96d8d2a01e3dc"
 dependencies = [
  "porter-core",
  "prov",
@@ -2468,7 +2468,7 @@ dependencies = [
 [[package]]
 name = "docket-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=97a134120205f8544d0fa9bbdfeab5fa9efcb9d5#97a134120205f8544d0fa9bbdfeab5fa9efcb9d5"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=e7d323a72a1bb69d8163069cd39b0e4ca838311c#e7d323a72a1bb69d8163069cd39b0e4ca838311c"
 dependencies = [
  "docket-core",
  "docket-dbus",
@@ -2483,12 +2483,13 @@ dependencies = [
 [[package]]
 name = "docket-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=97a134120205f8544d0fa9bbdfeab5fa9efcb9d5#97a134120205f8544d0fa9bbdfeab5fa9efcb9d5"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=e7d323a72a1bb69d8163069cd39b0e4ca838311c#e7d323a72a1bb69d8163069cd39b0e4ca838311c"
 dependencies = [
  "almanac-core",
  "cua-action",
  "model-provider",
  "porter-core",
+ "porter-infer",
  "prov",
  "serde",
  "serde_json",
@@ -2498,7 +2499,7 @@ dependencies = [
 [[package]]
 name = "docket-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=97a134120205f8544d0fa9bbdfeab5fa9efcb9d5#97a134120205f8544d0fa9bbdfeab5fa9efcb9d5"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=e7d323a72a1bb69d8163069cd39b0e4ca838311c#e7d323a72a1bb69d8163069cd39b0e4ca838311c"
 dependencies = [
  "docket-core",
  "porter-core",
@@ -4860,6 +4861,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "nix"
+version = "0.31.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
+dependencies = [
+ "bitflags 2.13.2",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+ "memoffset",
+]
+
+[[package]]
 name = "no_std_io2"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5702,9 +5716,10 @@ dependencies = [
 
 [[package]]
 name = "peephole"
-version = "0.1.4"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.4#5a2e742fb12cd78b4555ff07d8d96681fa0bbeb8"
+version = "0.1.6"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.6#87a3d225d7526d03f16acff2245374cb00a27e24"
 dependencies = [
+ "nix",
  "peephole-core",
  "rustix",
  "thiserror 2.0.21",
@@ -5712,8 +5727,8 @@ dependencies = [
 
 [[package]]
 name = "peephole-bus"
-version = "0.1.4"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.4#5a2e742fb12cd78b4555ff07d8d96681fa0bbeb8"
+version = "0.1.6"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.6#87a3d225d7526d03f16acff2245374cb00a27e24"
 dependencies = [
  "futures-timer",
  "peephole",
@@ -5725,8 +5740,8 @@ dependencies = [
 
 [[package]]
 name = "peephole-core"
-version = "0.1.4"
-source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.4#5a2e742fb12cd78b4555ff07d8d96681fa0bbeb8"
+version = "0.1.6"
+source = "git+https://github.com/PoHsuanLai/peephole?tag=v0.1.6#87a3d225d7526d03f16acff2245374cb00a27e24"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -5974,7 +5989,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=d6085f70b12efdca986ca0fbbeba55e821cf4880#d6085f70b12efdca986ca0fbbeba55e821cf4880"
 dependencies = [
  "serde",
  "serde_json",
@@ -5985,7 +6000,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=d6085f70b12efdca986ca0fbbeba55e821cf4880#d6085f70b12efdca986ca0fbbeba55e821cf4880"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -5997,6 +6012,19 @@ dependencies = [
  "tokio",
  "toml",
  "zbus",
+]
+
+[[package]]
+name = "porter-infer"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=d6085f70b12efdca986ca0fbbeba55e821cf4880#d6085f70b12efdca986ca0fbbeba55e821cf4880"
+dependencies = [
+ "base64 0.22.1",
+ "cua-action",
+ "porter-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -6083,7 +6111,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=72f5ec918567becf2a1dc1bbc8ad3674b131026f#72f5ec918567becf2a1dc1bbc8ad3674b131026f"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=d6085f70b12efdca986ca0fbbeba55e821cf4880#d6085f70b12efdca986ca0fbbeba55e821cf4880"
 dependencies = [
  "porter-core",
  "serde",

@@ -224,9 +224,11 @@ DIRECT=(
 # porter-daemon, and reaches the viewer through docket-dbus: two more than before porter-daemon left.
 # The unused freedesktop-desktop-entry left anyview-platform, and with it gettext-rs and gettext-sys
 # (C, LGPL) and five others the viewer reached: 695.
+# peephole v0.1.6 reads a socket peer's pidfd through nix (the owner's choice where rustix has no safe
+# wrapper), which brings nix and memoffset, and docket's helpers reach porter-infer through docket-dbus: 698.
 BUDGETS=(
   "anyview-peek: 578"
-  "anyview: 695"
+  "anyview: 698"
   "anyview-machines: 34"
   "anyview-pane: 590"
   "anyview-runtime: 34"
