@@ -98,7 +98,7 @@ fn host(
 /// the lines a fake gives never reach the host (`command_of` is tried on its own).
 fn nothing() -> Missing {
     Missing {
-        capability: ds_helpers::Capability::new("heic-decode").unwrap(),
+        capability: ds_helpers::CapabilityName::new("heic-decode").unwrap(),
         package: None,
         program: None,
         install_lines: Vec::new(),

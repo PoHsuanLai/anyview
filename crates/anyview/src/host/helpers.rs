@@ -9,8 +9,8 @@ use anyview_core::{Fact, Helper};
 use anyview_ui::{HelperEnd, HelperSource, HelperWords, Need};
 use ds::prelude::Word;
 use ds_helpers::{
-    Capability, Catalog, Entry, Environment, Helpers, InstallLine, Installer, Missing, Outcome,
-    Presence,
+    CapabilityName, Catalog, Entry, Environment, Helpers, InstallLine, Installer, Missing, Outcome,
+    ToolPresence,
 };
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
@@ -45,12 +45,12 @@ impl std::fmt::Debug for HelperHost {
 }
 
 /// The capability a tool is declared under in the helpers file.
-fn capability_of(helper: Helper) -> Option<Capability> {
-    Capability::new(helper.slug()).ok()
+fn capability_of(helper: Helper) -> Option<CapabilityName> {
+    CapabilityName::new(helper.slug()).ok()
 }
 
 /// The tool a capability of the helpers file names, when it is one of ours.
-fn helper_of(capability: &Capability) -> Option<Helper> {
+fn helper_of(capability: &CapabilityName) -> Option<Helper> {
     Helper::ALL
         .iter()
         .copied()
@@ -168,7 +168,7 @@ impl HelperHost {
         }
     }
 
-    fn capabilities(&self) -> Vec<Capability> {
+    fn capabilities(&self) -> Vec<CapabilityName> {
         Helper::ALL
             .iter()
             .filter_map(|h| capability_of(*h))
@@ -208,7 +208,7 @@ impl HelperHost {
         async move {
             loop {
                 let change = feed.next().await;
-                if change.presence != Presence::Present {
+                if change.presence != ToolPresence::Present {
                     continue;
                 }
                 let Some(helper) = helper_of(&change.capability) else {
