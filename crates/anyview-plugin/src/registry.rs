@@ -112,13 +112,13 @@ impl Plugins {
     /// plugin, and installing the tool is what makes the plugin usable.
     #[must_use]
     pub fn tool_absent(&self, package: Package) -> bool {
-        let Some(tool) = package.tool() else {
+        let Some(tool) = package.tool else {
             return false;
         };
         let id = package
-            .name()
+            .name
             .strip_prefix("anyview-")
-            .unwrap_or(package.name());
+            .unwrap_or(package.name);
         self.registry.tool_absent(id, tool)
     }
 

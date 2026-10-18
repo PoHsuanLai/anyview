@@ -104,7 +104,7 @@ fn a_kind_nobody_serves_names_its_package_or_nothing() {
     let Route::Missing(missing) = plugins.route(Capability::Probe, &audio) else {
         panic!("a package is known for audio");
     };
-    assert_eq!(missing.package.name(), "anyview-ffmpeg");
+    assert_eq!(missing.package.name, "anyview-ffmpeg");
     let pdf = Subject {
         kind: FormatKind::Pdf,
         mime: None,

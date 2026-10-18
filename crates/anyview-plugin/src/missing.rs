@@ -130,7 +130,7 @@ impl MissingPlugin {
     pub fn fact_for(&self, purpose: &str) -> Fact {
         Fact::new(
             FactLabel::Needs,
-            FactValue::text(format!("{} (to {purpose})", self.package.name())),
+            FactValue::text(format!("{} (to {purpose})", self.package.name)),
         )
     }
 
@@ -259,7 +259,7 @@ mod tests {
                 kind: *kind,
                 mime: mime.as_ref(),
             };
-            let got = suggested_package(*capability, &subject).map(Package::name);
+            let got = suggested_package(*capability, &subject).map(|package| package.name);
             assert_eq!(got, *want, "{name}");
         }
     }
@@ -274,7 +274,7 @@ mod tests {
             (RAW, Helper::RawDecode),
         ];
         for (package, helper) in CASES {
-            assert_eq!(package.helper(), *helper, "{}", package.name());
+            assert_eq!(package.helper, *helper, "{}", package.name);
         }
     }
 

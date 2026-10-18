@@ -162,7 +162,7 @@ impl Inner {
             }
         };
         match choose(route, ability) {
-            Chosen::Missing(missing) => Err(MediaError::PlayerMissing(missing.package.name())),
+            Chosen::Missing(missing) => Err(MediaError::PlayerMissing(missing.package.name)),
             Chosen::Unserved => Err(MediaError::NotMedia),
             Chosen::NoSound => Err(MediaError::NoSoundOutput),
             chosen @ (Chosen::Mpv(_) | Chosen::Builtin) => Ok(chosen),

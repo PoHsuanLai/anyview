@@ -78,7 +78,7 @@ impl MediaPlugins {
         let fact = missing.fact();
         match &self.helpers {
             Some(helpers) if self.plugins().tool_absent(missing.package) => {
-                helpers.need(fact, missing.package.helper())
+                helpers.need(fact, missing.package.helper)
             }
             Some(_) | None => Need::passive(fact),
         }

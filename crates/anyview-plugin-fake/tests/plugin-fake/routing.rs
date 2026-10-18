@@ -38,7 +38,7 @@ fn a_video_with_no_plugin_names_the_package_to_install() {
         panic!("missing, got {answer:?}");
     };
     let MissingPlugin { package, .. } = missing;
-    assert_eq!(package.name(), "anyview-ffmpeg");
+    assert_eq!(package.name, "anyview-ffmpeg");
     let fact = missing.fact();
     assert_eq!(fact.label, FactLabel::Needs);
     assert!(fact.value.as_str().starts_with("anyview-ffmpeg"));

@@ -82,7 +82,7 @@ async fn transcode(media: &Media, file: &Opened, job: ExportJob) -> Outcome {
     let tool = match media.hub.plugins().writer(&subject) {
         WriteRoute::Ready(tool) => tool,
         WriteRoute::Missing(missing) => {
-            let error = MediaError::WriterMissing(missing.package.name());
+            let error = MediaError::WriterMissing(missing.package.name);
             return Outcome::Failed(format!("cannot write the export: {error}"));
         }
         WriteRoute::Unserved => return Outcome::Failed("nothing writes this export".to_owned()),
@@ -133,7 +133,7 @@ pub(super) async fn trim_in_place(
     let tool = match media.hub.plugins().writer(&subject) {
         WriteRoute::Ready(tool) => tool,
         WriteRoute::Missing(missing) => {
-            let error = MediaError::WriterMissing(missing.package.name());
+            let error = MediaError::WriterMissing(missing.package.name);
             return Outcome::NotWritten(format!("cannot trim the recording: {error}"));
         }
         WriteRoute::Unserved => {
