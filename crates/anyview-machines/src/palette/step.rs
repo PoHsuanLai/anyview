@@ -44,9 +44,9 @@ fn dispatch(
         PaletteIn::Open => through(palette, scope, Base::Open, at, params),
         PaletteIn::OpenFind(text) => match palette {
             Palette::Closed => {
-                let counted = counted(params);
-                let (opened, outs) = palette.step(Base::Open, at, &counted, &());
-                let (typed, _) = opened.step(Base::Typed(text), at, &counted, &());
+                let count = counted(params);
+                let (opened, outs) = palette.step(Base::Open, at, &count, &());
+                let (typed, _) = opened.step(Base::Typed(text), at, &count, &());
                 (
                     typed,
                     PaletteScope::Find(HitList::Brief),
