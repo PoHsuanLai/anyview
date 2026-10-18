@@ -1,4 +1,4 @@
-//! The ⌘K palette: quire's `PaletteState<Command>` (the query, the selection, what Enter runs) with
+//! The ⌘K palette: quire's `PaletteState` (the query, the selection, what Enter runs) with
 //! what anyview adds to it, a scope, kept beside it in the viewer and stepped by [`step_with_scope`].
 
 mod model;

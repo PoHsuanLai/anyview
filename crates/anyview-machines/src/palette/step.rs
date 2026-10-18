@@ -8,7 +8,9 @@ use super::model::{
 };
 use crate::command::{Command, StageCommand};
 use ds_core::machine::Machine;
-use ds_core::palette::model::PaletteIn as Base;
+use ds_core::palette::model::{
+    PaletteIn as Base, PaletteOut as BaseOut, PaletteParams as BaseParams,
+};
 use ds_core::time::stamp::Stamp;
 
 /// The palette, its scope and what it wants done, after one input.
@@ -42,9 +44,14 @@ fn dispatch(
         PaletteIn::Open => through(palette, scope, Base::Open, at, params),
         PaletteIn::OpenFind(text) => match palette {
             Palette::Closed => {
-                let (opened, outs) = palette.step(Base::Open, at, params, &());
-                let (typed, _) = opened.step(Base::Typed(text), at, params, &());
-                (typed, PaletteScope::Find(HitList::Brief), outs)
+                let counted = counted(params);
+                let (opened, outs) = palette.step(Base::Open, at, &counted, &());
+                let (typed, _) = opened.step(Base::Typed(text), at, &counted, &());
+                (
+                    typed,
+                    PaletteScope::Find(HitList::Brief),
+                    commands(outs, params),
+                )
             }
             Palette::Open { .. } => to_find(palette, scope),
         },
@@ -79,8 +86,26 @@ fn through(
     at: Stamp,
     params: &PaletteParams,
 ) -> ScopedStep {
-    let (palette, outs) = palette.step(input, at, params, &());
-    (palette, scope, outs)
+    let (palette, outs) = palette.step(input, at, &counted(params), &());
+    (palette, scope, commands(outs, params))
+}
+
+/// The machine's params: how many rows there are.
+fn counted(params: &PaletteParams) -> BaseParams {
+    BaseParams {
+        rows: params.rows.len(),
+    }
+}
+
+/// The machine's outputs with each run row named by the command it stands for.
+fn commands(outs: Vec<BaseOut>, params: &PaletteParams) -> Vec<PaletteOut> {
+    outs.into_iter()
+        .filter_map(|out| match out {
+            BaseOut::Opened => Some(PaletteOut::Opened),
+            BaseOut::Closed => Some(PaletteOut::Closed),
+            BaseOut::Run(row) => params.rows.get(row.0).cloned().map(PaletteOut::Run),
+        })
+        .collect()
 }
 
 /// What is typed becomes a find, listing its first hits from the top; a find stays as it is.

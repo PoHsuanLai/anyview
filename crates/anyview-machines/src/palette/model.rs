@@ -1,5 +1,5 @@
-//! The palette's states, inputs and outputs: quire's machine over [`Command`], and the scope that
-//! anyview keeps beside it.
+//! The palette's states, inputs and outputs: quire's machine, which names rows by index, over
+//! [`Command`] rows, and the scope that anyview keeps beside it.
 
 use crate::command::Command;
 use crate::keys::{Act, Press};
@@ -9,16 +9,28 @@ use ds_core::vocab::ShortcutKey;
 
 pub use base::{PaletteIndex, PaletteMove};
 
-/// Whether the palette is open, and its query and highlight: quire's palette over the viewer's
-/// commands. What it lists (its [`PaletteScope`]) is the viewer's, beside it.
-pub type Palette = base::PaletteState<Command>;
+/// Whether the palette is open, and its query and highlight: quire's palette. What it lists (its
+/// [`PaletteScope`]) is the viewer's, beside it.
+pub type Palette = base::PaletteState;
 
 /// What the palette wants done; [`PaletteOut::Run`] carries the command to run.
-pub type PaletteOut = base::PaletteOut<Command>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PaletteOut {
+    /// Show the palette and focus its field.
+    Opened,
+    /// Hide the palette and give focus back.
+    Closed,
+    /// Run this command.
+    Run(Command),
+}
 
 /// The rows for the query now in the field, best first. Matching and ranking happen outside, each
 /// time the query changes; the palette only walks the list it is given.
-pub type PaletteParams = base::PaletteParams<Command>;
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PaletteParams {
+    /// The ranked rows.
+    pub rows: Vec<Command>,
+}
 
 /// How many of a find's hits the palette lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

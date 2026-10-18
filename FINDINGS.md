@@ -834,7 +834,7 @@ on. It is a reference, not a log: how each was found lives in git history.
   (the stage's `dismissal`) when it closes the mode. Picking a hit leaves the find up with its marks, so the host
   must end it; Esc in the pane ends it too. The hit rows are kept as the stage's find has them, so a document
   that changes under a find needs `find` sent again (see "Find hits are addressed by index").
-- **The palette's scope is not in quire's machine.** `PaletteState<Command>` holds the query and the highlight only;
+- **The palette's scope is not in quire's machine.** `PaletteState` holds the query and the highlight only, and names a row by index;
   whether the palette lists commands or a find's hits is `Viewer::palette_scope`, stepped with it by `step_with_scope`,
   which handles the three inputs that change the scope (opening as a find, the Find row, "Show All") and hands the rest
   to quire. A second host with a scope of its own (a bar with tabs) will want the same, and then the scope belongs in
