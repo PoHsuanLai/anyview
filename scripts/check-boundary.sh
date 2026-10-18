@@ -226,18 +226,21 @@ DIRECT=(
 # (C, LGPL) and five others the viewer reached: 695.
 # peephole v0.1.6 reads a socket peer's pidfd through nix (the owner's choice where rustix has no safe
 # wrapper), which brings nix and memoffset, and docket's helpers reach porter-infer through docket-dbus: 698.
+# keycap-client 52c66c7 reads the shared key file through chordkit-file (chordkit's own file reader, MIT OR
+# Apache-2.0, its dependencies already in every tree): one more in each windowed tree: the peek 579, the viewer
+# 699, the pane 591, the media host 611 and the pane with its player 612.
 BUDGETS=(
-  "anyview-peek: 578"
-  "anyview: 698"
+  "anyview-peek: 579"
+  "anyview: 699"
   "anyview-machines: 34"
-  "anyview-pane: 590"
+  "anyview-pane: 591"
   "anyview-runtime: 34"
-  "anyview-media-host: 610"
+  "anyview-media-host: 611"
 )
 HEADLESS_BUDGET=200
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=611
+PANE_PLAYER_BUDGET=612
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
