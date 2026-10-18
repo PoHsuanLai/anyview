@@ -79,11 +79,11 @@ impl LatchkeyInstance {
                 });
                 let user = format!("scratch{user:x}");
                 let environment = latchkey::Environment {
-                    runtime_dir: Some(dir),
-                    tmpdir: Some(dir),
-                    home: Some(dir),
-                    local_app_data: Some(dir),
-                    user: Some(&user),
+                    runtime_dir: Some(dir.to_owned()),
+                    tmpdir: Some(dir.to_owned()),
+                    home: Some(dir.to_owned()),
+                    local_app_data: Some(dir.to_owned()),
+                    user: Some(user),
                 };
                 Agent::in_environment(AGENT, latchkey::here(), &environment)
             }
