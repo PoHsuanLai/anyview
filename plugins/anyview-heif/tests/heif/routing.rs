@@ -39,7 +39,7 @@ fn without_the_plugin_heic_is_missing_and_names_the_package() {
     let Route::Missing(missing) = plugins.route(Capability::Decode, &subject(&heic)) else {
         panic!("a missing plugin");
     };
-    assert_eq!(missing.package.name(), "anyview-heif");
+    assert_eq!(missing.package.name, "anyview-heif");
     assert_eq!(missing.fact().value.as_str(), "anyview-heif (to show it)");
 }
 

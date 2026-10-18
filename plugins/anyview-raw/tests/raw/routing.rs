@@ -30,7 +30,7 @@ fn raw_is_served_by_the_plugin_when_it_is_installed() {
     let heic = Mime::parse("image/heic").unwrap();
     assert!(matches!(
         plugins.route(Capability::Decode, &subject(&heic)),
-        Route::Missing(missing) if missing.package.name() == "anyview-heif"
+        Route::Missing(missing) if missing.package.name == "anyview-heif"
     ));
 }
 
@@ -41,6 +41,6 @@ fn without_the_plugin_raw_is_missing_and_names_the_package() {
     let Route::Missing(missing) = plugins.route(Capability::Decode, &subject(&raw)) else {
         panic!("a missing plugin");
     };
-    assert_eq!(missing.package.name(), "anyview-raw");
+    assert_eq!(missing.package.name, "anyview-raw");
     assert_eq!(missing.fact().value.as_str(), "anyview-raw (to show it)");
 }
