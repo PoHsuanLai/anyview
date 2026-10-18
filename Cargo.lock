@@ -1081,7 +1081,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 [[package]]
 name = "bayonet"
 version = "0.2.0"
-source = "git+https://github.com/PoHsuanLai/bayonet.git?rev=fe489cf7533015e18161dc36854c53152c385839#fe489cf7533015e18161dc36854c53152c385839"
+source = "git+https://github.com/PoHsuanLai/bayonet.git?rev=2c5038dfdaa9352b0438c568856b5326eb95b818#2c5038dfdaa9352b0438c568856b5326eb95b818"
 dependencies = [
  "rustix",
  "serde",
@@ -4767,7 +4767,7 @@ dependencies = [
 [[package]]
 name = "mpv-wgpu"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=7aba35b3c75786f0b02a356f1d34d1ce888d1f48#7aba35b3c75786f0b02a356f1d34d1ce888d1f48"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=64884b908bc595e70fe4a9270b23633204fd14bb#64884b908bc595e70fe4a9270b23633204fd14bb"
 dependencies = [
  "bytemuck",
  "thiserror 2.0.21",
@@ -4777,7 +4777,7 @@ dependencies = [
 [[package]]
 name = "mpv-wgpu-player"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=7aba35b3c75786f0b02a356f1d34d1ce888d1f48#7aba35b3c75786f0b02a356f1d34d1ce888d1f48"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=64884b908bc595e70fe4a9270b23633204fd14bb#64884b908bc595e70fe4a9270b23633204fd14bb"
 dependencies = [
  "bytemuck",
  "log",
@@ -4790,7 +4790,7 @@ dependencies = [
 [[package]]
 name = "mpv-wgpu-protocol"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=7aba35b3c75786f0b02a356f1d34d1ce888d1f48#7aba35b3c75786f0b02a356f1d34d1ce888d1f48"
+source = "git+https://github.com/PoHsuanLai/mpv-wgpu?rev=64884b908bc595e70fe4a9270b23633204fd14bb#64884b908bc595e70fe4a9270b23633204fd14bb"
 dependencies = [
  "rustix",
 ]
