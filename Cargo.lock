@@ -157,7 +157,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=8f42b2f46dc785567c6e3f782f7e1ae4eade9fcc#8f42b2f46dc785567c6e3f782f7e1ae4eade9fcc"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=df19d8edacfd38f42367e5cc11397e2774b5d2b9#df19d8edacfd38f42367e5cc11397e2774b5d2b9"
 dependencies = [
  "porter-core",
  "prov",
@@ -2468,7 +2468,7 @@ dependencies = [
 [[package]]
 name = "docket-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=5a218b46a36c5457f0e374b01ecef1ed52cdddea#5a218b46a36c5457f0e374b01ecef1ed52cdddea"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=5388a851eb608a8598451acebdb186f1080b1029#5388a851eb608a8598451acebdb186f1080b1029"
 dependencies = [
  "docket-core",
  "docket-dbus",
@@ -2483,7 +2483,7 @@ dependencies = [
 [[package]]
 name = "docket-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=5a218b46a36c5457f0e374b01ecef1ed52cdddea#5a218b46a36c5457f0e374b01ecef1ed52cdddea"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=5388a851eb608a8598451acebdb186f1080b1029#5388a851eb608a8598451acebdb186f1080b1029"
 dependencies = [
  "almanac-core",
  "cua-action",
@@ -2499,7 +2499,7 @@ dependencies = [
 [[package]]
 name = "docket-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=5a218b46a36c5457f0e374b01ecef1ed52cdddea#5a218b46a36c5457f0e374b01ecef1ed52cdddea"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=5388a851eb608a8598451acebdb186f1080b1029#5388a851eb608a8598451acebdb186f1080b1029"
 dependencies = [
  "docket-core",
  "porter-core",
@@ -5989,7 +5989,7 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=8769181d206a579f283cd966ab9c53f5e7017a42#8769181d206a579f283cd966ab9c53f5e7017a42"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=232f5376c7e3e33f917ebf91b7f8be6a347ec0e8#232f5376c7e3e33f917ebf91b7f8be6a347ec0e8"
 dependencies = [
  "serde",
  "serde_json",
@@ -6000,7 +6000,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=8769181d206a579f283cd966ab9c53f5e7017a42#8769181d206a579f283cd966ab9c53f5e7017a42"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=232f5376c7e3e33f917ebf91b7f8be6a347ec0e8#232f5376c7e3e33f917ebf91b7f8be6a347ec0e8"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -6017,7 +6017,7 @@ dependencies = [
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=8769181d206a579f283cd966ab9c53f5e7017a42#8769181d206a579f283cd966ab9c53f5e7017a42"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=232f5376c7e3e33f917ebf91b7f8be6a347ec0e8#232f5376c7e3e33f917ebf91b7f8be6a347ec0e8"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -6111,7 +6111,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter.git?rev=8769181d206a579f283cd966ab9c53f5e7017a42#8769181d206a579f283cd966ab9c53f5e7017a42"
+source = "git+https://github.com/PoHsuanLai/porter.git?rev=232f5376c7e3e33f917ebf91b7f8be6a347ec0e8#232f5376c7e3e33f917ebf91b7f8be6a347ec0e8"
 dependencies = [
  "porter-core",
  "serde",
