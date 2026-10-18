@@ -7,7 +7,7 @@ use crate::error::PlatformError;
 use crate::thumbnail::ThumbPixels;
 use anyview_core::work::{Stop, StopState};
 use anyview_core::{FilePath, PixelArea, PixelLen, PixelSize};
-use anyview_plugin::{Installed, Provision};
+use anyview_plugin::Installed;
 use anyview_plugin_protocol::{
     Capability, DecodeRequest, Done, ErrorCode, ExportRequest, FactRow, Failure, Frame, Hello,
     HostMessage, ImageHeader, PluginMessage, ProbeRequest, Progress, ThumbnailRequest,
@@ -44,7 +44,7 @@ impl PluginRunner {
     /// knows; a distribution's FFmpeg may encode fewer, and one that is missing answers none.
     /// Blocking: it starts the plugin and kills it.
     pub fn hello(&self, plugin: &Installed) -> Result<Hello, PlatformError> {
-        let frame = self.runner.hello::<Wire, Provision>(plugin)?;
+        let frame = self.runner.hello::<Wire>(plugin)?;
         match frame.message {
             PluginMessage::Hello(hello) => Ok(hello),
             other @ (PluginMessage::Facts(_)
@@ -175,7 +175,7 @@ impl PluginRunner {
     ) -> Result<Session<Wire>, PlatformError> {
         Ok(self
             .runner
-            .open::<Wire, Provision>(plugin, capability, request, payload)?)
+            .open::<Wire>(plugin, capability, request, payload)?)
     }
 }
 

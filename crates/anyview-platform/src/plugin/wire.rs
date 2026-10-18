@@ -1,6 +1,7 @@
 //! The viewer's protocol, as bayonet runs it: the messages of protocol version 1 and which one is
 //! the greeting.
 
+use anyview_plugin::Provision;
 use anyview_plugin_protocol::{Capability, HostMessage, PROTOCOL_VERSION, PluginMessage};
 use bayonet::run::{Greeting, Protocol};
 
@@ -9,7 +10,7 @@ use bayonet::run::{Greeting, Protocol};
 pub(super) struct Wire;
 
 impl Protocol for Wire {
-    type Capability = Capability;
+    type Provides = Provision;
     type Request = HostMessage;
     type Message = PluginMessage;
     const VERSION: u32 = PROTOCOL_VERSION;
