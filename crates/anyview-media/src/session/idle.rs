@@ -25,9 +25,9 @@ impl Session<Idle> {
     ) -> Result<Session<Idle>, MediaError> {
         let options = mpv_wgpu_player::PlayerOptions {
             audio_output: audio.output(),
+            host: host.host(),
         };
-        let player = mpv_wgpu_player::Player::with_host(device, queue, options, host.host())
-            .map_err(fault)?;
+        let player = mpv_wgpu_player::Player::new(device, queue, options).map_err(fault)?;
         Ok(Session {
             player,
             _state: Idle,

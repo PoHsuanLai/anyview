@@ -59,13 +59,13 @@ fn failed(reason: String) -> Report {
 
 /// Poll the player and translate what it said.
 pub(super) fn drain(player: &mut mpv::Player) -> Result<Report, MediaError> {
-    let outcome = player.poll().map_err(fault)?;
+    let presentation = player.poll().map_err(fault)?;
     let events: Vec<mpv::Event> = player.events().to_vec();
     let mut translated = Vec::new();
     for event in &events {
         translate(player, event, &mut translated);
     }
-    let frame = match outcome.presentation {
+    let frame = match presentation {
         mpv::Presentation::Updated => Frame::Rewritten,
         mpv::Presentation::Unchanged => Frame::Unchanged,
     };
