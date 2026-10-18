@@ -12,7 +12,7 @@ use anyview_ui::{
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_core::press::PointerButton;
-use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Input, Query};
+use ds_harness::{Backend, Clock, Harness, HarnessConfig, Input};
 use std::sync::Arc;
 use std::time::Duration;
 use support::{Requests, VIEW, Wiring, folder, settle, wired};

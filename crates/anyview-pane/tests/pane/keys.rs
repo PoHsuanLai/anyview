@@ -5,7 +5,7 @@ use crate::support::{Host, text_file, walking};
 use anyview_pane::PaneRequest;
 use dioxus::prelude::Key;
 use ds::prelude::ShortcutKey;
-use ds_harness::{Driver, Input, Query, Viewport};
+use ds_harness::{Input, Viewport};
 use std::path::PathBuf;
 
 fn in_a_corner() -> Viewport {

@@ -6,7 +6,7 @@
 use crate::support;
 
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Harness, Query};
+use ds_harness::Harness;
 use std::path::PathBuf;
 use support::{chord, press, settle, title, type_text, window};
 

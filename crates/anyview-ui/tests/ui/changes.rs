@@ -7,7 +7,7 @@ use anyview_core::FilePath;
 use anyview_ui::{HostRequest, WorkKind};
 use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use image::RgbaImage;
 use std::sync::Arc;
 use std::time::Duration;

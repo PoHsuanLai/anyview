@@ -5,7 +5,7 @@ use crate::support;
 
 use anyview_ui::{Look, LookFeed};
 use ds::prelude::{Appearance, Theme};
-use ds_harness::{Driver, Harness};
+use ds_harness::Harness;
 use std::time::Duration;
 use support::{VIEW, Wiring, folder, wired};
 

@@ -8,7 +8,7 @@ use anyview_core::FileAction;
 use anyview_ui::HostRequest;
 use ds::host::gesture::{Gesture, GesturePhase, Magnification};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey, Theme};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use image::RgbaImage;
 use std::time::Duration;
 use support::{VIEW, folder, shot, window};

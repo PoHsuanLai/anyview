@@ -10,7 +10,7 @@ use dioxus::prelude::*;
 use ds::edit::handle::{EditHandle, use_edit_handle};
 use ds::host::position::TextPosition;
 use ds::prelude::{Appearance, Ds, Material, Point, Px, Rect, ShortcutKey};
-use ds_harness::{Clock, Driver, Harness, HarnessConfig, Input, Query, Viewport};
+use ds_harness::{Clock, Harness, HarnessConfig, Input, Viewport};
 use std::cell::RefCell;
 use std::time::Duration;
 

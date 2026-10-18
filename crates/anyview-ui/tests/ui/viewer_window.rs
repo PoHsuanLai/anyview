@@ -6,7 +6,7 @@ use crate::support;
 use anyview_core::{FileAction, Reach, actions_for, reach};
 use anyview_ui::ChromeParams;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Input, Query};
+use ds_harness::{Harness, Input};
 use std::time::Duration;
 use support::{VIEW, folder, shot, window};
 
@@ -23,7 +23,7 @@ fn middle() -> Point {
     }
 }
 
-fn title(harness: &impl Query) -> Option<String> {
+fn title(harness: &Harness) -> Option<String> {
     harness.text_of(".ds-titlebar-name")
 }
 

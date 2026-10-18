@@ -10,7 +10,7 @@ use anyview_core::{PixelLen, PixelSize};
 use anyview_ui::{HostRequest, NaturalSize, SizeBasis};
 use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use support::{Memory, PanelStart, Requests, Wiring, settle, wired};
 

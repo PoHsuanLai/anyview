@@ -8,7 +8,7 @@ use anyview_core::{LineIndex, PixelLen, PixelSize, Resume};
 use anyview_image::Rgba8;
 use anyview_ui::{HostRequest, WorkKind, WorkLane};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use std::path::PathBuf;
 use std::sync::Arc;
 use support::{

@@ -16,7 +16,7 @@ use dioxus::core::VirtualDom;
 use dioxus::prelude::*;
 use ds::assembly::ds::Inject;
 use ds::prelude::{Appearance, Ds, Material, Word};
-use ds_harness::{Backdrop, Harness, HarnessConfig, Query, Viewport};
+use ds_harness::{Backdrop, Harness, HarnessConfig, Viewport};
 use ds_lint::{LintConfig, Profile, Rule, assert_clean, markup};
 use std::sync::{Arc, OnceLock};
 use support::{Home, fixture, pane_budget};

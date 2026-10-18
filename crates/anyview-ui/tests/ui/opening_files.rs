@@ -8,7 +8,7 @@ use anyview_ui::HostRequest;
 use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_core::press::PointerButton;
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use support::{Requests, Wiring, middle, press, settle, text_file, title, wired};
 

@@ -9,7 +9,7 @@ use crate::support;
 
 use ds::host::gesture::GesturePhase;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use std::time::Duration;
 use support::{VIEW, folder, window};
 

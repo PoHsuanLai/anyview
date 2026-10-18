@@ -9,7 +9,7 @@ use crate::support;
 use anyview::media::MediaPlugins;
 use ds::prelude::{Scale, ShortcutKey};
 use ds_blitz::{Extent, ScreenArea, ScreenOf};
-use ds_harness::{Driver, Input, Query, SizerAck, WindowScreen};
+use ds_harness::{Input, SizerAck, WindowScreen};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;

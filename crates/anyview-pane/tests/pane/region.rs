@@ -3,7 +3,7 @@
 
 use crate::support::{hosted, image_file, text_file, walking};
 use anyview_pane::{FilePath, LoadFailure, NotOpened, PaneRequest};
-use ds_harness::{Query, Viewport};
+use ds_harness::Viewport;
 
 /// What a window draws around its file and a pane must not.
 const WINDOW_CHROME: [&str; 5] = [

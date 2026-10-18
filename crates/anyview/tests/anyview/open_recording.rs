@@ -8,7 +8,7 @@ use crate::support;
 
 use anyview_platform::{MediaControl, MediaState, PlaybackStatus};
 use ds::prelude::{Point, Px};
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use support::{copy_into, media_fixture, open, open_with, plugins, until};
 
 /// A copy of the clip in `dir`, which is where the window opens it from.

@@ -6,7 +6,7 @@ use anyview_core::Resume;
 use anyview_store::{HistoryCap, StoreWriter, read_history};
 use anyview_ui::REMEMBER_EVERY;
 use ds::prelude::ShortcutKey;
-use ds_harness::{Driver, Input, Viewport};
+use ds_harness::{Input, Viewport};
 use std::path::PathBuf;
 use std::time::Duration;
 

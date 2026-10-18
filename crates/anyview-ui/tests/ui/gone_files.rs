@@ -7,7 +7,7 @@ use crate::support;
 use anyview_core::FilePath;
 use anyview_ui::HostRequest;
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use support::{Requests, Wiring, press, settle, text_file, title, wired};
 

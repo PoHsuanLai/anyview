@@ -22,8 +22,7 @@ use anyview_platform::{PickOutcome, PluginRunner, PrintOutcome};
 use anyview_store::{Clock, Viewed};
 use anyview_ui::Look;
 use ds_harness::{
-    Backend, Clock as HarnessClock, Driver, Harness, HarnessConfig, SizerAck, Viewport,
-    WindowScreen,
+    Backend, Clock as HarnessClock, Harness, HarnessConfig, SizerAck, Viewport, WindowScreen,
 };
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};

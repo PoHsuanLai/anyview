@@ -5,7 +5,6 @@
 use crate::support;
 
 use anyview_store::{HistoryRead, read_history};
-use ds_harness::{Driver, Query};
 use support::{fixture, open, until};
 
 const RED: [u8; 3] = [255, 0, 0];

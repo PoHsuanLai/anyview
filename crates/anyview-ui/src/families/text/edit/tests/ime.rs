@@ -5,7 +5,7 @@
 
 use super::support::{Rig, SCALES, near};
 use ds::prelude::ShortcutKey;
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 
 #[test]
 fn a_zhuyin_composition_shows_underlined_at_the_caret_then_commits() {

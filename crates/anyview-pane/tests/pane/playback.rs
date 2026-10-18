@@ -8,7 +8,7 @@ use anyview_ui::{
     MediaLine, MediaNotice, MediaOffer, MediaPlayback, MediaStart, MediaStarted, OpenError,
     PlayerCommand, SlotPixels,
 };
-use ds_harness::{Query, Viewport};
+use ds_harness::Viewport;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -88,7 +88,7 @@ mod real_mpv {
         Pace, PlayerCommand, PlayerEvent, SlotPixels,
     };
     use ds_blitz::TextureHandle;
-    use ds_harness::{Driver, Query, Viewport};
+    use ds_harness::Viewport;
     use std::sync::{Arc, Mutex, PoisonError};
     use std::time::{Duration, Instant};
 

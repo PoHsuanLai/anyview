@@ -8,7 +8,7 @@ use crate::support;
 use anyview_peek::{AnyPeeked, Body, Card, peek};
 use dioxus::prelude::*;
 use ds::prelude::{Appearance, Ds, Material};
-use ds_harness::{Backdrop, Backend, Harness, HarnessConfig, Query, Viewport};
+use ds_harness::{Backdrop, Backend, Harness, HarnessConfig, Viewport};
 use std::sync::Arc;
 use support::{Home, fixture, pane_budget};
 

@@ -10,7 +10,7 @@ use anyview::host::{HelperHost, ImageHost, PluginRegistry};
 use anyview::media::MediaPlugins;
 use anyview_platform::PluginRunner;
 use anyview_plugin::{Candidate, Manifest, Origin, Plugins, Readiness};
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Outcome, StandIn};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

@@ -13,7 +13,7 @@ use anyview_store::Viewed;
 use dioxus::prelude::*;
 use ds::components::menus::palette::palette_group::{GroupEntries, PaletteGroup};
 use ds::prelude::{Appearance, Ds, Material};
-use ds_harness::{Backend, Clock, Driver, Harness, HarnessConfig, Input, Query, Viewport};
+use ds_harness::{Backend, Clock, Harness, HarnessConfig, Input, Viewport};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use std::path::{Path, PathBuf};

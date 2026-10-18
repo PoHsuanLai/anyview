@@ -4,7 +4,7 @@
 use crate::support::{Call, Host, hosted};
 use anyview_pane::PaneCommand;
 use anyview_ui::HitIndex;
-use ds_harness::{Query, Viewport};
+use ds_harness::Viewport;
 
 fn in_a_corner() -> Viewport {
     Viewport {

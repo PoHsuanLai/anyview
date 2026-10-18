@@ -7,7 +7,7 @@ use anyview_core::{MediaExport, MediaLength, MediaTime, TimeRange, VideoPresence
 use anyview_ui::{ExportDraft, HostRequest, MediaNotice, PlayerCommand, PlayerEvent};
 use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use std::sync::Arc;
 use support::{Answer, FakeLine, FakePlayer, Requests, Wiring, folder, middle, settle, wired};

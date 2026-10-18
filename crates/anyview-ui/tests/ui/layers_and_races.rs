@@ -5,7 +5,7 @@ use crate::support;
 
 use anyview_ui::{HostRequest, Presentation, Work, WorkKind, Workers};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use support::{Requests, Wiring, press, settle, text_file, wired};

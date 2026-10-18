@@ -12,7 +12,7 @@ use anyview_ui::{
     PluginPicture,
 };
 use ds::prelude::ShortcutKey;
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

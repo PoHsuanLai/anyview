@@ -8,7 +8,7 @@ use crate::support;
 use anyview_core::{PageIndex, Permille, Resume, Zoom};
 use anyview_ui::HostRequest;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::io::Write;
 use std::path::PathBuf;
 use support::{Memory, Requests, Wiring, fixture, press, settle, shot, wired};

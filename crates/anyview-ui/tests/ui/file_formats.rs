@@ -7,7 +7,7 @@ use crate::support;
 use dioxus::prelude::Modifiers;
 use ds::host::gesture::{Gesture, GesturePhase, ScrollSource};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::{Path, PathBuf};
 use support::{Wiring, settle, title, wired};
 

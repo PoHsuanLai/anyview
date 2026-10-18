@@ -6,7 +6,7 @@ use anyview_core::{MediaLength, MediaTime, VideoPresence};
 use anyview_ui::{MediaNotice, PlayerEvent};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_blitz::Extent;
-use ds_harness::{DocQuery, Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::time::Duration;
 use support::{Answer, FakePlayer, Wiring, folder, wired};
 

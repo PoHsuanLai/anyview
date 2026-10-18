@@ -5,7 +5,7 @@
 use crate::support;
 
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use support::{folder, settle};
 
 const SCALES: [u16; 2] = [100, 200];

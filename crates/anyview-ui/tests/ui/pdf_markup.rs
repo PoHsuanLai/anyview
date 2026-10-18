@@ -11,7 +11,7 @@ use anyview_core::{
 use anyview_pdf::{PdfDocument, write_markup};
 use anyview_ui::HostRequest;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use std::path::PathBuf;
 use support::{Requests, chord, press, settle, type_text, window};
 

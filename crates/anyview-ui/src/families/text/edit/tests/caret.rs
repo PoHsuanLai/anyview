@@ -5,7 +5,6 @@
 
 use super::support::{Rig, SAMPLE, SCALES, near, start_of};
 use ds::prelude::ShortcutKey;
-use ds_harness::Driver;
 
 #[test]
 fn a_click_on_the_text_puts_the_caret_there_and_draws_it_there() {

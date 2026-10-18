@@ -6,7 +6,7 @@ use crate::support;
 use anyview_ui::WorkKind;
 use dioxus::prelude::Modifiers;
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, PointerAction, PointerInput, Query};
+use ds_harness::{Harness, Input, PointerAction, PointerInput};
 use std::path::PathBuf;
 use std::time::Duration;
 use support::{Gate, VIEW, Wiring, chord, press, type_text, window, wired};

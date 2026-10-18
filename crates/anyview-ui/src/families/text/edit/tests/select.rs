@@ -6,7 +6,7 @@ use super::support::{Rig, SCALES, start_of};
 use dioxus::prelude::Modifiers;
 use ds::prelude::ShortcutKey;
 use ds_core::press::PointerButton;
-use ds_harness::{Driver, Input, PointerAction, PointerInput};
+use ds_harness::{Input, PointerAction, PointerInput};
 
 const TEXT: &str = "one two three\nfour five\nsix";
 

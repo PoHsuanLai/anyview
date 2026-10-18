@@ -11,7 +11,7 @@ use anyview_core::{
 };
 use anyview_ui::{ExportDraft, HostRequest};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use support::{Requests, Wiring, settle, text_file, wired};
 

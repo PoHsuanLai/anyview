@@ -16,7 +16,7 @@ use anyview_ui::{
     PlayerCommand, PlayerEvent, Presentation, StepDirection, TrackKind,
 };
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use std::sync::Arc;
 use support::{

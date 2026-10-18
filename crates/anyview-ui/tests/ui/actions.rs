@@ -7,7 +7,7 @@ use crate::support;
 use anyview_core::{Adjust, Edit, FileAction, FilePath, QuarterTurn};
 use anyview_ui::{EditRequest, HostRequest, Notice, TypedText};
 use ds::prelude::{Appearance, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use std::time::Duration;
 use support::{Requests, Wiring, folder, settle, text_file, window, wired};
 

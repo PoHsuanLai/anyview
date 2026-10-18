@@ -6,7 +6,7 @@ use crate::support;
 use anyview_core::FilePath;
 use anyview_ui::{HostRequest, LoadFailure, NotOpened};
 use ds::prelude::Appearance;
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use support::{Wiring, settle, text_file, wired};
 
 #[test]

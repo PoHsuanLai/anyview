@@ -14,7 +14,7 @@ use anyview_ui::{
 };
 use ds::prelude::{Appearance, ShortcutKey};
 use ds::prelude::{Point, Px};
-use ds_harness::{Driver, Harness, Input, Query, Viewport};
+use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
 use std::sync::Arc;
 use support::{Requests, Versions, Wiring, folder, is, rgb, settle, window, wired};

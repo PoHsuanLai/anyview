@@ -26,7 +26,7 @@ mod support;
 mod skip;
 
 use ds::prelude::ShortcutKey;
-use ds_harness::{Driver, Input, Query};
+use ds_harness::Input;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};

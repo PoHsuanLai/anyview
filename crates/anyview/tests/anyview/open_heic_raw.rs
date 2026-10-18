@@ -5,7 +5,6 @@
 
 use crate::support;
 
-use ds_harness::{Driver, Query};
 use image::{ImageEncoder, codecs::jpeg::JpegEncoder};
 use support::{open, until};
 

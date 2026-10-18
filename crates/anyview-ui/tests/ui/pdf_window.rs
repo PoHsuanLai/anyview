@@ -11,7 +11,7 @@ use anyview_ui::{HostRequest, NaturalSize, SizeBasis};
 use dioxus::prelude::Modifiers;
 use ds::host::gesture::{Gesture, GesturePhase, Magnification, ScrollSource};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
-use ds_harness::{Driver, Harness, Input, Query};
+use ds_harness::{Harness, Input};
 use std::path::PathBuf;
 use std::time::Duration;
 use support::{Memory, Requests, VIEW, Wiring, shot, window, wired};
