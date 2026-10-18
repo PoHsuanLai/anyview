@@ -12,6 +12,7 @@ use anyview_plugin_protocol::{
     Capability, DecodeRequest, Done, ErrorCode, ExportRequest, FactRow, Failure, Frame, Hello,
     HostMessage, ImageHeader, PluginMessage, ProbeRequest, Progress, ThumbnailRequest,
 };
+use bayonet::manifest::PluginId;
 use bayonet::run::{RunError, Runner, Session};
 use std::ops::ControlFlow;
 
@@ -52,7 +53,7 @@ impl PluginRunner {
             | PluginMessage::Progress(_)
             | PluginMessage::Done(_)
             | PluginMessage::Error(_)) => {
-                Err(RunError::unexpected(plugin.manifest.id.as_str(), &other).into())
+                Err(RunError::unexpected(&plugin.manifest.id, &other).into())
             }
         }
     }
@@ -216,17 +217,17 @@ fn picture_bytes(area: u64) -> u64 {
     area.saturating_mul(4)
 }
 
-fn failed(plugin: &str, failure: Failure) -> PlatformError {
+fn failed(plugin: &PluginId, failure: Failure) -> PlatformError {
     match failure.code {
         ErrorCode::Cancelled => PlatformError::PluginCancelled {
-            plugin: plugin.to_owned(),
+            plugin: plugin.to_string(),
         },
         ErrorCode::Unsupported
         | ErrorCode::Unreadable
         | ErrorCode::Corrupt
         | ErrorCode::TooLarge
         | ErrorCode::Failed => PlatformError::PluginFailed {
-            plugin: plugin.to_owned(),
+            plugin: plugin.to_string(),
             code: failure.code,
             message: failure.message,
         },

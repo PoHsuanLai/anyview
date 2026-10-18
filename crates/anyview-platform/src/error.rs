@@ -126,24 +126,34 @@ impl From<bayonet::run::RunError<Capability>> for PlatformError {
         use bayonet::run::RunError;
         match error {
             RunError::Spawn { program, kind } => PlatformError::Spawn { program, kind },
-            RunError::Silent { plugin, waited } => PlatformError::PluginSilent { plugin, waited },
-            RunError::Crashed { plugin, status } => PlatformError::PluginCrashed { plugin, status },
-            RunError::Protocol { plugin, reason } => {
-                PlatformError::PluginProtocol { plugin, reason }
-            }
+            RunError::Silent { plugin, waited } => PlatformError::PluginSilent {
+                plugin: plugin.to_string(),
+                waited,
+            },
+            RunError::Crashed { plugin, status } => PlatformError::PluginCrashed {
+                plugin: plugin.to_string(),
+                status,
+            },
+            RunError::Protocol { plugin, reason } => PlatformError::PluginProtocol {
+                plugin: plugin.to_string(),
+                reason,
+            },
             RunError::Version {
                 plugin,
                 offered,
                 supported,
             } => PlatformError::PluginVersion {
-                plugin,
+                plugin: plugin.to_string(),
                 offered,
                 supported,
             },
-            RunError::Lacks { plugin, capability } => {
-                PlatformError::PluginLacks { plugin, capability }
-            }
-            RunError::Cancelled { plugin } => PlatformError::PluginCancelled { plugin },
+            RunError::Lacks { plugin, capability } => PlatformError::PluginLacks {
+                plugin: plugin.to_string(),
+                capability,
+            },
+            RunError::Cancelled { plugin } => PlatformError::PluginCancelled {
+                plugin: plugin.to_string(),
+            },
             // bayonet's error is non_exhaustive: a reason it adds later reads as a broken protocol.
             other => PlatformError::PluginProtocol {
                 plugin: "unknown".to_owned(),
