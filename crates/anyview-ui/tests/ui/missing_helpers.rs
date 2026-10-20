@@ -136,8 +136,18 @@ const INSTALL_ON_CARD: &str = ".viewer-peek .viewer-failed-actions .ds-button:fi
 /// The sheet's default button: Install… while it asks, Close after.
 const SHEET_DEFAULT: &str = ".ds-alert-footer .ds-alert-slot:first-child .ds-button";
 
-fn phase(harness: &Harness) -> Option<String> {
-    harness.attr(".ds-alert", "data-phase")
+/// Where the sheet stands, read from what it shows: the spinner while the system installs, Install…
+/// as the default while it asks, and Close once it has ended (the title says how).
+fn phase(harness: &Harness) -> Option<&'static str> {
+    if harness.count(".ds-alert") == 0 {
+        None
+    } else if harness.count(".ds-helper-progress") > 0 {
+        Some("installing")
+    } else if harness.text_of(SHEET_DEFAULT).as_deref() == Some("Install\u{2026}") {
+        Some("ask")
+    } else {
+        Some("ended")
+    }
 }
 
 #[test]
@@ -176,7 +186,7 @@ fn install_asks_then_installs_then_the_file_opens_with_the_plugin() {
     assert_eq!(harness.count(".viewer-raster"), 0, "no picture yet");
 
     click(&mut harness, INSTALL_ON_CARD);
-    assert_eq!(phase(&harness).as_deref(), Some("ask"));
+    assert_eq!(phase(&harness), Some("ask"));
     assert_eq!(
         harness.text_of(".ds-alert-title").unwrap_or_default(),
         "Viewer needs libheif tools to open HEIC photos."
@@ -184,7 +194,7 @@ fn install_asks_then_installs_then_the_file_opens_with_the_plugin() {
     assert_eq!(provided(&requests), 0, "asking installs nothing");
 
     click(&mut harness, SHEET_DEFAULT);
-    assert_eq!(phase(&harness).as_deref(), Some("installing"));
+    assert_eq!(phase(&harness), Some("installing"));
     assert_eq!(
         harness.count(".ds-alert-footer .ds-button"),
         0,
@@ -228,7 +238,7 @@ fn not_now_asks_nothing_of_the_host_and_leaves_the_row() {
         ..
     } = open_heic();
     click(&mut harness, INSTALL_ON_CARD);
-    assert_eq!(phase(&harness).as_deref(), Some("ask"));
+    assert_eq!(phase(&harness), Some("ask"));
     press(&mut harness, ShortcutKey::Escape);
     assert_eq!(harness.count(".ds-alert"), 0);
     assert_eq!(provided(&requests), 0);
@@ -246,7 +256,7 @@ fn return_installs_as_the_default_button_does() {
     click(&mut harness, INSTALL_ON_CARD);
     press(&mut harness, ShortcutKey::Enter);
     assert_eq!(provided(&requests), 1);
-    assert_eq!(phase(&harness).as_deref(), Some("installing"));
+    assert_eq!(phase(&harness), Some("installing"));
 }
 
 #[test]
@@ -261,7 +271,7 @@ fn nothing_closes_the_sheet_while_the_system_installs() {
     press(&mut harness, ShortcutKey::Enter);
     press(&mut harness, ShortcutKey::Escape);
     press(&mut harness, ShortcutKey::Enter);
-    assert_eq!(phase(&harness).as_deref(), Some("installing"));
+    assert_eq!(phase(&harness), Some("installing"));
     assert_eq!(provided(&requests), 1, "and it asks only once");
 }
 
@@ -284,20 +294,13 @@ fn declining_the_password_closes_the_sheet_quietly() {
 
 #[test]
 fn what_the_system_could_not_do_is_said_in_the_sheet() {
-    // end, phase, words in the title, words in the body
-    type Case = (
-        &'static str,
-        HelperEnd,
-        &'static str,
-        &'static str,
-        &'static str,
-    );
+    // end, words in the title, words in the body
+    type Case = (&'static str, HelperEnd, &'static str, &'static str);
     let cases: Vec<Case> = vec![
         (
             "no package",
             HelperEnd::NotFound("libheif-tools".to_owned()),
-            "not-found",
-            "libheif tools is not in your software sources",
+            "libheif tools isn’t in your software sources",
             "libheif-tools",
         ),
         (
@@ -306,8 +309,7 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
                 program: "heif-dec".to_owned(),
                 command: None,
             },
-            "unsupported",
-            "Viewer cannot install libheif tools here",
+            "Viewer can’t install libheif tools here",
             "heif-dec",
         ),
         (
@@ -316,19 +318,17 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
                 program: "heif-dec".to_owned(),
                 command: Some("sudo pacman -S libheif".to_owned()),
             },
-            "unsupported",
-            "Viewer cannot install libheif tools here",
+            "Viewer can’t install libheif tools here",
             "Run this in Terminal",
         ),
         (
             "the package manager failed",
             HelperEnd::Failed("No network.".to_owned()),
-            "failed",
-            "libheif tools was not installed",
+            "libheif tools wasn’t installed",
             "No network.",
         ),
     ];
-    for (name, end, want_phase, title, body) in cases {
+    for (name, end, title, body) in cases {
         let Opened {
             mut harness,
             edge,
@@ -351,7 +351,7 @@ fn what_the_system_could_not_do_is_said_in_the_sheet() {
             command,
             "{name}: the command, when there is one, is shown"
         );
-        assert_eq!(phase(&harness).as_deref(), Some(want_phase), "{name}");
+        assert_eq!(phase(&harness), Some("ended"), "{name}");
         assert_eq!(
             harness.text_of(".ds-alert-title").unwrap_or_default(),
             title,
@@ -395,7 +395,7 @@ fn a_tool_installed_elsewhere_closes_the_sheet_that_asked_for_it() {
         ..
     } = open_heic();
     click(&mut harness, INSTALL_ON_CARD);
-    assert_eq!(phase(&harness).as_deref(), Some("ask"));
+    assert_eq!(phase(&harness), Some("ask"));
     tool.installed.store(true, Ordering::SeqCst);
     edge.available(Helper::HeicDecode);
     settle(&mut harness);
@@ -536,7 +536,7 @@ fn the_sheet_that_says_nothing_can_be_exported_offers_to_install_what_adds_it() 
     );
 
     click(&mut harness, ".viewer-sheet-buttons .ds-button:first-child");
-    assert_eq!(phase(&harness).as_deref(), Some("ask"));
+    assert_eq!(phase(&harness), Some("ask"));
     assert_eq!(
         harness.text_of(".ds-alert-title").unwrap_or_default(),
         "Viewer needs FFmpeg to read and convert audio and video."
