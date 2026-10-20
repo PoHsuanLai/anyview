@@ -17,7 +17,7 @@ use ds::components::menus::palette::palette_group::{PaletteGroup, PaletteRow};
 use ds::focus::request::use_focus_request;
 use ds::host::caret::InitialCaret;
 use ds::prelude::{
-    Accessory, AfterPick, Check, CommandPalette, RunTone, TextLine, TextRun, use_keys,
+    Accessory, AfterPick, Check, CommandPalette, PaletteClose, RunTone, TextLine, TextRun, use_keys,
 };
 
 /// The row of one hit: the words around it with the match marked, and where it is. A hit whose
@@ -173,7 +173,7 @@ pub(super) fn Palette(
             focus: Some(field),
             oninput: move |text: String| ontyped.call(TypedText::new(text)),
             onpick: move |index: usize| onpick.call(PaletteIndex(index)),
-            onclose: move |()| onclose.call(()),
+            onclose: move |_: PaletteClose| onclose.call(()),
             claim: Callback::new(move |key: FieldKey| {
                 // The keys the palette machine reads are the machine's: they never reach the
                 // field or the palette's own selection.
