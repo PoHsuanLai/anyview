@@ -82,8 +82,14 @@ fn the_desktop_entry_names_the_app_the_window_carries() {
     assert_eq!(line(&entry, "Exec"), "anyview %U");
     assert_eq!(line(&entry, "Icon"), "org.quire.Anyview");
     assert_eq!(line(&entry, "StartupWMClass"), "org.quire.Anyview");
-    // The bus name is `org.quire.Anyview1` with its own interface, not org.freedesktop.Application.
-    assert_eq!(line(&entry, "DBusActivatable"), "false");
+    // Neither bus name serves org.freedesktop.Application, so the desktop starts the viewer by Exec.
+    assert!(!entry.lines().any(|l| l.starts_with("DBusActivatable=")));
+    // The names sill reads: the single-instance name and docket's agent name, and the manifest's app.
+    assert_eq!(
+        line(&entry, "X-Quire-BusNames"),
+        "org.quire.Anyview1;org.quire.Anyview;"
+    );
+    assert_eq!(line(&entry, "X-Quire-IntentsApp"), "org.quire.Anyview");
     // sill hands this to keycap, which keeps Command as Super for an app resolving keys by keymap.
     assert_eq!(line(&entry, "X-Keycap-Profile"), "keymap-aware");
 }

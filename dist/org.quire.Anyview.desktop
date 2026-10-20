@@ -11,10 +11,13 @@ Terminal=false
 # sill reads this entry and tells keycap to keep Command as Super for an app that resolves its keys
 # through the keymap, as the viewer does. Plasma ignores the line.
 X-Keycap-Profile=keymap-aware
-# The viewer claims the bus name org.quire.Anyview1 with its own interface, not
-# org.freedesktop.Application, so the desktop starts it by Exec; dist/org.quire.Anyview1.service
-# is for the viewer's own launcher.
-DBusActivatable=false
+# The names sill reads through ds-helpers' AppIdentity. The first viewer owns org.quire.Anyview1
+# (its own single-instance interface) and org.quire.Anyview (docket's intents agent); the intents
+# manifest's app is org.quire.Anyview. Neither is org.freedesktop.Application, so the entry has no
+# DBusActivatable line and the desktop starts the viewer by Exec. The two dist/*.service files are
+# for the viewer's own launcher and docket's router.
+X-Quire-BusNames=org.quire.Anyview1;org.quire.Anyview;
+X-Quire-IntentsApp=org.quire.Anyview
 Categories=Graphics;Viewer;
 Keywords=viewer;image;pdf;video;audio;text;markdown;
 MimeType=application/epub+zip;application/json;application/pdf;application/vnd.comicbook+zip;application/vnd.ms-excel;application/vnd.oasis.opendocument.spreadsheet;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/xml;audio/aac;audio/flac;audio/mp4;audio/mpeg;audio/ogg;audio/vnd.wave;audio/x-aiff;audio/x-opus+ogg;image/avif;image/bmp;image/gif;image/heif;image/jpeg;image/jxl;image/png;image/qoi;image/svg+xml;image/tiff;image/vnd.adobe.photoshop;image/vnd.microsoft.icon;image/webp;image/x-dcraw;image/x-exr;image/x-hdr;image/x-icns;image/x-tga;text/css;text/csv;text/html;text/markdown;text/plain;text/tab-separated-values;video/mp2t;video/mp4;video/mpeg;video/ogg;video/quicktime;video/vnd.avi;video/webm;video/x-flv;video/x-matroska;video/x-ms-wmv;

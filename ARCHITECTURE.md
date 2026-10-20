@@ -1787,8 +1787,9 @@ switch repaints text; the viewer runs no frame loop of its own.
 
 ## 7c. Packaging (`dist/`)
 
-`dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, `DBusActivatable=false`: the bus name
-`org.quire.Anyview1` has its own interface, not `org.freedesktop.Application`). Its `MimeType` line is
+`dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, and no `DBusActivatable` line: neither
+bus name serves `org.freedesktop.Application`). Its `X-Quire-BusNames` (`org.quire.Anyview1;org.quire.Anyview;`) and
+`X-Quire-IntentsApp` (`org.quire.Anyview`) are the identity sill reads through ds-helpers' `AppIdentity`. Its `MimeType` line is
 `anyview_core::opened_mimes()`: the media types of the kinds with `StageSupport::Stage`, the one kind-to-MIME
 map; `crates/anyview-core/tests/anyview-core/dist.rs` fails if the line drifts. `%U` hands the viewer `file://` URIs, which
 `cli/parse.rs` decodes (another scheme or host is `CliError::NotLocal`). `dist/install.sh` and
