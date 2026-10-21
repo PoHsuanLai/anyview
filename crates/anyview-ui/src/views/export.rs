@@ -2,7 +2,6 @@
 //! of what it is for, and the chosen format's options on the other.
 
 use super::export_options::option_row;
-use super::sheet::confirms;
 use crate::{
     ExportDraft, ExportFacts, ExportKindPick, ExportOption, MediaOffer, PageSpan, kind_hint,
     kind_name,
@@ -85,7 +84,8 @@ pub(super) fn ExportSheet(
             label: "Export",
             attach: Attach::Centre,
             onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet viewer-export", onkeydown: move |event| confirms(&event, onconfirm),
+            on_return: onconfirm,
+            div { class: "viewer-sheet viewer-export",
                 div { class: "viewer-export-body",
                     div { class: "viewer-export-formats", {formats(kinds, pick, onpick)} }
                     div { class: "viewer-export-options",

@@ -229,18 +229,21 @@ DIRECT=(
 # keycap-client 52c66c7 reads the shared key file through chordkit-file (chordkit's own file reader, MIT OR
 # Apache-2.0, its dependencies already in every tree): one more in each windowed tree: the peek 579, the viewer
 # 699, the pane 591, the media host 611 and the pane with its player 612.
+# quire v0.3.38 draws emoji through its own quire-emoji (the kit's, MIT OR Apache-2.0, over fontique,
+# already in every windowed tree): one more again: the peek 580, the viewer 700, the pane 592, the
+# media host 612 and the pane with its player 613.
 BUDGETS=(
-  "anyview-peek: 579"
-  "anyview: 699"
+  "anyview-peek: 580"
+  "anyview: 700"
   "anyview-machines: 34"
-  "anyview-pane: 591"
+  "anyview-pane: 592"
   "anyview-runtime: 34"
-  "anyview-media-host: 611"
+  "anyview-media-host: 612"
 )
 HEADLESS_BUDGET=200
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=612
+PANE_PLAYER_BUDGET=613
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 

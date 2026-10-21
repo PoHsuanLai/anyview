@@ -11,16 +11,6 @@ use ds::prelude::{Alert, Button, Choice, FieldFocus, RadioGroup, Sheet, TextFiel
 use ds_core::word::Word;
 use ds_shell::helpers::{HelperPhase as Sheeted, HelperSheet};
 
-/// Return confirms a sheet: the sheet's own keys, since the window's key handler leaves a sheet
-/// alone. A button that answers Escape leaves Return to this.
-pub(super) fn confirms(event: &KeyboardEvent, onconfirm: EventHandler<()>) {
-    if event.key() == Key::Enter && !event.is_auto_repeating() {
-        event.stop_propagation();
-        event.prevent_default();
-        onconfirm.call(());
-    }
-}
-
 /// "Move to Trash?": Esc cancels, the destructive button is never the default.
 #[component]
 pub(super) fn TrashSheet(
@@ -113,8 +103,8 @@ pub(super) fn NameSheet(
     oncancel: EventHandler<()>,
 ) -> Element {
     rsx! {
-        Sheet { label, onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
+        Sheet { label, onclose: move |()| oncancel.call(()), on_return: onconfirm,
+            div { class: "viewer-sheet",
                 TextField {
                     label: "Name",
                     value: name.as_str().to_owned(),
@@ -145,8 +135,8 @@ pub(super) fn RevertSheet(
         .map(|row| Choice::new(row.key.clone(), row.label()))
         .collect();
     rsx! {
-        Sheet { label: "Revert To", onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onconfirm),
+        Sheet { label: "Revert To", onclose: move |()| oncancel.call(()), on_return: onconfirm,
+            div { class: "viewer-sheet",
                 RadioGroup::<VersionKey> {
                     label: "Version",
                     choices,
@@ -169,8 +159,8 @@ pub(super) fn RevertSheet(
 #[component]
 pub(super) fn NoVersionsSheet(onclose: EventHandler<()>) -> Element {
     rsx! {
-        Sheet { label: "Revert To", onclose: move |()| onclose.call(()),
-            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
+        Sheet { label: "Revert To", onclose: move |()| onclose.call(()), on_return: onclose,
+            div { class: "viewer-sheet",
                 p { class: "viewer-sheet-note", "This file has no earlier version." }
                 div { class: "viewer-sheet-buttons",
                     Button { label: "OK", answers: Answers::Return, onclick: move |_| onclose.call(()) }
@@ -195,8 +185,8 @@ pub(super) fn UnavailableSheet(
         Wanted::Trim => ("Trim", "This recording can\u{2019}t be trimmed yet."),
     };
     rsx! {
-        Sheet { label, onclose: move |()| onclose.call(()),
-            div { class: "viewer-sheet", onkeydown: move |event| confirms(&event, onclose),
+        Sheet { label, onclose: move |()| onclose.call(()), on_return: onclose,
+            div { class: "viewer-sheet",
                 p { class: "viewer-sheet-note", "{note}" }
                 p { class: "viewer-sheet-note",
                     "{needs.label.label()}: {needs.value.as_str()}"

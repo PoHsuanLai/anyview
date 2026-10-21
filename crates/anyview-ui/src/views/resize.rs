@@ -2,7 +2,6 @@
 //! height in pixels or as a percent of the picture now, kept in proportion unless the person
 //! unlocks it, and the size the picture will have.
 
-use super::sheet::confirms;
 use crate::{ResizeChange, ResizeDraft, ResizeProportion, ResizeUnit};
 use dioxus::prelude::*;
 use ds::components::controls::button_model::Answers;
@@ -66,7 +65,8 @@ pub(super) fn ResizeSheet(
             label: "Adjust Size",
             attach: Attach::Centre,
             onclose: move |()| oncancel.call(()),
-            div { class: "viewer-sheet viewer-resize", onkeydown: move |event| confirms(&event, onconfirm),
+            on_return: onconfirm,
+            div { class: "viewer-sheet viewer-resize",
                 Form {
                     FormSection { title: "Adjust Size".to_owned(),
                         FieldRow { label: "Count in", layout: RowLayout::Form,
