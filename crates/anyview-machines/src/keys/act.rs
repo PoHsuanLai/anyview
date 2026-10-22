@@ -42,8 +42,6 @@ pub enum Act {
     ZoomToActual,
     /// Finish editing the text.
     Done,
-    /// Remove the page on screen from a PDF.
-    DeletePage,
     /// Move the page on screen one place earlier.
     MovePageEarlier,
     /// Move the page on screen one place later.
@@ -67,11 +65,6 @@ const OWN: &[(Act, &str, &str)] = &[
     (Act::Info, "anyview.info", "Primary+I"),
     (Act::ZoomToFit, "anyview.zoom-to-fit", "Primary+9"),
     (Act::Done, "anyview.done", "Primary+Enter"),
-    (
-        Act::DeletePage,
-        "anyview.delete-page",
-        "Primary+Shift+Backspace",
-    ),
     (
         Act::MovePageEarlier,
         "anyview.move-page-earlier",
@@ -154,7 +147,6 @@ impl Act {
         match self {
             Act::Undo
             | Act::Redo
-            | Act::DeletePage
             | Act::MovePageEarlier
             | Act::MovePageLater
             | Act::NextSheet

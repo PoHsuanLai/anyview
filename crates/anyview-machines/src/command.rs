@@ -174,7 +174,6 @@ const CHORDS: &[(Act, StageCommand)] = &[
     (Act::Find, StageCommand::Find),
     (Act::FindNext, StageCommand::FindNext),
     (Act::FindPrevious, StageCommand::FindPrevious),
-    (Act::DeletePage, StageCommand::DeletePage),
     (Act::MovePageEarlier, StageCommand::MovePageEarlier),
     (Act::MovePageLater, StageCommand::MovePageLater),
     (Act::NextSheet, StageCommand::NextSheet),
@@ -184,6 +183,12 @@ const CHORDS: &[(Act, StageCommand)] = &[
     (Act::SelectAll, StageCommand::SelectAll),
     (Act::AddRow, StageCommand::AddRow),
     (Act::File(FileAction::CopyFile), StageCommand::CopyRows),
+    // While a table or a tree is edited with rows picked, the delete command (⌘⌫, or Delete where
+    // that is Move to Trash) deletes the rows, as Copy copies them; with none picked it is the file's.
+    (
+        Act::File(FileAction::MoveToTrash),
+        StageCommand::DeletePicked,
+    ),
 ];
 
 /// The commands a key with no command modifier stands for. The first row of a command is the one
@@ -363,7 +368,10 @@ mod tests {
 
     #[test]
     fn every_command_has_the_press_that_means_it_and_a_shortcut_to_show() {
-        for command in StageCommand::ALL {
+        // Delete Page has no chord, as in Preview: ⇧⌘⌫ is the standard Empty Trash. The palette
+        // lists it.
+        let unbound = [StageCommand::DeletePage];
+        for command in StageCommand::ALL.iter().filter(|c| !unbound.contains(c)) {
             let chord = CHORDS
                 .iter()
                 .find(|(_, known)| known == command)

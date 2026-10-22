@@ -2,6 +2,7 @@
 //! quick repeats of the play key.
 
 use crate::support;
+use dioxus::prelude::Modifiers;
 
 use anyview_core::{MediaExport, MediaLength, MediaTime, TimeRange, VideoPresence};
 use anyview_ui::{ExportDraft, HostRequest, MediaNotice, PlayerCommand, PlayerEvent};
@@ -171,7 +172,9 @@ fn a_file_dropped_on_a_playing_recording_ends_its_player() {
             },
             FileDragInput::Offered(Offer::Files(vec![paths[1].clone()])),
             FileDragInput::Moved { point: middle() },
-            FileDragInput::Dropped,
+            FileDragInput::Dropped {
+                modifiers: Modifiers::empty(),
+            },
         ] {
             harness.send(Input::FileDrag(step));
         }

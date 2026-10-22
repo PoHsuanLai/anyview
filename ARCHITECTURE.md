@@ -1638,12 +1638,13 @@ keymap, which follows the system's own shortcut settings and the platform's conv
 means, and `views/press.rs` turns a key event into a `Press`, either `Press::Act(Act)` (the action the keymap
 resolved, when the viewer answers it) or `Press::Key(Shortcut)` (a key with at most Shift: letters, arrows,
 Space, Esc, Enter, Tab). `Act` is the viewer's vocabulary: the standard actions it answers (Find, Find Next,
-Find Previous, Close, Open, Save, Undo, Redo, Bigger as zoom in, Smaller as zoom out; Print, Reveal, Copy
-and Save As through `FileAction`) and its own, declared once per window with a `Primary+…` default chord
+Find Previous, Close, Open, Save, Undo, Redo, Bigger as zoom in, Smaller as zoom out; Print, Reveal, Copy,
+Save As and Move to Trash through `FileAction`) and its own, declared once per window with a `Primary+…` default chord
 (`keys/act.rs`; the file actions' own rows come from `anyview_core::own_keys`): the palette (⌘K), Info (⌘I,
-the chord the viewer forgoes Italic for), Zoom to Fit (⌘0), Actual Size (⌥⌘0), Done (⌘Return), Delete Page and Move Page (⇧⌘⌫,
-⇧⌘↑, ⇧⌘↓), Next and Previous Sheet (⌘PageDown, ⌘PageUp), Copy Path, Duplicate, Move to Trash, Export and
-Rotate. The viewer forgoes the standard Italic (it never styles text). Each row is added to a growing registration (an app's registration replaces its earlier one) and a refused row is left out, so a chord the system keeps for itself leaves that action unbound
+the chord the viewer forgoes Italic for), Zoom to Fit (⌘0), Actual Size (⌥⌘0), Done (⌘Return), Move Page (⇧⌘↑,
+⇧⌘↓), Next and Previous Sheet (⌘PageDown, ⌘PageUp), Copy Path, Duplicate, Export and Rotate. Delete Page has no
+chord, as in Preview (⇧⌘⌫ is the standard Empty Trash): the palette lists it. Copy and
+Move to Trash go to the stage first: with rows picked in an edited table or tree they copy or delete the rows. The viewer forgoes the standard Italic (it never styles text). Each row is added to a growing registration (an app's registration replaces its earlier one) and a refused row is left out, so a chord the system keeps for itself leaves that action unbound
 and no other. A text field has the focus in `Context::TextEntry`, where the keymap keeps the typing keys
 for the field.
 

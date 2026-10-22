@@ -74,10 +74,7 @@ fn shortcuts_are_the_standard_ones_or_the_viewers_own() {
         (Share, Nothing),
         (Rename, Nothing),
         (Duplicate, Own("anyview.duplicate", "Primary+D")),
-        (
-            MoveToTrash,
-            Own("anyview.move-to-trash", "Primary+Backspace"),
-        ),
+        (MoveToTrash, Standard(StandardAction::MoveToTrash)),
         (Print, Standard(StandardAction::Print)),
         (Export, Own("anyview.export", "Primary+Shift+E")),
         (SaveCopy, Standard(StandardAction::SaveAs)),

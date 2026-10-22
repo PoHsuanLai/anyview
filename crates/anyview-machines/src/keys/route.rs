@@ -124,7 +124,6 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             | Act::ZoomToFit
             | Act::ZoomToActual
             | Act::Done
-            | Act::DeletePage
             | Act::MovePageEarlier
             | Act::MovePageLater
             | Act::NextSheet

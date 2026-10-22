@@ -2,6 +2,7 @@
 //! opens with its folder as the list the arrows walk. Under the harness on the virtual clock.
 
 use crate::support;
+use dioxus::prelude::Modifiers;
 
 use anyview_core::FilePath;
 use anyview_ui::{HostRequest, WorkKind};
@@ -129,7 +130,9 @@ fn a_dropped_file_opens_and_its_folder_becomes_the_list_the_arrows_walk() {
         },
         FileDragInput::Offered(Offer::Files(vec![first.clone()])),
         FileDragInput::Moved { point: middle() },
-        FileDragInput::Dropped,
+        FileDragInput::Dropped {
+            modifiers: Modifiers::empty(),
+        },
     ] {
         harness.send(Input::FileDrag(step));
     }

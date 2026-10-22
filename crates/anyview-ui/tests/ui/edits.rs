@@ -280,11 +280,8 @@ fn deleting_and_moving_the_page_on_screen_ask_the_host_for_the_page_edit() {
         ShortcutKey::Down,
     ));
     settle(&mut harness);
-    harness.send(Input::chord(
-        &[ShortcutKey::Super, ShortcutKey::Shift],
-        ShortcutKey::Backspace,
-    ));
-    settle(&mut harness);
+    // Delete Page has no chord (⇧⌘⌫ is Empty Trash): the palette's row deletes the page.
+    from_the_palette(&mut harness, "delete page");
     harness.send(Input::chord(
         &[ShortcutKey::Super, ShortcutKey::Shift],
         ShortcutKey::Up,

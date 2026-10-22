@@ -40,10 +40,9 @@ pub(super) fn spec_of(action: FileAction) -> ActionSpec {
         FileAction::Share => spec(Reach::Both, Binding::Unbound),
         FileAction::Rename => spec(Reach::Both, Binding::Unbound),
         FileAction::Duplicate => spec(Reach::Both, Binding::Own("anyview.duplicate", "Primary+D")),
-        FileAction::MoveToTrash => spec(
-            Reach::Both,
-            Binding::Own("anyview.move-to-trash", "Primary+Backspace"),
-        ),
+        FileAction::MoveToTrash => {
+            spec(Reach::Both, Binding::Standard(StandardAction::MoveToTrash))
+        }
         FileAction::Print => spec(Reach::Viewer, Binding::Standard(StandardAction::Print)),
         FileAction::Export => spec(
             Reach::Viewer,

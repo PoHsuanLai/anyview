@@ -2,6 +2,7 @@
 //! drop does to whatever is already open on the window.
 
 use crate::support;
+use dioxus::prelude::Modifiers;
 
 use anyview_core::FilePath;
 use anyview_ui::HostRequest;
@@ -49,7 +50,9 @@ fn drop_files_at(harness: &mut Harness, files: Vec<PathBuf>, point: Point) {
         FileDragInput::Entered { point: Some(point) },
         FileDragInput::Offered(Offer::Files(files)),
         FileDragInput::Moved { point },
-        FileDragInput::Dropped,
+        FileDragInput::Dropped {
+            modifiers: Modifiers::empty(),
+        },
     ] {
         harness.send(Input::FileDrag(step));
     }

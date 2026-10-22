@@ -4,6 +4,7 @@
 //! the one memory of a file, and it belongs to the file it was kept for.
 
 use crate::support;
+use dioxus::prelude::Modifiers;
 
 use anyview_core::{DocPoint, DocUnit, Permille, Resume, Zoom};
 use anyview_core::{PixelLen, PixelSize};
@@ -115,7 +116,9 @@ fn next(harness: &mut Harness, how: Arrival, to: &std::path::Path) {
                 FileDragInput::Moved {
                     point: at(450.0, 300.0),
                 },
-                FileDragInput::Dropped,
+                FileDragInput::Dropped {
+                    modifiers: Modifiers::empty(),
+                },
             ] {
                 harness.send(Input::FileDrag(step));
             }
