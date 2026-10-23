@@ -140,7 +140,7 @@ impl State {
 }
 
 /// What a window draws for `environment`: the choices `Ds` resolves, from the file's keys and the
-/// desktop's preferences.
+/// desktop's preferences, with no sheets (`State::look` adds them).
 pub fn look_of(environment: &Environment) -> Look {
     let settings = &environment.settings.appearance;
     Look {
@@ -149,6 +149,7 @@ pub fn look_of(environment: &Environment) -> Look {
         tint_alpha: Some(environment.tint_alpha()),
         typeface: Some(settings.typeface()),
         stack: Some(environment.material_stack()),
+        ..Look::default()
     }
 }
 
