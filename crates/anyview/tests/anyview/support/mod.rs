@@ -219,6 +219,18 @@ pub fn media_fixture(name: &str) -> FilePath {
 /// A window's GPU as far as a player is concerned, made on a device with no window, or `None`
 /// with a note where the machine has no adapter.
 pub fn gpu() -> Option<ds_blitz::Gpu> {
+    // Opened once and kept: a device torn down while another test opens one crashes the Vulkan
+    // loader, as quire's harness found; a `Gpu` is cheap to clone and safe across threads.
+    static SHARED: std::sync::OnceLock<Option<ds_blitz::Gpu>> = std::sync::OnceLock::new();
+    let gpu = SHARED.get_or_init(open_gpu).clone();
+    if gpu.is_none() {
+        skipped("no graphics adapter");
+    }
+    gpu
+}
+
+/// A new instance and device for the tests, opened under the process's GPU lock.
+fn open_gpu() -> Option<ds_blitz::Gpu> {
     // One opening at a time in this process: the Vulkan loader crashes on two at once.
     let _one_at_a_time = anyview_media::GPU_OPENING
         .lock()
@@ -246,7 +258,6 @@ pub fn gpu() -> Option<ds_blitz::Gpu> {
             ));
         }
     }
-    skipped("no graphics adapter");
     None
 }
 
