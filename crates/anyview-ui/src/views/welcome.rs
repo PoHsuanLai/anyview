@@ -3,7 +3,7 @@
 //! target. What is chosen or dropped goes to the host as the files to open, which opens each in a
 //! window of its own and closes this one.
 
-use super::app::use_look;
+use super::app::{StylesWatch, use_look};
 use super::press::press_of;
 use crate::io::{DesktopService, Done, HostRequest};
 use crate::{Act, Chords, Edge, Look, Press, stylesheet};
@@ -23,6 +23,7 @@ use futures_util::StreamExt;
 #[component]
 pub fn WelcomeApp() -> Element {
     let look = use_look(Look::default());
+    let styles = use_memo(move || look().styles);
     let now = look();
     rsx! {
         Ds {
@@ -31,8 +32,13 @@ pub fn WelcomeApp() -> Element {
             tint_alpha: now.tint_alpha,
             typeface: now.typeface,
             stack: now.stack,
+            styles: ReadSignal::from(styles),
+            custom_styles: now.custom_styles,
             material: Material::Window,
             AppStyle { css: stylesheet() }
+            if let Some(rescue) = now.rescue.clone() {
+                StylesWatch { rescue }
+            }
             Welcome {}
         }
     }

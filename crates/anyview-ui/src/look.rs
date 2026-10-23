@@ -3,7 +3,9 @@
 //! hands every window the same feed.
 
 use ds::prelude::{Alpha, Appearance, SystemPrefs, Typeface};
+use ds::style::kit::{CustomStyles, Styles};
 use ds::style::material::stack::MaterialStack;
+use ds_blitz::StylesGuard;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::task::{Context, Poll, Waker};
@@ -22,6 +24,58 @@ pub struct Look {
     pub typeface: Option<Typeface>,
     /// The material's highlight, hairline, shadow and vibrancy, when the person set them.
     pub stack: Option<MaterialStack>,
+    /// The chosen look's sheet and the person's two (`~/.config/quire/style.css`,
+    /// `~/.config/anyview/style.css`), as the host read them. Blank by default.
+    pub styles: Styles,
+    /// Whether `styles` are drawn: the host's answer from `appearance.custom_styles` and the crash
+    /// guard.
+    pub custom_styles: CustomStyles,
+    /// The crash guard of `styles`, when the host keeps one.
+    pub rescue: Option<StylesRescue>,
+}
+
+/// The crash guard of the styles a window draws, and the way back from it: the window marks the
+/// start good once it has lived long enough, and shows the "Turn On Again" line when the guard
+/// started the program without the person's styles. The host makes it, since the guard is the
+/// process's, not a window's.
+#[derive(Clone)]
+pub struct StylesRescue {
+    guard: StylesGuard,
+    turn_on: Arc<dyn Fn() + Send + Sync>,
+}
+
+impl StylesRescue {
+    /// A rescue of `guard`, whose button runs `turn_on`: the host clears the guard and sends the
+    /// look again with the styles drawn.
+    #[must_use]
+    pub fn new(guard: StylesGuard, turn_on: Arc<dyn Fn() + Send + Sync>) -> StylesRescue {
+        StylesRescue { guard, turn_on }
+    }
+
+    /// The guard.
+    #[must_use]
+    pub fn guard(&self) -> &StylesGuard {
+        &self.guard
+    }
+
+    /// The person pressed Turn On Again.
+    pub fn turn_on_again(&self) {
+        (self.turn_on)();
+    }
+}
+
+impl fmt::Debug for StylesRescue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StylesRescue")
+            .field("guard", &self.guard)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for StylesRescue {
+    fn eq(&self, other: &StylesRescue) -> bool {
+        self.guard == other.guard && Arc::ptr_eq(&self.turn_on, &other.turn_on)
+    }
 }
 
 impl From<Appearance> for Look {

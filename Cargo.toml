@@ -95,6 +95,8 @@ ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "7fa27afc834e8365b
 ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "7fa27afc834e8365b356e7a0db94b269e62aaaf6" }  # 7fa27afc (v0.3.45)
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
 ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "7fa27afc834e8365b356e7a0db94b269e62aaaf6" }  # 7fa27afc (v0.3.45)
+# The look Extension's sheet (`appearance.look`): the folder scan and the chosen look's stylesheet.
+ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "7fa27afc834e8365b356e7a0db94b269e62aaaf6" }  # 7fa27afc (v0.3.45)
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers; its `quire-desktop` PackageKit backend is the binary's).
 # Without that feature ds-helpers is std plus thiserror, serde and toml: anyview-fs, -store and

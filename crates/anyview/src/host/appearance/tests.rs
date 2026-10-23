@@ -1,13 +1,24 @@
 use super::*;
 use anyview_ui::Look;
 use ds::prelude::{Scheme, SystemPrefs, Theme};
+use ds::style::kit::{CustomStyles, Slot};
 use ds_blitz::TokioSpawner;
+use ds_extensions::Search;
 use ds_settings::{AppName, ConfigRoot};
 use std::path::Path;
 use std::time::Duration;
 
 fn store(dir: &Path) -> Store {
     Store::new(ConfigRoot::Scratch(dir.to_path_buf()), AppName::QUIRE)
+}
+
+/// The program's styling in a scratch directory: its `style.css` is `dir/anyview/style.css`.
+fn styling(dir: &Path) -> Styling {
+    Styling::new(
+        Store::new(ConfigRoot::Scratch(dir.to_path_buf()), AppName("anyview")),
+        Search::new(&dir.join("data"), &[]),
+        dir.join("state"),
+    )
 }
 
 fn theme_of(look: &Look) -> Theme {
@@ -36,6 +47,7 @@ fn the_file_in_a_scratch_directory_is_followed_through_a_rename_over_it() {
 
     let appearances = runtime.block_on(Appearances::follow(
         store,
+        styling(dir.path()),
         dark_system(),
         Arc::new(TokioSpawner::on(runtime.handle().clone())),
     ));
@@ -79,6 +91,7 @@ fn a_desktop_with_no_file_gets_the_defaults_and_the_program_writes_none() {
     let path = store.path::<AppearanceFile>().unwrap();
     let appearances = runtime.block_on(Appearances::follow(
         store,
+        styling(dir.path()),
         SystemPrefsSource::Fixed(SystemPrefs::default()),
         Arc::new(TokioSpawner::on(runtime.handle().clone())),
     ));
@@ -110,4 +123,43 @@ fn the_look_carries_the_keys_the_file_set() {
         look.appearance,
         environment.settings.appearance.appearance()
     );
+}
+
+#[test]
+fn the_apps_style_css_reaches_the_look_and_the_switch_decides_whether_it_is_drawn() {
+    const SHEET: &str = ".viewer { --probe: 1; }\n";
+    let cases = [
+        ("use", "", true),
+        ("off", "[appearance]\ncustom_styles = \"off\"\n", false),
+    ];
+    for (name, appearance, drawn) in cases {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        let path = store.path::<AppearanceFile>().unwrap();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, appearance).unwrap();
+        std::fs::create_dir_all(dir.path().join("anyview")).unwrap();
+        std::fs::write(dir.path().join("anyview").join("style.css"), SHEET).unwrap();
+
+        let look = runtime
+            .block_on(Appearances::follow(
+                store,
+                styling(dir.path()),
+                dark_system(),
+                Arc::new(TokioSpawner::on(runtime.handle().clone())),
+            ))
+            .current();
+        assert_eq!(look.styles.app.0, SHEET, "{name}: the sheet is read");
+        let slots: Vec<Slot> = look
+            .styles
+            .drawn(look.custom_styles)
+            .iter()
+            .map(|sheet| sheet.slot)
+            .collect();
+        assert_eq!(slots == [Slot::App], drawn, "{name}: drawn {slots:?}");
+        if !drawn {
+            assert_eq!(look.custom_styles, CustomStyles::Off, "{name}");
+        }
+    }
 }

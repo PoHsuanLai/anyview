@@ -29,7 +29,7 @@ mod watch;
 #[cfg(test)]
 mod tests;
 
-pub use appearance::{Appearances, look_of};
+pub use appearance::{Appearances, Styling, look_of};
 pub use desktop::{Desktop, Hosting, PlatformDesktop, Services};
 pub use feedback::{
     Doing, log, notice_of, notice_of_declined, report, subject_of, tell, tell_declined,

@@ -5,6 +5,7 @@ use crate::support;
 
 use anyview_ui::{Look, LookFeed};
 use ds::prelude::{Appearance, Theme};
+use ds::style::kit::{CustomStyles, Styles, UserStyle};
 use ds_harness::Harness;
 use std::time::Duration;
 use support::{VIEW, Wiring, folder, wired};
@@ -54,4 +55,35 @@ fn a_new_look_re_themes_the_open_window_and_a_window_without_a_feed_keeps_its_ow
         light > ground(&mut own) + 60,
         "no feed: the launch look stays"
     );
+}
+
+/// A look that carries `css` as the person's sheet for this program.
+fn styled(css: &str, custom_styles: CustomStyles) -> Look {
+    Look {
+        styles: Styles {
+            app: UserStyle(css.to_owned()),
+            ..Styles::default()
+        },
+        custom_styles,
+        ..Look::default()
+    }
+}
+
+#[test]
+fn the_apps_style_sheet_is_in_the_document_until_the_person_turns_styles_off() {
+    let (_dir, paths) = folder(&[("anyview-text", "notes.txt", "a.txt")]);
+    let (tx, feed) = LookFeed::new(styled(".viewer { --probe: 1; }", CustomStyles::Use));
+    let wiring = Wiring {
+        feed: Some(feed),
+        ..Wiring::default()
+    };
+    let (mut harness, _, _) = wired(&paths, 0, Appearance::default(), wiring);
+    harness.advance(Duration::from_millis(500));
+    let sheet = "style[data-ds-style=app]";
+    assert_eq!(harness.count(sheet), 1, "the app's sheet has its element");
+    assert!(harness.html().contains("--probe"), "with the rule in it");
+
+    tx.set(styled(".viewer { --probe: 1; }", CustomStyles::Off));
+    harness.advance(Duration::from_millis(500));
+    assert_eq!(harness.count(sheet), 0, "turned off, none is drawn");
 }

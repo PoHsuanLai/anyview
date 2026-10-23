@@ -5,10 +5,12 @@
 
 use super::pane::PaneSeat;
 use super::window::ViewerWindow;
-use crate::{Look, LookFeed, Presentation};
+use crate::{Look, LookFeed, Presentation, StylesRescue};
 use anyview_core::{FilePath, Sequence};
 use dioxus::prelude::*;
 use ds::prelude::*;
+use ds_blitz::styles_guard::Load;
+use ds_blitz::use_styles_guard;
 use ds_core::vocab::{Activity, InputModality};
 
 /// What the window was opened with: the file, and the list the arrow keys walk, when there is one.
@@ -86,6 +88,7 @@ pub fn stylesheet() -> String {
 pub fn ViewerApp() -> Element {
     let launch = use_hook(consume_context::<Launch>);
     let look = use_look(launch.look.clone());
+    let styles = use_memo(move || look().styles);
     let now = look();
     rsx! {
         Ds {
@@ -94,10 +97,15 @@ pub fn ViewerApp() -> Element {
             tint_alpha: now.tint_alpha,
             typeface: now.typeface,
             stack: now.stack,
+            styles: ReadSignal::from(styles),
+            custom_styles: now.custom_styles,
             material: Material::Window,
             // The install sheet is the shell's, so its rules come with the shell's stylesheet.
             sheet: Some(ds_shell::stylesheet()),
             AppStyle { css: stylesheet() }
+            if let Some(rescue) = now.rescue.clone() {
+                StylesWatch { rescue }
+            }
             ViewerWindow { launch: launch.clone() }
         }
     }
@@ -112,6 +120,7 @@ pub fn PaneApp() -> Element {
     let launch = use_hook(consume_context::<Launch>);
     let look = use_look(launch.look.clone());
     let followed = use_hook(|| try_consume_context::<LookFeed>().is_some());
+    let styles = use_memo(move || look().styles);
     let now = look();
     let window = rsx! {
         AppStyle { css: stylesheet() }
@@ -126,13 +135,37 @@ pub fn PaneApp() -> Element {
                     tint_alpha: now.tint_alpha,
                     typeface: now.typeface,
                     stack: now.stack,
+                    styles: ReadSignal::from(styles),
+                    custom_styles: now.custom_styles,
                     material: Material::Window,
+                    if let Some(rescue) = now.rescue.clone() {
+                        StylesWatch { rescue }
+                    }
                     {window}
                 }
             }
         }
     } else {
         window
+    }
+}
+
+/// The crash guard of the window's styles: it marks the start good once the window has lived long
+/// enough, and when the guard started the program without the person's styles it shows the line
+/// that says so, with the button that turns them on again.
+#[component]
+pub(super) fn StylesWatch(rescue: StylesRescue) -> Element {
+    use_styles_guard(rescue.guard().clone());
+    if rescue.guard().load() != Load::Without {
+        return rsx! {};
+    }
+    rsx! {
+        div { class: "viewer-styles-off",
+            StylesOffNotice {
+                program: "Viewer",
+                onturnon: move |()| rescue.turn_on_again(),
+            }
+        }
     }
 }
 

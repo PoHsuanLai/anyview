@@ -69,7 +69,7 @@ pub use io::{
     Readable, Reply, ResumeKeeper, ResumeSource, SaveEnd, Seams, SizeBasis, SlotPixels, Stop,
     TextSave, VersionSource, Work, WorkKind, WorkLane, Workers, folder_sequence,
 };
-pub use look::{Look, LookFeed, LookSender};
+pub use look::{Look, LookFeed, LookSender, StylesRescue};
 pub use views::{
     Launch, PaneApp, PaneChrome, PaneLink, PaneSeat, ViewerApp, WelcomeApp, stylesheet,
     use_pane_link,

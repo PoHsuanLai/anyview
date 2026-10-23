@@ -1787,6 +1787,16 @@ with none keeps `Launch.look`). `anyview-ui` holds `Look` as plain data and does
 never writes the file and keeps none of its own. The host (`ds-blitz`) calls `follow_root` per frame, so a scheme
 switch repaints text; the viewer runs no frame loop of its own.
 
+The look is customizable (quire customization design section 7). The same `Look` carries `styles` (the chosen look
+Extension's sheet from `ds_extensions::look::stylesheet_for`, `~/.config/quire/style.css` and
+`~/.config/anyview/style.css`, with `StyleHomes` set to each sheet's own folder) and `custom_styles` (`appearance.custom_styles`,
+forced `Off` while the crash guard has the styles off). `host/appearance/styling.rs` reads them: the two `style.css`
+files are watched like the appearance file; the look's sheet is read when `appearance.look` changes. `ViewerApp`, `PaneApp` (when it is its
+own `Ds` root) and `WelcomeApp` pass them to `Ds { styles, custom_styles }`; a pane that takes the host's tokens takes the host's styles. The crash
+guard (`ds_blitz::StylesGuard`) is the process's, begun once by the host and carried in `Look.rescue`; each window's
+`StylesWatch` calls `use_styles_guard` and shows `StylesOffNotice` ("Turn On Again") when the guard started without the styles.
+The viewer publishes no selector table yet: its parts are `viewer-` classes, and a published part must start with `anyview-`.
+
 ## 7c. Packaging (`dist/`)
 
 `dist/org.quire.Anyview.desktop` is the desktop entry (`Exec=anyview %U`, and no `DBusActivatable` line: neither

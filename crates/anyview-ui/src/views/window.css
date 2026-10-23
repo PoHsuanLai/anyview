@@ -7,6 +7,9 @@
 /* The stage is the split view's rest: it fills it, as it filled the window. */
 .viewer-stage{ position:relative; display:flex; flex-direction:column; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }
 
+/* The line the crash guard shows when it started the program without the person's styles. */
+.viewer-styles-off{ position:fixed; left:0; right:0; bottom:0; z-index:var(--z-raise); padding:var(--s-8); }
+
 .viewer-titlebar{ position:absolute; top:0; left:0; right:0; z-index:var(--z-raise); transition:opacity var(--t-quick) var(--e-out); }
 .viewer-titlebar[*|data-shown=hidden]{ opacity:0; pointer-events:none; }
 /* A stage that shows a document scrolling from its top (text in every mode, a table, a tree) starts

@@ -8,7 +8,7 @@ use crate::cli::{CliError, Invocation, USAGE, parse};
 use crate::crash;
 use crate::host::{
     Appearances, CachedPictures, HelperHost, Hosting, ImageHost, Media, PATH_SETTLE, PathWatch,
-    PlatformDesktop, PluginRegistry, PosterPictures, SETTLE, Services, Store, Watcher,
+    PlatformDesktop, PluginRegistry, PosterPictures, SETTLE, Services, Store, Styling, Watcher,
 };
 use crate::media::{MediaHub, MediaPlugins, NowPlaying, PlayerHost};
 use crate::runtime::PoolSize;
@@ -226,8 +226,15 @@ fn show(
         .inspect_err(|error| log::warn!("changed files will not reload: {error}"))
         .ok()
         .map(Arc::new);
+    let config_root = ConfigRoot::Scratch(env.dirs.config.clone());
+    let styling = Styling::new(
+        ds_settings::Store::new(config_root.clone(), AppName("anyview")),
+        ds_extensions::Search::new(&env.dirs.data, &env.dirs.data_dirs),
+        env.dirs.state.join("quire"),
+    );
     let appearances = runtime.block_on(Appearances::follow(
-        ds_settings::Store::new(ConfigRoot::Scratch(env.dirs.config.clone()), AppName::QUIRE),
+        ds_settings::Store::new(config_root, AppName::QUIRE),
+        styling,
         SystemPrefsSource::Portal,
         Arc::new(TokioSpawner::on(runtime.handle().clone())),
     ));
