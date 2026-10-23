@@ -128,7 +128,6 @@ pub(super) fn CropOverlay(
                 PopUpButton::<CropShape> {
                     items: shapes,
                     value: Some(aspect.shape),
-                    title: Some("Aspect".to_owned()),
                     common: Common {
                         aria_label: Some("Crop shape".to_owned()),
                         ..Common::default()
@@ -145,13 +144,7 @@ pub(super) fn CropOverlay(
                         image: ImagePosition::Only,
                         icon: Some(IconSource::from(Icon::RotateRight)),
                         onclick: move |_| {
-                            onedit
-                                .call(
-                                    PictureEditIn::Hold(CropAspect {
-                                        shape: aspect.shape,
-                                        lean: turned,
-                                    }),
-                                );
+                            onedit.call(PictureEditIn::Hold(CropAspect { shape: aspect.shape, lean: turned }));
                         },
                     }
                 }
