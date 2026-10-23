@@ -69,7 +69,7 @@ fn the_hosts_chords_are_left_unconsumed_and_a_plain_key_is_taken() {
         );
     }
     assert_eq!(host.harness.count(".ds-palette"), 0);
-    assert_eq!(host.harness.count(".viewer-panel"), 0);
+    assert_eq!(host.harness.count(".viewer-panel-view"), 0);
     assert_eq!(host.shown(), ["a.txt"], "and opened nothing");
 
     host.heard.lock().unwrap().clear();
