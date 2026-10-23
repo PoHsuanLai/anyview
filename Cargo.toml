@@ -88,26 +88,26 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "d66e243188
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The look Extension's sheet (`appearance.look`): the folder scan and the chosen look's stylesheet.
-ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
+ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers; its `quire-desktop` PackageKit backend is the binary's).
 # Without that feature ds-helpers is std plus thiserror, serde and toml: anyview-fs, -store and
 # -platform read and write the person's files through its `read_capped` and `write_atomic`.
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78", default-features = false }  # 3dfaadd2 (v0.3.47)
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470", default-features = false }  # 99cffc7d (v0.3.48)
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4bb7f60f5bcf359f712e9d59011b78" }  # 3dfaadd2 (v0.3.47)
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a
@@ -117,7 +117,7 @@ ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "3dfaadd23e4b
 
 # The portable Blitz repairs (own repo, public). Local checkouts redirect it to a sibling path through
 # each workspace root's [patch] (quire/CONSUMING.md section 1); git consumers get this rev.
-blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "ec1fd3e2ea6afb10b91fbe84d0b07a061b17f21a" }
+blitz-kit = { git = "https://github.com/PoHsuanLai/blitz-kit", rev = "1b8edae42d82a6c29284619d9f8fc6931ab04c31", default-features = false }
 
 # The portable keymap core (own repo, public): actions, chords, the resolver and per-platform
 # sources. quire is the one toolkit integration (`ds::keys`); apps declare their actions with it.

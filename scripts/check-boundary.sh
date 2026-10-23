@@ -132,7 +132,8 @@ RULES=(
   "anyview-font: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark zip tar sevenz-rust2 flate2 bzip2 ruzstd lzma-rs lzma-rust2"
   "anyview-peek: mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next zbus ashpd cpal alsa alsa-sys"
   "anyview-pdf: dioxus tokio zbus wgpu mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender image resvg jxl-oxide syntect pulldown-cmark rayon"
-  "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender"
+  # blitz-kit without its default `blitz` feature is the GPU opening lock alone (std, wgpu, serde), which the player takes.
+  "anyview-media: dioxus tokio zbus pdfrum image syntect pulldown-cmark resvg jxl-oxide blitz-dom blitz-paint blitz-traits blitz-html blitz-shell anyrender"
 )
 
 # Dependencies a crate may reach only THROUGH another, never name in its own manifest. anyview-peek

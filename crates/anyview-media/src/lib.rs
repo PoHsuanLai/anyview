@@ -47,7 +47,7 @@ pub use builtin::{
 };
 pub use command::{Direction, MediaCommand, Pace, PictureSlot, ShotContent};
 #[cfg(feature = "player")]
-pub use device::{GPU_OPENING, headless_device};
+pub use device::headless_device;
 #[cfg(feature = "player")]
 pub use driver::{Driver, FrameSink};
 pub use error::MediaError;
