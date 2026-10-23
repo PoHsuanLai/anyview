@@ -184,7 +184,7 @@ fn capsule(harness: &Harness) -> String {
 
 fn selected_row(harness: &Harness) -> String {
     harness
-        .text_of(".ds-row[aria-selected=true]")
+        .text_of(".viewer-stage .ds-row[aria-selected=true]")
         .unwrap_or_default()
 }
 

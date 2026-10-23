@@ -15,9 +15,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use support::{Rig, VIEW, Wired, open_wired, until};
 
-/// A PDF's window: its first page (612 by 792) and the side panel (240 wide), which a PDF opens
+/// A PDF's window: its first page (612 by 792) and the sidebar (232 wide), which a PDF opens
 /// shown, so the page keeps its width.
-const PAGE_AND_PANEL: Extent = Extent::new(612 + 240, 792);
+const PAGE_AND_PANEL: Extent = Extent::new(612 + 232, 792);
 
 /// A folder of `a.pdf` (its first page 612 by 792) and `b.png` (a 900 by 500 picture), opened on
 /// the PDF.

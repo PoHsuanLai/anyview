@@ -545,7 +545,7 @@ fn the_panel_lists_the_tracks_and_the_chapters_and_each_row_tells_the_player() {
         line.sent()
     );
 
-    harness.send(Input::click(tab(&harness, 1)));
+    support::pick_view(&mut harness, "Contents");
     settle(&mut harness);
     assert_eq!(harness.count(".viewer-chapters .ds-row"), 3);
     let chapters = harness.text_of(".viewer-chapters").unwrap_or_default();

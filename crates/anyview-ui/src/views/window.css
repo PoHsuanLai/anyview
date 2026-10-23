@@ -19,16 +19,16 @@
 /* The window is a split view: the sidebar's pane, then the stage. The titlebar lies over both. */
 .viewer-split{ flex:1 1 auto; min-width:0; }
 /* The sidebar: quire's `Sidebar` in a pane of the split view. Its first rows are the views, its
-   second section the chosen view's content. The titlebar lies over the pane, so the sidebar's body
-   starts below it, and the content under the rows fills the sidebar's width. */
-.viewer-panel{ box-sizing:border-box; height:100%; }
-.viewer-panel .ds-sidebar > .ds-sidebar-body:first-child{ padding-top:calc(var(--chrome-titlebar-height) + var(--s-8)); }
-.viewer-panel-view{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8) var(--s-2) 0; }
+   second section the chosen view's content. The titlebar lies over the pane, so the sidebar's header is
+   a gap as tall as the bar, and the content under the rows fills the sidebar's width. */
+.viewer-panel{ display:flex; flex-direction:column; box-sizing:border-box; height:100%; background:var(--surface-2); }
+.viewer-panel-bar{ flex:none; height:var(--chrome-titlebar-height); }
+.viewer-panel .viewer-panel-side{ flex:none; height:calc(var(--sidebar-row-h-m) * var(--viewer-rows) + var(--s-22)); }
+.viewer-panel-view{ flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8) var(--s-12) var(--s-12); }
 .viewer-modes{ display:flex; align-items:center; }
 
-/* A pane is a region of the host's window: it fills that region, not the screen, and its panel has
+/* A pane is a region of the host's window: it fills that region, not the screen, and its sidebar has
    no titlebar to clear. Too narrow to share its room, the sidebar lies over the content instead. */
 .viewer[*|data-hosting=pane]{ height:100%; }
-.viewer[*|data-hosting=pane] .viewer-panel .ds-sidebar > .ds-sidebar-body:first-child{ padding-top:var(--s-12); }
 .viewer-panel-scrim{ position:absolute; top:0; right:0; bottom:0; left:0; z-index:var(--z-raise); }
 .viewer-panel-overlay{ position:absolute; top:0; bottom:0; left:0; z-index:var(--z-raise); box-sizing:border-box; width:80%; max-width:calc(var(--s-12) * 18); box-shadow:var(--shadow-pop); }

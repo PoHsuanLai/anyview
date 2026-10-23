@@ -220,6 +220,9 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             kind,
             facts,
             body,
+            shown: pane_shown,
+            // The titlebar lies over the pane of a window; a pane has none.
+            header: (!hosted).then(|| rsx! { div { class: "viewer-panel-bar" } }),
             onchoose: move |tab: PanelTab| dispatch.send(ViewerIn::Panel(PanelIn::Choose(tab))),
         }
     };
@@ -348,6 +351,17 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 *dropped_layer.write() = false;
             },
             onfocusout: move |_| focus_left(seat, entered, dropped_layer, root, dispatch),
+            // A secondary click on the content opens the context menu at the pointer; over the
+            // capsule or the titlebar it is theirs, and the sidebar's own stops before here. The
+            // window hears it, not the stage, so the strip at the edge of a hidden sidebar counts.
+            oncontextmenu: move |event: MouseEvent| {
+                event.prevent_default();
+                if zone() == Zone::Content {
+                    let at = event.client_coordinates();
+                    let spot = Spot { x: at.x.round() as i32, y: at.y.round() as i32 };
+                    dispatch.send(ViewerIn::Context(ContextIn::Open(spot)));
+                }
+            },
             onpointermove: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerMoved(zone()))),
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             SplitView {
@@ -367,16 +381,6 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                 div {
                     class: "viewer-stage",
                     onmounted: move |event| measured.on_mounted(event),
-                    // A secondary click on the content opens the context menu at the pointer; over the
-                    // capsule or the titlebar it is theirs.
-                    oncontextmenu: move |event: MouseEvent| {
-                        event.prevent_default();
-                        if zone() == Zone::Content {
-                            let at = event.client_coordinates();
-                            let spot = Spot { x: at.x.round() as i32, y: at.y.round() as i32 };
-                            dispatch.send(ViewerIn::Context(ContextIn::Open(spot)));
-                        }
-                    },
                     // The small window has no frame to take hold of: a press on the picture moves it.
                     onpointerdown: move |_| {
                         if let (Presentation::Mini, Some(window)) = (presentation, window.as_ref()) {

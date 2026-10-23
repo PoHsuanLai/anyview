@@ -458,7 +458,13 @@ fn a_pdf_capsule_fits_a_window_at_its_least_width() {
 
 #[test]
 fn a_pdf_that_opens_with_the_panel_shown_asks_for_a_window_the_panel_widens() {
-    let (_dir, _harness, requests) = opened();
+    let (_dir, paths) = fixture();
+    let wiring = Wiring {
+        panel: support::PanelStart::AsOpened,
+        ..Wiring::default()
+    };
+    let (mut harness, requests, _) = wired(&paths, 0, Appearance::default(), wiring);
+    harness.advance(Duration::from_millis(500));
     let sizes: Vec<SizeBasis> = requests
         .lock()
         .unwrap()

@@ -43,7 +43,7 @@ fn selected_row(harness: &Harness) -> Option<String> {
     let held = harness.text_of(".ds-vtable-held .ds-vtable-item[data-selected=yes]");
     let rest = harness
         .text_of(".ds-vtable-rows [aria-selected=true]")
-        .or_else(|| harness.text_of(".ds-row[aria-selected=true]"));
+        .or_else(|| harness.text_of(".viewer-stage .ds-row[aria-selected=true]"));
     match (held, rest) {
         (Some(held), Some(rest)) => Some(format!("{held} {rest}")),
         (held, rest) => rest.or(held),
@@ -178,8 +178,14 @@ fn a_find_in_a_tree_matches_keys_as_well_as_values() {
 
 #[test]
 fn zoom_scales_the_rows_of_a_tree_and_actual_size_returns() {
-    let row_height =
-        |harness: &Harness| harness.rect(".ds-list-item").expect("a row").size.height.0;
+    let row_height = |harness: &Harness| {
+        harness
+            .rect(".viewer-stage .ds-list-item")
+            .expect("a row")
+            .size
+            .height
+            .0
+    };
     let (_dir, paths) = folder_of(&[("deep.json", DEEP.to_owned())]);
     let base = row_height(&window_on(&paths));
     // name, keys pressed, the row height as a share of the actual one

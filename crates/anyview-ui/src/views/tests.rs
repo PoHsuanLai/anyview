@@ -149,6 +149,7 @@ const CASES: &[Case] = &[
                     kind: Some(FormatKind::PlainText),
                     facts: facts(),
                     body: None,
+                    shown: Shown::Visible,
                     onchoose: |_| {},
                 }
             })
@@ -165,6 +166,7 @@ const CASES: &[Case] = &[
                     kind: Some(FormatKind::Raster),
                     facts: photo_facts(),
                     body: None,
+                    shown: Shown::Visible,
                     onchoose: |_| {},
                 }
             })
