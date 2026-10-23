@@ -22,6 +22,8 @@ pub enum Act {
     FindPrevious,
     /// Show or hide the Info tab.
     Info,
+    /// Show or hide the sidebar (the standard Toggle Sidebar).
+    ToggleSidebar,
     /// Close the window (the standard Close).
     Close,
     /// Choose another file to open (the standard Open).
@@ -98,6 +100,7 @@ const STANDARD: &[(StandardAction, Act)] = &[
     (StandardAction::Smaller, Act::ZoomOut),
     (StandardAction::ActualSize, Act::ZoomToActual),
     (StandardAction::SelectAll, Act::SelectAll),
+    (StandardAction::ToggleSidebar, Act::ToggleSidebar),
 ];
 
 impl Act {
@@ -159,6 +162,7 @@ impl Act {
             | Act::FindNext
             | Act::FindPrevious
             | Act::Info
+            | Act::ToggleSidebar
             | Act::Close
             | Act::OpenFile
             | Act::Save

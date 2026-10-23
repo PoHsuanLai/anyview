@@ -126,6 +126,7 @@ pub(super) fn Palette(
             Command::File(_)
             | Command::Stage(_)
             | Command::OpenFile
+            | Command::ToggleSidebar
             | Command::UseTool(_)
             | Command::Picture(_)
             | Command::Markup(_)

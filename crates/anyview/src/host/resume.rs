@@ -2,7 +2,7 @@
 //! asked through its hosting.
 
 use super::desktop::Hosting;
-use anyview_core::{FilePath, FileStamp, Resume, Source};
+use anyview_core::{FilePath, FileStamp, PanelKept, Resume, Source};
 use anyview_ui::{PanelMemory, ResumeSource};
 use std::sync::Arc;
 
@@ -23,7 +23,7 @@ impl ResumeSource for HostedResume {
     }
 }
 
-/// The host's memory of the left panel's width, as the views' [`PanelMemory`].
+/// The host's memory of the left panel's width, whether it is open and its view, as the views' [`PanelMemory`].
 pub struct HostedPanel(pub Arc<dyn Hosting>);
 
 impl std::fmt::Debug for HostedPanel {
@@ -39,5 +39,13 @@ impl PanelMemory for HostedPanel {
 
     fn keep(&self, width: u32) {
         self.0.keep_panel_width(width);
+    }
+
+    fn recall_view(&self) -> Option<PanelKept> {
+        self.0.panel_view()
+    }
+
+    fn keep_view(&self, kept: PanelKept) {
+        self.0.keep_panel_view(kept);
     }
 }

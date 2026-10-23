@@ -3,7 +3,7 @@
 
 use crate::error::StoreError;
 use crate::history::History;
-use anyview_core::{FilePath, FileStamp, Resume};
+use anyview_core::{FilePath, FileStamp, PanelOpen, Resume};
 
 /// What is stored for one file: the memory, with the path and fingerprint it was taken at.
 ///
@@ -21,11 +21,20 @@ pub(crate) struct ResumeRecord {
     pub resume: Resume,
 }
 
-/// What is stored of the left panel: the width the person left it at, in logical pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// What is stored of the left panel: the width the person left it at, in logical pixels, whether
+/// it was open and the view it was on. Each is kept on its own, so a record from an older build
+/// has only the width.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct PanelRecord {
     /// The panel's width.
-    pub width: u32,
+    #[serde(default)]
+    pub width: Option<u32>,
+    /// Whether it was open.
+    #[serde(default)]
+    pub open: Option<PanelOpen>,
+    /// The view it was last on.
+    #[serde(default)]
+    pub view: Option<String>,
 }
 
 /// The name a path's record is stored under: its FNV-1a hash in 16 hex digits. FNV is written out

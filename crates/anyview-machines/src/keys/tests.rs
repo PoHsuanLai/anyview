@@ -237,6 +237,15 @@ const CASES: &[Case] = &[
         Route::Panel(PanelIn::Close),
     ),
     (
+        "the toggle sidebar action toggles the panel",
+        Chord(Act::ToggleSidebar),
+        Sheet::Closed,
+        Palette::Closed,
+        INFO,
+        IMAGE,
+        Route::Panel(PanelIn::Toggle),
+    ),
+    (
         "close closes the window",
         Chord(Act::Close),
         Sheet::Closed,
@@ -264,20 +273,11 @@ const CASES: &[Case] = &[
         Route::Stage(StageIn::Pdf(PdfIn::CloseFind)),
     ),
     (
-        "Esc closes the panel when the stage has nothing open",
+        "Esc with nothing open is a dismissal, and never hides the sidebar",
         Plain(&[Escape]),
         Sheet::Closed,
         Palette::Closed,
         INFO,
-        IMAGE,
-        Route::Panel(PanelIn::Close),
-    ),
-    (
-        "Esc with nothing open is a dismissal",
-        Plain(&[Escape]),
-        Sheet::Closed,
-        Palette::Closed,
-        Panel::Hidden,
         IMAGE,
         Route::Dismiss,
     ),
@@ -686,6 +686,11 @@ fn a_hosted_viewer_hears_no_chord_and_its_plain_keys_still_route() {
     let cases: Vec<(&str, In, Route)> = vec![
         ("the palette's chord", Chord(Act::Palette), Route::Swallowed),
         ("Info", Chord(Act::Info), Route::Swallowed),
+        (
+            "Toggle Sidebar",
+            Chord(Act::ToggleSidebar),
+            Route::Swallowed,
+        ),
         ("Open", Chord(Act::OpenFile), Route::Swallowed),
         ("Close", Chord(Act::Close), Route::Swallowed),
         (

@@ -16,21 +16,19 @@
    in it. */
 .viewer-scrolls{ top:var(--chrome-titlebar-height); }
 .viewer[*|data-hosting=pane] .viewer-scrolls{ top:0; }
-/* The window is a split view: the left panel's pane, then the stage. The titlebar lies over both. */
+/* The window is a split view: the sidebar's pane, then the stage. The titlebar lies over both. */
 .viewer-split{ flex:1 1 auto; min-width:0; }
-/* The panel's body: padded by the window's own step, and by the titlebar's height at the top so
-   the bar never covers the top of its tabs. Thumbnails and the card fill its width. */
-.viewer-panel{ display:flex; flex-direction:column; gap:var(--s-12); box-sizing:border-box; height:100%; overflow-y:auto; padding:calc(var(--chrome-titlebar-height) + var(--s-8)) var(--s-12) var(--s-12); background:var(--surface); }
-.viewer-panel-tabs{ display:flex; justify-content:center; min-width:0; }
-/* The tabs shrink with the panel: equal columns that may go below their words (the control is
-   small, so the three of a PDF's fit its least width whole), and a segment that still does not fit
-   is cut at its edge rather than running into the next. */
-.viewer-panel-tabs .viewer-panel-segments{ grid-auto-columns:minmax(0, 1fr); min-width:0; max-width:100%; }
-.viewer-panel-segments > button{ min-width:0; overflow:hidden; }
+/* The sidebar: quire's `Sidebar` in a pane of the split view. Its first rows are the views, its
+   second section the chosen view's content. The titlebar lies over the pane, so the sidebar's body
+   starts below it, and the content under the rows fills the sidebar's width. */
+.viewer-panel{ box-sizing:border-box; height:100%; }
+.viewer-panel .ds-sidebar > .ds-sidebar-body:first-child{ padding-top:calc(var(--chrome-titlebar-height) + var(--s-8)); }
+.viewer-panel-view{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8) var(--s-2) 0; }
 .viewer-modes{ display:flex; align-items:center; }
 
 /* A pane is a region of the host's window: it fills that region, not the screen, and its panel has
-   no titlebar to clear. Too narrow to share its room, the panel lies over the content instead. */
+   no titlebar to clear. Too narrow to share its room, the sidebar lies over the content instead. */
 .viewer[*|data-hosting=pane]{ height:100%; }
-.viewer[*|data-hosting=pane] .viewer-panel{ padding-top:var(--s-12); }
+.viewer[*|data-hosting=pane] .viewer-panel .ds-sidebar > .ds-sidebar-body:first-child{ padding-top:var(--s-12); }
+.viewer-panel-scrim{ position:absolute; top:0; right:0; bottom:0; left:0; z-index:var(--z-raise); }
 .viewer-panel-overlay{ position:absolute; top:0; bottom:0; left:0; z-index:var(--z-raise); box-sizing:border-box; width:80%; max-width:calc(var(--s-12) * 18); box-shadow:var(--shadow-pop); }

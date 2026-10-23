@@ -1,7 +1,7 @@
 //! The viewer's memory on disk, written from whichever worker has something to keep. The store
 //! has one writer (anyview-store), so every window of the process goes through this one lock.
 
-use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
+use anyview_core::{FilePath, FileStamp, FormatKind, PanelKept, Resume};
 use anyview_store::{Clock, HistoryCap, SavedAt, StoreError, StoreWriter};
 use std::path::Path;
 use std::sync::{Mutex, PoisonError};
@@ -69,5 +69,17 @@ impl Store {
     pub fn keep_panel_width(&self, width: u32) -> Result<(), StoreError> {
         let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
         writer.save_panel_width(width)
+    }
+
+    /// Whether the person left the left panel open, and on which view, if that was kept. Blocking.
+    pub fn panel_view(&self) -> Result<Option<PanelKept>, StoreError> {
+        let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
+        writer.load_panel_view()
+    }
+
+    /// Keep whether the person left the left panel open, and on which view. Blocking.
+    pub fn keep_panel_view(&self, kept: &PanelKept) -> Result<(), StoreError> {
+        let writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
+        writer.save_panel_view(kept)
     }
 }

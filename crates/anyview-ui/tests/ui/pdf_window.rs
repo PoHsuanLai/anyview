@@ -241,12 +241,7 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
     let (_dir, mut harness, _) = opened();
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    harness.send(Input::click(
-        harness
-            .centre(".viewer-panel-tabs .ds-segmented-segment")
-            .unwrap(),
-    ));
-    settle(&mut harness);
+    support::pick_view(&mut harness, "Thumbnails");
     assert_eq!(
         harness.count(".viewer-thumb"),
         3,
@@ -280,16 +275,8 @@ fn the_panel_lists_the_pages_and_the_outline_and_each_goes_to_its_page() {
         capsule(&harness)
     );
 
-    // The outline is the second tab: four bookmarks, each to its page.
-    let tabs = |harness: &Harness, at: usize| {
-        harness
-            .centre(&format!(
-                ".viewer-panel-tabs .ds-segmented-segment:nth-child({at})"
-            ))
-            .unwrap()
-    };
-    harness.send(Input::click(tabs(&harness, 2)));
-    settle(&mut harness);
+    // The outline is the second view: four bookmarks, each to its page.
+    support::pick_view(&mut harness, "Contents");
     assert_eq!(
         harness.count(".viewer-outline .ds-list-item"),
         4,
@@ -314,12 +301,7 @@ fn the_outline_folds_with_its_triangle_and_with_the_left_and_right_keys() {
     let (_dir, mut harness, _) = opened();
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    harness.send(Input::click(
-        harness
-            .centre(".viewer-panel-tabs .ds-segmented-segment:nth-child(2)")
-            .unwrap(),
-    ));
-    settle(&mut harness);
+    support::pick_view(&mut harness, "Contents");
     let rows = |harness: &Harness| harness.count(".viewer-outline .ds-list-item");
     assert_eq!(rows(&harness), 4, "Chapter One opens with its section");
     // The triangle of Chapter One folds its section away.
@@ -492,10 +474,10 @@ fn a_pdf_that_opens_with_the_panel_shown_asks_for_a_window_the_panel_widens() {
     let [SizeBasis::Natural(NaturalSize::Points(size))] = sizes[..] else {
         panic!("one size from the loaded page, in points: {sizes:?}");
     };
-    // The first page is 612 by 792; the panel (240) opens beside it, so the page keeps its width.
+    // The first page is 612 by 792; the sidebar (232) opens beside it, so the page keeps its width.
     assert_eq!(
         (size.width.0, size.height.0),
-        (612 + 240, 792),
-        "the window is the page and the panel"
+        (612 + 232, 792),
+        "the window is the page and the sidebar"
     );
 }

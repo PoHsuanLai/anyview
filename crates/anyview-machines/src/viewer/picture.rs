@@ -206,6 +206,7 @@ pub(super) fn answered(
             | ViewerOut::Load(_)
             | ViewerOut::Chrome(_)
             | ViewerOut::Panel(_)
+            | ViewerOut::PanelSaid { .. }
             | ViewerOut::Palette(_)
             | ViewerOut::Preload(_)
             | ViewerOut::Presentation(_)

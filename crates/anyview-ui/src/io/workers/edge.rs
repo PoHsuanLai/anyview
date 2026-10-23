@@ -9,7 +9,7 @@ use super::requests::HostRequest;
 use super::work::{Reply, Work, Workers};
 use crate::Ticket;
 use anyview_core::work::Stop;
-use anyview_core::{FilePath, Helper};
+use anyview_core::{FilePath, Helper, PanelKept};
 use anyview_machines::{PlatformAbilities, SaveEnd};
 use anyview_text::Highlighter;
 use ds_blitz::TextureHandle;
@@ -175,6 +175,19 @@ impl Edge {
     /// The person left the left panel `width` logical pixels wide: the host keeps it.
     pub fn keep_panel_width(&self, width: u32) {
         self.seams.panel.keep(width);
+    }
+
+    /// Whether the person left the left panel open, and on which view (a slug), when the host
+    /// remembers it.
+    #[must_use]
+    pub fn panel_view(&self) -> Option<PanelKept> {
+        self.seams.panel.recall_view()
+    }
+
+    /// The left panel is now open or shut, on `kept.view` (`None` leaves the view kept): the host
+    /// keeps it.
+    pub fn keep_panel_view(&self, kept: PanelKept) {
+        self.seams.panel.keep_view(kept);
     }
 
     /// Whether this edge was given a keeper, so the window writes the views and places itself.

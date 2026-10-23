@@ -22,6 +22,7 @@ mod helper;
 mod kind;
 mod markup;
 mod media;
+mod panel;
 mod peek;
 mod percent;
 pub mod prelude;
@@ -65,6 +66,7 @@ pub use markup::{
     PageRect,
 };
 pub use media::{MediaChapter, MediaTags, MediaTrack, StreamKind, TrackPlay, VideoPresence};
+pub use panel::{PanelKept, PanelOpen};
 pub use peek::{Deadline, Peek, PeekBudget, StageSupport};
 pub use percent::percent_decode;
 pub use profile::{actions_for, edits_for, mime_for, stage_support};

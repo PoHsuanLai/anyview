@@ -35,19 +35,41 @@ pub(super) fn panel(
     at: Stamp,
     params: &ViewerParams,
 ) -> Step {
+    use crate::panel::{Panel, PanelIn};
     // The person's own opening, closing or switching is their word on the panel; the file
     // changing under it (`TabsChanged`) is not.
-    let panel_said = match input {
-        crate::panel::PanelIn::Toggle
-        | crate::panel::PanelIn::Choose(_)
-        | crate::panel::PanelIn::Close => super::model::PanelSay::Said,
-        crate::panel::PanelIn::TabsChanged | crate::panel::PanelIn::Elapsed => viewer.panel_said,
+    let said = match input {
+        PanelIn::Toggle | PanelIn::Choose(_) | PanelIn::Close => true,
+        PanelIn::TabsChanged | PanelIn::Elapsed => false,
     };
-    let (panel, outs) = stepped(viewer.panel, input, at, &params.panel, ViewerOut::Panel);
+    // A bare toggle opens the panel on the view it was last on, when the file has it.
+    let input = match (input, viewer.panel, viewer.panel_last) {
+        (PanelIn::Toggle, Panel::Hidden, Some(last)) if params.panel.tabs.contains(last) => {
+            PanelIn::Choose(last)
+        }
+        (input, _, _) => input,
+    };
+    let (panel, mut outs) = stepped(viewer.panel, input, at, &params.panel, ViewerOut::Panel);
+    let panel_last = match panel {
+        Panel::Shown { tab } if said => Some(tab),
+        Panel::Shown { tab: _ } | Panel::Hidden => viewer.panel_last,
+    };
+    if said && (panel != viewer.panel || panel_last != viewer.panel_last) {
+        outs.push(ViewerOut::PanelSaid {
+            panel,
+            last: panel_last,
+        });
+    }
+    let panel_said = if said {
+        super::model::PanelSay::Said
+    } else {
+        viewer.panel_said
+    };
     (
         Viewer {
             panel,
             panel_said,
+            panel_last,
             ..viewer
         },
         outs,

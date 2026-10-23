@@ -26,6 +26,7 @@ pub(in crate::views) fn offered_slots(
                 Command::File(action) => files.contains(&action),
                 Command::Stage(_)
                 | Command::OpenFile
+                | Command::ToggleSidebar
                 | Command::UseTool(_)
                 | Command::Picture(_)
                 | Command::Markup(_)

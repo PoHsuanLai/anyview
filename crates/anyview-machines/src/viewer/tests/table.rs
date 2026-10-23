@@ -48,9 +48,20 @@ const CASES: &[Case] = &[
                 tab: PanelTab::Info,
             },
             panel_said: PanelSay::Said,
+            panel_last: Some(PanelTab::Info),
             ..Viewer::default()
         },
-        || vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Info))],
+        || {
+            vec![
+                ViewerOut::Panel(PanelOut::Show(PanelTab::Info)),
+                ViewerOut::PanelSaid {
+                    panel: Panel::Shown {
+                        tab: PanelTab::Info,
+                    },
+                    last: Some(PanelTab::Info),
+                },
+            ]
+        },
     ),
     (
         "a PDF's probe opens the panel on its pages until the person has said otherwise",

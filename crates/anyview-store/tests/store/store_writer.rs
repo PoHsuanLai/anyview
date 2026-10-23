@@ -2,7 +2,9 @@
 
 use crate::support;
 
-use anyview_core::{FilePath, FormatKind, LineIndex, PageIndex, Permille, Resume, Zoom};
+use anyview_core::{
+    FilePath, FormatKind, LineIndex, PageIndex, PanelKept, PanelOpen, Permille, Resume, Zoom,
+};
 use anyview_store::{
     HistoryCap, HistoryRead, ResumeLabel, StoreError, StoreWriter, Viewed, read_history,
 };
@@ -150,6 +152,44 @@ fn the_panel_width_comes_back_once_saved_and_a_damaged_record_is_an_error() {
         writer.load_panel_width(),
         Err(StoreError::Corrupt { .. })
     ));
+}
+
+#[test]
+fn the_panel_view_is_kept_beside_its_width_and_a_close_keeps_the_view() {
+    let scratch = tempfile::tempdir().unwrap();
+    let writer = StoreWriter::new(scratch.path().join("store"), cap(10));
+    assert_eq!(writer.load_panel_view().unwrap(), None, "nothing saved yet");
+    writer.save_panel_width(288).unwrap();
+    assert_eq!(
+        writer.load_panel_view().unwrap(),
+        None,
+        "a width is not a word on the view"
+    );
+    let open = PanelKept {
+        open: PanelOpen::Open,
+        view: Some("contents".to_owned()),
+    };
+    writer.save_panel_view(&open).unwrap();
+    assert_eq!(writer.load_panel_view().unwrap(), Some(open));
+    writer
+        .save_panel_view(&PanelKept {
+            open: PanelOpen::Closed,
+            view: None,
+        })
+        .unwrap();
+    assert_eq!(
+        writer.load_panel_view().unwrap(),
+        Some(PanelKept {
+            open: PanelOpen::Closed,
+            view: Some("contents".to_owned()),
+        }),
+        "closed, and still on the view it was on"
+    );
+    assert_eq!(
+        writer.load_panel_width().unwrap(),
+        Some(288),
+        "the width stays"
+    );
 }
 
 #[test]

@@ -8,6 +8,7 @@ use super::region::{Step, presentation, sheet, stage};
 use crate::command::{Command, PictureCommand, StageCommand};
 use crate::edits::{EditOffer, EditRequest};
 use crate::hand::HandIn;
+use crate::panel::PanelIn;
 use crate::picture::PictureEditIn;
 use crate::presentation::{Presentation, PresentationIn};
 use crate::sheet::{Departure, ExportDraft, ExportFamily, SheetIn, Wanted};
@@ -52,6 +53,7 @@ pub(super) fn run(viewer: Viewer, command: Command, at: Stamp, params: &ViewerPa
             }
         }
         Command::OpenFile => super::opening::choose(viewer),
+        Command::ToggleSidebar => super::region::panel(viewer, PanelIn::Toggle, at, params),
         Command::Install(helper) => sheet(viewer, SheetIn::OfferHelper(helper), at, params),
     }
 }

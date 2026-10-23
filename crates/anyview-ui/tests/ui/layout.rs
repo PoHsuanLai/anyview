@@ -244,7 +244,7 @@ fn a_window_resized_down_and_back_keeps_its_zoom_and_the_capsule_hits_where_it_i
 }
 
 #[test]
-fn the_titlebar_does_not_cover_the_top_of_the_panel_tabs() {
+fn the_titlebar_does_not_cover_the_top_of_the_sidebars_rows() {
     let (_d, mut h) = open("pdf", 612, 792, 100);
     pointer(&mut h, 612, 792);
     h.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
@@ -255,12 +255,12 @@ fn the_titlebar_does_not_cover_the_top_of_the_panel_tabs() {
         Some("visible")
     );
     let bar = all(&h, ".viewer-titlebar")[0];
-    let tabs = all(&h, ".ds-segmented")[0];
+    let rows = all(&h, ".viewer-panel .ds-list-item")[0];
     assert!(
-        tabs.y >= bar.y + bar.h,
-        "STEP_FAIL|L-panel-titlebar|the tabs start below the titlebar's bottom {} → they start at {}|pdf 612x792@100, the info chord, move the pointer",
+        rows.y >= bar.y + bar.h,
+        "STEP_FAIL|L-panel-titlebar|the rows start below the titlebar's bottom {} → they start at {}|pdf 612x792@100, the info chord, move the pointer",
         bar.y + bar.h,
-        tabs.y
+        rows.y
     );
 }
 
@@ -294,10 +294,10 @@ fn a_stage_that_scrolls_a_document_from_its_top_starts_below_the_titlebar() {
     }
 }
 
-/// The tabs of the PDF's panel, whole, inside the panel: the panel at its width (900), and over a
-/// narrow window, where it is less than its least (380, 200).
+/// The rows of the PDF's sidebar, whole, inside the sidebar: the sidebar at its width (900), and
+/// over a narrow window, where it is less than its least (380, 200).
 #[test]
-fn the_panel_tabs_fit_inside_the_panel_at_each_window_width_and_scale() {
+fn the_sidebar_rows_fit_inside_the_sidebar_at_each_window_width_and_scale() {
     for scale in [100, 200] {
         for (w, ht) in [(900, 600), (380, 520), (200, 150)] {
             let (_d, mut h) = open("pdf", w, ht, scale);
@@ -306,20 +306,18 @@ fn the_panel_tabs_fit_inside_the_panel_at_each_window_width_and_scale() {
                 settle(&mut h);
             }
             let panel = all(&h, ".viewer-panel")[0];
-            let tabs = all(&h, ".viewer-panel-tabs .ds-segmented")[0];
-            let segments = all(&h, ".viewer-panel-tabs .ds-segmented-segment");
-            let label = format!("{w}x{ht}@{scale}: tabs {tabs:?} in panel {panel:?}");
-            assert!(
-                tabs.x >= panel.x - 0.5 && tabs.x + tabs.w <= panel.x + panel.w + 0.5,
-                "L-tabs: the control is clipped by the panel, {label}"
+            let rows = all(
+                &h,
+                ".viewer-panel .ds-sidebar-section:first-child .ds-list-item",
             );
-            assert_eq!(segments.len(), 3, "{label}");
-            for segment in segments {
+            let label = format!("{w}x{ht}@{scale}: rows {rows:?} in sidebar {panel:?}");
+            assert_eq!(rows.len(), 3, "{label}");
+            for row in rows {
                 assert!(
-                    segment.w > 0.0
-                        && segment.x >= tabs.x - 0.5
-                        && segment.x + segment.w <= tabs.x + tabs.w + 0.5,
-                    "L-tabs: a segment {segment:?} is outside the control, {label}"
+                    row.w > 0.0
+                        && row.x >= panel.x - 0.5
+                        && row.x + row.w <= panel.x + panel.w + 0.5,
+                    "L-tabs: a row {row:?} is outside the sidebar, {label}"
                 );
             }
         }

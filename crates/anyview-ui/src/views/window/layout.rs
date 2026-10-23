@@ -1,37 +1,36 @@
-//! The window's layout rules: how wide the left panel may be dragged, when it lies over the
+//! The window's layout rules: how wide the sidebar may be dragged, when it lies over the
 //! content, how much of the titlebar the mode control takes, and whether the capsule draws at all.
 
 use super::super::chrome::BarRoom;
 use crate::Command;
 use crate::families::Area;
+use ds::components::app::spaces::SIDEBAR_MIN_WIDTH;
 use ds::components::chrome::capsule::fit::{SlotShown, fit};
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec};
 use ds::prelude::*;
 
-/// The least the left panel is dragged to, in logical pixels.
-const PANEL_LEAST: u32 = 220;
-
-/// The most the left panel is dragged to, in logical pixels.
+/// The most the sidebar is dragged to, in logical pixels.
 const PANEL_MOST: u32 = 320;
 
-/// The left panel's pane: 240 wide by default, or the width the person left it at, between 220 and
-/// 320, and it folds away when dragged past half its least. It sits beside the stage, so opening
-/// it shrinks the stage and not the window. A width kept from another launch is held to that
-/// range, so a stale or edited value cannot give a pane the drag would not.
+/// The sidebar's pane: 232 wide by default, or the width the person left it at, between quire's
+/// least for a sidebar (what its rows need) and 320, and it folds away when dragged past half its
+/// least. It sits beside the stage, so opening it shrinks the stage and not the window. A width
+/// kept from another launch is held to that range, so a stale or edited value cannot give a pane
+/// the drag would not.
 pub(super) fn panel_pane(kept: Option<u32>) -> PaneSpec {
     let width = kept.map_or(super::super::panel::WIDTH, |kept| {
-        kept.clamp(PANEL_LEAST, PANEL_MOST)
+        kept.clamp(SIDEBAR_MIN_WIDTH as u32, PANEL_MOST)
     });
     PaneSpec {
         preferred: PaneSize::Fixed(Px(width as f32)),
-        min: PaneSize::Fixed(Px(PANEL_LEAST as f32)),
+        min: PaneSize::Fixed(Px(SIDEBAR_MIN_WIDTH)),
         max: PaneSize::Fixed(Px(PANEL_MOST as f32)),
         collapsing: Collapsing::Snaps,
     }
 }
 
-/// The width of the left panel in `sizes`, the sizes a split view reports once a drag settles, in
+/// The width of the sidebar in `sizes`, the sizes a split view reports once a drag settles, in
 /// whole logical pixels.
 pub(super) fn panel_width_in(sizes: &[PaneSize]) -> Option<u32> {
     match sizes.first()? {
@@ -40,7 +39,7 @@ pub(super) fn panel_width_in(sizes: &[PaneSize]) -> Option<u32> {
     }
 }
 
-/// Below this width the info panel lies over the content instead of beside it (a pane or a window
+/// Below this width the sidebar lies over the content instead of beside it (a pane or a window
 /// alike): opening it would leave the content too little room.
 pub(super) const NARROW_BELOW: f32 = 480.0;
 

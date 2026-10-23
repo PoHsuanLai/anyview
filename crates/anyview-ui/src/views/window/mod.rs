@@ -39,6 +39,7 @@ use crate::{
 use anyview_core::FilePath;
 use chordkit::Context;
 use dioxus::prelude::*;
+use ds::components::app::edge_peek::EdgePeek;
 use ds::components::chrome::split_view::model::{PaneSize, SplitPane};
 use ds::components::chrome::split_view::view::SplitView;
 use ds::components::chrome::titlebar_parts::DocumentState;
@@ -222,7 +223,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             onchoose: move |tab: PanelTab| dispatch.send(ViewerIn::Panel(PanelIn::Choose(tab))),
         }
     };
-    // A pane too narrow to share its room with the panel lays the panel over the content.
+    // A pane too narrow to share its room with the sidebar lays it over the content.
     let overlay = whole().is_some_and(|whole| whole.size.width.0 < NARROW_BELOW)
         && pane_shown == Shown::Visible;
     // How much of the titlebar the mode control takes, by the window's width.
@@ -237,13 +238,29 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             panel_kept.keep_panel_width(width);
         }
     };
+    // Opening it again is on the view it was last on, when the file has it.
+    let reopened = if panel_shown == Shown::Visible {
+        panel_tab
+    } else {
+        tabs.showing(state.panel_last.unwrap_or(panel_tab))
+    };
     // A pane dragged open or shut asks the machine for the same: opening is idempotent (the tab
-    // is the one the panel would show), so a drag that reports it twice does not close it again.
+    // is the one the sidebar would show), so a drag that reports it twice does not close it again.
     let panel_wanted = move |(_, shown): (usize, Shown)| {
         dispatch.send(ViewerIn::Panel(match shown {
-            Shown::Visible => PanelIn::Choose(panel_tab),
+            Shown::Visible => PanelIn::Choose(reopened),
             Shown::Hidden => PanelIn::Close,
         }));
+    };
+    // Folded away, the sidebar peeks from the window's edge while the pointer is there, and a
+    // click on the edge opens it again.
+    let pane_body = rsx! {
+        EdgePeek {
+            label: "Sidebar",
+            pinned: pane_shown,
+            onpin: move |()| dispatch.send(ViewerIn::Panel(PanelIn::Choose(reopened))),
+            {panel.clone()}
+        }
     };
     let (hit_lines, found) = find_hits(&state, current.as_ref().map(|(_, doc)| doc), &cx, hosted);
     let pane_hits = hit_lines.clone();
@@ -335,11 +352,11 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             onpointerleave: move |_| dispatch.send(ViewerIn::Chrome(ChromeIn::PointerLeft)),
             SplitView {
                 label: "Viewer",
-                // A folded pane leaves the split view altogether: its divider would take a strip at the
-                // stage's left edge (a right-click there, a drag that starts there).
-                panes: match (pane_shown, overlay) {
-                    (Shown::Visible, false) => vec![SplitPane::new(panel_spec, panel.clone())],
-                    (Shown::Visible, true) | (Shown::Hidden, _) => Vec::new(),
+                // A file with no views has no sidebar, and a narrow window lays it over the stage.
+                panes: if tabs.first().is_some() && !overlay {
+                    vec![SplitPane::new(panel_spec, pane_body).shown(pane_shown).peeking()]
+                } else {
+                    Vec::new()
                 },
                 on_shown: panel_wanted,
                 on_resized: panel_resized,
@@ -381,6 +398,10 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
                         }
                     }
                     if overlay {
+                        div {
+                            class: "viewer-panel-scrim",
+                            onclick: move |_| dispatch.send(ViewerIn::Panel(PanelIn::Close)),
+                        }
                         div { class: "viewer-panel-overlay", {panel} }
                     }
                     if capsule_drawn && !slots.is_empty() {

@@ -13,7 +13,11 @@ use ds::file_drop::drag::{FileDragInput, Offer};
 use ds::prelude::{Appearance, Point, Px, ShortcutKey};
 use ds_harness::{Harness, Input, Viewport};
 use std::path::PathBuf;
-use support::{Memory, PanelStart, Requests, Wiring, settle, wired};
+use std::sync::Arc;
+use support::{
+    KeptPanel, Memory, PanelStart, Requests, Wiring, pick_view, picked_view, settle,
+    toggle_sidebar, wired,
+};
 
 const SCALES: [u16; 2] = [100, 200];
 
@@ -354,20 +358,21 @@ fn the_side_panel_stays_open_from_file_to_file_on_the_same_tab_or_the_first() {
         };
         let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
         settle(&mut harness);
-        // The panel opened on the pages. (A click on a tab would leave the keyboard in the tab
-        // control, whose arrows move between tabs, so the arrow below would not walk the folder.)
+        // The panel opened on the pages. (A click on a row would leave the keyboard in the list,
+        // whose arrows move between rows, so the arrow below would not walk the folder.)
         let tabs = |harness: &Harness| {
             (
                 harness.attr(".ds-split-pane", "data-shown"),
-                harness.text_of(".viewer-panel .ds-segmented"),
-                harness.text_of(".viewer-panel [data-selected=selected]"),
+                harness.text_of(".viewer-panel .ds-sidebar-section:first-child"),
+                picked_view(harness),
             )
         };
         let on_pdf = tabs(&harness);
         assert_eq!(on_pdf.0.as_deref(), Some("visible"), "{scale}: {on_pdf:?}");
-        assert!(
-            on_pdf.2.as_deref().is_some_and(|tab| !tab.is_empty()),
-            "{scale}: a tab is chosen: {on_pdf:?}"
+        assert_eq!(
+            on_pdf.2.as_deref(),
+            Some("Thumbnails"),
+            "{scale}: the pages are chosen: {on_pdf:?}"
         );
         next(&mut harness, Arrival::Arrow, &files[1]);
         assert_eq!(
@@ -408,7 +413,7 @@ fn sizes_of(requests: &Requests) -> Vec<SizeBasis> {
 }
 
 #[test]
-fn a_pdf_opens_its_panel_on_the_pages_and_a_closed_panel_stays_closed_for_the_next() {
+fn a_pdf_opens_its_sidebar_on_the_pages_and_a_closed_sidebar_stays_closed_for_the_next() {
     for scale in SCALES {
         let (_dir, files) = pair("anyview-ui", "formats/multi.pdf", "pdf");
         let wiring = Wiring {
@@ -422,26 +427,74 @@ fn a_pdf_opens_its_panel_on_the_pages_and_a_closed_panel_stays_closed_for_the_ne
             Some("visible"),
             "{scale}: the pages are beside the first page"
         );
-        assert!(
-            harness.count(".viewer-panel .ds-segmented") > 0,
-            "{scale}: the pages tab is one of several"
-        );
-        let on_pages = harness.text_of(".viewer-panel [data-selected=selected]");
-        assert!(
-            on_pages.is_some_and(|label| !label.is_empty()),
-            "{scale}: a tab is chosen"
+        assert_eq!(
+            picked_view(&harness).as_deref(),
+            Some("Thumbnails"),
+            "{scale}: the pages are the view chosen"
         );
         press(&mut harness, ShortcutKey::Escape);
         assert_eq!(
-            harness.attr(".ds-split-pane", "data-shown"),
-            None,
-            "{scale}: Esc puts the panel away"
+            harness.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some("visible"),
+            "{scale}: Esc leaves the sidebar open"
+        );
+        toggle_sidebar(&mut harness);
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some("hidden"),
+            "{scale}: Toggle Sidebar puts it away"
         );
         next(&mut harness, Arrival::Arrow, &files[1]);
         assert_eq!(
-            harness.attr(".ds-split-pane", "data-shown"),
-            None,
-            "{scale}: the next PDF does not bring back a panel the person closed"
+            harness.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some("hidden"),
+            "{scale}: the next PDF does not bring back a sidebar the person closed"
+        );
+    }
+}
+
+#[test]
+fn a_new_window_has_the_sidebar_as_the_person_left_it() {
+    for scale in SCALES {
+        let (_dir, files) = pair("anyview-ui", "formats/multi.pdf", "pdf");
+        let kept = KeptPanel::blank();
+        let window = || {
+            let wiring = Wiring {
+                panel: PanelStart::AsOpened,
+                sidebar: Some(Arc::clone(&kept)),
+                ..viewport(scale)
+            };
+            let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
+            settle(&mut harness);
+            harness
+        };
+        let shown = |harness: &Harness| {
+            (
+                harness.attr(".ds-split-pane", "data-shown"),
+                picked_view(harness),
+            )
+        };
+        let mut first = window();
+        pick_view(&mut first, "Contents");
+        assert_eq!(
+            shown(&first),
+            (Some("visible".to_owned()), Some("Contents".to_owned())),
+            "{scale}: the person picked the outline"
+        );
+        drop(first);
+        let mut second = window();
+        assert_eq!(
+            shown(&second),
+            (Some("visible".to_owned()), Some("Contents".to_owned())),
+            "{scale}: the next window opens on it, not on the pages"
+        );
+        toggle_sidebar(&mut second);
+        drop(second);
+        let third = window();
+        assert_eq!(
+            third.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some("hidden"),
+            "{scale}: and shut when it was left shut, though a PDF would open it"
         );
     }
 }

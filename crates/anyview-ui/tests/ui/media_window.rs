@@ -513,14 +513,8 @@ fn the_panel_lists_the_tracks_and_the_chapters_and_each_row_tells_the_player() {
     settle(&mut harness);
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    let tab = |harness: &Harness, at: usize| {
-        harness
-            .centre(&format!(".ds-segmented-segment:nth-child({at})"))
-            .unwrap()
-    };
-    // The tabs are in the panel's own order: Contents, Info, Tracks.
-    harness.send(Input::click(tab(&harness, 3)));
-    settle(&mut harness);
+    // The views are in the sidebar's own order: Contents, Info, Tracks.
+    support::pick_view(&mut harness, "Tracks");
     let tracks = harness.text_of(".viewer-tracks").unwrap_or_default();
     for want in [
         "Main",
@@ -658,7 +652,7 @@ fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_
     );
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    assert_eq!(harness.count(".ds-segmented-segment"), 3, "all three tabs");
+    assert_eq!(support::view_count(&harness), 3, "all three views");
 
     let Opened {
         mut harness,
@@ -709,9 +703,9 @@ fn a_player_that_cannot_change_speed_or_choose_tracks_is_offered_none_of_it_and_
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
     assert_eq!(
-        harness.count(".ds-segmented-segment"),
-        0,
-        "only the facts: no tabs"
+        support::view_count(&harness),
+        1,
+        "only the facts: Info is the one view"
     );
 }
 

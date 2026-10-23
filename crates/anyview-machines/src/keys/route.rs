@@ -20,8 +20,8 @@ use ds_core::vocab::ShortcutKey;
 /// palette, then the context menu, then the global actions (the palette, Info, Close, Open, Save,
 /// Undo, Redo, the Menu key, Esc), then the stage, then navigation, then the chrome.
 ///
-/// Esc undoes the innermost thing: what the stage has open (a find, a scrub), then the
-/// panel, then the quick look itself (or, in a pane, the focus). With `chords` off, an action
+/// Esc undoes the innermost thing: what the stage has open (a find, a scrub), then the quick look
+/// itself (or, in a pane, the focus). It never hides the sidebar, as in Preview. With `chords` off, an action
 /// goes nowhere.
 pub fn route(press: &Press, regions: Regions<'_>) -> Route {
     let keys = press.keys();
@@ -96,6 +96,7 @@ fn global(press: &Press, regions: &Regions<'_>) -> Option<Route> {
             Act::Palette => Some(Route::OpenPalette),
             Act::Find if can_find(regions.stage) => Some(Route::OpenFind),
             Act::Info => Some(Route::Panel(info_toggle(regions.panel))),
+            Act::ToggleSidebar => Some(Route::Panel(PanelIn::Toggle)),
             Act::Close => Some(Route::CloseWindow),
             Act::Save
                 if matches!(
@@ -145,7 +146,7 @@ fn can_find(stage: &Stage) -> bool {
     stage.find_input(&TypedText::EMPTY).is_some()
 }
 
-/// Info: close the panel when it already shows Info, otherwise show Info.
+/// Info: close the sidebar when it already shows Info, otherwise show Info.
 fn info_toggle(panel: &Panel) -> PanelIn {
     match panel {
         Panel::Shown {
@@ -176,10 +177,7 @@ fn escape(regions: &Regions<'_>) -> Route {
     if let Some(input) = regions.stage.dismissal() {
         return Route::Stage(input);
     }
-    match regions.panel {
-        Panel::Shown { tab: _ } => Route::Panel(PanelIn::Close),
-        Panel::Hidden => Route::Dismiss,
-    }
+    Route::Dismiss
 }
 
 /// A key no global chord wants: the stage if it has the command, then navigation, then the

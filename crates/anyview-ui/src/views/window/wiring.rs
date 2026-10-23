@@ -7,7 +7,8 @@ use super::super::pane::PaneSeat;
 use super::super::press::use_viewer_keys;
 use super::super::shelf::{Dispatch, Shelf, use_area, viewer_params};
 use crate::families::Area;
-use crate::{Chords, Launch, PaneChrome, Presentation, Viewer, ViewerIn};
+use crate::{Chords, Launch, PaneChrome, Panel, PanelTab, Presentation, Viewer, ViewerIn};
+use anyview_core::{PanelKept, PanelOpen};
 use dioxus::prelude::*;
 use ds::machine::{use_machine_in, use_machine_state};
 use ds::prelude::*;
@@ -79,7 +80,9 @@ pub(super) fn use_wiring(launch: &Launch) -> Wiring {
     };
     let handler = carry.clone();
     let presentation = launch.presentation;
-    let held = use_machine_state::<Viewer>(move |_| Viewer::launched(presentation));
+    // The sidebar as the person left it last time, when the host remembers that.
+    let start = start_of(presentation, edge.panel_view());
+    let held = use_machine_state::<Viewer>(move |_| start.clone());
     let machine = use_machine_in(
         held,
         (),
@@ -128,4 +131,22 @@ pub(super) fn use_wiring(launch: &Launch) -> Wiring {
         carry,
         dispatch,
     }
+}
+
+/// The viewer a window starts as: launched in `presentation`, its sidebar open or shut on the
+/// view `kept` says. What is kept is the person's word on the sidebar, so a PDF no longer opens it
+/// on its pages by itself.
+fn start_of(presentation: Presentation, kept: Option<PanelKept>) -> Viewer {
+    let viewer = Viewer::launched(presentation);
+    let Some(PanelKept { open, view }) = kept else {
+        return viewer;
+    };
+    let last = view.as_deref().and_then(PanelTab::parse);
+    let panel = match open {
+        PanelOpen::Open => Panel::Shown {
+            tab: last.unwrap_or(PanelTab::Info),
+        },
+        PanelOpen::Closed => Panel::Hidden,
+    };
+    viewer.with_panel(panel, last)
 }

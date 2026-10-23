@@ -117,15 +117,28 @@ fn keys_open_and_close_the_regions_in_the_order_they_are_open() {
     assert_eq!(viewer.palette, palette_on(0));
     let (viewer, _) = pressed(viewer, &[Escape], 1);
     assert_eq!(viewer.palette, Palette::Closed);
-    // Info shows the info tab, and Esc closes the panel next.
+    // Info shows the info tab; Esc leaves it open, and Toggle Sidebar hides it.
     let (viewer, outs) = acted(viewer, Act::Info, 2);
-    assert_eq!(outs, vec![ViewerOut::Panel(PanelOut::Show(PanelTab::Info))]);
+    assert_eq!(
+        outs,
+        vec![
+            ViewerOut::Panel(PanelOut::Show(PanelTab::Info)),
+            ViewerOut::PanelSaid {
+                panel: Panel::Shown {
+                    tab: PanelTab::Info
+                },
+                last: Some(PanelTab::Info),
+            },
+        ]
+    );
     let (viewer, outs) = pressed(viewer, &[Escape], 3);
-    assert_eq!(outs, vec![ViewerOut::Panel(PanelOut::Hide)]);
-    // With nothing open Esc does nothing in a window, and Close closes it.
-    let (viewer, outs) = pressed(viewer, &[Escape], 4);
     assert_eq!(outs, vec![]);
-    let (_, outs) = acted(viewer, Act::Close, 5);
+    let (viewer, outs) = acted(viewer, Act::ToggleSidebar, 4);
+    assert_eq!(outs[0], ViewerOut::Panel(PanelOut::Hide));
+    // With nothing open Esc does nothing in a window, and Close closes it.
+    let (viewer, outs) = pressed(viewer, &[Escape], 5);
+    assert_eq!(outs, vec![]);
+    let (_, outs) = acted(viewer, Act::Close, 6);
     assert_eq!(outs, vec![ViewerOut::CloseWindow]);
 }
 
@@ -730,4 +743,23 @@ fn a_table_with_unsaved_edits_asks_before_it_is_left_and_takes_undo_for_its_edit
     );
     let (_, outs) = step(table_with(EditLog::NONE), act(Act::Undo));
     assert!(outs.contains(&ViewerOut::Rewind(Rewind::Undo)));
+}
+
+#[test]
+fn a_toggle_reopens_the_sidebar_on_the_view_it_was_last_on() {
+    let (viewer, _) = Viewer::default().step(
+        ViewerIn::Panel(PanelIn::Choose(PanelTab::Tracks)),
+        Stamp(0),
+        &(),
+        &params(),
+    );
+    let (viewer, _) = viewer.step(ViewerIn::Panel(PanelIn::Close), Stamp(1), &(), &params());
+    let (viewer, outs) = viewer.step(ViewerIn::Panel(PanelIn::Toggle), Stamp(2), &(), &params());
+    assert_eq!(
+        viewer.panel,
+        Panel::Shown {
+            tab: PanelTab::Tracks
+        }
+    );
+    assert_eq!(outs[0], ViewerOut::Panel(PanelOut::Show(PanelTab::Tracks)));
 }

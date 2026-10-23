@@ -127,15 +127,11 @@ fn middle(scale: u16) -> Point {
     }
 }
 
-/// Opens the panel's second tab (the first is Thumbnails).
-fn open_tab(harness: &mut Harness, at: usize) {
+/// Opens the sidebar on the view called `label`.
+fn open_tab(harness: &mut Harness, label: &str) {
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(harness);
-    let tab = harness
-        .centre(&format!(".ds-segmented-segment:nth-child({at})"))
-        .unwrap();
-    harness.send(Input::click(tab));
-    settle(harness);
+    support::pick_view(harness, label);
 }
 
 #[test]
@@ -208,10 +204,7 @@ fn the_panel_shows_a_thumbnail_for_each_page() {
     let (_, pages) = place(&harness);
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    harness.send(Input::click(
-        harness.centre(".ds-segmented-segment").unwrap(),
-    ));
-    settle(&mut harness);
+    support::pick_view(&mut harness, "Thumbnails");
     // The list is windowed: the rows near the viewport are mounted, and each says how many there are.
     assert!(harness.count(".viewer-thumb") >= 1);
     assert!(
@@ -226,7 +219,7 @@ fn the_panel_shows_a_thumbnail_for_each_page() {
 fn contents_lists_the_chapters_and_each_leads_to_its_first_page() {
     let dir = tempfile::tempdir().unwrap();
     let mut harness = open(&epub(dir.path()), 100, Wiring::default());
-    open_tab(&mut harness, 2);
+    open_tab(&mut harness, "Contents");
     assert_eq!(
         harness.count(".viewer-outline .ds-list-item"),
         3,
@@ -342,10 +335,7 @@ fn a_comic_is_one_page_to_a_picture() {
     assert!(harness.count(".viewer-pdf-tile") >= 1);
     harness.send(Input::chord(&[ShortcutKey::Super], ShortcutKey::Char('i')));
     settle(&mut harness);
-    harness.send(Input::click(
-        harness.centre(".ds-segmented-segment").unwrap(),
-    ));
-    settle(&mut harness);
+    support::pick_view(&mut harness, "Thumbnails");
     assert_eq!(harness.count(".viewer-thumb"), 3);
     press(&mut harness, ShortcutKey::End);
     assert_eq!(place(&harness).0, 3, "{}", capsule(&harness));

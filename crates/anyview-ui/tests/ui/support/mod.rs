@@ -4,15 +4,17 @@
 
 mod player;
 
-use anyview_core::{FilePath, FileStamp, NonEmpty, Resume, Sequence, SequenceOrigin};
+use anyview_core::{
+    FilePath, FileStamp, NonEmpty, PanelKept, PanelOpen, Resume, Sequence, SequenceOrigin,
+};
 use anyview_image::Rgba8;
 use anyview_peek::StillSource;
 pub use player::{Answer, FakeLine, FakePlayer};
 
 use anyview_ui::{
     Edge, FileAccess, FileLocks, HelperSource, HostRequest, ImagePlugins, Launch, LookFeed,
-    MediaHost, PlatformAbilities, Presentation, ResumeSource, Seams, VersionRow, VersionSource,
-    ViewerApp, Work, WorkKind, WorkLane, Workers,
+    MediaHost, PanelMemory, PlatformAbilities, Presentation, ResumeSource, Seams, VersionRow,
+    VersionSource, ViewerApp, Work, WorkKind, WorkLane, Workers,
 };
 use dioxus::prelude::*;
 use ds::prelude::Appearance;
@@ -310,19 +312,107 @@ pub struct Wiring {
     pub viewport: Option<Viewport>,
     /// Give the viewer a window host that counts the moves it is asked for ([`window_moves`]).
     pub record_moves: bool,
-    /// Whether the side panel is left as a PDF or a book opens it.
+    /// Whether the sidebar is left as a PDF or a book opens it.
     pub panel: PanelStart,
+    /// The host's memory of the sidebar, shared by the windows that are given it; `panel` says
+    /// what the window starts as when none.
+    pub sidebar: Option<Arc<KeptPanel>>,
 }
 
-/// What a test sees of the side panel when its window has opened.
+/// What a test sees of the sidebar when its window has opened.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum PanelStart {
-    /// The panel is shut, as the pages' tests measure them: if the window opened it on the pages
-    /// the way a PDF does, Esc has put it away (so it stays away from file to file).
+    /// The sidebar is shut, as the pages' tests measure them: the host remembers it so, which
+    /// outranks a PDF opening it on its pages.
     #[default]
     Closed,
     /// As the window opened it.
     AsOpened,
+}
+
+/// The host's memory of the sidebar, in memory: it keeps what a window tells it and answers the
+/// next window with it, as the program's store does across launches.
+#[derive(Debug, Default)]
+pub struct KeptPanel {
+    kept: Mutex<Option<PanelKept>>,
+}
+
+impl KeptPanel {
+    /// A memory of a sidebar left shut.
+    pub fn closed() -> Arc<KeptPanel> {
+        Arc::new(KeptPanel {
+            kept: Mutex::new(Some(PanelKept {
+                open: PanelOpen::Closed,
+                view: None,
+            })),
+        })
+    }
+
+    /// A memory with nothing in it yet.
+    pub fn blank() -> Arc<KeptPanel> {
+        Arc::default()
+    }
+
+    /// What the next window would be told.
+    pub fn now(&self) -> Option<PanelKept> {
+        self.kept.lock().unwrap().clone()
+    }
+}
+
+impl PanelMemory for KeptPanel {
+    fn recall(&self) -> Option<u32> {
+        None
+    }
+
+    fn keep(&self, _width: u32) {}
+
+    fn recall_view(&self) -> Option<PanelKept> {
+        self.now()
+    }
+
+    fn keep_view(&self, kept: PanelKept) {
+        let mut held = self.kept.lock().unwrap();
+        let view = kept
+            .view
+            .or_else(|| held.as_ref().and_then(|before| before.view.clone()));
+        *held = Some(PanelKept {
+            open: kept.open,
+            view,
+        });
+    }
+}
+
+/// The centre of the sidebar's row for the view called `label`.
+pub fn view_row(harness: &Harness, label: &str) -> Point {
+    let rows = ".viewer-panel .ds-sidebar-section:first-child .ds-list-item";
+    (1..=harness.count(rows))
+        .map(|at| format!("{rows}:nth-child({at})"))
+        .find(|row| {
+            harness
+                .text_of(row)
+                .is_some_and(|text| text.contains(label))
+        })
+        .and_then(|row| harness.centre(&row))
+        .unwrap_or_else(|| panic!("the sidebar has no {label} row"))
+}
+
+/// Picks the sidebar's row for the view called `label`.
+pub fn pick_view(harness: &mut Harness, label: &str) {
+    let at = view_row(harness, label);
+    harness.send(Input::click(at));
+    settle(harness);
+}
+
+/// How many views the sidebar lists.
+pub fn view_count(harness: &Harness) -> usize {
+    harness.count(".viewer-panel .ds-sidebar-section:first-child .ds-list-item")
+}
+
+/// The name of the view the sidebar is on.
+pub fn picked_view(harness: &Harness) -> Option<String> {
+    harness
+        .text_of(".viewer-panel .ds-sidebar-section:first-child .ds-row[aria-selected=true]")
+        .map(|text| text.trim().to_owned())
 }
 
 thread_local! {
@@ -398,6 +488,11 @@ pub fn wired(
     if let Some(memory) = wiring.memory {
         seams = seams.with_resume_source(memory);
     }
+    match (wiring.sidebar, panel) {
+        (Some(kept), _) => seams = seams.with_panel_memory(kept),
+        (None, PanelStart::Closed) => seams = seams.with_panel_memory(KeptPanel::closed()),
+        (None, PanelStart::AsOpened) => {}
+    }
     if let Some(versions) = wiring.versions {
         seams = seams.with_version_source(versions);
     }
@@ -449,12 +544,6 @@ pub fn wired(
     };
     let mut harness = Harness::new(app, config);
     harness.advance(Duration::from_millis(500));
-    if panel == PanelStart::Closed
-        && harness.attr(".ds-split-pane", "data-shown").as_deref() == Some("visible")
-    {
-        harness.send(Input::key(ShortcutKey::Escape));
-        harness.advance(Duration::from_millis(300));
-    }
     (harness, requests, edge)
 }
 
@@ -491,6 +580,15 @@ pub fn settle(harness: &mut Harness) {
 
 pub fn press(harness: &mut Harness, key: ShortcutKey) {
     harness.send(Input::key(key));
+    settle(harness);
+}
+
+/// Show or hide the sidebar: the standard Toggle Sidebar, Control and Command with S.
+pub fn toggle_sidebar(harness: &mut Harness) {
+    harness.send(Input::chord(
+        &[ShortcutKey::Ctrl, ShortcutKey::Super],
+        ShortcutKey::Char('s'),
+    ));
     settle(harness);
 }
 

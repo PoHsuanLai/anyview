@@ -110,7 +110,7 @@ pub enum Route {
     OpenFind,
     /// Undo and Redo (⌘Z, ⇧⌘Z): take back the last edit, or do it again.
     Rewind(Rewind),
-    /// The Info action opens or closes the Info tab; Esc closes the panel.
+    /// The Info action opens or closes the Info tab; Toggle Sidebar opens or closes the sidebar.
     Panel(PanelIn),
     /// Close (⌘W): close the window.
     CloseWindow,

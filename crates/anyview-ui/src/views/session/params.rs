@@ -152,6 +152,9 @@ pub(in crate::views) fn params(
     if matches!(stage, Stage::Media(_)) {
         panel.tabs = crate::families::media_tabs(panel.tabs, abilities);
     }
+    if panel.tabs.first().is_some() {
+        listed.push(Command::ToggleSidebar);
+    }
     let files = listed
         .iter()
         .copied()
@@ -159,6 +162,7 @@ pub(in crate::views) fn params(
             Command::File(action) => Some(action),
             Command::Stage(_)
             | Command::OpenFile
+            | Command::ToggleSidebar
             | Command::UseTool(_)
             | Command::Picture(_)
             | Command::Markup(_)

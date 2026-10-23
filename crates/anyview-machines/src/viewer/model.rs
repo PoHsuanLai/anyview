@@ -10,7 +10,7 @@ use crate::load::{Load, LoadIn, LoadOut, Ticket};
 use crate::markup::{MarkupIn, PdfMarkup};
 use crate::navigate::{Navigate, NavigateIn};
 use crate::palette::{Palette, PaletteIn, PaletteOut, PaletteParams, PaletteScope};
-use crate::panel::{Panel, PanelIn, PanelOut, PanelParams};
+use crate::panel::{Panel, PanelIn, PanelOut, PanelParams, PanelTab};
 use crate::picture::{PictureEditIn, PictureEdits};
 use crate::presentation::{Presentation, PresentationIn, PresentationOut, PresentationParams};
 use crate::sheet::{Departure, Sheet, SheetIn, SheetOut, SheetParams};
@@ -54,6 +54,8 @@ pub struct Viewer {
     pub choosing: Choosing,
     /// Whether the person has opened or closed the side panel in this window.
     pub panel_said: PanelSay,
+    /// The view the person last put the panel on: a bare toggle opens it there again.
+    pub panel_last: Option<PanelTab>,
     /// What has been done to the open picture and not saved.
     pub picture: PictureEdits,
     /// The trim of the open recording: the bar while it is up, and the stretch kept once it is
@@ -123,6 +125,19 @@ impl Viewer {
         Viewer {
             presentation,
             ..Viewer::default()
+        }
+    }
+
+    /// This viewer with its panel as the person left it in an earlier launch: `panel`, and `last`
+    /// the view it was last on. The person has said what they want of it, so a PDF does not open
+    /// it on its pages.
+    #[must_use]
+    pub fn with_panel(self, panel: Panel, last: Option<PanelTab>) -> Viewer {
+        Viewer {
+            panel,
+            panel_last: last,
+            panel_said: PanelSay::Said,
+            ..self
         }
     }
 }
@@ -216,6 +231,15 @@ pub enum ViewerOut {
     Chrome(ChromeOut),
     /// From the panel.
     Panel(PanelOut),
+    /// The person opened, closed or switched the panel: it is now `panel`, and `last` is the view
+    /// it was last on. The window keeps this for the next launch; the file changing under the
+    /// panel (`PanelIn::TabsChanged`) is not the person's word and does not come here.
+    PanelSaid {
+        /// Whether the panel is open, and on which view.
+        panel: Panel,
+        /// The view the person last put it on.
+        last: Option<PanelTab>,
+    },
     /// From the palette, except what it ran (it is dispatched, not forwarded).
     Palette(PaletteOut),
     /// From the sheet.

@@ -11,7 +11,9 @@ use super::route::Task;
 use super::saving;
 use super::store::Store;
 use super::trash::Trash;
-use anyview_core::{Edit, FileName, FilePath, Resume, Source, claimed_mimes, opened_globs};
+use anyview_core::{
+    Edit, FileName, FilePath, PanelKept, Resume, Source, claimed_mimes, opened_globs,
+};
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 use anyview_platform::linux::{FileManagerReveal, MailShare, PortalPicker, PortalPrinter};
 use anyview_platform::portable::SystemOpen;
@@ -48,6 +50,15 @@ pub trait Hosting: Send + Sync + 'static {
 
     /// Keep `width` as the left panel's. Does not block: the write runs on the blocking pool.
     fn keep_panel_width(&self, width: u32);
+
+    /// Whether the person left the left panel open, and on which view, if that was kept: read from
+    /// the store as the desktop was made, and since changed by `keep_panel_view`, so it does not
+    /// block.
+    fn panel_view(&self) -> Option<PanelKept>;
+
+    /// Keep whether the left panel is open, and the view it is on. A `view` of `None` leaves the
+    /// one kept. Does not block: the write runs on the blocking pool.
+    fn keep_panel_view(&self, kept: PanelKept);
 
     /// The versions kept of `path`, newest first, as the Revert To sheet lists them. Blocking:
     /// call it from a worker.
@@ -90,6 +101,8 @@ struct Parts<R, S, P, T, F, L> {
     remembering: PlaceWriter,
     /// The width the left panel was left at, as the store had it and the windows have changed it.
     panel: Mutex<Option<u32>>,
+    /// Whether it was left open and on which view, as the store had it and the windows have changed it.
+    panel_view: Mutex<Option<PanelKept>>,
     media: Media,
     helpers: Option<Arc<HelperHost>>,
     images: Arc<ImageHost>,
@@ -149,6 +162,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
         } = services;
         let store = Arc::new(store);
         let panel = Mutex::new(store.panel_width().unwrap_or_default());
+        let panel_view = Mutex::new(store.panel_view().unwrap_or_default());
         Desktop {
             runtime: runtime.clone(),
             parts: Arc::new(Parts {
@@ -161,6 +175,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
                 remembering: PlaceWriter::new(Arc::clone(&store), runtime.clone(), REMEMBER_EVERY),
                 store,
                 panel,
+                panel_view,
                 versions,
                 media,
                 helpers,
@@ -250,6 +265,39 @@ where
             super::feedback::report(&failed(
                 "keep the panel's width",
                 parts.store.keep_panel_width(width),
+            ));
+        });
+    }
+
+    fn panel_view(&self) -> Option<PanelKept> {
+        self.parts
+            .panel_view
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn keep_panel_view(&self, kept: PanelKept) {
+        {
+            let mut held = self
+                .parts
+                .panel_view
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            let view = kept
+                .view
+                .clone()
+                .or_else(|| held.as_ref().and_then(|before| before.view.clone()));
+            *held = Some(PanelKept {
+                open: kept.open,
+                view,
+            });
+        }
+        let parts = Arc::clone(&self.parts);
+        self.runtime.spawn_blocking(move || {
+            super::feedback::report(&failed(
+                "keep the panel's view",
+                parts.store.keep_panel_view(&kept),
             ));
         });
     }

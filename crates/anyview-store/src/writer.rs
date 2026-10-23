@@ -16,13 +16,13 @@ use crate::record::{
     PanelRecord, Prune, ResumeRecord, applicable, prune_decision, resume_file_name,
 };
 use crate::viewed::Viewed;
-use anyview_core::{FilePath, FileStamp, FormatKind, Resume};
+use anyview_core::{FilePath, FileStamp, FormatKind, PanelKept, Resume};
 use std::path::PathBuf;
 
 /// The directory inside a store root that holds one file of view memory per viewed file.
 const RESUME_DIR: &str = "resume";
 
-/// The file inside a store root that holds the width of the left panel.
+/// The file inside a store root that holds what is kept of the left panel: its width, whether it is open and its view.
 const PANEL_FILE: &str = "panel.json";
 
 /// The result of recording a view.
@@ -144,14 +144,52 @@ impl StoreWriter {
     /// person, not one per file.
     pub fn save_panel_width(&self, width: u32) -> Result<(), StoreError> {
         let _lock = StoreLock::exclusive(&self.root)?;
-        io::write_json(&self.root.join(PANEL_FILE), &PanelRecord { width })
+        let record = PanelRecord {
+            width: Some(width),
+            ..self.panel_record()
+        };
+        io::write_json(&self.root.join(PANEL_FILE), &record)
     }
 
     /// The width the left panel was left at: `None` when none was remembered. A damaged record
     /// is the error; treat it as nothing remembered.
     pub fn load_panel_width(&self) -> Result<Option<u32>, StoreError> {
         let record = io::read_json::<PanelRecord>(&self.root.join(PANEL_FILE))?;
-        Ok(record.map(|record| record.width))
+        Ok(record.and_then(|record| record.width))
+    }
+
+    /// Remembers whether the left panel was open, and the view it was on unless `kept.view` is
+    /// `None`, which leaves the view already kept (a panel closed is still on its last view).
+    pub fn save_panel_view(&self, kept: &PanelKept) -> Result<(), StoreError> {
+        let _lock = StoreLock::exclusive(&self.root)?;
+        let before = self.panel_record();
+        let record = PanelRecord {
+            width: before.width,
+            open: Some(kept.open),
+            view: kept.view.clone().or(before.view),
+        };
+        io::write_json(&self.root.join(PANEL_FILE), &record)
+    }
+
+    /// Whether the left panel was left open, and on which view: `None` when that was never
+    /// remembered. A damaged record is the error; treat it as nothing remembered.
+    pub fn load_panel_view(&self) -> Result<Option<PanelKept>, StoreError> {
+        let record = io::read_json::<PanelRecord>(&self.root.join(PANEL_FILE))?;
+        Ok(record.and_then(|record| {
+            record.open.map(|open| PanelKept {
+                open,
+                view: record.view,
+            })
+        }))
+    }
+
+    /// The panel's record as it is, or an empty one when there is none or it is damaged (the
+    /// next write replaces it).
+    fn panel_record(&self) -> PanelRecord {
+        io::read_json::<PanelRecord>(&self.root.join(PANEL_FILE))
+            .ok()
+            .flatten()
+            .unwrap_or_default()
     }
 
     fn resume_path(&self, path: &FilePath) -> Result<PathBuf, StoreError> {

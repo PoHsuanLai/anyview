@@ -8,13 +8,14 @@ use super::file::{opened, preload, reload, remember_on_leaving};
 use super::stage::staged;
 use crate::io::{Edge, HostRequest, Job};
 use crate::{
-    ChromeOut, EditRequest, LoadOut, PaletteOut, PanelOut, PresentationOut, SheetIn, SheetOut,
-    TypedText, ViewerIn, ViewerOut,
+    ChromeOut, EditRequest, LoadOut, PaletteOut, Panel, PanelOut, PresentationOut, SheetIn,
+    SheetOut, TypedText, ViewerIn, ViewerOut,
 };
-use anyview_core::{Edit, FilePath};
+use anyview_core::{Edit, FilePath, PanelKept, PanelOpen};
 use dioxus::prelude::*;
 use ds::stack::toast_hub::ToastHub;
 use ds_blitz::Gpu;
+use ds_core::word::Word;
 
 /// What carrying out an output needs: the shelf it writes to, the edge, the GPU a picture is
 /// uploaded to, and the machine itself (set once it exists, since the machine is built with this).
@@ -63,6 +64,14 @@ pub(in crate::views) fn carry_out(out: ViewerOut, c: &Carry) {
             | SheetOut::Save(_)
             | SheetOut::Discard(_),
         ) => {}
+        // The person's own word on the sidebar is kept for the next launch.
+        ViewerOut::PanelSaid { panel, last } => c.edge.keep_panel_view(PanelKept {
+            open: match panel {
+                Panel::Shown { tab: _ } => PanelOpen::Open,
+                Panel::Hidden => PanelOpen::Closed,
+            },
+            view: last.map(|tab| tab.slug().to_owned()),
+        }),
         ViewerOut::Sheet(SheetOut::Replace) => editing::save(c),
         ViewerOut::Preload(neighbours) => preload(c, &neighbours),
         ViewerOut::Stage(out) => staged(c, &out),

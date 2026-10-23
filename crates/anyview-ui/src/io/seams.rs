@@ -4,12 +4,12 @@
 //! window wants kept goes out as a `HostRequest`. The small picture the host already has for a file
 //! is `anyview_peek::StillSource`, which the launcher lends its pane as well. The one exception is
 //! [`PanelMemory`]: it answers from memory, so the UI thread may ask it, and it is told the width
-//! to keep.
+//! to keep, and whether the panel is open.
 
 use super::helpers::Need;
 use super::job::Opened;
 use crate::VersionRow;
-use anyview_core::{FilePath, FileStamp, PixelArea, Resume, Sniffed, Source};
+use anyview_core::{FilePath, FileStamp, PanelKept, PixelArea, Resume, Sniffed, Source};
 use anyview_image::Rgba8;
 use std::fmt::Debug;
 
@@ -32,7 +32,7 @@ pub trait ResumeKeeper: Debug + Send + Sync + 'static {
     fn remember(&self, source: &Source, resume: &Resume);
 }
 
-/// The width of the left panel across launches, kept by the host.
+/// The left panel across launches, kept by the host: its width, whether it is open and its view.
 pub trait PanelMemory: Debug + Send + Sync + 'static {
     /// The width in logical pixels the person left the panel at, if one was kept. Does not block:
     /// the host answers from memory.
@@ -41,6 +41,16 @@ pub trait PanelMemory: Debug + Send + Sync + 'static {
     /// The person left the panel `width` logical pixels wide. Does not block: the host writes it
     /// on its own thread, and a failure is its to log.
     fn keep(&self, width: u32);
+
+    /// Whether the person left the panel open, and on which view, if that was kept. Does not
+    /// block: the host answers from memory.
+    fn recall_view(&self) -> Option<PanelKept> {
+        None
+    }
+
+    /// The panel is open or shut, on `kept.view` (`None` leaves the view kept). Does not block:
+    /// the host writes it on its own thread, and a failure is its to log.
+    fn keep_view(&self, _kept: PanelKept) {}
 }
 
 /// What asking the plugins for a picture of a file came to.

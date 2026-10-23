@@ -30,12 +30,12 @@ fn two(scale: u16, wiring: Wiring) -> (tempfile::TempDir, Vec<PathBuf>, Harness,
     (dir, files, harness, requests)
 }
 
-/// What the panel's pane says of itself.
+/// What the sidebar's pane says of itself.
 fn panel(harness: &Harness) -> String {
     harness
         .attr(".ds-split-pane", "data-shown")
-        // A folded panel is not in the split view at all.
-        .unwrap_or_else(|| "hidden".to_owned())
+        // A file with no views has no pane.
+        .unwrap_or_else(|| "none".to_owned())
 }
 
 fn closes(requests: &Requests) -> usize {
@@ -59,7 +59,7 @@ fn chord(harness: &mut Harness, key: char) {
 }
 
 #[test]
-fn escape_closes_the_palette_before_the_panel_and_the_panel_before_the_window() {
+fn escape_closes_the_palette_before_the_window_and_never_the_sidebar() {
     for scale in SCALES {
         let wiring = Wiring {
             presentation: Presentation::Peek,
@@ -79,10 +79,8 @@ fn escape_closes_the_palette_before_the_panel_and_the_panel_before_the_window() 
         assert_eq!(panel(&harness), "visible", "{scale}: the panel stays");
         assert_eq!(closes(&requests), 0, "{scale}");
         press(&mut harness, ShortcutKey::Escape);
-        assert_eq!(panel(&harness), "hidden", "{scale}: then the panel");
-        assert_eq!(closes(&requests), 0, "{scale}");
-        press(&mut harness, ShortcutKey::Escape);
         assert_eq!(closes(&requests), 1, "{scale}: then the quick look");
+        assert_eq!(panel(&harness), "visible", "{scale}: the sidebar never");
     }
 }
 
