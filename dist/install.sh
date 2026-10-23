@@ -387,13 +387,18 @@ install_picture_plugin() {
 if [[ "$WITH_MPV" == yes ]]; then
   say "2c. the mpv plugin"
   install_file 755 "$MPV_CPLUGIN" "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
-  manifest="$PREFIX/share/quire/extensions/org.quire.anyview.Mpv/extension.toml"
+  # In the OLD place for now, as `mpv`: the bayonet the viewer pins holds an Extension's entry paths
+  # to its folder, and this one names the system's mpv. The viewer reads the old place as the same
+  # Extension. It moves to share/quire/extensions with the bayonet that lets a play entry reach
+  # outside its folder (PathReach::Anywhere, with quire v0.3.46).
+  manifest="$PREFIX/share/anyview/plugins/mpv.toml"
   if [[ "$DRY_RUN" == yes ]]; then
     say "  install $manifest"
     say "      (mpv = $MPV_PATH, cplugin = $PREFIX/libexec/anyview/mpv-wgpu-cplugin.so, from dist/extensions/org.quire.anyview.Mpv.toml.in)"
   else
     rendered_mpv="$SCRATCH/mpv-manifest"
-    sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" "$HERE/dist/extensions/org.quire.anyview.Mpv.toml.in" >"$rendered_mpv"
+    sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" -e 's|^id = "org.quire.anyview.Mpv"$|id = "mpv"|' \
+      "$HERE/dist/extensions/org.quire.anyview.Mpv.toml.in" >"$rendered_mpv"
     install_file 644 "$rendered_mpv" "$manifest"
   fi
 fi

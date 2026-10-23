@@ -226,7 +226,7 @@ for id in ffmpeg heif raw; do
 done
 check "default dry run builds the three plugins in one cargo run" grep -q "cargo build --release -p anyview-ffmpeg -p anyview-heif -p anyview-raw" <<<"$out"
 check "default dry run says what it would fetch" grep -q "git fetch --depth 1 https://example.invalid/mpv-wgpu.git $pin" <<<"$out"
-check "default dry run names the mpv manifest" grep -q "$prefix/share/quire/extensions/org.quire.anyview.Mpv/extension.toml" <<<"$out"
+check "default dry run names the mpv manifest" grep -q "$prefix/share/anyview/plugins/mpv.toml" <<<"$out"
 check "the default dry run installs nothing, fetches nothing, builds nothing" bash -c "[ -z \"\$(find '$stage' -mindepth 1 2>/dev/null)\" ] && [ ! -s '$cargo_log' ] && [ -z \"\$(find '$XDG_CACHE_HOME' -mindepth 1)\" ]"
 
 # 6b. The real default install, with the mpv-wgpu source fetched from the local stand-in.
@@ -254,7 +254,7 @@ check "the mpv manifest names the mpv found on the search path" grep -qx "mpv = 
 check "the mpv manifest names the installed C plugin, without DESTDIR" grep -qx "cplugin = \"$prefix/libexec/anyview/mpv-wgpu-cplugin.so\"" "$mpv_manifest"
 check "the mpv manifest provides playback" grep -q 'capability = "play"' "$mpv_manifest"
 check "no placeholder is left in the mpv manifest" bash -c "! grep -q '@' $mpv_manifest"
-check "the receipt lists the C plugin and the mpv manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/mpv-wgpu-cplugin.so' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/quire/extensions/org.quire.anyview.Mpv/extension.toml' $installed/share/anyview/install-receipt"
+check "the receipt lists the C plugin and the mpv manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/mpv-wgpu-cplugin.so' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/anyview/plugins/mpv.toml' $installed/share/anyview/install-receipt"
 check "staging the plugins registered nothing" test ! -s "$calls"
 check "HOME and XDG config stay empty" bash -c "[ -z \"\$(find $HOME $XDG_CONFIG_HOME $XDG_DATA_HOME -mindepth 1)\" ]"
 # A second run reuses the checkout (no second fetch) and leaves the files alone.
