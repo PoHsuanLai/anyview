@@ -232,9 +232,12 @@ DIRECT=(
 # quire v0.3.38 draws emoji through its own quire-emoji (the kit's, MIT OR Apache-2.0, over fontique,
 # already in every windowed tree): one more again: the peek 580, the viewer 700, the pane 592, the
 # media host 612 and the pane with its player 613.
+# docket ff9d1b73 (the desktop lockstep's wave 4) runs its commands through bulkhead (the owner's
+# bubblewrap sandbox, MIT OR Apache-2.0, its dependencies already in the tree): one more in the viewer
+# alone: 701.
 BUDGETS=(
   "anyview-peek: 580"
-  "anyview: 700"
+  "anyview: 701"
   "anyview-machines: 34"
   "anyview-pane: 592"
   "anyview-runtime: 34"

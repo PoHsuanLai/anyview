@@ -108,6 +108,9 @@ allow-git = [
     "https://github.com/PoHsuanLai/porter",
     "https://github.com/PoHsuanLai/almanac",
     "https://github.com/PoHsuanLai/stoker",
+    # docket ff9d1b73's sandbox for the commands and agent processes it runs (bubblewrap), at the
+    # rev docket pins. MIT OR Apache-2.0.
+    "https://github.com/PoHsuanLai/bulkhead",
     "https://github.com/PoHsuanLai/peephole",
     "https://github.com/DioxusLabs/taffy",
 ]
