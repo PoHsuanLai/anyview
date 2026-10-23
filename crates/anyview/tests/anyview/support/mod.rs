@@ -231,9 +231,10 @@ pub fn gpu() -> Option<ds_blitz::Gpu> {
 
 /// A new instance and device for the tests, opened under the process's GPU lock.
 fn open_gpu() -> Option<ds_blitz::Gpu> {
-    // One opening at a time in this process (the desktop's lock, quire's harness's too): the Vulkan
-    // loader crashes on two at once.
-    let _one_at_a_time = blitz_kit::adapter::opening();
+    // One opening at a time in this process: the Vulkan loader crashes on two at once.
+    let _one_at_a_time = anyview_media::GPU_OPENING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     for fallback in [false, true] {

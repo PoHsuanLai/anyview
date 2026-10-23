@@ -325,7 +325,6 @@ dependencies = [
  "anyview-runtime",
  "anyview-store",
  "anyview-ui",
- "blitz-kit",
  "dioxus",
  "ds",
  "ds-blitz",
@@ -498,7 +497,6 @@ name = "anyview-media"
 version = "0.1.0-beta.1"
 dependencies = [
  "anyview-core",
- "blitz-kit",
  "cpal",
  "ds-core",
  "mpv-wgpu-player",

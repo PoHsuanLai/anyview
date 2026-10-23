@@ -3,6 +3,12 @@
 use crate::error::MediaError;
 use std::sync::{Mutex, PoisonError};
 
+/// Held while a graphics instance and device are opened. The Vulkan loader crashes (in
+/// `vkEnumerateInstanceExtensionProperties`) when two threads make an instance at once, so every
+/// opener in this process takes it: [`headless_device`] here, and the tests that open their own.
+/// quire's harness serialises its openings the same way.
+pub static GPU_OPENING: Mutex<()> = Mutex::new(());
+
 /// The headless device this process opened, kept until it exits. Tearing a device down while
 /// another thread makes one crashes the loader (`loader_icd_scan`, `loader_get_icd_and_device`)
 /// and has hung the NVIDIA driver, so it is opened once and shared, as quire's harness shares its
@@ -23,11 +29,9 @@ pub fn headless_device() -> Result<(wgpu::Device, wgpu::Queue), MediaError> {
     Ok(pair)
 }
 
-/// A new headless device and queue, opened under the desktop's one opening lock
-/// (`blitz_kit::adapter::opening`): the Vulkan loader crashes when two threads make an instance at
-/// once, and quire's harness and every other opener in the process take the same lock.
+/// A new headless device and queue, opened under [`GPU_OPENING`].
 fn open_headless() -> Result<(wgpu::Device, wgpu::Queue), MediaError> {
-    let _one_at_a_time = blitz_kit::adapter::opening();
+    let _one_at_a_time = GPU_OPENING.lock().unwrap_or_else(PoisonError::into_inner);
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     for fallback in [false, true] {
