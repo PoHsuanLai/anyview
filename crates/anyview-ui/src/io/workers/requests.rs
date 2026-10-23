@@ -84,6 +84,9 @@ pub enum HostRequest {
     OpenUri(String),
     /// Install this tool through the system's package service; the answer is `Edge::helped`.
     Provide(Helper),
+    /// Open Settings at this Extension (its id), which is installed and turned off: the Turn On… of
+    /// a file whose plugin is off. The person turns it on there; the window is told nothing.
+    TurnOn(String),
     /// A different file has loaded (or failed to), and this is what to size the window to. Sent
     /// once for each file the window opens, never for the same file loaded again: the host sizes
     /// the window to it, as it did when the first file opened.

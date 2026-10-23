@@ -10,7 +10,7 @@ use anyview_core::{
 };
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
-    FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
+    FakeLinks, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeSettings, FakeShare,
 };
 use anyview_platform::{PickOutcome, PrintOutcome};
 use anyview_store::{Clock, Viewed};
@@ -86,6 +86,7 @@ pub struct Fakes {
     pub trash: FakeTrash,
     pub picker: FakePicker,
     pub links: FakeLinks,
+    pub settings: FakeSettings,
     /// The pool the exports run on, kept alive for the desktop's life.
     pub pool: Pool,
 }
@@ -120,6 +121,7 @@ fn desktop_with(
         trash: FakeTrash::default(),
         picker: FakePicker::answering(pick),
         links: FakeLinks::default(),
+        settings: FakeSettings::default(),
         pool: Pool::new(PoolSize::exactly(std::num::NonZeroUsize::MIN)).unwrap(),
     };
     let services = services(scratch, &fakes, helpers);
@@ -157,5 +159,6 @@ pub fn services(scratch: &Path, fakes: &Fakes, helpers: Option<Arc<HelperHost>>)
         media,
         helpers,
         images: crate::host::ImageHost::without_plugins(),
+        settings: Arc::new(fakes.settings.clone()),
     }
 }

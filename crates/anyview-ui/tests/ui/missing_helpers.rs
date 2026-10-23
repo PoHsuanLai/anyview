@@ -45,6 +45,7 @@ impl ImagePlugins for HeifTool {
                 FactValue::text("libheif tools (to show it)"),
             ),
             helper: Some(Helper::HeicDecode),
+            turn_on: None,
         })
     }
 }

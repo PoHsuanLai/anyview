@@ -1,8 +1,10 @@
 //! Which plugin serves a kind and capability: the registry built from what discovery found. The
 //! ranking is bayonet's; what "serves a kind" means is the viewer's.
 
+use crate::extension_id::package_extension_id;
 use crate::handles::Subject;
 use crate::missing::{MissingPlugin, Package, suggested_package};
+use crate::off::OffPlugin;
 use crate::provision::{Provision, TargetName};
 use anyview_plugin_protocol::{Capability, PROTOCOL_VERSION};
 use bayonet::registry::{Fit, Registry};
@@ -21,11 +23,14 @@ pub type Installed = bayonet::registry::Installed<Provision>;
 /// A plugin that was found and cannot be used, with the reason.
 pub type Unusable = bayonet::registry::Unusable<Provision>;
 
-/// What a lookup came to.
+/// What a lookup came to. A plugin that is turned off is not missing: it is named so the viewer can
+/// offer to turn it on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route<'a> {
     /// This plugin serves it.
     Served(&'a Installed),
+    /// None that is on does, and this one would if it were turned on.
+    Off(&'a OffPlugin),
     /// None does, and this package would.
     Missing(MissingPlugin),
     /// None does and no package is known: nothing to offer.
@@ -42,11 +47,15 @@ pub enum Route<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Plugins {
     registry: Registry<Provision>,
+    off: Vec<OffPlugin>,
 }
 
 impl From<Registry<Provision>> for Plugins {
     fn from(registry: Registry<Provision>) -> Plugins {
-        Plugins { registry }
+        Plugins {
+            registry,
+            off: Vec::new(),
+        }
     }
 }
 
@@ -61,6 +70,19 @@ impl Plugins {
     #[must_use]
     pub fn resolve(candidates: Vec<Candidate>) -> Plugins {
         Plugins::from(Registry::resolve(candidates, PROTOCOL_VERSION))
+    }
+
+    /// These plugins with `off` as the ones that are installed and turned off: they serve
+    /// nothing, and [`Plugins::route`] names one when it would have been the answer.
+    #[must_use]
+    pub fn with_off(self, off: Vec<OffPlugin>) -> Plugins {
+        Plugins { off, ..self }
+    }
+
+    /// The plugins that are installed and turned off.
+    #[must_use]
+    pub fn off(&self) -> &[OffPlugin] {
+        &self.off
     }
 
     /// The usable plugins, in serving order.
@@ -97,14 +119,40 @@ impl Plugins {
         if let Some(plugin) = self.serving(capability, subject) {
             return Route::Served(plugin);
         }
-        match suggested_package(capability, subject) {
-            Some(package) => Route::Missing(MissingPlugin {
-                capability,
-                kind: subject.kind,
-                package,
-            }),
+        if let Some(off) = self
+            .off
+            .iter()
+            .find(|plugin| plugin.serves(capability, subject))
+        {
+            return Route::Off(off);
+        }
+        match self.missing_for(capability, subject) {
+            Some(missing) => Route::Missing(missing),
             None => Route::Unserved,
         }
+    }
+
+    /// The package that provides `capability` for `subject`, whether or not it is installed: what
+    /// an engine that knows only [`MissingPlugin`] is handed for a [`Route::Off`] too, so that
+    /// [`Plugins::off_package`] can tell the two apart where the words are chosen.
+    #[must_use]
+    pub fn missing_for(
+        &self,
+        capability: Capability,
+        subject: &Subject<'_>,
+    ) -> Option<MissingPlugin> {
+        suggested_package(capability, subject).map(|package| MissingPlugin {
+            capability,
+            kind: subject.kind,
+            package,
+        })
+    }
+
+    /// The installed plugin that `package` names, when it is turned off.
+    #[must_use]
+    pub fn off_package(&self, package: Package) -> Option<&OffPlugin> {
+        let id = package_extension_id(package)?;
+        self.off.iter().find(|plugin| plugin.id() == id)
     }
 
     /// Whether the plugin `package` names is installed and cannot run only because the program of
@@ -115,10 +163,9 @@ impl Plugins {
         let Some(tool) = package.tool else {
             return false;
         };
-        let id = package
-            .name
-            .strip_prefix("anyview-")
-            .unwrap_or(package.name);
+        let Some(id) = package_extension_id(package) else {
+            return false;
+        };
         self.registry.tool_absent(id, tool)
     }
 

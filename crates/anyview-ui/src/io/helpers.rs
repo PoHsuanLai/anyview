@@ -14,13 +14,31 @@ pub struct Need {
     /// The tool whose installation would answer it, or `None` when the viewer cannot install one
     /// (the plugin itself is absent, or the system has no way to install).
     pub helper: Option<Helper>,
+    /// The Extension to turn on when the plugin is installed and turned off: the id a Turn On…
+    /// button opens Settings at. The row then says "<Name> is turned off", not what to install.
+    pub turn_on: Option<String>,
 }
 
 impl Need {
     /// A row that only says what is missing: no install is offered for it.
     #[must_use]
     pub fn passive(fact: Fact) -> Need {
-        Need { fact, helper: None }
+        Need {
+            fact,
+            helper: None,
+            turn_on: None,
+        }
+    }
+
+    /// The row of a plugin that is installed and turned off: `fact` says so, and the person can
+    /// turn the Extension `id` on.
+    #[must_use]
+    pub fn turned_off(fact: Fact, id: impl Into<String>) -> Need {
+        Need {
+            fact,
+            helper: None,
+            turn_on: Some(id.into()),
+        }
     }
 }
 

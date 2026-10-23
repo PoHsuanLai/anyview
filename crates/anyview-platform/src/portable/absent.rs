@@ -5,8 +5,10 @@
 use crate::error::PlatformError;
 use crate::picker::{FileKinds, PickOutcome, Picker};
 use crate::printer::{JobTitle, PrintOutcome, Printer};
+use crate::settings::{OpenSettings, Opening};
 use crate::share::{Share, ShareTarget};
 use anyview_core::FilePath;
+use ds_core::settings::SettingsTarget;
 
 /// [`Share`] with nowhere to send a file.
 #[derive(Debug, Clone, Copy, Default)]
@@ -68,5 +70,20 @@ mod tests {
             PickOutcome::NoDialog
         );
         assert!(!NoPrinter.present() && !NoPicker.present());
+    }
+}
+
+/// [`OpenSettings`] with no Settings to open: nothing offers it, and a request that comes anyway
+/// says there is no bus.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoSettings;
+
+impl OpenSettings for NoSettings {
+    fn open<'a>(&'a self, _target: &'a SettingsTarget) -> Opening<'a> {
+        Box::pin(async { Err(PlatformError::NoBus) })
+    }
+
+    fn present(&self) -> bool {
+        false
     }
 }

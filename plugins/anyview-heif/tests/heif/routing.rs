@@ -21,8 +21,12 @@ fn heic_is_served_by_the_plugin_when_it_is_installed() {
     let heic = Mime::parse("image/heic").unwrap();
     for capability in [Capability::Decode, Capability::Thumbnail] {
         match plugins.route(capability, &subject(&heic)) {
-            Route::Served(plugin) => assert_eq!(plugin.manifest.id.as_str(), "heif"),
-            Route::Missing(_) | Route::Unserved => panic!("{capability:?} is not served"),
+            Route::Served(plugin) => {
+                assert_eq!(plugin.manifest.id.as_str(), "org.quire.anyview.Heif")
+            }
+            Route::Off(_) | Route::Missing(_) | Route::Unserved => {
+                panic!("{capability:?} is not served")
+            }
         }
     }
     let avif = Mime::parse("image/avif").unwrap();

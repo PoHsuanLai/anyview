@@ -17,7 +17,7 @@ use std::sync::Arc;
 use support::{Wired, open_wired, until};
 
 /// The manifest template the installer fills in, and the file of tools the viewer ships.
-const TEMPLATE: &str = include_str!("../../../../dist/plugins/anyview-heif.toml.in");
+const TEMPLATE: &str = include_str!("../../../../dist/extensions/org.quire.anyview.Heif.toml.in");
 const HELPERS: &str = include_str!("../../../../dist/helpers/anyview.toml");
 
 /// The HEIF plugin built beside the test binaries, when this run built it (`cargo test
@@ -48,7 +48,7 @@ fn heif_plugins(program: &Path, dec: &Path) -> Plugins {
             &format!("args = [\"--heif-dec\", {:?}]", dec.display().to_string()),
         );
     Plugins::resolve(vec![Candidate {
-        manifest: Manifest::parse(&text).unwrap(),
+        manifest: Manifest::parse_in_folder(&text, Path::new("/nowhere")).unwrap(),
         origin: Origin::User,
         readiness: Readiness::Ready,
     }])

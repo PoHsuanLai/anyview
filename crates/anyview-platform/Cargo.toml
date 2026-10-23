@@ -28,6 +28,9 @@ anyview-plugin-protocol = { workspace = true }
 bayonet = { workspace = true, features = ["host"] }
 dirs = { workspace = true }
 ds-core = { workspace = true }
+# The folder scan of Extensions and the file that turns some off; ds-settings without its D-Bus client reads that file.
+ds-extensions = { workspace = true }
+ds-settings = { workspace = true }
 latchkey = { workspace = true }
 log = { workspace = true }
 md-5 = { workspace = true }

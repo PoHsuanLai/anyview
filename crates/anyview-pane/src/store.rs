@@ -178,6 +178,7 @@ impl Kept {
             | HostRequest::Reveal(_)
             | HostRequest::OpenUri(_)
             | HostRequest::Provide(_)
+            | HostRequest::TurnOn(_)
             | HostRequest::SizeWindow(_) => false,
         }
     }

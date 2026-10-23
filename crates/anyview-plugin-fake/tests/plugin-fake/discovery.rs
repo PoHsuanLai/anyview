@@ -1,8 +1,10 @@
-//! Finding plugins in scratch XDG directories.
+//! Finding plugins in scratch XDG directories: Extensions under `quire/extensions`, and for one
+//! more release the flat manifests under `anyview/plugins`.
 
 use crate::support;
 
-use anyview_plugin::{Origin, PluginError};
+use anyview_plugin::{Origin, PluginError, Route};
+use anyview_plugin_protocol::Capability;
 use std::os::unix::fs::PermissionsExt;
 use support::{FAKE, Scratch, Where, fake_manifest};
 
@@ -75,13 +77,10 @@ fn a_plugin_with_the_same_id_and_a_newer_protocol_than_the_viewer_is_set_aside()
 fn malformed_and_misnamed_manifests_are_rejected_without_hiding_the_good_ones() {
     let scratch = Scratch::new();
     scratch.install(Where::User, "good", 1, &[]);
-    let bad = scratch.write_manifest(Where::User, "bad.toml", "id = \n");
-    let misnamed = scratch.write_manifest(
-        Where::User,
-        "other.toml",
-        &fake_manifest("not-other", 1, &[]),
-    );
-    scratch.write_manifest(Where::User, "notes.txt", "not a manifest, not read");
+    let bad = scratch.write_extension(Where::User, "bad", "id = \n");
+    let misnamed =
+        scratch.write_extension(Where::User, "other", &fake_manifest("not-other", 1, &[]));
+    scratch.write_legacy(Where::User, "notes.txt", "not a manifest, not read");
     let found = anyview_platform::discover(&scratch.env);
     assert_eq!(found.plugins.installed().len(), 1);
     let rejected: Vec<_> = found
@@ -94,7 +93,7 @@ fn malformed_and_misnamed_manifests_are_rejected_without_hiding_the_good_ones() 
     assert!(rejected[0].1.starts_with("Syntax"), "{}", rejected[0].1);
     assert_eq!(rejected[1].0, misnamed);
     assert!(
-        rejected[1].1.starts_with("IdFileMismatch"),
+        rejected[1].1.starts_with("IdFolderMismatch"),
         "{}",
         rejected[1].1
     );
@@ -104,12 +103,12 @@ fn malformed_and_misnamed_manifests_are_rejected_without_hiding_the_good_ones() 
 fn a_missing_or_unrunnable_program_makes_the_plugin_unusable() {
     let scratch = Scratch::new();
     let missing = fake_manifest("gone", 1, &[]).replace(FAKE, "/nonexistent/anyview-gone");
-    scratch.write_manifest(Where::User, "gone.toml", &missing);
+    scratch.write_extension(Where::User, "gone", &missing);
     let plain = scratch.dir.path().join("plain-file");
     std::fs::write(&plain, "not a program").unwrap();
     std::fs::set_permissions(&plain, std::fs::Permissions::from_mode(0o644)).unwrap();
     let flat = fake_manifest("flat", 1, &[]).replace(FAKE, plain.to_str().unwrap());
-    scratch.write_manifest(Where::User, "flat.toml", &flat);
+    scratch.write_extension(Where::User, "flat", &flat);
     let found = anyview_platform::discover(&scratch.env);
     assert!(found.plugins.installed().is_empty());
     let reasons: Vec<_> = found
@@ -140,7 +139,7 @@ fn a_broken_user_copy_does_not_hide_the_working_system_one() {
     let scratch = Scratch::new();
     scratch.install(Where::System, "tool", 1, &[]);
     let broken = fake_manifest("tool", 1, &[]).replace(FAKE, "/nonexistent/tool");
-    scratch.write_manifest(Where::User, "tool.toml", &broken);
+    scratch.write_extension(Where::User, "tool", &broken);
     let found = anyview_platform::discover(&scratch.env);
     assert_eq!(found.plugins.installed()[0].origin, Origin::System);
 }
@@ -151,4 +150,63 @@ fn no_plugin_folders_is_an_empty_registry() {
     let found = anyview_platform::discover(&scratch.env);
     assert!(found.plugins.installed().is_empty());
     assert!(found.rejected.is_empty());
+}
+
+const HEIF: &str = "org.quire.anyview.Heif";
+
+#[test]
+fn a_shipped_plugin_in_the_old_place_is_the_same_plugin_and_the_new_place_wins() {
+    // name, what is installed (old id, or the new one), the ids that serve, and the program
+    // arguments of the copy that serves: the old copy is given an argument to tell it apart
+    let cases: [(&str, &[(&str, bool)], &[&str]); 3] = [
+        ("old place only", &[("heif", true)], &["--old"]),
+        ("new place only", &[(HEIF, false)], &[]),
+        ("both at one root", &[("heif", true), (HEIF, false)], &[]),
+    ];
+    for (name, installed, args) in cases {
+        let scratch = Scratch::new();
+        for (id, old) in installed {
+            if *old {
+                scratch.install_legacy(Where::User, id, 1, &["--old"]);
+            } else {
+                scratch.install(Where::User, id, 1, &[]);
+            }
+        }
+        let found = anyview_platform::discover(&scratch.env);
+        let serving = found.plugins.installed();
+        assert_eq!(serving.len(), 1, "{name}");
+        assert_eq!(serving[0].manifest.id.as_str(), HEIF, "{name}");
+        assert_eq!(
+            serving[0].manifest.program.as_ref().unwrap().args,
+            args,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_turned_off_plugin_serves_nothing_and_is_off_not_missing() {
+    // name, where it is installed, the id Settings turned off
+    let cases = [
+        ("an Extension", "fake", "fake"),
+        ("a shipped plugin still in the old place", "heif", HEIF),
+    ];
+    for (name, installed, off) in cases {
+        let scratch = Scratch::new();
+        if installed == "heif" {
+            scratch.install_legacy(Where::System, installed, 1, &[]);
+        } else {
+            scratch.install(Where::System, installed, 1, &[]);
+        }
+        scratch.turn_off(&[off]);
+        let plugins = anyview_platform::discover(&scratch.env).plugins;
+        assert!(plugins.installed().is_empty(), "{name}");
+        match plugins.route(Capability::Probe, &support::book()) {
+            Route::Off(plugin) => {
+                assert_eq!(plugin.id(), off, "{name}");
+                assert_eq!(plugin.name(), format!("Fake {installed}"), "{name}");
+            }
+            Route::Served(_) | Route::Missing(_) | Route::Unserved => panic!("{name}: off"),
+        }
+    }
 }

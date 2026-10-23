@@ -15,7 +15,8 @@ use tempfile::TempDir;
 pub const PLUGIN: &str = env!("CARGO_BIN_EXE_anyview-heif");
 
 /// The manifest template the installer fills in.
-const TEMPLATE: &str = include_str!("../../../../../dist/plugins/anyview-heif.toml.in");
+const TEMPLATE: &str =
+    include_str!("../../../../../dist/extensions/org.quire.anyview.Heif.toml.in");
 
 pub fn file(path: &Path) -> FilePath {
     FilePath::new(path).unwrap()
@@ -39,20 +40,24 @@ impl Scratch {
         found
             .installed()
             .iter()
-            .find(|plugin| plugin.manifest.id.as_str() == "heif")
+            .find(|plugin| plugin.manifest.id.as_str() == "org.quire.anyview.Heif")
             .cloned()
             .expect("the manifest is discovered")
     }
 
     /// The registry discovery builds with the manifest installed.
     pub fn discover(&self, args: &[String]) -> Plugins {
-        let folder = self.env.dirs.data.join("anyview/plugins");
+        let folder = self
+            .env
+            .dirs
+            .data
+            .join("quire/extensions/org.quire.anyview.Heif");
         fs::create_dir_all(&folder).unwrap();
         let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
         let text = TEMPLATE
             .replace("@PREFIX@/libexec/anyview/anyview-heif", PLUGIN)
             .replace("args = []", &format!("args = [{}]", args.join(", ")));
-        fs::write(folder.join("heif.toml"), text).unwrap();
+        fs::write(folder.join("extension.toml"), text).unwrap();
         let found = discover(&self.env);
         assert!(found.rejected.is_empty(), "{:?}", found.rejected);
         found.plugins

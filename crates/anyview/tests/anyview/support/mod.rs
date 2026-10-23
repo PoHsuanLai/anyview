@@ -15,8 +15,9 @@ use anyview::window::{Factory, Opening, Seed, seeded_root};
 use anyview_core::FilePath;
 use anyview_media::AudioDriver;
 use anyview_platform::testing::{
-    FakeLinks, FakeMediaHandle, FakeMediaSession, FakePicker, FakePrinter, FakeReveal, FakeShare,
-    FakeStacking, FakeThumbnails, PluginSet, StackingSupport, plugins_with,
+    FakeLinks, FakeMediaHandle, FakeMediaSession, FakePicker, FakePrinter, FakeReveal,
+    FakeSettings, FakeShare, FakeStacking, FakeThumbnails, PluginSet, StackingSupport,
+    plugins_with,
 };
 use anyview_platform::{PickOutcome, PluginRunner, PrintOutcome};
 use anyview_store::{Clock, Viewed};
@@ -149,6 +150,7 @@ pub fn open_wired(file: &Path, scratch: &Path, plugins: Arc<MediaPlugins>, wired
                 .images
                 .clone()
                 .unwrap_or_else(ImageHost::without_plugins),
+            settings: Arc::new(FakeSettings::default()),
         },
     );
     let mut factory = Factory::new(
@@ -385,6 +387,7 @@ pub fn desktop(
             },
             helpers: None,
             images: ImageHost::without_plugins(),
+            settings: Arc::new(FakeSettings::default()),
         },
     ))
 }

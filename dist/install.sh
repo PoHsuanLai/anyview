@@ -14,8 +14,9 @@
 #   --without-plugin NAME  leave a plugin out (ffmpeg, heif, mpv or raw); may be given more than once.
 #   --no-plugins   install the viewer alone.
 #
-# The plugins install with the viewer, each as a program under DIR/libexec/anyview and a manifest under
-# DIR/share/anyview/plugins. Each one runs your own distribution's tool and links no codec, so a plugin
+# The plugins install with the viewer, each as a program under DIR/libexec/anyview and an Extension, a
+# folder with one manifest, under DIR/share/quire/extensions/org.quire.anyview.<Name> (Settings lists
+# them under Extensions). Each one runs your own distribution's tool and links no codec, so a plugin
 # whose tool is not installed yet is still installed: it says so when it is used, and starts working once
 # you install the package (see the README's table).
 #   ffmpeg  facts, pictures and conversion of video and audio (ffmpeg, ffprobe)
@@ -343,13 +344,13 @@ done
 if [[ "$WITH_FFMPEG" == yes ]]; then
   say "2b. the FFmpeg plugin"
   install_file 755 "$FFMPEG_BIN" "$PREFIX/libexec/anyview/anyview-ffmpeg"
-  manifest="$PREFIX/share/anyview/plugins/ffmpeg.toml"
+  manifest="$PREFIX/share/quire/extensions/org.quire.anyview.Ffmpeg/extension.toml"
   if [[ "$DRY_RUN" == yes ]]; then
     say "  install $manifest"
-    say "      (path = $PREFIX/libexec/anyview/anyview-ffmpeg, from dist/plugins/anyview-ffmpeg.toml.in)"
+    say "      (path = $PREFIX/libexec/anyview/anyview-ffmpeg, from dist/extensions/org.quire.anyview.Ffmpeg.toml.in)"
   else
     rendered_plugin="$SCRATCH/ffmpeg-manifest"
-    sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-ffmpeg.toml.in" >"$rendered_plugin"
+    sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/extensions/org.quire.anyview.Ffmpeg.toml.in" >"$rendered_plugin"
     install_file 644 "$rendered_plugin" "$manifest"
   fi
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 \
@@ -358,39 +359,41 @@ fi
 
 # The picture plugins, like the FFmpeg one: a program under libexec and a manifest. Each finds its
 # own tools when it runs; a warning says when they are not there yet.
-# install_picture_plugin ID LABEL BIN TOOLS...: TOOLS are alternatives, one of which should exist.
+# install_picture_plugin ID NAME LABEL BIN TOOLS...: the Extension is org.quire.anyview.NAME; TOOLS are
+# alternatives, one of which should exist.
 install_picture_plugin() {
-  local id="$1" label="$2" bin="$3"; shift 3
+  local id="$1" name="$2" label="$3" bin="$4"; shift 4
+  local extension="org.quire.anyview.$name"
   say "2d. the $label plugin"
   install_file 755 "$bin" "$PREFIX/libexec/anyview/anyview-$id"
-  local manifest="$PREFIX/share/anyview/plugins/$id.toml"
+  local manifest="$PREFIX/share/quire/extensions/$extension/extension.toml"
   if [[ "$DRY_RUN" == yes ]]; then
     say "  install $manifest"
-    say "      (path = $PREFIX/libexec/anyview/anyview-$id, from dist/plugins/anyview-$id.toml.in)"
+    say "      (path = $PREFIX/libexec/anyview/anyview-$id, from dist/extensions/$extension.toml.in)"
   else
     local rendered_pic="$SCRATCH/$id-manifest"
-    sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/plugins/anyview-$id.toml.in" >"$rendered_pic"
+    sed "s|@PREFIX@|$PREFIX|g" "$HERE/dist/extensions/$extension.toml.in" >"$rendered_pic"
     install_file 644 "$rendered_pic" "$manifest"
   fi
   local tool
   for tool in "$@"; do command -v "$tool" >/dev/null 2>&1 && return 0; done
   warn "none of $* is on the search path: the $id plugin is installed and starts working once your distribution's package for it is (README, Plugins)"
 }
-[[ "$WITH_HEIF" == no ]] || install_picture_plugin heif HEIF "$HEIF_BIN" heif-dec heif-convert
-[[ "$WITH_RAW" == no ]] || install_picture_plugin raw RAW "$RAW_BIN" dcraw_emu dcraw
+[[ "$WITH_HEIF" == no ]] || install_picture_plugin heif Heif HEIF "$HEIF_BIN" heif-dec heif-convert
+[[ "$WITH_RAW" == no ]] || install_picture_plugin raw Raw RAW "$RAW_BIN" dcraw_emu dcraw
 
 # The mpv plugin has no program of its own: its manifest names the person's mpv and the C plugin
 # installed beside the other plugin programs.
 if [[ "$WITH_MPV" == yes ]]; then
   say "2c. the mpv plugin"
   install_file 755 "$MPV_CPLUGIN" "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
-  manifest="$PREFIX/share/anyview/plugins/mpv.toml"
+  manifest="$PREFIX/share/quire/extensions/org.quire.anyview.Mpv/extension.toml"
   if [[ "$DRY_RUN" == yes ]]; then
     say "  install $manifest"
-    say "      (mpv = $MPV_PATH, cplugin = $PREFIX/libexec/anyview/mpv-wgpu-cplugin.so, from dist/plugins/anyview-mpv.toml.in)"
+    say "      (mpv = $MPV_PATH, cplugin = $PREFIX/libexec/anyview/mpv-wgpu-cplugin.so, from dist/extensions/org.quire.anyview.Mpv.toml.in)"
   else
     rendered_mpv="$SCRATCH/mpv-manifest"
-    sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" "$HERE/dist/plugins/anyview-mpv.toml.in" >"$rendered_mpv"
+    sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@MPV@|$MPV_PATH|g" "$HERE/dist/extensions/org.quire.anyview.Mpv.toml.in" >"$rendered_mpv"
     install_file 644 "$rendered_mpv" "$manifest"
   fi
 fi

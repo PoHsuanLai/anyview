@@ -75,9 +75,14 @@ impl MediaPlugins {
     /// plugin that is itself absent is not something to install a tool for).
     #[must_use]
     pub fn need_of(&self, missing: &MissingPlugin) -> Need {
+        let plugins = self.plugins();
+        // The plugin is installed and turned off: nothing to install, and Turn On… to offer.
+        if let Some(off) = plugins.off_package(missing.package) {
+            return Need::turned_off(off.fact(), off.id());
+        }
         let fact = missing.fact();
         match &self.helpers {
-            Some(helpers) if self.plugins().tool_absent(missing.package) => {
+            Some(helpers) if plugins.tool_absent(missing.package) => {
                 helpers.need(fact, missing.package.helper)
             }
             Some(_) | None => Need::passive(fact),
@@ -109,6 +114,11 @@ impl MediaPlugins {
                 )
                 | None => PlayRoute::Unserved,
             },
+            // Turned off reads as missing to the player's choice, which only needs to know that
+            // nothing plays it; `need_of` then says "turned off" instead of what to install.
+            Route::Off(_) => plugins
+                .missing_for(Capability::Play, subject)
+                .map_or(PlayRoute::Unserved, PlayRoute::Missing),
             Route::Missing(missing) => PlayRoute::Missing(missing),
             Route::Unserved => PlayRoute::Unserved,
         }
@@ -129,7 +139,9 @@ impl MediaPlugins {
             .peek_facts(&self.plugins(), &subject, source.path())
         {
             Ok(PluginFacts::Facts(facts)) => facts,
-            Ok(PluginFacts::Missing(_) | PluginFacts::Unserved) => header_facts(source, sniffed),
+            Ok(PluginFacts::Off(_) | PluginFacts::Missing(_) | PluginFacts::Unserved) => {
+                header_facts(source, sniffed)
+            }
             Err(error) => {
                 log::warn!("the plugin could not read the recording: {error}");
                 header_facts(source, sniffed)
@@ -184,11 +196,15 @@ impl MediaPlugins {
     /// The writer of `subject`'s exports.
     #[must_use]
     pub fn writer(&self, subject: &Subject<'_>) -> WriteRoute {
-        match self.plugins().route(Capability::Export, subject) {
+        let plugins = self.plugins();
+        match plugins.route(Capability::Export, subject) {
             Route::Served(plugin) => WriteRoute::Ready(Arc::new(ExportTool {
                 runner: self.runner.clone(),
                 plugin: plugin.clone(),
             })),
+            Route::Off(_) => plugins
+                .missing_for(Capability::Export, subject)
+                .map_or(WriteRoute::Unserved, WriteRoute::Missing),
             Route::Missing(missing) => WriteRoute::Missing(missing),
             Route::Unserved => WriteRoute::Unserved,
         }
@@ -221,6 +237,7 @@ impl MediaPlugins {
         let route = plugins.route(Capability::Export, &subject);
         let needs = match (&writable, &route) {
             (Some(_), _) => None,
+            (None, Route::Off(off)) => Some(off.fact()),
             (None, Route::Missing(missing)) => Some(missing.fact()),
             (None, Route::Served(_) | Route::Unserved) => Some(Fact::new(
                 FactLabel::Needs,

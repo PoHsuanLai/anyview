@@ -1,7 +1,9 @@
 //! A registry of plugins for the tests of the crates that consume it: the manifests the installer
 //! writes, filled in for programs the test names, with none of the checks that the programs exist.
 
-use anyview_plugin::{Candidate, Manifest, Origin, Plugins, Readiness};
+use anyview_plugin::{
+    Candidate, Manifest, Origin, PluginId, Plugins, Readiness, shipped_extension_id,
+};
 use std::path::Path;
 
 /// Which plugins a test has installed.
@@ -47,10 +49,18 @@ pub fn plugins_with(set: PluginSet<'_>) -> Plugins {
     Plugins::resolve(candidates)
 }
 
+/// The candidate `text` describes, under the Extension id the plugin has (the manifests here are
+/// written with the short ids a flat file was named by).
 fn candidate(text: &str) -> Candidate {
+    let mut manifest = Manifest::parse(text)
+        .unwrap_or_else(|error| panic!("the test's manifest is not valid ({error}): {text}"));
+    let renamed =
+        shipped_extension_id(manifest.id.as_str()).and_then(|id| PluginId::parse_dotted(id).ok());
+    if let Some(id) = renamed {
+        manifest.id = id;
+    }
     Candidate {
-        manifest: Manifest::parse(text)
-            .unwrap_or_else(|error| panic!("the test's manifest is not valid ({error}): {text}")),
+        manifest,
         origin: Origin::User,
         readiness: Readiness::Ready,
     }

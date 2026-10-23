@@ -193,6 +193,14 @@ impl Provides for Provision {
         Provision::capability(self)
     }
 
+    /// An Extension's manifest may also carry words that are not the viewer's (`file_icons`,
+    /// `look`): they belong to another owner and are set aside, not refused.
+    fn owns(word: &str) -> bool {
+        Capability::ALL
+            .iter()
+            .any(|capability| capability.name() == word)
+    }
+
     fn needs_program(&self) -> bool {
         Provision::needs_program(self)
     }

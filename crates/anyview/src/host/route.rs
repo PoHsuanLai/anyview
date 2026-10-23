@@ -203,6 +203,8 @@ pub enum Task {
     },
     /// Install this tool through the system's package service, which asks for the password.
     Provide(Helper),
+    /// Open Settings at this Extension (its id), which is turned off.
+    TurnOn(String),
 }
 
 /// The task for `request`, and what the window shows afterwards.
@@ -220,6 +222,7 @@ pub fn route(shown: Shown, request: HostRequest) -> (Shown, Carry) {
         HostRequest::Present(presentation) => present(shown, presentation),
         HostRequest::OpenUri(uri) => (shown, Carry::Desktop(Task::OpenLink(uri))),
         HostRequest::Provide(helper) => (shown, Carry::Desktop(Task::Provide(helper))),
+        HostRequest::TurnOn(extension) => (shown, Carry::Desktop(Task::TurnOn(extension))),
         HostRequest::Trash => about_file(shown, |probed| {
             Carry::Desktop(Task::Trash(probed.source.path().clone()))
         }),

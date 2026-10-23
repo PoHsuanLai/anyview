@@ -9,7 +9,8 @@
 # It removes what install.sh recorded in its receipt (<prefix>/share/anyview/install-receipt): the
 # files it wrote, and the directories it made, only when they are empty. Nothing else is touched.
 # Without a receipt (an install from before there was one) it removes the files install.sh writes
-# by their names, the plugins' programs and manifests included, and the folders it left empty.
+# by their names, the plugins' programs and manifests included, and the folders it left empty. The
+# plugin manifests of the release before they were Extensions (share/anyview/plugins/*.toml) go too.
 #
 # DESTDIR names the staging root it was installed into. A default set with install.sh
 # --set-default is a line in the person's mimeapps.list; it is left there (a default that names
@@ -127,10 +128,25 @@ remove_recorded() {
   return 0
 }
 
+# LEGACY, for one release: before the plugins were Extensions, install.sh wrote one flat manifest each
+# under share/anyview/plugins. An install from then is cleaned whether or not it left a receipt (a
+# receipt lists them too, and then they are already gone). Delete this with the viewer's reading of them.
+remove_legacy_manifests() {
+  local id
+  for id in ffmpeg heif raw mpv; do
+    [[ -e "$(dest "$PREFIX/share/anyview/plugins/$id.toml")" ]] && remove_file "$PREFIX/share/anyview/plugins/$id.toml"
+  done
+  if [[ "$DRY_RUN" == no ]]; then
+    [[ -d "$(dest "$PREFIX/share/anyview/plugins")" ]] && remove_dir "$(dest "$PREFIX/share/anyview/plugins")"
+  fi
+  return 0
+}
+
 RECEIPT="$PREFIX/$RECEIPT_REL"
 if [[ -f "$(dest "$RECEIPT")" ]]; then
   say "1. files (from the install receipt)"
   remove_recorded "$RECEIPT"
+  remove_legacy_manifests
 else
   say "1. files (no install receipt: by name)"
   remove_file "$PREFIX/bin/anyview"
@@ -148,15 +164,16 @@ else
   # held them when nothing else is in them.
   remove_file "$PREFIX/share/quire/helpers/anyview.toml"
   remove_file "$PREFIX/libexec/anyview/anyview-ffmpeg"
-  remove_file "$PREFIX/share/anyview/plugins/ffmpeg.toml"
+  remove_file "$PREFIX/share/quire/extensions/org.quire.anyview.Ffmpeg/extension.toml"
   remove_file "$PREFIX/libexec/anyview/anyview-heif"
-  remove_file "$PREFIX/share/anyview/plugins/heif.toml"
+  remove_file "$PREFIX/share/quire/extensions/org.quire.anyview.Heif/extension.toml"
   remove_file "$PREFIX/libexec/anyview/anyview-raw"
-  remove_file "$PREFIX/share/anyview/plugins/raw.toml"
+  remove_file "$PREFIX/share/quire/extensions/org.quire.anyview.Raw/extension.toml"
   remove_file "$PREFIX/libexec/anyview/mpv-wgpu-cplugin.so"
-  remove_file "$PREFIX/share/anyview/plugins/mpv.toml"
+  remove_file "$PREFIX/share/quire/extensions/org.quire.anyview.Mpv/extension.toml"
+  remove_legacy_manifests
   if [[ "$DRY_RUN" == no ]]; then
-    for folder in libexec/anyview libexec share/anyview/plugins share/anyview share/doc/anyview share/quire/helpers share/quire/intents share/quire/skills/files-viewer share/quire/skills share/quire; do
+    for folder in libexec/anyview libexec share/quire/extensions/org.quire.anyview.Ffmpeg share/quire/extensions/org.quire.anyview.Heif share/quire/extensions/org.quire.anyview.Raw share/quire/extensions/org.quire.anyview.Mpv share/quire/extensions share/anyview/plugins share/anyview share/doc/anyview share/quire/helpers share/quire/intents share/quire/skills/files-viewer share/quire/skills share/quire; do
       [[ -d "$(dest "$PREFIX/$folder")" ]] && remove_dir "$(dest "$PREFIX/$folder")"
     done
   fi

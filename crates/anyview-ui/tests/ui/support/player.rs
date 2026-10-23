@@ -164,6 +164,7 @@ impl MediaHost for FakePlayer {
                     Answer::Lacks => Need {
                         fact,
                         helper: Some(Helper::VideoPlayback),
+                        turn_on: None,
                     },
                     Answer::Plays | Answer::Refuses | Answer::Missing => Need::passive(fact),
                 };

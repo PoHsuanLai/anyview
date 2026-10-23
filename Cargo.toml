@@ -94,8 +94,10 @@ ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717
 ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
-# The look Extension's sheet (`appearance.look`): the folder scan and the chosen look's stylesheet.
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470", default-features = false }  # 99cffc7d (v0.3.48)
+# Extensions: the folder scan (`<data>/quire/extensions/<id>/extension.toml`), the envelope checks, the
+# `quire/extensions.toml` that turns some off, and the chosen look's stylesheet (`appearance.look`).
+# anyview's plugins are Extensions; `anyview-platform` scans with it.
 ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "99cffc7d8717b75d1fa1e85867a54987df366470" }  # 99cffc7d (v0.3.48)
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers; its `quire-desktop` PackageKit backend is the binary's).

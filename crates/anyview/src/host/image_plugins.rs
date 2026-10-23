@@ -125,6 +125,7 @@ impl ImagePlugins for ImageHost {
                     Err(error) => PluginPicture::Failed(error.to_string()),
                 }
             }
+            Route::Off(off) => PluginPicture::Missing(Need::turned_off(off.fact(), off.id())),
             Route::Missing(missing) => {
                 PluginPicture::Missing(Need::passive(missing_package(&missing, sniffed)))
             }

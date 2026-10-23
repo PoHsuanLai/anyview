@@ -1,6 +1,6 @@
 use super::*;
 use crate::error::PluginError;
-use crate::manifest::Manifest;
+use crate::manifest::{Manifest, PluginId};
 use anyview_core::{FormatKind, Mime};
 
 /// A candidate whose manifest provides `probe` for `kinds` (and exports to `targets` when any)
@@ -113,11 +113,40 @@ fn a_kind_nobody_serves_names_its_package_or_nothing() {
 }
 
 #[test]
+fn a_kind_only_a_turned_off_plugin_serves_is_off_not_missing() {
+    let off = OffPlugin::new(
+        "org.quire.anyview.Ffmpeg",
+        "FFmpeg",
+        candidate("tool", 1, Origin::System, "\"video\"", "")
+            .manifest
+            .provides,
+    );
+    let plugins = Plugins::none().with_off(vec![off.clone()]);
+    assert_eq!(plugins.route(Capability::Probe, &video()), Route::Off(&off));
+    // It provides probe for video only: audio is still missing, and an installed plugin that
+    // serves a kind beats an off one.
+    let audio = Subject {
+        kind: FormatKind::Audio,
+        mime: None,
+    };
+    assert!(matches!(
+        plugins.route(Capability::Probe, &audio),
+        Route::Missing(_)
+    ));
+    let on = candidate("other", 1, Origin::System, "\"video\"", "");
+    let both = Plugins::resolve(vec![on]).with_off(vec![off]);
+    assert!(matches!(
+        both.route(Capability::Probe, &video()),
+        Route::Served(_)
+    ));
+}
+
+#[test]
 fn a_served_kind_is_routed_to_its_plugin() {
     let plugins = Plugins::resolve(vec![candidate("tool", 1, Origin::User, "\"video\"", "")]);
     match plugins.route(Capability::Probe, &video()) {
         Route::Served(plugin) => assert_eq!(plugin.manifest.id.as_str(), "tool"),
-        Route::Missing(_) | Route::Unserved => panic!("served"),
+        Route::Off(_) | Route::Missing(_) | Route::Unserved => panic!("served"),
     }
     // Served for probe, not for thumbnail: the plugin does not provide it.
     assert!(matches!(
@@ -158,8 +187,10 @@ fn the_export_sheet_lists_each_target_once_for_the_first_plugin() {
 fn mpv_plugin_unready(reason: PluginError) -> Plugins {
     let text = "id = \"mpv\"\nname = \"mpv\"\nprotocol = 1\n[[provides]]\ncapability = \"play\"\n\
                 kinds = [\"video\"]\nmpv = \"/usr/bin/mpv\"\ncplugin = \"/opt/av/mpv-wgpu-cplugin.so\"\n";
+    let mut manifest = Manifest::parse(text).unwrap();
+    manifest.id = PluginId::parse_dotted("org.quire.anyview.Mpv").unwrap();
     Plugins::resolve(vec![Candidate {
-        manifest: Manifest::parse(text).unwrap(),
+        manifest,
         origin: Origin::System,
         readiness: Readiness::Unready(reason),
     }])

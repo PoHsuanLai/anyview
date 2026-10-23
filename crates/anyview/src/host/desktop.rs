@@ -15,12 +15,15 @@ use anyview_core::{
     Edit, FileName, FilePath, PanelKept, Resume, Source, claimed_mimes, opened_globs,
 };
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
-use anyview_platform::linux::{FileManagerReveal, MailShare, PortalPicker, PortalPrinter};
+use anyview_platform::linux::{
+    FileManagerReveal, MailShare, PortalPicker, PortalPrinter, SettingsApp,
+};
 use anyview_platform::portable::SystemOpen;
 #[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
-use anyview_platform::portable::{NoPicker, NoPrinter, NoShare, SystemReveal};
+use anyview_platform::portable::{NoPicker, NoPrinter, NoSettings, NoShare, SystemReveal};
 use anyview_platform::{
-    Env, FileKinds, JobTitle, OpenLink, PickOutcome, Picker, PrintOutcome, Printer, Reveal, Share,
+    Env, ExtensionId, FileKinds, JobTitle, OpenLink, OpenSettings, PickOutcome, Picker,
+    PrintOutcome, Printer, Reveal, SettingsTarget, Share,
 };
 use anyview_store::Versions;
 use anyview_ui::{DesktopService, EditRequest, HelperEnd, PlatformAbilities, VersionRow};
@@ -106,6 +109,7 @@ struct Parts<R, S, P, T, F, L> {
     media: Media,
     helpers: Option<Arc<HelperHost>>,
     images: Arc<ImageHost>,
+    settings: Arc<dyn OpenSettings>,
 }
 
 /// What the desktop keeps and plays with besides the platform's traits: the history and view
@@ -122,6 +126,8 @@ pub struct Services {
     pub helpers: Option<Arc<HelperHost>>,
     /// The plugins that decode the pictures a copy is made from when the viewer cannot.
     pub images: ImageHost,
+    /// Where Turn On… opens Settings: the desktop's, or none where there is no Settings to open.
+    pub settings: Arc<dyn OpenSettings>,
 }
 
 /// The tasks of every window, carried out on `runtime` through the platform's traits `R`
@@ -159,6 +165,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
             versions,
             helpers,
             images,
+            settings,
         } = services;
         let store = Arc::new(store);
         let panel = Mutex::new(store.panel_width().unwrap_or_default());
@@ -180,6 +187,7 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
                 media,
                 helpers,
                 images: Arc::new(images),
+                settings,
             }),
         }
     }
@@ -187,6 +195,12 @@ impl<R, S, P, T, F, L> Desktop<R, S, P, T, F, L> {
 
 #[cfg(all(feature = "quire-desktop", target_os = "linux"))]
 impl PlatformDesktop {
+    /// The Settings this platform opens a place in: the desktop's, over `env`'s session bus.
+    #[must_use]
+    pub fn settings(env: &Env) -> Arc<dyn OpenSettings> {
+        Arc::new(SettingsApp::new(env.clone()))
+    }
+
     /// The Linux desktop of `env`, its store under `store`.
     #[must_use]
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
@@ -205,6 +219,12 @@ impl PlatformDesktop {
 
 #[cfg(not(all(feature = "quire-desktop", target_os = "linux")))]
 impl PlatformDesktop {
+    /// The Settings this platform opens a place in: none, so Turn On… is never offered.
+    #[must_use]
+    pub fn settings(_env: &Env) -> Arc<dyn OpenSettings> {
+        Arc::new(NoSettings)
+    }
+
     /// The portable desktop of `env`, its store under `store`.
     #[must_use]
     pub fn platform(runtime: Handle, env: &Env, services: Services) -> PlatformDesktop {
@@ -320,6 +340,7 @@ where
                 !self.parts.share.targets().is_empty(),
             ),
             (DesktopService::FileManager, self.parts.reveal.present()),
+            (DesktopService::Settings, self.parts.settings.present()),
         ];
         PlatformAbilities::of(
             there
@@ -355,6 +376,10 @@ where
             ),
         },
         Task::OpenLink(uri) => failed("open the link", parts.links.open(&uri)),
+        Task::TurnOn(extension) => {
+            let target = SettingsTarget::Extension(ExtensionId(extension));
+            failed("open Settings", parts.settings.open(&target).await)
+        }
         Task::Reveal(file) => failed("reveal the file", parts.reveal.reveal(&file).await),
         Task::Share(file) => share(parts, &file).await,
         Task::Print(probed) => print(parts, probed).await,

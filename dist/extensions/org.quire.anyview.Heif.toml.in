@@ -1,5 +1,5 @@
 # The manifest of the HEIF plugin (ARCHITECTURE section 2l). install.sh fills in
-# @PREFIX@ and installs the result as <prefix>/share/anyview/plugins/heif.toml; the file name is the id.
+# @PREFIX@ and installs the result as <prefix>/share/quire/extensions/org.quire.anyview.Heif/extension.toml (an Extension: the folder name is the id).
 #
 # The plugin runs the person's own libheif tools and links no libheif: it looks for the decoder as a
 # `--heif-dec` argument (add it to `args` to name an absolute path), then the ANYVIEW_HEIF_DEC
@@ -7,9 +7,13 @@
 # `--heif-thumbnailer`, ANYVIEW_HEIF_THUMBNAILER, then `heif-thumbnailer`. It tells the host in
 # `hello` what this machine has. HEIC and HEIF are listed by the media type the viewer sniffs them as;
 # AVIF is listed for a viewer built without its own AVIF decoder (one that has it never asks).
-id = "heif"
+id = "org.quire.anyview.Heif"
 name = "HEIF"
 protocol = 1
+# The numbers of the workspace version (bayonet compares dotted numbers); the dist test keeps them equal.
+version = "0.1.0"
+licence = "MIT OR Apache-2.0"
+summary = "HEIC and HEIF pictures, through your own libheif tools"
 
 [program]
 path = "@PREFIX@/libexec/anyview/anyview-heif"

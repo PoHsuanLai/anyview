@@ -296,7 +296,7 @@ fn cancel_kills_ffmpeg_and_removes_the_partial_file() {
     assert_eq!(
         error,
         PlatformError::PluginCancelled {
-            plugin: "ffmpeg".to_owned()
+            plugin: "org.quire.anyview.Ffmpeg".to_owned()
         }
     );
     assert!(

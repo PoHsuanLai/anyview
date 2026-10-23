@@ -25,14 +25,14 @@ export HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/config" XDG_DATA_HOME="$sc
   XDG_CACHE_HOME="$scratch/cache" ANYVIEW_AUDIO_OUTPUT=null
 mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 
-# The player is a plugin: a manifest naming the person's mpv and the C plugin, in the scratch data directory.
+# The player is a plugin: an Extension manifest naming the person's mpv and the C plugin, in the scratch data directory.
 mpv="${MPV_WGPU_MPV:-$(command -v mpv || true)}"
 cplugin="${MPV_WGPU_CPLUGIN:-}"
 [ -x "$mpv" ] || { echo "no mpv (set MPV_WGPU_MPV or install mpv)"; exit 2; }
 [ -f "$cplugin" ] || { echo "no mpv-wgpu C plugin (set MPV_WGPU_CPLUGIN to libmpv_wgpu_cplugin.so)"; exit 2; }
-mkdir -p "$XDG_DATA_HOME/anyview/plugins"
+mkdir -p "$XDG_DATA_HOME/quire/extensions/org.quire.anyview.Mpv"
 sed -e "s|@MPV@|$mpv|" -e "s|@PREFIX@/libexec/anyview/mpv-wgpu-cplugin.so|$cplugin|" \
-  dist/plugins/anyview-mpv.toml.in >"$XDG_DATA_HOME/anyview/plugins/mpv.toml"
+  dist/extensions/org.quire.anyview.Mpv.toml.in >"$XDG_DATA_HOME/quire/extensions/org.quire.anyview.Mpv/extension.toml"
 
 session() {
   local name=org.mpris.MediaPlayer2.anyview path=/org/mpris/MediaPlayer2 player=org.mpris.MediaPlayer2.Player

@@ -62,7 +62,9 @@ impl Doing {
             | Task::RevertTo { .. } => Some(Doing::Save),
             Task::SaveText { .. } => Some(Doing::SaveText),
             // The install sheet says how it went; the log has the package manager's words.
-            Task::Provide(_) | Task::RecordView(_) | Task::Remember { .. } => None,
+            Task::Provide(_) | Task::TurnOn(_) | Task::RecordView(_) | Task::Remember { .. } => {
+                None
+            }
         }
     }
 }
@@ -97,6 +99,7 @@ pub fn subject_of(task: &Task) -> Option<FilePath> {
         | Task::Remember { .. }
         | Task::PickFile
         | Task::OpenLink(_)
+        | Task::TurnOn(_)
         | Task::Provide(_) => None,
     }
 }

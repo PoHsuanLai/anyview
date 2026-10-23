@@ -1,5 +1,5 @@
-//! The manifest: the TOML a plugin installs at `<data dir>/anyview/plugins/<id>.toml`, parsed
-//! and checked once so everything past it holds a value that cannot be malformed. The envelope
+//! The manifest: the TOML a plugin installs as an Extension, `<data dir>/quire/extensions/<id>/extension.toml`
+//! (or, for one more release, `<data dir>/anyview/plugins/<id>.toml`), parsed and checked once so everything past it holds a value that cannot be malformed. The envelope
 //! (id, name, protocol, program) is bayonet's; the viewer's own part is [`Provision`], which
 //! reads each `[[provides]]` table.
 

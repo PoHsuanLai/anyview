@@ -1,15 +1,16 @@
 use super::support::{FakeTrash, NOW, PDF, PNG, desktop, desktop_choosing, path, probed, services};
-use crate::host::{Desktop, Hosting, Outcome, Task};
+use crate::host::{Desktop, Hosting, Outcome, Services, Task};
 use anyview_core::{
     ExportChoice, FileName, FormatKind, PageSelection, PixelLen, PixelSize, RasterExport,
     RasterTarget, Resize, Resume, TextExport, TextExportKind, TextFlavour,
 };
 use anyview_export::DocumentExport;
 use anyview_platform::ShareTarget;
-use anyview_platform::portable::{NoPicker, NoPrinter, NoShare};
+use anyview_platform::portable::{NoPicker, NoPrinter, NoSettings, NoShare};
 use anyview_platform::testing::FakeReveal;
 use anyview_store::{HistoryRead, read_history};
 use anyview_ui::{DesktopService, PlatformAbilities};
+use std::sync::Arc;
 
 #[tokio::test]
 async fn reveal_share_and_trash_reach_their_platform_trait_with_the_file() {
@@ -284,6 +285,24 @@ async fn the_file_dialog_answers_what_was_chosen_and_nothing_when_it_was_closed(
 }
 
 #[tokio::test]
+async fn turn_on_opens_settings_at_the_extension() {
+    let dir = tempfile::tempdir().unwrap();
+    let (desktop, fakes) = desktop(dir.path());
+    let outcome = desktop
+        .carry_out(Task::TurnOn("org.quire.anyview.Heif".to_owned()))
+        .await
+        .unwrap();
+    assert_eq!(outcome, Outcome::Done);
+    let opened: Vec<String> = fakes
+        .settings
+        .opened()
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(opened, ["extension:org.quire.anyview.Heif"]);
+}
+
+#[tokio::test]
 async fn a_link_is_handed_to_the_desktops_handler() {
     let dir = tempfile::tempdir().unwrap();
     let (desktop, fakes) = desktop(dir.path());
@@ -388,7 +407,10 @@ async fn a_desktop_says_which_of_its_services_there_are() {
         FakeTrash::default(),
         NoPicker,
         fakes.links.clone(),
-        services(&dir.path().join("portable"), &fakes, None),
+        Services {
+            settings: Arc::new(NoSettings),
+            ..services(&dir.path().join("portable"), &fakes, None)
+        },
     );
     assert_eq!(
         portable.abilities(),

@@ -35,30 +35,57 @@ impl Scratch {
         Scratch { dir, env }
     }
 
-    fn plugins_dir(&self, place: Where) -> PathBuf {
-        let root = match place {
+    fn root(&self, place: Where) -> PathBuf {
+        match place {
             Where::User => self.env.dirs.data.clone(),
             Where::System => self.env.dirs.data_dirs[0].clone(),
-        };
-        let folder = root.join("anyview/plugins");
-        fs::create_dir_all(&folder).unwrap();
-        folder
+        }
     }
 
-    /// Writes `text` as `<file>` in the plugin folder of `place`.
-    pub fn write_manifest(&self, place: Where, file: &str, text: &str) -> PathBuf {
-        let path = self.plugins_dir(place).join(file);
+    /// Writes `text` as the manifest of the Extension folder `folder` of `place`
+    /// (`quire/extensions/<folder>/extension.toml`); the folder's name need not be the id inside.
+    pub fn write_extension(&self, place: Where, folder: &str, text: &str) -> PathBuf {
+        let folder = self.root(place).join("quire/extensions").join(folder);
+        fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("extension.toml");
         fs::write(&path, text).unwrap();
         path
     }
 
-    /// A manifest for the fake plugin under `id`, passing `args`, speaking `protocol`.
+    /// Writes `text` as `<file>` in the old flat plugin folder of `place` (`anyview/plugins`),
+    /// which discovery still reads for one release.
+    pub fn write_legacy(&self, place: Where, file: &str, text: &str) -> PathBuf {
+        let folder = self.root(place).join("anyview/plugins");
+        fs::create_dir_all(&folder).unwrap();
+        let path = folder.join(file);
+        fs::write(&path, text).unwrap();
+        path
+    }
+
+    /// An Extension for the fake plugin under `id`, passing `args`, speaking `protocol`.
     pub fn install(&self, place: Where, id: &str, protocol: u32, args: &[&str]) -> PathBuf {
-        self.write_manifest(
+        self.write_extension(place, id, &fake_manifest(id, protocol, args))
+    }
+
+    /// The same plugin as an old flat manifest, `anyview/plugins/<id>.toml`.
+    pub fn install_legacy(&self, place: Where, id: &str, protocol: u32, args: &[&str]) -> PathBuf {
+        self.write_legacy(
             place,
             &format!("{id}.toml"),
             &fake_manifest(id, protocol, args),
         )
+    }
+
+    /// Turns the Extensions `ids` off, as Settings does: `quire/extensions.toml` in the config
+    /// directory.
+    pub fn turn_off(&self, ids: &[&str]) {
+        let rows: String = ids
+            .iter()
+            .map(|id| format!("[[extensions.off]]\nid = \"{id}\"\n"))
+            .collect();
+        let folder = self.env.dirs.config.join("quire");
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("extensions.toml"), rows).unwrap();
     }
 
     /// A text file whose first line is `line`.

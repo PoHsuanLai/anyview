@@ -127,6 +127,7 @@ impl HelperHost {
         Need {
             fact,
             helper: self.offers(helper).then_some(helper),
+            turn_on: None,
         }
     }
 

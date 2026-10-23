@@ -1,7 +1,8 @@
 //! What the platform the viewer runs on can do for the person: the file actions that need a
 //! service of the desktop (a file chooser, a print dialog, a way to share, a file manager). The
 //! binary says which it has, from the platform parts it was built with; the views offer an
-//! action only when its service is there, so no control is shown that can do nothing. The views
+//! action only when its service is there, so no control is shown that can do nothing. (A few
+//! controls that are no file action stand on a service too; `Settings` is one.) The views
 //! never ask which operating system they run on, only this data.
 
 use anyview_core::FileAction;
@@ -18,15 +19,18 @@ pub enum DesktopService {
     Sharing,
     /// A file manager to show a file in: Show in Folder.
     FileManager,
+    /// The desktop's Settings, to open at a place: the Turn On… of a plugin that is turned off.
+    Settings,
 }
 
 /// The desktop services the platform has, a set of [`DesktopService`]. The default is all of them.
+/// The file actions that need one are in [`PlatformAbilities::offers`]; the others ask [`PlatformAbilities::has`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PlatformAbilities(u8);
 
 impl PlatformAbilities {
     /// Every service: the default, and what a desktop with all its services has.
-    pub const ALL: PlatformAbilities = PlatformAbilities(0b1111);
+    pub const ALL: PlatformAbilities = PlatformAbilities(0b1_1111);
 
     /// No service: a platform with none of the desktop's services.
     pub const NONE: PlatformAbilities = PlatformAbilities(0);
@@ -92,6 +96,7 @@ fn bit(service: DesktopService) -> u8 {
         DesktopService::PrintDialog => 0b0010,
         DesktopService::Sharing => 0b0100,
         DesktopService::FileManager => 0b1000,
+        DesktopService::Settings => 0b1_0000,
     }
 }
 

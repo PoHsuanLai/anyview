@@ -17,7 +17,8 @@ use tempfile::TempDir;
 pub const PLUGIN: &str = env!("CARGO_BIN_EXE_anyview-ffmpeg");
 
 /// The manifest template the installer fills in.
-const TEMPLATE: &str = include_str!("../../../../../dist/plugins/anyview-ffmpeg.toml.in");
+const TEMPLATE: &str =
+    include_str!("../../../../../dist/extensions/org.quire.anyview.Ffmpeg.toml.in");
 
 /// The program `name` on the search path, when there is one.
 pub fn on_path(name: &str) -> Option<PathBuf> {
@@ -72,20 +73,24 @@ impl Scratch {
 
     /// Installs the shipped manifest for the built plugin, with `args` on its command line.
     pub fn install(&self, args: &[String]) -> Installed {
-        let folder = self.env.dirs.data.join("anyview/plugins");
+        let folder = self
+            .env
+            .dirs
+            .data
+            .join("quire/extensions/org.quire.anyview.Ffmpeg");
         fs::create_dir_all(&folder).unwrap();
         let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
         let text = TEMPLATE
             .replace("@PREFIX@/libexec/anyview/anyview-ffmpeg", PLUGIN)
             .replace("args = []", &format!("args = [{}]", args.join(", ")));
-        fs::write(folder.join("ffmpeg.toml"), text).unwrap();
+        fs::write(folder.join("extension.toml"), text).unwrap();
         let found = discover(&self.env);
         assert!(found.rejected.is_empty(), "{:?}", found.rejected);
         found
             .plugins
             .installed()
             .iter()
-            .find(|plugin| plugin.manifest.id.as_str() == "ffmpeg")
+            .find(|plugin| plugin.manifest.id.as_str() == "org.quire.anyview.Ffmpeg")
             .cloned()
             .expect("the manifest is discovered")
     }

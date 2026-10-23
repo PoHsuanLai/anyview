@@ -466,7 +466,7 @@ message when the program is not installed.
 
 `anyview-platform` depends on `latchkey`, `tokio` (channels, `spawn_blocking` and a timeout), `md-5`, `png`,
 `percent-encoding`, `serde_json`, `dirs`, and, behind `quire-desktop` on Linux, `zbus` (its `tokio` feature, so
-the binary's runtime drives it), `memfd` and `futures-util`; also bayonet with its `host` feature (finding the manifests and running the plugins: `poll` on the plugin's pipe, so it is read with a deadline and no thread, and the process group it is killed with), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
+the binary's runtime drives it), `memfd` and `futures-util`; also quire's `ds-extensions` (the Extension folder scan and the off list) and `ds-settings` without its D-Bus client (reading `quire/extensions.toml`), bayonet with its `host` feature (reading the manifests and running the plugins: `poll` on the plugin's pipe, so it is read with a deadline and no thread, and the process group it is killed with), `thiserror`, `anyview-core`, `anyview-plugin`, `anyview-plugin-protocol` and `ds-core`.
 ## 2f. Modules inside `anyview-peek`
 
 Same rules as section 2: private modules, each public item re-exported once at the crate root. The peeks
@@ -762,15 +762,29 @@ handed a `Plugins` value.
 
 ### The manifest
 
-A plugin installs one file, `<id>.toml`, in `anyview/plugins/` under a data directory:
-`$XDG_DATA_HOME` (the person's) and each of `$XDG_DATA_DIRS` (the system's). The directories come from
-`Env`; a test builds its own. A file that cannot be read, is not a manifest, or is not named for its id is
-reported (`Discovery::rejected`) and skipped.
+A plugin is an Extension (design: customization, section 4): a folder named for its reverse-DNS id with one
+manifest, `quire/extensions/<id>/extension.toml`, under a data directory: `$XDG_DATA_HOME` (the person's) and
+each of `$XDG_DATA_DIRS` (the system's). The directories come from `Env`; a test builds its own. The scan is
+quire's (`ds-extensions`: `Search::new(person, system)`), which returns every copy of every id unranked and
+sets apart the ids turned off in `quire/extensions.toml` (in the config directory); `anyview-platform` then
+reads this viewer's six words from each copy (`bayonet::reparse::<Provision>`; the words of other owners, such
+as `file_icons`, are left alone), and `Registry::resolve` sets the unusable ones aside and ranks the rest. A
+file that cannot be read, is not a manifest, or sits in a folder not named for its id is reported
+(`Discovery::rejected`) and skipped.
+
+The four plugins this repository ships are `org.quire.anyview.Ffmpeg`, `.Heif`, `.Raw` and `.Mpv`. For one
+more release discovery also reads the old flat place, `anyview/plugins/<id>.toml` (bayonet's flat layout),
+and gives `ffmpeg`, `heif`, `raw` and `mpv` the id they have now before ranking, so an old install is one
+id with two copies and the new place wins at the same root (`discover.rs`, `legacy`: delete it after that
+release, with `remove_legacy_manifests` in `dist/uninstall.sh`).
 
 ```toml
-id = "ffmpeg"                  # [a-z0-9_-], up to 64; must equal the file name without ".toml"
+id = "org.quire.anyview.Ffmpeg"  # dotted words; must equal the folder name
 name = "FFmpeg"                # for people
 protocol = 1                   # the newest protocol version the program speaks
+version = "0.1.0"              # dotted numbers; shown, and breaks a tie between two copies
+licence = "MIT OR Apache-2.0"  # SPDX
+summary = "Facts, previews and conversions of video and audio, through your own FFmpeg"
 
 [program]                      # what speaks the protocol; omit for a plugin that only provides play
 path = "/usr/libexec/anyview/anyview-ffmpeg"   # absolute
@@ -793,6 +807,9 @@ mpv = "/usr/bin/mpv"           # absolute; the stock player
 cplugin = "/usr/lib/anyview/mpv-wgpu-cplugin.so"   # absolute; loaded into it with --script
 ```
 
+(bayonet holds an entry's paths in a folder layout to the folder, which an absolute `mpv` and `cplugin` fail;
+FINDINGS, "The mpv Extension". The program's own `path` may be absolute.)
+
 Unknown keys are ignored. Every capability except `play` needs a `[program]`; `play` needs both `mpv`
 and `cplugin` and the others may not carry them. `peek` is not a request of its own: the host serves it by
 asking `probe` and then `thumbnail`, so a plugin that lists `peek` answers both.
@@ -803,14 +820,17 @@ the C plugin must exist. A manifest that fails is `Unusable` with the reason and
 Precedence, applied by `Plugins::resolve` and never dependent on the order the disk lists files in:
 
 1. A manifest whose protocol is newer than the viewer's (`PROTOCOL_VERSION`), or whose programs are
-   unusable, is set aside first, so a broken copy never shadows a working one.
+   unusable, is set aside first, so a broken copy never shadows a working one. (An Extension that is
+   turned off is not ranked at all: it is `Plugins::off`.)
 2. Of the manifests with one id, the higher protocol version wins; at equal versions the person's
    directory wins over the system's; between system directories the earlier in `$XDG_DATA_DIRS` wins.
 3. Plugins with different ids are tried in the same order (protocol, then the person's first), then by id.
    `serving(capability, subject)` picks the first that provides the capability and lists the subject's kind
    or MIME type, preferring one that lists the MIME type itself.
 
-`Plugins::route` turns a request into `Route::Served(plugin)`, `Route::Missing(MissingPlugin)` (no plugin
+`Plugins::route` turns a request into `Route::Served(plugin)`, `Route::Off(&OffPlugin)` (nothing that is on
+serves it and an installed Extension that is turned off would: the viewer says "<Name> is turned off." with a
+Turn On… that opens Settings at `extension:<id>`, and never calls it missing), `Route::Missing(MissingPlugin)` (no plugin
 serves it, and the static table in `missing.rs` names a package: `anyview-ffmpeg` for probing, peeking,
 thumbnails, frames and exports of video and audio, `anyview-mpv` for playing them, and by media type
 `anyview-heif` for `image/heic` and `image/avif` and `anyview-raw` for `image/x-dcraw`: a PNG needs no plugin and
@@ -920,8 +940,8 @@ built-in back ends (FINDINGS, "Plugins are not wired into the viewer").
 1. Depend on `anyview-plugin-protocol`.
 2. In `main`, write a `hello` frame, read one frame, answer it as above, and exit. Read stdin on a
    thread of its own if the plugin must notice `cancel` during an export.
-3. Install the program (the FFmpeg plugin's goes in `<prefix>/libexec/anyview/`), and `<id>.toml` next to the
-   others in `<prefix>/share/anyview/plugins/`.
+3. Install the program (the FFmpeg plugin's goes in `<prefix>/libexec/anyview/`), and the manifest as
+   `<prefix>/share/quire/extensions/<id>/extension.toml`, with the `version`, `licence` and `summary` Settings shows.
 4. Write nothing to stdout but frames; log to stderr.
 
 `crates/anyview-plugin-fake/src` is a complete example, and its tests drive it through the host.
@@ -995,9 +1015,10 @@ processes are removed at the next export. `cancel` (or the host closing
 its pipe) kills ffmpeg, removes the partial file and answers `cancelled`; ffmpeg's last stderr lines ride in
 the message when it fails.
 
-**Install.** `dist/plugins/anyview-ffmpeg.toml.in` is the manifest template; `dist/install.sh`
+**Install.** `dist/extensions/org.quire.anyview.Ffmpeg.toml.in` is the manifest template; `dist/install.sh`
 installs the program as `<prefix>/libexec/anyview/anyview-ffmpeg` and the template, with `@PREFIX@`
-filled in, as `<prefix>/share/anyview/plugins/ffmpeg.toml`; `uninstall.sh` removes both. `dev/install-test.sh`
+filled in, as `<prefix>/share/quire/extensions/org.quire.anyview.Ffmpeg/extension.toml`; `uninstall.sh`
+removes both, and the old `<prefix>/share/anyview/plugins/ffmpeg.toml` of an earlier install. `dev/install-test.sh`
 covers it. The plugin tests spawn the built program through `PluginRunner` against the media crate's fixtures,
 using the shipped template.
 
@@ -1080,7 +1101,7 @@ installs, which it runs (CONVENTIONS section 15, "run, never link"). The process
 
 ```text
 anyview                          the viewer: windows, the media thread, the pool; MIT OR Apache-2.0
-|                                reads $XDG_DATA_DIRS/anyview/plugins/*.toml once (`discover`)
+|                                reads $XDG_DATA_DIRS/quire/extensions/*/extension.toml once (`discover`)
 |
 +-- mpv                          the person's own, one for each playing recording (a child process)
 |     |                          mpv --no-config --idle=yes --vo=libmpv --script=<cplugin> ...
@@ -1106,7 +1127,7 @@ codecs come from there: Fedora's `ffmpeg-free` plus RPM Fusion's `ffmpeg`, Debia
 plugins, which a plain `dist/install.sh` installs: it builds mpv-wgpu's C plugin (from `--with-mpv-from`,
 `MPV_WGPU_DIR` or `../mpv`, else a shallow fetch of the revision pinned in `install.sh` into
 `$XDG_CACHE_HOME/anyview/build`) and the FFmpeg plugin, finds `mpv` on the search path at install time
-(`--mpv PATH` names another) and writes `mpv.toml` and `ffmpeg.toml` under `<prefix>/share/anyview/plugins`.
+(`--mpv PATH` names another) and writes the Extension manifests `org.quire.anyview.Mpv`, `.Ffmpeg`, `.Heif` and `.Raw` under `<prefix>/share/quire/extensions`.
 Distribution packages are named `anyview-mpv` and `anyview-ffmpeg`.
 
 Pictures the viewer cannot decode work the same way: a HEIC opens as its facts with a `Needs: anyview-heif` row
@@ -1810,7 +1831,7 @@ binary, the entry, the service file (Exec rewritten to the installed binary) and
 `$QUIRE_DIR/assets/icons/apps/viewer/<px>.png`; `--set-default` is opt-in; every plugin installs by default (`--without-plugin NAME` and `--no-plugins` leave them out; `--with-plugin` is an ignored
 leftover; section 2m). A plugin whose tool is missing is still installed, since it greets the viewer with nothing on offer
 until the tool is there. The mpv plugin is skipped with one warning, and the rest installs, when there is no git, network or build; with no `mpv` it still installs, naming `/usr/bin/mpv` (a warning says so), so the plugin works the moment mpv is installed. The helpers file `dist/helpers/anyview.toml` installs to `<prefix>/share/quire/helpers/anyview.toml`. The mpv plugin's manifest template is
-`dist/plugins/anyview-mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
+`dist/extensions/org.quire.anyview.Mpv.toml.in`: `mpv` is the one found on the search path at install time (or `--mpv`) and the
 C plugin is installed as `<prefix>/libexec/anyview/mpv-wgpu-cplugin.so`. `dev/install-test.sh` (also run by
 `cargo test -p anyview-core --test anyview-core dist::`) runs both in a scratch HOME with shimmed registration tools and a shim `cargo`, and fetches mpv-wgpu only from a local repository.
 

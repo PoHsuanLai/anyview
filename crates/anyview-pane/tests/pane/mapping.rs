@@ -66,10 +66,11 @@ fn variant(request: &HostRequest) -> usize {
         HostRequest::SizeWindow(_) => 20,
         HostRequest::NotOpened(_) => 21,
         HostRequest::SaveMarkup(_) => 22,
+        HostRequest::TurnOn(_) => 23,
     }
 }
 
-const VARIANTS: usize = 23;
+const VARIANTS: usize = 24;
 
 fn not_opened() -> NotOpened {
     NotOpened {
@@ -181,6 +182,10 @@ fn every_request_of_the_window_is_placed_as_the_table_says() {
         (
             HostRequest::Provide(Helper::VideoPlayback),
             file(FileRequest::Provide(Helper::VideoPlayback)),
+        ),
+        (
+            HostRequest::TurnOn("org.quire.anyview.Mpv".to_owned()),
+            file(FileRequest::TurnOn("org.quire.anyview.Mpv".to_owned())),
         ),
     ];
     for (request, want) in &table {

@@ -186,7 +186,10 @@ SHIM
 chmod +x "$shims/cargo"
 export CARGO_TARGET_DIR="$scratch/target"
 
-mpv_manifest="$installed/share/anyview/plugins/mpv.toml"
+# A plugin is an Extension: share/quire/extensions/org.quire.anyview.<Name>/extension.toml.
+extension_of() { printf 'org.quire.anyview.%s%s' "$(printf %s "${1:0:1}" | tr a-z A-Z)" "${1:1}"; }
+manifest_of() { printf '%s/share/quire/extensions/%s/extension.toml' "$installed" "$(extension_of "$1")"; }
+mpv_manifest="$(manifest_of mpv)"
 mkdir -p "$scratch/pathbin"
 printf '#!/bin/sh\necho fake mpv\n' >"$scratch/pathbin/mpv"
 chmod +x "$scratch/pathbin/mpv"
@@ -205,11 +208,11 @@ check "the mpv-wgpu pin is a full revision, set in one place" bash -c "[[ '$pin'
 # The install script under test names the stand-in's revision instead (a copy with the pin changed,
 # next to the real lib.sh, so the real script is never edited).
 fake_repo="$scratch/fake-dist"
-mkdir -p "$fake_repo/dist/plugins" "$fake_repo/dist/helpers"
+mkdir -p "$fake_repo/dist/extensions" "$fake_repo/dist/helpers"
 cp -r "$repo/dist/intents" "$repo/dist/skills" "$fake_repo/dist/"
 cp "$repo/dist/helpers/"* "$fake_repo/dist/helpers/"
 cp "$repo/dist/"*.sh "$fake_repo/dist/"
-cp "$repo/dist/plugins/"* "$fake_repo/dist/plugins/"
+cp "$repo/dist/extensions/"* "$fake_repo/dist/extensions/"
 cp "$repo/dist/"*.desktop "$repo/dist/"*.xml "$repo/dist/"*.service "$fake_repo/dist/"
 cp "$repo/LICENSE-MIT" "$repo/LICENSE-APACHE" "$repo/THIRD-PARTY-NOTICES.md" "$fake_repo/"
 sed -i "s/^MPV_WGPU_REV=.*/MPV_WGPU_REV=$rev/" "$fake_repo/dist/install.sh"
@@ -219,26 +222,29 @@ fetching_install() { DESTDIR="$stage" MPV_WGPU_URL="$src" ANYVIEW_MPV_SIBLING= b
 out="$(with_mpv env MPV_WGPU_URL=https://example.invalid/mpv-wgpu.git ANYVIEW_MPV_SIBLING= DESTDIR="$stage" bash "$repo/dist/install.sh" --prefix "$prefix" --dry-run 2>&1)"
 for id in ffmpeg heif raw; do
   check "default dry run names the $id program" grep -q "$prefix/libexec/anyview/anyview-$id" <<<"$out"
-  check "default dry run names the $id manifest" grep -q "$prefix/share/anyview/plugins/$id.toml" <<<"$out"
+  check "default dry run names the $id manifest" grep -q "$prefix/share/quire/extensions/$(extension_of "$id")/extension.toml" <<<"$out"
 done
 check "default dry run builds the three plugins in one cargo run" grep -q "cargo build --release -p anyview-ffmpeg -p anyview-heif -p anyview-raw" <<<"$out"
 check "default dry run says what it would fetch" grep -q "git fetch --depth 1 https://example.invalid/mpv-wgpu.git $pin" <<<"$out"
-check "default dry run names the mpv manifest" grep -q "$prefix/share/anyview/plugins/mpv.toml" <<<"$out"
+check "default dry run names the mpv manifest" grep -q "$prefix/share/quire/extensions/org.quire.anyview.Mpv/extension.toml" <<<"$out"
 check "the default dry run installs nothing, fetches nothing, builds nothing" bash -c "[ -z \"\$(find '$stage' -mindepth 1 2>/dev/null)\" ] && [ ! -s '$cargo_log' ] && [ -z \"\$(find '$XDG_CACHE_HOME' -mindepth 1)\" ]"
 
 # 6b. The real default install, with the mpv-wgpu source fetched from the local stand-in.
 with_mpv fetching_install >"$scratch/default.out" 2>&1
 check "the default install succeeds" grep -q '^done\.' "$scratch/default.out"
 for id in ffmpeg heif raw; do
-  manifest="$installed/share/anyview/plugins/$id.toml"
+  manifest="$(manifest_of "$id")"
   check "the $id program is installed and executable" test -x "$installed/libexec/anyview/anyview-$id"
-  check "the $id manifest is the id's file" grep -qx "id = \"$id\"" "$manifest"
+  check "the $id manifest is the folder's Extension" grep -qx "id = \"$(extension_of "$id")\"" "$manifest"
   check "the $id manifest names the installed program, without DESTDIR" grep -qx "path = \"$prefix/libexec/anyview/anyview-$id\"" "$manifest"
   check "no placeholder is left in the $id manifest" bash -c "! grep -q '@' $manifest"
-  check "the receipt lists the $id program and manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/anyview-$id' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/anyview/plugins/$id.toml' $installed/share/anyview/install-receipt"
+  check "the receipt lists the $id program and manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/anyview-$id' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/quire/extensions/$(extension_of "$id")/extension.toml' $installed/share/anyview/install-receipt"
 done
-check "the ffmpeg manifest lists the export targets" grep -q 'targets = \["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus", "cut"\]' "$installed/share/anyview/plugins/ffmpeg.toml"
-check "the heif manifest provides decode and thumbnail" bash -c "grep -q 'capability = \"decode\"' $installed/share/anyview/plugins/heif.toml && grep -q 'capability = \"thumbnail\"' $installed/share/anyview/plugins/heif.toml"
+check "the ffmpeg manifest lists the export targets" grep -q 'targets = \["trim", "audio-copy", "m4a", "mp3", "flac", "wav", "opus", "cut"\]' "$(manifest_of ffmpeg)"
+check "the heif manifest provides decode and thumbnail" bash -c "grep -q 'capability = \"decode\"' $(manifest_of heif) && grep -q 'capability = \"thumbnail\"' $(manifest_of heif)"
+for id in ffmpeg heif raw mpv; do
+  check "the $id manifest says its version, licence and summary" bash -c "grep -q '^version = ' $(manifest_of "$id") && grep -q '^licence = ' $(manifest_of "$id") && grep -q '^summary = ' $(manifest_of "$id")"
+done
 check "the plugins were built in one release cargo run" grep -q "cargo build --release -p anyview-ffmpeg -p anyview-heif -p anyview-raw " "$cargo_log"
 cache="$XDG_CACHE_HOME/anyview/build/mpv-wgpu-${rev:0:12}"
 check "mpv-wgpu was fetched into the cache at its revision" test "$(git -C "$cache" rev-parse HEAD)" = "$rev"
@@ -248,7 +254,7 @@ check "the mpv manifest names the mpv found on the search path" grep -qx "mpv = 
 check "the mpv manifest names the installed C plugin, without DESTDIR" grep -qx "cplugin = \"$prefix/libexec/anyview/mpv-wgpu-cplugin.so\"" "$mpv_manifest"
 check "the mpv manifest provides playback" grep -q 'capability = "play"' "$mpv_manifest"
 check "no placeholder is left in the mpv manifest" bash -c "! grep -q '@' $mpv_manifest"
-check "the receipt lists the C plugin and the mpv manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/mpv-wgpu-cplugin.so' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/anyview/plugins/mpv.toml' $installed/share/anyview/install-receipt"
+check "the receipt lists the C plugin and the mpv manifest" bash -c "grep -qx 'file $prefix/libexec/anyview/mpv-wgpu-cplugin.so' $installed/share/anyview/install-receipt && grep -qx 'file $prefix/share/quire/extensions/org.quire.anyview.Mpv/extension.toml' $installed/share/anyview/install-receipt"
 check "staging the plugins registered nothing" test ! -s "$calls"
 check "HOME and XDG config stay empty" bash -c "[ -z \"\$(find $HOME $XDG_CONFIG_HOME $XDG_DATA_HOME -mindepth 1)\" ]"
 # A second run reuses the checkout (no second fetch) and leaves the files alone.
@@ -265,14 +271,14 @@ rm -rf "$XDG_CACHE_HOME/anyview"
 # 6c. --without-plugin leaves one out, --no-plugins all; --with-plugin is a noted no-op.
 with_mpv fetching_install --without-plugin heif --without-plugin mpv >"$scratch/without.out" 2>&1
 check "--without-plugin keeps the others" test -x "$installed/libexec/anyview/anyview-ffmpeg" -a -x "$installed/libexec/anyview/anyview-raw"
-check "--without-plugin heif leaves heif out" test ! -e "$installed/libexec/anyview/anyview-heif" -a ! -e "$installed/share/anyview/plugins/heif.toml"
+check "--without-plugin heif leaves heif out" test ! -e "$installed/libexec/anyview/anyview-heif" -a ! -e "$(manifest_of heif)"
 check "--without-plugin mpv leaves mpv out and fetches nothing" bash -c "[ ! -e $mpv_manifest ] && [ ! -e '$XDG_CACHE_HOME/anyview' ]"
-check "the receipt covers the plugins that were installed" grep -qx "file $prefix/share/anyview/plugins/raw.toml" "$installed/share/anyview/install-receipt"
+check "the receipt covers the plugins that were installed" grep -qx "file $prefix/share/quire/extensions/org.quire.anyview.Raw/extension.toml" "$installed/share/anyview/install-receipt"
 check "the receipt names no plugin that was left out" bash -c "! grep -q 'heif\|mpv' $installed/share/anyview/install-receipt"
 uninstall >/dev/null 2>&1
 check "uninstall after --without-plugin leaves the staging tree empty" empty "$stage"
 install --no-plugins >/dev/null 2>&1
-check "--no-plugins installs the viewer alone" test ! -e "$installed/libexec" -a ! -e "$installed/share/anyview/plugins"
+check "--no-plugins installs the viewer alone" test ! -e "$installed/libexec" -a ! -e "$installed/share/quire/extensions"
 uninstall >/dev/null 2>&1
 out="$(with_mpv fetching_install --without-plugin mpv --with-plugin ffmpeg 2>&1)"
 check "--with-plugin prints a one-line deprecation note" grep -q "^note: --with-plugin is not needed any more" <<<"$out"

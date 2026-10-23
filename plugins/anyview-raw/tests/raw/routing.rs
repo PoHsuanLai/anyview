@@ -21,8 +21,12 @@ fn raw_is_served_by_the_plugin_when_it_is_installed() {
     let raw = Mime::parse("image/x-dcraw").unwrap();
     for capability in [Capability::Decode, Capability::Thumbnail] {
         match plugins.route(capability, &subject(&raw)) {
-            Route::Served(plugin) => assert_eq!(plugin.manifest.id.as_str(), "raw"),
-            Route::Missing(_) | Route::Unserved => panic!("{capability:?} is not served"),
+            Route::Served(plugin) => {
+                assert_eq!(plugin.manifest.id.as_str(), "org.quire.anyview.Raw")
+            }
+            Route::Off(_) | Route::Missing(_) | Route::Unserved => {
+                panic!("{capability:?} is not served")
+            }
         }
     }
     // HEIC is not this plugin's business: it is the HEIF plugin's, so with only this one installed

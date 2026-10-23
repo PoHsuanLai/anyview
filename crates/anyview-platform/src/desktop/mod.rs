@@ -15,6 +15,7 @@ mod picker;
 mod portal;
 mod print;
 mod reveal;
+mod settings;
 mod share;
 
 /// The public path of the Linux desktop's implementations, `anyview_platform::linux`.
@@ -25,6 +26,7 @@ pub mod linux {
     pub use super::picker::PortalPicker;
     pub use super::print::PortalPrinter;
     pub use super::reveal::FileManagerReveal;
+    pub use super::settings::SettingsApp;
     pub use super::share::MailShare;
     pub use crate::portable::{FreedesktopThumbnails, NoStacking, SystemOpen as XdgOpen};
 }

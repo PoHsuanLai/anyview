@@ -5,6 +5,9 @@ versioning, with pre-releases while the program is in beta.
 
 ## Unreleased
 
+### Plugins
+
+- The plugins are Extensions of the desktop: each installs as a folder with one manifest under `share/quire/extensions/` (`org.quire.anyview.Ffmpeg`, `.Heif`, `.Raw` and `.Mpv`), and Settings lists them with an on/off switch. When the plugin a file needs is turned off, the viewer says "<Name> is turned off." and offers Turn On…, instead of asking you to install it. For this release the old `share/anyview/plugins/*.toml` files are still read, and `uninstall.sh` removes them; the next release stops reading them, so a plugin package of your own should install to `share/quire/extensions/<id>/extension.toml`.
 ### Recordings
 
 - Trim… (⌘T, the palette and the right-click menu) trims a video or a song in place, as QuickTime Player does. A bar comes up over the player with two yellow handles on a track the length of the recording; drag them to choose the part to keep, Space plays just that part, Return (Trim) applies it and Esc leaves. The player then shows only the part kept, and ⌘S saves it over the file with the original kept as a version to go back to with Revert To. Leaving a trimmed recording asks Save or Don't Save, and ⌘Z takes the trim back before it is saved. A video is cut at the keyframe at or before the start; a song is cut to the sample, written again in its own format at the quality it had when it could not be copied exactly. Without the FFmpeg plugin, Trim… offers to install it. Save a Copy and Revert To are now in the menus of recordings too.

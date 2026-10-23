@@ -4,7 +4,7 @@ use super::runner::PluginRunner;
 use crate::error::PlatformError;
 use crate::thumbnail::ThumbPixels;
 use anyview_core::{FactLabel, FactValue, Facts, FilePath, PixelLen};
-use anyview_plugin::{MissingPlugin, Plugins, Route, Subject};
+use anyview_plugin::{MissingPlugin, OffPlugin, Plugins, Route, Subject};
 use anyview_plugin_protocol::{Capability, FactRow};
 use ds_core::word::Word;
 
@@ -13,6 +13,8 @@ use ds_core::word::Word;
 pub enum PluginFacts {
     /// A plugin read these rows.
     Facts(Facts),
+    /// No plugin that is on serves the kind; this one would if it were turned on.
+    Off(OffPlugin),
     /// No installed plugin serves the kind; this package would.
     Missing(MissingPlugin),
     /// No plugin serves it and none is known to: the caller shows what it already has.
@@ -22,7 +24,7 @@ pub enum PluginFacts {
 impl PluginRunner {
     /// The facts of `path`, a file of `subject`'s kind that no built-in back end reads, from
     /// the plugin `plugins` routes `probe` to. When none serves it, the answer says which
-    /// package would. A plugin that fails is an error the caller shows or ignores; the viewer
+    /// package would, or which plugin to turn on. A plugin that fails is an error the caller shows or ignores; the viewer
     /// is never taken down with it. Blocking.
     pub fn peek_facts(
         &self,
@@ -35,6 +37,7 @@ impl PluginRunner {
                 let rows = self.probe(plugin, path)?;
                 Ok(PluginFacts::Facts(facts_of(&rows)))
             }
+            Route::Off(off) => Ok(PluginFacts::Off(off.clone())),
             Route::Missing(missing) => Ok(PluginFacts::Missing(missing)),
             Route::Unserved => Ok(PluginFacts::Unserved),
         }
@@ -53,7 +56,7 @@ impl PluginRunner {
     ) -> Result<Option<ThumbPixels>, PlatformError> {
         match plugins.route(Capability::Thumbnail, subject) {
             Route::Served(plugin) => self.thumbnail(plugin, path, max_edge).map(Some),
-            Route::Missing(_) | Route::Unserved => Ok(None),
+            Route::Off(_) | Route::Missing(_) | Route::Unserved => Ok(None),
         }
     }
 }

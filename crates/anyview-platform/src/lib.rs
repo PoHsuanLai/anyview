@@ -1,7 +1,7 @@
 //! The platform edge: what the viewer needs from the desktop around it, each as a trait with a
 //! Linux implementation (`linux`) and a fake (`testing`, behind the `testing` feature). The
 //! traits are single instance, the media session, the thumbnail cache, printing,
-//! sharing, revealing a file, choosing a file, opening a web link and window stacking. This is the
+//! sharing, revealing a file, choosing a file, opening a web link, opening Settings at a place and window stacking. This is the
 //! only crate that names D-Bus or the freedesktop file formats; the directories, the session bus
 //! and the way a program is started come in through [`Env`].
 //!
@@ -47,6 +47,7 @@ mod picker;
 mod plugin;
 mod printer;
 mod reveal;
+mod settings;
 mod share;
 mod spawn;
 mod stacking;
@@ -61,6 +62,7 @@ pub mod portable;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
+pub use ds_core::settings::{ExtensionId, SettingsTarget};
 pub use env::{BusRoute, Dirs, Env};
 pub use error::{IoOp, PlatformError};
 pub use instance::{Claim, Handoff, Instance, Primary, Request};
@@ -73,6 +75,7 @@ pub use picker::{FileKinds, PickOutcome, Picker};
 pub use plugin::{Discovery, PluginFacts, PluginRunner, Rejected, Timeouts, discover, discover_in};
 pub use printer::{JobTitle, PrintOutcome, Printer};
 pub use reveal::Reveal;
+pub use settings::{OpenSettings, Opening};
 pub use share::{Share, ShareTarget};
 pub use spawn::{Argv, ProcessSpawn, RefuseSpawn, Spawn};
 pub use stacking::{Stacking, StackingOutcome, WindowStacking};

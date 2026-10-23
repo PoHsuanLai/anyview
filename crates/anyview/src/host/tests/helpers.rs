@@ -2,6 +2,7 @@ use super::support::{desktop, desktop_installing};
 use crate::host::{HelperHost, Hosting, ImageHost, Outcome, PluginRegistry, Task};
 use crate::media::MediaPlugins;
 use anyview_core::{FormatKind, Helper};
+use anyview_media_host::PlayRoute;
 use anyview_plugin::{
     Candidate, Manifest, Origin, PluginError, Plugins, Readiness, Route, Subject,
 };
@@ -475,8 +476,10 @@ fn a_manifest_whose_mpv_is_absent_offers_to_install_it_and_one_whose_plugin_is_a
     let unready = |reason: PluginError| {
         let text = "id = \"mpv\"\nname = \"mpv\"\nprotocol = 1\n[[provides]]\ncapability = \"play\"\n\
                     kinds = [\"video\"]\nmpv = \"/usr/bin/mpv\"\ncplugin = \"/opt/av/cplugin.so\"\n";
+        let mut manifest = Manifest::parse(text).unwrap();
+        manifest.id = anyview_plugin::PluginId::parse_dotted("org.quire.anyview.Mpv").unwrap();
         Plugins::resolve(vec![Candidate {
-            manifest: Manifest::parse(text).unwrap(),
+            manifest,
             origin: Origin::System,
             readiness: Readiness::Unready(reason),
         }])
@@ -517,6 +520,39 @@ fn a_manifest_whose_mpv_is_absent_offers_to_install_it_and_one_whose_plugin_is_a
     let missing = missing_of(&plugins);
     let media = MediaPlugins::new(plugins, Default::default());
     assert_eq!(media.need_of(&missing).helper, None);
+}
+
+#[test]
+fn a_plugin_that_is_turned_off_says_so_and_offers_turn_on_not_install() {
+    let machine = Machine::fedora();
+    let (helpers, _) = host(&machine, Installed::Installed, &[]);
+    let text = "id = \"mpv\"\nname = \"mpv\"\nprotocol = 1\n[[provides]]\ncapability = \"play\"\n\
+                kinds = [\"video\"]\nmpv = \"/usr/bin/mpv\"\ncplugin = \"/opt/av/cplugin.so\"\n";
+    let provides = Manifest::parse(text).unwrap().provides;
+    let plugins = Plugins::none().with_off(vec![anyview_plugin::OffPlugin::new(
+        "org.quire.anyview.Mpv",
+        "mpv",
+        provides,
+    )]);
+    let video = Subject {
+        kind: FormatKind::Video,
+        mime: None,
+    };
+    assert!(matches!(
+        plugins.route(Capability::Play, &video),
+        Route::Off(_)
+    ));
+    let media = MediaPlugins::new(plugins, Default::default()).offering(Arc::clone(&helpers));
+    let PlayRoute::Missing(missing) = media.player(&video) else {
+        panic!("a recording with only a turned-off player reads as having none");
+    };
+    let need = media.need_of(&missing);
+    assert_eq!(need.fact.value.as_str(), "mpv is turned off");
+    assert_eq!(need.turn_on.as_deref(), Some("org.quire.anyview.Mpv"));
+    assert_eq!(
+        need.helper, None,
+        "nothing to install: Turn On…, not Install…"
+    );
 }
 
 #[test]

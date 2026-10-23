@@ -41,6 +41,8 @@ pub enum FileRequest {
     OpenUri(String),
     /// Install this tool through the system's package service.
     Provide(Helper),
+    /// Open Settings at this Extension (its id), which is turned off.
+    TurnOn(String),
 }
 
 /// What the pane asks of its host.
@@ -126,6 +128,7 @@ impl PaneRequest {
             HostRequest::Reveal(path) => file(FileRequest::Reveal(path)),
             HostRequest::OpenUri(address) => file(FileRequest::OpenUri(address)),
             HostRequest::Provide(helper) => file(FileRequest::Provide(helper)),
+            HostRequest::TurnOn(extension) => file(FileRequest::TurnOn(extension)),
         }
     }
 }

@@ -39,6 +39,7 @@ fn Unshown(doc: Held<RasterDoc>, needs: crate::Need, cx: StageCx) -> Element {
             facts: listed(&doc.0.facts),
             note,
             install: needs.helper,
+            turn_on: needs.turn_on,
             cx,
         }
     }

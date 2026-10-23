@@ -7,6 +7,7 @@
 
 use crate::families::InfoCard;
 use crate::families::view::StageCx;
+use crate::io::{DesktopService, HostRequest};
 use crate::{Command, Need};
 use anyview_core::{FactLabel, Facts, FileAction, FormatKind, Helper};
 use dioxus::prelude::*;
@@ -18,6 +19,8 @@ use ds_core::word::Word;
 /// (what the file cannot do) when nothing is known to fix it.
 pub(crate) fn note_of(needs: Option<&Need>, unusable: &str) -> String {
     match needs {
+        // A plugin that is installed and turned off is not missing anything: the row is a sentence.
+        Some(need) if need.turn_on.is_some() => format!("{}.", need.fact.value.as_str()),
         Some(need) => format!("{}: {}", need.fact.label.label(), need.fact.value.as_str()),
         None => unusable.to_owned(),
     }
@@ -33,7 +36,8 @@ pub(crate) fn listed(facts: &Facts) -> Facts {
 }
 
 /// The card of the file called `name`, of `kind`, whose rows are `facts`. `note` is the line under
-/// the summary; `install` is the tool whose installation the host offers, if any.
+/// the summary; `install` is the tool whose installation the host offers, if any, and `turn_on` the
+/// Extension whose Turn On… opens Settings, when the platform has one to open.
 #[component]
 pub(crate) fn UnavailableCard(
     name: String,
@@ -41,11 +45,14 @@ pub(crate) fn UnavailableCard(
     facts: Facts,
     note: String,
     install: Option<Helper>,
+    #[props(default)] turn_on: Option<String>,
     #[props(default)] poster: Option<ImageSource>,
     cx: StageCx,
 ) -> Element {
     let run = cx.run;
+    let request = cx.request;
     let platform = cx.platform;
+    let turn_on = turn_on.filter(|_| platform.has(DesktopService::Settings));
     rsx! {
         div { class: "viewer-peek",
             div { class: "viewer-peek-body",
@@ -61,6 +68,12 @@ pub(crate) fn UnavailableCard(
                                 Button {
                                     label: "Install…",
                                     onclick: move |_| run.call(Command::Install(helper)),
+                                }
+                            }
+                            if let Some(extension) = turn_on {
+                                Button {
+                                    label: "Turn On…",
+                                    onclick: move |_| request.call(HostRequest::TurnOn(extension.clone())),
                                 }
                             }
                             if platform.offers(FileAction::RevealInFolder) {
@@ -96,6 +109,11 @@ mod tests {
             note_of(None, "This recording can\u{2019}t be played."),
             "This recording can\u{2019}t be played."
         );
+        let off = Need::turned_off(
+            Fact::new(FactLabel::Needs, FactValue::text("mpv is turned off")),
+            "org.quire.anyview.Mpv",
+        );
+        assert_eq!(note_of(Some(&off), "unused"), "mpv is turned off.");
         let facts = Facts::empty()
             .with(FactLabel::Kind, FactValue::text("AVI video"))
             .with_fact(need.fact.clone());

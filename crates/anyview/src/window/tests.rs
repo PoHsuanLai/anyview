@@ -110,6 +110,7 @@ mod remaking {
                 },
                 helpers: None,
                 images: crate::host::ImageHost::without_plugins(),
+                settings: std::sync::Arc::new(anyview_platform::testing::FakeSettings::default()),
             },
         );
         let factory = Factory::new(
