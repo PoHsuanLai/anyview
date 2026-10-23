@@ -454,6 +454,40 @@ fn escape_puts_the_crop_rectangle_away_and_leaves_the_picture_as_it_was() {
 }
 
 #[test]
+fn the_crop_aspect_is_a_pop_up_and_only_a_long_shape_offers_to_turn() {
+    let (_dir, mut harness, _) = picture(vec![]);
+    harness.send(Input::key(ShortcutKey::Char('c')));
+    settle(&mut harness);
+    let turn = ".viewer-crop-bar .ds-button[data-image=\"only\"]";
+    assert_eq!(harness.count(turn), 0, "Free has no lean to turn");
+    let pop = harness
+        .centre(".viewer-crop-bar .ds-popup .ds-button")
+        .expect("the aspect pop-up is laid out");
+    harness.send(Input::pointer_move(pop));
+    harness.send(Input::click(pop));
+    settle(&mut harness);
+    // Four steps down from Free land on a shape with a long side, 4:3 or 16:9.
+    for _ in 0..4 {
+        harness.send(Input::key(ShortcutKey::Down));
+    }
+    harness.send(Input::key(ShortcutKey::Enter));
+    settle(&mut harness);
+    assert_eq!(harness.count(".ds-menu"), 0, "the pick closed the menu");
+    assert_eq!(
+        harness.attr(turn, "aria-label").as_deref(),
+        Some("Portrait")
+    );
+    let at = harness.centre(turn).expect("the turn button is laid out");
+    harness.send(Input::click(at));
+    settle(&mut harness);
+    assert_eq!(
+        harness.attr(turn, "aria-label").as_deref(),
+        Some("Landscape"),
+        "it turned"
+    );
+}
+
+#[test]
 fn the_title_bar_offers_crop_beside_select_and_pan_for_a_picture_that_can_be_saved() {
     let (_dir, harness, _) = picture(vec![]);
     assert_eq!(
