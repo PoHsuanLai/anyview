@@ -317,6 +317,8 @@ pub struct Wiring {
     /// The host's memory of the sidebar, shared by the windows that are given it; `panel` says
     /// what the window starts as when none.
     pub sidebar: Option<Arc<KeptPanel>>,
+    /// The platform whose keymap the window reads; the harness's own desktop when none.
+    pub keys: Option<chordkit::Platform>,
 }
 
 /// What a test sees of the sidebar when its window has opened.
@@ -535,6 +537,9 @@ pub fn wired(
         .with_context(launch);
     if let Some(feed) = wiring.feed {
         config = config.with_context(feed);
+    }
+    if let Some(platform) = wiring.keys {
+        config = config.with_platform(platform);
     }
     MOVES.with(|moves| moves.set(0));
     let app: fn() -> Element = if wiring.record_moves {

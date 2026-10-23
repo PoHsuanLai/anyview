@@ -43,10 +43,12 @@ use ds::components::app::edge_peek::EdgePeek;
 use ds::components::chrome::split_view::model::{PaneSize, SplitPane};
 use ds::components::chrome::split_view::view::SplitView;
 use ds::components::chrome::titlebar_parts::DocumentState;
+use ds::components::controls::button_model::{Bezel, ImagePosition};
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
 use ds::prelude::*;
 use ds::root::pass_through::ExtraClass;
+use ds::style::tokens::control_size::ControlSize;
 use ds::window::vocab::Activation;
 use ds_core::vocab::ShortcutKey;
 use std::rc::Rc;
@@ -232,6 +234,25 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
     // How much of the titlebar the mode control takes, by the window's width.
     let bar = bar_room(whole().map(|whole| whole.size.width.0));
     let trailing = if bar == BarRoom::Bare { None } else { trailing };
+    // The sidebar's button, on the bar's leading side, for a file that has views.
+    let leading = (bar != BarRoom::Bare && tabs.first().is_some()).then(|| {
+        let (title, label) = match pane_shown {
+            Shown::Visible => ("Hide Sidebar", "Hide Sidebar"),
+            Shown::Hidden => ("Show Sidebar", "Show Sidebar"),
+        };
+        rsx! {
+            Button {
+                bezel: Bezel::Toolbar,
+                image: ImagePosition::Only,
+                size: ControlSize::Small,
+                label,
+                icon: Some(IconSource::from(Icon::PanelLeft)),
+                title: Some(title.to_owned()),
+                title_shortcut: Command::ToggleSidebar.shortcut(),
+                onclick: move |_| dispatch.send(ViewerIn::Panel(PanelIn::Toggle)),
+            }
+        }
+    });
     // The width the person left the panel at, read once as the window opens. A pane keeps the
     // host's behaviour: its edge has no memory.
     let panel_spec = use_hook(|| panel_pane(edge.panel_width()));
@@ -423,7 +444,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             }
             // The small borderless window has no titlebar: the picture is what is dragged. The bar
             // lies over the panel's pane and the stage alike.
-            {titlebar_view(state.presentation, title, bar, chrome, trailing, document, zone)}
+            {titlebar_view(state.presentation, title, bar, chrome, leading, trailing, document, zone)}
             {palette_view(&state, rows, hit_lines, found, (keymap, chords), dispatch)}
             {context_view(&state.context, context_rows, dispatch)}
             {sheet_view(&state.sheet, dispatch, shelf, &carry.edge, export_facts, &offer)}

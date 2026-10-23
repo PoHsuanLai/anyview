@@ -453,6 +453,69 @@ fn a_pdf_opens_its_sidebar_on_the_pages_and_a_closed_sidebar_stays_closed_for_th
     }
 }
 
+const SIDEBAR_BUTTON: &str = ".viewer-titlebar .ds-titlebar-leading .ds-button";
+
+fn sidebar_state(harness: &Harness) -> (Option<String>, Option<String>) {
+    (
+        harness.attr(".ds-split-pane", "data-shown"),
+        harness.attr(SIDEBAR_BUTTON, "aria-label"),
+    )
+}
+
+#[test]
+fn the_titlebars_sidebar_button_hides_the_sidebar_and_shows_it_again() {
+    for scale in SCALES {
+        let (_dir, files) = pair("anyview-ui", "formats/multi.pdf", "pdf");
+        let wiring = Wiring {
+            panel: PanelStart::AsOpened,
+            ..viewport(scale)
+        };
+        let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
+        settle(&mut harness);
+        for (shown, label, then) in [
+            ("visible", "Hide Sidebar", "hidden"),
+            ("hidden", "Show Sidebar", "visible"),
+        ] {
+            assert_eq!(
+                sidebar_state(&harness),
+                (Some(shown.to_owned()), Some(label.to_owned())),
+                "{scale}: the button says what a press does"
+            );
+            let at = harness.centre(SIDEBAR_BUTTON).unwrap();
+            harness.send(Input::pointer_move(at));
+            harness.send(Input::click(at));
+            settle(&mut harness);
+            assert_eq!(
+                harness.attr(".ds-split-pane", "data-shown").as_deref(),
+                Some(then),
+                "{scale}: the button, {label}"
+            );
+        }
+    }
+}
+
+#[test]
+fn f9_toggles_the_sidebar_under_the_cua_keymap() {
+    let (_dir, files) = pair("anyview-ui", "formats/multi.pdf", "pdf");
+    let wiring = Wiring {
+        panel: PanelStart::AsOpened,
+        keys: Some(chordkit::Platform::Linux {
+            desktop: chordkit::Desktop::Other,
+        }),
+        ..viewport(100)
+    };
+    let (mut harness, _, _) = wired(&files, 0, Appearance::default(), wiring);
+    settle(&mut harness);
+    for then in ["hidden", "visible"] {
+        press(&mut harness, ShortcutKey::F(9));
+        assert_eq!(
+            harness.attr(".ds-split-pane", "data-shown").as_deref(),
+            Some(then),
+            "F9 toggles the sidebar"
+        );
+    }
+}
+
 #[test]
 fn a_new_window_has_the_sidebar_as_the_person_left_it() {
     for scale in SCALES {

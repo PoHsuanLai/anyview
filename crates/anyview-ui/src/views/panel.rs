@@ -1,10 +1,9 @@
 //! The sidebar: the body of a pane of the window's split view, never quire's `SidePanel`. Quire's
 //! `Sidebar` with the file's views as the rows of its first section (Thumbnails, Contents, Info,
-//! as Preview's sidebar lists them), and under them, once it is open, the chosen view: the open
-//! file's card or the family's own list. The views fill the room under the rows, which quire's
-//! `Sidebar` cannot give a section (a gap listed in the report), so the rows are a `Sidebar` of
-//! their own height and the view is the pane's own body. Whether the pane is open and what it is on is the panel machine's; how wide
-//! it is, is the split view's.
+//! as Preview's sidebar lists them), and under them, once it is open, the chosen view in the
+//! sidebar's fill section: the open file's card or the family's own list, taking the room the rows
+//! leave. Whether the pane is open and what it is on is the panel machine's; how wide it is, is the
+//! split view's.
 
 use crate::families::InfoCard;
 use crate::{PanelTab, PanelTabs};
@@ -76,32 +75,36 @@ pub(super) fn InfoPanel(
             )
         })
         .collect();
-    let count = rows.len();
-    let content = rsx! {
-        div { class: "viewer-panel-view",
-            match tab {
-                PanelTab::Info => rsx! {
-                    InfoCard { name, kind, facts }
-                },
-                PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Sheets | PanelTab::Tracks => {
-                    rsx! {}
+    let mut sections = vec![SidebarSection::List(rows)];
+    // Folded away, the sidebar that peeks is the views alone: what is under them is drawn only
+    // once the sidebar is open.
+    if shown == Shown::Visible {
+        sections.push(SidebarSection::Fill(rsx! {
+            div { class: "viewer-panel-view",
+                match tab {
+                    PanelTab::Info => rsx! {
+                        InfoCard { name, kind, facts }
+                    },
+                    PanelTab::Thumbnails | PanelTab::Contents | PanelTab::Sheets | PanelTab::Tracks => {
+                        rsx! {}
+                    }
+                }
+                if let Some(body) = body {
+                    {body}
                 }
             }
-            if let Some(body) = body {
-                {body}
-            }
-        }
-    };
+        }));
+    }
     rsx! {
-        div { class: "viewer-panel", style: "--viewer-rows: {count}",
-            {header}
+        div { class: "viewer-panel",
             Sidebar::<PanelTab> {
                 label: "Sidebar",
                 // The ladder's 32, mailo's and temor's.
                 size: SidebarSize::Medium,
                 fill: SidebarFill::Flat,
-                sections: vec![SidebarSection::List(rows)],
+                sections,
                 cursor: Some(tab),
+                header,
                 onselect: move |picked: PanelTab| onchoose.call(picked),
                 // A right click here is the sidebar's, not the file's menu.
                 oncontextmenu: EventHandler::new(|_: MouseEvent| {}),
@@ -109,11 +112,6 @@ pub(super) fn InfoPanel(
                     extra_class: ExtraClass::parse("viewer-panel-side").ok(),
                     ..Common::default()
                 },
-            }
-            // Folded away, the sidebar that peeks is the views alone: what is under them is drawn
-            // only once the sidebar is open.
-            if shown == Shown::Visible {
-                {content}
             }
         }
     }

@@ -45,6 +45,7 @@ pub(super) fn Titlebar(
     #[props(default)] edited: DocumentState,
     #[props(default)] room: BarRoom,
     shown: Shown,
+    leading: Option<Element>,
     trailing: Option<Element>,
     #[props(default)] document: DocumentState,
     onpointerenter: EventHandler<()>,
@@ -65,6 +66,8 @@ pub(super) fn Titlebar(
                     },
                     lights: TrafficLights::Shown,
                     title_room: room.title_room(),
+                    // The sidebar's button, after the lights.
+                    leading,
                     // The family's mode controls (Select | Pan) are part of the bar.
                     trailing,
                 }
