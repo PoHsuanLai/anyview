@@ -444,7 +444,7 @@ pub(super) fn ViewerWindow(launch: Launch) -> Element {
             }
             // The small borderless window has no titlebar: the picture is what is dragged. The bar
             // lies over the panel's pane and the stage alike.
-            {titlebar_view(state.presentation, title, bar, chrome, leading, trailing, document, zone)}
+            {titlebar_view(state.presentation, title, bar, chrome, (leading, trailing), document, zone)}
             {palette_view(&state, rows, hit_lines, found, (keymap, chords), dispatch)}
             {context_view(&state.context, context_rows, dispatch)}
             {sheet_view(&state.sheet, dispatch, shelf, &carry.edge, export_facts, &offer)}

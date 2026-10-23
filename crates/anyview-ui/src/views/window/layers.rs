@@ -16,17 +16,18 @@ use ds::components::chrome::titlebar_parts::DocumentState;
 use ds::prelude::*;
 
 /// The titlebar, over the panel's pane and the stage alike. The small borderless window and a pane
-/// have none: the picture is what is dragged. The pointer over the bar is the capsule's zone.
+/// have none: the picture is what is dragged. The pointer over the bar is the capsule's zone. The
+/// `sides` are the bar's leading control (the sidebar button) and trailing one (the family's modes).
 pub(super) fn titlebar_view(
     presentation: Presentation,
     title: String,
     room: BarRoom,
     shown: Shown,
-    leading: Option<Element>,
-    trailing: Option<Element>,
+    sides: (Option<Element>, Option<Element>),
     document: DocumentState,
     mut zone: Signal<Zone>,
 ) -> Element {
+    let (leading, trailing) = sides;
     match presentation {
         Presentation::Mini | Presentation::Pane => rsx! {},
         Presentation::Window | Presentation::Peek | Presentation::Background => rsx! {
