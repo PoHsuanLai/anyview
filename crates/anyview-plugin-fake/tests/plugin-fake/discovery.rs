@@ -154,11 +154,19 @@ fn no_plugin_folders_is_an_empty_registry() {
 
 const HEIF: &str = "org.quire.anyview.Heif";
 
+/// A case: its name, what is installed (an id, and whether it is in the old place), and the program
+/// arguments of the copy that serves.
+type Case = (
+    &'static str,
+    &'static [(&'static str, bool)],
+    &'static [&'static str],
+);
+
 #[test]
 fn a_shipped_plugin_in_the_old_place_is_the_same_plugin_and_the_new_place_wins() {
     // name, what is installed (old id, or the new one), the ids that serve, and the program
     // arguments of the copy that serves: the old copy is given an argument to tell it apart
-    let cases: [(&str, &[(&str, bool)], &[&str]); 3] = [
+    let cases: [Case; 3] = [
         ("old place only", &[("heif", true)], &["--old"]),
         ("new place only", &[(HEIF, false)], &[]),
         ("both at one root", &[("heif", true), (HEIF, false)], &[]),
