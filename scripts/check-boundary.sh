@@ -235,9 +235,11 @@ DIRECT=(
 # docket ff9d1b73 (the desktop lockstep's wave 4) runs its commands through bulkhead (the owner's
 # bubblewrap sandbox, MIT OR Apache-2.0, its dependencies already in the tree): one more in the viewer
 # alone: 701.
+# quire v0.3.45's ds-extensions (the desktop's Extensions, MIT OR Apache-2.0, over bayonet, already in
+# the viewer's tree) finds the chosen look's sheet: one more in the viewer alone: 702.
 BUDGETS=(
   "anyview-peek: 580"
-  "anyview: 701"
+  "anyview: 702"
   "anyview-machines: 34"
   "anyview-pane: 592"
   "anyview-runtime: 34"
@@ -404,7 +406,7 @@ fi
 # has, so the table stays exact. `ds-core`'s `#[derive(Word)]` is re-exported by `ds-core` itself,
 # so `ds-core-derive` is not an edge.
 EDGES=(
-  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-machines anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-helpers ds-settings"
+  "anyview: anyview-core anyview-export anyview-fs anyview-image anyview-machines anyview-media anyview-media-host anyview-pdf anyview-peek anyview-platform anyview-plugin anyview-plugin-protocol anyview-runtime anyview-store anyview-ui ds ds-blitz ds-desktop ds-extensions ds-helpers ds-settings"
   "anyview-core: ds-core"
   "anyview-store: anyview-core ds-helpers"
   "anyview-fs: anyview-core ds-helpers"
