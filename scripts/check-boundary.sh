@@ -238,18 +238,23 @@ DIRECT=(
 # alone: 701.
 # quire v0.3.45's ds-extensions (the desktop's Extensions, MIT OR Apache-2.0, over bayonet, already in
 # the viewer's tree) finds the chosen look's sheet: one more in the viewer alone: 702.
+# anyview-platform finds the plugins with ds-extensions' scan (the plugins are desktop Extensions), so the
+# media host and the pane with its player now reach it, ds-settings under it (the off list,
+# quire/extensions.toml) and that crate's file watch: ds-behaviour, ds-settings-derive, notify,
+# notify-types, inotify and inotify-sys, all already in every quire app that hosts the pane: eight
+# more in each: the media host 620 and the pane with its player 621.
 BUDGETS=(
   "anyview-peek: 580"
   "anyview: 702"
   "anyview-machines: 34"
   "anyview-pane: 592"
   "anyview-runtime: 34"
-  "anyview-media-host: 612"
+  "anyview-media-host: 620"
 )
 HEADLESS_BUDGET=200
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
-PANE_PLAYER_BUDGET=613
+PANE_PLAYER_BUDGET=621
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
 
@@ -416,7 +421,7 @@ EDGES=(
   "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-store anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-helpers docket-client docket-core docket-dbus porter-core prov"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-extensions ds-helpers ds-settings docket-client docket-core docket-dbus porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"

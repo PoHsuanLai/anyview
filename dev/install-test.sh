@@ -188,7 +188,11 @@ export CARGO_TARGET_DIR="$scratch/target"
 
 # A plugin is an Extension: share/quire/extensions/org.quire.anyview.<Name>/extension.toml.
 extension_of() { printf 'org.quire.anyview.%s%s' "$(printf %s "${1:0:1}" | tr a-z A-Z)" "${1:1}"; }
-manifest_of() { printf '%s/share/quire/extensions/%s/extension.toml' "$installed" "$(extension_of "$1")"; }
+# mpv's stays in the old place until the pinned bayonet lets a play entry reach outside its folder.
+manifest_of() {
+  if [[ "$1" == mpv ]]; then printf '%s/share/anyview/plugins/mpv.toml' "$installed"; return; fi
+  printf '%s/share/quire/extensions/%s/extension.toml' "$installed" "$(extension_of "$1")"
+}
 mpv_manifest="$(manifest_of mpv)"
 mkdir -p "$scratch/pathbin"
 printf '#!/bin/sh\necho fake mpv\n' >"$scratch/pathbin/mpv"
