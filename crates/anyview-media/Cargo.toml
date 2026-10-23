@@ -13,7 +13,7 @@ publish.workspace = true
 [features]
 # No default features: a caller names the player and the sound card it links (the viewer asks for both).
 default = []
-player = ["dep:mpv-wgpu-player", "dep:wgpu", "dep:pollster"]
+player = ["dep:mpv-wgpu-player", "dep:wgpu", "dep:pollster", "dep:blitz-kit"]
 # `audio` is the built-in audio player: symphonia decodes (the decoders anyview-peek already links for
 # probing) and cpal plays, for when the person has no mpv. Video and Opus still need mpv.
 audio = ["dep:symphonia", "dep:cpal"]
@@ -26,6 +26,9 @@ pollster = { workspace = true, optional = true }
 symphonia = { workspace = true, optional = true }
 thiserror = { workspace = true }
 wgpu = { workspace = true, optional = true }
+# The desktop's one wgpu opening lock (`adapter::opening`), which quire's harness takes too: only the
+# `adapter` module, wgpu and serde.
+blitz-kit = { workspace = true, optional = true, features = ["adapter"] }
 
 # mpv-wgpu's host hands frames over a memfd ring and a `SOCK_SEQPACKET` socket: Linux's. Elsewhere
 # `session::absent` has the same types and no session can be made (the built-in audio player and
