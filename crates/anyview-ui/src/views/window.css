@@ -21,8 +21,11 @@
 /* The sidebar: quire's `Sidebar` in a pane of the split view. Its first rows are the views, its
    second section the chosen view's content. The titlebar lies over the pane, so the sidebar's header is
    a gap as tall as the bar, and the content under the rows fills the sidebar's width. */
-.viewer-panel{ display:flex; flex-direction:column; box-sizing:border-box; height:100%; background:var(--surface-2); }
+.viewer-panel{ --viewer-rows:1; display:flex; flex-direction:column; box-sizing:border-box; height:100%; background:var(--surface-2); }
 .viewer-panel-bar{ flex:none; height:var(--chrome-titlebar-height); }
+/* The rows' list is as tall as its rows (--viewer-rows, set by the view) and quire's sidebar padding,
+   so the chosen view below gets the rest. Stopgap until quire's Sidebar can give a section the
+   remaining height. */
 .viewer-panel .viewer-panel-side{ flex:none; height:calc(var(--sidebar-row-h-m) * var(--viewer-rows) + var(--s-22)); }
 .viewer-panel-view{ flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8) var(--s-12) var(--s-12); }
 .viewer-modes{ display:flex; align-items:center; }
