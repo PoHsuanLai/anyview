@@ -26,9 +26,8 @@ pub(super) const WIDTH: u32 = 232;
 fn icon_of(tab: PanelTab) -> Icon {
     match tab {
         PanelTab::Thumbnails => Icon::Grid,
-        // TODO(icons): ListTree, once quire has it.
-        PanelTab::Contents => Icon::FileText,
-        PanelTab::Sheets => Icon::Columns,
+        PanelTab::Contents => Icon::ListTree,
+        PanelTab::Sheets => Icon::Table,
         PanelTab::Info => Icon::Info,
         PanelTab::Tracks => Icon::Music,
     }
