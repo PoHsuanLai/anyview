@@ -52,11 +52,11 @@ fn drag(harness: &mut Harness) {
     settle(harness);
 }
 
-const SEGMENTS: &str = ".ds-titlebar-trailing .ds-segmented-segment";
+const TOOLS: &str = ".ds-titlebar-trailing .viewer-modes .ds-button";
 
-fn choose(harness: &mut Harness, which: usize) {
+fn press(harness: &mut Harness, which: usize) {
     let at = harness
-        .centre(&format!("{SEGMENTS}:nth-child({which})"))
+        .centre(&format!("{TOOLS}:nth-child({which})"))
         .unwrap();
     harness.send(Input::click(at));
     settle(harness);
@@ -120,7 +120,7 @@ fn the_wheel_pans_whatever_the_mode() {
 }
 
 #[test]
-fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode() {
+fn the_tool_buttons_are_on_the_titlebars_trailing_side_and_switches_the_mode() {
     for scale in SCALES {
         let (_dir, mut harness) = zoomed(scale);
         assert_eq!(
@@ -133,7 +133,7 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
             1,
             "{scale}: the control is in the titlebar"
         );
-        assert_eq!(harness.count(SEGMENTS), 3, "{scale}: Select, Pan and Crop");
+        assert_eq!(harness.count(TOOLS), 2, "{scale}: Pan and Crop");
         let bar = harness.rect(".viewer-titlebar").unwrap();
         let control = harness.rect(".ds-titlebar-trailing").unwrap();
         let window = harness.rect(".viewer").unwrap();
@@ -147,17 +147,21 @@ fn the_segmented_control_is_on_the_titlebars_trailing_side_and_switches_the_mode
                     <= bar.origin.y.0 + bar.size.height.0 + 1.0,
             "{scale}: inside the bar's height"
         );
-        choose(&mut harness, 1);
-        assert_eq!(mode(&harness).as_deref(), Some("off"), "{scale}: Select");
-        choose(&mut harness, 2);
+        press(&mut harness, 1);
+        assert_eq!(
+            mode(&harness).as_deref(),
+            Some("off"),
+            "{scale}: the pressed Pan lets go to Select"
+        );
+        press(&mut harness, 1);
         assert_eq!(mode(&harness).as_deref(), Some("on"), "{scale}: Pan");
         assert_eq!(
             support::window_moves(),
             0,
-            "{scale}: clicking a segment does not move the window"
+            "{scale}: clicking a tool does not move the window"
         );
         // A press that travels over the control is the control's own, not a window move.
-        let at = harness.centre(&format!("{SEGMENTS}:nth-child(1)")).unwrap();
+        let at = harness.centre(&format!("{TOOLS}:nth-child(1)")).unwrap();
         harness.send(Input::drag(at, point(at.x.0 - 40.0, at.y.0 + 3.0), 5));
         settle(&mut harness);
         assert_eq!(

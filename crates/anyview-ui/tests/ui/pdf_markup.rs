@@ -46,7 +46,7 @@ fn with_the_pointer(harness: &mut Harness) {
     from_the_palette(harness, "rectangle");
     settle(harness);
     let pointer = harness
-        .centre(".viewer-markup-bar .ds-segmented-segment")
+        .centre(".viewer-markup-bar .ds-button")
         .expect("the dock's Pointer");
     harness.send(Input::click(pointer));
     settle(harness);

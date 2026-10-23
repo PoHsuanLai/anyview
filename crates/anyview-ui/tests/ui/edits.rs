@@ -491,9 +491,9 @@ fn the_crop_aspect_is_a_pop_up_and_only_a_long_shape_offers_to_turn() {
 fn the_title_bar_offers_crop_beside_select_and_pan_for_a_picture_that_can_be_saved() {
     let (_dir, harness, _) = picture(vec![]);
     assert_eq!(
-        harness.count(".ds-titlebar-trailing .ds-segmented-segment"),
-        3,
-        "Select, Pan and Crop"
+        harness.count(".ds-titlebar-trailing .viewer-modes .ds-button"),
+        2,
+        "Pan and Crop"
     );
 }
 
@@ -571,8 +571,8 @@ fn a_picture_that_cannot_be_written_has_nothing_to_edit_and_the_save_chord_offer
     let (mut harness, requests, _) = wired(&paths, 0, Appearance::default(), Wiring::default());
     settle(&mut harness);
     assert_eq!(
-        harness.count(".ds-titlebar-trailing .ds-segmented-segment"),
-        2,
+        harness.count(".ds-titlebar-trailing .viewer-modes .ds-button"),
+        1,
         "no Crop where the file cannot be saved with changes"
     );
     save(&mut harness);
@@ -604,9 +604,9 @@ fn a_still_picture_with_no_writer_is_turned_and_cropped_all_the_same_and_saving_
     );
     settle(&mut harness);
     assert_eq!(
-        harness.count(".ds-titlebar-trailing .ds-segmented-segment"),
-        3,
-        "Select, Pan and Crop, as for a JPEG"
+        harness.count(".ds-titlebar-trailing .viewer-modes .ds-button"),
+        2,
+        "Pan and Crop, as for a JPEG"
     );
     from_the_palette(&mut harness, "rotate right");
     assert_eq!(harness.count(".ds-titlebar-edited"), 1, "it was turned");

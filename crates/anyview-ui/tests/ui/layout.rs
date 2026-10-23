@@ -367,7 +367,7 @@ fn a_narrow_window_with_the_info_panel_open_keeps_its_content_title_and_capsule(
                 name.x >= lights.x + lights.w - 0.5,
                 "{label}: name over the lights"
             );
-            let modes = all(&h, ".viewer-titlebar .ds-segmented");
+            let modes = all(&h, ".viewer-titlebar .viewer-modes");
             match (w, modes.first()) {
                 (200, modes) => assert!(modes.is_none(), "{label}: no room for the mode control"),
                 (_, Some(modes)) => assert!(

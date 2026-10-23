@@ -1673,8 +1673,9 @@ A picture's edits (a turn, a mirror, a cut, a new size) are not saved as they ar
 `Viewer::picture` (`PictureEdits`) as one `Adjust` over the picture as it was opened, with the steps
 that can be taken back, and the stage draws the kept part turned and mirrored from the original
 texture (`families/raster/view.rs`: the box is rotated and `scaleX(-1)`, the texels are the cut). The
-crop tool is the third `Tool` (Select | Pan | Crop, offered only where the file takes a save with
-changes, `PictureEditing`): choosing it draws the rectangle (`families/raster/crop.rs`), a press takes
+crop tool is the third `Tool` (Select, Pan, Crop; the titlebar draws Pan and Crop as icon toggle buttons in one
+`IconButtonGroup`, Select being none pressed, and Crop is offered only where the file takes a save with
+changes, `PictureEditing`; a text file's Source toggle and the PDF markup dock's tools are icon buttons the same way): choosing it draws the rectangle (`families/raster/crop.rs`), a press takes
 hold of the grip nearest it, Enter cuts to it and Esc drops it, and `viewer/picture.rs`
 (`crop_synced`) keeps the tool and the rectangle agreeing whichever moved. ⌘S asks the host to write
 `Edit::Adjust` through the same pipeline a turn always used (original kept first, atomic write, Revert

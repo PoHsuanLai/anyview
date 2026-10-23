@@ -144,15 +144,11 @@ fn each_control_says_its_own_words() {
                 ("Rotate Right", "Rotate Right", Some("⌘]")),
             ],
         ),
-        (
-            "pointer mode",
-            capsule,
-            &[("Pointer mode", "Pointer Tool", Some("H"))],
-        ),
+        ("pointer mode", capsule, &[("Pan", "Pan", Some("H"))]),
         (
             "view mode",
             markdown,
-            &[("View mode", "View Mode", Some("V"))],
+            &[("Show Source", "Show Source", Some("V"))],
         ),
     ];
     for (row, setup, controls) in cases {
