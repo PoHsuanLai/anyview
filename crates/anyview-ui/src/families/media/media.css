@@ -12,6 +12,7 @@
 .viewer-media-cover{ position:absolute; inset:0; }
 
 .viewer-tracks{ display:flex; flex-direction:column; gap:var(--s-12); padding:var(--s-8); }
+.viewer-tracks-speed{ display:flex; align-items:center; justify-content:space-between; gap:var(--s-8); }
 .viewer-tracks-heading{ margin:0; color:var(--ink-faint); font-size:var(--fs-small); }
 .viewer-chapters{ display:flex; flex-direction:column; padding:var(--s-8); }
 

@@ -535,7 +535,7 @@ fn the_panel_lists_the_tracks_and_the_chapters_and_each_row_tells_the_player() {
     }
     harness.send(Input::click(
         harness
-            .centre(".viewer-tracks .ds-row:nth-child(5)")
+            .centre(".viewer-tracks .ds-row:nth-child(4)")
             .unwrap(),
     ));
     settle(&mut harness);

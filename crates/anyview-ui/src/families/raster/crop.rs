@@ -9,8 +9,9 @@ use crate::{CropAspect, CropBox, CropGrip, CropLean, CropShape, PictureEditIn};
 use anyview_core::{DocPoint, Permille};
 use dioxus::prelude::*;
 use ds::components::controls::button::Button;
-use ds::components::controls::segmented::Tracking;
-use ds::prelude::{Choice, SegmentedControl};
+use ds::components::controls::button_model::{Bezel, ImagePosition};
+use ds::components::menus::pop_up_button::PopUpButton;
+use ds::prelude::{Common, Icon, IconSource, MenuItem};
 
 /// The rectangle's corners in the room, in logical pixels: left, top, right, bottom.
 fn corners(draft: CropBox, centre: DocPoint, scale: Permille, area: Area) -> (f64, f64, f64, f64) {
@@ -84,14 +85,16 @@ pub(super) fn CropOverlay(
         let (_, y) = room_point(centre, scale, area, (0.0, f64::from(row)));
         boxed(left, y, right - left, 0.0)
     });
-    let shapes: Vec<Choice<CropShape>> = CropShape::ALL
+    let shapes: Vec<MenuItem<CropShape>> = CropShape::ALL
         .iter()
-        .map(|shape| Choice::new(*shape, shape.label()))
+        .map(|shape| MenuItem::new(*shape, shape.label()))
         .collect();
-    let leans = vec![
-        Choice::new(CropLean::Wide, CropLean::Wide.label()),
-        Choice::new(CropLean::Tall, CropLean::Tall.label()),
-    ];
+    // Only a shape with a long side has a lean to turn; Free, Square and Original ignore it.
+    let turns = matches!(aspect.shape, CropShape::FourThree | CropShape::SixteenNine);
+    let turned = match aspect.lean {
+        CropLean::Wide => CropLean::Tall,
+        CropLean::Tall => CropLean::Wide,
+    };
     rsx! {
         div { class: "viewer-crop", "data-dragging": if dragging { "on" } else { "off" },
             for style in dims {
@@ -122,21 +125,35 @@ pub(super) fn CropOverlay(
                 class: "viewer-crop-bar",
                 onpointerdown: move |event: PointerEvent| event.stop_propagation(),
                 ondoubleclick: move |event: MouseEvent| event.stop_propagation(),
-                SegmentedControl::<CropShape> {
-                    label: "Crop shape",
-                    choices: shapes,
-                    tracking: Tracking::SelectOne(aspect.shape),
-                    onchange: move |shape: CropShape| {
+                PopUpButton::<CropShape> {
+                    items: shapes,
+                    value: Some(aspect.shape),
+                    title: Some("Aspect".to_owned()),
+                    common: Common {
+                        aria_label: Some("Crop shape".to_owned()),
+                        ..Common::default()
+                    },
+                    onpick: move |shape: CropShape| {
                         onedit.call(PictureEditIn::Hold(CropAspect { shape, lean: aspect.lean }));
                     },
                 }
-                SegmentedControl::<CropLean> {
-                    label: "Crop orientation",
-                    choices: leans,
-                    tracking: Tracking::SelectOne(aspect.lean),
-                    onchange: move |lean: CropLean| {
-                        onedit.call(PictureEditIn::Hold(CropAspect { shape: aspect.shape, lean }));
-                    },
+                if turns {
+                    Button {
+                        label: turned.label(),
+                        title: Some(turned.label().to_owned()),
+                        bezel: Bezel::Toolbar,
+                        image: ImagePosition::Only,
+                        icon: Some(IconSource::from(Icon::RotateRight)),
+                        onclick: move |_| {
+                            onedit
+                                .call(
+                                    PictureEditIn::Hold(CropAspect {
+                                        shape: aspect.shape,
+                                        lean: turned,
+                                    }),
+                                );
+                        },
+                    }
                 }
                 Button { label: "Cancel", onclick: move |_| onedit.call(PictureEditIn::CropOff) }
                 Button { label: "Crop", onclick: move |_| onedit.call(PictureEditIn::Apply) }

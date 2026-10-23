@@ -9,8 +9,8 @@ use anyview_core::{
     ChapterIndex, MediaTime, MediaTrack, Speed, StreamKind, TrackChoice, TrackPlay,
 };
 use dioxus::prelude::*;
-use ds::components::controls::segmented::Tracking;
-use ds::prelude::{Choice, Row, SegmentedControl};
+use ds::components::menus::pop_up_button::PopUpButton;
+use ds::prelude::{Common, MenuItem, Row};
 use ds_core::vocab::{RowState, Selection};
 use std::sync::Arc;
 
@@ -71,19 +71,24 @@ fn pick(kind: TrackKind, choice: TrackChoice) -> StageIn {
 fn Tracks(doc: Held<MediaDoc>, cx: StageCx) -> Element {
     let live = cx.media.read();
     let send = cx.send;
-    let speeds: Vec<Choice<Speed>> = Speed::PRESETS
+    let speeds: Vec<MenuItem<Speed>> = Speed::PRESETS
         .iter()
-        .map(|speed| Choice::new(*speed, speed_text(*speed)))
+        .map(|speed| MenuItem::new(*speed, speed_text(*speed)))
         .collect();
     let current = live.speed;
     rsx! {
         div { class: "viewer-tracks",
-            p { class: "viewer-tracks-heading", "Speed" }
-            SegmentedControl::<Speed> {
-                label: "Speed",
-                choices: speeds,
-                tracking: Tracking::SelectOne(current),
-                onchange: move |speed: Speed| send.call(StageIn::Media(MediaIn::SetSpeed(speed))),
+            div { class: "viewer-tracks-speed",
+                p { class: "viewer-tracks-heading", "Speed" }
+                PopUpButton::<Speed> {
+                    items: speeds,
+                    value: Some(current),
+                    common: Common {
+                        aria_label: Some("Speed".to_owned()),
+                        ..Common::default()
+                    },
+                    onpick: move |speed: Speed| send.call(StageIn::Media(MediaIn::SetSpeed(speed))),
+                }
             }
             {track_list(&live, StreamKind::Audio, "Audio", send)}
             {track_list(&live, StreamKind::Subtitles, "Subtitles", send)}
