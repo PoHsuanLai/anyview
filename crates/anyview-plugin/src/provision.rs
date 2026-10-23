@@ -4,7 +4,7 @@ use crate::error::ProvisionFault;
 use crate::handles::Handles;
 use anyview_core::{FormatKind, Mime};
 use anyview_plugin_protocol::Capability;
-use bayonet::manifest::{Entry, PathRole, Provides, Refusal, absolute};
+use bayonet::manifest::{Entry, PathReach, PathRole, Provides, Refusal, absolute};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -203,6 +203,19 @@ impl Provides for Provision {
 
     fn needs_program(&self) -> bool {
         Provision::needs_program(self)
+    }
+
+    /// The player names the person's own mpv and the C plugin installed with the viewer's
+    /// programs, neither in the Extension's folder; every other entry names no path.
+    fn reach(&self) -> PathReach {
+        match self {
+            Provision::Play(_) => PathReach::Anywhere,
+            Provision::Probe(_)
+            | Provision::Peek(_)
+            | Provision::Thumbnail(_)
+            | Provision::Decode(_)
+            | Provision::Export(_) => PathReach::Folder,
+        }
     }
 
     fn paths(&self) -> Vec<(&Path, PathRole)> {

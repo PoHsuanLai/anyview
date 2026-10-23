@@ -869,15 +869,6 @@ on. It is a reference, not a log: how each was found lives in git history.
   recording shows the row that names it. Ends when temor has played a video and two panes in one window, and the facts and
   the entry are wanted.
 
-- **The mpv Extension is held inside its folder by bayonet's readiness check.** In a folder layout bayonet requires the
-  paths an entry names (`play`'s `mpv` and `cplugin`) to lie inside the Extension's folder, and they are installed
-  elsewhere (the person's `mpv`, `libexec/anyview/mpv-wgpu-cplugin.so`), so `org.quire.anyview.Mpv` is set aside as
-  `PathEscapes` and the old flat `mpv.toml` of an earlier install is what plays. The fix is bayonet's
-  `Provides::confined` (a patch is with the E3 report): `Provision` answers `false` for `Play`. Ends when the pin
-  has it and `Provision` overrides `confined`.
-- **A manifest's `version` is the workspace version's numbers only.** bayonet's `Version` is dotted numbers, so
-  `0.1.0-beta.1` is written `0.1.0` in `dist/extensions/*.toml.in` (a test keeps them equal). Ends when bayonet's
-  `Version` takes a pre-release suffix.
 - **Turn On… exists only where Settings answers.** The button opens `extension:<id>` through Settings'
   `org.freedesktop.Application` action `open-target` (the call the launcher makes), offered only when the platform
   has a session bus (`DesktopService::Settings`). A third-party plugin that is off and has no package in

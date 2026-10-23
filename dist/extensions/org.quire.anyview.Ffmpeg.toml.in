@@ -8,8 +8,8 @@
 id = "org.quire.anyview.Ffmpeg"
 name = "FFmpeg"
 protocol = 1
-# The numbers of the workspace version (bayonet compares dotted numbers); the dist test keeps them equal.
-version = "0.1.0"
+# The workspace version; the dist test keeps them equal.
+version = "0.1.0-beta.1"
 licence = "MIT OR Apache-2.0"
 summary = "Facts, previews and conversions of video and audio, through your own FFmpeg"
 

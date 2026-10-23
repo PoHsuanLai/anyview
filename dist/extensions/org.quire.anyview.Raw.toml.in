@@ -9,8 +9,8 @@
 id = "org.quire.anyview.Raw"
 name = "RAW"
 protocol = 1
-# The numbers of the workspace version (bayonet compares dotted numbers); the dist test keeps them equal.
-version = "0.1.0"
+# The workspace version; the dist test keeps them equal.
+version = "0.1.0-beta.1"
 licence = "MIT OR Apache-2.0"
 summary = "Camera raw pictures developed in full, through your own LibRaw tools"
 

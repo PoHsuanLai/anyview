@@ -117,23 +117,14 @@ fn quoted(text: &str, key: &str) -> String {
 fn the_plugin_manifests_are_extensions_of_this_release_named_for_their_ids() {
     let workspace =
         std::fs::read_to_string(repo().join("Cargo.toml")).expect("Cargo.toml is readable");
-    // bayonet compares dotted numbers, so a pre-release suffix is left off the manifest's version.
     let version = quoted(&workspace, "version");
-    let numbers: String = version
-        .chars()
-        .take_while(|c| c.is_ascii_digit() || *c == '.')
-        .collect();
     let licence = quoted(&workspace, "license");
     for name in ["Ffmpeg", "Heif", "Raw", "Mpv"] {
         let id = format!("org.quire.anyview.{name}");
         let text = std::fs::read_to_string(repo().join(format!("dist/extensions/{id}.toml.in")))
             .unwrap_or_else(|e| panic!("{id}: {e}"));
         assert_eq!(quoted(&text, "id"), id);
-        assert_eq!(
-            quoted(&text, "version"),
-            numbers.trim_end_matches('.'),
-            "{id}"
-        );
+        assert_eq!(quoted(&text, "version"), version, "{id}");
         assert_eq!(quoted(&text, "licence"), licence, "{id}");
         assert!(!quoted(&text, "summary").is_empty(), "{id}");
     }
