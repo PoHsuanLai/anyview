@@ -2493,7 +2493,7 @@ dependencies = [
 [[package]]
 name = "docket-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=93c2a102d5bc3629b77d96171e8a574466dd76d8#93c2a102d5bc3629b77d96171e8a574466dd76d8"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=7724aca663a2e09309439582c5f66e2a739c873c#7724aca663a2e09309439582c5f66e2a739c873c"
 dependencies = [
  "docket-core",
  "docket-dbus",
@@ -2508,7 +2508,7 @@ dependencies = [
 [[package]]
 name = "docket-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=93c2a102d5bc3629b77d96171e8a574466dd76d8#93c2a102d5bc3629b77d96171e8a574466dd76d8"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=7724aca663a2e09309439582c5f66e2a739c873c#7724aca663a2e09309439582c5f66e2a739c873c"
 dependencies = [
  "almanac-core",
  "bulkhead",
@@ -2520,13 +2520,12 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "url",
 ]
 
 [[package]]
 name = "docket-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/docket.git?rev=93c2a102d5bc3629b77d96171e8a574466dd76d8#93c2a102d5bc3629b77d96171e8a574466dd76d8"
+source = "git+https://github.com/PoHsuanLai/docket.git?rev=7724aca663a2e09309439582c5f66e2a739c873c#7724aca663a2e09309439582c5f66e2a739c873c"
 dependencies = [
  "docket-core",
  "porter-core",
