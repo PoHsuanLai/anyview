@@ -2,28 +2,23 @@
 //! while the window is open. The window never reads a settings file itself; the program does, and
 //! hands every window the same feed.
 
-use ds::prelude::{Alpha, Appearance, SystemPrefs, Typeface};
+use ds::prelude::{Appearance, SystemPrefs, Typeface};
 use ds::style::kit::{CustomStyles, Styles};
-use ds::style::material::stack::MaterialStack;
 use ds_blitz::StylesGuard;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::task::{Context, Poll, Waker};
 
 /// The desktop's look: theme, accent and motion, the system's scheme and contrast, and the
-/// material and typeface keys. `None` leaves a key to the root's own default.
+/// typeface key (the material's values are stylesheet tokens, set by a look's sheet). `None` leaves a key to the root's own default.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Look {
     /// Theme, accent, motion.
     pub appearance: Appearance,
     /// The system's scheme, contrast and reduced-motion answers.
     pub system: SystemPrefs,
-    /// The tint of the window material, when the person set one.
-    pub tint_alpha: Option<Alpha>,
     /// The typeface, when the person set one.
     pub typeface: Option<Typeface>,
-    /// The material's highlight, hairline, shadow and vibrancy, when the person set them.
-    pub stack: Option<MaterialStack>,
     /// The chosen look's sheet and the person's two (`~/.config/quire/style.css`,
     /// `~/.config/anyview/style.css`), as the host read them. Blank by default.
     pub styles: Styles,

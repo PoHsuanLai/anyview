@@ -94,9 +94,7 @@ pub fn ViewerApp() -> Element {
         Ds {
             appearance: now.appearance,
             system: now.system,
-            tint_alpha: now.tint_alpha,
             typeface: now.typeface,
-            stack: now.stack,
             styles: ReadSignal::from(styles),
             custom_styles: now.custom_styles,
             material: Material::Window,
@@ -132,9 +130,7 @@ pub fn PaneApp() -> Element {
                 Ds {
                     appearance: now.appearance,
                     system: now.system,
-                    tint_alpha: now.tint_alpha,
                     typeface: now.typeface,
-                    stack: now.stack,
                     styles: ReadSignal::from(styles),
                     custom_styles: now.custom_styles,
                     material: Material::Window,

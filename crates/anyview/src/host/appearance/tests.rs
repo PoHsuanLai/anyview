@@ -114,11 +114,8 @@ fn a_desktop_with_no_file_gets_the_defaults_and_the_program_writes_none() {
 
 #[test]
 fn the_look_carries_the_keys_the_file_set() {
-    let mut environment = Environment::default();
-    environment.settings.appearance.material_tint_alpha = ds_settings::Percent(64);
+    let environment = Environment::default();
     let look = look_of(&environment);
-    assert_eq!(look.tint_alpha, Some(environment.tint_alpha()));
-    assert_eq!(look.stack, Some(environment.material_stack()));
     assert_eq!(
         look.appearance,
         environment.settings.appearance.appearance()
