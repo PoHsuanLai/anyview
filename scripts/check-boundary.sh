@@ -439,14 +439,14 @@ EDGES=(
   "anyview-raw: anyview-plugin-protocol anyview-tool-kit"
   "anyview-tool-kit: anyview-plugin-common anyview-plugin-protocol"
 )
-  # quire, docket, porter and bayonet crates are git dependencies, so they show with their url where a
+  # quire, docket, porter, prov and bayonet crates are git dependencies, so they show with their url where a
   # workspace crate shows a path. (bayonet is a path while it sits beside this checkout, and then shows
   # with a path like the workspace's own.)
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"
   read -r -a allowed <<<"${edge#*:}"
   found=$(cargo tree -p "$crate" --depth 1 -e normal,build --prefix none --all-features 2>/dev/null \
-    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter|bayonet))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
+    | grep -E '\((/|https://github.com/PoHsuanLai/(quire|docket|porter|prov|bayonet))' | awk '{print $1}' | grep -vx "$crate" | sort -u | tr '\n' ' ')
   want=$(printf '%s\n' "${allowed[@]}" | grep . | sort -u | tr '\n' ' ')
   if [ "$found" != "$want" ]; then
     echo "EDGE: $crate depends on [${found% }], the table allows [${want% }]"
