@@ -94,7 +94,6 @@ pub fn ViewerApp() -> Element {
         Ds {
             appearance: now.appearance,
             system: now.system,
-            typeface: now.typeface,
             styles: ReadSignal::from(styles),
             custom_styles: now.custom_styles,
             material: Material::Window,
@@ -130,7 +129,6 @@ pub fn PaneApp() -> Element {
                 Ds {
                     appearance: now.appearance,
                     system: now.system,
-                    typeface: now.typeface,
                     styles: ReadSignal::from(styles),
                     custom_styles: now.custom_styles,
                     material: Material::Window,

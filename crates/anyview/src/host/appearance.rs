@@ -146,7 +146,6 @@ pub fn look_of(environment: &Environment) -> Look {
     Look {
         appearance: settings.appearance(),
         system: environment.system,
-        typeface: Some(settings.typeface()),
         ..Look::default()
     }
 }
