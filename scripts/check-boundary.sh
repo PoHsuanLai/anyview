@@ -238,6 +238,9 @@ DIRECT=(
 # alone: 701.
 # quire v0.3.45's ds-extensions (the desktop's Extensions, MIT OR Apache-2.0, over bayonet, already in
 # the viewer's tree) finds the chosen look's sheet: one more in the viewer alone: 702.
+# The agent layer's Round A (porter f7e47a71, almanac 8d91de73, docket 01390d02): porter-core keeps its
+# secrets in secrecy (with subtle, const-hex and cpufeatures) and almanac-core names entries by ulid, all
+# pure Rust under licences deny.toml already allows; docket-provider takes docket-client's place: 706.
 # anyview-platform finds the plugins with ds-extensions' scan (the plugins are desktop Extensions), so the
 # media host and the pane with its player now reach it, ds-settings under it (the off list,
 # quire/extensions.toml) and that crate's file watch: ds-behaviour, ds-settings-derive, notify,
@@ -245,7 +248,7 @@ DIRECT=(
 # more in each: the media host 620 and the pane with its player 621.
 BUDGETS=(
   "anyview-peek: 580"
-  "anyview: 702"
+  "anyview: 706"
   "anyview-machines: 34"
   "anyview-pane: 592"
   "anyview-runtime: 34"

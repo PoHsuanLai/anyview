@@ -10,7 +10,6 @@
 use crate::error::PlatformError;
 use crate::instance::Request;
 use anyview_core::FilePath;
-use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, FileRef, Follow, Here, Hit,
     Invocation, LabelText, Manifest, Outcome, Preview, Selection, SuggestAsk, SummonAnswer,
@@ -18,6 +17,7 @@ use docket_core::{
     ValidManifest, Visible, WindowPrivacy, validate,
 };
 use docket_dbus::callers::{Identity, intentd_only};
+use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use porter_core::Count;
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;
