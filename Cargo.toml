@@ -129,7 +129,7 @@ chordkit = { git = "https://github.com/PoHsuanLai/chordkit.git", rev = "99eec9dd
 # blitz 0.3.0-beta.2). The in-tree dioxus-native-dom targets dioxus 0.7.x.
 # Blitz comes from our fork (github.com/PoHsuanLai/blitz, branch quire-pin): upstream e99fbdbd plus
 # bf588142 (restyles elements whose animation was cancelled mid-way) and 1b23fbd9 (attributes carry no
-# namespace, so `[data-x=y]` matches) (sill G295), and the later fixes quire's pinned block lists, up to 851fa7dd (text-overflow: ellipsis), then 0be21979 (a cancelled press resets the drag state) and 41134ff3 (a text input takes its element's font, Return adds one line, a table cell holds its content), then 7649ca62 (a node dropped before the flush that queued it is skipped). Move back
+# namespace, so `[data-x=y]` matches) (sill G295), and the later fixes quire's pinned block lists, up to 851fa7dd (text-overflow: ellipsis), then 0be21979 (a cancelled press resets the drag state) and 41134ff3 (a text input takes its element's font, Return adds one line, a table cell holds its content), then 7649ca62 (a node dropped before the flush that queued it is skipped) and 841386a7 (a table row's block-level child gets an anonymous cell; dragging a selection past a scroller's edge scrolls it). Move back
 # to DioxusLabs/blitz when a toolchain-bump wave finds the fix (or its equivalent) upstream.
 blitz-dom = { git = "https://github.com/PoHsuanLai/blitz", rev = "841386a71f17673c211217725e75068774517ba8", default-features = false, features = ["svg", "system-fonts", "custom-widget", "accessibility"] }
 blitz-paint = { git = "https://github.com/PoHsuanLai/blitz", rev = "841386a71f17673c211217725e75068774517ba8", features = ["custom-widget"] }
