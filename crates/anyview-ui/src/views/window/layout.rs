@@ -5,7 +5,7 @@ use super::super::chrome::BarRoom;
 use crate::Command;
 use crate::families::Area;
 use ds::components::app::spaces::SIDEBAR_MIN_WIDTH;
-use ds::components::chrome::capsule::fit::{SlotShown, fit};
+use ds::components::chrome::capsule::fit::fit;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::split_view::model::{Collapsing, PaneSize, PaneSpec};
 use ds::prelude::*;
@@ -57,7 +57,7 @@ pub(super) fn capsule_shows_something(slots: &[RankedSlot<Command>], area: Optio
     let width = area
         .map(|area| area.size.width.0.floor().max(0.0) as u32)
         .filter(|width| *width > 0);
-    fit(slots, width).contains(&SlotShown::Shown)
+    fit(slots, width).contains(&true)
 }
 
 /// How much of the titlebar the mode control takes, by the window's width in logical pixels.

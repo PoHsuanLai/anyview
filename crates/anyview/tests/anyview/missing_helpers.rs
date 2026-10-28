@@ -11,7 +11,7 @@ use anyview::media::MediaPlugins;
 use anyview_platform::PluginRunner;
 use anyview_plugin::{Candidate, Manifest, Origin, Plugins, Readiness};
 use ds_harness::Input;
-use ds_helpers::{Catalog, Environment, FakeInstaller, Installer, Outcome, StandIn};
+use ds_helpers::{Catalog, Environment, FakeInstaller, Outcome, StandIn};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use support::{Wired, open_wired, until};
@@ -103,7 +103,7 @@ fn a_heic_without_its_tool_installs_it_from_the_sheet_and_opens_in_place() {
             path: tools.clone().into(),
             os_release: dir.path().join("os-release"),
         },
-        Installer::Fake(fake.clone()),
+        fake.clone(),
         registry.clone(),
     ));
     let images =

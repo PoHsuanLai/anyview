@@ -10,8 +10,8 @@ use anyview_plugin_protocol::Capability;
 use anyview_ui::{HelperEnd, HelperSource, HelperWords};
 use ds::prelude::Word;
 use ds_helpers::{
-    Catalog, Environment, FakeInstaller, Family, InstallLine, Installer, Missing,
-    Outcome as Installed, PackageName,
+    Catalog, Environment, FakeInstaller, Family, InstallLine, Missing, Outcome as Installed,
+    PackageName,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -79,7 +79,7 @@ fn host_of(
     Arc::new(HelperHost::new(
         Catalog::parse(catalog).unwrap(),
         machine.environment(),
-        Installer::Fake(installer.clone()),
+        installer.clone(),
         registry,
     ))
 }
@@ -269,7 +269,7 @@ fn a_system_that_cannot_install_offers_no_install_beside_the_row() {
     let host = HelperHost::new(
         catalog,
         machine.environment(),
-        Installer::Fake(fake),
+        fake,
         PluginRegistry::default(),
     )
     .installing_where(false);

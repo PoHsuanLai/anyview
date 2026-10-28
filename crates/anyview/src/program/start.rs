@@ -340,7 +340,7 @@ fn helper_host(env: &Env, registry: &PluginRegistry, installable: bool) -> Optio
             HelperHost::new(
                 catalog,
                 ds_helpers::Environment::system(),
-                ds_helpers::Installer::PackageKit(ds_helpers::PackageKit::system()),
+                ds_helpers::PackageKit::system(),
                 registry.clone(),
             )
             .installing_where(installable),

@@ -88,28 +88,28 @@ bayonet = { git = "https://github.com/PoHsuanLai/bayonet.git", rev = "d66e243188
 # the same rev in the sill and shell manifests). The pin moves to the ~/desktop manifest later.
 # A local checkout is used by a [patch."https://github.com/PoHsuanLai/quire.git"] block in a
 # parent workspace, never here.
-ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
+ds-core = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
 # The design system and its Blitz host (the pane's components, `PdfFileThumb`'s page and
 # `TextureLayer`), and the test driver and lint (dev-dependencies only).
-ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
-ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
+ds = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
+ds-blitz = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
 # The one desktop appearance (`quire/appearance.toml` and the settings portal): the binary follows it.
-ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f", default-features = false }  # 515c104b (v0.3.54)
+ds-settings = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba", default-features = false }  # ccced931 (v0.3.55)
 # Extensions: the folder scan (`<data>/quire/extensions/<id>/extension.toml`), the envelope checks, the
 # `quire/extensions.toml` that turns some off, and the chosen look's stylesheet (`appearance.look`).
 # anyview's plugins are Extensions; `anyview-platform` scans with it.
-ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
+ds-extensions = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
 # The missing-helper prompt: the sheet (ds-shell, drawn by the views) and the catalog, probe and
 # PackageKit install behind it (ds-helpers; its `quire-desktop` PackageKit backend is the binary's).
 # Without that feature ds-helpers is std plus thiserror, serde and toml: anyview-fs, -store and
 # -platform read and write the person's files through its `read_capped` and `write_atomic`.
-ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f", default-features = false }  # 515c104b (v0.3.54)
+ds-helpers = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba", default-features = false }  # ccced931 (v0.3.55)
 # Which of quire's desktop services answer (PackageKit, for installing a missing tool). Without its
 # `dbus` feature, which `quire-desktop` turns on, every service is absent and no D-Bus crate is linked.
-ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
-ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
-ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
-ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "515c104bdb852740d6a10397e0e75f6cd3105d2f" }  # 515c104b (v0.3.54)
+ds-desktop = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
+ds-shell = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
+ds-harness = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
+ds-lint = { git = "https://github.com/PoHsuanLai/quire.git", rev = "ccced9314a43b4349755a1e4cc0b005d58c2b4ba" }  # ccced931 (v0.3.55)
 
 # ---- BEGIN PINNED BLOCK (source of truth: quire/docs/workspace-deps.toml) ----
 # Copied verbatim into [workspace.dependencies] of quire, shell-host and sill. Bumped only by a

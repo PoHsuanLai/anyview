@@ -9,8 +9,7 @@ use anyview_core::{Fact, Helper};
 use anyview_ui::{HelperEnd, HelperSource, HelperWords, Need};
 use ds::prelude::Word;
 use ds_helpers::{
-    CapabilityName, Catalog, Entry, Environment, Helpers, InstallLine, Installer, Missing, Outcome,
-    ToolPresence,
+    CapabilityName, Catalog, Entry, Environment, Helpers, Install, InstallLine, Missing, Outcome,
 };
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
@@ -92,7 +91,7 @@ impl HelperHost {
     pub fn new(
         catalog: Catalog,
         environment: Environment,
-        installer: Installer,
+        installer: impl Install + 'static,
         registry: PluginRegistry,
     ) -> HelperHost {
         HelperHost {
@@ -209,7 +208,7 @@ impl HelperHost {
         async move {
             loop {
                 let change = feed.next().await;
-                if change.presence != ToolPresence::Present {
+                if !change.present {
                     continue;
                 }
                 let Some(helper) = helper_of(&change.capability) else {

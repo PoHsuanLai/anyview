@@ -9,7 +9,7 @@ use ds::components::chrome::capsule::model::ScrubEvent;
 use ds::components::chrome::capsule::priority::RankedSlot;
 use ds::components::chrome::capsule::view::Capsule;
 use ds::components::chrome::titlebar_parts::{DocumentState, TitleParts};
-use ds::components::chrome::window_frame::{TitleRoom, TrafficLights, WindowTitlebar};
+use ds::components::chrome::window_frame::{TitleRoom, WindowTitlebar};
 use ds::prelude::{Material, Shown, Surface};
 use ds_core::vocab::Fraction;
 use ds_core::word::Word;
@@ -64,7 +64,7 @@ pub(super) fn Titlebar(
                         document,
                         ..TitleParts::default()
                     },
-                    lights: TrafficLights::Shown,
+                    lights: Shown::Visible,
                     title_room: room.title_room(),
                     // The sidebar's button, after the lights.
                     leading,

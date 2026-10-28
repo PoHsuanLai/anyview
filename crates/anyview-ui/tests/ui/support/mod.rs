@@ -20,7 +20,7 @@ use dioxus::prelude::*;
 use ds::prelude::Appearance;
 use ds::prelude::{Point, Px, ShortcutKey};
 use ds::window::host::{HostWindow, use_window_host_provider};
-use ds::window::vocab::{ResizeEdge, Support, TileError, WindowState, WindowTile, Zoom};
+use ds::window::vocab::{ResizeEdge, TileError, WindowState, WindowTile, Zoom};
 use ds_harness::Input;
 use ds_harness::{Backend, Clock, Harness, HarnessConfig, Viewport};
 use image::RgbaImage;
@@ -436,8 +436,8 @@ impl HostWindow for CountsMoves {
     fn tile(&self, _tile: WindowTile) -> Result<(), TileError> {
         Err(TileError::Unsupported)
     }
-    fn supports(&self, _tile: WindowTile) -> Support {
-        Support::No
+    fn supports(&self, _tile: WindowTile) -> bool {
+        false
     }
     fn state(&self) -> WindowState {
         WindowState::default()

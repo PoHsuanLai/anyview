@@ -11,7 +11,7 @@ use anyview_core::FilePath;
 use chordkit::Context;
 use dioxus::prelude::*;
 use ds::components::chrome::titlebar_parts::TitleParts;
-use ds::components::chrome::window_frame::{TrafficLights, WindowTitlebar};
+use ds::components::chrome::window_frame::WindowTitlebar;
 use ds::components::controls::button_model::Answers;
 use ds::file_drop::hook::use_file_drop;
 use ds::focus::soon::focus_soon;
@@ -114,7 +114,7 @@ fn Welcome() -> Element {
             WindowTitlebar {
                 title: anyview_core::APP_NAME.to_owned(),
                 parts: TitleParts::default(),
-                lights: TrafficLights::Shown,
+                lights: Shown::Visible,
             }
             div { class: "viewer-welcome-body",
                 EmptyState {
