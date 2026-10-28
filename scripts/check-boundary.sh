@@ -424,7 +424,7 @@ EDGES=(
   "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-store anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-extensions ds-helpers ds-settings docket-provider docket-core docket-dbus porter-core prov"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-extensions ds-helpers ds-settings docket-provider docket-core docket-dbus docket-manifest docket-vocab docket-wire porter-core porter-ids prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"

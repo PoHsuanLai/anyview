@@ -10,9 +10,9 @@ use crate::support;
 use anyview_core::FilePath;
 use anyview_platform::linux::{AGENT_BUS_NAME, DbusInstance, OPEN_FILES};
 use anyview_platform::{Claim, Instance, Primary, Request};
-use docket_core::{
-    Args, CallId, FileRef, Invocation, Manifest, Origin, TargetKind, TargetValue, validate,
-};
+use docket_core::Invocation;
+use docket_manifest::{Manifest, TargetKind, validate};
+use docket_vocab::{Args, CallId, FileRef, Origin, TargetValue};
 use porter_core::AppName;
 use prov::{ActionName, Actor, Effect, SpaceId};
 use std::collections::HashMap;
