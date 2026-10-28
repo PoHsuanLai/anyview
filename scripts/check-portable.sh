@@ -23,7 +23,7 @@ cargo check -p anyview-peek --no-default-features --locked
 cargo check -p anyview-peek --no-default-features --features media --locked
 # (d) The pane alone, as temor takes it, and its tree holds none of the desktop's crates.
 cargo check -p anyview-pane --no-default-features --locked
-for dep in zbus ashpd docket-client docket-core porter-core; do
+for dep in zbus ashpd docket-provider docket-core porter-core; do
   if cargo tree -p anyview-pane -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
     echo "check-portable: anyview-pane reaches $dep" >&2
     exit 1
@@ -32,7 +32,7 @@ done
 # With its `player` feature the pane plays recordings through anyview-media-host (the person's own mpv, run
 # as a child process): it compiles alone and still reaches no bus, no docket or porter.
 cargo check -p anyview-pane --features player --locked
-for dep in zbus ashpd docket-client docket-core porter-core; do
+for dep in zbus ashpd docket-provider docket-core porter-core; do
   if cargo tree -p anyview-pane --features player -e normal,build -i "$dep" 2>/dev/null | grep -q .; then
     echo "check-portable: anyview-pane --features player reaches $dep" >&2
     exit 1

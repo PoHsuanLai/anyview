@@ -250,14 +250,14 @@ clap = { version = "4", features = ["derive"] }
 # advisory lock (github.com/PoHsuanLai/latchkey, MIT OR Apache-2.0). Taken at a full SHA, as docket and porter are;
 # `anyview-platform` uses it wherever the D-Bus instance (feature `quire-desktop`) is not built.
 # docket, at the desktop manifest's rev; porter and prov (its own repo, github.com/PoHsuanLai/prov)
-# at the revs docket itself pins, with the same URL spelling, so Cargo sees one copy of each. `docket-client`'s `dbus` feature serves
+# at the revs docket itself pins, with the same URL spelling, so Cargo sees one copy of each. `docket-provider`'s `dbus` feature serves
 # `org.quire.IntentProvider1`; `docket-dbus` names who may call it; `prov` is the label and name
 # vocabulary its signatures use.
-docket-client = { git = "https://github.com/PoHsuanLai/docket.git", rev = "82608696009fc7caaceb3afb7a56f9e6c37d7fa0", default-features = false, features = ["dbus"] }
-docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "82608696009fc7caaceb3afb7a56f9e6c37d7fa0" }
-docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "82608696009fc7caaceb3afb7a56f9e6c37d7fa0" }
-prov = { git = "https://github.com/PoHsuanLai/prov", rev = "44dc456c04bc4d414e03385b17be2cf6ddab0436" }
-porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae" }
+docket-provider = { git = "https://github.com/PoHsuanLai/docket.git", rev = "01390d02c4e79327dbb00c35819b90f2c8d633ae", features = ["dbus"] }
+docket-core = { git = "https://github.com/PoHsuanLai/docket.git", rev = "01390d02c4e79327dbb00c35819b90f2c8d633ae" }
+docket-dbus = { git = "https://github.com/PoHsuanLai/docket.git", rev = "01390d02c4e79327dbb00c35819b90f2c8d633ae" }
+prov = { git = "https://github.com/PoHsuanLai/prov", rev = "e1e9725126c44b369086fdb0ce7f8da2e3048b8c" }
+porter-core = { git = "https://github.com/PoHsuanLai/porter", rev = "f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261" }
 latchkey = { git = "https://github.com/PoHsuanLai/latchkey", rev = "b10ae1b8c49c55cce2c5affde8f5db76edb66ab4" }
 # ---- Companion / agent stack (agent-spec section 1.4) ----
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

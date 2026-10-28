@@ -10,7 +10,7 @@
 use crate::error::PlatformError;
 use crate::instance::Request;
 use anyview_core::FilePath;
-use docket_client::{ContextSource, IntentProvider, SummonTarget};
+use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, FileRef, Follow, Here, Hit,
     Invocation, LabelText, Manifest, Outcome, Preview, Selection, SuggestAsk, SummonAnswer,
@@ -63,7 +63,7 @@ pub(super) async fn serve(
     let window = PrivateWindow::new(&manifest);
     let provider = ViewerIntents::new(manifest, sender);
     let callers = Arc::new(Identity::on(connection.clone(), intentd_only(), proc_root));
-    docket_client::serve_on_with(connection, provider, window, NoPrompt, callers)
+    docket_provider::serve_on_with(connection, provider, window, NoPrompt, callers)
         .await
         .map_err(|error| PlatformError::Bus {
             call: "offer the viewer to the agent layer",

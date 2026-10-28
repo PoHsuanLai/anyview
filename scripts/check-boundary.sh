@@ -121,8 +121,8 @@ RULES=(
   "anyview-machines: dioxus ds ds-blitz ds-shell ds-motion ds-style tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect"
   "anyview-ui: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-runtime: dioxus ds ds-blitz tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint anyrender syntect"
-  "anyview-media-host: zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia"
-  "anyview-pane: zbus ashpd docket-client docket-core porter-core mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys"
+  "anyview-media-host: zbus ashpd docket-provider docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia"
+  "anyview-pane: zbus ashpd docket-provider docket-core porter-core mpv-wgpu-player rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys"
   "anyview-export: zbus mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next"
   "anyview-image: dioxus tokio zbus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark"
   "anyview-platform: dioxus wgpu pdfrum mpv-wgpu-player rsmpv ffmpeg-next ffmpeg-sys-next image blitz-dom blitz-paint blitz-traits blitz-html blitz-shell blitz-kit anyrender syntect pulldown-cmark resvg jxl-oxide"
@@ -173,7 +173,7 @@ DIRECT=(
 # zbus already in the tree). anyview-peek is 591 since quire v0.2.22: `ds` itself now depends on `ds-desktop` (the capsule and menus ask which desktop services answer), so the
 # launcher links it too (one package, no dependency of its own without `dbus`); it never reaches cpal (its rule above).
 # Offering the viewer to docket (the agent layer, `quire-desktop` only) adds twelve to the viewer and nothing to
-# the peek: docket-client, docket-core and docket-dbus; porter-core, porter-dbus and prov (docket's names and
+# the peek: docket-provider, docket-core and docket-dbus; porter-core, porter-dbus and prov (docket's names and
 # labels); almanac-core, cua-action, model-provider, genai-names and vision-prep (pure vocabulary crates
 # docket-core names in its signatures: episodes, computer-use actions, model shapes); and base64 0.22.1 (the
 # older one docket-core's wire uses beside the 0.23 already in the tree). The viewer is 682.
@@ -253,7 +253,7 @@ BUDGETS=(
 )
 HEADLESS_BUDGET=200
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
-PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-client docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
+PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-provider docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
 PANE_PLAYER_BUDGET=621
 HEADLESS_FORBIDDEN=(ds ds-motion ds-style dioxus dioxus-core ds-blitz wgpu pdfrum blitz-dom anyrender rav1e ravif img-parts zbus wayland-client)
 fail=0
@@ -421,7 +421,7 @@ EDGES=(
   "anyview-pane: anyview-core anyview-media anyview-media-host anyview-peek anyview-store anyview-ui ds"
   "anyview-image: anyview-core ds-core"
   "anyview-text: anyview-core anyview-fs ds-core"
-  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-extensions ds-helpers ds-settings docket-client docket-core docket-dbus porter-core prov"
+  "anyview-platform: anyview-core anyview-plugin anyview-plugin-protocol bayonet ds-core ds-extensions ds-helpers ds-settings docket-provider docket-core docket-dbus porter-core prov"
   "anyview-peek: anyview-archive anyview-book anyview-core anyview-font anyview-fs anyview-image anyview-text ds ds-blitz ds-core"
   "anyview-media: anyview-core ds-core"
   "anyview-media-host: anyview-core anyview-media anyview-platform anyview-plugin anyview-runtime anyview-ui ds ds-blitz"

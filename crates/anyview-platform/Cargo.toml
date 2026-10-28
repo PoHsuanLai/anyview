@@ -15,7 +15,7 @@ publish.workspace = true
 # The code behind the feature is also gated on `target_os = "linux"`, so a build for another platform
 # ignores it (quire design/36).
 default = []
-quire-desktop = ["dep:docket-client", "dep:docket-core", "dep:docket-dbus", "dep:porter-core", "dep:prov", "dep:toml", "dep:zbus", "dep:memfd", "dep:futures-util"]
+quire-desktop = ["dep:docket-provider", "dep:docket-core", "dep:docket-dbus", "dep:porter-core", "dep:prov", "dep:toml", "dep:zbus", "dep:memfd", "dep:futures-util"]
 # The fakes (`anyview_platform::testing`), for the tests of the crates that consume the traits.
 testing = ["dep:tempfile"]
 
@@ -46,7 +46,7 @@ tokio = { workspace = true }
 futures-util = { workspace = true, optional = true }
 memfd = { workspace = true, optional = true }
 zbus = { workspace = true, optional = true }
-docket-client = { workspace = true, optional = true }
+docket-provider = { workspace = true, optional = true }
 docket-core = { workspace = true, optional = true }
 docket-dbus = { workspace = true, optional = true }
 prov = { workspace = true, optional = true }
