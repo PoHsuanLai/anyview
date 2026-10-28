@@ -328,7 +328,7 @@ futures-util = { version = "0.3", default-features = false }
 # dump loader: the syntaxes are packed by dev/syntax-dump, which is no member of this workspace.
 syntect = { version = "5", default-features = false, features = ["parsing", "dump-load", "regex-fancy"] }
 # Markdown parser: MIT.
-pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+pulldown-cmark = { version = "0.13.5", default-features = false, features = ["html"] }
 # Delimited tables: MIT OR Unlicense.
 csv = "1"
 # Spreadsheets (XLSX, ODS, XLS, XLSB) read into cells, pure Rust: MIT.
