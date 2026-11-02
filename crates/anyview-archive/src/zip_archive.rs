@@ -41,7 +41,10 @@ pub(crate) fn list(
         }
         let entry = match archive.by_index_raw(index) {
             Ok(file) => Entry {
-                path: file.name().to_owned(),
+                path: file
+                    .name()
+                    .map_err(|error| ArchiveError::malformed(format, error))?
+                    .into_owned(),
                 kind: kind_of(file.is_dir(), file.unix_mode()),
                 size: Some(ByteLen(file.size())),
             },
@@ -131,8 +134,9 @@ pub fn zip_entries(src: impl Into<Input>, budget: ByteLen) -> Result<ZipEntries,
     let names: Vec<String> = archive
         .file_names()
         .take(COUNT_LIMIT as usize)
-        .map(str::to_owned)
-        .collect();
+        .map(|name| name.map(std::borrow::Cow::into_owned))
+        .collect::<Result<_, _>>()
+        .map_err(|error| ArchiveError::malformed(format, error))?;
     // A `mimetype` that cannot be read is no `mimetype`: the names still say what the zip is.
     let mimetype = archive.by_name("mimetype").ok().and_then(|entry| {
         let mut head = Vec::new();
