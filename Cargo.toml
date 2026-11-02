@@ -332,11 +332,11 @@ pulldown-cmark = { version = "0.13.5", default-features = false, features = ["ht
 # Delimited tables: MIT OR Unlicense.
 csv = "1"
 # Spreadsheets (XLSX, ODS, XLS, XLSB) read into cells, pure Rust: MIT.
-calamine = { version = "0.36", default-features = false }
+calamine = { version = "0.38", default-features = false }
 # `anyview-archive`: the XML parts of an office document that name its title and author: MIT.
 quick-xml = "0.41"
 # `anyview-archive`: listings of zip (central directory only; deflate to extract an entry): MIT.
-zip = { version = "8", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 # Tar archives, read as a stream: `tar` is in the pinned block (MIT OR Apache-2.0), with its default
 # features (a workspace dependency cannot switch them off for one member).
 # gzip streams, pure-Rust backend (already in the tree): MIT OR Apache-2.0.
