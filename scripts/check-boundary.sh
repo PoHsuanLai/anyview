@@ -252,10 +252,12 @@ DIRECT=(
 # more in each: the media host 620 and the pane with its player 621.
 # zip 9 (RUSTSEC-2026-0429) sets file times through nix on macOS and the BSDs (MIT, already in the
 # viewer's tree through peephole): one more in the pane alone: 593. In the headless peek it is two, nix
-# and getrandom 0.4 (zip's own, MIT OR Apache-2.0): 202.
+# and getrandom 0.4 (zip's own, MIT OR Apache-2.0): 202. calamine 0.38 (beside zip 9, as the workbook
+# reader shares its archive) reads its sheets through quick-xml 0.42 (MIT), a second quick-xml beside
+# the one the tree already has: one more in the peek and the viewer: 581 and 721.
 BUDGETS=(
-  "anyview-peek: 580"
-  "anyview: 720"
+  "anyview-peek: 581"
+  "anyview: 721"
   "anyview-machines: 34"
   "anyview-pane: 593"
   "anyview-runtime: 34"
