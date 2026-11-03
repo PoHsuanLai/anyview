@@ -250,15 +250,18 @@ DIRECT=(
 # quire/extensions.toml) and that crate's file watch: ds-behaviour, ds-settings-derive, notify,
 # notify-types, inotify and inotify-sys, all already in every quire app that hosts the pane: eight
 # more in each: the media host 620 and the pane with its player 621.
+# zip 9 (RUSTSEC-2026-0429) sets file times through nix on macOS and the BSDs (MIT, already in the
+# viewer's tree through peephole): one more in the pane alone: 593. In the headless peek it is two, nix
+# and getrandom 0.4 (zip's own, MIT OR Apache-2.0): 202.
 BUDGETS=(
   "anyview-peek: 580"
   "anyview: 720"
   "anyview-machines: 34"
-  "anyview-pane: 592"
+  "anyview-pane: 593"
   "anyview-runtime: 34"
   "anyview-media-host: 620"
 )
-HEADLESS_BUDGET=200
+HEADLESS_BUDGET=202
 # The pane with its `player` feature: what a host that plays recordings in a pane links.
 PANE_PLAYER_FORBIDDEN=(zbus ashpd docket-provider docket-core porter-core prov rsmpv rsmpv-sys ffmpeg-next ffmpeg-sys-next cpal alsa alsa-sys symphonia)
 PANE_PLAYER_BUDGET=621
