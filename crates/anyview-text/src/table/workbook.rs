@@ -73,7 +73,7 @@ fn check_parts(bytes: &Arc<[u8]>, interrupt: &dyn Interrupt) -> Result<(), TextE
             return Err(TextError::Interrupted);
         }
         let entry = zip.by_index_raw(index).map_err(failed)?;
-        let path = entry.name().to_ascii_lowercase();
+        let path = entry.name().map_err(failed)?.to_ascii_lowercase();
         let unpacked_whole = entry.is_file()
             && !path.contains("/worksheets/")
             && [".xml", ".bin", ".rels"]
